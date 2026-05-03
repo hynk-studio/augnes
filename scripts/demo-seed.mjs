@@ -15,6 +15,7 @@ const transitions = [
     temporalScope: "current_project",
     stability: "active",
     changeType: "new_state",
+    operation: "set",
     reason: "The product identity has been committed for the runtime scaffold.",
   },
   {
@@ -26,6 +27,7 @@ const transitions = [
     temporalScope: "current_project",
     stability: "active",
     changeType: "new_state",
+    operation: "set",
     reason: "The initial implementation stack is recorded for continuity.",
   },
   {
@@ -37,6 +39,7 @@ const transitions = [
     temporalScope: "future_phase",
     stability: "tentative",
     changeType: "future_intent",
+    operation: "set",
     reason: "ChatGPT app integration is intentionally deferred to a later phase.",
   },
   {
@@ -48,6 +51,7 @@ const transitions = [
     temporalScope: "current_project",
     stability: "stable",
     changeType: "new_state",
+    operation: "set",
     reason: "Repository policy requires that local secrets stay out of source control.",
   },
   {
@@ -59,6 +63,7 @@ const transitions = [
     temporalScope: "current_project",
     stability: "completed",
     changeType: "completion",
+    operation: "complete",
     reason: "The submission checklist state is complete for the current project.",
   },
   {
@@ -70,6 +75,7 @@ const transitions = [
     temporalScope: "historical_note",
     stability: "deprecated",
     changeType: "deprecation",
+    operation: "deprecate",
     reason: "Augnes should be framed as a temporal state runtime, not chatbot memory.",
   },
 ];
@@ -109,6 +115,7 @@ const insertProposal = db.prepare(`
     state_key,
     before_value,
     after_value,
+    operation,
     temporal_scope,
     valid_from,
     valid_until,
@@ -127,6 +134,7 @@ const insertProposal = db.prepare(`
     @stateKey,
     @beforeValue,
     @afterValue,
+    @operation,
     @temporalScope,
     @validFrom,
     @validUntil,
@@ -135,7 +143,7 @@ const insertProposal = db.prepare(`
     @sourceAgentId,
     @sourceSessionId,
     @reason,
-    'accepted',
+    'committed',
     @committedAt,
     @committedAt
   )
@@ -144,6 +152,7 @@ const insertProposal = db.prepare(`
     state_key = excluded.state_key,
     before_value = excluded.before_value,
     after_value = excluded.after_value,
+    operation = excluded.operation,
     temporal_scope = excluded.temporal_scope,
     valid_from = excluded.valid_from,
     valid_until = excluded.valid_until,
