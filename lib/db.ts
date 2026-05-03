@@ -55,11 +55,61 @@ export type StateTransition = {
   committed_at: string;
 };
 
+export type AgentRecord = {
+  id: string;
+  name: string;
+  kind: string;
+};
+
+export type SessionRecord = {
+  id: string;
+  agent_id: string | null;
+  scope: string;
+  title: string;
+};
+
+export type MessageRecord = {
+  id: string;
+  session_id: string;
+  agent_id: string | null;
+  role: string;
+  content: string;
+  created_at: string;
+};
+
+export type PendingStateDeltaProposalInput = {
+  id: string;
+  scope: string;
+  state_key: string;
+  before_value: StateValue;
+  after_value: StateValue;
+  operation: string;
+  temporal_scope: string;
+  valid_from: string | null;
+  valid_until: string | null;
+  stability: string;
+  change_type: string;
+  source_agent_id: string | null;
+  source_session_id: string | null;
+  reason: string | null;
+  proposed_at: string;
+};
+
+export type StateDeltaProposal = PendingStateDeltaProposalInput & {
+  status: "pending" | "committed" | "rejected";
+  decided_at: string | null;
+};
+
 type EntryRow = Omit<StateEntry, "value"> & {
   value: string;
 };
 
 type TransitionRow = Omit<StateTransition, "before_value" | "after_value"> & {
+  before_value: string | null;
+  after_value: string;
+};
+
+type ProposalRow = Omit<StateDeltaProposal, "before_value" | "after_value"> & {
   before_value: string | null;
   after_value: string;
 };
@@ -86,6 +136,173 @@ export function parseStateValue(value: string | null): StateValue {
     return JSON.parse(value) as StateValue;
   } catch {
     return value;
+  }
+}
+
+export function serializeStateValue(value: StateValue) {
+  return JSON.stringify(value);
+}
+
+export function ensureAgent(agent: AgentRecord) {
+  const db = openDatabase();
+
+  try {
+    db.prepare(
+      `
+        INSERT INTO agents (id, name, kind)
+        VALUES (@id, @name, @kind)
+        ON CONFLICT(id) DO UPDATE SET
+          name = excluded.name,
+          kind = excluded.kind
+      `,
+    ).run(agent);
+  } finally {
+    db.close();
+  }
+}
+
+export function ensureSession(session: SessionRecord) {
+  const db = openDatabase();
+
+  try {
+    db.prepare(
+      `
+        INSERT INTO sessions (id, agent_id, scope, title)
+        VALUES (@id, @agent_id, @scope, @title)
+        ON CONFLICT(id) DO UPDATE SET
+          agent_id = excluded.agent_id,
+          scope = excluded.scope,
+          title = excluded.title
+      `,
+    ).run(session);
+  } finally {
+    db.close();
+  }
+}
+
+export function insertMessage(message: MessageRecord) {
+  const db = openDatabase();
+
+  try {
+    db.prepare(
+      `
+        INSERT INTO messages (
+          id,
+          session_id,
+          agent_id,
+          role,
+          content,
+          created_at
+        )
+        VALUES (
+          @id,
+          @session_id,
+          @agent_id,
+          @role,
+          @content,
+          @created_at
+        )
+      `,
+    ).run(message);
+  } finally {
+    db.close();
+  }
+}
+
+export function insertPendingStateDeltaProposals(
+  proposals: PendingStateDeltaProposalInput[],
+) {
+  if (proposals.length === 0) {
+    return [];
+  }
+
+  const db = openDatabase();
+
+  try {
+    const insert = db.prepare(
+      `
+        INSERT INTO state_delta_proposals (
+          id,
+          scope,
+          state_key,
+          before_value,
+          after_value,
+          operation,
+          temporal_scope,
+          valid_from,
+          valid_until,
+          stability,
+          change_type,
+          source_agent_id,
+          source_session_id,
+          reason,
+          status,
+          proposed_at,
+          decided_at
+        )
+        VALUES (
+          @id,
+          @scope,
+          @state_key,
+          @before_value,
+          @after_value,
+          @operation,
+          @temporal_scope,
+          @valid_from,
+          @valid_until,
+          @stability,
+          @change_type,
+          @source_agent_id,
+          @source_session_id,
+          @reason,
+          'pending',
+          @proposed_at,
+          NULL
+        )
+      `,
+    );
+
+    const savedRows = db.transaction(() => {
+      for (const proposal of proposals) {
+        insert.run({
+          ...proposal,
+          before_value: serializeStateValue(proposal.before_value),
+          after_value: serializeStateValue(proposal.after_value),
+        });
+      }
+
+      return db
+        .prepare(
+          `
+            SELECT
+              id,
+              scope,
+              state_key,
+              before_value,
+              after_value,
+              operation,
+              temporal_scope,
+              valid_from,
+              valid_until,
+              stability,
+              change_type,
+              source_agent_id,
+              source_session_id,
+              reason,
+              status,
+              proposed_at,
+              decided_at
+            FROM state_delta_proposals
+            WHERE id IN (${proposals.map(() => "?").join(", ")})
+            ORDER BY proposed_at ASC, id ASC
+          `,
+        )
+        .all(...proposals.map((proposal) => proposal.id)) as ProposalRow[];
+    })();
+
+    return savedRows.map(parseProposalRow);
+  } finally {
+    db.close();
   }
 }
 
@@ -246,4 +463,13 @@ function isFutureDate(value: string | null) {
 
   const time = Date.parse(value);
   return Number.isFinite(time) && time > Date.now();
+}
+
+function parseProposalRow(row: ProposalRow): StateDeltaProposal {
+  return {
+    ...row,
+    status: row.status as StateDeltaProposal["status"],
+    before_value: parseStateValue(row.before_value),
+    after_value: parseStateValue(row.after_value),
+  };
 }
