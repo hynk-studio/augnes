@@ -331,22 +331,16 @@ export function AugnesCockpit() {
             <div className="trajectory-list">
               {Object.entries(trajectory.trajectories).map(
                 ([stateKey, events]) => (
-                  <article className="trajectory-group" key={stateKey}>
-                    <h3>{stateKey}</h3>
-                    {events.map((event) => (
-                      <div className="trajectory-event" key={event.id}>
-                        <ValueDiff
-                          beforeValue={event.before_value}
-                          afterValue={event.after_value}
-                        />
-                        <div className="meta-row">
-                          <span>{event.change_type}</span>
-                          <span>{event.stability}</span>
-                          <span>{formatDate(event.committed_at)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </article>
+                  <TrajectoryLane
+                    key={stateKey}
+                    stateKey={stateKey}
+                    events={events}
+                    hasOpenTension={
+                      snapshot?.open_tensions.some(
+                        (tension) => tension.state_key === stateKey,
+                      ) ?? false
+                    }
+                  />
                 ),
               )}
             </div>
@@ -473,6 +467,61 @@ function StateGroup({
   );
 }
 
+function TrajectoryLane({
+  stateKey,
+  events,
+  hasOpenTension,
+}: {
+  stateKey: string;
+  events: StateTransition[];
+  hasOpenTension: boolean;
+}) {
+  const orderedEvents = [...events].sort(
+    (first, second) =>
+      new Date(first.committed_at).getTime() -
+      new Date(second.committed_at).getTime(),
+  );
+
+  return (
+    <article
+      className={`trajectory-group${hasOpenTension ? " has-tension" : ""}`}
+    >
+      <div className="trajectory-key">
+        <h3>{stateKey}</h3>
+        <span>{orderedEvents.length} events</span>
+        {hasOpenTension ? <StatusBadge label="open tension" tone="tension" /> : null}
+      </div>
+      <div className="trajectory-track" aria-label={`${stateKey} trajectory`}>
+        {orderedEvents.map((event) => {
+          const tone = getTrajectoryTone(event, hasOpenTension);
+
+          return (
+            <div className={`trajectory-event event-${tone}`} key={event.id}>
+              <div className="timeline-value">
+                <span className="value-node">{formatValue(event.before_value)}</span>
+                <span className="value-arrow" aria-hidden="true">
+                  →
+                </span>
+                <strong className="value-node">
+                  {formatValue(event.after_value)}
+                </strong>
+              </div>
+              <div className="timeline-badges">
+                <StatusBadge label={event.temporal_scope} tone={tone} />
+                <StatusBadge label={event.stability} tone={tone} />
+                <StatusBadge label={event.change_type} tone={tone} />
+              </div>
+              <time dateTime={event.committed_at}>
+                {formatDate(event.committed_at)}
+              </time>
+            </div>
+          );
+        })}
+      </div>
+    </article>
+  );
+}
+
 function ValueDiff({
   beforeValue,
   afterValue,
@@ -494,8 +543,12 @@ function ValueDiff({
   );
 }
 
-function StatusBadge({ label }: { label: string }) {
-  return <span className="status-badge">{label}</span>;
+function StatusBadge({ label, tone }: { label: string; tone?: string }) {
+  return (
+    <span className={`status-badge${tone ? ` badge-${tone}` : ""}`}>
+      {label}
+    </span>
+  );
 }
 
 function EmptyState({ label }: { label: string }) {
@@ -532,6 +585,32 @@ function formatValue(value: StateValue) {
   }
 
   return JSON.stringify(value);
+}
+
+function getTrajectoryTone(event: StateTransition, hasOpenTension: boolean) {
+  if (hasOpenTension) {
+    return "tension";
+  }
+
+  if (
+    event.temporal_scope === "future_phase" ||
+    event.change_type === "future_intent"
+  ) {
+    return "deferred";
+  }
+
+  if (event.stability === "completed" || event.change_type === "completion") {
+    return "complete";
+  }
+
+  if (
+    event.stability === "deprecated" ||
+    event.change_type === "deprecation"
+  ) {
+    return "muted";
+  }
+
+  return "active";
 }
 
 function formatDate(value: string) {
