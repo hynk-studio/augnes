@@ -43,7 +43,7 @@ Conversation
   -> Commit / Reject Gate
   -> Temporal State Ledger
   -> State Snapshot
-  -> State Trajectory View
+  -> Temporal State Graph
   -> State-Grounded Actions
   -> External State Brief
 ```
@@ -61,8 +61,8 @@ The current challenge build includes:
 - Deterministic mock fallbacks when `OPENAI_API_KEY` is unset.
 - Pending Temporal Delta Proposal cards.
 - Commit and reject routes for proposals.
+- A central Temporal State Graph with state-key lanes, transition nodes, and an inspector.
 - A State Snapshot panel grouped by active, future, deprecated, completed, and open tensions.
-- A State Trajectory View grouped by `state_key`.
 - Minimal tension handling that distinguishes contradictions from future-phase temporal layering.
 - A state-grounded planner with OpenAI support and mock fallback.
 - Local tools that create files under `outputs/`.
@@ -119,11 +119,11 @@ The model proposes. The runtime validates. The user decides.
 
 The UI renders these groups in the State Snapshot and Tensions panels.
 
-## State Trajectory View
+## Temporal State Graph
 
 `GET /api/state/trajectory?scope=project:augnes` returns committed transitions grouped by `state_key`.
 
-Each event includes the previous value, new value, temporal scope, stability, change type, source agent/session, reason, and commit time. This makes the project timeline inspectable instead of hiding context behind a single latest value.
+The UI renders those transitions as a time-oriented graph: each `state_key` is a lane, committed transitions are nodes, and repeated transitions for the same state are connected across time. Selecting a node opens an inspector with previous value, new value, temporal scope, stability, change type, reason, and commit time. Pending proposals remain visible as reviewable deltas and can appear as ghost nodes before commit.
 
 Example seeded trajectories:
 
@@ -239,14 +239,14 @@ Never commit `.env.local`, API keys, local secrets, or generated SQLite files.
 ## Final Demo Flow
 
 1. Open `http://localhost:3000`.
-2. Confirm seeded State Snapshot and State Trajectory View load.
-3. Submit the canonical demo message in Chat Cockpit.
+2. Confirm seeded State Snapshot and Temporal State Graph load.
+3. Submit the canonical demo message in Conversation Input.
 4. Confirm multiple pending Temporal Delta Proposals appear.
 5. Commit at least two proposals.
 6. Reject at least one proposal.
 7. Confirm the rejected proposal creates no transition.
 8. Confirm State Snapshot updates.
-9. Confirm State Trajectory View shows committed transitions.
+9. Confirm Temporal State Graph shows committed transitions.
 10. Click Plan Next in State-Grounded Actions.
 11. Run README Checklist.
 12. Confirm `outputs/readme_checklist.md` exists locally.
@@ -297,7 +297,7 @@ curl -s "http://localhost:3000/api/state/brief?scope=project:augnes"
 - The planner can recommend local tools, but it is not a full autonomous agent.
 - There is no MCP server in this challenge build.
 - There is no auth, vector database, or charting library.
-- The State Trajectory View is a lightweight UI, not a full analytics timeline.
+- The Temporal State Graph is a lightweight UI, not a full analytics timeline.
 
 ## Submission Tagline
 

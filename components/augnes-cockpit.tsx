@@ -91,6 +91,12 @@ type Notice = {
   text: string;
 };
 
+type GraphNode = StateTransition & {
+  eventIndex: number;
+  hasOpenTension: boolean;
+  tone: string;
+};
+
 export function AugnesCockpit() {
   const [message, setMessage] = useState(CANONICAL_MESSAGE);
   const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
@@ -99,6 +105,9 @@ export function AugnesCockpit() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [selectedTransitionId, setSelectedTransitionId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     void refreshRuntime();
@@ -114,6 +123,16 @@ export function AugnesCockpit() {
       0,
     );
   }, [trajectory]);
+
+  const selectedTransition = useMemo(() => {
+    const transitions = getOrderedTransitions(trajectory);
+
+    return (
+      transitions.find((transition) => transition.id === selectedTransitionId) ??
+      transitions[transitions.length - 1] ??
+      null
+    );
+  }, [selectedTransitionId, trajectory]);
 
   async function refreshRuntime() {
     const [snapshotResult, trajectoryResult, proposalResult] = await Promise.all([
@@ -231,9 +250,13 @@ export function AugnesCockpit() {
   return (
     <main className="cockpit-shell">
       <header className="cockpit-header">
-        <div>
+        <div className="hero-copy">
           <p className="kicker">Augnes</p>
-          <h1>Temporal State Cockpit</h1>
+          <h1>Temporal State Graph</h1>
+          <p>
+            Conversation becomes proposed state. Committed state becomes a
+            timeline. Actions write back as after-state.
+          </p>
         </div>
         <div className="runtime-strip">
           <span>{SCOPE}</span>
@@ -242,9 +265,41 @@ export function AugnesCockpit() {
         </div>
       </header>
 
+      <nav className="demo-flow-strip" aria-label="Demo flow">
+        {["Observe", "Propose", "Commit", "Timeline", "Act", "Brief"].map(
+          (step, index) => (
+            <div className="demo-flow-step" key={step}>
+              <span>{index + 1}</span>
+              <strong>{step}</strong>
+            </div>
+          ),
+        )}
+      </nav>
+
+      <section
+        className="cockpit-panel graph-panel"
+        aria-label="Temporal state graph"
+      >
+        <PanelHeader eyebrow="Timeline" title="Temporal State Graph" />
+        {trajectory ? (
+          <div className="graph-stage">
+            <TemporalStateGraph
+              trajectory={trajectory}
+              proposals={proposals}
+              tensions={snapshot?.open_tensions ?? []}
+              selectedTransitionId={selectedTransition?.id ?? null}
+              onSelectTransition={setSelectedTransitionId}
+            />
+            <TransitionInspector event={selectedTransition} />
+          </div>
+        ) : (
+          <EmptyState label="Loading temporal graph" />
+        )}
+      </section>
+
       <section className="cockpit-layout" aria-label="Augnes runtime cockpit">
         <section className="cockpit-panel chat-panel">
-          <PanelHeader eyebrow="Input" title="Chat Cockpit" />
+          <PanelHeader eyebrow="Observe" title="Conversation Input" />
           <form onSubmit={observe} className="observe-form">
             <textarea
               value={message}
@@ -264,7 +319,7 @@ export function AugnesCockpit() {
         </section>
 
         <section className="cockpit-panel proposals-panel">
-          <PanelHeader eyebrow="Pending" title="Temporal Delta Proposals" />
+          <PanelHeader eyebrow="Propose" title="Pending State Deltas" />
           <div className="proposal-list">
             {proposals.length === 0 ? (
               <EmptyState label="No pending proposals" />
@@ -325,30 +380,6 @@ export function AugnesCockpit() {
           )}
         </section>
 
-        <section className="cockpit-panel trajectory-panel">
-          <PanelHeader eyebrow="Timeline" title="State Trajectory View" />
-          {trajectory ? (
-            <div className="trajectory-list">
-              {Object.entries(trajectory.trajectories).map(
-                ([stateKey, events]) => (
-                  <TrajectoryLane
-                    key={stateKey}
-                    stateKey={stateKey}
-                    events={events}
-                    hasOpenTension={
-                      snapshot?.open_tensions.some(
-                        (tension) => tension.state_key === stateKey,
-                      ) ?? false
-                    }
-                  />
-                ),
-              )}
-            </div>
-          ) : (
-            <EmptyState label="Loading trajectory" />
-          )}
-        </section>
-
         <section className="cockpit-panel tensions-panel">
           <PanelHeader eyebrow="Review" title="Tensions" />
           {snapshot?.open_tensions.length ? (
@@ -370,7 +401,7 @@ export function AugnesCockpit() {
         </section>
 
         <section className="cockpit-panel actions-panel">
-          <PanelHeader eyebrow="Next" title="State-Grounded Actions" />
+          <PanelHeader eyebrow="Act" title="State-Grounded Actions" />
           <div className="action-controls">
             <button
               type="button"
@@ -467,58 +498,266 @@ function StateGroup({
   );
 }
 
-function TrajectoryLane({
-  stateKey,
-  events,
-  hasOpenTension,
+function TemporalStateGraph({
+  trajectory,
+  proposals,
+  tensions,
+  selectedTransitionId,
+  onSelectTransition,
 }: {
-  stateKey: string;
-  events: StateTransition[];
-  hasOpenTension: boolean;
+  trajectory: TrajectoryResponse;
+  proposals: StateDeltaProposal[];
+  tensions: StateTension[];
+  selectedTransitionId: string | null;
+  onSelectTransition: (id: string) => void;
 }) {
-  const orderedEvents = [...events].sort(
-    (first, second) =>
-      new Date(first.committed_at).getTime() -
-      new Date(second.committed_at).getTime(),
+  const tensionKeys = new Set(
+    tensions
+      .map((tension) => tension.state_key)
+      .filter((stateKey): stateKey is string => Boolean(stateKey)),
   );
+  const orderedTransitions = getOrderedTransitions(trajectory);
+  const transitionOrder = new Map(
+    orderedTransitions.map((transition, index) => [transition.id, index]),
+  );
+  const laneKeys = Array.from(
+    new Set([
+      ...Object.keys(trajectory.trajectories),
+      ...proposals.map((proposal) => proposal.state_key),
+      ...Array.from(tensionKeys),
+    ]),
+  ).sort((first, second) => {
+    const firstOrder = getLaneFirstOrder(first, trajectory, transitionOrder);
+    const secondOrder = getLaneFirstOrder(second, trajectory, transitionOrder);
+    const firstRank = Number.isFinite(firstOrder)
+      ? firstOrder
+      : Number.MAX_SAFE_INTEGER;
+    const secondRank = Number.isFinite(secondOrder)
+      ? secondOrder
+      : Number.MAX_SAFE_INTEGER;
+
+    return firstRank - secondRank || first.localeCompare(second);
+  });
+  const labelWidth = 188;
+  const rightPadding = 88;
+  const topPadding = 54;
+  const laneHeight = 76;
+  const stepWidth = 132;
+  const maxEventIndex = Math.max(orderedTransitions.length - 1, 1);
+  const graphWidth = Math.max(
+    940,
+    labelWidth + rightPadding + (maxEventIndex + 1) * stepWidth,
+  );
+  const graphHeight = topPadding + Math.max(laneKeys.length, 1) * laneHeight + 34;
+  const nodes: GraphNode[] = orderedTransitions.map((transition) => {
+    const hasOpenTension = tensionKeys.has(transition.state_key);
+
+    return {
+      ...transition,
+      eventIndex: transitionOrder.get(transition.id) ?? 0,
+      hasOpenTension,
+      tone: getTrajectoryTone(transition, hasOpenTension),
+    };
+  });
+
+  if (laneKeys.length === 0) {
+    return <EmptyState label="No committed transitions yet" />;
+  }
 
   return (
-    <article
-      className={`trajectory-group${hasOpenTension ? " has-tension" : ""}`}
-    >
-      <div className="trajectory-key">
-        <h3>{stateKey}</h3>
-        <span>{orderedEvents.length} events</span>
-        {hasOpenTension ? <StatusBadge label="open tension" tone="tension" /> : null}
-      </div>
-      <div className="trajectory-track" aria-label={`${stateKey} trajectory`}>
-        {orderedEvents.map((event) => {
-          const tone = getTrajectoryTone(event, hasOpenTension);
+    <div className="graph-scroll" aria-label="Committed temporal state graph">
+      <svg
+        className="temporal-graph"
+        role="img"
+        viewBox={`0 0 ${graphWidth} ${graphHeight}`}
+        width={graphWidth}
+        height={graphHeight}
+        aria-label="State keys laid out by event order"
+      >
+        <line
+          className="graph-axis"
+          x1={labelWidth}
+          x2={graphWidth - rightPadding}
+          y1={24}
+          y2={24}
+        />
+        <text className="axis-label" x={labelWidth} y={17}>
+          earlier
+        </text>
+        <text className="axis-label axis-label-end" x={graphWidth - rightPadding} y={17}>
+          later
+        </text>
+        {orderedTransitions.map((transition, index) => {
+          const x = getNodeX(index, labelWidth, stepWidth);
 
           return (
-            <div className={`trajectory-event event-${tone}`} key={event.id}>
-              <div className="timeline-value">
-                <span className="value-node">{formatValue(event.before_value)}</span>
-                <span className="value-arrow" aria-hidden="true">
-                  →
-                </span>
-                <strong className="value-node">
-                  {formatValue(event.after_value)}
-                </strong>
-              </div>
-              <div className="timeline-badges">
-                <StatusBadge label={event.temporal_scope} tone={tone} />
-                <StatusBadge label={event.stability} tone={tone} />
-                <StatusBadge label={event.change_type} tone={tone} />
-              </div>
-              <time dateTime={event.committed_at}>
-                {formatDate(event.committed_at)}
-              </time>
-            </div>
+            <g className="axis-tick" key={transition.id}>
+              <line x1={x} x2={x} y1={20} y2={31} />
+              <text x={x} y={45}>
+                {index + 1}
+              </text>
+            </g>
           );
         })}
+
+        {laneKeys.map((stateKey, laneIndex) => {
+          const y = getLaneY(laneIndex, topPadding, laneHeight);
+          const laneTransitions = nodes
+            .filter((node) => node.state_key === stateKey)
+            .sort((first, second) => first.eventIndex - second.eventIndex);
+          const laneProposals = proposals.filter(
+            (proposal) => proposal.state_key === stateKey,
+          );
+
+          return (
+            <g className="graph-lane" key={stateKey}>
+              <line
+                className={tensionKeys.has(stateKey) ? "lane-line is-tension" : "lane-line"}
+                x1={labelWidth}
+                x2={graphWidth - rightPadding}
+                y1={y}
+                y2={y}
+              />
+              <text className="lane-label" x={16} y={y - 4}>
+                {stateKey}
+              </text>
+              <text className="lane-count" x={16} y={y + 15}>
+                {laneTransitions.length} committed
+                {laneProposals.length ? ` / ${laneProposals.length} pending` : ""}
+              </text>
+              {laneTransitions.slice(1).map((node, index) => {
+                const previous = laneTransitions[index];
+
+                return (
+                  <line
+                    className={`node-connector connector-${node.tone}`}
+                    key={`${previous.id}-${node.id}`}
+                    x1={getNodeX(previous.eventIndex, labelWidth, stepWidth)}
+                    x2={getNodeX(node.eventIndex, labelWidth, stepWidth)}
+                    y1={y}
+                    y2={y}
+                  />
+                );
+              })}
+              {laneTransitions.map((node) => (
+                <GraphTransitionNode
+                  key={node.id}
+                  node={node}
+                  x={getNodeX(node.eventIndex, labelWidth, stepWidth)}
+                  y={y}
+                  selected={node.id === selectedTransitionId}
+                  onSelectTransition={onSelectTransition}
+                />
+              ))}
+              {laneProposals.slice(0, 3).map((proposal, index) => {
+                const ghostX = Math.min(
+                  graphWidth - rightPadding - 12,
+                  getNodeX(maxEventIndex + 1, labelWidth, stepWidth) +
+                    index * 32,
+                );
+
+                return (
+                  <g className="pending-ghost-node" key={proposal.id}>
+                    <circle cx={ghostX} cy={y} r={8} />
+                    <text x={ghostX + 13} y={y + 4}>
+                      pending
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function GraphTransitionNode({
+  node,
+  x,
+  y,
+  selected,
+  onSelectTransition,
+}: {
+  node: GraphNode;
+  x: number;
+  y: number;
+  selected: boolean;
+  onSelectTransition: (id: string) => void;
+}) {
+  function selectNode() {
+    onSelectTransition(node.id);
+  }
+
+  return (
+    <g
+      className={`graph-node node-${node.tone}${selected ? " is-selected" : ""}`}
+      role="button"
+      tabIndex={0}
+      onClick={selectNode}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectNode();
+        }
+      }}
+    >
+      <title>
+        {node.state_key}: {formatValue(node.before_value)} to{" "}
+        {formatValue(node.after_value)}
+      </title>
+      <circle cx={x} cy={y} r={10} />
+      {node.tone === "complete" ? (
+        <path d={`M ${x - 5} ${y} L ${x - 1} ${y + 4} L ${x + 6} ${y - 5}`} />
+      ) : null}
+      {node.tone === "tension" ? (
+        <text className="warning-mark" x={x} y={y + 4}>
+          !
+        </text>
+      ) : null}
+      <text className="node-label" x={x + 15} y={y - 7}>
+        {truncateLabel(formatValue(node.after_value), 22)}
+      </text>
+      <text className="node-time" x={x + 15} y={y + 10}>
+        {formatDate(node.committed_at)}
+      </text>
+    </g>
+  );
+}
+
+function TransitionInspector({ event }: { event: StateTransition | null }) {
+  if (!event) {
+    return (
+      <aside className="graph-inspector">
+        <PanelHeader eyebrow="Inspect" title="Selected Transition" />
+        <EmptyState label="Select a graph node" />
+      </aside>
+    );
+  }
+
+  const tone = getTrajectoryTone(event, false);
+
+  return (
+    <aside className="graph-inspector">
+      <PanelHeader eyebrow="Inspect" title="Selected Transition" />
+      <div className="inspector-stack">
+        <div className="inspector-heading">
+          <h3>{event.state_key}</h3>
+          <time dateTime={event.committed_at}>{formatDate(event.committed_at)}</time>
+        </div>
+        <ValueDiff
+          beforeValue={event.before_value}
+          afterValue={event.after_value}
+        />
+        <div className="timeline-badges">
+          <StatusBadge label={event.temporal_scope} tone={tone} />
+          <StatusBadge label={event.stability} tone={tone} />
+          <StatusBadge label={event.change_type} tone={tone} />
+        </div>
+        {event.reason ? <p className="inspector-reason">{event.reason}</p> : null}
       </div>
-    </article>
+    </aside>
   );
 }
 
@@ -579,6 +818,39 @@ function getErrorMessage(value: unknown) {
   return "Request failed";
 }
 
+function getOrderedTransitions(trajectory: TrajectoryResponse | null) {
+  if (!trajectory) {
+    return [];
+  }
+
+  return Object.values(trajectory.trajectories)
+    .flat()
+    .sort(
+      (first, second) =>
+        new Date(first.committed_at).getTime() -
+        new Date(second.committed_at).getTime(),
+    );
+}
+
+function getLaneFirstOrder(
+  stateKey: string,
+  trajectory: TrajectoryResponse,
+  transitionOrder: Map<string, number>,
+) {
+  const events = trajectory.trajectories[stateKey] ?? [];
+  const orders = events.map((event) => transitionOrder.get(event.id) ?? Infinity);
+
+  return Math.min(...orders, Infinity);
+}
+
+function getNodeX(eventIndex: number, labelWidth: number, stepWidth: number) {
+  return labelWidth + 54 + eventIndex * stepWidth;
+}
+
+function getLaneY(laneIndex: number, topPadding: number, laneHeight: number) {
+  return topPadding + laneIndex * laneHeight;
+}
+
 function formatValue(value: StateValue) {
   if (typeof value === "string") {
     return value;
@@ -620,4 +892,12 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function truncateLabel(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength - 1)}...`;
 }
