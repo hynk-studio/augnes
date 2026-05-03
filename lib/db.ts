@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
@@ -112,6 +113,13 @@ type TransitionRow = Omit<StateTransition, "before_value" | "after_value"> & {
 type ProposalRow = Omit<StateDeltaProposal, "before_value" | "after_value"> & {
   before_value: string | null;
   after_value: string;
+};
+
+type ProposalCommitResult = {
+  proposal: StateDeltaProposal;
+  entry: StateEntry;
+  transition: StateTransition;
+  tension: StateTension | null;
 };
 
 export function getDatabasePath() {
@@ -306,6 +314,335 @@ export function insertPendingStateDeltaProposals(
   }
 }
 
+export function listStateDeltaProposals({
+  scope,
+  status,
+}: {
+  scope: string;
+  status?: StateDeltaProposal["status"];
+}) {
+  const db = openDatabase();
+
+  try {
+    const params: string[] = [scope];
+    let statusClause = "";
+
+    if (status) {
+      statusClause = "AND status = ?";
+      params.push(status);
+    }
+
+    const rows = db
+      .prepare(
+        `
+          SELECT
+            id,
+            scope,
+            state_key,
+            before_value,
+            after_value,
+            operation,
+            temporal_scope,
+            valid_from,
+            valid_until,
+            stability,
+            change_type,
+            source_agent_id,
+            source_session_id,
+            reason,
+            status,
+            proposed_at,
+            decided_at
+          FROM state_delta_proposals
+          WHERE scope = ?
+          ${statusClause}
+          ORDER BY proposed_at DESC, id ASC
+        `,
+      )
+      .all(...params) as ProposalRow[];
+
+    return rows.map(parseProposalRow);
+  } finally {
+    db.close();
+  }
+}
+
+export function commitStateDeltaProposal(id: string): ProposalCommitResult {
+  const db = openDatabase();
+
+  try {
+    return db.transaction(() => {
+      const proposalRow = selectProposalRow(db, id);
+
+      if (!proposalRow) {
+        throw new Error("Proposal not found.");
+      }
+
+      if (proposalRow.status !== "pending") {
+        throw new Error(`Proposal is already ${proposalRow.status}.`);
+      }
+
+      const proposal = parseProposalRow(proposalRow);
+      const now = new Date().toISOString();
+      const transitionId = `transition:${randomUUID()}`;
+      const entryId = `entry:${proposal.scope}:${proposal.state_key}`;
+      const currentEntryRow = db
+        .prepare(
+          `
+            SELECT
+              id,
+              scope,
+              state_key,
+              value,
+              temporal_scope,
+              valid_from,
+              valid_until,
+              stability,
+              change_type,
+              source_agent_id,
+              source_session_id,
+              source_transition_id,
+              created_at,
+              updated_at
+            FROM state_entries
+            WHERE scope = ? AND state_key = ?
+          `,
+        )
+        .get(proposal.scope, proposal.state_key) as EntryRow | undefined;
+      const actualBeforeValue = currentEntryRow
+        ? parseStateValue(currentEntryRow.value)
+        : proposal.before_value;
+      const beforeValue = serializeStateValue(actualBeforeValue);
+      const afterValue = serializeStateValue(proposal.after_value);
+
+      db.prepare(
+        `
+          INSERT INTO state_transitions (
+            id,
+            scope,
+            state_key,
+            before_value,
+            after_value,
+            temporal_scope,
+            valid_from,
+            valid_until,
+            stability,
+            change_type,
+            source_agent_id,
+            source_session_id,
+            source_proposal_id,
+            reason,
+            committed_at
+          )
+          VALUES (
+            @id,
+            @scope,
+            @state_key,
+            @before_value,
+            @after_value,
+            @temporal_scope,
+            @valid_from,
+            @valid_until,
+            @stability,
+            @change_type,
+            @source_agent_id,
+            @source_session_id,
+            @source_proposal_id,
+            @reason,
+            @committed_at
+          )
+        `,
+      ).run({
+        id: transitionId,
+        scope: proposal.scope,
+        state_key: proposal.state_key,
+        before_value: beforeValue,
+        after_value: afterValue,
+        temporal_scope: proposal.temporal_scope,
+        valid_from: proposal.valid_from,
+        valid_until: proposal.valid_until,
+        stability: proposal.stability,
+        change_type: proposal.change_type,
+        source_agent_id: proposal.source_agent_id,
+        source_session_id: proposal.source_session_id,
+        source_proposal_id: proposal.id,
+        reason: proposal.reason,
+        committed_at: now,
+      });
+
+      db.prepare(
+        `
+          INSERT INTO state_entries (
+            id,
+            scope,
+            state_key,
+            value,
+            temporal_scope,
+            valid_from,
+            valid_until,
+            stability,
+            change_type,
+            source_agent_id,
+            source_session_id,
+            source_transition_id,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            @id,
+            @scope,
+            @state_key,
+            @value,
+            @temporal_scope,
+            @valid_from,
+            @valid_until,
+            @stability,
+            @change_type,
+            @source_agent_id,
+            @source_session_id,
+            @source_transition_id,
+            @created_at,
+            @updated_at
+          )
+          ON CONFLICT(scope, state_key) DO UPDATE SET
+            value = excluded.value,
+            temporal_scope = excluded.temporal_scope,
+            valid_from = excluded.valid_from,
+            valid_until = excluded.valid_until,
+            stability = excluded.stability,
+            change_type = excluded.change_type,
+            source_agent_id = excluded.source_agent_id,
+            source_session_id = excluded.source_session_id,
+            source_transition_id = excluded.source_transition_id,
+            updated_at = excluded.updated_at
+        `,
+      ).run({
+        id: entryId,
+        scope: proposal.scope,
+        state_key: proposal.state_key,
+        value: afterValue,
+        temporal_scope: proposal.temporal_scope,
+        valid_from: proposal.valid_from,
+        valid_until: proposal.valid_until,
+        stability: proposal.stability,
+        change_type: proposal.change_type,
+        source_agent_id: proposal.source_agent_id,
+        source_session_id: proposal.source_session_id,
+        source_transition_id: transitionId,
+        created_at: now,
+        updated_at: now,
+      });
+
+      db.prepare(
+        `
+          UPDATE state_delta_proposals
+          SET status = 'committed', decided_at = ?
+          WHERE id = ?
+        `,
+      ).run(now, proposal.id);
+
+      const tension = maybeInsertContradictionTension({
+        db,
+        proposal,
+        currentEntryRow,
+        actualBeforeValue,
+        now,
+      });
+      const committedProposal = parseProposalRow(
+        selectProposalRow(db, proposal.id) as ProposalRow,
+      );
+      const entry = parseEntryRow(
+        db
+          .prepare(
+            `
+              SELECT
+                id,
+                scope,
+                state_key,
+                value,
+                temporal_scope,
+                valid_from,
+                valid_until,
+                stability,
+                change_type,
+                source_agent_id,
+                source_session_id,
+                source_transition_id,
+                created_at,
+                updated_at
+              FROM state_entries
+              WHERE scope = ? AND state_key = ?
+            `,
+          )
+          .get(proposal.scope, proposal.state_key) as EntryRow,
+      );
+      const transition = parseTransitionRow(
+        db
+          .prepare(
+            `
+              SELECT
+                id,
+                state_key,
+                before_value,
+                after_value,
+                temporal_scope,
+                valid_from,
+                valid_until,
+                stability,
+                change_type,
+                source_agent_id,
+                source_session_id,
+                reason,
+                committed_at
+              FROM state_transitions
+              WHERE id = ?
+            `,
+          )
+          .get(transitionId) as TransitionRow,
+      );
+
+      return {
+        proposal: committedProposal,
+        entry,
+        transition,
+        tension,
+      };
+    })();
+  } finally {
+    db.close();
+  }
+}
+
+export function rejectStateDeltaProposal(id: string) {
+  const db = openDatabase();
+
+  try {
+    return db.transaction(() => {
+      const proposalRow = selectProposalRow(db, id);
+
+      if (!proposalRow) {
+        throw new Error("Proposal not found.");
+      }
+
+      if (proposalRow.status !== "pending") {
+        throw new Error(`Proposal is already ${proposalRow.status}.`);
+      }
+
+      db.prepare(
+        `
+          UPDATE state_delta_proposals
+          SET status = 'rejected', decided_at = ?
+          WHERE id = ?
+        `,
+      ).run(new Date().toISOString(), id);
+
+      return parseProposalRow(selectProposalRow(db, id) as ProposalRow);
+    })();
+  } finally {
+    db.close();
+  }
+}
+
 export function listStateEntries(scope: string): StateEntry[] {
   const db = openDatabase();
 
@@ -335,10 +672,7 @@ export function listStateEntries(scope: string): StateEntry[] {
       )
       .all(scope) as EntryRow[];
 
-    return rows.map((row) => ({
-      ...row,
-      value: parseStateValue(row.value),
-    }));
+    return rows.map(parseEntryRow);
   } finally {
     db.close();
   }
@@ -402,11 +736,7 @@ export function listStateTransitions(scope: string): StateTransition[] {
       )
       .all(scope) as TransitionRow[];
 
-    return rows.map((row) => ({
-      ...row,
-      before_value: parseStateValue(row.before_value),
-      after_value: parseStateValue(row.after_value),
-    }));
+    return rows.map(parseTransitionRow);
   } finally {
     db.close();
   }
@@ -472,4 +802,149 @@ function parseProposalRow(row: ProposalRow): StateDeltaProposal {
     before_value: parseStateValue(row.before_value),
     after_value: parseStateValue(row.after_value),
   };
+}
+
+function parseEntryRow(row: EntryRow): StateEntry {
+  return {
+    ...row,
+    value: parseStateValue(row.value),
+  };
+}
+
+function parseTransitionRow(row: TransitionRow): StateTransition {
+  return {
+    ...row,
+    before_value: parseStateValue(row.before_value),
+    after_value: parseStateValue(row.after_value),
+  };
+}
+
+function selectProposalRow(db: Database.Database, id: string) {
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          scope,
+          state_key,
+          before_value,
+          after_value,
+          operation,
+          temporal_scope,
+          valid_from,
+          valid_until,
+          stability,
+          change_type,
+          source_agent_id,
+          source_session_id,
+          reason,
+          status,
+          proposed_at,
+          decided_at
+        FROM state_delta_proposals
+        WHERE id = ?
+      `,
+    )
+    .get(id) as ProposalRow | undefined;
+}
+
+function maybeInsertContradictionTension({
+  db,
+  proposal,
+  currentEntryRow,
+  actualBeforeValue,
+  now,
+}: {
+  db: Database.Database;
+  proposal: StateDeltaProposal;
+  currentEntryRow: EntryRow | undefined;
+  actualBeforeValue: StateValue;
+  now: string;
+}) {
+  const currentEntry = currentEntryRow ? parseEntryRow(currentEntryRow) : null;
+  const hasActiveCurrentEntry =
+    currentEntry !== null && isActiveState(currentEntry);
+  const hasStaleBefore =
+    serializeStateValue(actualBeforeValue) !==
+    serializeStateValue(proposal.before_value);
+  const hasActiveContradiction =
+    hasActiveCurrentEntry &&
+    serializeStateValue(currentEntry.value) !==
+      serializeStateValue(proposal.after_value);
+
+  if (
+    !hasActiveCurrentEntry ||
+    proposal.temporal_scope === "future_phase" ||
+    proposal.change_type === "future_intent" ||
+    (!hasActiveContradiction && !hasStaleBefore)
+  ) {
+    return null;
+  }
+
+  const tensionId = `tension:${randomUUID()}`;
+  const title = hasActiveContradiction
+    ? `Active contradiction committed for ${proposal.state_key}`
+    : `Stale proposal committed for ${proposal.state_key}`;
+  const description = hasActiveContradiction
+    ? "The committed proposal differs from the existing active state for the same key."
+    : "The proposal was based on an older before_value than the current committed state at commit time.";
+
+  db.prepare(
+    `
+      INSERT INTO state_tensions (
+        id,
+        scope,
+        state_key,
+        title,
+        description,
+        status,
+        severity,
+        source_agent_id,
+        source_session_id,
+        created_at
+      )
+      VALUES (
+        @id,
+        @scope,
+        @state_key,
+        @title,
+        @description,
+        'open',
+        'medium',
+        @source_agent_id,
+        @source_session_id,
+        @created_at
+      )
+    `,
+  ).run({
+    id: tensionId,
+    scope: proposal.scope,
+    state_key: proposal.state_key,
+    title,
+    description,
+    source_agent_id: proposal.source_agent_id,
+    source_session_id: proposal.source_session_id,
+    created_at: now,
+  });
+
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          scope,
+          state_key,
+          title,
+          description,
+          status,
+          severity,
+          source_agent_id,
+          source_session_id,
+          created_at,
+          resolved_at
+        FROM state_tensions
+        WHERE id = ?
+      `,
+    )
+    .get(tensionId) as StateTension;
 }
