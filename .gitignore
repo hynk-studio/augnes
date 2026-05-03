@@ -24,6 +24,8 @@ pnpm-debug.log*
 .DS_Store
 
 # generated local artifacts
+data/*.db
+data/*.db-*
 outputs/*
 !outputs/.gitkeep
 screenshots/*
