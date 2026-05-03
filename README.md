@@ -2,369 +2,218 @@
 
 ## Temporal State Trajectories for AI Work
 
-Augnes is not a chatbot with memory. It is a temporal state runtime for AI-assisted work.
-
-The user steers from a ChatGPT-like cockpit. OpenAI APIs interpret natural language and propose typed, time-aware state deltas. The Augnes runtime validates those deltas, detects tensions, asks for commit/reject, records accepted transitions in a ledger, and visualizes each state key as a trajectory over time.
+Augnes is a temporal state runtime for AI-assisted work. It is not a chatbot with memory, and it is not a prompt wrapper. It turns conversation into typed, time-aware state delta proposals, lets the user commit or reject those proposals, records accepted transitions in a local SQLite ledger, and shows how project state changes over time.
 
 > The model interprets. The runtime owns state. The timeline shows how work evolves.
 
----
+## What Augnes Is
 
-## Status
-
-This repository is the first public challenge build of Augnes.
-
-The initial goal is to demonstrate the core loop:
-
-```text
-Conversation
-  -> Temporal State Delta Proposal
-  -> Runtime Validation
-  -> Commit / Reject Gate
-  -> Temporal State Ledger
-  -> State Trajectory View
-  -> State-Grounded Action
-  -> After-Action Delta
-  -> External Agent State Brief
-```
-
-This is intentionally scoped as a small, inspectable build rather than a full agent framework. Humanity may survive one more MVP if we keep the scope from eating the house.
-
----
-
-## What Augnes Builds
-
-Most AI memory tools answer:
-
-> What should the agent remember?
-
-Augnes asks:
-
-> When did this become true, what did it replace, how stable is it, and how does it affect future action?
-
-Augnes treats memory as governed state transition, not passive recall.
-
-A model cannot directly mutate persistent state. It can only propose a typed state delta. The runtime validates the proposal, detects tensions with committed state, asks for commit/reject, records accepted transitions in a ledger, and visualizes the resulting state trajectory.
-
----
-
-## Core Concepts
-
-### 1. Temporal State Delta Proposal
-
-A proposed change to operational state.
-
-Example:
+Augnes treats working context as governed state, not passive memory. A user can describe goals, constraints, future plans, security rules, and completion signals in natural language. Augnes converts that input into structured temporal state changes such as:
 
 ```json
 {
   "scope": "project:augnes",
-  "state_key": "submission.requires_readme",
+  "state_key": "submission.requires_screenshots",
   "operation": "set",
   "before_value": "unknown",
   "after_value": true,
-  "temporal_scope": "until_deadline",
-  "valid_from": "2026-05-02T18:00:00+09:00",
-  "valid_until": "2026-05-16T16:00:00+09:00",
-  "stability": "active",
+  "temporal_scope": "current_project",
+  "stability": "tentative",
   "change_type": "new_state",
-  "confidence": 0.97,
-  "reason": "The challenge requires a README for submission.",
   "status": "pending"
 }
 ```
 
-### 2. Commit / Reject Gate
-
-OpenAI models propose state changes. Augnes does not blindly save them.
-
-```text
-Model proposes.
-Runtime validates.
-User commits.
-Ledger records.
-Trajectory visualizes.
-```
-
-### 3. Temporal State Ledger
-
-Every committed transition records:
-
-- state key
-- before value
-- after value
-- temporal scope
-- valid-from / valid-until
-- stability
-- change type
-- source session
-- source agent
-- reason
-- committed timestamp
-
-### 4. State Trajectory View
-
-Augnes does not only show the latest state. It shows how each state key evolves over time.
-
-```text
-submission.requires_screenshots
-unknown --- true --- ⚠ tension --- encouraged --- completed
-          Session 1  Session 2     resolved       action result
-```
-
-This is the main product surface. The point is not merely remembering a fact, but seeing the state trajectory that produced the current working context.
-
-### 5. Tension vs Temporal Layering
-
-Not every mismatch is a contradiction.
-
-Example:
-
-```text
-Current phase:
-integration.github_api = excluded_for_mvp
-
-Future phase:
-integration.github_api = planned_after_challenge
-```
-
-Augnes should treat this as temporal layering, not a conflict.
-
-A real tension looks more like:
-
-```text
-Existing active state:
-security.no_api_keys_in_repo = true
-
-Incoming proposal:
-security.allow_test_api_key_in_repo = true
-```
-
-### 6. External Agent State Brief
-
-Augnes can expose a compact state brief for Codex or other external agents.
-
-Example:
-
-```json
-{
-  "runtime": "augnes",
-  "scope": "project:augnes",
-  "as_of": "2026-05-11T21:00:00+09:00",
-  "active_state": {
-    "product.name": "Augnes",
-    "implementation.stack": "Next.js + SQLite + OpenAI API",
-    "security.no_api_keys_in_repo": true
-  },
-  "future_state": {
-    "integration.chatgpt_app": "planned_after_challenge"
-  },
-  "open_tensions": [],
-  "agent_instructions": [
-    "Do not commit API keys.",
-    "Focus on README and screenshots before future integrations."
-  ]
-}
-```
-
----
+Those proposals are not committed automatically. The runtime validates them, shows them as pending changes, and only records them in committed state after the user accepts them.
 
 ## Why This Is Not a Prompt Wrapper
 
-A prompt wrapper usually follows this shape:
+A prompt wrapper usually follows this flow:
 
 ```text
 User input -> Model response -> UI output
 ```
 
-Augnes follows a different shape:
+Augnes follows a runtime flow:
 
 ```text
-User input
-  -> OpenAI temporal interpretation
-  -> Typed state delta proposals
-  -> Runtime validation
-  -> Commit/reject gate
-  -> Temporal state ledger
-  -> State trajectory visualization
-  -> State-grounded action
-  -> After-action state update
+Conversation
+  -> Temporal State Delta Proposals
+  -> Runtime Validation
+  -> Commit / Reject Gate
+  -> Temporal State Ledger
+  -> State Snapshot
+  -> State Trajectory View
+  -> State-Grounded Actions
+  -> External State Brief
 ```
 
-The prompt does not define the agent. The committed state does.
+The prompt does not define durable context. Committed state does.
 
----
+## Implemented MVP
+
+The current challenge build includes:
+
+- A Next.js cockpit UI.
+- A local SQLite temporal state runtime.
+- `POST /api/observe` for temporal delta proposal generation.
+- OpenAI Responses API support when `OPENAI_API_KEY` is set.
+- Deterministic mock fallbacks when `OPENAI_API_KEY` is unset.
+- Pending Temporal Delta Proposal cards.
+- Commit and reject routes for proposals.
+- A State Snapshot panel grouped by active, future, deprecated, completed, and open tensions.
+- A State Trajectory View grouped by `state_key`.
+- Minimal tension handling that distinguishes contradictions from future-phase temporal layering.
+- A state-grounded planner with OpenAI support and mock fallback.
+- Local tools that create files under `outputs/`.
+- Action records and after-action state transitions.
+- `GET /api/state/brief` for Codex or other external agents.
 
 ## How Augnes Uses OpenAI APIs
 
-OpenAI APIs are used as the semantic engine of the runtime.
+OpenAI APIs are used for interpretation, not direct mutation.
 
-### 1. Temporal Delta Compiler
+`POST /api/observe` asks the model to compile natural language into typed temporal state delta proposals. The output is validated against runtime enums before it is saved as pending state.
 
-OpenAI models convert natural language into typed, time-aware state delta proposals.
+`POST /api/plan` asks the model to recommend actions grounded in committed state. The planner receives active, future, completed, deprecated, and tension state so it can avoid treating future work as current work.
 
-The output includes:
+Local demos do not require an API key. If `OPENAI_API_KEY` is missing, Augnes uses deterministic mock behavior for observe and planner flows so the full demo remains runnable from a clean checkout.
 
+## Temporal State Delta Proposals
+
+Each proposal includes:
+
+- `scope`
 - `state_key`
 - `before_value`
 - `after_value`
+- `operation`
 - `temporal_scope`
+- `valid_from`
+- `valid_until`
 - `stability`
 - `change_type`
 - `reason`
-- `confidence`
+- `status`
 
-### 2. Time-Aware Planner
+Recommended temporal values include `current_project`, `future_phase`, `historical_note`, and `global_preference`. Stability values include `tentative`, `active`, `stable`, `deprecated`, and `completed`.
 
-OpenAI models read committed active/future/deprecated/completed state and recommend next actions.
+## Commit / Reject Gate
 
-The planner must explain:
+The model proposes. The runtime validates. The user decides.
 
-- what action is recommended
-- which committed state entries ground the recommendation
-- why future-phase work should or should not be deferred
+- Commit writes to `state_entries` and `state_transitions`.
+- Reject only updates the proposal status.
+- Rejected proposals do not create committed transitions.
+- Future-phase proposals can coexist with active current state without creating contradiction tensions.
 
-### 3. Action Reflection
+## State Snapshot
 
-After a local tool or external agent records a result, Augnes can convert that result into an after-action state delta.
+`GET /api/state/snapshot?scope=project:augnes` returns committed state grouped as:
+
+- `active_state`
+- `future_state`
+- `deprecated_state`
+- `completed_state`
+- `open_tensions`
+
+The UI renders these groups in the State Snapshot and Tensions panels.
+
+## State Trajectory View
+
+`GET /api/state/trajectory?scope=project:augnes` returns committed transitions grouped by `state_key`.
+
+Each event includes the previous value, new value, temporal scope, stability, change type, source agent/session, reason, and commit time. This makes the project timeline inspectable instead of hiding context behind a single latest value.
+
+Example seeded trajectories:
+
+```text
+product.name
+unknown -> Augnes
+
+integration.chatgpt_app
+unknown -> planned_after_challenge
+
+submission.readme_checklist_created
+false -> true
+```
+
+## Tension vs Temporal Layering
+
+Augnes treats active contradictions differently from future plans.
+
+This is temporal layering, not a contradiction:
+
+```text
+current_project: integration.chatgpt_app = not_now
+future_phase:   integration.chatgpt_app = planned_after_challenge
+```
+
+This can create a tension:
+
+```text
+current_project: security.no_api_keys_in_repo = true
+incoming active proposal: security.no_api_keys_in_repo = false
+```
+
+Tensions are recorded for review. They do not block commits in the MVP.
+
+## Planner
+
+`POST /api/plan` returns state-grounded recommendations. It uses committed state and open tensions to recommend next actions and identify local tools that can help.
 
 Example:
 
-```text
-repo.readme_created: false -> true
-COMPLETION · ACTIVE
+```bash
+curl -s -X POST "http://localhost:3000/api/plan" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"project:augnes","message":"What should I do next?"}'
 ```
 
----
+## Local Tools
 
-## Planned MVP Features
+`POST /api/actions/run` can run small local tools:
 
-### P0
+- `create_readme_checklist`
+- `create_security_checklist`
+- `create_demo_script`
 
-- [ ] Next.js Web UI
-- [ ] SQLite state ledger
-- [ ] OpenAI-powered temporal state delta proposals
-- [ ] Commit / reject gate
-- [ ] State Snapshot as-of-now
-- [ ] State Trajectory View
-- [ ] Tension detection vs temporal layering
-- [x] Time-aware planner
-- [x] Local tools that generate files in `outputs/`
-- [x] After-action temporal deltas
-- [ ] README and screenshots
+Tool outputs are generated under `outputs/`, which is intentionally ignored by git. Successful tool runs create action records and after-action state transitions.
 
-### P1
+Example:
 
-- [x] `/api/state/brief` for Codex or other external agents
-- [x] `/api/actions/record` for external action results
-- [x] Demo script for external agent state continuity
-
-### P2
-
-- [ ] Local MCP server
-- [ ] `augnes_get_state_brief`
-- [ ] `augnes_record_action_result`
-- [ ] Codex MCP config example
-
----
-
-## Proposed Architecture
-
-```text
-┌──────────────────────────────────────┐
-│ Chat Cockpit                          │
-│ - user intent                         │
-│ - OpenAI temporal interpretation      │
-└──────────────────────────────────────┘
-                  ↓
-┌──────────────────────────────────────┐
-│ Temporal Delta Compiler               │
-│ - state_key                           │
-│ - before / after                      │
-│ - temporal_scope                      │
-│ - stability                           │
-│ - change_type                         │
-└──────────────────────────────────────┘
-                  ↓
-┌──────────────────────────────────────┐
-│ Augnes Runtime                        │
-│ - validation                          │
-│ - commit/reject gate                  │
-│ - tension detection                   │
-│ - temporal layering                   │
-└──────────────────────────────────────┘
-                  ↓
-┌──────────────────────────────────────┐
-│ Temporal State Ledger                 │
-│ - transitions                         │
-│ - active/future/deprecated/completed  │
-│ - sessions                            │
-│ - agents                              │
-└──────────────────────────────────────┘
-                  ↓
-┌──────────────────────────────────────┐
-│ State Trajectory View                 │
-│ - unknown -> active                   │
-│ - active -> tension                   │
-│ - tension -> resolved                 │
-│ - active -> completed                 │
-│ - active -> deprecated                │
-└──────────────────────────────────────┘
-                  ↓
-┌──────────────────────────────────────┐
-│ Agent Brief / Actions                 │
-│ - Codex-readable state brief          │
-│ - state-grounded planner              │
-│ - action records                      │
-│ - after-action deltas                 │
-└──────────────────────────────────────┘
+```bash
+curl -s -X POST "http://localhost:3000/api/actions/run" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"project:augnes","tool_name":"create_readme_checklist"}'
 ```
 
----
+## External State Brief
 
-## Demo Flow
+`GET /api/state/brief?scope=project:augnes` returns compact continuity context for Codex or another external agent.
 
-The challenge demo should show:
+The brief includes:
 
-1. User describes project goals, constraints, and future plans.
-2. Augnes uses OpenAI APIs to propose temporal state deltas.
-3. User commits selected deltas.
-4. The State Trajectory View shows how each state evolves over time.
-5. The planner recommends actions grounded in active state while deferring future-phase work.
-6. A real tension is detected when a new proposal conflicts with stable active state.
-7. A local tool generates checklist files.
-8. The tool result becomes an after-action delta on the timeline.
-9. A compact state brief is available for Codex or another external agent.
+- `runtime: "augnes"`
+- `scope`
+- `as_of`
+- `active_state`
+- `future_state`
+- `deprecated_state`
+- `completed_state`
+- `open_tensions`
+- `pending_proposals`
+- `recent_actions`
+- `agent_instructions`
 
-Example trajectory:
+Agent instructions include:
 
-```text
-security.no_api_keys_in_repo
-unknown --- true --- ⚠ tension
-          commit     incoming unsafe proposal
-
-integration.chatgpt_app
-unknown ---------------- planned_after_challenge
-                         future phase
-
-submission.readme_checklist_created
-false ------------------ true
-                         after-action delta
-```
-
----
-
-## Initial Tech Stack
-
-- Next.js
-- TypeScript
-- SQLite
-- OpenAI API
-- Zod or equivalent schema validation
-- Local file tools
-- Optional MCP server later
-
----
+- Treat committed state as the source of truth.
+- Use pending proposals as suggestions only.
+- Respect future-phase work as deferred unless the user changes priority.
+- Surface open tensions before depending on contested state.
+- Record external work through `POST /api/actions/record`.
+- Do not commit API keys or local secrets.
 
 ## How to Run
 
@@ -376,29 +225,51 @@ npm run demo:seed
 npm run dev -- --port 3000
 ```
 
-Environment variables:
+Then open `http://localhost:3000`.
+
+`OPENAI_API_KEY` is optional for local demo because mock fallbacks exist. To use OpenAI-backed observe and planner calls, set:
 
 ```bash
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-No API keys should be committed to this repository. Apparently we still need to say this out loud because civilization remains fragile.
+Never commit `.env.local`, API keys, local secrets, or generated SQLite files.
 
-## Final Demo Loop
+## Final Demo Flow
 
 1. Open `http://localhost:3000`.
-2. Submit the canonical demo message in Chat Cockpit.
-3. Review pending temporal delta proposals.
-4. Commit stable proposals and reject unsupported ones.
-5. Trigger the planner in State-Grounded Actions.
-6. Run `create_readme_checklist` to generate `outputs/readme_checklist.md`.
-7. Confirm the action record and after-action transition in snapshot and trajectory.
-8. Fetch `/api/state/brief?scope=project:augnes` for Codex or another external agent.
+2. Confirm seeded State Snapshot and State Trajectory View load.
+3. Submit the canonical demo message in Chat Cockpit.
+4. Confirm multiple pending Temporal Delta Proposals appear.
+5. Commit at least two proposals.
+6. Reject at least one proposal.
+7. Confirm the rejected proposal creates no transition.
+8. Confirm State Snapshot updates.
+9. Confirm State Trajectory View shows committed transitions.
+10. Click Plan Next in State-Grounded Actions.
+11. Run README Checklist.
+12. Confirm `outputs/readme_checklist.md` exists locally.
+13. Confirm the checklist run creates an action record and completion transition.
+14. Fetch `/api/state/brief?scope=project:augnes` for external-agent continuity.
 
-Useful API checks:
+Canonical demo message:
+
+```text
+이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야.
+```
+
+## Useful API Checks
 
 ```bash
+curl -s "http://localhost:3000/api/state/snapshot?scope=project:augnes"
+
+curl -s "http://localhost:3000/api/state/trajectory?scope=project:augnes"
+
+curl -s -X POST "http://localhost:3000/api/observe" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"project:augnes","message":"이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야."}'
+
 curl -s -X POST "http://localhost:3000/api/plan" \
   -H "Content-Type: application/json" \
   -d '{"scope":"project:augnes","message":"What should I do next?"}'
@@ -410,28 +281,24 @@ curl -s -X POST "http://localhost:3000/api/actions/run" \
 curl -s "http://localhost:3000/api/state/brief?scope=project:augnes"
 ```
 
----
+## Security Notes
 
-## Development Plan
+- `.env.local` is ignored.
+- `data/*.db` and `data/*.db-*` are ignored.
+- `outputs/*` is ignored.
+- `OPENAI_API_KEY` is optional for local demo.
+- Do not commit API keys or local secrets.
+- The MVP has no auth and should be run locally for the challenge demo.
 
-1. Project scaffold
-2. SQLite temporal state schema
-3. OpenAI temporal delta compiler
-4. Commit / reject gate
-5. Snapshot and trajectory APIs
-6. State Trajectory View
-7. Tension detection and temporal layering
-8. Time-aware planner
-9. Local action tools and after-action deltas
-10. External state brief
-11. README, screenshots, and final demo
+## Limitations
 
----
+- The runtime is local SQLite only.
+- Tension detection is intentionally minimal.
+- The planner can recommend local tools, but it is not a full autonomous agent.
+- There is no MCP server in this challenge build.
+- There is no auth, vector database, or charting library.
+- The State Trajectory View is a lightweight UI, not a full analytics timeline.
 
 ## Submission Tagline
 
 > Augnes turns AI work into temporal state trajectories.
-
-Or, more directly:
-
-> Not memory lists. Not prompt UI. Temporal state trajectories for AI work.
