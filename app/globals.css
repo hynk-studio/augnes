@@ -208,7 +208,8 @@ h1 {
 
 .proposal-list,
 .trajectory-list,
-.tension-list {
+.tension-list,
+.plan-list {
   display: grid;
   gap: 10px;
 }
@@ -216,6 +217,7 @@ h1 {
 .proposal-card,
 .trajectory-group,
 .tension-item,
+.plan-item,
 .state-group {
   border: 1px solid var(--panel-border);
   border-radius: 8px;
@@ -224,13 +226,15 @@ h1 {
 
 .proposal-card,
 .trajectory-group,
-.tension-item {
+.tension-item,
+.plan-item {
   padding: 12px;
 }
 
 .proposal-card h3,
 .trajectory-group h3,
 .tension-item h3,
+.plan-item h3,
 .state-group h3 {
   margin: 0;
   font-size: 0.95rem;
@@ -240,7 +244,8 @@ h1 {
 }
 
 .proposal-card p,
-.tension-item p {
+.tension-item p,
+.plan-item p {
   margin: 10px 0 0;
   color: var(--muted);
   font-size: 0.9rem;
@@ -345,10 +350,11 @@ h1 {
   font-weight: 700;
 }
 
-.action-list {
-  display: flex;
-  flex-wrap: wrap;
+.action-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+  margin-bottom: 10px;
 }
 
 @media (max-width: 1180px) {

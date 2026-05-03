@@ -248,16 +248,16 @@ COMPLETION · ACTIVE
 - [ ] State Snapshot as-of-now
 - [ ] State Trajectory View
 - [ ] Tension detection vs temporal layering
-- [ ] Time-aware planner
-- [ ] Local tools that generate files in `outputs/`
-- [ ] After-action temporal deltas
+- [x] Time-aware planner
+- [x] Local tools that generate files in `outputs/`
+- [x] After-action temporal deltas
 - [ ] README and screenshots
 
 ### P1
 
-- [ ] `/api/state/brief` for Codex or other external agents
-- [ ] `/api/actions/record` for external action results
-- [ ] Demo script for external agent state continuity
+- [x] `/api/state/brief` for Codex or other external agents
+- [x] `/api/actions/record` for external action results
+- [x] Demo script for external agent state continuity
 
 ### P2
 
@@ -368,23 +368,47 @@ false ------------------ true
 
 ## How to Run
 
-_Not implemented yet. Planned commands:_
-
 ```bash
 npm install
 cp .env.example .env.local
-npm run db:init
+npm run db:reset
 npm run demo:seed
-npm run dev
+npm run dev -- --port 3000
 ```
 
 Environment variables:
 
 ```bash
 OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
 ```
 
 No API keys should be committed to this repository. Apparently we still need to say this out loud because civilization remains fragile.
+
+## Final Demo Loop
+
+1. Open `http://localhost:3000`.
+2. Submit the canonical demo message in Chat Cockpit.
+3. Review pending temporal delta proposals.
+4. Commit stable proposals and reject unsupported ones.
+5. Trigger the planner in State-Grounded Actions.
+6. Run `create_readme_checklist` to generate `outputs/readme_checklist.md`.
+7. Confirm the action record and after-action transition in snapshot and trajectory.
+8. Fetch `/api/state/brief?scope=project:augnes` for Codex or another external agent.
+
+Useful API checks:
+
+```bash
+curl -s -X POST "http://localhost:3000/api/plan" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"project:augnes","message":"What should I do next?"}'
+
+curl -s -X POST "http://localhost:3000/api/actions/run" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"project:augnes","tool_name":"create_readme_checklist"}'
+
+curl -s "http://localhost:3000/api/state/brief?scope=project:augnes"
+```
 
 ---
 

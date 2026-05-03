@@ -73,6 +73,19 @@ type ProposalResponse = {
   proposals: StateDeltaProposal[];
 };
 
+type PlanRecommendation = {
+  title: string;
+  rationale: string;
+  tool_name: string | null;
+  priority: "now" | "next" | "later";
+  grounded_state_keys: string[];
+};
+
+type PlanResponse = {
+  planner: "openai" | "mock";
+  recommendations: PlanRecommendation[];
+};
+
 type Notice = {
   tone: "info" | "error";
   text: string;
@@ -84,6 +97,7 @@ export function AugnesCockpit() {
   const [trajectory, setTrajectory] = useState<TrajectoryResponse | null>(null);
   const [proposals, setProposals] = useState<StateDeltaProposal[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -157,6 +171,57 @@ export function AugnesCockpit() {
       setNotice({
         tone: "error",
         text: error instanceof Error ? error.message : `${decision} failed`,
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function requestPlan() {
+    setBusy("plan");
+    setNotice(null);
+
+    try {
+      const result = await fetchJson<PlanResponse>("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: SCOPE,
+          message: "What should I do next?",
+        }),
+      });
+
+      setPlan(result);
+      setNotice({
+        tone: "info",
+        text: `${result.planner} planner returned ${result.recommendations.length} actions`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Planner failed",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runTool(toolName: string) {
+    setBusy(toolName);
+    setNotice(null);
+
+    try {
+      await fetchJson("/api/actions/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: SCOPE, tool_name: toolName }),
+      });
+      await refreshRuntime();
+      setNotice({ tone: "info", text: `${toolName} complete` });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Tool run failed",
       });
     } finally {
       setBusy(null);
@@ -312,11 +377,62 @@ export function AugnesCockpit() {
 
         <section className="cockpit-panel actions-panel">
           <PanelHeader eyebrow="Next" title="State-Grounded Actions" />
-          <div className="action-list">
-            <span>Review pending proposals</span>
-            <span>Commit stable state</span>
-            <span>Reject unsupported deltas</span>
+          <div className="action-controls">
+            <button
+              type="button"
+              onClick={() => void requestPlan()}
+              disabled={busy === "plan"}
+            >
+              Plan Next
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void runTool("create_readme_checklist")}
+              disabled={busy === "create_readme_checklist"}
+            >
+              README Checklist
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void runTool("create_security_checklist")}
+              disabled={busy === "create_security_checklist"}
+            >
+              Security Checklist
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void runTool("create_demo_script")}
+              disabled={busy === "create_demo_script"}
+            >
+              Demo Script
+            </button>
           </div>
+          {plan ? (
+            <div className="plan-list">
+              {plan.recommendations.map((recommendation) => (
+                <article className="plan-item" key={recommendation.title}>
+                  <div className="card-topline">
+                    <h3>{recommendation.title}</h3>
+                    <StatusBadge label={recommendation.priority} />
+                  </div>
+                  <p>{recommendation.rationale}</p>
+                  <div className="meta-row">
+                    {recommendation.tool_name ? (
+                      <span>{recommendation.tool_name}</span>
+                    ) : null}
+                    {recommendation.grounded_state_keys.map((key) => (
+                      <span key={key}>{key}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState label="No plan requested" />
+          )}
         </section>
       </section>
     </main>

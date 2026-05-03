@@ -42,6 +42,7 @@ export type StateTension = {
 
 export type StateTransition = {
   id: string;
+  scope?: string;
   state_key: string;
   before_value: StateValue;
   after_value: StateValue;
@@ -54,6 +55,47 @@ export type StateTransition = {
   source_session_id: string | null;
   reason: string | null;
   committed_at: string;
+};
+
+export type ActionRecord = {
+  id: string;
+  scope: string;
+  state_key: string | null;
+  title: string;
+  description: string | null;
+  status: string;
+  source_agent_id: string | null;
+  source_session_id: string | null;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type CompletedStateInput = {
+  scope: string;
+  state_key: string;
+  before_value?: StateValue;
+  after_value: StateValue;
+  temporal_scope: string;
+  stability: string;
+  change_type: string;
+  source_agent_id: string | null;
+  source_session_id: string | null;
+  source_proposal_id?: string | null;
+  reason: string | null;
+  committed_at?: string;
+};
+
+export type ActionRecordInput = {
+  id?: string;
+  scope: string;
+  state_key?: string | null;
+  title: string;
+  description?: string | null;
+  status?: "pending" | "completed" | "failed";
+  source_agent_id?: string | null;
+  source_session_id?: string | null;
+  created_at?: string;
+  completed_at?: string | null;
 };
 
 export type AgentRecord = {
@@ -109,6 +151,8 @@ type TransitionRow = Omit<StateTransition, "before_value" | "after_value"> & {
   before_value: string | null;
   after_value: string;
 };
+
+type ActionRecordRow = ActionRecord;
 
 type ProposalRow = Omit<StateDeltaProposal, "before_value" | "after_value"> & {
   before_value: string | null;
@@ -643,6 +687,300 @@ export function rejectStateDeltaProposal(id: string) {
   }
 }
 
+export function insertActionRecord(input: ActionRecordInput) {
+  const db = openDatabase();
+  const now = new Date().toISOString();
+  const row = {
+    id: input.id ?? `action:${randomUUID()}`,
+    scope: input.scope,
+    state_key: input.state_key ?? null,
+    title: input.title,
+    description: input.description ?? null,
+    status: input.status ?? "completed",
+    source_agent_id: input.source_agent_id ?? null,
+    source_session_id: input.source_session_id ?? null,
+    created_at: input.created_at ?? now,
+    completed_at:
+      input.completed_at === undefined
+        ? input.status === "pending"
+          ? null
+          : now
+        : input.completed_at,
+  };
+
+  try {
+    db.prepare(
+      `
+        INSERT INTO action_records (
+          id,
+          scope,
+          state_key,
+          title,
+          description,
+          status,
+          source_agent_id,
+          source_session_id,
+          created_at,
+          completed_at
+        )
+        VALUES (
+          @id,
+          @scope,
+          @state_key,
+          @title,
+          @description,
+          @status,
+          @source_agent_id,
+          @source_session_id,
+          @created_at,
+          @completed_at
+        )
+      `,
+    ).run(row);
+
+    return row;
+  } finally {
+    db.close();
+  }
+}
+
+export function listActionRecords(scope: string) {
+  const db = openDatabase();
+
+  try {
+    return db
+      .prepare(
+        `
+          SELECT
+            id,
+            scope,
+            state_key,
+            title,
+            description,
+            status,
+            source_agent_id,
+            source_session_id,
+            created_at,
+            completed_at
+          FROM action_records
+          WHERE scope = ?
+          ORDER BY created_at DESC, id ASC
+        `,
+      )
+      .all(scope) as ActionRecordRow[];
+  } finally {
+    db.close();
+  }
+}
+
+export function commitStateUpdate(input: CompletedStateInput) {
+  const db = openDatabase();
+
+  try {
+    return db.transaction(() => {
+      const now = input.committed_at ?? new Date().toISOString();
+      const currentEntryRow = db
+        .prepare(
+          `
+            SELECT
+              id,
+              scope,
+              state_key,
+              value,
+              temporal_scope,
+              valid_from,
+              valid_until,
+              stability,
+              change_type,
+              source_agent_id,
+              source_session_id,
+              source_transition_id,
+              created_at,
+              updated_at
+            FROM state_entries
+            WHERE scope = ? AND state_key = ?
+          `,
+        )
+        .get(input.scope, input.state_key) as EntryRow | undefined;
+      const beforeValue = serializeStateValue(
+        currentEntryRow ? parseStateValue(currentEntryRow.value) : input.before_value ?? null,
+      );
+      const afterValue = serializeStateValue(input.after_value);
+      const transitionId = `transition:${randomUUID()}`;
+      const entryId = `entry:${input.scope}:${input.state_key}`;
+
+      db.prepare(
+        `
+          INSERT INTO state_transitions (
+            id,
+            scope,
+            state_key,
+            before_value,
+            after_value,
+            temporal_scope,
+            valid_from,
+            valid_until,
+            stability,
+            change_type,
+            source_agent_id,
+            source_session_id,
+            source_proposal_id,
+            reason,
+            committed_at
+          )
+          VALUES (
+            @id,
+            @scope,
+            @state_key,
+            @before_value,
+            @after_value,
+            @temporal_scope,
+            NULL,
+            NULL,
+            @stability,
+            @change_type,
+            @source_agent_id,
+            @source_session_id,
+            @source_proposal_id,
+            @reason,
+            @committed_at
+          )
+        `,
+      ).run({
+        id: transitionId,
+        scope: input.scope,
+        state_key: input.state_key,
+        before_value: beforeValue,
+        after_value: afterValue,
+        temporal_scope: input.temporal_scope,
+        stability: input.stability,
+        change_type: input.change_type,
+        source_agent_id: input.source_agent_id,
+        source_session_id: input.source_session_id,
+        source_proposal_id: input.source_proposal_id ?? null,
+        reason: input.reason,
+        committed_at: now,
+      });
+
+      db.prepare(
+        `
+          INSERT INTO state_entries (
+            id,
+            scope,
+            state_key,
+            value,
+            temporal_scope,
+            valid_from,
+            valid_until,
+            stability,
+            change_type,
+            source_agent_id,
+            source_session_id,
+            source_transition_id,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            @id,
+            @scope,
+            @state_key,
+            @value,
+            @temporal_scope,
+            NULL,
+            NULL,
+            @stability,
+            @change_type,
+            @source_agent_id,
+            @source_session_id,
+            @source_transition_id,
+            @created_at,
+            @updated_at
+          )
+          ON CONFLICT(scope, state_key) DO UPDATE SET
+            value = excluded.value,
+            temporal_scope = excluded.temporal_scope,
+            valid_from = excluded.valid_from,
+            valid_until = excluded.valid_until,
+            stability = excluded.stability,
+            change_type = excluded.change_type,
+            source_agent_id = excluded.source_agent_id,
+            source_session_id = excluded.source_session_id,
+            source_transition_id = excluded.source_transition_id,
+            updated_at = excluded.updated_at
+        `,
+      ).run({
+        id: entryId,
+        scope: input.scope,
+        state_key: input.state_key,
+        value: afterValue,
+        temporal_scope: input.temporal_scope,
+        stability: input.stability,
+        change_type: input.change_type,
+        source_agent_id: input.source_agent_id,
+        source_session_id: input.source_session_id,
+        source_transition_id: transitionId,
+        created_at: now,
+        updated_at: now,
+      });
+
+      const entry = parseEntryRow(
+        db
+          .prepare(
+            `
+              SELECT
+                id,
+                scope,
+                state_key,
+                value,
+                temporal_scope,
+                valid_from,
+                valid_until,
+                stability,
+                change_type,
+                source_agent_id,
+                source_session_id,
+                source_transition_id,
+                created_at,
+                updated_at
+              FROM state_entries
+              WHERE scope = ? AND state_key = ?
+            `,
+          )
+          .get(input.scope, input.state_key) as EntryRow,
+      );
+      const transition = parseTransitionRow(
+        db
+          .prepare(
+            `
+              SELECT
+                id,
+                scope,
+                state_key,
+                before_value,
+                after_value,
+                temporal_scope,
+                valid_from,
+                valid_until,
+                stability,
+                change_type,
+                source_agent_id,
+                source_session_id,
+                reason,
+                committed_at
+              FROM state_transitions
+              WHERE id = ?
+            `,
+          )
+          .get(transitionId) as TransitionRow,
+      );
+
+      return { entry, transition };
+    })();
+  } finally {
+    db.close();
+  }
+}
+
 export function listStateEntries(scope: string): StateEntry[] {
   const db = openDatabase();
 
@@ -717,6 +1055,7 @@ export function listStateTransitions(scope: string): StateTransition[] {
         `
           SELECT
             id,
+            scope,
             state_key,
             before_value,
             after_value,
