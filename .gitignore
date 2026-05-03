@@ -30,3 +30,4 @@ outputs/*
 !outputs/.gitkeep
 screenshots/*
 !screenshots/.gitkeep
+!screenshots/README.md
