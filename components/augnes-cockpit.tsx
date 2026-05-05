@@ -326,15 +326,29 @@ export function AugnesCockpit() {
       </header>
 
       <nav className="demo-flow-strip" aria-label="Demo flow">
-        {["Observe", "Propose", "Commit", "Timeline", "Act", "Brief"].map(
-          (step, index) => (
-            <div className="demo-flow-step" key={step}>
-              <span>{index + 1}</span>
-              <strong>{step}</strong>
-            </div>
-          ),
-        )}
+        {[
+          "Observe",
+          "Propose",
+          "Commit",
+          "Timeline",
+          "Act",
+          "State Brief",
+        ].map((step, index) => (
+          <div className="demo-flow-step" key={step}>
+            <span>{index + 1}</span>
+            <strong>{step}</strong>
+          </div>
+        ))}
       </nav>
+
+      <section className="start-card" aria-label="Start here">
+        <strong>Start here</strong>
+        <p>
+          Paste or type a project update, then click Observe. Review the
+          proposed state changes. Commit only what should become durable project
+          state.
+        </p>
+      </section>
 
       <section className="cockpit-guidance" aria-label="Cockpit guidance">
         <p>
@@ -342,7 +356,7 @@ export function AugnesCockpit() {
           state. Use the graph to see what changed over time.
         </p>
         <ol>
-          <li>Observe conversation into state proposals.</li>
+          <li>Turn conversation into state proposals.</li>
           <li>Review scores, tensions, and lifecycle status.</li>
           <li>Commit or reject; only the user confirms durable state.</li>
           <li>Act with tools or external clients.</li>
@@ -415,7 +429,10 @@ export function AugnesCockpit() {
           </div>
           <div className="proposal-list">
             {proposals.length === 0 ? (
-              <EmptyState label="No pending proposals" />
+              <EmptyState
+                label="No pending proposals."
+                description="Add a project update in Observe to generate state candidates."
+              />
             ) : (
               proposals.map((proposal) => (
                 <article className="proposal-card" key={proposal.id}>
@@ -440,10 +457,10 @@ export function AugnesCockpit() {
                   />
                   <ProposalScoring proposal={proposal} />
                   <div className="meta-row">
-                    <span>{proposal.operation}</span>
-                    <span>{proposal.temporal_scope}</span>
-                    <span>{proposal.stability}</span>
-                    <span>{proposal.change_type}</span>
+                    <span>{formatStatusLabel(proposal.operation)}</span>
+                    <span>{formatStatusLabel(proposal.temporal_scope)}</span>
+                    <span>{formatStatusLabel(proposal.stability)}</span>
+                    <span>{formatStatusLabel(proposal.change_type)}</span>
                   </div>
                   {proposal.reason ? <p>{proposal.reason}</p> : null}
                   <div className="button-row">
@@ -560,7 +577,7 @@ export function AugnesCockpit() {
                   <p>{recommendation.rationale}</p>
                   <div className="meta-row">
                     {recommendation.tool_name ? (
-                      <span>{recommendation.tool_name}</span>
+                      <span>{formatStateKeyLabel(recommendation.tool_name)}</span>
                     ) : null}
                     {recommendation.grounded_state_keys.map((key) => (
                       <span key={key}>
@@ -620,7 +637,7 @@ function StateGroup({
               <code>{entry.state_key}</code>
             </div>
             <strong>{formatValue(entry.value)}</strong>
-            <span>{entry.stability}</span>
+            <span>{formatStatusLabel(entry.stability)}</span>
           </div>
         ))
       )}
@@ -672,7 +689,7 @@ function TemporalStateGraph({
   const rightPadding = 88;
   const topPadding = 54;
   const laneHeight = 76;
-  const stepWidth = 132;
+  const stepWidth = 168;
   const maxEventIndex = Math.max(orderedTransitions.length - 1, 1);
   const graphWidth = Math.max(
     940,
@@ -839,9 +856,7 @@ function GraphTransitionNode({
       }}
     >
       <title>
-        {formatStateKeyLabel(node.state_key)} ({node.state_key}):{" "}
-        {formatValue(node.before_value)} to{" "}
-        {formatValue(node.after_value)}
+        {formatTransitionSummary(node)} ({node.state_key})
       </title>
       <circle cx={x} cy={y} r={10} />
       {node.tone === "complete" ? (
@@ -853,7 +868,7 @@ function GraphTransitionNode({
         </text>
       ) : null}
       <text className="node-label" x={x + 15} y={y - 7}>
-        {truncateLabel(formatValue(node.after_value), 22)}
+        {truncateLabel(formatStateValueForDisplay(node.after_value), 34)}
       </text>
       <text className="node-time" x={x + 15} y={y + 10}>
         {formatDate(node.committed_at)}
@@ -889,14 +904,15 @@ function TransitionInspector({ event }: { event: StateTransition | null }) {
           <strong>{source.actor}</strong>
           <small>{source.detail}</small>
         </div>
+        <p className="transition-summary">{formatTransitionSummary(event)}</p>
         <ValueDiff
           beforeValue={event.before_value}
           afterValue={event.after_value}
         />
         <div className="timeline-badges">
-          <StatusBadge label={event.temporal_scope} tone={tone} />
-          <StatusBadge label={event.stability} tone={tone} />
-          <StatusBadge label={event.change_type} tone={tone} />
+          <StatusBadge label={formatStatusLabel(event.temporal_scope)} tone={tone} />
+          <StatusBadge label={formatStatusLabel(event.stability)} tone={tone} />
+          <StatusBadge label={formatStatusLabel(event.change_type)} tone={tone} />
         </div>
         {event.reason ? <p className="inspector-reason">{event.reason}</p> : null}
       </div>
@@ -911,15 +927,26 @@ function ValueDiff({
   beforeValue: StateValue;
   afterValue: StateValue;
 }) {
+  const beforeDisplay = formatStateValueForDisplay(beforeValue);
+  const afterDisplay = formatStateValueForDisplay(afterValue);
+  const beforeRaw = formatRawValue(beforeValue);
+  const afterRaw = formatRawValue(afterValue);
+
   return (
     <div className="value-diff">
       <div>
         <span>Before</span>
-        <strong>{formatValue(beforeValue)}</strong>
+        <strong>{beforeDisplay}</strong>
+        {beforeDisplay !== beforeRaw ? (
+          <code className="raw-value">raw: {beforeRaw}</code>
+        ) : null}
       </div>
       <div>
         <span>After</span>
-        <strong>{formatValue(afterValue)}</strong>
+        <strong>{afterDisplay}</strong>
+        {afterDisplay !== afterRaw ? (
+          <code className="raw-value">raw: {afterRaw}</code>
+        ) : null}
       </div>
     </div>
   );
@@ -999,8 +1026,19 @@ function StatusBadge({ label, tone }: { label: string; tone?: string }) {
   );
 }
 
-function EmptyState({ label }: { label: string }) {
-  return <div className="empty-state">{label}</div>;
+function EmptyState({
+  label,
+  description,
+}: {
+  label: string;
+  description?: string;
+}) {
+  return (
+    <div className="empty-state">
+      <strong>{label}</strong>
+      {description ? <span>{description}</span> : null}
+    </div>
+  );
 }
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {
@@ -1060,12 +1098,59 @@ function getLaneY(laneIndex: number, topPadding: number, laneHeight: number) {
   return topPadding + laneIndex * laneHeight;
 }
 
-function formatValue(value: StateValue) {
+function formatRawValue(value: StateValue) {
   if (typeof value === "string") {
     return value;
   }
 
   return JSON.stringify(value);
+}
+
+function formatStateValueForDisplay(value: StateValue) {
+  if (value === true) {
+    return "Yes";
+  }
+
+  if (value === false) {
+    return "No";
+  }
+
+  if (value === null) {
+    return "No previous value";
+  }
+
+  if (typeof value === "string") {
+    const labels: Record<string, string> = {
+      deprecated: "Deprecated",
+      planned_after_challenge: "Planned after challenge",
+      unknown: "No previous value",
+    };
+
+    return labels[value] ?? value;
+  }
+
+  return JSON.stringify(value);
+}
+
+function formatValue(value: StateValue) {
+  return formatStateValueForDisplay(value);
+}
+
+function formatTransitionSummary(event: StateTransition) {
+  const label = formatStateKeyLabel(event.state_key);
+  const afterDisplay = formatStateValueForDisplay(event.after_value);
+
+  if (isMissingPreviousValue(event.before_value)) {
+    return `${label}: Created as ${afterDisplay}`;
+  }
+
+  return `${label}: ${formatStateValueForDisplay(
+    event.before_value,
+  )} -> ${afterDisplay}`;
+}
+
+function isMissingPreviousValue(value: StateValue) {
+  return value === null || value === "unknown";
 }
 
 function getTrajectoryTone(event: StateTransition, hasOpenTension: boolean) {
