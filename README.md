@@ -209,6 +209,9 @@ The brief includes:
 - `pending_proposals`
 - `recent_actions`
 - `agent_instructions`
+- `agent_handoff`
+
+`agent_handoff` is a deterministic coordination packet generated from the same committed state, pending proposals, open tensions, and recent actions already in the brief. It summarizes current status, recommends the next action, lists blockers or tensions, and gives Codex a compact task brief with constraints, verification commands, expected report fields, and a `POST /api/actions/record`-compatible template.
 
 Agent instructions include:
 
