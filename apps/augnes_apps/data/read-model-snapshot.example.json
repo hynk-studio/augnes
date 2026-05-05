@@ -1,0 +1,68 @@
+{
+  "snapshotId": "read-model-snapshot-app-v1",
+  "profile": "public",
+  "notes": [
+    "App Read Projection Model fixture for ChatGPT Apps HTTP contract validation.",
+    "This is not the canonical Augnes Core internal structure.",
+    "This snapshot only provides the read projection required by the app surface."
+  ],
+  "claims": [
+    {
+      "id": "claim-augnes-console-readonly-surface",
+      "title": "Augnes Console read-only surface",
+      "status": "active"
+    },
+    {
+      "id": "claim-sprint-3a-file-backed-working-view",
+      "title": "Working View can be read through a bounded projection",
+      "status": "active"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence-readonly-public-surface",
+      "title": "Public tool surface remains exactly nine read-only tools",
+      "kind": "evidence",
+      "status": "active"
+    },
+    {
+      "id": "evidence-file-backed-working-view",
+      "title": "Working View fixture is read from a local file",
+      "kind": "evidence",
+      "status": "active"
+    }
+  ],
+  "pointers": [
+    {
+      "id": "casefile:casefile-augnes-console-public-app",
+      "kind": "casefile",
+      "targetId": "casefile-augnes-console-public-app"
+    },
+    {
+      "id": "boundary:read-first-v1",
+      "kind": "boundary",
+      "targetId": "boundary:read-first-v1"
+    },
+    {
+      "id": "repo:src/adapters/file-core.ts",
+      "kind": "repo",
+      "targetId": "repo:src/adapters/file-core.ts"
+    }
+  ],
+  "workingViewProjection": {
+    "summary": "Fixture-safe Working View for the Augnes Console starter. File mode connects all nine public tools to local read-only JSON sources while preserving fetch as the evidence retrieval path.",
+    "claimIds": [
+      "claim-augnes-console-readonly-surface",
+      "claim-sprint-3a-file-backed-working-view"
+    ],
+    "topEvidenceIds": [
+      "evidence-readonly-public-surface",
+      "evidence-file-backed-working-view"
+    ],
+    "activePointers": [
+      "casefile:casefile-augnes-console-public-app",
+      "boundary:read-first-v1",
+      "repo:src/adapters/file-core.ts"
+    ]
+  }
+}

@@ -1,0 +1,321 @@
+# Agent Bridge Local Runbook
+
+Use this runbook to run the local two-process Augnes Agent Bridge demo.
+
+Augnes exists to reduce the human-message-bus burden between ChatGPT, Codex, and GitHub. ChatGPT can inspect and plan. Codex can implement and verify. GitHub stores the code. Augnes keeps the explicit temporal project state and records what changed.
+
+This flow is intentionally local and explicitly bridge-gated. The public ChatGPT App profile remains directory-safe unless bridge mode is enabled.
+
+## Prerequisites
+
+- Single `Aurna-code/augnes` checkout.
+- Augnes runtime at the repository root.
+- Augnes Apps MCP bridge under `apps/augnes_apps`.
+- Node.js and npm installed.
+- Optional `cloudflared` for ChatGPT Developer Mode.
+- Optional ChatGPT Developer Mode access.
+- Optional MCP Inspector.
+
+## Start Augnes Runtime
+
+Start the Augnes runtime from the repository root on port `3000`:
+
+```bash
+cd /path/to/augnes
+npm install
+npm run db:reset
+npm run demo:seed
+npm run dev -- --port 3000
+```
+
+In a second terminal, verify the runtime state brief:
+
+```bash
+curl "http://localhost:3000/api/state/brief?scope=project:augnes"
+```
+
+Expected:
+
+- `runtime` should be `augnes`.
+- `scope` should be `project:augnes`.
+- Seeded state should appear.
+
+## Start Augnes Apps MCP Bridge
+
+Start the Augnes Apps MCP bridge from `apps/augnes_apps` on port `8787` with explicit bridge mode enabled:
+
+```bash
+cd /path/to/augnes/apps/augnes_apps
+npm install
+AUGNES_ENABLE_AGENT_BRIDGE=true \
+AUGNES_API_BASE_URL=http://localhost:3000 \
+npm run dev
+```
+
+Without `AUGNES_ENABLE_AGENT_BRIDGE=true`, the app remains public directory-safe and only exposes the original nine read-only Evidence & Continuity Console tools:
+
+- `search`
+- `fetch`
+- `open_casefile`
+- `get_working_view`
+- `explain_strategy`
+- `get_boundary_packet`
+- `get_continuity_report`
+- `navigate_repo`
+- `get_governance_audit`
+
+With `AUGNES_ENABLE_AGENT_BRIDGE=true`, the Augnes bridge tools are also registered:
+
+- `augnes_get_state_brief`
+- `augnes_observe`
+- `augnes_plan`
+- `augnes_record_action_result`
+- `augnes_list_pending_proposals`
+
+## Verify Bridge Health
+
+Check that the MCP bridge server is running:
+
+```bash
+curl http://localhost:8787/healthz
+```
+
+`/healthz` only confirms that the MCP bridge server is up. It does not prove the Augnes runtime is reachable. Use the runtime state brief endpoint to verify the port `3000` process.
+
+## Run MCP Inspector
+
+Run MCP Inspector against the local bridge endpoint:
+
+```bash
+AUGNES_ENABLE_AGENT_BRIDGE=true \
+AUGNES_API_BASE_URL=http://localhost:3000 \
+npm run inspect
+```
+
+The inspector targets:
+
+```text
+http://localhost:8787/mcp
+```
+
+Expected:
+
+- The original nine public tools should appear.
+- The bridge tools should appear only in bridge-enabled mode.
+
+## Optional ChatGPT Developer Mode Tunnel
+
+Local MCP Inspector works without an HTTPS tunnel. ChatGPT Developer Mode needs a reachable HTTPS endpoint.
+
+Expose the local MCP bridge with Cloudflare Tunnel:
+
+```bash
+cloudflared tunnel --url http://localhost:8787
+```
+
+Register this endpoint in ChatGPT Developer Mode:
+
+```text
+https://<tunnel-host>/mcp
+```
+
+If the tunnel restarts, the URL changes unless you use a named tunnel.
+
+## Codex Handoff Demo
+
+Use this flow to demonstrate ChatGPT planning, Codex implementation, and Augnes Temporal State Graph recording.
+
+1. Read the Augnes state brief with `augnes_get_state_brief`.
+
+```json
+{
+  "scope": "project:augnes"
+}
+```
+
+When the Augnes runtime includes `agent_handoff` in `/api/state/brief`, `augnes_get_state_brief` preserves it under `structuredContent.brief.agent_handoff`. The packet is intended for current status, next action, blockers or open tensions, verification commands, and the action record template. It remains bridge-gated and does not add public default write tools.
+
+2. Ask for a state-grounded plan with `augnes_plan`.
+
+```json
+{
+  "scope": "project:augnes",
+  "message": "What should Codex do next for the Augnes bridge demo?"
+}
+```
+
+3. Let Codex perform a small repo task, for example:
+
+- Update a docs file.
+- Add a small demo note.
+- Verify a README section.
+
+4. Record the result with `augnes_record_action_result`.
+
+```json
+{
+  "scope": "project:augnes",
+  "sourceAgentId": "agent:codex",
+  "actionName": "update_agent_bridge_runbook",
+  "resultSummary": "Updated the local bridge demo runbook and verified typecheck.",
+  "filesChanged": ["docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md", "README.md"],
+  "resultStatus": "completed",
+  "resultKind": "documentation"
+}
+```
+
+`resultStatus` and `resultKind` are optional. If omitted, the runtime defaults still apply: `completed` and `other`.
+
+5. Confirm the Augnes runtime received the external action:
+
+- Refresh `http://localhost:3000`.
+- Or call:
+
+```bash
+curl "http://localhost:3000/api/state/brief?scope=project:augnes"
+```
+
+The Temporal State Graph should show the external action record after the runtime receives `augnes_record_action_result`.
+
+## Using the ChatGPT App as the human-facing Augnes assistant
+
+The ChatGPT App is the primary human-facing UX for Augnes state. Augnes Core remains the state authority, Runtime Cockpit remains the operator/audit/proof UI, and Codex remains responsible for repo work, verification, and action result reporting.
+
+For plain user questions such as "Where are we?", "What should I do next?", "What should Codex do?", "What needs my approval?", or "What is risky or blocked?", call `augnes_get_state_brief` first:
+
+```json
+{
+  "scope": "project:augnes"
+}
+```
+
+When available, answer from `structuredContent.brief.agent_handoff` before reading raw state blocks. The handoff packet is the user-facing interpretation layer for:
+
+- Current project status.
+- Next recommended action.
+- Codex handoff brief.
+- Blockers and tensions.
+- Pending proposal review guidance.
+- Recent action summary.
+
+Expected answer shape:
+
+```text
+Current status
+- Plain-language summary from agent_handoff.current_status.summary.
+
+Next step
+- Use agent_handoff.next_recommended_action.title.
+- Explain the rationale from agent_handoff.next_recommended_action.rationale.
+
+Why
+- Mention related state keys only secondarily, as grounding.
+
+Codex handoff
+- If the user asks what Codex should do, use agent_handoff.codex_handoff.task_brief.
+- Include listed constraints and verification commands.
+
+Recent actions
+- Summarize recent work from brief.recent_actions.
+- Use any handoff-provided action summary only if such a field exists in a future runtime version.
+
+Needs your decision / blockers
+- If pending proposals exist, explain that the user must explicitly commit or reject durable state in Augnes Core or Runtime Cockpit.
+- If blockers_or_tensions exist, explain them before suggesting risky work.
+```
+
+Keep raw state mechanics secondary. Prefer:
+
+```text
+The repo is guarded against committing API keys, and the README checklist has been completed.
+
+Reference: security.no_api_keys_in_repo, submission.readme_checklist_created
+```
+
+Avoid leading with raw keys as the answer:
+
+```text
+security.no_api_keys_in_repo = true
+submission.readme_checklist_created = true
+```
+
+Example prompts:
+
+- What is the current Augnes project state?
+- What should I ask Codex to do next?
+- What is blocked or risky?
+- Generate a Codex handoff brief from Augnes state.
+- What needs my approval before the state becomes durable?
+
+Example answer:
+
+```text
+Current status
+The project is in a review-ready bridge state: the app can read Augnes state, preserve the agent handoff packet, and report action results without making ChatGPT the state authority.
+
+Next step
+Ask Codex to make the smallest scoped repo change described in the handoff and run the listed verification commands.
+
+Why
+The recommended action is grounded in the handoff's next action and related state keys. Reference: bridge.agent_handoff_preserved, governance.public_surface_read_only
+
+Codex handoff
+Task: update the relevant docs or helper text so ChatGPT answers from agent_handoff instead of raw state lists.
+Constraints: do not add direct commit/reject tools; keep bridge tools gated behind AUGNES_ENABLE_AGENT_BRIDGE=true; keep public default behavior read-only.
+Verification: npm run typecheck; npm run smoke
+
+Needs your decision / blockers
+There are pending proposals, so durable state changes still need an explicit user commit/reject decision in Augnes Core or Runtime Cockpit. The main tension is that ChatGPT can explain state and guide Codex, but it must not become a write authority or start autonomous Codex execution.
+```
+
+Do not:
+
+- Add direct commit or reject tools to the ChatGPT App.
+- Add auth, OAuth, multi-user hosting, deployment semantics, or autonomous Codex execution in this app.
+- Treat ChatGPT thread text as canonical Augnes memory.
+- Dump `agent_handoff` wholesale into tool text; keep `structuredContent.brief.agent_handoff` as the source of truth.
+- Lead with raw state keys when a plain-language handoff summary is available.
+
+## Troubleshooting
+
+Bridge tools are not visible:
+
+- Confirm `AUGNES_ENABLE_AGENT_BRIDGE=true`.
+- The public default app remains read-only and should only expose the original nine public tools.
+- Restart `augnes_apps`.
+- Rerun MCP Inspector.
+
+Runtime is unavailable:
+
+- Confirm `augnes` is running on port `3000`.
+- Check `AUGNES_API_BASE_URL=http://localhost:3000`.
+- Call `/api/state/brief` directly.
+
+Port conflict:
+
+- Use port `3000` for the Augnes runtime.
+- Use port `8787` for the MCP bridge.
+
+ChatGPT Developer Mode cannot connect:
+
+- Use the HTTPS tunnel URL, not `localhost`.
+- Confirm the endpoint path is `/mcp`.
+- Restart the tunnel if the URL changed.
+
+No external action node appears:
+
+- Confirm `augnes_record_action_result` was called.
+- Confirm it pointed at the correct scope.
+- Refresh the Temporal State Graph.
+- Inspect `/api/state/brief`.
+
+## Verification
+
+Run local verification before opening the PR:
+
+```bash
+npm run typecheck
+npm run smoke
+```
+
+These checks are still useful for docs-only changes because they confirm the app scaffold and local smoke path remain healthy.

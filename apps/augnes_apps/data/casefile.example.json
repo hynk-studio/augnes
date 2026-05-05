@@ -1,0 +1,43 @@
+{
+  "id": "casefile-augnes-console-public-app",
+  "casefileId": "casefile-augnes-console-public-app",
+  "subject": "Augnes Console public read-only app",
+  "summary": "Fixture-safe casefile for the Augnes Console starter. The public ChatGPT App is a read-only surface over Augnes Core, with file mode currently backing all nine public tools through local read-only fixtures.",
+  "supportingEvidence": [
+    {
+      "id": "evidence-readonly-public-surface",
+      "title": "Public tool surface remains exactly nine read-only tools",
+      "stance": "supporting",
+      "note": "Invariant checks assert the intended public tools and read-only annotations."
+    },
+    {
+      "id": "evidence-file-backed-working-view",
+      "title": "Working View fixture is read from a local file",
+      "stance": "supporting",
+      "note": "Sprint 3A introduced file-backed get_working_view without adding write behavior."
+    },
+    {
+      "id": "evidence-file-backed-casefile",
+      "title": "Casefile fixture is read from a local file",
+      "stance": "supporting",
+      "note": "Sprint 3B adds file-backed open_casefile while keeping all other unresolved real read paths mock-backed."
+    }
+  ],
+  "contradictingEvidence": [
+    {
+      "id": "evidence-http-api-not-final",
+      "title": "Augnes HTTP API is not finalized",
+      "stance": "contradicting",
+      "note": "File mode is an interim read seam, not the final Core-backed adapter."
+    }
+  ],
+  "unresolvedQuestions": [
+    "Which Augnes Core casefile endpoint contract should replace the file-backed seam?",
+    "How should casefile lookup by subject map to canonical Augnes identifiers once HTTP mode is finalized?"
+  ],
+  "recentChanges": [
+    "Sprint 2A validated all nine read-only tools in ChatGPT Developer Mode.",
+    "Sprint 3A connected get_working_view to a file-backed read source.",
+    "Sprint 3B connects open_casefile to a file-backed read source."
+  ]
+}

@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Augnes Console</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        --bg: color-mix(in srgb, canvas 90%, #dbe4ea 10%);
+        --card: color-mix(in srgb, canvas 92%, #f1f5f7 8%);
+        --border: color-mix(in srgb, canvastext 14%, transparent);
+        --muted: color-mix(in srgb, canvastext 62%, transparent);
+        --accent: #0f5f7a;
+        --accent-soft: rgba(15, 95, 122, 0.12);
+        --good: #1d6b3f;
+        --warn: #9c6700;
+        --bad: #a03232;
+        --shadow: 0 12px 28px rgba(18, 34, 44, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top right, rgba(15, 95, 122, 0.14), transparent 32%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 32%),
+          var(--bg);
+        color: canvastext;
+      }
+
+      .shell {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .panel,
+      .hero {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: 16px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.2;
+      }
+
+      .hero p,
+      .muted {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .chip-row,
+      .stat-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .chip,
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 12px;
+        line-height: 1.2;
+        background: rgba(255, 255, 255, 0.45);
+      }
+
+      .tag {
+        border-radius: 12px;
+      }
+
+      .tag.fetchable {
+        border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+        background: color-mix(in srgb, var(--accent-soft) 70%, transparent);
+      }
+
+      .tone-pass {
+        color: var(--good);
+        border-color: color-mix(in srgb, var(--good) 40%, var(--border));
+      }
+
+      .tone-warn {
+        color: var(--warn);
+        border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+      }
+
+      .tone-fail {
+        color: var(--bad);
+        border-color: color-mix(in srgb, var(--bad) 40%, var(--border));
+      }
+
+      .panel {
+        padding: 14px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .panel-head h2 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.25;
+      }
+
+      .summary {
+        margin: 0;
+        padding: 12px;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--accent-soft) 55%, canvas 45%);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.4);
+      }
+
+      .metric dt {
+        margin: 0 0 6px 0;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .metric dd {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        word-break: break-word;
+      }
+
+      details {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.28);
+      }
+
+      summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 12px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .section-body {
+        padding: 0 14px 14px 14px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .item {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+        display: grid;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.36);
+      }
+
+      .item-title {
+        font-weight: 600;
+        line-height: 1.35;
+      }
+
+      .item-note,
+      .meta-line {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .list {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .code-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .code {
+        font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+        font-size: 12px;
+        padding: 5px 8px;
+        border-radius: 10px;
+        background: rgba(19, 37, 49, 0.08);
+        border: 1px solid var(--border);
+        word-break: break-all;
+      }
+
+      .recommended {
+        padding: 14px;
+        border-radius: 14px;
+        background:
+          linear-gradient(135deg, rgba(15, 95, 122, 0.92), rgba(18, 54, 69, 0.92)),
+          var(--accent);
+        color: white;
+      }
+
+      .recommended small {
+        display: block;
+        opacity: 0.78;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 6px;
+      }
+
+      .recommended strong {
+        display: block;
+        font-size: 20px;
+      }
+
+      .status-box {
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px dashed var(--border);
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .error-box {
+        border-color: color-mix(in srgb, var(--bad) 40%, var(--border));
+        color: var(--bad);
+        background: rgba(160, 50, 50, 0.08);
+      }
+
+      pre {
+        margin: 0;
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(19, 37, 49, 0.08);
+        overflow: auto;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          padding: 10px;
+        }
+
+        .hero,
+        .panel {
+          border-radius: 14px;
+          padding: 12px;
+        }
+
+        .hero-top,
+        .panel-head {
+          flex-direction: column;
+          align-items: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <section class="hero">
+        <div class="hero-top">
+          <div>
+            <h1>Augnes: Evidence &amp; Continuity Console</h1>
+            <p>Read-first surface only. Augnes Core remains the authority holder.</p>
+          </div>
+          <div class="stat-row">
+            <span class="chip">v1 read-only</span>
+            <span id="profile-chip" class="chip">profile: public</span>
+          </div>
+        </div>
+        <div class="chip-row">
+          <span class="chip">evidence-backed</span>
+          <span class="chip">boundary-aware</span>
+          <span class="chip">continuity-visible</span>
+          <span class="chip">no canonical writes</span>
+        </div>
+        <div id="status" class="status-box">Waiting for tool output…</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 id="panel-title">Console Panel</h2>
+          <div class="stat-row">
+            <span id="panel-chip" class="chip">idle</span>
+            <span id="updated-chip" class="chip">not updated</span>
+          </div>
+        </div>
+        <div id="panel"></div>
+      </section>
+    </div>
+
+    <script type="module">
+      const statusEl = document.getElementById("status");
+      const panelEl = document.getElementById("panel");
+      const panelTitleEl = document.getElementById("panel-title");
+      const panelChipEl = document.getElementById("panel-chip");
+      const updatedChipEl = document.getElementById("updated-chip");
+      const profileChipEl = document.getElementById("profile-chip");
+
+      let requestId = 0;
+      const pending = new Map();
+      const uiState = {
+        lastPanel: "idle",
+        lastUpdated: null,
+        profile: "public",
+      };
+
+      function rpcRequest(method, params) {
+        return new Promise((resolve, reject) => {
+          const id = `req-${++requestId}`;
+          pending.set(id, { resolve, reject });
+          window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+        });
+      }
+
+      function rpcNotify(method, params) {
+        window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
+      }
+
+      function el(tag, options = {}) {
+        const node = document.createElement(tag);
+        if (options.className) node.className = options.className;
+        if (options.text) node.textContent = options.text;
+        if (options.html) node.innerHTML = options.html;
+        return node;
+      }
+
+      function codeChip(text) {
+        return el("span", { className: "code", text });
+      }
+
+      function badge(text, tone) {
+        const className = tone ? `chip tone-${tone}` : "chip";
+        return el("span", { className, text });
+      }
+
+      function tag(text, options = {}) {
+        const className = `tag${options.fetchable ? " fetchable" : ""}${options.tone ? ` tone-${options.tone}` : ""}`;
+        return el("span", { className, text });
+      }
+
+      function createMetricGrid(entries) {
+        const grid = el("dl", { className: "metric-grid" });
+        entries.forEach(([label, value]) => {
+          const card = el("div", { className: "metric" });
+          const dt = el("dt", { text: label });
+          const dd = el("dd", { text: value });
+          card.append(dt, dd);
+          grid.appendChild(card);
+        });
+        return grid;
+      }
+
+      function createSection(title, contentNode, options = {}) {
+        const details = document.createElement("details");
+        details.open = options.open !== false;
+        const summary = document.createElement("summary");
+        summary.append(el("span", { text: title }));
+        if (options.badge) {
+          summary.appendChild(tag(options.badge));
+        }
+        const body = el("div", { className: "section-body" });
+        body.appendChild(contentNode);
+        details.append(summary, body);
+        return details;
+      }
+
+      function resolveProfile(data) {
+        return data?.profile === "chrono_lab" ? "chrono_lab" : "public";
+      }
+
+      function isLabProfile(profile) {
+        return profile === "chrono_lab";
+      }
+
+      function createList(items, renderItem) {
+        if (!items || !items.length) {
+          return el("div", { className: "status-box", text: "No items." });
+        }
+
+        const list = el("div", { className: "stack" });
+        items.forEach((item) => list.appendChild(renderItem(item)));
+        return list;
+      }
+
+      function createTextList(items) {
+        if (!items || !items.length) {
+          return el("div", { className: "status-box", text: "No items." });
+        }
+
+        const list = el("ul", { className: "list" });
+        items.forEach((item) => {
+          const li = document.createElement("li");
+          li.textContent = item;
+          list.appendChild(li);
+        });
+        return list;
+      }
+
+      function createCodeList(items) {
+        if (!items || !items.length) {
+          return el("div", { className: "status-box", text: "No items." });
+        }
+
+        const wrap = el("div", { className: "code-list" });
+        items.forEach((item) => wrap.appendChild(codeChip(item)));
+        return wrap;
+      }
+
+      function createEvidenceCard(item) {
+        const card = el("div", { className: "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.append(el("div", { className: "item-title", text: item.title || item.id }));
+        if (item.stance) {
+          const tone = item.stance === "supporting" ? "pass" : item.stance === "contradicting" ? "fail" : "";
+          titleRow.appendChild(tag(item.stance, { tone }));
+        }
+        card.appendChild(titleRow);
+        card.appendChild(el("div", { className: "meta-line", text: `ID: ${item.id}` }));
+        if (item.note) {
+          card.appendChild(el("div", { className: "item-note", text: item.note }));
+        }
+        if (item.url) {
+          card.appendChild(el("div", { className: "item-note", text: item.url }));
+        }
+        return card;
+      }
+
+      function createRepoNodeCard(item) {
+        const card = el("div", { className: "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.append(el("div", { className: "item-title", text: item.title }));
+        titleRow.appendChild(tag(item.kind));
+        titleRow.appendChild(tag(item.fetchable ? "fetchable" : "view-only", { fetchable: item.fetchable }));
+        card.appendChild(titleRow);
+        card.appendChild(el("div", { className: "meta-line", text: `Node: ${item.nodeId}` }));
+        return card;
+      }
+
+      function createGateCard(item) {
+        const card = el("div", { className: "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.append(el("div", { className: "item-title", text: item.gate }));
+        titleRow.appendChild(tag(item.status, { tone: item.status }));
+        card.appendChild(titleRow);
+        card.appendChild(el("div", { className: "item-note", text: item.note }));
+        return card;
+      }
+
+      function createTransitionCard(item) {
+        const card = el("div", { className: "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.append(el("div", { className: "item-title", text: item.scenario }));
+        titleRow.appendChild(tag(item.status, { tone: item.status }));
+        card.appendChild(titleRow);
+        card.appendChild(el("div", { className: "item-note", text: item.note }));
+        return card;
+      }
+
+      function createCarryForwardCard(item) {
+        const card = el("div", { className: "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.append(el("div", { className: "item-title", text: item.title }));
+        titleRow.appendChild(tag(item.stage));
+        card.appendChild(titleRow);
+        card.appendChild(el("div", { className: "meta-line", text: `ID: ${item.id}` }));
+        card.appendChild(el("div", { className: "item-note", text: item.why }));
+        return card;
+      }
+
+      function createTraceCapsuleCard(item) {
+        const card = el("div", { className: "item" });
+        card.appendChild(el("div", { className: "item-title", text: item.title }));
+        card.appendChild(el("div", { className: "meta-line", text: `ID: ${item.id}` }));
+        card.appendChild(el("div", { className: "item-note", text: item.reuseValue }));
+        return card;
+      }
+
+      function renderJson(value) {
+        const pre = document.createElement("pre");
+        pre.textContent = JSON.stringify(value, null, 2);
+        return pre;
+      }
+
+      function renderError(error) {
+        const box = el("div", { className: "status-box error-box" });
+        box.textContent = error?.message || "Tool execution failed.";
+        return box;
+      }
+
+      function renderCasefile(casefile) {
+        const root = el("div", { className: "stack" });
+        root.appendChild(createMetricGrid([
+          ["Subject", casefile.subject],
+          ["Casefile ID", casefile.id],
+          ["Supporting", String(casefile.supportingEvidence.length)],
+          ["Contradicting", String(casefile.contradictingEvidence.length)],
+        ]));
+        root.appendChild(el("p", { className: "summary", text: casefile.summary }));
+        root.appendChild(createSection("Supporting evidence", createList(casefile.supportingEvidence, createEvidenceCard), { badge: `${casefile.supportingEvidence.length}` }));
+        root.appendChild(createSection("Contradicting evidence", createList(casefile.contradictingEvidence, createEvidenceCard), { badge: `${casefile.contradictingEvidence.length}` }));
+        root.appendChild(createSection("Unresolved questions", createTextList(casefile.unresolvedQuestions), { badge: `${casefile.unresolvedQuestions.length}` }));
+        root.appendChild(createSection("Recent changes", createTextList(casefile.recentChanges), { badge: `${casefile.recentChanges.length}` }));
+        return root;
+      }
+
+      function renderWorkingView(workingView) {
+        const root = el("div", { className: "stack" });
+        root.appendChild(el("p", { className: "summary", text: workingView.summary }));
+        root.appendChild(createMetricGrid([
+          ["Claims", String(workingView.claimIds.length)],
+          ["Top evidence", String(workingView.topEvidenceIds.length)],
+          ["Pointers", String(workingView.activePointers.length)],
+        ]));
+        root.appendChild(createSection("Claim IDs", createCodeList(workingView.claimIds), { badge: `${workingView.claimIds.length}` }));
+        root.appendChild(createSection("Top evidence IDs", createCodeList(workingView.topEvidenceIds), { badge: `${workingView.topEvidenceIds.length}` }));
+        root.appendChild(createSection("Active pointers", createCodeList(workingView.activePointers), { badge: `${workingView.activePointers.length}` }));
+        return root;
+      }
+
+      function renderStrategy(strategy, profile, presentation) {
+        const root = el("div", { className: "stack" });
+        const recommended = el("div", { className: "recommended" });
+        recommended.append(el("small", { text: "Recommended action" }));
+        recommended.append(el("strong", { text: strategy.recommendedAction }));
+        recommended.append(el("div", { text: strategy.subject }));
+        root.appendChild(recommended);
+        if (presentation?.safety?.length) {
+          root.appendChild(el("p", { className: "summary", text: presentation.safety.join(" ") }));
+        }
+        root.appendChild(createSection("Why", createTextList(strategy.why), { badge: `${strategy.why.length}` }));
+
+        if (strategy.metaWm) {
+          root.appendChild(createSection("Meta-WM", createMetricGrid([
+            ["WM strength", String(strategy.metaWm.wmStrength)],
+            ["Uncertainty", String(strategy.metaWm.uncertainty)],
+            ["Dependency hat", String(strategy.metaWm.dependencyHat)],
+          ]), { open: isLabProfile(profile) }));
+        }
+
+        if (strategy.eop) {
+          root.appendChild(createSection("EOP", createMetricGrid([
+            ["Expected", strategy.eop.expected],
+            ["Observed", strategy.eop.observed || "not provided"],
+            ["Delta", strategy.eop.delta || "not provided"],
+          ]), { open: isLabProfile(profile) }));
+        }
+
+        if (strategy.rubric) {
+          root.appendChild(createSection("Rubric", createList([
+            {
+              title: `Score ${strategy.rubric.score}`,
+              note: strategy.rubric.notes.join(" "),
+            },
+          ], (item) => {
+            const card = el("div", { className: "item" });
+            card.appendChild(el("div", { className: "item-title", text: item.title }));
+            card.appendChild(el("div", { className: "item-note", text: item.note || "No notes." }));
+            return card;
+          }), { open: isLabProfile(profile) }));
+        }
+
+        root.appendChild(createSection("Estimated effort", createMetricGrid([
+          ["Cost", strategy.estimatedCost != null ? String(strategy.estimatedCost) : "not provided"],
+          ["Steps", strategy.estimatedSteps != null ? String(strategy.estimatedSteps) : "not provided"],
+        ]), { open: isLabProfile(profile) }));
+        return root;
+      }
+
+      function renderBoundary(packet, profile) {
+        const root = el("div", { className: "stack" });
+        root.appendChild(createMetricGrid([
+          ["Boundary ID", packet.boundaryId],
+          ["Snapshot ID", packet.snapshotId],
+          ["Carry-forward", String(packet.carryForwardCandidates.length)],
+          ["Trace capsules", String(packet.traceCapsuleCandidates.length)],
+        ]));
+        root.appendChild(createSection("Carry-forward candidates", createList(packet.carryForwardCandidates, createCarryForwardCard), { badge: `${packet.carryForwardCandidates.length}` }));
+        if (isLabProfile(profile)) {
+          root.appendChild(createSection("Trace capsule candidates", createList(packet.traceCapsuleCandidates, createTraceCapsuleCard), { badge: `${packet.traceCapsuleCandidates.length}` }));
+          root.appendChild(createSection("Revision operators", createCodeList(packet.revisionOperators), { badge: `${packet.revisionOperators.length}` }));
+          root.appendChild(createSection("Lineage notes", createTextList(packet.lineageNotes), { badge: `${packet.lineageNotes.length}` }));
+        } else {
+          root.appendChild(createSection("Trace capsule candidates", createList(packet.traceCapsuleCandidates, createTraceCapsuleCard), { badge: `${packet.traceCapsuleCandidates.length}`, open: false }));
+        }
+        return root;
+      }
+
+      function renderContinuity(continuity, profile) {
+        const root = el("div", { className: "stack" });
+        root.appendChild(createMetricGrid([
+          ["Baseline class", continuity.baselineClass],
+          ["Latest boundary", continuity.latestBoundaryId],
+          ["Canary status", continuity.canaryStatus],
+          ["Fail axes", String(continuity.failAxis.length)],
+        ]));
+        root.appendChild(el("p", { className: "summary", text: continuity.identityGoal }));
+        root.appendChild(createSection("Hard invariants", createTextList(continuity.hardInvariants), { badge: `${continuity.hardInvariants.length}`, open: isLabProfile(profile) }));
+        root.appendChild(createSection("Fail axis", createTextList(continuity.failAxis), { badge: `${continuity.failAxis.length}`, open: isLabProfile(profile) }));
+        root.appendChild(createSection("Transition retention", createList(continuity.transitionRetention, createTransitionCard), { badge: `${continuity.transitionRetention.length}`, open: isLabProfile(profile) }));
+        return root;
+      }
+
+      function renderRepo(repo) {
+        const root = el("div", { className: "stack" });
+        root.appendChild(createMetricGrid([
+          ["Query", repo.query],
+          ["Search hits", String(repo.search.length)],
+          ["Explore hits", String(repo.explore.length)],
+          ["Fetchable search hits", String(repo.search.filter((item) => item.fetchable).length)],
+        ]));
+        root.appendChild(createSection("Search results", createList(repo.search, createRepoNodeCard), { badge: `${repo.search.length}` }));
+        root.appendChild(createSection("Explore results", createList(repo.explore, createRepoNodeCard), { badge: `${repo.explore.length}` }));
+        root.appendChild(createSection("Guidance", createTextList(repo.guidance), { badge: `${repo.guidance.length}` }));
+        return root;
+      }
+
+      function renderAudit(audit, profile) {
+        const root = el("div", { className: "stack" });
+        const gateStatus = (gate) => audit.gateStatus.find((item) => item.gate === gate)?.status || "unknown";
+
+        if (!isLabProfile(profile)) {
+          root.appendChild(createMetricGrid([
+            ["Read-only tools", String(audit.readOnlyTools.length)],
+            ["Gate-18", gateStatus("Gate-18")],
+            ["Gate-19", gateStatus("Gate-19")],
+            ["Gate-20", gateStatus("Gate-20")],
+          ]));
+          root.appendChild(el("p", { className: "summary", text: "Detailed audit is available in Chrono Lab." }));
+          return root;
+        }
+
+        root.appendChild(createMetricGrid([
+          ["Read-only tools", String(audit.readOnlyTools.length)],
+          ["Raw-first fields", String(audit.rawFirstFields.length)],
+          ["Promotion bans", String(audit.promotionBans.length)],
+          ["Gate checks", String(audit.gateStatus.length)],
+        ]));
+        root.appendChild(createSection("Gate-18 / Gate-19 / Gate-20", createList(audit.gateStatus, createGateCard), { badge: `${audit.gateStatus.length}` }));
+        root.appendChild(createSection("Promotion bans", createTextList(audit.promotionBans), { badge: `${audit.promotionBans.length}` }));
+        root.appendChild(createSection("Read-only tools", createCodeList(audit.readOnlyTools), { badge: `${audit.readOnlyTools.length}` }));
+        root.appendChild(createSection("Raw-first fields", createTextList(audit.rawFirstFields), { badge: `${audit.rawFirstFields.length}` }));
+        return root;
+      }
+
+      function updateShellState(panel, profile = uiState.profile) {
+        uiState.lastPanel = panel || "text";
+        uiState.lastUpdated = new Date();
+        uiState.profile = profile;
+        panelChipEl.textContent = uiState.lastPanel;
+        profileChipEl.textContent = `profile: ${uiState.profile}`;
+        updatedChipEl.textContent = uiState.lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      function renderPanel(data) {
+        panelEl.replaceChildren();
+        const profile = resolveProfile(data);
+
+        if (!data) {
+          panelTitleEl.textContent = "Console Panel";
+          panelEl.appendChild(el("div", { className: "status-box", text: "No structured content yet." }));
+          updateShellState("idle");
+          return;
+        }
+
+        if (data.error) {
+          panelTitleEl.textContent = "Tool Error";
+          panelEl.appendChild(renderError(data.error));
+          if (data.error.tool || data.error.mode) {
+            panelEl.appendChild(createMetricGrid([
+              ["Tool", data.error.tool || "unknown"],
+              ["Mode", data.error.mode || "unknown"],
+              ["Profile", data.error.profile || profile],
+              ["Read-only", String(Boolean(data.error.readOnly))],
+            ]));
+          }
+          updateShellState("error", profile);
+          return;
+        }
+
+        switch (data.panel) {
+          case "casefile":
+            panelTitleEl.textContent = "Casefile";
+            panelEl.appendChild(renderCasefile(data.casefile));
+            updateShellState("casefile", profile);
+            return;
+          case "working_view":
+            panelTitleEl.textContent = "Working View";
+            panelEl.appendChild(renderWorkingView(data.workingView));
+            updateShellState("working_view", profile);
+            return;
+          case "strategy":
+            panelTitleEl.textContent = "Strategy";
+            panelEl.appendChild(renderStrategy(data.strategy, profile, data.presentation));
+            updateShellState("strategy", profile);
+            return;
+          case "boundary":
+            panelTitleEl.textContent = "Boundary Packet";
+            panelEl.appendChild(renderBoundary(data.packet, profile));
+            updateShellState("boundary", profile);
+            return;
+          case "continuity":
+            panelTitleEl.textContent = "Continuity Report";
+            panelEl.appendChild(renderContinuity(data.continuity, profile));
+            updateShellState("continuity", profile);
+            return;
+          case "repo":
+            panelTitleEl.textContent = "Repo Navigation";
+            panelEl.appendChild(renderRepo(data.repo));
+            updateShellState("repo", profile);
+            return;
+          case "audit":
+            panelTitleEl.textContent = "Governance Audit";
+            panelEl.appendChild(renderAudit(data.audit, profile));
+            updateShellState("audit", profile);
+            return;
+          default:
+            panelTitleEl.textContent = "Structured Output";
+            panelEl.appendChild(renderJson(data));
+            updateShellState(data.panel || "structured", profile);
+        }
+      }
+
+      function extractStructured(params) {
+        if (params?.structuredContent) {
+          return {
+            ...params.structuredContent,
+            profile: params?._meta?.profile || params.structuredContent.profile || "public",
+          };
+        }
+        const first = params?.content?.[0]?.text;
+        if (!first) return null;
+        try {
+          return {
+            ...JSON.parse(first),
+            profile: params?._meta?.profile || "public",
+          };
+        } catch {
+          return { text: first, profile: params?._meta?.profile || "public" };
+        }
+      }
+
+      window.addEventListener(
+        "message",
+        (event) => {
+          if (event.source !== window.parent) return;
+          const message = event.data;
+          if (!message || message.jsonrpc !== "2.0") return;
+
+          if (message.id && pending.has(message.id)) {
+            const req = pending.get(message.id);
+            pending.delete(message.id);
+            if (message.error) req.reject(message.error);
+            else req.resolve(message.result);
+            return;
+          }
+
+          if (typeof message.method !== "string") return;
+          if (message.method === "ui/notifications/tool-result") {
+            statusEl.textContent = "Tool output received. Text output remains authoritative if the panel cannot render.";
+            renderPanel(extractStructured(message.params));
+          }
+        },
+        { passive: true }
+      );
+
+      async function init() {
+        try {
+          await rpcRequest("ui/initialize", {
+            appInfo: { name: "augnes-console-widget", version: "0.1.0" },
+            appCapabilities: {},
+            protocolVersion: "2026-01-26",
+          });
+          rpcNotify("ui/notifications/initialized", {});
+          statusEl.textContent = "Widget initialized. Run one of the public read-only tools to populate the console.";
+        } catch (error) {
+          statusEl.textContent = `Failed to initialize widget bridge: ${String(error)}`;
+          statusEl.classList.add("error-box");
+        }
+      }
+
+      init();
+    </script>
+  </body>
+</html>

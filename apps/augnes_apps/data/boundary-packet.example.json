@@ -1,0 +1,41 @@
+{
+  "boundaryId": "boundary:read-first-v1",
+  "snapshotId": "snapshot-read-first-v1",
+  "carryForwardCandidates": [
+    {
+      "id": "carry-forward-read-first-public-app",
+      "title": "Public app remains read-first",
+      "stage": "boundary_committed",
+      "why": "The public ChatGPT App surface remains limited to read-only tools and keeps canonical write paths in Augnes Core."
+    },
+    {
+      "id": "carry-forward-evidence-index-resolves",
+      "title": "Evidence index resolves shown evidence IDs",
+      "stage": "canary_or_reviewed",
+      "why": "File-backed search and fetch resolve the evidence IDs surfaced by Working View and Casefile fixtures."
+    },
+    {
+      "id": "carry-forward-continuity-file-mode",
+      "title": "Continuity report now reads from file mode",
+      "stage": "canary_or_reviewed",
+      "why": "File-backed get_continuity_report exposes the latest boundary id without making the ChatGPT thread canonical memory."
+    }
+  ],
+  "traceCapsuleCandidates": [
+    {
+      "id": "trace-capsule-tool-wait-resume",
+      "title": "Resume flow after tool wait",
+      "reuseValue": "Useful for preserving read context across ChatGPT tool waits without promoting narrator text as evidence."
+    }
+  ],
+  "revisionOperators": [
+    "reinterpret",
+    "revise",
+    "carry_forward"
+  ],
+  "lineageNotes": [
+    "No overwrite; boundary packet extends prior chain.",
+    "Narrator summary remains view-only.",
+    "File-backed boundary packet resolves continuity latestBoundaryId."
+  ]
+}
