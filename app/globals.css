@@ -189,6 +189,75 @@ h1 {
   line-height: 1.1;
 }
 
+.start-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(13, 79, 62, 0.22);
+  border-radius: 8px;
+  color: #203047;
+  background: #eef8f4;
+}
+
+.start-card strong {
+  font-size: 0.9rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.start-card p {
+  margin: 0;
+  color: #365245;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.cockpit-guidance {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 12px;
+  align-items: start;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #d7e1dc;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(27, 35, 45, 0.05);
+}
+
+.cockpit-guidance p {
+  margin: 0;
+  color: #203047;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.38;
+}
+
+.cockpit-guidance ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cockpit-guidance li {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #dfe6ef;
+  border-radius: 6px;
+  color: #445268;
+  background: #fbfcfe;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.28;
+}
+
 .cockpit-panel {
   min-width: 0;
   padding: 14px;
@@ -215,6 +284,26 @@ h1 {
   font-size: 1.05rem;
   line-height: 1.2;
   letter-spacing: 0;
+}
+
+.panel-description {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.38;
+}
+
+.bridge-proof {
+  margin: -2px 0 12px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--blue);
+  color: #2f4057;
+  background: #f3f7fc;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .panel-control-row {
@@ -414,6 +503,11 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.inspector-heading code {
+  display: inline-block;
+  margin-top: 4px;
+}
+
 .inspector-heading time,
 .inspector-reason {
   display: block;
@@ -421,6 +515,53 @@ h1 {
   color: var(--muted);
   font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.source-card {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #dfe6ef;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.source-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.source-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #1f2e41;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.source-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.transition-summary {
+  margin: 0;
+  padding: 8px;
+  border-left: 3px solid var(--accent-strong);
+  color: #203047;
+  background: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .cockpit-layout {
@@ -510,6 +651,30 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.state-key-heading,
+.state-key-reference {
+  min-width: 0;
+}
+
+.state-key-heading code,
+.state-key-reference code {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.state-key-reference {
+  margin-top: 8px;
+}
+
+.state-key-reference strong {
+  display: block;
+  color: #1f2e41;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
 .proposal-card p,
 .tension-item p,
 .plan-item p {
@@ -521,6 +686,7 @@ h1 {
 
 .card-topline {
   justify-content: space-between;
+  align-items: flex-start;
 }
 
 .button-row {
@@ -560,6 +726,16 @@ h1 {
   text-transform: uppercase;
 }
 
+.score-field {
+  display: block;
+  margin-top: 2px;
+  color: #6b7480;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
 .score-value {
   display: block;
   margin-top: 3px;
@@ -593,6 +769,17 @@ h1 {
   color: #445268;
   background: #ffffff;
   font-size: 0.8rem;
+}
+
+.proposal-card .consolidation-copy {
+  margin-top: 8px;
+  padding: 7px 8px;
+  border: 1px solid #dfe6ef;
+  border-radius: 6px;
+  color: #3d4b5e;
+  background: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .score-breakdown {
@@ -660,6 +847,14 @@ h1 {
   font-size: 0.84rem;
   font-weight: 700;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.raw-value {
+  display: block;
+  margin-top: 3px;
+  color: #6b7480;
+  font-size: 0.68rem;
   overflow-wrap: anywhere;
 }
 
@@ -755,6 +950,7 @@ h1 {
 .empty-state {
   min-height: 48px;
   display: grid;
+  gap: 3px;
   place-items: center;
   border: 1px dashed #bac3d0;
   border-radius: 8px;
@@ -762,6 +958,19 @@ h1 {
   background: #fbfcfe;
   font-size: 0.88rem;
   font-weight: 700;
+  text-align: center;
+}
+
+.empty-state strong {
+  color: #445268;
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.empty-state span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .action-controls {
@@ -801,6 +1010,15 @@ h1 {
 
   .demo-flow-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .start-card {
+    grid-template-columns: 1fr;
+  }
+
+  .cockpit-guidance,
+  .cockpit-guidance ol {
+    grid-template-columns: 1fr;
   }
 
   .demo-flow-step:nth-child(2n)::after {
