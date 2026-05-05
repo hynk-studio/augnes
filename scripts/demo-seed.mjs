@@ -126,7 +126,10 @@ const insertProposal = db.prepare(`
     reason,
     status,
     proposed_at,
-    decided_at
+    decided_at,
+    consolidation_status,
+    last_evaluated_at,
+    scoring_reason
   )
   VALUES (
     @proposalId,
@@ -145,7 +148,10 @@ const insertProposal = db.prepare(`
     @reason,
     'committed',
     @committedAt,
-    @committedAt
+    @committedAt,
+    'committed',
+    @committedAt,
+    'Demo seed proposal is already committed.'
   )
   ON CONFLICT(id) DO UPDATE SET
     scope = excluded.scope,
@@ -163,7 +169,10 @@ const insertProposal = db.prepare(`
     reason = excluded.reason,
     status = excluded.status,
     proposed_at = excluded.proposed_at,
-    decided_at = excluded.decided_at
+    decided_at = excluded.decided_at,
+    consolidation_status = excluded.consolidation_status,
+    last_evaluated_at = excluded.last_evaluated_at,
+    scoring_reason = excluded.scoring_reason
 `);
 
 const insertTransition = db.prepare(`
