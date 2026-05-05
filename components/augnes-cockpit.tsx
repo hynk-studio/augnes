@@ -43,6 +43,24 @@ type StateDeltaProposal = {
   change_type: string;
   reason: string | null;
   status: "pending" | "committed" | "rejected";
+  consolidation_status:
+    | "candidate"
+    | "reinforced"
+    | "ready"
+    | "needs_review"
+    | "expired"
+    | "committed"
+    | "rejected";
+  salience_score: number;
+  evidence_score: number;
+  conflict_score: number;
+  self_impact_score: number;
+  prediction_error_score: number;
+  reinforcement_count: number;
+  scoring_version: string;
+  scoring_reason: string | null;
+  expires_at: string | null;
+  score_breakdown?: StateValue;
 };
 
 type StateTransition = {
@@ -84,6 +102,14 @@ type PlanRecommendation = {
 type PlanResponse = {
   planner: "openai" | "mock";
   recommendations: PlanRecommendation[];
+};
+
+type ConsolidationResponse = {
+  evaluated_count: number;
+  ready_count: number;
+  needs_review_count: number;
+  reinforced_count: number;
+  expired_count: number;
 };
 
 type Notice = {
@@ -138,7 +164,9 @@ export function AugnesCockpit() {
     const [snapshotResult, trajectoryResult, proposalResult] = await Promise.all([
       fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
       fetchJson<TrajectoryResponse>(`/api/state/trajectory?scope=${SCOPE}`),
-      fetchJson<ProposalResponse>(`/api/proposals?scope=${SCOPE}&status=pending`),
+      fetchJson<ProposalResponse>(
+        `/api/proposals?scope=${SCOPE}&status=pending&include_expired=true`,
+      ),
     ]);
 
     setSnapshot(snapshotResult);
@@ -219,6 +247,35 @@ export function AugnesCockpit() {
       setNotice({
         tone: "error",
         text: error instanceof Error ? error.message : "Planner failed",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function consolidateCandidates() {
+    setBusy("consolidate");
+    setNotice(null);
+
+    try {
+      const result = await fetchJson<ConsolidationResponse>("/api/consolidation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: SCOPE }),
+      });
+
+      await refreshRuntime();
+      setNotice({
+        tone: "info",
+        text: `Consolidated ${result.evaluated_count} evaluated, ${result.ready_count} ready, ${result.needs_review_count} needs_review, ${result.reinforced_count} reinforced, ${result.expired_count} expired`,
+      });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Candidate consolidation failed",
       });
     } finally {
       setBusy(null);
@@ -320,6 +377,17 @@ export function AugnesCockpit() {
 
         <section className="cockpit-panel proposals-panel">
           <PanelHeader eyebrow="Propose" title="Pending State Deltas" />
+          <div className="panel-control-row">
+            <p>Advisory runtime scoring; commit and reject stay manual.</p>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void consolidateCandidates()}
+              disabled={busy === "consolidate"}
+            >
+              Consolidate Candidates
+            </button>
+          </div>
           <div className="proposal-list">
             {proposals.length === 0 ? (
               <EmptyState label="No pending proposals" />
@@ -328,14 +396,19 @@ export function AugnesCockpit() {
                 <article className="proposal-card" key={proposal.id}>
                   <div className="card-topline">
                     <h3>{proposal.state_key}</h3>
-                    <StatusBadge label={proposal.temporal_scope} />
+                    <StatusBadge
+                      label={formatStatusLabel(proposal.consolidation_status)}
+                      tone={getConsolidationTone(proposal.consolidation_status)}
+                    />
                   </div>
                   <ValueDiff
                     beforeValue={proposal.before_value}
                     afterValue={proposal.after_value}
                   />
+                  <ProposalScoring proposal={proposal} />
                   <div className="meta-row">
                     <span>{proposal.operation}</span>
+                    <span>{proposal.temporal_scope}</span>
                     <span>{proposal.stability}</span>
                     <span>{proposal.change_type}</span>
                   </div>
@@ -344,7 +417,10 @@ export function AugnesCockpit() {
                     <button
                       type="button"
                       onClick={() => void decideProposal(proposal.id, "commit")}
-                      disabled={busy === proposal.id}
+                      disabled={
+                        busy === proposal.id ||
+                        proposal.consolidation_status === "expired"
+                      }
                     >
                       Commit
                     </button>
@@ -782,6 +858,50 @@ function ValueDiff({
   );
 }
 
+function ProposalScoring({ proposal }: { proposal: StateDeltaProposal }) {
+  const scores = [
+    ["salience", proposal.salience_score],
+    ["evidence", proposal.evidence_score],
+    ["conflict", proposal.conflict_score],
+    ["self impact", proposal.self_impact_score],
+    ["prediction error", proposal.prediction_error_score],
+  ] as const;
+
+  return (
+    <div className="proposal-scoring" aria-label="Advisory proposal scoring">
+      <div className="score-grid">
+        {scores.map(([label, value]) => (
+          <div className="score-pill" key={label}>
+            <span className="score-label">{label}</span>
+            <strong className="score-value">{formatScore(value)}</strong>
+          </div>
+        ))}
+        <div className="score-pill">
+          <span className="score-label">reinforced</span>
+          <strong className="score-value">{proposal.reinforcement_count}</strong>
+        </div>
+      </div>
+      <div className="scoring-meta">
+        <span>{proposal.scoring_version}</span>
+        {proposal.expires_at ? (
+          <time dateTime={proposal.expires_at}>
+            expires {formatDate(proposal.expires_at)}
+          </time>
+        ) : null}
+      </div>
+      {proposal.scoring_reason ? (
+        <p className="scoring-reason">{proposal.scoring_reason}</p>
+      ) : null}
+      {proposal.score_breakdown ? (
+        <details className="score-breakdown">
+          <summary>Score breakdown</summary>
+          <code>{formatValue(proposal.score_breakdown)}</code>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
 function StatusBadge({ label, tone }: { label: string; tone?: string }) {
   return (
     <span className={`status-badge${tone ? ` badge-${tone}` : ""}`}>
@@ -892,6 +1012,24 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatScore(value: number) {
+  return Number.isFinite(value) ? value.toFixed(2) : "--";
+}
+
+function formatStatusLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
+function getConsolidationTone(
+  status: StateDeltaProposal["consolidation_status"],
+) {
+  if (status === "needs_review") {
+    return "needs-review";
+  }
+
+  return status;
 }
 
 function truncateLabel(value: string, maxLength: number) {
