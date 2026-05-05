@@ -129,7 +129,7 @@ function buildAgentHandoff({
         "Do not change commit/reject behavior or add lifecycle states.",
         "Do not add auth, OAuth, multi-user, hosted deployment, or ChatGPT App write tools.",
         "Do not commit secrets, .env files, local SQLite files, generated outputs, screenshots, or unrelated files.",
-        "Record completed external work through POST /api/actions/record.",
+        "Record external work outcomes through POST /api/actions/record.",
       ],
       likely_files: [
         "lib/state/brief.ts",
@@ -161,6 +161,8 @@ function buildAgentHandoff({
         action_name: normalizeActionName(nextRecommendedAction.title),
         result_summary: "Summarize implementation and verification results.",
         files_changed: [] as string[],
+        result_status: "completed",
+        result_kind: "verification",
       },
     },
   };

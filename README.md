@@ -192,6 +192,10 @@ curl -s -X POST "http://localhost:3000/api/actions/run" \
   -d '{"scope":"project:augnes","tool_name":"create_readme_checklist"}'
 ```
 
+External agents can record work through `POST /api/actions/record`. Existing callers only need `scope`, `source_agent_id`, `action_name`, `result_summary`, and `files_changed`; omitted `result_status` values default to `completed`, and omitted `result_kind` values default to `other`.
+
+Optional `result_status` values are `completed`, `failed`, `blocked`, `partial`, and `needs_review`. Optional `result_kind` values are `implementation`, `verification`, `documentation`, `screenshot`, `handoff`, `review`, and `other`. Only `completed` creates a completed boolean transition; non-completed outcomes are recorded with their semantic status instead.
+
 ## External State Brief
 
 `GET /api/state/brief?scope=project:augnes` returns compact continuity context for Codex or another external agent.
