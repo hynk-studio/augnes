@@ -96,7 +96,13 @@ export type ActionRecordInput = {
   state_key?: string | null;
   title: string;
   description?: string | null;
-  status?: "pending" | "completed" | "failed";
+  status?:
+    | "pending"
+    | "completed"
+    | "failed"
+    | "blocked"
+    | "partial"
+    | "needs_review";
   source_agent_id?: string | null;
   source_session_id?: string | null;
   created_at?: string;

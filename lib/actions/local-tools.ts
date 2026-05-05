@@ -16,6 +16,27 @@ export const TOOL_NAMES = [
 
 export type ToolName = (typeof TOOL_NAMES)[number];
 
+export const ACTION_RESULT_STATUSES = [
+  "completed",
+  "failed",
+  "blocked",
+  "partial",
+  "needs_review",
+] as const;
+
+export const ACTION_RESULT_KINDS = [
+  "implementation",
+  "verification",
+  "documentation",
+  "screenshot",
+  "handoff",
+  "review",
+  "other",
+] as const;
+
+export type ActionResultStatus = (typeof ACTION_RESULT_STATUSES)[number];
+export type ActionResultKind = (typeof ACTION_RESULT_KINDS)[number];
+
 type ToolResult = {
   tool_name: ToolName;
   output_path: string;
@@ -117,6 +138,8 @@ export function runLocalTool({
     description: JSON.stringify({
       result_summary: config.summary,
       files_changed: [outputPath],
+      result_status: "completed",
+      result_kind: "implementation",
     }),
     status: "completed",
     source_agent_id: sourceAgentId,
@@ -148,12 +171,16 @@ export function recordExternalAction({
   actionName,
   resultSummary,
   filesChanged,
+  resultStatus = "completed",
+  resultKind = "other",
 }: {
   scope: string;
   sourceAgentId: string;
   actionName: string;
   resultSummary: string;
   filesChanged: string[];
+  resultStatus?: ActionResultStatus;
+  resultKind?: ActionResultKind;
 }) {
   ensureAgent({
     id: sourceAgentId,
@@ -161,25 +188,29 @@ export function recordExternalAction({
     kind: "external",
   });
 
+  const stateKey = `external.${sanitizeStateSegment(actionName)}_recorded`;
+  const transition = transitionForResultStatus(resultStatus);
   const actionRecord = insertActionRecord({
     scope,
-    state_key: `external.${sanitizeStateSegment(actionName)}_recorded`,
+    state_key: stateKey,
     title: actionName,
     description: JSON.stringify({
       result_summary: resultSummary,
       files_changed: filesChanged,
+      result_status: resultStatus,
+      result_kind: resultKind,
     }),
-    status: "completed",
+    status: resultStatus,
     source_agent_id: sourceAgentId,
   });
-  const { transition } = commitStateUpdate({
+  const { transition: stateTransition } = commitStateUpdate({
     scope,
-    state_key: `external.${sanitizeStateSegment(actionName)}_recorded`,
-    before_value: false,
-    after_value: true,
+    state_key: stateKey,
+    before_value: transition.beforeValue,
+    after_value: transition.afterValue,
     temporal_scope: "current_project",
-    stability: "completed",
-    change_type: "completion",
+    stability: transition.stability,
+    change_type: transition.changeType,
     source_agent_id: sourceAgentId,
     source_session_id: null,
     reason: resultSummary,
@@ -187,7 +218,39 @@ export function recordExternalAction({
 
   return {
     action_record: actionRecord,
-    transition,
+    transition: stateTransition,
+  };
+}
+
+function transitionForResultStatus(status: ActionResultStatus): {
+  beforeValue: boolean | string;
+  afterValue: boolean | string;
+  stability: string;
+  changeType: string;
+} {
+  if (status === "completed") {
+    return {
+      beforeValue: false,
+      afterValue: true,
+      stability: "completed",
+      changeType: "completion",
+    };
+  }
+
+  if (status === "failed" || status === "blocked") {
+    return {
+      beforeValue: "pending",
+      afterValue: status,
+      stability: "active",
+      changeType: "refinement",
+    };
+  }
+
+  return {
+    beforeValue: "pending",
+    afterValue: status,
+    stability: "tentative",
+    changeType: "refinement",
   };
 }
 
