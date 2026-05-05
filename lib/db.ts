@@ -1,9 +1,28 @@
 import Database from "better-sqlite3";
+import {
+  SCORING_VERSION,
+  scoreCandidateProposal,
+  type ConsolidationStatus,
+} from "@/lib/runtime/candidate-scoring";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 const DEFAULT_DB_PATH = path.join(process.cwd(), "data", "augnes.db");
+const PROPOSAL_SCORING_COLUMNS = [
+  ["prediction_error_score", "REAL NOT NULL DEFAULT 0"],
+  ["salience_score", "REAL NOT NULL DEFAULT 0"],
+  ["evidence_score", "REAL NOT NULL DEFAULT 0"],
+  ["conflict_score", "REAL NOT NULL DEFAULT 0"],
+  ["self_impact_score", "REAL NOT NULL DEFAULT 0"],
+  ["consolidation_status", "TEXT NOT NULL DEFAULT 'candidate'"],
+  ["reinforcement_count", "INTEGER NOT NULL DEFAULT 0"],
+  ["expires_at", "TEXT"],
+  ["last_evaluated_at", "TEXT"],
+  ["scoring_version", `TEXT NOT NULL DEFAULT '${SCORING_VERSION}'`],
+  ["scoring_reason", "TEXT"],
+  ["score_breakdown", "TEXT"],
+] as const;
 
 export type StateValue = boolean | number | string | null | StateValue[] | {
   [key: string]: StateValue;
@@ -138,10 +157,25 @@ export type PendingStateDeltaProposalInput = {
   proposed_at: string;
 };
 
+export type StateDeltaProposalScoring = {
+  prediction_error_score: number;
+  salience_score: number;
+  evidence_score: number;
+  conflict_score: number;
+  self_impact_score: number;
+  consolidation_status: ConsolidationStatus;
+  reinforcement_count: number;
+  expires_at: string | null;
+  last_evaluated_at: string | null;
+  scoring_version: string;
+  scoring_reason: string | null;
+  score_breakdown: StateValue;
+};
+
 export type StateDeltaProposal = PendingStateDeltaProposalInput & {
   status: "pending" | "committed" | "rejected";
   decided_at: string | null;
-};
+} & StateDeltaProposalScoring;
 
 type EntryRow = Omit<StateEntry, "value"> & {
   value: string;
@@ -154,9 +188,13 @@ type TransitionRow = Omit<StateTransition, "before_value" | "after_value"> & {
 
 type ActionRecordRow = ActionRecord;
 
-type ProposalRow = Omit<StateDeltaProposal, "before_value" | "after_value"> & {
+type ProposalRow = Omit<
+  StateDeltaProposal,
+  "before_value" | "after_value" | "score_breakdown"
+> & {
   before_value: string | null;
   after_value: string;
+  score_breakdown: string | null;
 };
 
 type ProposalCommitResult = {
@@ -176,6 +214,7 @@ export function openDatabase() {
 
   const db = new Database(dbPath, { fileMustExist: false });
   db.pragma("foreign_keys = ON");
+  migrateStateDeltaProposalScoringColumns(db);
   return db;
 }
 
@@ -263,6 +302,7 @@ export function insertMessage(message: MessageRecord) {
 
 export function insertPendingStateDeltaProposals(
   proposals: PendingStateDeltaProposalInput[],
+  options: { currentState?: StateEntry[]; now?: string } = {},
 ) {
   if (proposals.length === 0) {
     return [];
@@ -271,6 +311,25 @@ export function insertPendingStateDeltaProposals(
   const db = openDatabase();
 
   try {
+    const evaluatedAt = options.now ?? proposals[0]?.proposed_at ?? new Date().toISOString();
+    const currentStateByScope = new Map<string, StateEntry[]>();
+    const getCurrentState = (scope: string) => {
+      const scopedOptionState =
+        options.currentState?.filter((entry) => entry.scope === scope) ?? null;
+
+      if (scopedOptionState && scopedOptionState.length > 0) {
+        return scopedOptionState;
+      }
+
+      if (!currentStateByScope.has(scope)) {
+        currentStateByScope.set(
+          scope,
+          selectStateEntryRows(db, scope).map(parseEntryRow),
+        );
+      }
+
+      return currentStateByScope.get(scope) ?? [];
+    };
     const insert = db.prepare(
       `
         INSERT INTO state_delta_proposals (
@@ -290,7 +349,19 @@ export function insertPendingStateDeltaProposals(
           reason,
           status,
           proposed_at,
-          decided_at
+          decided_at,
+          prediction_error_score,
+          salience_score,
+          evidence_score,
+          conflict_score,
+          self_impact_score,
+          consolidation_status,
+          reinforcement_count,
+          expires_at,
+          last_evaluated_at,
+          scoring_version,
+          scoring_reason,
+          score_breakdown
         )
         VALUES (
           @id,
@@ -309,17 +380,36 @@ export function insertPendingStateDeltaProposals(
           @reason,
           'pending',
           @proposed_at,
-          NULL
+          NULL,
+          @prediction_error_score,
+          @salience_score,
+          @evidence_score,
+          @conflict_score,
+          @self_impact_score,
+          @consolidation_status,
+          @reinforcement_count,
+          @expires_at,
+          @last_evaluated_at,
+          @scoring_version,
+          @scoring_reason,
+          @score_breakdown
         )
       `,
     );
 
     const savedRows = db.transaction(() => {
       for (const proposal of proposals) {
+        const scoring = scoreCandidateProposal({
+          proposal,
+          currentState: getCurrentState(proposal.scope),
+          now: evaluatedAt,
+        });
         insert.run({
           ...proposal,
+          ...scoring,
           before_value: serializeStateValue(proposal.before_value),
           after_value: serializeStateValue(proposal.after_value),
+          score_breakdown: serializeStateValue(scoring.score_breakdown),
         });
       }
 
@@ -343,7 +433,19 @@ export function insertPendingStateDeltaProposals(
               reason,
               status,
               proposed_at,
-              decided_at
+              decided_at,
+              prediction_error_score,
+              salience_score,
+              evidence_score,
+              conflict_score,
+              self_impact_score,
+              consolidation_status,
+              reinforcement_count,
+              expires_at,
+              last_evaluated_at,
+              scoring_version,
+              scoring_reason,
+              score_breakdown
             FROM state_delta_proposals
             WHERE id IN (${proposals.map(() => "?").join(", ")})
             ORDER BY proposed_at ASC, id ASC
@@ -396,7 +498,19 @@ export function listStateDeltaProposals({
             reason,
             status,
             proposed_at,
-            decided_at
+            decided_at,
+            prediction_error_score,
+            salience_score,
+            evidence_score,
+            conflict_score,
+            self_impact_score,
+            consolidation_status,
+            reinforcement_count,
+            expires_at,
+            last_evaluated_at,
+            scoring_version,
+            scoring_reason,
+            score_breakdown
           FROM state_delta_proposals
           WHERE scope = ?
           ${statusClause}
@@ -1138,8 +1252,10 @@ function parseProposalRow(row: ProposalRow): StateDeltaProposal {
   return {
     ...row,
     status: row.status as StateDeltaProposal["status"],
+    consolidation_status: row.consolidation_status as ConsolidationStatus,
     before_value: parseStateValue(row.before_value),
     after_value: parseStateValue(row.after_value),
+    score_breakdown: parseStateValue(row.score_breakdown),
   };
 }
 
@@ -1179,12 +1295,83 @@ function selectProposalRow(db: Database.Database, id: string) {
           reason,
           status,
           proposed_at,
-          decided_at
+          decided_at,
+          prediction_error_score,
+          salience_score,
+          evidence_score,
+          conflict_score,
+          self_impact_score,
+          consolidation_status,
+          reinforcement_count,
+          expires_at,
+          last_evaluated_at,
+          scoring_version,
+          scoring_reason,
+          score_breakdown
         FROM state_delta_proposals
         WHERE id = ?
       `,
     )
     .get(id) as ProposalRow | undefined;
+}
+
+function selectStateEntryRows(db: Database.Database, scope: string) {
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          scope,
+          state_key,
+          value,
+          temporal_scope,
+          valid_from,
+          valid_until,
+          stability,
+          change_type,
+          source_agent_id,
+          source_session_id,
+          source_transition_id,
+          created_at,
+          updated_at
+        FROM state_entries
+        WHERE scope = ?
+        ORDER BY state_key ASC
+      `,
+    )
+    .all(scope) as EntryRow[];
+}
+
+function migrateStateDeltaProposalScoringColumns(db: Database.Database) {
+  const table = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'state_delta_proposals'
+      `,
+    )
+    .get();
+
+  if (!table) {
+    return;
+  }
+
+  const existingColumns = new Set(
+    (
+      db.prepare("PRAGMA table_info(state_delta_proposals)").all() as {
+        name: string;
+      }[]
+    ).map((column) => column.name),
+  );
+
+  for (const [name, definition] of PROPOSAL_SCORING_COLUMNS) {
+    if (!existingColumns.has(name)) {
+      db.prepare(
+        `ALTER TABLE state_delta_proposals ADD COLUMN ${name} ${definition}`,
+      ).run();
+    }
+  }
 }
 
 function maybeInsertContradictionTension({

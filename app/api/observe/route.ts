@@ -84,8 +84,10 @@ export async function POST(request: Request) {
         proposed_at: now,
       }));
 
-    const savedProposals =
-      insertPendingStateDeltaProposals(pendingInputs);
+    const savedProposals = insertPendingStateDeltaProposals(pendingInputs, {
+      currentState,
+      now,
+    });
 
     return NextResponse.json(
       {

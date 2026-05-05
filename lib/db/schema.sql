@@ -46,6 +46,18 @@ CREATE TABLE IF NOT EXISTS state_delta_proposals (
   status TEXT NOT NULL DEFAULT 'pending',
   proposed_at TEXT NOT NULL DEFAULT (datetime('now')),
   decided_at TEXT,
+  prediction_error_score REAL NOT NULL DEFAULT 0,
+  salience_score REAL NOT NULL DEFAULT 0,
+  evidence_score REAL NOT NULL DEFAULT 0,
+  conflict_score REAL NOT NULL DEFAULT 0,
+  self_impact_score REAL NOT NULL DEFAULT 0,
+  consolidation_status TEXT NOT NULL DEFAULT 'candidate',
+  reinforcement_count INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT,
+  last_evaluated_at TEXT,
+  scoring_version TEXT NOT NULL DEFAULT 'v0.2-rule-001',
+  scoring_reason TEXT,
+  score_breakdown TEXT,
   FOREIGN KEY (source_agent_id) REFERENCES agents(id),
   FOREIGN KEY (source_session_id) REFERENCES sessions(id)
 );

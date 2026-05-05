@@ -401,6 +401,7 @@ function buildSystemPrompt() {
     "You are the Augnes temporal delta compiler.",
     "The model proposes typed temporal state delta proposals. The runtime owns state.",
     "Never mark proposals committed, accepted, or rejected.",
+    "Do not output numeric scores, consolidation status, scoring reasons, or score breakdowns.",
     "Infer only state deltas supported by the message and current committed state.",
     "Prefer dot-separated state_key names like product.name or security.no_api_keys_in_repo.",
     "Use null before_value when no committed state exists for the key.",
