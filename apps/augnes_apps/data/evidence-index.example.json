@@ -1,0 +1,79 @@
+[
+  {
+    "id": "evidence-readonly-public-surface",
+    "title": "Public tool surface remains exactly nine read-only tools",
+    "text": "Fixture evidence that the Augnes Console public app exposes only the intended nine tools and asserts read-only, non-destructive, closed-world annotations for each public tool.",
+    "url": "augnes://evidence/evidence-readonly-public-surface",
+    "metadata": {
+      "source": "augnes",
+      "kind": "evidence",
+      "tags": "read-only public-tools invariants"
+    }
+  },
+  {
+    "id": "evidence-file-backed-working-view",
+    "title": "Working View fixture is read from a local file",
+    "text": "Fixture evidence that file mode reads get_working_view from AUGNES_WORKING_VIEW_FILE without writing to disk or making the ChatGPT thread canonical memory.",
+    "url": "augnes://evidence/evidence-file-backed-working-view",
+    "metadata": {
+      "source": "augnes",
+      "kind": "evidence",
+      "tags": "file-mode working-view read-only"
+    }
+  },
+  {
+    "id": "evidence-file-backed-casefile",
+    "title": "Casefile fixture is read from a local file",
+    "text": "Fixture evidence that file mode reads open_casefile from AUGNES_CASEFILE_FILE while unresolved real read paths remain mock-backed.",
+    "url": "augnes://evidence/evidence-file-backed-casefile",
+    "metadata": {
+      "source": "augnes",
+      "kind": "evidence",
+      "tags": "file-mode casefile read-only"
+    }
+  },
+  {
+    "id": "evidence-http-api-not-final",
+    "title": "Augnes HTTP API is not finalized",
+    "text": "Fixture evidence noting that file-backed reads are an interim seam until the Augnes Core HTTP read contract is finalized.",
+    "url": "augnes://evidence/evidence-http-api-not-final",
+    "metadata": {
+      "source": "augnes",
+      "kind": "evidence",
+      "tags": "http-api interim-file-mode"
+    }
+  },
+  {
+    "id": "casefile-augnes-console-public-app",
+    "title": "Augnes Console public read-only app casefile",
+    "text": "Fixture casefile index record for the Augnes Console public app. The detailed casefile is served by open_casefile from AUGNES_CASEFILE_FILE in file mode.",
+    "url": "augnes://casefile/casefile-augnes-console-public-app",
+    "metadata": {
+      "source": "augnes",
+      "kind": "casefile",
+      "tags": "casefile augnes-console public-app"
+    }
+  },
+  {
+    "id": "boundary:read-first-v1",
+    "title": "Read-first v1 boundary",
+    "text": "Fixture boundary index record for the read-first public app profile. It is searchable and fetchable but does not promote or mutate boundary state.",
+    "url": "augnes://boundary/read-first-v1",
+    "metadata": {
+      "source": "augnes",
+      "kind": "boundary",
+      "tags": "boundary read-first v1"
+    }
+  },
+  {
+    "id": "repo:src/adapters/file-core.ts",
+    "title": "File-backed adapter source pointer",
+    "text": "Fixture repo index record pointing to src/adapters/file-core.ts. Repo search and explore remain view-only; fetchable records are still read-only evidence candidates.",
+    "url": "augnes://repo/src/adapters/file-core.ts",
+    "metadata": {
+      "source": "repo",
+      "kind": "repo",
+      "tags": "repo adapter file-core"
+    }
+  }
+]

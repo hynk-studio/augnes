@@ -1,0 +1,43 @@
+{
+  "readOnlyTools": [
+    "search",
+    "fetch",
+    "open_casefile",
+    "get_working_view",
+    "explain_strategy",
+    "get_boundary_packet",
+    "get_continuity_report",
+    "navigate_repo",
+    "get_governance_audit"
+  ],
+  "rawFirstFields": [
+    "provider session ids",
+    "thread ids",
+    "workspace ids",
+    "run ids",
+    "auth identifiers"
+  ],
+  "promotionBans": [
+    "No narrator text into Evidence Registry",
+    "No ChatGPT thread/session metadata into canonical memory",
+    "No Search/Explore RepoGraph result promoted as evidence without fetch",
+    "No Strategy Rationale promoted as truth"
+  ],
+  "gateStatus": [
+    {
+      "gate": "Gate-18",
+      "status": "pass",
+      "note": "Low-cardinality logging promotion remains guarded."
+    },
+    {
+      "gate": "Gate-19",
+      "status": "pass",
+      "note": "External backend and session state remain raw-first."
+    },
+    {
+      "gate": "Gate-20",
+      "status": "warn",
+      "note": "Continuity canaries exist, but public-vs-lab split remains under validation."
+    }
+  ]
+}

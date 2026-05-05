@@ -1,0 +1,66 @@
+{
+  "query": "file-backed Augnes Console repo navigation",
+  "search": [
+    {
+      "nodeId": "repo:apps/web/src/observability/health.ts",
+      "title": "apps/web/src/observability/health.ts healthcheck metric logging",
+      "kind": "file",
+      "fetchable": false
+    },
+    {
+      "nodeId": "repo:src/adapters/file-core.ts",
+      "title": "src/adapters/file-core.ts file adapter",
+      "kind": "file",
+      "fetchable": true
+    },
+    {
+      "nodeId": "repo:src/lib/sanitize.ts",
+      "title": "src/lib/sanitize.ts unsafe identifier sanitizer",
+      "kind": "file",
+      "fetchable": false
+    },
+    {
+      "nodeId": "repo:data/evidence-index.example.json",
+      "title": "data/evidence-index.example.json evidence index fixture",
+      "kind": "doc",
+      "fetchable": false
+    },
+    {
+      "nodeId": "repo:data/continuity-report.example.json",
+      "title": "data/continuity-report.example.json continuity report fixture",
+      "kind": "doc",
+      "fetchable": false
+    },
+    {
+      "nodeId": "repo:data/boundary-packet.example.json",
+      "title": "data/boundary-packet.example.json boundary packet fixture",
+      "kind": "doc",
+      "fetchable": false
+    }
+  ],
+  "explore": [
+    {
+      "nodeId": "repo:src/adapters",
+      "title": "src/adapters",
+      "kind": "folder",
+      "fetchable": false
+    },
+    {
+      "nodeId": "repo:data",
+      "title": "data",
+      "kind": "folder",
+      "fetchable": false
+    },
+    {
+      "nodeId": "repo:docs",
+      "title": "docs",
+      "kind": "folder",
+      "fetchable": false
+    }
+  ],
+  "guidance": [
+    "Search/Explore are view-only.",
+    "Fetch source text before using a node as evidence.",
+    "Repo navigation does not write canonical state."
+  ]
+}

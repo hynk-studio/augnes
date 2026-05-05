@@ -24,7 +24,9 @@ Demo flow:
 
 MCP bridge proof:
 
-The companion `augnes_apps` repo exposes Augnes through MCP bridge tools such as:
+This submitted repo contains both the Augnes runtime/cockpit at the repository root and the ChatGPT App / MCP bridge under `apps/augnes_apps`.
+
+The nested `apps/augnes_apps` package exposes Augnes through MCP bridge tools such as:
 
 - `augnes_get_state_brief`
 - `augnes_observe`
@@ -32,11 +34,11 @@ The companion `augnes_apps` repo exposes Augnes through MCP bridge tools such as
 - `augnes_record_action_result`
 - `augnes_list_pending_proposals`
 
-I verified the bridge through MCP Inspector:
+I verified the bridge through MCP Inspector from the single repo:
 
 ```text
 MCP Inspector
-  -> augnes_apps /mcp
+  -> apps/augnes_apps /mcp
   -> augnes_get_state_brief
   -> Augnes runtime /api/state/brief
   -> augnes_record_action_result
@@ -59,6 +61,8 @@ MCP Inspector successfully read Augnes state brief through the Augnes Agent Brid
 ```
 
 So the bridge loop is not just a diagram: an external MCP client can read Augnes state and write an action result back into the temporal graph.
+
+Single-repo proof path: run the runtime from the repository root, run the bridge from `apps/augnes_apps`, call `augnes_get_state_brief` and `augnes_record_action_result`, then confirm the Temporal State Graph records the external action.
 
 The model interprets.
 The runtime owns state.

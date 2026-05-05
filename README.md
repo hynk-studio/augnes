@@ -71,7 +71,16 @@ The current challenge build includes:
 - Local tools that create files under `outputs/`.
 - Action records and after-action state transitions.
 - `GET /api/state/brief` for Codex or other external agents.
-- MCP bridge proof through `Aurna-code/augnes_apps`, exposing Augnes state to MCP-compatible clients.
+- MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
+
+## Single-Repo Layout
+
+The challenge submission is now a single GitHub repository:
+
+- Root package: Augnes runtime, temporal state ledger, Runtime Cockpit, `/api/state/brief`, and `/api/actions/record`.
+- `apps/augnes_apps`: ChatGPT App / MCP bridge, bridge tools, and Codex handoff scripts.
+
+`apps/augnes_apps` remains its own nested package with its own `package.json`. The root Augnes runtime package is unchanged.
 
 ## How Augnes Uses OpenAI APIs
 
@@ -228,7 +237,7 @@ Agent instructions include:
 
 ## MCP Bridge Proof
 
-Augnes also has a bridge proof through the companion repo `Aurna-code/augnes_apps`.
+Augnes also has a bridge proof through the nested package `apps/augnes_apps`.
 
 The bridge exposes the Augnes runtime to MCP-compatible clients through tools such as:
 
@@ -264,11 +273,14 @@ The selected transition inspector shows:
 MCP Inspector successfully read Augnes state brief through the Augnes Agent Bridge.
 ```
 
-This proves the first practical version of the intended coordination layer: an external MCP client can read Augnes state and write an action result back into the temporal graph. In other words, Augnes is beginning to replace the human message bus between ChatGPT, Codex, and GitHub with an explicit state handoff layer. Finally, one tiny burden removed from the meat-based routing protocol.
+This proves the first practical version of the intended coordination layer: an external MCP client can read Augnes state and write an action result back into the temporal graph. In other words, Augnes is beginning to replace the human message bus between ChatGPT, Codex, and GitHub with an explicit state handoff layer.
 
 ## How to Run
 
+Terminal 1: Augnes runtime.
+
 ```bash
+cd /path/to/augnes
 npm install
 cp .env.example .env.local
 npm run db:reset
@@ -287,14 +299,36 @@ OPENAI_MODEL=gpt-4.1-mini
 
 Never commit `.env.local`, API keys, local secrets, or generated SQLite files.
 
+Terminal 2: ChatGPT App / MCP bridge.
+
+```bash
+cd /path/to/augnes/apps/augnes_apps
+npm install
+AUGNES_ENABLE_AGENT_BRIDGE=true \
+AUGNES_API_BASE_URL=http://localhost:3000 \
+npm run dev
+```
+
+Verification:
+
+```bash
+cd /path/to/augnes
+npm run typecheck
+npm run build
+
+cd /path/to/augnes/apps/augnes_apps
+npm run typecheck
+npm run smoke
+```
+
 ## MCP Bridge Local Check
 
-To reproduce the MCP bridge proof locally, run both repos.
+To reproduce the MCP bridge proof locally, run both packages from this repo.
 
 Terminal 1:
 
 ```bash
-cd ../augnes
+cd /path/to/augnes
 npm install
 npm run db:reset
 npm run demo:seed
@@ -304,7 +338,7 @@ npm run dev -- --port 3000
 Terminal 2:
 
 ```bash
-cd ../augnes_apps
+cd /path/to/augnes/apps/augnes_apps
 npm install
 AUGNES_ENABLE_AGENT_BRIDGE=true \
 AUGNES_API_BASE_URL=http://localhost:3000 \
@@ -410,7 +444,7 @@ curl -s "http://localhost:3000/api/state/brief?scope=project:augnes"
 - The runtime is local SQLite only.
 - Tension detection is intentionally minimal.
 - The planner can recommend local tools, but it is not a full autonomous agent.
-- The Augnes runtime itself does not host MCP; the MCP bridge lives in the companion `augnes_apps` repo.
+- The Augnes runtime itself does not host MCP; the MCP bridge lives in `apps/augnes_apps`.
 - There is no auth, vector database, or charting library.
 - The Temporal State Graph is a lightweight UI, not a full analytics timeline.
 

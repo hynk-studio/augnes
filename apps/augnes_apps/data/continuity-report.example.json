@@ -1,0 +1,26 @@
+{
+  "baselineClass": "same_self",
+  "identityGoal": "Build Augnes as an evidence-governed, time-aware operations console.",
+  "hardInvariants": [
+    "Core owns Evidence Registry/JML/STATE_SNAPSHOT/Gate/SRF",
+    "Working View and narrator are view-only",
+    "ChatGPT thread is not canonical memory"
+  ],
+  "latestBoundaryId": "boundary:read-first-v1",
+  "canaryStatus": "warn",
+  "failAxis": [
+    "public-vs-lab surface split not fully tested"
+  ],
+  "transitionRetention": [
+    {
+      "scenario": "tool_wait_resume",
+      "status": "pass",
+      "note": "Fixture continuity check for preserving pending read context across a tool wait."
+    },
+    {
+      "scenario": "boundary_resume",
+      "status": "warn",
+      "note": "Fixture continuity check notes that boundary packet reads are file-backed in Sprint 3E."
+    }
+  ]
+}

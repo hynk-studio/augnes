@@ -1,0 +1,28 @@
+{
+  "subject": "casefile-augnes-console-public-app",
+  "recommendedAction": "VERIFY",
+  "why": [
+    "File-backed Working View and Casefile now resolve to read-only JSON sources.",
+    "Evidence IDs shown in casefile resolve through file-backed search/fetch.",
+    "Boundary and continuity are now file-backed but public-vs-lab split is still warned."
+  ],
+  "metaWm": {
+    "wmStrength": 0.68,
+    "uncertainty": 0.24,
+    "dependencyHat": 0.52
+  },
+  "eop": {
+    "expected": "Strategy should recommend VERIFY until HTTP Core and public/lab split are finalized.",
+    "observed": "File-backed evidence, continuity, and boundary paths now resolve.",
+    "delta": "Stronger than mock, but still fixture-backed rather than Core-backed."
+  },
+  "rubric": {
+    "score": 0.82,
+    "notes": [
+      "Good read-only evidence linkage.",
+      "Still needs real Core adapter."
+    ]
+  },
+  "estimatedCost": 2,
+  "estimatedSteps": 4
+}

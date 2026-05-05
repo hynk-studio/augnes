@@ -1,0 +1,16 @@
+{
+  "claimIds": [
+    "claim-augnes-console-readonly-surface",
+    "claim-sprint-3a-file-backed-working-view"
+  ],
+  "summary": "Fixture-safe Working View for the Augnes Console starter. File mode connects all nine public tools to local read-only JSON sources while preserving fetch as the evidence retrieval path.",
+  "topEvidenceIds": [
+    "evidence-readonly-public-surface",
+    "evidence-file-backed-working-view"
+  ],
+  "activePointers": [
+    "casefile:casefile-augnes-console-public-app",
+    "boundary:read-first-v1",
+    "repo:src/adapters/file-core.ts"
+  ]
+}
