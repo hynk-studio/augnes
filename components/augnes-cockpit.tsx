@@ -71,6 +71,8 @@ type StateTransition = {
   temporal_scope: string;
   stability: string;
   change_type: string;
+  source_agent_id: string | null;
+  source_session_id: string | null;
   reason: string | null;
   committed_at: string;
 };
@@ -309,10 +311,11 @@ export function AugnesCockpit() {
       <header className="cockpit-header">
         <div className="hero-copy">
           <p className="kicker">Augnes</p>
-          <h1>Temporal State Graph</h1>
+          <h1>Project State Over Time</h1>
           <p>
-            Conversation becomes proposed state. Committed state becomes a
-            timeline. Actions write back as after-state.
+            A temporal coordination layer for AI-assisted development: review
+            proposals, commit durable project state, and inspect how work
+            changes over time.
           </p>
         </div>
         <div className="runtime-strip">
@@ -333,11 +336,33 @@ export function AugnesCockpit() {
         )}
       </nav>
 
+      <section className="cockpit-guidance" aria-label="Cockpit guidance">
+        <p>
+          Review proposals. Commit only what should become durable project
+          state. Use the graph to see what changed over time.
+        </p>
+        <ol>
+          <li>Observe conversation into state proposals.</li>
+          <li>Review scores, tensions, and lifecycle status.</li>
+          <li>Commit or reject; only the user confirms durable state.</li>
+          <li>Act with tools or external clients.</li>
+          <li>Track accepted changes and action records on the timeline.</li>
+        </ol>
+      </section>
+
       <section
         className="cockpit-panel graph-panel"
         aria-label="Temporal state graph"
       >
-        <PanelHeader eyebrow="Timeline" title="Temporal State Graph" />
+        <PanelHeader
+          eyebrow="Temporal State Graph"
+          title="Project State Over Time"
+          description="Each lane is one project state key. Each node is a committed state transition or external action record."
+        />
+        <p className="bridge-proof">
+          Bridge proof: external client read state -&gt; recorded action -&gt;
+          graph updated.
+        </p>
         {trajectory ? (
           <div className="graph-stage">
             <TemporalStateGraph
@@ -395,12 +420,20 @@ export function AugnesCockpit() {
               proposals.map((proposal) => (
                 <article className="proposal-card" key={proposal.id}>
                   <div className="card-topline">
-                    <h3>{proposal.state_key}</h3>
+                    <div className="state-key-heading">
+                      <h3>{formatStateKeyLabel(proposal.state_key)}</h3>
+                      <code>{proposal.state_key}</code>
+                    </div>
                     <StatusBadge
                       label={formatStatusLabel(proposal.consolidation_status)}
                       tone={getConsolidationTone(proposal.consolidation_status)}
                     />
                   </div>
+                  <p className="consolidation-copy">
+                    {getConsolidationExplanation(
+                      proposal.consolidation_status,
+                    )}
+                  </p>
                   <ValueDiff
                     beforeValue={proposal.before_value}
                     afterValue={proposal.after_value}
@@ -467,7 +500,12 @@ export function AugnesCockpit() {
                     <StatusBadge label={tension.severity} />
                   </div>
                   <p>{tension.description}</p>
-                  {tension.state_key ? <code>{tension.state_key}</code> : null}
+                  {tension.state_key ? (
+                    <div className="state-key-reference">
+                      <strong>{formatStateKeyLabel(tension.state_key)}</strong>
+                      <code>{tension.state_key}</code>
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -525,7 +563,9 @@ export function AugnesCockpit() {
                       <span>{recommendation.tool_name}</span>
                     ) : null}
                     {recommendation.grounded_state_keys.map((key) => (
-                      <span key={key}>{key}</span>
+                      <span key={key}>
+                        {formatStateKeyLabel(key)} <code>{key}</code>
+                      </span>
                     ))}
                   </div>
                 </article>
@@ -540,11 +580,22 @@ export function AugnesCockpit() {
   );
 }
 
-function PanelHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+function PanelHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+}) {
   return (
     <header className="panel-header">
-      <p className="panel-eyebrow">{eyebrow}</p>
-      <h2>{title}</h2>
+      <div>
+        <p className="panel-eyebrow">{eyebrow}</p>
+        <h2>{title}</h2>
+        {description ? <p className="panel-description">{description}</p> : null}
+      </div>
     </header>
   );
 }
@@ -564,7 +615,10 @@ function StateGroup({
       ) : (
         entries.map((entry) => (
           <div className="state-row" key={entry.id}>
-            <code>{entry.state_key}</code>
+            <div className="state-key-reference">
+              <strong>{formatStateKeyLabel(entry.state_key)}</strong>
+              <code>{entry.state_key}</code>
+            </div>
             <strong>{formatValue(entry.value)}</strong>
             <span>{entry.stability}</span>
           </div>
@@ -614,7 +668,7 @@ function TemporalStateGraph({
 
     return firstRank - secondRank || first.localeCompare(second);
   });
-  const labelWidth = 188;
+  const labelWidth = 226;
   const rightPadding = 88;
   const topPadding = 54;
   const laneHeight = 76;
@@ -660,7 +714,11 @@ function TemporalStateGraph({
         <text className="axis-label" x={labelWidth} y={17}>
           earlier
         </text>
-        <text className="axis-label axis-label-end" x={graphWidth - rightPadding} y={17}>
+        <text
+          className="axis-label axis-label-end"
+          x={graphWidth - rightPadding}
+          y={17}
+        >
           later
         </text>
         {orderedTransitions.map((transition, index) => {
@@ -695,10 +753,11 @@ function TemporalStateGraph({
                 y2={y}
               />
               <text className="lane-label" x={16} y={y - 4}>
-                {stateKey}
+                {truncateLabel(formatStateKeyLabel(stateKey), 30)}
               </text>
               <text className="lane-count" x={16} y={y + 15}>
-                {laneTransitions.length} committed
+                {truncateLabel(stateKey, 28)} - {laneTransitions.length}{" "}
+                committed
                 {laneProposals.length ? ` / ${laneProposals.length} pending` : ""}
               </text>
               {laneTransitions.slice(1).map((node, index) => {
@@ -780,7 +839,8 @@ function GraphTransitionNode({
       }}
     >
       <title>
-        {node.state_key}: {formatValue(node.before_value)} to{" "}
+        {formatStateKeyLabel(node.state_key)} ({node.state_key}):{" "}
+        {formatValue(node.before_value)} to{" "}
         {formatValue(node.after_value)}
       </title>
       <circle cx={x} cy={y} r={10} />
@@ -813,14 +873,21 @@ function TransitionInspector({ event }: { event: StateTransition | null }) {
   }
 
   const tone = getTrajectoryTone(event, false);
+  const source = getTransitionSourceDetails(event);
 
   return (
     <aside className="graph-inspector">
       <PanelHeader eyebrow="Inspect" title="Selected Transition" />
       <div className="inspector-stack">
         <div className="inspector-heading">
-          <h3>{event.state_key}</h3>
+          <h3>{formatStateKeyLabel(event.state_key)}</h3>
+          <code>{event.state_key}</code>
           <time dateTime={event.committed_at}>{formatDate(event.committed_at)}</time>
+        </div>
+        <div className="source-card">
+          <span>Actor</span>
+          <strong>{source.actor}</strong>
+          <small>{source.detail}</small>
         </div>
         <ValueDiff
           beforeValue={event.before_value}
@@ -860,24 +927,46 @@ function ValueDiff({
 
 function ProposalScoring({ proposal }: { proposal: StateDeltaProposal }) {
   const scores = [
-    ["salience", proposal.salience_score],
-    ["evidence", proposal.evidence_score],
-    ["conflict", proposal.conflict_score],
-    ["self impact", proposal.self_impact_score],
-    ["prediction error", proposal.prediction_error_score],
+    {
+      field: "salience_score",
+      label: "Priority / Salience",
+      value: proposal.salience_score,
+    },
+    {
+      field: "evidence_score",
+      label: "Evidence strength",
+      value: proposal.evidence_score,
+    },
+    {
+      field: "conflict_score",
+      label: "Conflict risk",
+      value: proposal.conflict_score,
+    },
+    {
+      field: "self_impact_score",
+      label: "State impact",
+      value: proposal.self_impact_score,
+    },
+    {
+      field: "prediction_error_score",
+      label: "Change pressure",
+      value: proposal.prediction_error_score,
+    },
   ] as const;
 
   return (
     <div className="proposal-scoring" aria-label="Advisory proposal scoring">
       <div className="score-grid">
-        {scores.map(([label, value]) => (
-          <div className="score-pill" key={label}>
+        {scores.map(({ field, label, value }) => (
+          <div className="score-pill" key={field}>
             <span className="score-label">{label}</span>
+            <span className="score-field">{field}</span>
             <strong className="score-value">{formatScore(value)}</strong>
           </div>
         ))}
         <div className="score-pill">
-          <span className="score-label">reinforced</span>
+          <span className="score-label">Repeat evidence</span>
+          <span className="score-field">reinforcement_count</span>
           <strong className="score-value">{proposal.reinforcement_count}</strong>
         </div>
       </div>
@@ -1019,7 +1108,153 @@ function formatScore(value: number) {
 }
 
 function formatStatusLabel(value: string) {
-  return value.replaceAll("_", " ");
+  return titleCase(value.replaceAll("_", " "));
+}
+
+function getConsolidationExplanation(
+  status: StateDeltaProposal["consolidation_status"],
+) {
+  const explanations: Record<
+    StateDeltaProposal["consolidation_status"],
+    string
+  > = {
+    candidate: "Initial candidate. Can be reviewed or reinforced.",
+    reinforced: "Repeatedly observed across inputs.",
+    ready: "Enough evidence and importance, low conflict risk.",
+    needs_review: "Requires user judgment due to conflict or weak evidence.",
+    expired: "Too old or stale to commit.",
+    committed: "Approved by the user and written into durable state.",
+    rejected: "Rejected by the user.",
+  };
+
+  return explanations[status];
+}
+
+function formatStateKeyLabel(stateKey: string) {
+  const labels: Record<string, string> = {
+    "security.no_api_keys_in_repo": "No API keys in repo",
+    "integration.chatgpt_app": "ChatGPT App integration",
+    "external.mcp_inspector_bridge_check_recorded":
+      "MCP bridge check recorded",
+    "submission.readme_checklist_created": "README checklist created",
+    "security.checklist_created": "Security checklist created",
+    "demo.script_created": "Demo script created",
+    "submission.requires_screenshots": "Screenshots required",
+    "product.name": "Product name",
+    "implementation.stack": "Implementation stack",
+  };
+
+  if (labels[stateKey]) {
+    return labels[stateKey];
+  }
+
+  const withoutNamespace =
+    stateKey.startsWith("external.") || stateKey.split(".").length > 2
+      ? stateKey.split(".").slice(1).join(".")
+      : stateKey;
+
+  return titleCase(withoutNamespace.replace(/[._]+/g, " "));
+}
+
+function getTransitionSourceDetails(event: StateTransition) {
+  const sourceAgentId = event.source_agent_id;
+  const sessionId = event.source_session_id;
+  const fallbackActor = inferActorFromStateKey(event.state_key);
+
+  if (!sourceAgentId) {
+    return {
+      actor: fallbackActor,
+      detail: "Derived from transition metadata and state key.",
+    };
+  }
+
+  const actorLabels: Record<string, string> = {
+    "agent:augnes-runtime": "Augnes local tool",
+    "agent:temporal-delta-compiler": "OpenAI delta compiler",
+  };
+  const actor = actorLabels[sourceAgentId] ?? inferActorFromSource(sourceAgentId);
+  const detail = sessionId
+    ? `Source ${sourceAgentId}; session ${sessionId}.`
+    : `Source ${sourceAgentId}.`;
+
+  return { actor, detail };
+}
+
+function inferActorFromSource(source: string) {
+  const normalized = source.toLowerCase();
+
+  if (normalized.includes("mcp") && normalized.includes("inspector")) {
+    return "MCP Inspector";
+  }
+
+  if (normalized.includes("codex")) {
+    return "Codex via MCP bridge";
+  }
+
+  if (normalized.includes("augnes")) {
+    return "Augnes Runtime";
+  }
+
+  return titleCase(source.replace(/^agent:/, "").replace(/[._:-]+/g, " "));
+}
+
+function inferActorFromStateKey(stateKey: string) {
+  if (stateKey.includes("mcp_inspector")) {
+    return "MCP Inspector";
+  }
+
+  if (stateKey.startsWith("external.")) {
+    return "External client";
+  }
+
+  return "User-approved state change";
+}
+
+function titleCase(value: string) {
+  const minorWords = new Set([
+    "a",
+    "an",
+    "and",
+    "as",
+    "by",
+    "for",
+    "in",
+    "of",
+    "or",
+    "to",
+    "with",
+  ]);
+  const acronyms: Record<string, string> = {
+    api: "API",
+    chatgpt: "ChatGPT",
+    codex: "Codex",
+    db: "DB",
+    github: "GitHub",
+    mcp: "MCP",
+    oauth: "OAuth",
+    openai: "OpenAI",
+    readme: "README",
+    sqlite: "SQLite",
+    ui: "UI",
+  };
+
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word, index) => {
+      const normalized = word.toLowerCase();
+
+      if (acronyms[normalized]) {
+        return acronyms[normalized];
+      }
+
+      if (index > 0 && minorWords.has(normalized)) {
+        return normalized;
+      }
+
+      return `${normalized.slice(0, 1).toUpperCase()}${normalized.slice(1)}`;
+    })
+    .join(" ");
 }
 
 function getConsolidationTone(
