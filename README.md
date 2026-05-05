@@ -6,6 +6,8 @@ Augnes is a temporal state runtime for AI-assisted work. It is not a chatbot wit
 
 > The model interprets. The runtime owns state. The timeline shows how work evolves.
 
+Augnes started from a practical annoyance: I was tired of being the human message bus between ChatGPT, Codex, and GitHub. ChatGPT could plan and review. Codex could implement and test. GitHub could store the code. But the project state still lived in my head. Augnes makes that state explicit.
+
 ## What Augnes Is
 
 Augnes treats working context as governed state, not passive memory. A user can describe goals, constraints, future plans, security rules, and completion signals in natural language. Augnes converts that input into structured temporal state changes such as:
@@ -46,6 +48,7 @@ Conversation
   -> Temporal State Graph
   -> State-Grounded Actions
   -> External State Brief
+  -> MCP / Agent Bridge Proof
 ```
 
 The prompt does not define durable context. Committed state does.
@@ -68,6 +71,7 @@ The current challenge build includes:
 - Local tools that create files under `outputs/`.
 - Action records and after-action state transitions.
 - `GET /api/state/brief` for Codex or other external agents.
+- MCP bridge proof through `Aurna-code/augnes_apps`, exposing Augnes state to MCP-compatible clients.
 
 ## How Augnes Uses OpenAI APIs
 
@@ -215,6 +219,46 @@ Agent instructions include:
 - Record external work through `POST /api/actions/record`.
 - Do not commit API keys or local secrets.
 
+## MCP Bridge Proof
+
+Augnes also has a bridge proof through the companion repo `Aurna-code/augnes_apps`.
+
+The bridge exposes the Augnes runtime to MCP-compatible clients through tools such as:
+
+- `augnes_get_state_brief`
+- `augnes_observe`
+- `augnes_plan`
+- `augnes_record_action_result`
+- `augnes_list_pending_proposals`
+
+A local MCP Inspector run verified this loop:
+
+```text
+MCP Inspector
+  -> augnes_apps /mcp
+  -> augnes_get_state_brief
+  -> Augnes runtime /api/state/brief
+  -> augnes_record_action_result
+  -> Augnes runtime /api/actions/record
+  -> Temporal State Graph external action node
+```
+
+The recorded proof appears in the graph as:
+
+```text
+external.mcp_inspector_bridge_check_recorded
+false -> true
+current_project · completed · completion
+```
+
+The selected transition inspector shows:
+
+```text
+MCP Inspector successfully read Augnes state brief through the Augnes Agent Bridge.
+```
+
+This proves the first practical version of the intended coordination layer: an external MCP client can read Augnes state and write an action result back into the temporal graph. In other words, Augnes is beginning to replace the human message bus between ChatGPT, Codex, and GitHub with an explicit state handoff layer. Finally, one tiny burden removed from the meat-based routing protocol.
+
 ## How to Run
 
 ```bash
@@ -236,6 +280,68 @@ OPENAI_MODEL=gpt-4.1-mini
 
 Never commit `.env.local`, API keys, local secrets, or generated SQLite files.
 
+## MCP Bridge Local Check
+
+To reproduce the MCP bridge proof locally, run both repos.
+
+Terminal 1:
+
+```bash
+cd ../augnes
+npm install
+npm run db:reset
+npm run demo:seed
+npm run dev -- --port 3000
+```
+
+Terminal 2:
+
+```bash
+cd ../augnes_apps
+npm install
+AUGNES_ENABLE_AGENT_BRIDGE=true \
+AUGNES_API_BASE_URL=http://localhost:3000 \
+npm run dev
+```
+
+Then open MCP Inspector and connect to:
+
+```text
+http://localhost:8787/mcp
+```
+
+Run:
+
+```text
+augnes_get_state_brief
+```
+
+with:
+
+```json
+{ "scope": "project:augnes" }
+```
+
+Then run:
+
+```text
+augnes_record_action_result
+```
+
+with an action name such as:
+
+```json
+{
+  "scope": "project:augnes",
+  "sourceAgentId": "agent:codex",
+  "actionName": "mcp_inspector_bridge_check",
+  "resultSummary": "MCP Inspector successfully read Augnes state brief through the Augnes Agent Bridge.",
+  "filesChanged": []
+}
+```
+
+Refresh `http://localhost:3000`. The Temporal State Graph should show an `external.mcp_inspector_bridge_check_recorded` completion transition.
+
 ## Final Demo Flow
 
 1. Open `http://localhost:3000`.
@@ -252,6 +358,7 @@ Never commit `.env.local`, API keys, local secrets, or generated SQLite files.
 12. Confirm `outputs/readme_checklist.md` exists locally.
 13. Confirm the checklist run creates an action record and completion transition.
 14. Fetch `/api/state/brief?scope=project:augnes` for external-agent continuity.
+15. Optionally run the MCP bridge proof and confirm the external action appears in the graph.
 
 Canonical demo message:
 
@@ -289,13 +396,14 @@ curl -s "http://localhost:3000/api/state/brief?scope=project:augnes"
 - `OPENAI_API_KEY` is optional for local demo.
 - Do not commit API keys or local secrets.
 - The MVP has no auth and should be run locally for the challenge demo.
+- The MCP bridge proof is local-first. Public deployment requires a secure HTTPS endpoint and careful write-action review.
 
 ## Limitations
 
 - The runtime is local SQLite only.
 - Tension detection is intentionally minimal.
 - The planner can recommend local tools, but it is not a full autonomous agent.
-- There is no MCP server in this challenge build.
+- The Augnes runtime itself does not host MCP; the MCP bridge lives in the companion `augnes_apps` repo.
 - There is no auth, vector database, or charting library.
 - The Temporal State Graph is a lightweight UI, not a full analytics timeline.
 
