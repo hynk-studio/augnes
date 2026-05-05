@@ -172,6 +172,10 @@ export type StateDeltaProposalScoring = {
   score_breakdown: StateValue;
 };
 
+export type StateDeltaProposalScoringUpdate = StateDeltaProposalScoring & {
+  id: string;
+};
+
 export type StateDeltaProposal = PendingStateDeltaProposalInput & {
   status: "pending" | "committed" | "rejected";
   decided_at: string | null;
@@ -463,19 +467,34 @@ export function insertPendingStateDeltaProposals(
 export function listStateDeltaProposals({
   scope,
   status,
+  consolidation_status,
+  include_expired = false,
 }: {
   scope: string;
   status?: StateDeltaProposal["status"];
+  consolidation_status?: ConsolidationStatus;
+  include_expired?: boolean;
 }) {
   const db = openDatabase();
 
   try {
     const params: string[] = [scope];
     let statusClause = "";
+    let consolidationStatusClause = "";
+    let expiredClause = "";
 
     if (status) {
       statusClause = "AND status = ?";
       params.push(status);
+    }
+
+    if (consolidation_status) {
+      consolidationStatusClause = "AND consolidation_status = ?";
+      params.push(consolidation_status);
+    }
+
+    if (!include_expired && consolidation_status !== "expired") {
+      expiredClause = "AND consolidation_status != 'expired'";
     }
 
     const rows = db
@@ -514,10 +533,97 @@ export function listStateDeltaProposals({
           FROM state_delta_proposals
           WHERE scope = ?
           ${statusClause}
+          ${consolidationStatusClause}
+          ${expiredClause}
           ORDER BY proposed_at DESC, id ASC
         `,
       )
       .all(...params) as ProposalRow[];
+
+    return rows.map(parseProposalRow);
+  } finally {
+    db.close();
+  }
+}
+
+export function updateStateDeltaProposalScoring(
+  updates: StateDeltaProposalScoringUpdate[],
+) {
+  if (updates.length === 0) {
+    return [];
+  }
+
+  const db = openDatabase();
+
+  try {
+    const update = db.prepare(
+      `
+        UPDATE state_delta_proposals
+        SET
+          prediction_error_score = @prediction_error_score,
+          salience_score = @salience_score,
+          evidence_score = @evidence_score,
+          conflict_score = @conflict_score,
+          self_impact_score = @self_impact_score,
+          consolidation_status = @consolidation_status,
+          reinforcement_count = @reinforcement_count,
+          expires_at = @expires_at,
+          last_evaluated_at = @last_evaluated_at,
+          scoring_version = @scoring_version,
+          scoring_reason = @scoring_reason,
+          score_breakdown = @score_breakdown
+        WHERE id = @id
+      `,
+    );
+
+    const rows = db.transaction(() => {
+      for (const scoringUpdate of updates) {
+        update.run({
+          ...scoringUpdate,
+          score_breakdown: serializeStateValue(scoringUpdate.score_breakdown),
+        });
+      }
+
+      return db
+        .prepare(
+          `
+            SELECT
+              id,
+              scope,
+              state_key,
+              before_value,
+              after_value,
+              operation,
+              temporal_scope,
+              valid_from,
+              valid_until,
+              stability,
+              change_type,
+              source_agent_id,
+              source_session_id,
+              reason,
+              status,
+              proposed_at,
+              decided_at,
+              prediction_error_score,
+              salience_score,
+              evidence_score,
+              conflict_score,
+              self_impact_score,
+              consolidation_status,
+              reinforcement_count,
+              expires_at,
+              last_evaluated_at,
+              scoring_version,
+              scoring_reason,
+              score_breakdown
+            FROM state_delta_proposals
+            WHERE id IN (${updates.map(() => "?").join(", ")})
+            ORDER BY proposed_at DESC, id ASC
+          `,
+        )
+        .all(...updates.map((update) => update.id)) as ProposalRow[];
+    })();
 
     return rows.map(parseProposalRow);
   } finally {
@@ -541,6 +647,10 @@ export function commitStateDeltaProposal(id: string): ProposalCommitResult {
       }
 
       const proposal = parseProposalRow(proposalRow);
+      if (proposal.consolidation_status === "expired") {
+        throw new Error("Expired proposals cannot be committed.");
+      }
+
       const now = new Date().toISOString();
       const transitionId = `transition:${randomUUID()}`;
       const entryId = `entry:${proposal.scope}:${proposal.state_key}`;
@@ -694,10 +804,13 @@ export function commitStateDeltaProposal(id: string): ProposalCommitResult {
       db.prepare(
         `
           UPDATE state_delta_proposals
-          SET status = 'committed', decided_at = ?
+          SET status = 'committed',
+              consolidation_status = 'committed',
+              last_evaluated_at = ?,
+              decided_at = ?
           WHERE id = ?
         `,
-      ).run(now, proposal.id);
+      ).run(now, now, proposal.id);
 
       const tension = maybeInsertContradictionTension({
         db,
@@ -786,13 +899,17 @@ export function rejectStateDeltaProposal(id: string) {
         throw new Error(`Proposal is already ${proposalRow.status}.`);
       }
 
+      const now = new Date().toISOString();
       db.prepare(
         `
           UPDATE state_delta_proposals
-          SET status = 'rejected', decided_at = ?
+          SET status = 'rejected',
+              consolidation_status = 'rejected',
+              last_evaluated_at = ?,
+              decided_at = ?
           WHERE id = ?
         `,
-      ).run(new Date().toISOString(), id);
+      ).run(now, now, id);
 
       return parseProposalRow(selectProposalRow(db, id) as ProposalRow);
     })();

@@ -2,7 +2,14 @@ import type { PendingStateDeltaProposalInput, StateEntry, StateValue } from "@/l
 
 export const SCORING_VERSION = "v0.2-rule-001";
 
-export type ConsolidationStatus = "candidate" | "ready" | "needs_review";
+export type ConsolidationStatus =
+  | "candidate"
+  | "reinforced"
+  | "ready"
+  | "needs_review"
+  | "expired"
+  | "committed"
+  | "rejected";
 
 export type CandidateScoreResult = {
   prediction_error_score: number;
