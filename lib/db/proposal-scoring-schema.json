@@ -1,0 +1,62 @@
+{
+  "columns": [
+    {
+      "name": "prediction_error_score",
+      "definition": "REAL NOT NULL DEFAULT 0"
+    },
+    {
+      "name": "salience_score",
+      "definition": "REAL NOT NULL DEFAULT 0"
+    },
+    {
+      "name": "evidence_score",
+      "definition": "REAL NOT NULL DEFAULT 0"
+    },
+    {
+      "name": "conflict_score",
+      "definition": "REAL NOT NULL DEFAULT 0"
+    },
+    {
+      "name": "self_impact_score",
+      "definition": "REAL NOT NULL DEFAULT 0"
+    },
+    {
+      "name": "consolidation_status",
+      "definition": "TEXT NOT NULL DEFAULT 'candidate'"
+    },
+    {
+      "name": "reinforcement_count",
+      "definition": "INTEGER NOT NULL DEFAULT 0"
+    },
+    {
+      "name": "expires_at",
+      "definition": "TEXT"
+    },
+    {
+      "name": "last_evaluated_at",
+      "definition": "TEXT"
+    },
+    {
+      "name": "scoring_version",
+      "definition": "TEXT NOT NULL DEFAULT 'v0.2-rule-001'"
+    },
+    {
+      "name": "scoring_reason",
+      "definition": "TEXT"
+    },
+    {
+      "name": "score_breakdown",
+      "definition": "TEXT"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_state_delta_proposals_scope_consolidation",
+      "sql": "CREATE INDEX IF NOT EXISTS idx_state_delta_proposals_scope_consolidation ON state_delta_proposals(scope, status, consolidation_status, salience_score)"
+    },
+    {
+      "name": "idx_state_delta_proposals_expires_at",
+      "sql": "CREATE INDEX IF NOT EXISTS idx_state_delta_proposals_expires_at ON state_delta_proposals(expires_at)"
+    }
+  ]
+}

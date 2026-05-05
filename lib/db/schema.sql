@@ -65,6 +65,12 @@ CREATE TABLE IF NOT EXISTS state_delta_proposals (
 CREATE INDEX IF NOT EXISTS idx_state_delta_proposals_scope_key
   ON state_delta_proposals(scope, state_key);
 
+CREATE INDEX IF NOT EXISTS idx_state_delta_proposals_scope_consolidation
+  ON state_delta_proposals(scope, status, consolidation_status, salience_score);
+
+CREATE INDEX IF NOT EXISTS idx_state_delta_proposals_expires_at
+  ON state_delta_proposals(expires_at);
+
 CREATE TABLE IF NOT EXISTS state_entries (
   id TEXT PRIMARY KEY,
   scope TEXT NOT NULL,

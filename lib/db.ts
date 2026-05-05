@@ -1,28 +1,14 @@
 import Database from "better-sqlite3";
 import {
-  SCORING_VERSION,
   scoreCandidateProposal,
   type ConsolidationStatus,
 } from "@/lib/runtime/candidate-scoring";
+import proposalScoringSchema from "@/lib/db/proposal-scoring-schema.json";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 const DEFAULT_DB_PATH = path.join(process.cwd(), "data", "augnes.db");
-const PROPOSAL_SCORING_COLUMNS = [
-  ["prediction_error_score", "REAL NOT NULL DEFAULT 0"],
-  ["salience_score", "REAL NOT NULL DEFAULT 0"],
-  ["evidence_score", "REAL NOT NULL DEFAULT 0"],
-  ["conflict_score", "REAL NOT NULL DEFAULT 0"],
-  ["self_impact_score", "REAL NOT NULL DEFAULT 0"],
-  ["consolidation_status", "TEXT NOT NULL DEFAULT 'candidate'"],
-  ["reinforcement_count", "INTEGER NOT NULL DEFAULT 0"],
-  ["expires_at", "TEXT"],
-  ["last_evaluated_at", "TEXT"],
-  ["scoring_version", `TEXT NOT NULL DEFAULT '${SCORING_VERSION}'`],
-  ["scoring_reason", "TEXT"],
-  ["score_breakdown", "TEXT"],
-] as const;
 
 export type StateValue = boolean | number | string | null | StateValue[] | {
   [key: string]: StateValue;
@@ -1482,12 +1468,16 @@ function migrateStateDeltaProposalScoringColumns(db: Database.Database) {
     ).map((column) => column.name),
   );
 
-  for (const [name, definition] of PROPOSAL_SCORING_COLUMNS) {
+  for (const { name, definition } of proposalScoringSchema.columns) {
     if (!existingColumns.has(name)) {
       db.prepare(
         `ALTER TABLE state_delta_proposals ADD COLUMN ${name} ${definition}`,
       ).run();
     }
+  }
+
+  for (const { sql } of proposalScoringSchema.indexes) {
+    db.prepare(sql).run();
   }
 }
 

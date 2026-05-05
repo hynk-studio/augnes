@@ -4,6 +4,7 @@ const scope = "project:augnes";
 const agentId = "agent:demo-runtime";
 const sessionId = "session:demo-runtime-core";
 const timestamp = "2026-05-03T00:00:00.000Z";
+const scoringVersion = "v0.2-rule-001";
 
 const transitions = [
   {
@@ -127,9 +128,18 @@ const insertProposal = db.prepare(`
     status,
     proposed_at,
     decided_at,
+    prediction_error_score,
+    salience_score,
+    evidence_score,
+    conflict_score,
+    self_impact_score,
     consolidation_status,
+    reinforcement_count,
+    expires_at,
     last_evaluated_at,
-    scoring_reason
+    scoring_version,
+    scoring_reason,
+    score_breakdown
   )
   VALUES (
     @proposalId,
@@ -149,9 +159,18 @@ const insertProposal = db.prepare(`
     'committed',
     @committedAt,
     @committedAt,
+    @predictionErrorScore,
+    @salienceScore,
+    @evidenceScore,
+    @conflictScore,
+    @selfImpactScore,
     'committed',
+    @reinforcementCount,
+    @expiresAt,
     @committedAt,
-    'Demo seed proposal is already committed.'
+    @scoringVersion,
+    @scoringReason,
+    @scoreBreakdown
   )
   ON CONFLICT(id) DO UPDATE SET
     scope = excluded.scope,
@@ -170,9 +189,18 @@ const insertProposal = db.prepare(`
     status = excluded.status,
     proposed_at = excluded.proposed_at,
     decided_at = excluded.decided_at,
+    prediction_error_score = excluded.prediction_error_score,
+    salience_score = excluded.salience_score,
+    evidence_score = excluded.evidence_score,
+    conflict_score = excluded.conflict_score,
+    self_impact_score = excluded.self_impact_score,
     consolidation_status = excluded.consolidation_status,
+    reinforcement_count = excluded.reinforcement_count,
+    expires_at = excluded.expires_at,
     last_evaluated_at = excluded.last_evaluated_at,
-    scoring_reason = excluded.scoring_reason
+    scoring_version = excluded.scoring_version,
+    scoring_reason = excluded.scoring_reason,
+    score_breakdown = excluded.score_breakdown
 `);
 
 const insertTransition = db.prepare(`
@@ -344,6 +372,7 @@ const seed = db.transaction(() => {
       sourceAgentId: agentId,
       sourceSessionId: sessionId,
       committedAt: timestamp,
+      ...buildSeedScoring(transition, timestamp),
     };
 
     insertProposal.run(row);
@@ -370,3 +399,82 @@ seed();
 db.close();
 
 console.log(`Seeded Augnes demo temporal state for ${scope}`);
+
+function buildSeedScoring(transition, evaluatedAt) {
+  const scoringReason =
+    "Demo seed proposal is already committed with deterministic v0.2 scoring metadata.";
+  const scores = selectSeedScores(transition);
+
+  return {
+    predictionErrorScore: scores.prediction_error_score,
+    salienceScore: scores.salience_score,
+    evidenceScore: scores.evidence_score,
+    conflictScore: scores.conflict_score,
+    selfImpactScore: scores.self_impact_score,
+    reinforcementCount: 0,
+    expiresAt: null,
+    scoringVersion,
+    scoringReason,
+    scoreBreakdown: encodeValue({
+      version: scoringVersion,
+      evaluated_at: evaluatedAt,
+      seed: true,
+      scores,
+      consolidation_lifecycle: {
+        evaluated_at: evaluatedAt,
+        status: "committed",
+        reason: scoringReason,
+      },
+    }),
+  };
+}
+
+function selectSeedScores(transition) {
+  if (transition.stateKey.startsWith("security.")) {
+    return {
+      prediction_error_score: 0.1,
+      salience_score: 1,
+      evidence_score: 1,
+      conflict_score: 0,
+      self_impact_score: 0.93,
+    };
+  }
+
+  if (transition.stability === "completed") {
+    return {
+      prediction_error_score: 0.45,
+      salience_score: 0.76,
+      evidence_score: 0.8,
+      conflict_score: 0,
+      self_impact_score: 0.72,
+    };
+  }
+
+  if (transition.stability === "deprecated") {
+    return {
+      prediction_error_score: 0.5,
+      salience_score: 0.6,
+      evidence_score: 0.75,
+      conflict_score: 0.2,
+      self_impact_score: 0.55,
+    };
+  }
+
+  if (transition.temporalScope === "future_phase") {
+    return {
+      prediction_error_score: 0.45,
+      salience_score: 0.52,
+      evidence_score: 0.65,
+      conflict_score: 0,
+      self_impact_score: 0.48,
+    };
+  }
+
+  return {
+    prediction_error_score: 0.65,
+    salience_score: 0.78,
+    evidence_score: 0.82,
+    conflict_score: 0,
+    self_impact_score: 0.68,
+  };
+}
