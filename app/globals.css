@@ -189,6 +189,199 @@ h1 {
   line-height: 1.1;
 }
 
+.current-work-card {
+  display: grid;
+  gap: 10px;
+  min-height: 244px;
+  margin: 0 0 12px;
+  padding: 14px;
+  border: 1px solid rgba(13, 79, 62, 0.24);
+  border-radius: 8px;
+  color: #203047;
+  background:
+    linear-gradient(180deg, #f4fbf8 0, #ffffff 100%);
+  box-shadow: 0 10px 24px rgba(27, 35, 45, 0.06);
+}
+
+.current-work-card.is-error {
+  border-color: rgba(163, 59, 59, 0.28);
+  background:
+    linear-gradient(180deg, #fff7f7 0, #ffffff 100%);
+}
+
+.current-work-main {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.35fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.current-work-summary,
+.current-work-detail,
+.handoff-section,
+.current-action {
+  min-width: 0;
+}
+
+.current-work-summary {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.current-action,
+.handoff-section {
+  padding: 10px;
+  border: 1px solid #dbe6e1;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.current-action h3,
+.handoff-section h3 {
+  margin: 0;
+  color: #1f2e41;
+  font-size: 0.96rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.current-action p,
+.handoff-section p {
+  margin: 8px 0 0;
+  color: #405168;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.42;
+}
+
+.current-work-detail {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(300px, 1.1fr);
+  gap: 10px;
+}
+
+.handoff-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.handoff-actions button {
+  min-width: 0;
+}
+
+.copy-control {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.copy-feedback {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.copy-feedback.info {
+  color: var(--accent-strong);
+}
+
+.copy-feedback.error {
+  color: var(--danger);
+}
+
+.loading-block {
+  display: grid;
+  gap: 8px;
+  min-height: 92px;
+}
+
+.loading-block h3 {
+  color: var(--muted);
+}
+
+.loading-block div {
+  display: grid;
+  gap: 7px;
+}
+
+.loading-block span {
+  display: block;
+  width: min(100%, 360px);
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  color: transparent;
+  background:
+    linear-gradient(90deg, #e8eef3 0, #f6f8fb 45%, #e8eef3 100%);
+}
+
+.loading-block span:nth-child(2) {
+  width: min(82%, 300px);
+}
+
+.compact-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.compact-item {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #e1e7ef;
+  border-radius: 6px;
+  background: #fbfcfe;
+}
+
+.compact-item strong {
+  color: #203047;
+  font-size: 0.84rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.compact-item p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.command-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.command-list code {
+  display: block;
+  padding: 7px 8px;
+  overflow: auto;
+  border: 1px solid #dfe6ef;
+  border-radius: 6px;
+  background: #f8fafc;
+  white-space: nowrap;
+}
+
+.handoff-raw-keys {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.handoff-raw-keys summary {
+  cursor: pointer;
+}
+
+.handoff-raw-keys .meta-row {
+  margin-top: 7px;
+}
+
 .start-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -981,6 +1174,8 @@ h1 {
 }
 
 @media (max-width: 1180px) {
+  .current-work-main,
+  .current-work-detail,
   .graph-stage,
   .cockpit-layout {
     grid-template-columns: 1fr;
@@ -1017,6 +1212,7 @@ h1 {
   }
 
   .cockpit-guidance,
+  .handoff-actions,
   .cockpit-guidance ol {
     grid-template-columns: 1fr;
   }

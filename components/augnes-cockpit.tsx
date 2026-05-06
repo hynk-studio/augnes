@@ -106,6 +106,38 @@ type PlanResponse = {
   recommendations: PlanRecommendation[];
 };
 
+type StateBriefAgentHandoff = {
+  current_status: {
+    summary: string;
+    state_counts?: Record<string, number>;
+    notable_state_keys?: string[];
+  };
+  next_recommended_action: {
+    title: string;
+    rationale: string;
+    suggested_actor: string;
+    priority: "now" | "next" | "later";
+    related_state_keys?: string[];
+  };
+  blockers_or_tensions: {
+    title: string;
+    severity: string;
+    related_state_keys: string[];
+    summary: string;
+  }[];
+  codex_handoff: {
+    task_brief: string;
+    verification_commands: string[];
+    action_record_template: Record<string, unknown>;
+  };
+};
+
+type StateBriefResponse = {
+  scope: string;
+  as_of: string;
+  agent_handoff?: StateBriefAgentHandoff;
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -119,6 +151,8 @@ type Notice = {
   text: string;
 };
 
+type CopyTarget = "codex" | "actionTemplate";
+
 type GraphNode = StateTransition & {
   eventIndex: number;
   hasOpenTension: boolean;
@@ -130,6 +164,8 @@ export function AugnesCockpit() {
   const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
   const [trajectory, setTrajectory] = useState<TrajectoryResponse | null>(null);
   const [proposals, setProposals] = useState<StateDeltaProposal[]>([]);
+  const [brief, setBrief] = useState<StateBriefResponse | null>(null);
+  const [briefError, setBriefError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -163,17 +199,36 @@ export function AugnesCockpit() {
   }, [selectedTransitionId, trajectory]);
 
   async function refreshRuntime() {
-    const [snapshotResult, trajectoryResult, proposalResult] = await Promise.all([
-      fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
-      fetchJson<TrajectoryResponse>(`/api/state/trajectory?scope=${SCOPE}`),
-      fetchJson<ProposalResponse>(
-        `/api/proposals?scope=${SCOPE}&status=pending&include_expired=true`,
-      ),
-    ]);
+    setBriefError(null);
+
+    const briefRequest = fetchJson<StateBriefResponse>(
+      `/api/state/brief?scope=${SCOPE}`,
+    )
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error ? error.message : "State brief request failed",
+      }));
+    const [snapshotResult, trajectoryResult, proposalResult, briefResult] =
+      await Promise.all([
+        fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
+        fetchJson<TrajectoryResponse>(`/api/state/trajectory?scope=${SCOPE}`),
+        fetchJson<ProposalResponse>(
+          `/api/proposals?scope=${SCOPE}&status=pending&include_expired=true`,
+        ),
+        briefRequest,
+      ]);
 
     setSnapshot(snapshotResult);
     setTrajectory(trajectoryResult);
     setProposals(proposalResult.proposals);
+
+    if ("value" in briefResult) {
+      setBrief(briefResult.value);
+    } else {
+      setBrief(null);
+      setBriefError(briefResult.error);
+    }
   }
 
   async function observe(event: FormEvent<HTMLFormElement>) {
@@ -341,14 +396,10 @@ export function AugnesCockpit() {
         ))}
       </nav>
 
-      <section className="start-card" aria-label="Start here">
-        <strong>Start here</strong>
-        <p>
-          Paste or type a project update, then click Observe. Review the
-          proposed state changes. Commit only what should become durable project
-          state.
-        </p>
-      </section>
+      <CurrentWorkCard
+        brief={brief}
+        error={briefError}
+      />
 
       <section className="cockpit-guidance" aria-label="Cockpit guidance">
         <p>
@@ -594,6 +645,256 @@ export function AugnesCockpit() {
         </section>
       </section>
     </main>
+  );
+}
+
+function CurrentWorkCard({
+  brief,
+  error,
+}: {
+  brief: StateBriefResponse | null;
+  error: string | null;
+}) {
+  const [copyFeedback, setCopyFeedback] = useState<Record<CopyTarget, Notice | null>>({
+    codex: null,
+    actionTemplate: null,
+  });
+  const handoff = brief?.agent_handoff;
+  const handoffError =
+    error ?? (brief ? "State brief loaded but did not include agent_handoff." : null);
+
+  if (!handoff) {
+    return (
+      <section
+        className={`current-work-card${handoffError ? " is-error" : " is-loading"}`}
+        aria-label="Current Work"
+      >
+        <div className="current-work-main">
+          <div className="current-work-summary">
+            <PanelHeader
+              eyebrow="Start Here"
+              title="Current Work"
+              description={
+                handoffError
+                  ? "The cockpit could not load the agent handoff from the state brief."
+                  : "Loading the agent handoff from the state brief."
+              }
+            />
+            <div className="current-action">
+              {handoffError ? (
+                <>
+                  <h3>State brief unavailable</h3>
+                  <p>{handoffError}</p>
+                </>
+              ) : (
+                <LoadingBlock
+                  title="Loading next action"
+                  lines={["Fetching current status", "Preparing Codex handoff"]}
+                />
+              )}
+            </div>
+          </div>
+          <div className="current-work-detail">
+            <section className="handoff-section">
+              {handoffError ? (
+                <EmptyState
+                  label="Blockers unavailable"
+                  description="Retry by refreshing the cockpit once the state brief endpoint is healthy."
+                />
+              ) : (
+                <LoadingBlock
+                  title="Loading blockers"
+                  lines={["Checking open tensions"]}
+                />
+              )}
+            </section>
+            <section className="handoff-section codex-brief">
+              {handoffError ? (
+                <EmptyState
+                  label="Codex handoff unavailable"
+                  description="The rest of the cockpit can still load from snapshot, trajectory, and proposal endpoints."
+                />
+              ) : (
+                <LoadingBlock
+                  title="Loading Codex handoff"
+                  lines={["Fetching task brief", "Fetching verification commands"]}
+                />
+              )}
+            </section>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const action = handoff.next_recommended_action;
+  const codex = handoff.codex_handoff;
+  const rawStateKeys = getHandoffStateKeys(handoff);
+
+  async function copyToClipboard(
+    target: CopyTarget,
+    label: string,
+    getText: () => string,
+  ) {
+    try {
+      const text = getText();
+
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API is unavailable.");
+      }
+
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback((current) => ({
+        ...current,
+        [target]: {
+          tone: "info",
+          text: `${label} copied`,
+        },
+      }));
+    } catch (copyError) {
+      setCopyFeedback((current) => ({
+        ...current,
+        [target]: {
+          tone: "error",
+          text:
+            copyError instanceof Error
+              ? copyError.message
+              : `${label} copy failed`,
+        },
+      }));
+    }
+  }
+
+  return (
+    <section className="current-work-card" aria-label="Current Work">
+      <div className="current-work-main">
+        <div className="current-work-summary">
+          <PanelHeader
+            eyebrow="Start Here"
+            title="Current Work"
+            description={handoff.current_status.summary}
+          />
+          <div className="current-action">
+            <div className="card-topline">
+              <h3>{action.title}</h3>
+              <div className="timeline-badges">
+                <StatusBadge
+                  label={formatStatusLabel(action.priority)}
+                  tone={getPriorityTone(action.priority)}
+                />
+                <StatusBadge
+                  label={formatStatusLabel(action.suggested_actor)}
+                />
+              </div>
+            </div>
+            <p>{action.rationale}</p>
+          </div>
+          <div className="handoff-actions" aria-label="Copy handoff actions">
+            <div className="copy-control">
+              <button
+                type="button"
+                onClick={() =>
+                  void copyToClipboard("codex", "Codex handoff", () =>
+                    buildCodexHandoffText(handoff),
+                  )
+                }
+              >
+                Copy Codex handoff
+              </button>
+              <CopyFeedback notice={copyFeedback.codex} />
+            </div>
+            <div className="copy-control">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  void copyToClipboard(
+                    "actionTemplate",
+                    "Action record template",
+                    () => formatActionRecordTemplate(codex.action_record_template),
+                  )
+                }
+              >
+                Copy action record template
+              </button>
+              <CopyFeedback notice={copyFeedback.actionTemplate} />
+            </div>
+          </div>
+        </div>
+
+        <div className="current-work-detail">
+          <section className="handoff-section">
+            <h3>Blockers or tensions</h3>
+            {handoff.blockers_or_tensions.length ? (
+              <div className="compact-list">
+                {handoff.blockers_or_tensions.map((blocker) => (
+                  <article className="compact-item" key={blocker.title}>
+                    <div className="card-topline">
+                      <strong>{blocker.title}</strong>
+                      <StatusBadge label={formatStatusLabel(blocker.severity)} />
+                    </div>
+                    <p>{blocker.summary}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                label="No blockers or tensions"
+                description="The current handoff does not report anything blocking the next action."
+              />
+            )}
+          </section>
+
+          <section className="handoff-section codex-brief">
+            <h3>Codex handoff</h3>
+            <p>{codex.task_brief}</p>
+            <div className="command-list">
+              {codex.verification_commands.map((command) => (
+                <code key={command}>{command}</code>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {rawStateKeys.length ? (
+        <details className="handoff-raw-keys">
+          <summary>State key references</summary>
+          <div className="meta-row">
+            {rawStateKeys.map((stateKey) => (
+              <span key={stateKey}>
+                {formatStateKeyLabel(stateKey)} <code>{stateKey}</code>
+              </span>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
+function LoadingBlock({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <div className="loading-block" aria-busy="true">
+      <h3>{title}</h3>
+      <div>
+        {lines.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CopyFeedback({ notice }: { notice: Notice | null }) {
+  if (!notice) {
+    return <span className="copy-feedback" aria-live="polite" />;
+  }
+
+  return (
+    <span className={`copy-feedback ${notice.tone}`} aria-live="polite">
+      {notice.text}
+    </span>
   );
 }
 
@@ -1350,6 +1651,73 @@ function getConsolidationTone(
   }
 
   return status;
+}
+
+function getPriorityTone(priority: StateBriefAgentHandoff["next_recommended_action"]["priority"]) {
+  const tones: Record<
+    StateBriefAgentHandoff["next_recommended_action"]["priority"],
+    string
+  > = {
+    now: "needs-review",
+    next: "reinforced",
+    later: "muted",
+  };
+
+  return tones[priority];
+}
+
+function getHandoffStateKeys(handoff: StateBriefAgentHandoff) {
+  return Array.from(
+    new Set([
+      ...(handoff.current_status.notable_state_keys ?? []),
+      ...(handoff.next_recommended_action.related_state_keys ?? []),
+      ...handoff.blockers_or_tensions.flatMap(
+        (blocker) => blocker.related_state_keys,
+      ),
+    ]),
+  ).filter(Boolean);
+}
+
+function buildCodexHandoffText(handoff: StateBriefAgentHandoff) {
+  const action = handoff.next_recommended_action;
+  const blockers = handoff.blockers_or_tensions.length
+    ? handoff.blockers_or_tensions
+        .map((blocker) => `- ${blocker.title}: ${blocker.summary}`)
+        .join("\n")
+    : "- None reported.";
+  const commands = handoff.codex_handoff.verification_commands
+    .map((command) => `- ${command}`)
+    .join("\n");
+
+  return [
+    "Current status:",
+    handoff.current_status.summary,
+    "",
+    "Next recommended action:",
+    `${action.title} (${action.priority}, ${action.suggested_actor})`,
+    action.rationale,
+    "",
+    "Blockers or tensions:",
+    blockers,
+    "",
+    "Codex task brief:",
+    handoff.codex_handoff.task_brief,
+    "",
+    "Verification commands:",
+    commands,
+  ].join("\n");
+}
+
+function formatActionRecordTemplate(template: Record<string, unknown>) {
+  const formatted = JSON.stringify(template, null, 2);
+
+  if (!formatted) {
+    throw new Error("Action record template is not serializable.");
+  }
+
+  JSON.parse(formatted);
+
+  return formatted;
 }
 
 function truncateLabel(value: string, maxLength: number) {
