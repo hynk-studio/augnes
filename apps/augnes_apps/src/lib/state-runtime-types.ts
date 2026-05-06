@@ -26,6 +26,66 @@ export const PlannerRecommendationSchema = z.object({
   grounded_state_keys: z.array(z.string()),
 });
 
+export const StateRuntimeActionResultStatusSchema = z.enum(["completed", "failed", "blocked", "partial", "needs_review"]);
+export const StateRuntimeActionResultKindSchema = z.enum([
+  "implementation",
+  "verification",
+  "documentation",
+  "screenshot",
+  "handoff",
+  "review",
+  "other",
+]);
+
+export const StateBriefAgentHandoffSchema = z
+  .object({
+    current_status: z
+      .object({
+        summary: z.string(),
+        state_counts: z.record(z.number()),
+        notable_state_keys: z.array(z.string()),
+      })
+      .passthrough(),
+    next_recommended_action: z
+      .object({
+        title: z.string(),
+        rationale: z.string(),
+        suggested_actor: z.string().optional(),
+        priority: z.enum(["now", "next", "later"]).optional(),
+        related_state_keys: z.array(z.string()),
+      })
+      .passthrough(),
+    blockers_or_tensions: z.array(
+      z
+        .object({
+          title: z.string().optional(),
+          severity: z.string().optional(),
+          summary: z.string().optional(),
+          related_state_keys: z.array(z.string()).optional(),
+        })
+        .passthrough()
+    ),
+    codex_handoff: z
+      .object({
+        task_brief: z.string(),
+        constraints: z.array(z.string()),
+        verification_commands: z.array(z.string()),
+        action_record_template: z
+          .object({
+            scope: z.string(),
+            source_agent_id: z.string(),
+            action_name: z.string(),
+            result_summary: z.string(),
+            files_changed: z.array(z.string()),
+            result_status: StateRuntimeActionResultStatusSchema.optional(),
+            result_kind: StateRuntimeActionResultKindSchema.optional(),
+          })
+          .passthrough(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
 export const StateBriefSchema = z
   .object({
     runtime: z.string(),
@@ -39,6 +99,7 @@ export const StateBriefSchema = z
     pending_proposals: z.array(StateRuntimeProposalSchema),
     recent_actions: z.array(StateRuntimeActionRecordSchema),
     agent_instructions: z.array(z.unknown()),
+    agent_handoff: StateBriefAgentHandoffSchema.optional(),
   })
   .passthrough();
 
@@ -61,16 +122,6 @@ export const PlanResultSchema = z.object({
 });
 
 export const ActionRecordResultSchema = z.record(z.unknown());
-export const StateRuntimeActionResultStatusSchema = z.enum(["completed", "failed", "blocked", "partial", "needs_review"]);
-export const StateRuntimeActionResultKindSchema = z.enum([
-  "implementation",
-  "verification",
-  "documentation",
-  "screenshot",
-  "handoff",
-  "review",
-  "other",
-]);
 
 export const PendingProposalsResultSchema = z.union([
   z.array(StateRuntimeProposalSchema),
@@ -87,6 +138,7 @@ export type StateRuntimeStateBlock = z.infer<typeof StateRuntimeStateBlockSchema
 export type StateRuntimeProposal = z.infer<typeof StateRuntimeProposalSchema>;
 export type StateRuntimeActionRecord = z.infer<typeof StateRuntimeActionRecordSchema>;
 export type PlannerRecommendation = z.infer<typeof PlannerRecommendationSchema>;
+export type StateBriefAgentHandoff = z.infer<typeof StateBriefAgentHandoffSchema>;
 export type StateBrief = z.infer<typeof StateBriefSchema>;
 export type ObserveResult = z.infer<typeof ObserveResultSchema>;
 export type PlanResult = z.infer<typeof PlanResultSchema>;

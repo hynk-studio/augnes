@@ -144,6 +144,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             structuredProfile: result.structuredContent?.profile,
             metaProfile: result._meta?.profile,
             text: result.content?.[0]?.text,
+            agentHandoff: result.structuredContent?.brief?.agent_handoff,
             actionRecord: result.structuredContent?.actionRecord,
           };
         }
@@ -385,6 +386,11 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_state_brief.text,
     /Agent handoff is available for current status, next step, blockers, and Codex handoff\./,
     "augnes_get_state_brief should advertise the user-facing agent_handoff answer areas without dumping the handoff"
+  );
+  assert.deepEqual(
+    bridgeSnapshot.profiles.augnes_get_state_brief.agentHandoff,
+    (await new MockStateRuntimeBridgeAdapter().getStateBrief("project:augnes")).agent_handoff,
+    "augnes_get_state_brief should preserve structuredContent.brief.agent_handoff when present"
   );
   assert.equal(
     bridgeSnapshot.richRecord.action_name,
