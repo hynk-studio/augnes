@@ -66,6 +66,15 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
           task_brief: "Confirm agent_handoff is preserved and summarized without dumping raw state.",
           constraints: ["Keep the public default tool surface read-only."],
           verification_commands: ["npm run smoke"],
+          action_record_template: {
+            scope,
+            source_agent_id: "codex-smoke",
+            action_name: "smoke_agent_handoff_preserved",
+            result_summary: "Summarize bridge smoke validation and preservation results.",
+            files_changed: [],
+            result_status: "completed",
+            result_kind: "verification",
+          },
         },
         blockers_or_tensions: [
           {
