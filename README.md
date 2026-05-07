@@ -2,11 +2,11 @@
 
 ## Temporal State Trajectories for AI Work
 
-Augnes is a temporal state runtime for AI-assisted work. It is not a chatbot with memory, and it is not a prompt wrapper. It turns conversation into typed, time-aware state delta proposals, lets the user commit or reject those proposals, records accepted transitions in a local SQLite ledger, and shows how project state changes over time.
+Augnes is a temporal state runtime for AI-assisted work. It is not a chatbot with memory, a prompt wrapper, a generic task tracker, or an autonomous agent swarm. It turns conversation into typed, time-aware state delta proposals, lets the user commit or reject those proposals, records accepted transitions in a local SQLite ledger, anchors task traces with work IDs, and shows how project state changes over time.
 
-> The model interprets. The runtime owns state. The timeline shows how work evolves.
+> The model interprets. The runtime owns state. The bridge lets agents act. Work IDs anchor task traces. The graph shows what changed.
 
-Augnes started from a practical annoyance: I was tired of being the human message bus between ChatGPT, Codex, and GitHub. ChatGPT could plan and review. Codex could implement and test. GitHub could store the code. But the project state still lived in my head. Augnes makes that state explicit.
+Augnes started from a practical annoyance: I was tired of being the human message bus between ChatGPT, Codex, GitHub, and local project state. ChatGPT could plan and review. Codex could implement and test. GitHub could store the code. But the project state still lived in my head. Augnes replaces that human message bus with explicit temporal state, work trace anchors, and recorded proof.
 
 ## What Augnes Is
 
@@ -47,8 +47,10 @@ Conversation
   -> State Snapshot
   -> Temporal State Graph
   -> State-Grounded Actions
-  -> External State Brief
-  -> MCP / Agent Bridge Proof
+  -> Current Work Brief
+  -> Work Trace Spine
+  -> MCP / ChatGPT App Bridge Proof
+  -> Codex Completion Proof
 ```
 
 The prompt does not define durable context. Committed state does.
@@ -71,6 +73,11 @@ The current challenge build includes:
 - Local tools that create files under `outputs/`.
 - Action records and after-action state transitions.
 - `GET /api/state/brief` for Codex or other external agents.
+- Project-level Current Work through `agent_handoff`.
+- Work Trace Spine and Work Focus for `AG-xxx` task context.
+- Work APIs for listing work items, reading work briefs, and recording work events.
+- ChatGPT App read tools for state and work briefs, with bridge-gated write tools for action and work-event proof.
+- `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
 - MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
 
 ## Single-Repo Layout
@@ -81,6 +88,16 @@ The challenge submission is now a single GitHub repository:
 - `apps/augnes_apps`: ChatGPT App / MCP bridge, bridge tools, and Codex handoff scripts.
 
 `apps/augnes_apps` remains its own nested package with its own `package.json`. The root Augnes runtime package is unchanged.
+
+## Coordination Layers
+
+Augnes now has three visible coordination layers:
+
+1. Project-level Current Work answers "Where are we?" for the whole project.
+2. Work-level Trace Spine / Work Focus answers "Where is AG-001?" for a specific work item.
+3. Completion / Proof records what changed, why, and which agent or tool produced the result.
+
+These layers do not replace the commit/reject gate. Committed Augnes state remains the source of truth. A `work_id` is only a trace anchor. `action_records` are official execution proof. `work_events` are human-readable trace notes.
 
 ## How Augnes Uses OpenAI APIs
 
@@ -132,6 +149,20 @@ The model proposes. The runtime validates. The user decides.
 
 The UI renders these groups in the State Snapshot and Tensions panels.
 
+## Current Work
+
+Current Work is the project-level "Where are we?" surface in the Runtime Cockpit. It is backed by `GET /api/state/brief?scope=project:augnes` and the deterministic `agent_handoff` packet inside that brief.
+
+Current Work shows:
+
+- current project status
+- next recommended action
+- blockers or open tensions
+- Codex handoff details
+- copyable templates for recording external work
+
+Current Work is a user-facing summary surface, not a new state authority. It summarizes committed state, pending proposals, open tensions, and recent actions that already exist in the runtime. It does not create state and does not bypass commit/reject.
+
 ## Temporal State Graph
 
 `GET /api/state/trajectory?scope=project:augnes` returns committed transitions grouped by `state_key`.
@@ -171,6 +202,30 @@ incoming active proposal: security.no_api_keys_in_repo = false
 
 Tensions are recorded for review. They do not block commits in the MVP.
 
+## Work Trace Spine / Work Focus
+
+The Work Trace Spine adds task-level continuity without turning tasks into state authority. A `work_id` such as `AG-001` is a trace anchor only. Durable project truth still lives in committed Augnes state, and official execution proof still lives in `action_records`.
+
+Work Focus answers questions like "Where is AG-001?" It shows the selected work item beside the project-level Current Work card and keeps the task-specific trace close to the state it depends on.
+
+A work brief includes:
+
+- work status and priority
+- next action
+- recent work events
+- related proof from action records
+- related state keys
+- work-specific Codex handoff
+
+Work APIs:
+
+- `GET /api/work`
+- `GET /api/work/{work_id}`
+- `GET /api/work/{work_id}/brief`
+- `POST /api/work/{work_id}/events`
+
+Recording a work event appends a human-readable trace note to the work item. It does not commit, reject, or infer runtime state.
+
 ## Planner
 
 `POST /api/plan` returns state-grounded recommendations. It uses committed state and open tensions to recommend next actions and identify local tools that can help.
@@ -201,9 +256,32 @@ curl -s -X POST "http://localhost:3000/api/actions/run" \
   -d '{"scope":"project:augnes","tool_name":"create_readme_checklist"}'
 ```
 
-External agents can record work through `POST /api/actions/record`. Existing callers only need `scope`, `source_agent_id`, `action_name`, `result_summary`, and `files_changed`; omitted `result_status` values default to `completed`, and omitted `result_kind` values default to `other`.
+External agents can record official execution proof through `POST /api/actions/record`. Existing callers only need `scope`, `source_agent_id`, `action_name`, `result_summary`, and `files_changed`; omitted `result_status` values default to `completed`, and omitted `result_kind` values default to `other`.
 
 Optional `result_status` values are `completed`, `failed`, `blocked`, `partial`, and `needs_review`. Optional `result_kind` values are `implementation`, `verification`, `documentation`, `screenshot`, `handoff`, `review`, and `other`. Only `completed` creates a completed boolean transition; non-completed outcomes are recorded with their semantic status instead.
+
+## Completion / Proof Layer
+
+Augnes separates official execution proof from human-readable task notes:
+
+- `action_records` are official execution proof. They feed recent actions and the Temporal State Graph.
+- `work_events` are human-readable trace notes attached to a `work_id`.
+- Temporal State Graph is the time-oriented proof surface for committed state transitions and recorded actions.
+
+The Codex completion protocol records both layers with:
+
+```bash
+npm run codex:record-completion
+```
+
+The helper lives in `apps/augnes_apps` and is exposed from the root package for convenience. It records:
+
+- `/api/actions/record` for official execution proof
+- `/api/work/{work_id}/events` for the work trace note
+
+Before writing an action record, the helper preflights `CODEX_WORK_ID` with `GET /api/work/{work_id}?scope=<scope>`. Unknown work IDs fail before `/api/actions/record`, which avoids orphan action records caused by mistyped trace anchors.
+
+The protocol preserves real `result_status` and `result_kind` values, including `failed`, `blocked`, `partial`, and `needs_review`. It never calls commit/reject routes and does not add autonomous Codex execution, GitHub sync, Discord sync, or automatic work status inference.
 
 ## External State Brief
 
@@ -235,19 +313,36 @@ Agent instructions include:
 - Record external work through `POST /api/actions/record`.
 - Do not commit API keys or local secrets.
 
-## MCP Bridge Proof
+## ChatGPT App Bridge Tools
 
 Augnes also has a bridge proof through the nested package `apps/augnes_apps`.
 
-The bridge exposes the Augnes runtime to MCP-compatible clients through tools such as:
+The bridge exposes the Augnes runtime to MCP-compatible clients and ChatGPT Developer Mode through tools such as:
 
 - `augnes_get_state_brief`
 - `augnes_observe`
 - `augnes_plan`
 - `augnes_record_action_result`
 - `augnes_list_pending_proposals`
+- `augnes_list_work_items`
+- `augnes_get_work_brief`
 
-A local MCP Inspector run verified this loop:
+The work-specific ChatGPT App tools are:
+
+- `augnes_list_work_items`: read tool for available work trace anchors.
+- `augnes_get_work_brief`: read tool for Work Focus context.
+- `augnes_record_work_event`: bridge-gated write tool for recording human-readable work trace notes.
+
+`augnes_record_work_event` is only available when the bridge is explicitly enabled with `AUGNES_ENABLE_AGENT_BRIDGE=true`. Recording a work event does not commit or reject state proposals. ChatGPT App bridge tools do not get commit/reject authority.
+
+Local bridge and Developer Mode validation covered two flows:
+
+- state brief validation through `/api/state/brief` and `structuredContent.brief.agent_handoff`
+- work tools validation through `augnes_list_work_items`, `augnes_get_work_brief`, and bridge-gated `augnes_record_work_event`
+
+This is local-first validation through a local bridge and HTTPS tunnel, not hosted production deployment.
+
+Earlier MCP Inspector validation verified the action proof loop:
 
 ```text
 MCP Inspector
@@ -273,7 +368,7 @@ The selected transition inspector shows:
 MCP Inspector successfully read Augnes state brief through the Augnes Agent Bridge.
 ```
 
-This proves the first practical version of the intended coordination layer: an external MCP client can read Augnes state and write an action result back into the temporal graph. In other words, Augnes is beginning to replace the human message bus between ChatGPT, Codex, and GitHub with an explicit state handoff layer.
+This proves the first practical version of the intended coordination layer: an external MCP client can read Augnes state and write an action result back into the temporal graph. In other words, Augnes replaces the human message bus between ChatGPT, Codex, GitHub, and local project state with explicit state handoff, task trace, and proof layers.
 
 ## How to Run
 
@@ -313,6 +408,9 @@ Verification:
 
 ```bash
 cd /path/to/augnes
+npm run db:reset
+npm run db:migrate
+npm run demo:seed
 npm run typecheck
 npm run build
 
@@ -383,6 +481,15 @@ with an action name such as:
 
 Refresh `http://localhost:3000`. The Temporal State Graph should show an `external.mcp_inspector_bridge_check_recorded` completion transition.
 
+For Work Trace Spine validation, run:
+
+```text
+augnes_list_work_items
+augnes_get_work_brief
+```
+
+Use a work ID such as `AG-001` for `augnes_get_work_brief`. If bridge mode is enabled with `AUGNES_ENABLE_AGENT_BRIDGE=true`, `augnes_record_work_event` can append a work trace note without committing or rejecting state.
+
 ## Final Demo Flow
 
 1. Open `http://localhost:3000`.
@@ -399,7 +506,9 @@ Refresh `http://localhost:3000`. The Temporal State Graph should show an `extern
 12. Confirm `outputs/readme_checklist.md` exists locally.
 13. Confirm the checklist run creates an action record and completion transition.
 14. Fetch `/api/state/brief?scope=project:augnes` for external-agent continuity.
-15. Optionally run the MCP bridge proof and confirm the external action appears in the graph.
+15. Confirm the Current Work card summarizes `agent_handoff`.
+16. Open Work Focus for `AG-001` and confirm recent events, related proof, and Codex handoff render.
+17. Optionally run the MCP bridge proof and confirm the external action appears in the graph.
 
 Canonical demo message:
 
@@ -427,6 +536,12 @@ curl -s -X POST "http://localhost:3000/api/actions/run" \
   -d '{"scope":"project:augnes","tool_name":"create_readme_checklist"}'
 
 curl -s "http://localhost:3000/api/state/brief?scope=project:augnes"
+
+curl -s "http://localhost:3000/api/work?scope=project:augnes"
+
+curl -s "http://localhost:3000/api/work/AG-001?scope=project:augnes"
+
+curl -s "http://localhost:3000/api/work/AG-001/brief?scope=project:augnes"
 ```
 
 ## Security Notes
