@@ -1,70 +1,39 @@
 # Submission Message
 
-Submission: Augnes — Temporal State Trajectories for AI Work
+Submission: Augnes - Temporal State Trajectories for AI Work
 
 GitHub: https://github.com/Aurna-code/augnes
 
-Augnes started from a practical annoyance: I was tired of being the human message bus between ChatGPT, Codex, and GitHub.
+Augnes started from a practical annoyance: I was tired of being the human message bus between ChatGPT, Codex, GitHub, and local project state.
 
-ChatGPT could plan and review. Codex could implement and test. GitHub could store the code. But the project state still lived in my head.
+ChatGPT could plan and review. Codex could implement and test. GitHub could store the code. But the actual project state, next action, blockers, and proof trail still lived in my head.
 
-Augnes makes that state explicit. It is not a chatbot with memory and not a prompt wrapper. It is a temporal state runtime for AI-assisted work.
+Augnes makes that coordination explicit. It turns AI work into temporal state trajectories: the model interprets, the runtime owns state, the bridge lets agents act, work IDs anchor task traces, and the graph shows what changed.
 
-OpenAI APIs interpret natural language and propose typed, time-aware state deltas. The Augnes runtime validates those proposals, asks for commit/reject, records accepted transitions in a temporal ledger, and visualizes each state key as a Temporal State Graph.
+It is not chatbot memory, a prompt wrapper, a generic task tracker, or an autonomous agent swarm.
 
-Demo flow:
-1. User describes project goals, constraints, and future plans.
-2. Augnes proposes temporal state deltas.
-3. User commits/rejects proposals.
-4. State Snapshot and Temporal State Graph update.
-5. Planner recommends actions grounded in active committed state.
-6. Local tools create real checklist/demo files.
-7. Action results become after-action state transitions.
-8. Codex or another agent can read `/api/state/brief` for compact cross-agent state continuity.
+It is a temporal state runtime, a project/work coordination layer, a bridge between ChatGPT, Codex, GitHub work, and user decisions, and a proof trail for what changed and why.
 
-MCP bridge proof:
+Current product shape:
 
-This submitted repo contains both the Augnes runtime/cockpit at the repository root and the ChatGPT App / MCP bridge under `apps/augnes_apps`.
+1. Current Work card: project-level status, next action, blockers/tensions, and Codex handoff from `/api/state/brief` and `agent_handoff`.
+2. Work Focus / Trace Spine: AG-xxx task-level context, recent events, related proof, related state keys, and work-specific Codex handoff.
+3. ChatGPT App bridge tools: state brief and work brief access through Developer Mode, with write tools gated behind local bridge mode.
+4. Codex completion protocol: `npm run codex:record-completion` records both official action proof and human-readable work trace notes.
+5. Temporal State Graph: the time-oriented view of committed state transitions and recorded proof.
 
-The nested `apps/augnes_apps` package exposes Augnes through MCP bridge tools such as:
+Authority stays explicit:
 
-- `augnes_get_state_brief`
-- `augnes_observe`
-- `augnes_plan`
-- `augnes_record_action_result`
-- `augnes_list_pending_proposals`
+- committed Augnes state is the source of truth
+- `work_id` is only a trace anchor
+- `action_records` are official execution proof
+- `work_events` are human-readable trace notes
+- the ChatGPT App does not get commit/reject authority
 
-I verified the bridge through MCP Inspector from the single repo:
+Live validation completed:
 
-```text
-MCP Inspector
-  -> apps/augnes_apps /mcp
-  -> augnes_get_state_brief
-  -> Augnes runtime /api/state/brief
-  -> augnes_record_action_result
-  -> Augnes runtime /api/actions/record
-  -> Temporal State Graph external action node
-```
+- ChatGPT Developer Mode state brief validation through the local bridge/tunnel flow.
+- ChatGPT Developer Mode Work tools validation through the local bridge/tunnel flow.
+- Codex completion recording validated against the local runtime.
 
-The proof appears in the graph as:
-
-```text
-external.mcp_inspector_bridge_check_recorded
-false -> true
-current_project · completed · completion
-```
-
-The selected transition says:
-
-```text
-MCP Inspector successfully read Augnes state brief through the Augnes Agent Bridge.
-```
-
-So the bridge loop is not just a diagram: an external MCP client can read Augnes state and write an action result back into the temporal graph.
-
-Single-repo proof path: run the runtime from the repository root, run the bridge from `apps/augnes_apps`, call `augnes_get_state_brief` and `augnes_record_action_result`, then confirm the Temporal State Graph records the external action.
-
-The model interprets.
-The runtime owns state.
-The bridge lets other agents act on it.
-The graph shows what changed.
+This is still local-first, not a hosted production deployment.
