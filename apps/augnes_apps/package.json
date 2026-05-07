@@ -16,6 +16,7 @@
     "invariants": "node --import tsx scripts/invariants.ts",
     "codex:read-brief": "tsx scripts/codex-read-brief.ts",
     "codex:record-result": "tsx scripts/codex-record-result.ts",
+    "codex:record-completion": "tsx scripts/codex-record-completion.ts",
     "codex:handoff-check": "tsx scripts/codex-handoff-check.ts"
   },
   "dependencies": {

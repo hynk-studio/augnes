@@ -1,0 +1,131 @@
+# Codex Completion Protocol
+
+Use this runbook when Codex finishes repo work, verification, review, screenshots, or a handoff that should be visible in Augnes after the PR/task.
+
+The protocol records two linked layers:
+
+- `action_records` are official execution proof. They feed recent actions and the Temporal State Graph.
+- `work_events` are human-readable trace notes attached to a `work_id`.
+
+`work_id` is only a trace anchor. Durable state authority remains Augnes committed state, and this protocol does not commit or reject state proposals.
+
+## Helper Command
+
+Start the local runtime from the repository root:
+
+```bash
+npm run db:reset
+npm run db:migrate
+npm run demo:seed
+npm run dev -- --port 3000
+```
+
+If local Turbopack root inference fails, use:
+
+```bash
+npm run dev -- --port 3000 --webpack
+```
+
+Record completion:
+
+```bash
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_WORK_ID=AG-004 \
+CODEX_SOURCE_AGENT_ID=agent:codex \
+CODEX_ACTION_NAME=ag_004_codex_completion_protocol \
+CODEX_RESULT_SUMMARY="Codex implemented and verified the AG-004 completion protocol." \
+CODEX_FILES_CHANGED="apps/augnes_apps/scripts/codex-record-completion.ts,apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md,apps/augnes_apps/README.md,apps/augnes_apps/package.json,package.json,scripts/demo-seed.mjs" \
+CODEX_RESULT_STATUS=completed \
+CODEX_RESULT_KIND=implementation \
+CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/..." \
+CODEX_RELATED_STATE_KEYS="integration.chatgpt_app,implementation.stack" \
+npm run codex:record-completion
+```
+
+`CODEX_WORK_ID` is normalized to uppercase. `CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
+
+Allowed `CODEX_RESULT_STATUS` values:
+
+- `completed`
+- `failed`
+- `blocked`
+- `partial`
+- `needs_review`
+
+Allowed `CODEX_RESULT_KIND` values:
+
+- `implementation`
+- `verification`
+- `documentation`
+- `screenshot`
+- `handoff`
+- `review`
+- `other`
+
+Preserve the real result status. Failed, blocked, partial, and needs-review work must not be dressed up as completed.
+
+The helper records `/api/actions/record` first. If that request fails, it stops and does not record the work event. If the action response includes an action record ID, the helper passes it to the work event as `related_action_id`.
+
+The helper never calls commit/reject routes and never creates autonomous execution, GitHub sync, Discord sync, or workflow orchestration.
+
+## Manual Fallback
+
+If the helper is unavailable, record the action result first:
+
+```bash
+curl -sS -X POST "http://localhost:3000/api/actions/record" \
+  -H "content-type: application/json" \
+  -d '{
+    "scope": "project:augnes",
+    "source_agent_id": "agent:codex",
+    "action_name": "ag_004_codex_completion_protocol",
+    "result_summary": "Codex implemented and verified the AG-004 completion protocol.",
+    "files_changed": [
+      "apps/augnes_apps/scripts/codex-record-completion.ts",
+      "apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md"
+    ],
+    "result_status": "completed",
+    "result_kind": "implementation"
+  }' | jq .
+```
+
+Then record the trace note. Copy the returned action record ID into `related_action_id` when available:
+
+```bash
+curl -sS -X POST "http://localhost:3000/api/work/AG-004/events?scope=project:augnes" \
+  -H "content-type: application/json" \
+  -d '{
+    "scope": "project:augnes",
+    "actor": "codex",
+    "event_type": "implementation",
+    "summary": "Codex implemented and verified the AG-004 completion protocol.",
+    "result_status": "completed",
+    "result_kind": "implementation",
+    "related_action_id": "action:...",
+    "related_pr": "https://github.com/Aurna-code/augnes/pull/...",
+    "related_state_keys": ["integration.chatgpt_app", "implementation.stack"]
+  }' | jq .
+```
+
+`POST /api/work/{work_id}/events` fails for an unknown work item. Do not hide that failure; use an existing seeded `work_id` or add a minimal deterministic seed item when that is the intended demo continuity path.
+
+## Verification
+
+Confirm the work event is attached to the trace anchor:
+
+```bash
+curl -sS "http://localhost:3000/api/work/AG-004/brief?scope=project:augnes" | jq '.recent_events[0]'
+```
+
+Confirm the action record is visible in recent actions:
+
+```bash
+curl -sS "http://localhost:3000/api/state/brief?scope=project:augnes" | jq '.recent_actions[0]'
+```
+
+Open the Runtime Cockpit and confirm Work Focus shows the event. When applicable, confirm the Temporal State Graph shows the official action result transition, such as:
+
+```text
+external.ag_004_codex_completion_protocol_recorded
+```

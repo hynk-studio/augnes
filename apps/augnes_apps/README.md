@@ -224,6 +224,7 @@ Runbooks:
 
 - [Developer Mode Runbook](docs/07_DEVELOPER_MODE_RUNBOOK.md)
 - [First Run Validation](docs/08_FIRST_RUN_VALIDATION.md)
+- [Codex Completion Protocol](docs/09_CODEX_COMPLETION_PROTOCOL.md)
 - [Real Read Path Plan](docs/09_REAL_READ_PATH_PLAN.md)
 - [Widget Security Review](docs/10_WIDGET_SECURITY_REVIEW.md)
 - [Agent Bridge Local Runbook](docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md)
