@@ -570,12 +570,12 @@ function seedWorkTraceSpine() {
     {
       workId: "AG-001",
       title: "Work Trace Spine v0 and Work Focus View",
-      status: "in_progress",
-      priority: "now",
+      status: "completed",
+      priority: "later",
       summary:
-        "Add a small trace spine that binds committed state, proposals, action records, docs, PRs, and handoffs without replacing Augnes state authority.",
+        "Work Trace Spine v0 and Work Focus View were implemented and merged by PR #38 without replacing Augnes state authority.",
       nextAction:
-        "Implement the SQLite registry/events, work brief APIs, compact cockpit Work Focus UI, and ChatGPT App bridge read tools plus gated event recording.",
+        "Validate ChatGPT App work tools through Developer Mode, then update README/SUBMISSION and final proof assets with Work Trace Spine evidence.",
       userAttentionRequired: 0,
       relatedStateKeys: encodeValue([
         "product.name",
@@ -584,10 +584,12 @@ function seedWorkTraceSpine() {
       ]),
       links: encodeValue({
         issue: "https://github.com/Aurna-code/augnes/issues/37",
+        issues: ["https://github.com/Aurna-code/augnes/issues/37"],
+        prs: ["https://github.com/Aurna-code/augnes/pull/38"],
         docs: ["docs/OPS_PLAYBOOK.md", "docs/00_INDEX_LATEST.md"],
       }),
       createdAt: "2026-05-07T00:00:00.000Z",
-      updatedAt: "2026-05-07T00:05:00.000Z",
+      updatedAt: "2026-05-07T00:25:00.000Z",
     },
     {
       workId: "AG-000",
@@ -640,6 +642,37 @@ function seedWorkTraceSpine() {
       relatedPr: null,
       relatedStateKeys: encodeValue(["product.name", "implementation.stack"]),
       createdAt: "2026-05-07T00:05:00.000Z",
+    },
+    {
+      id: "work-event:ag-001-pr-38-merged",
+      workId: "AG-001",
+      actor: "codex",
+      eventType: "implementation",
+      summary:
+        "PR #38 merged Work Trace Spine v0 and Work Focus View into main.",
+      resultStatus: "completed",
+      resultKind: "implementation",
+      relatedActionId: null,
+      relatedPr: "https://github.com/Aurna-code/augnes/pull/38",
+      relatedStateKeys: encodeValue([
+        "integration.chatgpt_app",
+        "implementation.stack",
+      ]),
+      createdAt: "2026-05-07T00:20:00.000Z",
+    },
+    {
+      id: "work-event:ag-001-manual-browser-verification",
+      workId: "AG-001",
+      actor: "user",
+      eventType: "verification",
+      summary:
+        "Manual browser verification confirmed Work Focus rendering, AG-001 selection, proof/events visibility, copy buttons, and jq validation for the copied work event template.",
+      resultStatus: "completed",
+      resultKind: "verification",
+      relatedActionId: null,
+      relatedPr: "https://github.com/Aurna-code/augnes/pull/38",
+      relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
+      createdAt: "2026-05-07T00:25:00.000Z",
     },
     {
       id: "work-event:ag-000-completed",
