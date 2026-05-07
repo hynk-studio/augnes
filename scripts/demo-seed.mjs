@@ -571,7 +571,7 @@ function seedWorkTraceSpine() {
       workId: "AG-001",
       title: "Work Trace Spine v0 and Work Focus View",
       status: "completed",
-      priority: "now",
+      priority: "later",
       summary:
         "Work Trace Spine v0 and Work Focus View were implemented and merged by PR #38 without replacing Augnes state authority.",
       nextAction:
