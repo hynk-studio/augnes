@@ -223,6 +223,7 @@ https://<tunnel-host>/mcp
 Runbooks:
 
 - [Developer Mode Runbook](docs/07_DEVELOPER_MODE_RUNBOOK.md)
+- [Work Tools Live Validation](docs/08_WORK_TOOLS_LIVE_VALIDATION.md)
 - [First Run Validation](docs/08_FIRST_RUN_VALIDATION.md)
 - [Real Read Path Plan](docs/09_REAL_READ_PATH_PLAN.md)
 - [Widget Security Review](docs/10_WIDGET_SECURITY_REVIEW.md)
