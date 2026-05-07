@@ -184,6 +184,19 @@ function buildWorkEventUrl(config: CompletionConfig): URL {
   }
 }
 
+function buildWorkItemUrl(config: CompletionConfig): URL {
+  try {
+    const url = new URL(
+      `/api/work/${encodeURIComponent(config.workId)}`,
+      `${config.apiBaseUrl}/`,
+    );
+    url.searchParams.set("scope", config.scope);
+    return url;
+  } catch {
+    throw new Error("CODEX_RECORD_COMPLETION_INVALID_BASE_URL");
+  }
+}
+
 async function readJson(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text.trim()) return {};
@@ -218,6 +231,30 @@ function extractActionId(actionResult: Record<string, unknown>): string | undefi
   ];
 
   return candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0);
+}
+
+async function assertWorkItemExists(config: CompletionConfig): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(buildWorkItemUrl(config));
+  } catch {
+    throw new Error("CODEX_RECORD_COMPLETION_RUNTIME_UNAVAILABLE");
+  }
+
+  if (response.ok) {
+    return;
+  }
+
+  const parsedBody = await readJson(response);
+  if (response.status === 404) {
+    throw new Error(
+      `CODEX_RECORD_COMPLETION_UNKNOWN_WORK_ID work_id=${config.workId} scope=${config.scope} body=${JSON.stringify(parsedBody)}`,
+    );
+  }
+
+  throw new Error(
+    `CODEX_RECORD_COMPLETION_WORK_PREFLIGHT_FAILED status=${response.status} body=${JSON.stringify(parsedBody)}`,
+  );
 }
 
 async function recordWorkEvent(
@@ -296,6 +333,7 @@ function printCompletionResult({
 
 async function main() {
   const config = resolveCompletionConfig();
+  await assertWorkItemExists(config);
   const actionResult = await recordActionResult(
     resolveRecordResultConfig({
       apiBaseUrl: config.apiBaseUrl,

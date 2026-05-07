@@ -43,7 +43,9 @@ CODEX_RELATED_STATE_KEYS="integration.chatgpt_app,implementation.stack" \
 npm run codex:record-completion
 ```
 
-`CODEX_WORK_ID` is normalized to uppercase. `CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
+`CODEX_WORK_ID` is normalized to uppercase. Before writing any action record, the helper preflights the trace anchor with `GET /api/work/{CODEX_WORK_ID}?scope=<scope>`. Unknown or unavailable work IDs fail before `/api/actions/record`, which prevents orphan `action_records` caused by mistyped work IDs.
+
+`CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
 
 Allowed `CODEX_RESULT_STATUS` values:
 
@@ -65,13 +67,19 @@ Allowed `CODEX_RESULT_KIND` values:
 
 Preserve the real result status. Failed, blocked, partial, and needs-review work must not be dressed up as completed.
 
-The helper records `/api/actions/record` first. If that request fails, it stops and does not record the work event. If the action response includes an action record ID, the helper passes it to the work event as `related_action_id`.
+The helper checks that `CODEX_WORK_ID` exists, then records `/api/actions/record`, then records `/api/work/{work_id}/events`. If the work ID preflight fails, no action record is created. If action recording fails, it stops and does not record the work event. If the action response includes an action record ID, the helper passes it to the work event as `related_action_id`.
 
 The helper never calls commit/reject routes and never creates autonomous execution, GitHub sync, Discord sync, or workflow orchestration.
 
 ## Manual Fallback
 
-If the helper is unavailable, record the action result first:
+If the helper is unavailable, confirm the work ID exists before recording the action result:
+
+```bash
+curl -sS "http://localhost:3000/api/work/AG-004?scope=project:augnes" | jq .
+```
+
+Then record the action result:
 
 ```bash
 curl -sS -X POST "http://localhost:3000/api/actions/record" \
@@ -108,7 +116,7 @@ curl -sS -X POST "http://localhost:3000/api/work/AG-004/events?scope=project:aug
   }' | jq .
 ```
 
-`POST /api/work/{work_id}/events` fails for an unknown work item. Do not hide that failure; use an existing seeded `work_id` or add a minimal deterministic seed item when that is the intended demo continuity path.
+`GET /api/work/{work_id}` and `POST /api/work/{work_id}/events` fail for an unknown work item. Do not hide that failure; use an existing seeded `work_id` or add a minimal deterministic seed item when that is the intended demo continuity path.
 
 ## Verification
 
