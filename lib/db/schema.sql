@@ -154,3 +154,41 @@ CREATE TABLE IF NOT EXISTS action_records (
 
 CREATE INDEX IF NOT EXISTS idx_action_records_scope_status
   ON action_records(scope, status);
+
+CREATE TABLE IF NOT EXISTS work_items (
+  work_id TEXT NOT NULL,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'planned',
+  priority TEXT NOT NULL DEFAULT 'normal',
+  summary TEXT NOT NULL DEFAULT '',
+  next_action TEXT NOT NULL DEFAULT '',
+  user_attention_required INTEGER NOT NULL DEFAULT 0,
+  related_state_keys TEXT NOT NULL DEFAULT '[]',
+  links TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (scope, work_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_items_scope_updated
+  ON work_items(scope, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS work_events (
+  id TEXT PRIMARY KEY,
+  work_id TEXT NOT NULL,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  actor TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  result_status TEXT,
+  result_kind TEXT,
+  related_action_id TEXT,
+  related_pr TEXT,
+  related_state_keys TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (scope, work_id) REFERENCES work_items(scope, work_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_events_scope_work_time
+  ON work_events(scope, work_id, created_at DESC);

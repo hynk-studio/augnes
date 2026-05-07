@@ -138,6 +138,66 @@ type StateBriefResponse = {
   agent_handoff?: StateBriefAgentHandoff;
 };
 
+type WorkItem = {
+  work_id: string;
+  scope: string;
+  title: string;
+  status: string;
+  priority: string;
+  summary: string;
+  next_action: string;
+  user_attention_required: boolean;
+  related_state_keys: string[];
+  links: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+type WorkEvent = {
+  id: string;
+  work_id: string;
+  scope: string;
+  actor: string;
+  event_type: string;
+  summary: string;
+  result_status: string | null;
+  result_kind: string | null;
+  related_action_id: string | null;
+  related_pr: string | null;
+  related_state_keys: string[];
+  created_at: string;
+};
+
+type WorkBriefResponse = {
+  runtime: "augnes";
+  scope: string;
+  work_id: string;
+  as_of: string;
+  framing: Record<string, string>;
+  work: WorkItem;
+  next_action: string;
+  user_attention_required: boolean;
+  recent_events: WorkEvent[];
+  related_state_keys: string[];
+  related_proof: {
+    action_ids: string[];
+    prs: string[];
+    docs: string[];
+    links: Record<string, unknown>;
+  };
+  codex_handoff: {
+    task_brief: string;
+    constraints: string[];
+    suggested_verification: string[];
+    work_event_template: Record<string, unknown>;
+  };
+};
+
+type WorkListResponse = {
+  scope: string;
+  work_items: WorkItem[];
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -152,6 +212,7 @@ type Notice = {
 };
 
 type CopyTarget = "codex" | "actionTemplate";
+type WorkCopyTarget = "workCodex" | "workEvent";
 
 type GraphNode = StateTransition & {
   eventIndex: number;
@@ -166,6 +227,10 @@ export function AugnesCockpit() {
   const [proposals, setProposals] = useState<StateDeltaProposal[]>([]);
   const [brief, setBrief] = useState<StateBriefResponse | null>(null);
   const [briefError, setBriefError] = useState<string | null>(null);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
+  const [workBrief, setWorkBrief] = useState<WorkBriefResponse | null>(null);
+  const [workError, setWorkError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -176,6 +241,15 @@ export function AugnesCockpit() {
   useEffect(() => {
     void refreshRuntime();
   }, []);
+
+  useEffect(() => {
+    if (!selectedWorkId) {
+      setWorkBrief(null);
+      return;
+    }
+
+    void refreshWorkBrief(selectedWorkId);
+  }, [selectedWorkId]);
 
   const trajectoryCount = useMemo(() => {
     if (!trajectory) {
@@ -200,6 +274,7 @@ export function AugnesCockpit() {
 
   async function refreshRuntime() {
     setBriefError(null);
+    setWorkError(null);
 
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
@@ -209,7 +284,19 @@ export function AugnesCockpit() {
         error:
           error instanceof Error ? error.message : "State brief request failed",
       }));
-    const [snapshotResult, trajectoryResult, proposalResult, briefResult] =
+    const workRequest = fetchJson<WorkListResponse>(`/api/work?scope=${SCOPE}`)
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error ? error.message : "Work list request failed",
+      }));
+    const [
+      snapshotResult,
+      trajectoryResult,
+      proposalResult,
+      briefResult,
+      workResult,
+    ] =
       await Promise.all([
         fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
         fetchJson<TrajectoryResponse>(`/api/state/trajectory?scope=${SCOPE}`),
@@ -217,6 +304,7 @@ export function AugnesCockpit() {
           `/api/proposals?scope=${SCOPE}&status=pending&include_expired=true`,
         ),
         briefRequest,
+        workRequest,
       ]);
 
     setSnapshot(snapshotResult);
@@ -228,6 +316,46 @@ export function AugnesCockpit() {
     } else {
       setBrief(null);
       setBriefError(briefResult.error);
+    }
+
+    if ("value" in workResult) {
+      setWorkItems(workResult.value.work_items);
+      setSelectedWorkId((current) => {
+        if (
+          current &&
+          workResult.value.work_items.some((item) => item.work_id === current)
+        ) {
+          return current;
+        }
+
+        return (
+          workResult.value.work_items.find((item) => item.work_id === "AG-001")
+            ?.work_id ??
+          workResult.value.work_items[0]?.work_id ??
+          null
+        );
+      });
+    } else {
+      setWorkItems([]);
+      setWorkBrief(null);
+      setWorkError(workResult.error);
+    }
+  }
+
+  async function refreshWorkBrief(workId: string) {
+    setWorkError(null);
+
+    try {
+      setWorkBrief(
+        await fetchJson<WorkBriefResponse>(
+          `/api/work/${encodeURIComponent(workId)}/brief?scope=${SCOPE}`,
+        ),
+      );
+    } catch (error) {
+      setWorkBrief(null);
+      setWorkError(
+        error instanceof Error ? error.message : "Work brief request failed",
+      );
     }
   }
 
@@ -399,6 +527,14 @@ export function AugnesCockpit() {
       <CurrentWorkCard
         brief={brief}
         error={briefError}
+      />
+
+      <WorkFocusSection
+        workItems={workItems}
+        selectedWorkId={selectedWorkId}
+        workBrief={workBrief}
+        error={workError}
+        onSelectWork={setSelectedWorkId}
       />
 
       <section className="cockpit-guidance" aria-label="Cockpit guidance">
@@ -870,6 +1006,289 @@ function CurrentWorkCard({
         </details>
       ) : null}
     </section>
+  );
+}
+
+function WorkFocusSection({
+  workItems,
+  selectedWorkId,
+  workBrief,
+  error,
+  onSelectWork,
+}: {
+  workItems: WorkItem[];
+  selectedWorkId: string | null;
+  workBrief: WorkBriefResponse | null;
+  error: string | null;
+  onSelectWork: (workId: string) => void;
+}) {
+  const [copyFeedback, setCopyFeedback] = useState<
+    Record<WorkCopyTarget, Notice | null>
+  >({
+    workCodex: null,
+    workEvent: null,
+  });
+  const selectedItem =
+    workBrief?.work ??
+    workItems.find((item) => item.work_id === selectedWorkId) ??
+    null;
+
+  async function copyToClipboard(
+    target: WorkCopyTarget,
+    label: string,
+    getText: () => string,
+  ) {
+    try {
+      const text = getText();
+
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API is unavailable.");
+      }
+
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback((current) => ({
+        ...current,
+        [target]: {
+          tone: "info",
+          text: `${label} copied`,
+        },
+      }));
+    } catch (copyError) {
+      setCopyFeedback((current) => ({
+        ...current,
+        [target]: {
+          tone: "error",
+          text:
+            copyError instanceof Error
+              ? copyError.message
+              : `${label} copy failed`,
+        },
+      }));
+    }
+  }
+
+  return (
+    <section className="work-focus-shell" aria-label="Work Focus">
+      <PanelHeader
+        eyebrow="Work Focus"
+        title="Trace Spine"
+        description="Work ID is a trace anchor. Durable state lives in committed Augnes state; execution proof lives in action records and the Temporal State Graph."
+      />
+
+      {error ? (
+        <EmptyState
+          label="Work focus unavailable"
+          description={error}
+        />
+      ) : workItems.length === 0 ? (
+        <EmptyState
+          label="No work items"
+          description="Run the demo seed or add work registry entries to inspect focused traces."
+        />
+      ) : (
+        <div className="work-focus-grid">
+          <div className="work-list" aria-label="Work list">
+            {workItems.map((item) => (
+              <button
+                className={`work-list-item${
+                  item.work_id === selectedWorkId ? " is-selected" : ""
+                }`}
+                key={item.work_id}
+                type="button"
+                onClick={() => onSelectWork(item.work_id)}
+              >
+                <span className="work-list-heading">
+                  <strong>{item.work_id}</strong>
+                  {item.user_attention_required ? (
+                    <span className="attention-dot">attention</span>
+                  ) : null}
+                </span>
+                <span>{item.title}</span>
+                <span className="work-list-meta">
+                  <StatusBadge label={formatStatusLabel(item.status)} />
+                  <StatusBadge
+                    label={formatStatusLabel(item.priority)}
+                    tone={getPriorityTone(item.priority)}
+                  />
+                  <time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="work-focus-card">
+            {selectedItem && workBrief ? (
+              <>
+                <div className="card-topline">
+                  <div className="state-key-heading">
+                    <h3>
+                      {selectedItem.work_id}: {selectedItem.title}
+                    </h3>
+                    <code>{selectedItem.scope}</code>
+                  </div>
+                  <div className="timeline-badges">
+                    <StatusBadge label={formatStatusLabel(selectedItem.status)} />
+                    <StatusBadge
+                      label={formatStatusLabel(selectedItem.priority)}
+                      tone={getPriorityTone(selectedItem.priority)}
+                    />
+                  </div>
+                </div>
+
+                <p className="work-summary">{selectedItem.summary}</p>
+                <div className="work-next-action">
+                  <span>Next action</span>
+                  <strong>{workBrief.next_action || "No next action recorded"}</strong>
+                </div>
+
+                <div className="work-copy-row">
+                  <div className="copy-control">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyToClipboard(
+                          "workCodex",
+                          "Work Codex handoff",
+                          () => buildWorkCodexHandoffText(workBrief),
+                        )
+                      }
+                    >
+                      Copy Codex handoff
+                    </button>
+                    <CopyFeedback notice={copyFeedback.workCodex} />
+                  </div>
+                  <div className="copy-control">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() =>
+                        void copyToClipboard(
+                          "workEvent",
+                          "Work event template",
+                          () =>
+                            formatWorkEventTemplate(
+                              workBrief.codex_handoff.work_event_template,
+                            ),
+                        )
+                      }
+                    >
+                      Copy work event template
+                    </button>
+                    <CopyFeedback notice={copyFeedback.workEvent} />
+                  </div>
+                </div>
+
+                <div className="work-proof-grid">
+                  <section className="work-proof-block">
+                    <h4>Related proof and links</h4>
+                    <ProofList brief={workBrief} />
+                  </section>
+                  <section className="work-proof-block">
+                    <h4>Recent events</h4>
+                    {workBrief.recent_events.length ? (
+                      <div className="work-event-list">
+                        {workBrief.recent_events.map((event) => (
+                          <article className="work-event-item" key={event.id}>
+                            <div className="card-topline">
+                              <strong>{formatStatusLabel(event.event_type)}</strong>
+                              <time dateTime={event.created_at}>
+                                {formatDate(event.created_at)}
+                              </time>
+                            </div>
+                            <p>{event.summary}</p>
+                            <div className="meta-row">
+                              <span>{formatStatusLabel(event.actor)}</span>
+                              {event.result_status ? (
+                                <span>{formatStatusLabel(event.result_status)}</span>
+                              ) : null}
+                              {event.related_action_id ? (
+                                <span>
+                                  action <code>{event.related_action_id}</code>
+                                </span>
+                              ) : null}
+                              {event.related_pr ? (
+                                <span>
+                                  PR <code>{event.related_pr}</code>
+                                </span>
+                              ) : null}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState label="No recent events" />
+                    )}
+                  </section>
+                </div>
+
+                {workBrief.related_state_keys.length ? (
+                  <details className="work-related-keys">
+                    <summary>Related state keys</summary>
+                    <div className="meta-row">
+                      {workBrief.related_state_keys.map((stateKey) => (
+                        <span key={stateKey}>
+                          {formatStateKeyLabel(stateKey)} <code>{stateKey}</code>
+                        </span>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </>
+            ) : selectedItem ? (
+              <LoadingBlock
+                title={`Loading ${selectedItem.work_id}`}
+                lines={["Fetching work brief", "Preparing proof links"]}
+              />
+            ) : (
+              <EmptyState label="Select a work item" />
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProofList({ brief }: { brief: WorkBriefResponse }) {
+  const linkEntries = Object.entries(brief.related_proof.links);
+  const hasProof =
+    brief.related_proof.action_ids.length > 0 ||
+    brief.related_proof.prs.length > 0 ||
+    brief.related_proof.docs.length > 0 ||
+    linkEntries.length > 0;
+
+  if (!hasProof) {
+    return (
+      <EmptyState
+        label="No proof links yet"
+        description="Link work events to action records, PRs, docs, or state keys as evidence appears."
+      />
+    );
+  }
+
+  return (
+    <div className="proof-list">
+      {brief.related_proof.action_ids.map((id) => (
+        <span key={id}>
+          Action <code>{id}</code>
+        </span>
+      ))}
+      {brief.related_proof.prs.map((pr) => (
+        <span key={pr}>
+          PR <code>{pr}</code>
+        </span>
+      ))}
+      {brief.related_proof.docs.map((doc) => (
+        <span key={doc}>
+          Doc <code>{doc}</code>
+        </span>
+      ))}
+      {linkEntries.map(([key, value]) => (
+        <span key={key}>
+          {formatStatusLabel(key)} <code>{formatCompactJson(value)}</code>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -1653,17 +2072,17 @@ function getConsolidationTone(
   return status;
 }
 
-function getPriorityTone(priority: StateBriefAgentHandoff["next_recommended_action"]["priority"]) {
-  const tones: Record<
-    StateBriefAgentHandoff["next_recommended_action"]["priority"],
-    string
-  > = {
+function getPriorityTone(priority: string) {
+  const tones: Record<string, string> = {
     now: "needs-review",
+    high: "needs-review",
     next: "reinforced",
+    normal: "active",
     later: "muted",
+    low: "muted",
   };
 
-  return tones[priority];
+  return tones[priority] ?? "muted";
 }
 
 function getHandoffStateKeys(handoff: StateBriefAgentHandoff) {
@@ -1718,6 +2137,77 @@ function formatActionRecordTemplate(template: Record<string, unknown>) {
   JSON.parse(formatted);
 
   return formatted;
+}
+
+function buildWorkCodexHandoffText(brief: WorkBriefResponse) {
+  const eventLines = brief.recent_events.length
+    ? brief.recent_events
+        .map(
+          (event) =>
+            `- ${event.created_at} ${event.event_type}/${event.actor}: ${event.summary}`,
+        )
+        .join("\n")
+    : "- None recorded.";
+  const proofLines = [
+    ...brief.related_proof.action_ids.map((id) => `- action_record: ${id}`),
+    ...brief.related_proof.prs.map((pr) => `- PR: ${pr}`),
+    ...brief.related_proof.docs.map((doc) => `- doc: ${doc}`),
+  ];
+  const commands = brief.codex_handoff.suggested_verification
+    .map((command) => `- ${command}`)
+    .join("\n");
+
+  return [
+    `${brief.work_id}: ${brief.work.title}`,
+    "",
+    "Trace framing:",
+    `- ${brief.framing.work_id}`,
+    `- ${brief.framing.state_authority}`,
+    `- ${brief.framing.execution_proof}`,
+    `- ${brief.framing.temporal_proof}`,
+    "",
+    "Current work:",
+    brief.work.summary,
+    "",
+    "Next action:",
+    brief.next_action || "No next action recorded.",
+    "",
+    "Recent events:",
+    eventLines,
+    "",
+    "Related proof:",
+    proofLines.length ? proofLines.join("\n") : "- None linked yet.",
+    "",
+    "Suggested verification:",
+    commands,
+  ].join("\n");
+}
+
+function formatWorkEventTemplate(template: Record<string, unknown>) {
+  const formatted = JSON.stringify(
+    {
+      ...template,
+      summary: "Summarize implementation, verification, review, or handoff result.",
+    },
+    null,
+    2,
+  );
+
+  if (!formatted) {
+    throw new Error("Work event template is not serializable.");
+  }
+
+  JSON.parse(formatted);
+
+  return formatted;
+}
+
+function formatCompactJson(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return JSON.stringify(value);
 }
 
 function truncateLabel(value: string, maxLength: number) {

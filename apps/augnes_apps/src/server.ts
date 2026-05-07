@@ -19,6 +19,8 @@ import {
   StateRuntimeActionResultStatusSchema,
   type StateBrief,
   type StateRuntimeBridgeAdapter,
+  type WorkBrief,
+  type WorkItem,
 } from "./lib/state-runtime-types.js";
 import type { AugnesCoreAdapter, SearchScope } from "./lib/types.js";
 
@@ -44,9 +46,15 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_plan",
   "augnes_record_action_result",
   "augnes_list_pending_proposals",
+  "augnes_record_work_event",
+] as const;
+export const AUGNES_WORK_READ_TOOL_NAMES = [
+  "augnes_list_work_items",
+  "augnes_get_work_brief",
 ] as const;
 export const PUBLIC_TOOL_NAMES = [
   ...LEGACY_PUBLIC_TOOL_NAMES,
+  ...AUGNES_WORK_READ_TOOL_NAMES,
 ] as const;
 const readOnlyAnnotations = {
   readOnlyHint: true,
@@ -199,6 +207,15 @@ function describeStateBrief(brief: StateBrief): string {
     : "";
 
   return `State brief for ${brief.scope}: ${stateBlockCount(brief.active_state)} active, ${brief.pending_proposals.length} pending, ${brief.recent_actions.length} recent action(s), ${brief.open_tensions.length} open tension(s).${agentHandoffSuffix}`;
+}
+
+function describeWorkItems(scope: string, workItems: WorkItem[]): string {
+  const attentionCount = workItems.filter((item) => item.user_attention_required).length;
+  return `Found ${workItems.length} work item(s) for ${scope}; ${attentionCount} require user attention. Work IDs are trace anchors, not state authority.`;
+}
+
+function describeWorkBrief(brief: WorkBrief): string {
+  return `Work brief for ${brief.work_id}: ${brief.work.title}. Status ${brief.work.status}, priority ${brief.work.priority}, ${brief.recent_events.length} recent event(s), ${brief.related_proof.action_ids.length} linked action record(s). work_id is a trace anchor; committed state remains authoritative.`;
 }
 
 export type McpAppServerOptions = {
@@ -500,6 +517,63 @@ export function createMcpAppServer(
     }
   );
 
+  registerAppTool(
+    server,
+    "augnes_list_work_items",
+    {
+      title: "List Augnes work items",
+      description: "List focused Augnes work trace anchors without treating work_id as durable project state.",
+      inputSchema: { scope: z.string().min(1).optional() },
+      annotations: bridgeReadAnnotations,
+      _meta: modelOnlyToolMeta,
+    },
+    async ({ scope }) => {
+      const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+      try {
+        const workItems = await stateRuntimeAdapter.listWorkItems(resolvedScope);
+        const structuredContent = sanitizePayload({ profile: config.appProfile, scope: resolvedScope, workItems });
+        return {
+          structuredContent,
+          content: narrative(describeWorkItems(resolvedScope, workItems)),
+          _meta: sanitizePayload({ profile: config.appProfile }),
+        };
+      } catch (error) {
+        return buildBridgeToolError("augnes_list_work_items", error);
+      }
+    }
+  );
+
+  registerAppTool(
+    server,
+    "augnes_get_work_brief",
+    {
+      title: "Get Augnes work brief",
+      description: "Return a ChatGPT-friendly work packet with current metadata, recent events, proof links, and Codex handoff.",
+      inputSchema: {
+        scope: z.string().min(1).optional(),
+        workId: z.string().min(1),
+      },
+      annotations: bridgeReadAnnotations,
+      _meta: modelOnlyToolMeta,
+    },
+    async ({ scope, workId }) => {
+      const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+      try {
+        const brief = await stateRuntimeAdapter.getWorkBrief(resolvedScope, workId);
+        const structuredContent = sanitizePayload({ profile: config.appProfile, brief });
+        return {
+          structuredContent,
+          content: narrative(describeWorkBrief(brief)),
+          _meta: sanitizePayload({ profile: config.appProfile }),
+        };
+      } catch (error) {
+        return buildBridgeToolError("augnes_get_work_brief", error);
+      }
+    }
+  );
+
   if (enableAgentBridge) {
     registerAppTool(
       server,
@@ -664,6 +738,57 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_list_pending_proposals", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_record_work_event",
+      {
+        title: "Record Augnes work event",
+        description: "Record a human-readable event on an existing work trace anchor without committing state deltas.",
+        inputSchema: {
+          scope: z.string().min(1).optional(),
+          workId: z.string().min(1),
+          actor: z.enum(["user", "chatgpt", "codex", "augnes_runtime"]).optional(),
+          eventType: z.enum(["note", "implementation", "verification", "review", "handoff", "blocked", "decision"]).optional(),
+          summary: z.string().min(1),
+          resultStatus: StateRuntimeActionResultStatusSchema.optional(),
+          resultKind: StateRuntimeActionResultKindSchema.optional(),
+          relatedActionId: z.string().min(1).optional(),
+          relatedPr: z.string().min(1).optional(),
+          relatedStateKeys: z.array(z.string()).optional(),
+        },
+        annotations: bridgeWriteAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, workId, actor, eventType, summary, resultStatus, resultKind, relatedActionId, relatedPr, relatedStateKeys }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const eventResult = await stateRuntimeAdapter.recordWorkEvent({
+            scope: resolvedScope,
+            workId,
+            actor,
+            eventType,
+            summary,
+            resultStatus,
+            resultKind,
+            relatedActionId,
+            relatedPr,
+            relatedStateKeys,
+          });
+          const structuredContent = sanitizePayload({ profile: config.appProfile, eventResult });
+          return {
+            structuredContent,
+            content: narrative(
+              `Recorded work event for ${eventResult.event.work_id}; no state deltas were committed or rejected.`
+            ),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_record_work_event", error);
         }
       }
     );

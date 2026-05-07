@@ -6,6 +6,9 @@ import {
   PlanResultSchema,
   StateBriefSchema,
   StateRuntimeScopeSchema,
+  WorkBriefSchema,
+  WorkEventResultSchema,
+  WorkListResultSchema,
   type ActionRecordResult,
   type ObserveResult,
   type PlanResult,
@@ -15,6 +18,10 @@ import {
   type StateRuntimeMessageInput,
   type StateRuntimeProposal,
   type StateRuntimeScope,
+  type StateRuntimeWorkEventInput,
+  type WorkBrief,
+  type WorkEventResult,
+  type WorkItem,
 } from "../lib/state-runtime-types.js";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
@@ -25,6 +32,9 @@ const endpointContract = {
   plan: { method: "POST", path: "/api/plan" },
   recordActionResult: { method: "POST", path: "/api/actions/record" },
   pendingProposals: { method: "GET", path: "/api/proposals" },
+  workItems: { method: "GET", path: "/api/work" },
+  workBrief: { method: "GET", path: "/api/work" },
+  recordWorkEvent: { method: "POST", path: "/api/work" },
 } as const;
 
 export class AugnesStateRuntimeHttpError extends Error {
@@ -189,6 +199,65 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
     }
 
     return normalizePendingProposals(await readJson(response, "pending proposals"));
+  }
+
+  async listWorkItems(scope: StateRuntimeScope): Promise<WorkItem[]> {
+    const result = await this.requestJson(
+      endpointContract.workItems.method,
+      endpointContract.workItems.path,
+      WorkListResultSchema,
+      "work list",
+      {
+        query: { scope: parseScope(scope) },
+      }
+    );
+
+    return result.work_items;
+  }
+
+  async getWorkBrief(scope: StateRuntimeScope, workId: string): Promise<WorkBrief> {
+    const normalizedWorkId = workId.trim().toUpperCase();
+    if (!normalizedWorkId) {
+      throw new AugnesStateRuntimeHttpError("Augnes work_id is required.");
+    }
+
+    return this.requestJson(
+      endpointContract.workBrief.method,
+      `${endpointContract.workBrief.path}/${encodeURIComponent(normalizedWorkId)}/brief`,
+      WorkBriefSchema,
+      "work brief",
+      {
+        query: { scope: parseScope(scope) },
+      }
+    );
+  }
+
+  async recordWorkEvent(input: StateRuntimeWorkEventInput): Promise<WorkEventResult> {
+    const normalizedWorkId = input.workId.trim().toUpperCase();
+    if (!normalizedWorkId) {
+      throw new AugnesStateRuntimeHttpError("Augnes work_id is required.");
+    }
+
+    const body: Record<string, unknown> = {
+      scope: parseScope(input.scope),
+      summary: input.summary,
+    };
+
+    if (input.actor) body.actor = input.actor;
+    if (input.eventType) body.event_type = input.eventType;
+    if (input.resultStatus) body.result_status = input.resultStatus;
+    if (input.resultKind) body.result_kind = input.resultKind;
+    if (input.relatedActionId) body.related_action_id = input.relatedActionId;
+    if (input.relatedPr) body.related_pr = input.relatedPr;
+    if (input.relatedStateKeys) body.related_state_keys = input.relatedStateKeys;
+
+    return this.requestJson(
+      endpointContract.recordWorkEvent.method,
+      `${endpointContract.recordWorkEvent.path}/${encodeURIComponent(normalizedWorkId)}/events`,
+      WorkEventResultSchema,
+      "work event",
+      { body }
+    );
   }
 
   private async requestJson<T>(
