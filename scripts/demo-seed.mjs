@@ -568,6 +568,28 @@ function selectSeedScores(transition) {
 function seedWorkTraceSpine() {
   const workItems = [
     {
+      workId: "AG-004",
+      title: "Codex completion protocol",
+      status: "in_progress",
+      priority: "now",
+      summary:
+        "Add a repeatable Codex completion routine that records official action proof and links it into the relevant work trace.",
+      nextAction:
+        "Implement the helper and runbook, then record the completion against this trace anchor after PR work is complete.",
+      userAttentionRequired: 0,
+      relatedStateKeys: encodeValue([
+        "integration.chatgpt_app",
+        "implementation.stack",
+      ]),
+      links: encodeValue({
+        issue: "https://github.com/Aurna-code/augnes/issues/43",
+        issues: ["https://github.com/Aurna-code/augnes/issues/43"],
+        docs: ["apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md"],
+      }),
+      createdAt: "2026-05-07T01:00:00.000Z",
+      updatedAt: "2026-05-07T01:00:00.000Z",
+    },
+    {
       workId: "AG-001",
       title: "Work Trace Spine v0 and Work Focus View",
       status: "completed",
@@ -615,6 +637,20 @@ function seedWorkTraceSpine() {
   }
 
   const events = [
+    {
+      id: "work-event:ag-004-opened",
+      workId: "AG-004",
+      actor: "user",
+      eventType: "decision",
+      summary:
+        "Opened AG-004 to standardize Codex completion recording across action_records and work_events without adding state commit or reject authority.",
+      resultStatus: null,
+      resultKind: "handoff",
+      relatedActionId: null,
+      relatedPr: null,
+      relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
+      createdAt: "2026-05-07T01:00:00.000Z",
+    },
     {
       id: "work-event:ag-001-planned",
       workId: "AG-001",
