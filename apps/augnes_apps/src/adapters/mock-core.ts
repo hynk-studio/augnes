@@ -224,6 +224,8 @@ export class MockAugnesCoreAdapter implements AugnesCoreAdapter {
         "get_continuity_report",
         "navigate_repo",
         "get_governance_audit",
+        "augnes_list_work_items",
+        "augnes_get_work_brief",
       ],
       rawFirstFields: [
         "provider session ids",

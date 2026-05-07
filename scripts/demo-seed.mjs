@@ -335,6 +335,90 @@ const upsertTension = db.prepare(`
     source_session_id = excluded.source_session_id
 `);
 
+const upsertWorkItem = db.prepare(`
+  INSERT INTO work_items (
+    work_id,
+    scope,
+    title,
+    status,
+    priority,
+    summary,
+    next_action,
+    user_attention_required,
+    related_state_keys,
+    links,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    @workId,
+    @scope,
+    @title,
+    @status,
+    @priority,
+    @summary,
+    @nextAction,
+    @userAttentionRequired,
+    @relatedStateKeys,
+    @links,
+    @createdAt,
+    @updatedAt
+  )
+  ON CONFLICT(scope, work_id) DO UPDATE SET
+    title = excluded.title,
+    status = excluded.status,
+    priority = excluded.priority,
+    summary = excluded.summary,
+    next_action = excluded.next_action,
+    user_attention_required = excluded.user_attention_required,
+    related_state_keys = excluded.related_state_keys,
+    links = excluded.links,
+    updated_at = excluded.updated_at
+`);
+
+const upsertWorkEvent = db.prepare(`
+  INSERT INTO work_events (
+    id,
+    work_id,
+    scope,
+    actor,
+    event_type,
+    summary,
+    result_status,
+    result_kind,
+    related_action_id,
+    related_pr,
+    related_state_keys,
+    created_at
+  )
+  VALUES (
+    @id,
+    @workId,
+    @scope,
+    @actor,
+    @eventType,
+    @summary,
+    @resultStatus,
+    @resultKind,
+    @relatedActionId,
+    @relatedPr,
+    @relatedStateKeys,
+    @createdAt
+  )
+  ON CONFLICT(id) DO UPDATE SET
+    work_id = excluded.work_id,
+    scope = excluded.scope,
+    actor = excluded.actor,
+    event_type = excluded.event_type,
+    summary = excluded.summary,
+    result_status = excluded.result_status,
+    result_kind = excluded.result_kind,
+    related_action_id = excluded.related_action_id,
+    related_pr = excluded.related_pr,
+    related_state_keys = excluded.related_state_keys,
+    created_at = excluded.created_at
+`);
+
 const seed = db.transaction(() => {
   insertAgent.run({
     id: agentId,
@@ -393,6 +477,8 @@ const seed = db.transaction(() => {
     sourceSessionId: sessionId,
     createdAt: timestamp,
   });
+
+  seedWorkTraceSpine();
 });
 
 seed();
@@ -477,4 +563,101 @@ function selectSeedScores(transition) {
     conflict_score: 0,
     self_impact_score: 0.68,
   };
+}
+
+function seedWorkTraceSpine() {
+  const workItems = [
+    {
+      workId: "AG-001",
+      title: "Work Trace Spine v0 and Work Focus View",
+      status: "in_progress",
+      priority: "now",
+      summary:
+        "Add a small trace spine that binds committed state, proposals, action records, docs, PRs, and handoffs without replacing Augnes state authority.",
+      nextAction:
+        "Implement the SQLite registry/events, work brief APIs, compact cockpit Work Focus UI, and ChatGPT App bridge read tools plus gated event recording.",
+      userAttentionRequired: 0,
+      relatedStateKeys: encodeValue([
+        "product.name",
+        "implementation.stack",
+        "integration.chatgpt_app",
+      ]),
+      links: encodeValue({
+        issue: "https://github.com/Aurna-code/augnes/issues/37",
+        docs: ["docs/OPS_PLAYBOOK.md", "docs/00_INDEX_LATEST.md"],
+      }),
+      createdAt: "2026-05-07T00:00:00.000Z",
+      updatedAt: "2026-05-07T00:05:00.000Z",
+    },
+    {
+      workId: "AG-000",
+      title: "Current Work card and agent handoff",
+      status: "completed",
+      priority: "later",
+      summary:
+        "Expose project-level current status and Codex handoff from the Augnes state brief.",
+      nextAction:
+        "Use AG-001 to inspect focused work traces beside the project-level Current Work card.",
+      userAttentionRequired: 0,
+      relatedStateKeys: encodeValue(["submission.readme_checklist_created"]),
+      links: encodeValue({
+        docs: ["components/augnes-cockpit.tsx", "lib/state/brief.ts"],
+      }),
+      createdAt: "2026-05-06T00:00:00.000Z",
+      updatedAt: "2026-05-06T01:00:00.000Z",
+    },
+  ];
+
+  for (const item of workItems) {
+    upsertWorkItem.run({ ...item, scope });
+  }
+
+  const events = [
+    {
+      id: "work-event:ag-001-planned",
+      workId: "AG-001",
+      actor: "user",
+      eventType: "decision",
+      summary:
+        "Opened AG-001 as a trace-anchor implementation for work registry, work events, work brief, cockpit focus, and bridge tools.",
+      resultStatus: null,
+      resultKind: null,
+      relatedActionId: null,
+      relatedPr: null,
+      relatedStateKeys: encodeValue(["integration.chatgpt_app"]),
+      createdAt: "2026-05-07T00:00:00.000Z",
+    },
+    {
+      id: "work-event:ag-001-handoff",
+      workId: "AG-001",
+      actor: "chatgpt",
+      eventType: "handoff",
+      summary:
+        "Framed work_id as a trace anchor only; committed state remains the durable source of truth and action_records remain execution proof.",
+      resultStatus: null,
+      resultKind: "handoff",
+      relatedActionId: null,
+      relatedPr: null,
+      relatedStateKeys: encodeValue(["product.name", "implementation.stack"]),
+      createdAt: "2026-05-07T00:05:00.000Z",
+    },
+    {
+      id: "work-event:ag-000-completed",
+      workId: "AG-000",
+      actor: "codex",
+      eventType: "verification",
+      summary:
+        "Current Work card seed context is complete and available as project-level status beside AG-001 focus.",
+      resultStatus: "completed",
+      resultKind: "verification",
+      relatedActionId: null,
+      relatedPr: null,
+      relatedStateKeys: encodeValue(["submission.readme_checklist_created"]),
+      createdAt: "2026-05-06T01:00:00.000Z",
+    },
+  ];
+
+  for (const event of events) {
+    upsertWorkEvent.run({ ...event, scope });
+  }
 }

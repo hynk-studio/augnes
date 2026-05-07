@@ -82,6 +82,8 @@ function spawnToolProfileSnapshot(env: Record<string, string | undefined>) {
           get_continuity_report: {},
           navigate_repo: { query: 'server' },
           get_governance_audit: {},
+          augnes_list_work_items: {},
+          augnes_get_work_brief: { workId: 'AG-001' },
         };
         const profiles = {};
         for (const name of PUBLIC_TOOL_NAMES) {
@@ -136,6 +138,15 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             filesChanged: ['src/server.ts'],
           },
           augnes_list_pending_proposals: {},
+          augnes_record_work_event: {
+            workId: 'AG-001',
+            actor: 'codex',
+            eventType: 'verification',
+            summary: 'Bridge work event smoke passed.',
+            resultStatus: 'completed',
+            resultKind: 'verification',
+            relatedStateKeys: ['current_focus'],
+          },
         };
         const profiles = {};
         for (const name of AUGNES_BRIDGE_TOOL_NAMES) {
@@ -146,6 +157,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             text: result.content?.[0]?.text,
             agentHandoff: result.structuredContent?.brief?.agent_handoff,
             actionRecord: result.structuredContent?.actionRecord,
+            eventResult: result.structuredContent?.eventResult,
           };
         }
         const richRecordResult = await server._registeredTools.augnes_record_action_result.handler({
@@ -288,7 +300,7 @@ async function assertWidgetResourceSecurity() {
 }
 
 async function main() {
-  const intendedPublicToolNames = [
+  const intendedLegacyToolNames = [
     "search",
     "fetch",
     "open_casefile",
@@ -298,6 +310,11 @@ async function main() {
     "get_continuity_report",
     "navigate_repo",
     "get_governance_audit",
+  ];
+  const intendedPublicToolNames = [
+    ...intendedLegacyToolNames,
+    "augnes_list_work_items",
+    "augnes_get_work_brief",
   ];
 
   assert.equal(typeof config.useMock, "boolean", "config.useMock should load");
@@ -381,6 +398,16 @@ async function main() {
     bridgeSnapshot.profiles.augnes_record_action_result.actionRecord.action_name,
     "smoke_legacy_check",
     "legacy augnes_record_action_result payload should still work"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_record_work_event.eventResult.event.work_id,
+    "AG-001",
+    "augnes_record_work_event should preserve the target work_id"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_record_work_event.text,
+    /no state deltas were committed or rejected/i,
+    "augnes_record_work_event should state that it does not commit or reject state"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_state_brief.text,
@@ -865,8 +892,8 @@ async function main() {
     globalThis.fetch = originalFetch;
   }
 
-  assert.deepEqual(LEGACY_PUBLIC_TOOL_NAMES, intendedPublicToolNames);
-  assert.deepEqual(PUBLIC_TOOL_NAMES, LEGACY_PUBLIC_TOOL_NAMES, "PUBLIC_TOOL_NAMES should remain the directory-safe public surface");
+  assert.deepEqual(LEGACY_PUBLIC_TOOL_NAMES, intendedLegacyToolNames);
+  assert.deepEqual(PUBLIC_TOOL_NAMES, intendedPublicToolNames, "PUBLIC_TOOL_NAMES should remain the read-only public surface");
 
   console.log("Smoke checks passed.");
 }

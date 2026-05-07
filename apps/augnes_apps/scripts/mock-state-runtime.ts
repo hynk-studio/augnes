@@ -8,6 +8,10 @@ import type {
   StateRuntimeMessageInput,
   StateRuntimeProposal,
   StateRuntimeScope,
+  StateRuntimeWorkEventInput,
+  WorkBrief,
+  WorkEventResult,
+  WorkItem,
 } from "../src/lib/state-runtime-types.js";
 
 const proposal: StateRuntimeProposal = {
@@ -15,6 +19,24 @@ const proposal: StateRuntimeProposal = {
   scope: "project:augnes",
   status: "pending",
   title: "Keep bridge read surface narrow",
+};
+
+const workItem: WorkItem = {
+  work_id: "AG-001",
+  scope: "project:augnes",
+  title: "Work Trace Spine v0 and Work Focus View",
+  status: "in_progress",
+  priority: "now",
+  summary: "Expose focused work trace packets without changing durable state authority.",
+  next_action: "Verify work bridge read tools and gated event recording.",
+  user_attention_required: false,
+  related_state_keys: ["current_focus"],
+  links: {
+    issue: "https://github.com/Aurna-code/augnes/issues/37",
+    docs: ["docs/OPS_PLAYBOOK.md"],
+  },
+  created_at: "2026-05-07T00:00:00.000Z",
+  updated_at: "2026-05-07T00:05:00.000Z",
 };
 
 export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter {
@@ -129,5 +151,82 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
 
   async listPendingProposals(scope: StateRuntimeScope): Promise<StateRuntimeProposal[]> {
     return [{ ...proposal, scope }];
+  }
+
+  async listWorkItems(scope: StateRuntimeScope): Promise<WorkItem[]> {
+    return [{ ...workItem, scope }];
+  }
+
+  async getWorkBrief(scope: StateRuntimeScope, workId: string): Promise<WorkBrief> {
+    return {
+      runtime: "augnes",
+      scope,
+      work_id: workId.toUpperCase(),
+      as_of: "2026-05-07T00:05:00.000Z",
+      framing: {
+        work_id: "Trace anchor only; not canonical project state.",
+        state_authority: "Durable state authority remains Augnes committed state.",
+        execution_proof: "Official execution proof remains action_records.",
+        temporal_proof: "Temporal State Graph remains proof over time.",
+      },
+      work: { ...workItem, scope, work_id: workId.toUpperCase() },
+      next_action: workItem.next_action,
+      user_attention_required: false,
+      recent_events: [
+        {
+          id: "work-event-smoke-1",
+          work_id: workId.toUpperCase(),
+          scope,
+          actor: "chatgpt",
+          event_type: "handoff",
+          summary: "Smoke work brief preserves trace-anchor framing.",
+          result_status: null,
+          result_kind: "handoff",
+          related_action_id: null,
+          related_pr: null,
+          related_state_keys: ["current_focus"],
+          created_at: "2026-05-07T00:05:00.000Z",
+        },
+      ],
+      related_state_keys: ["current_focus"],
+      related_proof: {
+        action_ids: [],
+        prs: [],
+        docs: ["docs/OPS_PLAYBOOK.md"],
+        links: workItem.links,
+      },
+      codex_handoff: {
+        task_brief: "Verify AG-001 work trace bridge tools.",
+        constraints: ["work_id is a trace anchor, not state authority."],
+        suggested_verification: ["npm run smoke"],
+        work_event_template: {
+          work_id: workId.toUpperCase(),
+          scope,
+          actor: "codex",
+          event_type: "verification",
+          summary: "Summarize bridge smoke validation.",
+        },
+      },
+    };
+  }
+
+  async recordWorkEvent(input: StateRuntimeWorkEventInput): Promise<WorkEventResult> {
+    return {
+      scope: input.scope,
+      event: {
+        id: "work-event-recorded-smoke-1",
+        work_id: input.workId.toUpperCase(),
+        scope: input.scope,
+        actor: input.actor ?? "codex",
+        event_type: input.eventType ?? "note",
+        summary: input.summary,
+        result_status: input.resultStatus ?? null,
+        result_kind: input.resultKind ?? null,
+        related_action_id: input.relatedActionId ?? null,
+        related_pr: input.relatedPr ?? null,
+        related_state_keys: input.relatedStateKeys ?? [],
+        created_at: "2026-05-07T00:10:00.000Z",
+      },
+    };
   }
 }
