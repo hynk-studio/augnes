@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { openDatabase } from "@/lib/db";
-import { normalizeScope, normalizeWorkId } from "@/lib/work";
 
 const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_EVENT_LIMIT = 50;
@@ -198,7 +197,7 @@ export function appendCoordinationEvent(input: CoordinationEventInput) {
   try {
     db.prepare(
       `
-        INSERT INTO coordination_events (
+        INSERT OR IGNORE INTO coordination_events (
           event_id,
           event_type,
           scope,
@@ -325,4 +324,12 @@ function cleanNullableString(value: string | null | undefined) {
   }
 
   return value.trim() || null;
+}
+
+function normalizeWorkId(workId: string) {
+  return workId.trim().toUpperCase();
+}
+
+function normalizeScope(scope?: string | null) {
+  return scope?.trim() || DEFAULT_SCOPE;
 }

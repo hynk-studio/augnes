@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { appendCoordinationEvent } from "@/lib/coordination-events";
 import { openDatabase } from "@/lib/db";
 
 const DEFAULT_SCOPE = "project:augnes";
@@ -244,9 +245,10 @@ export function appendWorkEvent(input: WorkEventInput) {
   const workId = normalizeWorkId(input.work_id);
   const db = openDatabase();
   const now = input.created_at ?? new Date().toISOString();
+  let event: WorkEvent;
 
   try {
-    return db.transaction(() => {
+    event = db.transaction(() => {
       const workItem = selectWorkItemRow(db, workId, scope);
       if (!workItem) {
         throw new WorkNotFoundError(workId, scope);
@@ -335,6 +337,22 @@ export function appendWorkEvent(input: WorkEventInput) {
   } finally {
     db.close();
   }
+
+  appendCoordinationEvent({
+    event_id: `event:${event.id}`,
+    event_type: "work_event_recorded",
+    scope: event.scope,
+    work_id: event.work_id,
+    actor: event.actor,
+    source_surface: "local_runtime",
+    authority_level: "execution_trace",
+    state_keys: event.related_state_keys,
+    payload_ref: event.id,
+    result_status: event.result_status,
+    created_at: event.created_at,
+  });
+
+  return event;
 }
 
 export function buildWorkBrief(workId: string, scope = DEFAULT_SCOPE): WorkBrief | null {
