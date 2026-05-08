@@ -344,6 +344,7 @@ async function main() {
       filesChanged: config.filesChanged,
       resultStatus: config.resultStatus,
       resultKind: config.resultKind,
+      workId: config.workId,
     }),
   );
   const relatedActionId = extractActionId(actionResult);

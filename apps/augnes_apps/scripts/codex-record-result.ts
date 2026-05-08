@@ -19,6 +19,7 @@ const ActionRecordResultSchema = z.record(z.unknown());
 export interface RecordResultConfig {
   apiBaseUrl: string;
   scope: string;
+  workId?: string;
   sourceAgentId: string;
   actionName: string;
   resultSummary: string;
@@ -66,6 +67,7 @@ export function resolveRecordResultConfig(overrides: Partial<RecordResultConfig>
       overrides.apiBaseUrl ??
       trimTrailingSlash((process.env.AUGNES_API_BASE_URL ?? DEFAULT_API_BASE_URL).trim() || DEFAULT_API_BASE_URL),
     scope: overrides.scope ?? readEnv("AUGNES_SCOPE", DEFAULT_SCOPE),
+    workId: overrides.workId,
     sourceAgentId: overrides.sourceAgentId ?? readEnv("CODEX_SOURCE_AGENT_ID", DEFAULT_SOURCE_AGENT_ID),
     actionName: overrides.actionName ?? readEnv("CODEX_ACTION_NAME", DEFAULT_ACTION_NAME),
     resultSummary: overrides.resultSummary ?? readEnv("CODEX_RESULT_SUMMARY", DEFAULT_RESULT_SUMMARY),
@@ -110,6 +112,10 @@ export async function recordActionResult(config: RecordResultConfig): Promise<Re
 
   if (config.resultKind) {
     body.result_kind = config.resultKind;
+  }
+
+  if (config.workId) {
+    body.work_id = config.workId;
   }
 
   let response: Response;
@@ -159,6 +165,9 @@ export function printRecordResult(config: RecordResultConfig, result: Record<str
 
   console.log("Augnes action record result");
   console.log(`scope: ${config.scope}`);
+  if (config.workId) {
+    console.log(`work_id: ${config.workId}`);
+  }
   console.log(`action_name: ${config.actionName}`);
   console.log(`source_agent_id: ${config.sourceAgentId}`);
   console.log(`files_changed count: ${config.filesChanged.length}`);

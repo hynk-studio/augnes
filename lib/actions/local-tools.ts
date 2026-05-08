@@ -157,6 +157,19 @@ export function runLocalTool({
     source_session_id: null,
     reason: config.summary,
   });
+  appendCoordinationEvent({
+    event_id: `event:${actionRecord.id}`,
+    event_type: "action_result_recorded",
+    scope,
+    work_id: null,
+    actor: sourceAgentId,
+    source_surface: "local_runtime",
+    authority_level: "action_proof",
+    state_keys: [config.stateKey],
+    payload_ref: actionRecord.id,
+    result_status: "completed",
+    created_at: actionRecord.created_at,
+  });
 
   return {
     tool_name: toolName,
