@@ -289,7 +289,7 @@ Constraints: do not add direct commit/reject tools; keep bridge tools gated behi
 Verification: npm run typecheck; npm run smoke
 
 Needs your decision / blockers
-There are pending proposals, so durable state changes still need an explicit user commit/reject decision in Augnes Core or Runtime Cockpit. The main tension is that ChatGPT can explain state and guide Codex, but it must not become a write authority or start autonomous Codex execution.
+There are pending proposals, so durable state changes still need an explicit user commit/reject decision in Augnes Core or Runtime Cockpit. The main tension is that ChatGPT can explain state and prepare Codex handoffs, but it must not become a write authority or start autonomous Codex execution.
 ```
 
 Do not:

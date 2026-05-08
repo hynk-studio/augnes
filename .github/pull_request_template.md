@@ -84,7 +84,7 @@ Confirm this PR keeps the authority boundaries intact.
 - [ ] No GitHub auto-merge was added.
 - [ ] No auth or hosted deployment semantics were added.
 - [ ] No secret handling changes were added.
-- [ ] No secrets, local DB files, screenshots, or generated outputs are committed.
+- [ ] No secrets, local DB files, screenshots, tunnel URLs, generated outputs, or local artifacts are committed.
 
 ## Completion Record Reminder
 

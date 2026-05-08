@@ -8,7 +8,7 @@ A Verification Evidence Pack is the small review bundle Codex should leave behin
 - Separate evidence summaries from generated artifacts.
 - Preserve exact failures instead of smoothing them over.
 - Show which execution surfaces were used.
-- Keep secrets, local DB files, screenshots, and generated outputs out of git.
+- Keep secrets, local DB files, screenshots, tunnel URLs, generated outputs, and local artifacts out of git.
 
 ## Evidence Categories
 

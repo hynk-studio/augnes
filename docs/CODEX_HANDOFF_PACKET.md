@@ -51,7 +51,7 @@ Constraints and safety boundaries:
 - Treat committed Augnes state as source of truth.
 - Treat pending proposals as suggestions only.
 - Surface open tensions before depending on contested state.
-- Do not commit API keys, local secrets, local DB files, screenshots, or generated outputs.
+- Do not commit API keys, local secrets, local DB files, screenshots, tunnel URLs, generated outputs, or local artifacts.
 - Do not add direct Codex orchestration.
 - Do not add autonomous Codex execution.
 - Do not add ChatGPT App commit/reject tools.
@@ -96,4 +96,4 @@ Codex should report:
 
 ## Boundary
 
-The packet is not an instruction for ChatGPT App to run Codex. It is a durable handoff format that a user, ChatGPT, or Augnes can present to Codex so execution remains explicit and reviewable.
+The packet is not an instruction for ChatGPT App to run Codex. It is a durable handoff format that a user, ChatGPT, or Augnes can present to Codex so execution remains explicit, user-directed, and reviewable.
