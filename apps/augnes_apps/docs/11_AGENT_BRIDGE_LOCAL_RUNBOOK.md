@@ -6,6 +6,21 @@ Augnes exists to reduce the human-message-bus burden between ChatGPT, Codex, and
 
 This flow is intentionally local and explicitly bridge-gated. The public ChatGPT App profile remains directory-safe unless bridge mode is enabled.
 
+## Handoff / Execution Boundary
+
+The ChatGPT App can create a Codex Handoff Packet from Augnes state and work briefs. Codex executes that handoff using its own execution capabilities, such as GitHub, Browser/Chrome, local runtime commands, and ChatGPT Apps or Developer Mode verification when those surfaces are available.
+
+Augnes records proof and trace notes after the work. It does not directly orchestrate Codex, launch autonomous Codex execution, approve durable state, merge GitHub PRs, or turn ChatGPT App into a commit/reject authority.
+
+Use the root trace docs for PR work:
+
+- `docs/AUTHORITY_MATRIX.md`
+- `docs/CODEX_HANDOFF_PACKET.md`
+- `docs/VERIFICATION_EVIDENCE_PACK.md`
+- `docs/EXECUTION_SURFACE_RECORD.md`
+- `docs/EXPECTED_IMPACT_CHECK.md`
+- `.github/pull_request_template.md`
+
 ## Prerequisites
 
 - Single `Aurna-code/augnes` checkout.
@@ -123,7 +138,7 @@ If the tunnel restarts, the URL changes unless you use a named tunnel.
 
 ## Codex Handoff Demo
 
-Use this flow to demonstrate ChatGPT planning, Codex implementation, and Augnes Temporal State Graph recording.
+Use this flow to demonstrate ChatGPT interpretation, Codex implementation, GitHub PR trace, and Augnes Temporal State Graph proof.
 
 1. Read the Augnes state brief with `augnes_get_state_brief`.
 
@@ -144,13 +159,19 @@ When the Augnes runtime includes `agent_handoff` in `/api/state/brief`, `augnes_
 }
 ```
 
-3. Let Codex perform a small repo task, for example:
+3. Generate or copy a Codex Handoff Packet.
+
+Use `docs/CODEX_HANDOFF_PACKET.md` as the format. The handoff should name the `AG-xxx` work ID, related state keys, expected files, verification commands, expected surfaces, and safety boundaries. The handoff is a packet for the user or Codex to execute; it is not a ChatGPT App command to run Codex.
+
+4. Let Codex perform a small repo task using its own capabilities, for example:
 
 - Update a docs file.
-- Add a small demo note.
+- Add a PR trace template.
 - Verify a README section.
+- Use GitHub to inspect or open a PR.
+- Use Browser/Chrome only for UI verification when a local runtime exists.
 
-4. Record the result with `augnes_record_action_result`.
+5. Record the result with `augnes_record_action_result` or the Codex completion helper.
 
 ```json
 {
@@ -158,7 +179,7 @@ When the Augnes runtime includes `agent_handoff` in `/api/state/brief`, `augnes_
   "sourceAgentId": "agent:codex",
   "actionName": "update_agent_bridge_runbook",
   "resultSummary": "Updated the local bridge demo runbook and verified typecheck.",
-  "filesChanged": ["docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md", "README.md"],
+  "filesChanged": ["apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md", "README.md"],
   "resultStatus": "completed",
   "resultKind": "documentation"
 }
@@ -166,7 +187,7 @@ When the Augnes runtime includes `agent_handoff` in `/api/state/brief`, `augnes_
 
 `resultStatus` and `resultKind` are optional. If omitted, the runtime defaults still apply: `completed` and `other`.
 
-5. Confirm the Augnes runtime received the external action:
+6. Confirm the Augnes runtime received the external action:
 
 - Refresh `http://localhost:3000`.
 - Or call:
@@ -176,6 +197,8 @@ curl "http://localhost:3000/api/state/brief?scope=project:augnes"
 ```
 
 The Temporal State Graph should show the external action record after the runtime receives `augnes_record_action_result`.
+
+7. For PR work, include the PR Trace Template fields, Verification Evidence Pack, Execution Surface Record, and Expected Impact vs Actual Result Check. If the local runtime, Browser/Chrome, ChatGPT Developer Mode, or MCP Inspector is unavailable, record the exact skipped reason.
 
 ## Using the ChatGPT App as the human-facing Augnes assistant
 
@@ -214,6 +237,7 @@ Why
 Codex handoff
 - If the user asks what Codex should do, use agent_handoff.codex_handoff.task_brief.
 - Include listed constraints and verification commands.
+- Format longer handoffs with docs/CODEX_HANDOFF_PACKET.md.
 
 Recent actions
 - Summarize recent work from brief.recent_actions.
@@ -275,6 +299,7 @@ Do not:
 - Treat ChatGPT thread text as canonical Augnes memory.
 - Dump `agent_handoff` wholesale into tool text; keep `structuredContent.brief.agent_handoff` as the source of truth.
 - Lead with raw state keys when a plain-language handoff summary is available.
+- Use the ChatGPT App to directly run Codex or merge GitHub PRs.
 
 ## Troubleshooting
 
@@ -319,3 +344,5 @@ npm run smoke
 ```
 
 These checks are still useful for docs-only changes because they confirm the app scaffold and local smoke path remain healthy.
+
+For PRs that involve Codex, GitHub, Browser/Chrome, or ChatGPT Developer Mode surfaces, also follow the root PR template and record skipped checks explicitly when a surface is unavailable.
