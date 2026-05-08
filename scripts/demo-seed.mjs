@@ -419,6 +419,52 @@ const upsertWorkEvent = db.prepare(`
     created_at = excluded.created_at
 `);
 
+const upsertCoordinationEvent = db.prepare(`
+  INSERT INTO coordination_events (
+    event_id,
+    event_type,
+    scope,
+    work_id,
+    actor,
+    target,
+    source_surface,
+    authority_level,
+    state_keys,
+    causal_parent_id,
+    payload_ref,
+    result_status,
+    created_at
+  )
+  VALUES (
+    @eventId,
+    @eventType,
+    @scope,
+    @workId,
+    @actor,
+    @target,
+    @sourceSurface,
+    @authorityLevel,
+    @stateKeys,
+    @causalParentId,
+    @payloadRef,
+    @resultStatus,
+    @createdAt
+  )
+  ON CONFLICT(event_id) DO UPDATE SET
+    event_type = excluded.event_type,
+    scope = excluded.scope,
+    work_id = excluded.work_id,
+    actor = excluded.actor,
+    target = excluded.target,
+    source_surface = excluded.source_surface,
+    authority_level = excluded.authority_level,
+    state_keys = excluded.state_keys,
+    causal_parent_id = excluded.causal_parent_id,
+    payload_ref = excluded.payload_ref,
+    result_status = excluded.result_status,
+    created_at = excluded.created_at
+`);
+
 const seed = db.transaction(() => {
   insertAgent.run({
     id: agentId,
@@ -567,6 +613,23 @@ function selectSeedScores(transition) {
 
 function seedWorkTraceSpine() {
   const workItems = [
+    {
+      workId: "AG-006",
+      title: "Coordination event spine schema and storage",
+      status: "in_progress",
+      priority: "now",
+      summary:
+        "Add the Phase 1 event spine schema, storage helpers, and read-only API without expanding write authority.",
+      nextAction:
+        "Implement PR 1.1 and verify the append-only coordination event read path.",
+      userAttentionRequired: 0,
+      relatedStateKeys: encodeValue(["coordination.event_spine"]),
+      links: encodeValue({
+        docs: ["docs/AUGNES_COORDINATION_SPINE_ROADMAP.md"],
+      }),
+      createdAt: "2026-05-08T00:00:00.000Z",
+      updatedAt: "2026-05-08T00:00:00.000Z",
+    },
     {
       workId: "AG-004",
       title: "Codex completion protocol",
@@ -729,4 +792,20 @@ function seedWorkTraceSpine() {
   for (const event of events) {
     upsertWorkEvent.run({ ...event, scope });
   }
+
+  upsertCoordinationEvent.run({
+    eventId: "event:ag-006-spine-storage-handoff",
+    eventType: "handoff_ready",
+    scope,
+    workId: "AG-006",
+    actor: "user",
+    target: "codex",
+    sourceSurface: "local_runtime",
+    authorityLevel: "handoff_guidance",
+    stateKeys: encodeValue(["coordination.event_spine"]),
+    causalParentId: null,
+    payloadRef: "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
+    resultStatus: null,
+    createdAt: "2026-05-08T00:00:00.000Z",
+  });
 }

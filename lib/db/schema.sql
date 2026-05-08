@@ -192,3 +192,52 @@ CREATE TABLE IF NOT EXISTS work_events (
 
 CREATE INDEX IF NOT EXISTS idx_work_events_scope_work_time
   ON work_events(scope, work_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS coordination_events (
+  event_id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL CHECK (
+    event_type IN (
+      'handoff_created',
+      'handoff_ready',
+      'handoff_delivered',
+      'handoff_acknowledged',
+      'work_event_recorded',
+      'action_result_recorded',
+      'result_review_created',
+      'record_draft_created',
+      'publication_draft_created',
+      'publication_sent',
+      'publication_failed',
+      'publication_acknowledged'
+    )
+  ),
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  work_id TEXT,
+  actor TEXT NOT NULL,
+  target TEXT,
+  source_surface TEXT NOT NULL,
+  authority_level TEXT NOT NULL CHECK (
+    authority_level IN (
+      'raw_observation',
+      'interpretation_only',
+      'handoff_guidance',
+      'execution_trace',
+      'action_proof',
+      'publication_notice',
+      'acknowledged_notice',
+      'committed_state'
+    )
+  ),
+  state_keys TEXT NOT NULL DEFAULT '[]',
+  causal_parent_id TEXT,
+  payload_ref TEXT,
+  result_status TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (causal_parent_id) REFERENCES coordination_events(event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_coordination_events_scope_time
+  ON coordination_events(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_coordination_events_scope_work_time
+  ON coordination_events(scope, work_id, created_at DESC);
