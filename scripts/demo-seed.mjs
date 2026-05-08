@@ -419,6 +419,8 @@ const upsertWorkEvent = db.prepare(`
     created_at = excluded.created_at
 `);
 
+// Demo seed/reset uses deterministic upserts; runtime coordination events stay
+// append-only through appendCoordinationEvent.
 const upsertCoordinationEvent = db.prepare(`
   INSERT INTO coordination_events (
     event_id,

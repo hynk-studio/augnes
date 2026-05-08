@@ -232,7 +232,7 @@ CREATE TABLE IF NOT EXISTS coordination_events (
   causal_parent_id TEXT,
   payload_ref TEXT,
   result_status TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (causal_parent_id) REFERENCES coordination_events(event_id)
 );
 
