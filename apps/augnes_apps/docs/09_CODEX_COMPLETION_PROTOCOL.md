@@ -9,6 +9,17 @@ The protocol records two linked layers:
 
 `work_id` is only a trace anchor. Durable state authority remains Augnes committed state, and this protocol does not commit or reject state proposals.
 
+## Related Trace Docs
+
+Use the root docs and PR template when preparing Codex work:
+
+- `docs/AUTHORITY_MATRIX.md` defines which actor can read state, propose, record proof, commit/reject, edit repo, use Browser/Chrome, and open PRs.
+- `docs/CODEX_HANDOFF_PACKET.md` defines the copy-pasteable packet ChatGPT App or Augnes can give Codex without turning ChatGPT App into a Codex controller.
+- `docs/VERIFICATION_EVIDENCE_PACK.md` defines command, Browser/Chrome, ChatGPT Developer Mode, MCP/widget, and artifact evidence expectations.
+- `docs/EXECUTION_SURFACE_RECORD.md` defines canonical execution surface names such as `github`, `browser`, `chrome`, `chatgpt_developer_mode`, `mcp_inspector`, and `local_runtime`.
+- `docs/EXPECTED_IMPACT_CHECK.md` defines the expected files/state keys/surfaces/checks vs actual files/state keys/surfaces/checks comparison.
+- `.github/pull_request_template.md` captures the PR Trace Template for review.
+
 ## Helper Command
 
 Start the local runtime from the repository root:
@@ -46,6 +57,8 @@ npm run codex:record-completion
 `CODEX_WORK_ID` is normalized to uppercase. Before writing any action record, the helper preflights the trace anchor with `GET /api/work/{CODEX_WORK_ID}?scope=<scope>`. Unknown or unavailable work IDs fail before `/api/actions/record`, which prevents orphan `action_records` caused by mistyped work IDs.
 
 `CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
+
+`CODEX_RELATED_PR` and `CODEX_RELATED_STATE_KEYS` are the core trace fields that connect GitHub history back to Augnes continuity. `CODEX_RELATED_PR` points from the work event to the PR where Codex changed or verified the repo. `CODEX_RELATED_STATE_KEYS` names the committed state lanes or expected state lanes the work depended on, affected, or verified. Together with `CODEX_WORK_ID`, they let reviewers move from PR, to work trace, to state graph without giving GitHub or ChatGPT App authority over committed Augnes state.
 
 Allowed `CODEX_RESULT_STATUS` values:
 
@@ -137,3 +150,5 @@ Open the Runtime Cockpit and confirm Work Focus shows the event. When applicable
 ```text
 external.ag_004_codex_completion_protocol_recorded
 ```
+
+For PR work, include the Verification Evidence Pack, Execution Surface Record, and Expected Impact vs Actual Result Check in the PR body or completion summary. If Browser/Chrome, ChatGPT Developer Mode, MCP Inspector, or local runtime checks are unavailable, record the exact skipped reason.
