@@ -5,6 +5,7 @@ import {
   type ActionRecord,
   type StateTransition,
 } from "@/lib/db";
+import { appendCoordinationEvent } from "@/lib/coordination-events";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -156,6 +157,19 @@ export function runLocalTool({
     source_session_id: null,
     reason: config.summary,
   });
+  appendCoordinationEvent({
+    event_id: `event:${actionRecord.id}`,
+    event_type: "action_result_recorded",
+    scope,
+    work_id: null,
+    actor: sourceAgentId,
+    source_surface: "local_runtime",
+    authority_level: "action_proof",
+    state_keys: [config.stateKey],
+    payload_ref: actionRecord.id,
+    result_status: "completed",
+    created_at: actionRecord.created_at,
+  });
 
   return {
     tool_name: toolName,
@@ -173,6 +187,7 @@ export function recordExternalAction({
   filesChanged,
   resultStatus = "completed",
   resultKind = "other",
+  workId = null,
 }: {
   scope: string;
   sourceAgentId: string;
@@ -181,6 +196,7 @@ export function recordExternalAction({
   filesChanged: string[];
   resultStatus?: ActionResultStatus;
   resultKind?: ActionResultKind;
+  workId?: string | null;
 }) {
   ensureAgent({
     id: sourceAgentId,
@@ -214,6 +230,19 @@ export function recordExternalAction({
     source_agent_id: sourceAgentId,
     source_session_id: null,
     reason: resultSummary,
+  });
+  appendCoordinationEvent({
+    event_id: `event:${actionRecord.id}`,
+    event_type: "action_result_recorded",
+    scope,
+    work_id: workId,
+    actor: sourceAgentId,
+    source_surface: "local_runtime",
+    authority_level: "action_proof",
+    state_keys: actionRecord.state_key ? [actionRecord.state_key] : [],
+    payload_ref: actionRecord.id,
+    result_status: resultStatus,
+    created_at: actionRecord.created_at,
   });
 
   return {

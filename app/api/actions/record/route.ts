@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       ACTION_RESULT_KINDS,
       "other",
     );
+    const workId = readOptionalString(body, "work_id");
     const filesChanged = Array.isArray(body.files_changed)
       ? body.files_changed.filter(
           (file): file is string => typeof file === "string",
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
           filesChanged,
           resultStatus,
           resultKind,
+          workId,
         }),
       },
       { status: 201 },
@@ -70,6 +72,19 @@ function requireString(record: Record<string, unknown>, key: string) {
   }
 
   return value.trim();
+}
+
+function readOptionalString(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`${key} must be a string.`);
+  }
+
+  return value.trim() || null;
 }
 
 function optionalEnum<T extends ActionResultStatus | ActionResultKind>(
