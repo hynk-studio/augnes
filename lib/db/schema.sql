@@ -289,6 +289,89 @@ CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_to_time
 CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_payload_time
   ON mailbox_messages(scope, payload_ref, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS publication_drafts (
+  publication_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  work_id TEXT,
+  source_event_id TEXT,
+  target_surface TEXT NOT NULL,
+  target_ref TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'draft',
+      'approved',
+      'sent',
+      'failed',
+      'cancelled'
+    )
+  ),
+  preview_body TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  approved_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  sent_at TEXT,
+  FOREIGN KEY (scope, work_id) REFERENCES work_items(scope, work_id),
+  FOREIGN KEY (source_event_id) REFERENCES coordination_events(event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_publication_drafts_scope_time
+  ON publication_drafts(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_drafts_scope_work_time
+  ON publication_drafts(scope, work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_drafts_scope_status_time
+  ON publication_drafts(scope, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_drafts_scope_target_time
+  ON publication_drafts(scope, target_surface, target_ref, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_drafts_scope_sent_time
+  ON publication_drafts(scope, sent_at DESC);
+
+CREATE TABLE IF NOT EXISTS delivery_ledger (
+  delivery_id TEXT PRIMARY KEY,
+  publication_id TEXT NOT NULL,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  target_surface TEXT NOT NULL,
+  target_ref TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'pending',
+      'sent',
+      'failed',
+      'acknowledged'
+    )
+  ),
+  sent_at TEXT,
+  acknowledged_at TEXT,
+  error_message TEXT,
+  idempotency_key TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  FOREIGN KEY (publication_id) REFERENCES publication_drafts(publication_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_ledger_scope_time
+  ON delivery_ledger(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_ledger_publication_time
+  ON delivery_ledger(publication_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_ledger_scope_status_time
+  ON delivery_ledger(scope, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_ledger_scope_target_time
+  ON delivery_ledger(scope, target_surface, target_ref, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_ledger_scope_sent_time
+  ON delivery_ledger(scope, sent_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_ledger_idempotency_key
+  ON delivery_ledger(publication_id, target_surface, target_ref, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS coordination_events (
   event_id TEXT PRIMARY KEY,
   event_type TEXT NOT NULL CHECK (
