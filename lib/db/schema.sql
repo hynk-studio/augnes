@@ -193,6 +193,48 @@ CREATE TABLE IF NOT EXISTS work_events (
 CREATE INDEX IF NOT EXISTS idx_work_events_scope_work_time
   ON work_events(scope, work_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS handoffs (
+  handoff_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  work_id TEXT,
+  source_state_brief_ref TEXT,
+  source_work_brief_ref TEXT,
+  target_agent TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'draft',
+      'ready',
+      'delivered',
+      'acknowledged',
+      'reviewed',
+      'superseded',
+      'expired'
+    )
+  ),
+  current_committed_state_summary TEXT NOT NULL,
+  task_brief TEXT NOT NULL,
+  expected_files TEXT NOT NULL DEFAULT '[]',
+  expected_state_keys TEXT NOT NULL DEFAULT '[]',
+  expected_checks TEXT NOT NULL DEFAULT '[]',
+  expected_execution_surfaces TEXT NOT NULL DEFAULT '[]',
+  safety_boundaries TEXT NOT NULL DEFAULT '[]',
+  completion_record_fields TEXT NOT NULL DEFAULT '{}',
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  supersedes_handoff_id TEXT,
+  FOREIGN KEY (supersedes_handoff_id) REFERENCES handoffs(handoff_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_handoffs_scope_time
+  ON handoffs(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_handoffs_scope_work_time
+  ON handoffs(scope, work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_handoffs_scope_status_time
+  ON handoffs(scope, status, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS coordination_events (
   event_id TEXT PRIMARY KEY,
   event_type TEXT NOT NULL CHECK (
