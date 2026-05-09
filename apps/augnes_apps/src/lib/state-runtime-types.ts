@@ -229,6 +229,84 @@ export const GeneratedHandoffDraftSchema = z
   })
   .passthrough();
 
+export const AxisReviewSchema = z
+  .object({
+    expected: z.array(z.string()),
+    actual: z.array(z.string()),
+    missing: z.array(z.string()),
+    unexpected: z.array(z.string()),
+    match: z.enum(["yes", "no", "partial"]),
+  })
+  .passthrough();
+
+export const CodexResultReviewSchema = z
+  .object({
+    review_id: z.string(),
+    handoff_id: z.string(),
+    files: AxisReviewSchema,
+    state_keys: AxisReviewSchema,
+    checks: AxisReviewSchema.extend({
+      skipped: z.array(
+        z
+          .object({
+            check: z.string(),
+            reason: z.string(),
+          })
+          .passthrough()
+      ),
+    }).passthrough(),
+    execution_surfaces: AxisReviewSchema,
+    files_match: z.enum(["yes", "no", "partial"]),
+    state_keys_match: z.enum(["yes", "no", "partial"]),
+    checks_match: z.enum(["yes", "no", "partial"]),
+    execution_surfaces_match: z.enum(["yes", "no", "partial"]),
+    mismatch_or_follow_up: z.array(z.string()),
+    recommended_result_status: StateRuntimeActionResultStatusSchema,
+    recommended_result_kind: StateRuntimeActionResultKindSchema,
+    safety_boundary_notes: z.array(z.string()),
+  })
+  .passthrough();
+
+export const ActionRecordDraftSchema = z
+  .object({
+    scope: z.string(),
+    source_agent_id: z.string(),
+    action_name: z.string(),
+    result_summary: z.string(),
+    files_changed: z.array(z.string()),
+    result_status: StateRuntimeActionResultStatusSchema,
+    result_kind: StateRuntimeActionResultKindSchema,
+    work_id: z.string().nullable(),
+    related_state_keys: z.array(z.string()),
+    related_pr: z.string().optional(),
+  })
+  .passthrough();
+
+export const WorkEventDraftSchema = z
+  .object({
+    scope: z.string(),
+    work_id: z.string().nullable(),
+    actor: z.string(),
+    event_type: z.string(),
+    summary: z.string(),
+    result_status: StateRuntimeActionResultStatusSchema,
+    result_kind: StateRuntimeActionResultKindSchema,
+    related_action_id: z.string().nullable(),
+    related_pr: z.string().optional(),
+    related_state_keys: z.array(z.string()),
+  })
+  .passthrough();
+
+export const CodexResultReviewDraftSchema = z
+  .object({
+    scope: z.string(),
+    handoff: HandoffRecordSchema,
+    review: CodexResultReviewSchema,
+    action_record_draft: ActionRecordDraftSchema,
+    work_event_draft: WorkEventDraftSchema,
+  })
+  .passthrough();
+
 export const PendingProposalsResultSchema = z.union([
   z.array(StateRuntimeProposalSchema),
   z
@@ -256,6 +334,7 @@ export type WorkBrief = z.infer<typeof WorkBriefSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
+export type CodexResultReviewDraft = z.infer<typeof CodexResultReviewDraftSchema>;
 
 export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
@@ -292,6 +371,21 @@ export interface GenerateHandoffDraftInput {
   createdBy?: string;
 }
 
+export interface ReviewCodexResultDraftInput {
+  scope: StateRuntimeScope;
+  handoffId: string;
+  actualFilesChanged?: string[];
+  actualStateKeys?: string[];
+  actualChecks?: string[];
+  actualExecutionSurfaces?: string[];
+  resultStatus?: StateRuntimeActionResultStatus;
+  resultKind?: StateRuntimeActionResultKind;
+  resultSummary: string;
+  relatedPr?: string;
+  blockersOrFailures?: string[];
+  skippedChecks?: Array<string | { check: string; reason: string }>;
+}
+
 export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   observe(input: StateRuntimeMessageInput): Promise<ObserveResult>;
@@ -302,4 +396,5 @@ export interface StateRuntimeBridgeAdapter {
   getWorkBrief(scope: StateRuntimeScope, workId: string): Promise<WorkBrief>;
   recordWorkEvent(input: StateRuntimeWorkEventInput): Promise<WorkEventResult>;
   generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft>;
+  reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft>;
 }

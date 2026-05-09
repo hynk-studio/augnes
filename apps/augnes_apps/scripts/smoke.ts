@@ -152,6 +152,16 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             targetAgent: 'codex',
             createdBy: 'chatgpt',
           },
+          augnes_review_codex_result_draft: {
+            handoffId: 'handoff:smoke-draft-1',
+            actualFilesChanged: ['src/server.ts'],
+            actualStateKeys: ['current_focus'],
+            actualChecks: ['npm run smoke'],
+            actualExecutionSurfaces: ['local_runtime'],
+            resultStatus: 'completed',
+            resultKind: 'implementation',
+            resultSummary: 'Reviewed Codex smoke result and produced record drafts only.',
+          },
         };
         const profiles = {};
         for (const name of AUGNES_BRIDGE_TOOL_NAMES) {
@@ -166,6 +176,10 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             handoff: result.structuredContent?.handoff,
             packetText: result.structuredContent?.packet_text,
             expectedStateKeys: result.structuredContent?.expected_state_keys,
+            review: result.structuredContent?.review,
+            actionRecordDraft: result.structuredContent?.action_record_draft,
+            workEventDraft: result.structuredContent?.work_event_draft,
+            boundaries: result.structuredContent?.boundaries,
           };
         }
         const richRecordResult = await server._registeredTools.augnes_record_action_result.handler({
@@ -436,6 +450,26 @@ async function main() {
     bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.expectedStateKeys,
     ["current_focus"],
     "augnes_generate_codex_handoff_draft should expose expected_state_keys in structuredContent"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_review_codex_result_draft.review.recommended_result_status,
+    "completed",
+    "augnes_review_codex_result_draft should return a review recommendation"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_review_codex_result_draft.actionRecordDraft.source_agent_id,
+    "agent:codex",
+    "augnes_review_codex_result_draft should return an action record draft"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_review_codex_result_draft.workEventDraft.related_action_id,
+    null,
+    "augnes_review_codex_result_draft should not claim recorded action proof"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_review_codex_result_draft.text,
+    /does not execute Codex, does not record proof, does not commit or reject Augnes state, and does not publish externally/i,
+    "augnes_review_codex_result_draft should state the draft-only authority boundary"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_state_brief.text,

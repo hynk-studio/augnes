@@ -48,6 +48,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_list_pending_proposals",
   "augnes_record_work_event",
   "augnes_generate_codex_handoff_draft",
+  "augnes_review_codex_result_draft",
 ] as const;
 export const AUGNES_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -223,6 +224,13 @@ function describeCodexHandoffDraft(workId: string, handoffId: string): string {
   return [
     `Generated Codex handoff draft ${handoffId} for ${workId}.`,
     "This is a guidance packet only: it does not execute Codex, mark the handoff ready or delivered, commit or reject Augnes state, or publish externally.",
+  ].join(" ");
+}
+
+function describeCodexResultReviewDraft(handoffId: string, status: string, kind: string): string {
+  return [
+    `Created Codex result review draft for ${handoffId}; recommended ${status}/${kind}.`,
+    "This is review/draft only: it does not execute Codex, does not record proof, does not commit or reject Augnes state, and does not publish externally.",
   ].join(" ");
 }
 
@@ -848,6 +856,104 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_generate_codex_handoff_draft", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_review_codex_result_draft",
+      {
+        title: "Review Codex result draft",
+        description:
+          "Use this when the user asks to review a reported Codex result against a handoff and prepare Augnes record drafts. It does not execute Codex, record proof, commit or reject state, or publish externally.",
+        inputSchema: {
+          scope: z.string().min(1).optional(),
+          handoffId: z.string().min(1),
+          actualFilesChanged: z.array(z.string()).optional(),
+          actualStateKeys: z.array(z.string()).optional(),
+          actualChecks: z.array(z.string()).optional(),
+          actualExecutionSurfaces: z.array(z.string()).optional(),
+          resultStatus: StateRuntimeActionResultStatusSchema.optional(),
+          resultKind: StateRuntimeActionResultKindSchema.optional(),
+          resultSummary: z.string().min(1),
+          relatedPr: z.string().min(1).optional(),
+          blockersOrFailures: z.array(z.string()).optional(),
+          skippedChecks: z
+            .array(
+              z.union([
+                z.string(),
+                z.object({
+                  check: z.string().min(1),
+                  reason: z.string().min(1),
+                }),
+              ])
+            )
+            .optional(),
+        },
+        annotations: bridgeWriteAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({
+        scope,
+        handoffId,
+        actualFilesChanged,
+        actualStateKeys,
+        actualChecks,
+        actualExecutionSurfaces,
+        resultStatus,
+        resultKind,
+        resultSummary,
+        relatedPr,
+        blockersOrFailures,
+        skippedChecks,
+      }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const draft = await stateRuntimeAdapter.reviewCodexResultDraft({
+            scope: resolvedScope,
+            handoffId,
+            actualFilesChanged,
+            actualStateKeys,
+            actualChecks,
+            actualExecutionSurfaces,
+            resultStatus,
+            resultKind,
+            resultSummary,
+            relatedPr,
+            blockersOrFailures,
+            skippedChecks,
+          });
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            handoff: draft.handoff,
+            review: draft.review,
+            action_record_draft: draft.action_record_draft,
+            work_event_draft: draft.work_event_draft,
+            boundaries: {
+              review_only: true,
+              records_are_drafts_only: true,
+              codex_execution: false,
+              proof_recording: false,
+              state_commit_or_reject: false,
+              external_publication: false,
+            },
+          });
+
+          return {
+            structuredContent,
+            content: narrative(
+              describeCodexResultReviewDraft(
+                draft.handoff.handoff_id,
+                draft.review.recommended_result_status,
+                draft.review.recommended_result_kind
+              )
+            ),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_review_codex_result_draft", error);
         }
       }
     );

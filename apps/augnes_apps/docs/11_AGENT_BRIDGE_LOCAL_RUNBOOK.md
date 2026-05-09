@@ -86,7 +86,9 @@ With `AUGNES_ENABLE_AGENT_BRIDGE=true`, the Augnes bridge tools are also registe
 - `augnes_plan`
 - `augnes_record_action_result`
 - `augnes_list_pending_proposals`
+- `augnes_record_work_event`
 - `augnes_generate_codex_handoff_draft`
+- `augnes_review_codex_result_draft`
 
 ## Verify Bridge Health
 
@@ -196,7 +198,46 @@ post to GitHub or Discord, or create mailbox behavior.
 - Use GitHub to inspect or open a PR.
 - Use Browser/Chrome only for UI verification when a local runtime exists.
 
-5. Record the result with `augnes_record_action_result` or the Codex completion helper.
+5. Review the Codex result and prepare record drafts.
+
+Bridge-enabled mode can compare the reported Codex result against the handoff
+without recording proof through `augnes_review_codex_result_draft`:
+
+```json
+{
+  "scope": "project:augnes",
+  "handoffId": "handoff:...",
+  "actualFilesChanged": ["lib/handoff-review.ts"],
+  "actualStateKeys": ["coordination.handoff_registry"],
+  "actualChecks": ["npm run typecheck"],
+  "actualExecutionSurfaces": ["local_runtime", "github"],
+  "resultStatus": "partial",
+  "resultKind": "implementation",
+  "resultSummary": "Implemented the result-review helper and route; Developer Mode checks were skipped.",
+  "skippedChecks": [
+    {
+      "check": "ChatGPT Developer Mode",
+      "reason": "No tunnel or Developer Mode session was available."
+    }
+  ]
+}
+```
+
+Answer from the returned `structuredContent`:
+
+- Identify the handoff being reviewed.
+- Summarize expected vs actual files, state keys, checks, and execution surfaces.
+- Show recommended result status and kind.
+- Show `action_record_draft` and `work_event_draft`.
+- Remind the user that proof recording and durable approval are separate steps.
+
+The review tool is draft-only. It does not execute Codex, record proof, commit
+or reject Augnes state, mark handoffs reviewed, post to GitHub or Discord,
+publish externally, or create mailbox behavior. The runtime may append a
+`result_review_created` coordination event with `interpretation_only`
+authority so the review attempt is visible on the event spine.
+
+6. Record the result with `augnes_record_action_result` or the Codex completion helper only after the user explicitly wants proof recorded.
 
 ```json
 {
@@ -212,7 +253,7 @@ post to GitHub or Discord, or create mailbox behavior.
 
 `resultStatus` and `resultKind` are optional. If omitted, the runtime defaults still apply: `completed` and `other`.
 
-6. Confirm the Augnes runtime received the external action:
+7. Confirm the Augnes runtime received the external action:
 
 - Refresh `http://localhost:3000`.
 - Or call:
@@ -223,7 +264,7 @@ curl "http://localhost:3000/api/state/brief?scope=project:augnes"
 
 The Temporal State Graph should show the external action record after the runtime receives `augnes_record_action_result`.
 
-7. For PR work, include the PR Trace Template fields, Verification Evidence Pack, Execution Surface Record, and Expected Impact vs Actual Result Check. If the local runtime, Browser/Chrome, ChatGPT Developer Mode, or MCP Inspector is unavailable, record the exact skipped reason.
+8. For PR work, include the PR Trace Template fields, Verification Evidence Pack, Execution Surface Record, and Expected Impact vs Actual Result Check. If the local runtime, Browser/Chrome, ChatGPT Developer Mode, or MCP Inspector is unavailable, record the exact skipped reason.
 
 ## Using the ChatGPT App as the human-facing Augnes assistant
 

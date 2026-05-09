@@ -1,5 +1,6 @@
 import type {
   ActionRecordResult,
+  CodexResultReviewDraft,
   GeneratedHandoffDraft,
   GenerateHandoffDraftInput,
   ObserveResult,
@@ -11,6 +12,7 @@ import type {
   StateRuntimeProposal,
   StateRuntimeScope,
   StateRuntimeWorkEventInput,
+  ReviewCodexResultDraftInput,
   WorkBrief,
   WorkEventResult,
   WorkItem,
@@ -277,6 +279,112 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         "Task for Codex:",
         "- Draft guidance only; do not execute Codex.",
       ].join("\n"),
+    };
+  }
+
+  async reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft> {
+    const handoffDraft = await this.generateHandoffDraft({
+      scope: input.scope,
+      workId: "AG-001",
+      targetAgent: "codex",
+      createdBy: "chatgpt",
+    });
+    const actualFiles = input.actualFilesChanged ?? [];
+    const actualStateKeys = input.actualStateKeys ?? [];
+    const actualChecks = input.actualChecks ?? [];
+    const actualSurfaces = input.actualExecutionSurfaces ?? [];
+    const recommendedStatus =
+      input.resultStatus === "completed" &&
+      actualChecks.includes("npm run smoke")
+        ? "completed"
+        : "partial";
+    const recommendedKind = input.resultKind ?? "implementation";
+
+    return {
+      scope: input.scope,
+      handoff: {
+        ...handoffDraft.handoff,
+        handoff_id: input.handoffId,
+      },
+      review: {
+        review_id: `review:${input.handoffId}:smoke`,
+        handoff_id: input.handoffId,
+        files: {
+          expected: ["src/server.ts"],
+          actual: actualFiles,
+          missing: actualFiles.includes("src/server.ts") ? [] : ["src/server.ts"],
+          unexpected: actualFiles.filter((file) => file !== "src/server.ts"),
+          match: actualFiles.includes("src/server.ts") ? "yes" : "partial",
+        },
+        state_keys: {
+          expected: ["current_focus"],
+          actual: actualStateKeys,
+          missing: actualStateKeys.includes("current_focus") ? [] : ["current_focus"],
+          unexpected: actualStateKeys.filter((key) => key !== "current_focus"),
+          match: actualStateKeys.includes("current_focus") ? "yes" : "partial",
+        },
+        checks: {
+          expected: ["npm run smoke"],
+          actual: actualChecks,
+          missing: actualChecks.includes("npm run smoke") ? [] : ["npm run smoke"],
+          unexpected: actualChecks.filter((check) => check !== "npm run smoke"),
+          match: actualChecks.includes("npm run smoke") ? "yes" : "partial",
+          skipped: [],
+        },
+        execution_surfaces: {
+          expected: ["local_runtime", "github"],
+          actual: actualSurfaces,
+          missing: [],
+          unexpected: actualSurfaces.filter((surface) => !["local_runtime", "github"].includes(surface)),
+          match: "partial",
+        },
+        status: {
+          expected: "completed",
+          actual: input.resultStatus ?? null,
+          match: input.resultStatus === "completed" ? "yes" : "partial",
+        },
+        kind: {
+          expected: "implementation",
+          actual: input.resultKind ?? null,
+          match: input.resultKind === "implementation" ? "yes" : "partial",
+        },
+        files_match: actualFiles.includes("src/server.ts") ? "yes" : "partial",
+        state_keys_match: actualStateKeys.includes("current_focus") ? "yes" : "partial",
+        checks_match: actualChecks.includes("npm run smoke") ? "yes" : "partial",
+        execution_surfaces_match: "partial",
+        mismatch_or_follow_up: ["Smoke review draft keeps proof recording separate."],
+        recommended_result_status: recommendedStatus,
+        recommended_result_kind: recommendedKind,
+        safety_boundary_notes: [
+          "Review/draft only: no Codex execution was requested by this helper.",
+          "No action proof or work event proof was recorded; only record drafts were produced.",
+          "No Augnes state commit/reject or handoff status update was performed.",
+        ],
+      },
+      action_record_draft: {
+        scope: input.scope,
+        source_agent_id: "agent:codex",
+        action_name: "smoke_agent_handoff_preserved",
+        result_summary: input.resultSummary,
+        files_changed: actualFiles,
+        result_status: recommendedStatus,
+        result_kind: recommendedKind,
+        work_id: "AG-001",
+        related_state_keys: actualStateKeys,
+        ...(input.relatedPr ? { related_pr: input.relatedPr } : {}),
+      },
+      work_event_draft: {
+        scope: input.scope,
+        work_id: "AG-001",
+        actor: "codex",
+        event_type: "review",
+        summary: input.resultSummary,
+        result_status: recommendedStatus,
+        result_kind: recommendedKind,
+        related_action_id: null,
+        ...(input.relatedPr ? { related_pr: input.relatedPr } : {}),
+        related_state_keys: actualStateKeys,
+      },
     };
   }
 }
