@@ -1,9 +1,14 @@
 import {
   HANDOFF_STATUSES,
   HandoffNotFoundError,
+  getHandoff,
   updateHandoffStatus,
   type HandoffStatus,
 } from "@/lib/handoffs";
+import {
+  assertCanSyncMailboxForHandoffStatus,
+  syncMailboxForHandoff,
+} from "@/lib/handoff-mailbox";
 import { normalizeScope } from "@/lib/work";
 import { NextResponse } from "next/server";
 
@@ -20,15 +25,35 @@ export async function POST(
     const body = (await request.json()) as Record<string, unknown>;
     const scope = readOptionalString(body, "scope");
     const status = requireStatus(body, "status");
+    const normalizedScope = scope ? normalizeScope(scope) : null;
+    const existingHandoff = getHandoff(
+      decodeURIComponent(handoff_id),
+      normalizedScope,
+    );
+    if (!existingHandoff) {
+      throw new HandoffNotFoundError(
+        decodeURIComponent(handoff_id),
+        normalizedScope,
+      );
+    }
+
+    assertCanSyncMailboxForHandoffStatus(existingHandoff, status);
     const handoff = updateHandoffStatus({
       handoffId: decodeURIComponent(handoff_id),
-      scope: scope ? normalizeScope(scope) : null,
+      scope: normalizedScope,
       status,
     });
+    const mailboxSync = syncMailboxForHandoff(handoff);
 
     return NextResponse.json({
       scope: handoff.scope,
       handoff,
+      ...(mailboxSync.mailbox_message
+        ? {
+            mailbox_message: mailboxSync.mailbox_message,
+            mailbox_sync: mailboxSync.action,
+          }
+        : {}),
     });
   } catch (error) {
     if (error instanceof HandoffNotFoundError) {

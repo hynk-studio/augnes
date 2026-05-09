@@ -5,6 +5,10 @@ import {
   type HandoffInput,
   type HandoffStatus,
 } from "@/lib/handoffs";
+import {
+  assertCanSyncMailboxForHandoffInput,
+  syncMailboxForHandoff,
+} from "@/lib/handoff-mailbox";
 import { normalizeScope } from "@/lib/work";
 import { NextResponse } from "next/server";
 
@@ -72,12 +76,25 @@ export async function POST(request: Request) {
       supersedes_handoff_id: readOptionalString(body, "supersedes_handoff_id"),
     };
 
+    assertCanSyncMailboxForHandoffInput({
+      handoffId: input.handoff_id,
+      scope: input.scope,
+      workId: input.work_id,
+      status: input.status ?? "draft",
+    });
     const handoff = createHandoff(input);
+    const mailboxSync = syncMailboxForHandoff(handoff);
 
     return NextResponse.json(
       {
         scope: handoff.scope,
         handoff,
+        ...(mailboxSync.mailbox_message
+          ? {
+              mailbox_message: mailboxSync.mailbox_message,
+              mailbox_sync: mailboxSync.action,
+            }
+          : {}),
       },
       { status: 201 },
     );

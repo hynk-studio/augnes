@@ -91,6 +91,7 @@ export function listMailboxMessages({
   messageType,
   fromAgent,
   toAgent,
+  payloadRef,
   limit = DEFAULT_MAILBOX_LIMIT,
 }: {
   scope?: string | null;
@@ -99,6 +100,7 @@ export function listMailboxMessages({
   messageType?: MailboxMessageType | null;
   fromAgent?: string | null;
   toAgent?: string | null;
+  payloadRef?: string | null;
   limit?: number;
 }) {
   const normalizedScope = normalizeScope(scope);
@@ -132,6 +134,12 @@ export function listMailboxMessages({
   if (cleanToAgent) {
     clauses.push("to_agent = ?");
     params.push(cleanToAgent);
+  }
+
+  const cleanPayloadRef = cleanNullableString(payloadRef);
+  if (cleanPayloadRef) {
+    clauses.push("payload_ref = ?");
+    params.push(cleanPayloadRef);
   }
 
   params.push(normalizeLimit(limit));
