@@ -351,6 +351,84 @@ export const MailboxSummaryResultSchema = z
   })
   .passthrough();
 
+export const PublicationSummaryItemSchema = z
+  .object({
+    publication_id: z.string(),
+    scope: z.string(),
+    work_id: z.string().nullable(),
+    source_event_id: z.string().nullable(),
+    target_surface: z.string(),
+    target_ref: z.string(),
+    status: z.string(),
+    preview_excerpt: z.string(),
+    created_by: z.string(),
+    approved_by: z.string().nullable(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    sent_at: z.string().nullable(),
+    latest_delivery_status: z.string().nullable(),
+    latest_delivery_id: z.string().nullable(),
+    latest_delivery_error: z.string().nullable(),
+    delivery_count: z.number(),
+    publish_eligibility: z
+      .object({
+        dry_run: z.boolean(),
+        actual_publish: z.boolean(),
+        reason: z.string(),
+      })
+      .passthrough(),
+    summary_reason: z.string(),
+  })
+  .passthrough();
+
+export const FailedDeliverySummaryItemSchema = z
+  .object({
+    delivery_id: z.string(),
+    publication_id: z.string(),
+    scope: z.string(),
+    target_surface: z.string(),
+    target_ref: z.string(),
+    status: z.string(),
+    error_message: z.string().nullable(),
+    idempotency_key: z.string().nullable(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    sent_at: z.string().nullable(),
+    acknowledged_at: z.string().nullable(),
+    publication_status: z.string().nullable(),
+    work_id: z.string().nullable(),
+    summary_reason: z.string(),
+  })
+  .passthrough();
+
+export const PublicationSummarySchema = z
+  .object({
+    drafts: z.array(PublicationSummaryItemSchema),
+    approved_previews: z.array(PublicationSummaryItemSchema),
+    sent: z.array(PublicationSummaryItemSchema),
+    failed: z.array(PublicationSummaryItemSchema),
+    cancelled: z.array(PublicationSummaryItemSchema),
+    delivery_status: z
+      .object({
+        pending_count: z.number(),
+        sent_count: z.number(),
+        failed_count: z.number(),
+        acknowledged_count: z.number(),
+      })
+      .passthrough(),
+    failed_deliveries: z.array(FailedDeliverySummaryItemSchema),
+  })
+  .passthrough();
+
+export const PublicationSummaryResultSchema = z
+  .object({
+    scope: z.string(),
+    as_of: z.string(),
+    summary: PublicationSummarySchema,
+    boundaries: z.array(z.string()),
+  })
+  .passthrough();
+
 export const PendingProposalsResultSchema = z.union([
   z.array(StateRuntimeProposalSchema),
   z
@@ -380,6 +458,7 @@ export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
 export type CodexResultReviewDraft = z.infer<typeof CodexResultReviewDraftSchema>;
 export type MailboxSummaryResult = z.infer<typeof MailboxSummaryResultSchema>;
+export type PublicationSummaryResult = z.infer<typeof PublicationSummaryResultSchema>;
 
 export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
@@ -443,4 +522,5 @@ export interface StateRuntimeBridgeAdapter {
   generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft>;
   reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft>;
   getMailboxSummary(scope: StateRuntimeScope): Promise<MailboxSummaryResult>;
+  getPublicationSummary(scope: StateRuntimeScope): Promise<PublicationSummaryResult>;
 }

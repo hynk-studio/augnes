@@ -163,6 +163,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             resultSummary: 'Reviewed Codex smoke result and produced record drafts only.',
           },
           augnes_get_mailbox_summary: {},
+          augnes_get_publication_summary: {},
         };
         const profiles = {};
         for (const name of AUGNES_BRIDGE_TOOL_NAMES) {
@@ -181,6 +182,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             actionRecordDraft: result.structuredContent?.action_record_draft,
             workEventDraft: result.structuredContent?.work_event_draft,
             mailboxSummary: result.structuredContent?.mailbox_summary,
+            publicationSummary: result.structuredContent?.publication_summary,
             boundaries: result.structuredContent?.boundaries,
           };
         }
@@ -492,6 +494,31 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_mailbox_summary.boundaries.state_commit_or_reject,
     false,
     "augnes_get_mailbox_summary should not expose state commit or reject authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_summary.publicationSummary.summary.approved_previews.length,
+    1,
+    "augnes_get_publication_summary should return approved preview summary items"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_summary.publicationSummary.summary.failed_deliveries[0].error_message,
+    "GitHub publish failed: mock token unavailable.",
+    "augnes_get_publication_summary should preserve failed delivery error messages"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_summary.boundaries.publish_authority,
+    false,
+    "augnes_get_publication_summary should not expose publish authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_summary.boundaries.github_posting,
+    false,
+    "augnes_get_publication_summary should not expose GitHub posting authority"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_publication_summary.text,
+    /derived read-only view/i,
+    "augnes_get_publication_summary should state the derived read-only boundary"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_state_brief.text,

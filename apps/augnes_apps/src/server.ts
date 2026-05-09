@@ -50,6 +50,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_generate_codex_handoff_draft",
   "augnes_review_codex_result_draft",
   "augnes_get_mailbox_summary",
+  "augnes_get_publication_summary",
 ] as const;
 export const AUGNES_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -245,6 +246,21 @@ function describeMailboxSummary(summary: Awaited<ReturnType<StateRuntimeBridgeAd
   return [
     `Mailbox summary for ${summary.scope}: ${summary.summary.pending_handoffs.length} pending handoff(s), ${summary.summary.needs_review.length} needs-review item(s), ${summary.summary.approval_needed.length} approval-needed item(s), ${summary.summary.blocked_or_partial.length} blocked/partial item(s), ${activeCount} active categorization(s).`,
     "This is a read-only derived view: it does not acknowledge messages, approve or reject state, execute Codex, publish externally, or record proof.",
+  ].join(" ");
+}
+
+function describePublicationSummary(summary: Awaited<ReturnType<StateRuntimeBridgeAdapter["getPublicationSummary"]>>): string {
+  const publicationCount =
+    summary.summary.drafts.length +
+    summary.summary.approved_previews.length +
+    summary.summary.sent.length +
+    summary.summary.failed.length +
+    summary.summary.cancelled.length;
+  const deliveryStatus = summary.summary.delivery_status;
+
+  return [
+    `Publication summary for ${summary.scope}: ${publicationCount} publication preview(s), ${summary.summary.approved_previews.length} approved preview(s), ${summary.summary.failed_deliveries.length} failed delivery item(s). Delivery ledger counts: ${deliveryStatus.pending_count} pending, ${deliveryStatus.sent_count} sent, ${deliveryStatus.failed_count} failed, ${deliveryStatus.acknowledged_count} acknowledged.`,
+    "This is a derived read-only view: it does not approve, publish, retry, post to GitHub or Discord, record proof, commit or reject state, or execute Codex.",
   ].join(" ");
 }
 
@@ -1014,6 +1030,50 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_get_mailbox_summary", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_publication_summary",
+      {
+        title: "Get publication summary",
+        description:
+          "Read Augnes publication preview and delivery ledger summary buckets. This is a bridge-gated derived read-only view and does not approve, publish, retry, post externally, record proof, commit or reject state, or execute Codex.",
+        inputSchema: { scope: z.string().min(1).optional() },
+        annotations: bridgeReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const publicationSummary = await stateRuntimeAdapter.getPublicationSummary(resolvedScope);
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            publication_summary: publicationSummary,
+            boundaries: {
+              derived_view_only: true,
+              approval_authority: false,
+              publish_authority: false,
+              retry_authority: false,
+              github_posting: false,
+              discord_posting: false,
+              proof_recording: false,
+              state_commit_or_reject: false,
+              codex_execution: false,
+              source_of_truth: false,
+            },
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describePublicationSummary(publicationSummary)),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_publication_summary", error);
         }
       }
     );
