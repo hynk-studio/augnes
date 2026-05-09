@@ -1,5 +1,7 @@
 import type {
   ActionRecordResult,
+  GeneratedHandoffDraft,
+  GenerateHandoffDraftInput,
   ObserveResult,
   PlanResult,
   StateBrief,
@@ -227,6 +229,54 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         related_state_keys: input.relatedStateKeys ?? [],
         created_at: "2026-05-07T00:10:00.000Z",
       },
+    };
+  }
+
+  async generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft> {
+    const workId = input.workId.toUpperCase();
+    const scope = input.scope;
+
+    return {
+      scope,
+      handoff: {
+        handoff_id: "handoff:smoke-draft-1",
+        scope,
+        work_id: workId,
+        source_state_brief_ref: `/api/state/brief?scope=${encodeURIComponent(scope)}`,
+        source_work_brief_ref: `/api/work/${workId}/brief?scope=${encodeURIComponent(scope)}`,
+        target_agent: input.targetAgent ?? "codex",
+        status: "draft",
+        current_committed_state_summary:
+          "Mock committed state summary for bridge handoff draft validation.",
+        task_brief: "Draft a Codex handoff packet without executing Codex.",
+        expected_files: ["src/server.ts"],
+        expected_state_keys: ["current_focus"],
+        expected_checks: ["npm run smoke"],
+        expected_execution_surfaces: ["local_runtime", "github"],
+        safety_boundaries: [
+          "Do not execute Codex.",
+          "Do not commit or reject Augnes state.",
+        ],
+        completion_record_fields: {
+          CODEX_WORK_ID: workId,
+          CODEX_SCOPE: scope,
+          CODEX_RESULT_STATUS: "completed",
+          CODEX_RESULT_KIND: "implementation",
+        },
+        created_by: input.createdBy ?? "chatgpt",
+        created_at: "2026-05-07T00:15:00.000Z",
+        updated_at: "2026-05-07T00:15:00.000Z",
+        supersedes_handoff_id: null,
+      },
+      packet_text: [
+        "Codex Handoff Packet",
+        "",
+        "Augnes Work ID:",
+        workId,
+        "",
+        "Task for Codex:",
+        "- Draft guidance only; do not execute Codex.",
+      ].join("\n"),
     };
   }
 }

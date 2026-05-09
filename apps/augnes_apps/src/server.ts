@@ -47,6 +47,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_record_action_result",
   "augnes_list_pending_proposals",
   "augnes_record_work_event",
+  "augnes_generate_codex_handoff_draft",
 ] as const;
 export const AUGNES_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -216,6 +217,13 @@ function describeWorkItems(scope: string, workItems: WorkItem[]): string {
 
 function describeWorkBrief(brief: WorkBrief): string {
   return `Work brief for ${brief.work_id}: ${brief.work.title}. Status ${brief.work.status}, priority ${brief.work.priority}, ${brief.recent_events.length} recent event(s), ${brief.related_proof.action_ids.length} linked action record(s). work_id is a trace anchor; committed state remains authoritative.`;
+}
+
+function describeCodexHandoffDraft(workId: string, handoffId: string): string {
+  return [
+    `Generated Codex handoff draft ${handoffId} for ${workId}.`,
+    "This is a guidance packet only: it does not execute Codex, mark the handoff ready or delivered, commit or reject Augnes state, or publish externally.",
+  ].join(" ");
 }
 
 export type McpAppServerOptions = {
@@ -789,6 +797,57 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_record_work_event", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_generate_codex_handoff_draft",
+      {
+        title: "Generate Codex handoff draft",
+        description:
+          "Use this when the user asks for a Codex handoff draft from Augnes state and work context. It creates a durable draft guidance packet only; it does not execute Codex, commit or reject state, mark delivery, or publish externally.",
+        inputSchema: {
+          scope: z.string().min(1).optional(),
+          workId: z.string().min(1),
+          targetAgent: z.string().min(1).optional(),
+          createdBy: z.string().min(1).optional(),
+        },
+        annotations: bridgeWriteAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, workId, targetAgent, createdBy }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const draft = await stateRuntimeAdapter.generateHandoffDraft({
+            scope: resolvedScope,
+            workId,
+            targetAgent: targetAgent ?? "codex",
+            createdBy: createdBy ?? "chatgpt",
+          });
+          const handoff = draft.handoff;
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            handoff,
+            packet_text: draft.packet_text,
+            work_id: handoff.work_id,
+            expected_state_keys: handoff.expected_state_keys,
+            expected_files: handoff.expected_files,
+            expected_checks: handoff.expected_checks,
+            expected_execution_surfaces: handoff.expected_execution_surfaces,
+            safety_boundaries: handoff.safety_boundaries,
+            completion_record_fields: handoff.completion_record_fields,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeCodexHandoffDraft(handoff.work_id ?? workId.toUpperCase(), handoff.handoff_id)),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_generate_codex_handoff_draft", error);
         }
       }
     );

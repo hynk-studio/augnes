@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import {
   ActionRecordResultSchema,
+  GeneratedHandoffDraftSchema,
   ObserveResultSchema,
   PendingProposalsResultSchema,
   PlanResultSchema,
@@ -10,6 +11,8 @@ import {
   WorkEventResultSchema,
   WorkListResultSchema,
   type ActionRecordResult,
+  type GeneratedHandoffDraft,
+  type GenerateHandoffDraftInput,
   type ObserveResult,
   type PlanResult,
   type StateBrief,
@@ -35,6 +38,7 @@ const endpointContract = {
   workItems: { method: "GET", path: "/api/work" },
   workBrief: { method: "GET", path: "/api/work" },
   recordWorkEvent: { method: "POST", path: "/api/work" },
+  generateHandoffDraft: { method: "POST", path: "/api/handoffs/generate" },
 } as const;
 
 export class AugnesStateRuntimeHttpError extends Error {
@@ -256,6 +260,29 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       `${endpointContract.recordWorkEvent.path}/${encodeURIComponent(normalizedWorkId)}/events`,
       WorkEventResultSchema,
       "work event",
+      { body }
+    );
+  }
+
+  async generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft> {
+    const normalizedWorkId = input.workId.trim().toUpperCase();
+    if (!normalizedWorkId) {
+      throw new AugnesStateRuntimeHttpError("Augnes work_id is required.");
+    }
+
+    const body: Record<string, unknown> = {
+      scope: parseScope(input.scope),
+      work_id: normalizedWorkId,
+    };
+
+    if (input.targetAgent) body.target_agent = input.targetAgent;
+    if (input.createdBy) body.created_by = input.createdBy;
+
+    return this.requestJson(
+      endpointContract.generateHandoffDraft.method,
+      endpointContract.generateHandoffDraft.path,
+      GeneratedHandoffDraftSchema,
+      "handoff draft",
       { body }
     );
   }
