@@ -253,6 +253,74 @@ type MailboxSummaryResponse = {
   boundaries: string[];
 };
 
+type PublicationSummaryItem = {
+  publication_id: string;
+  scope: string;
+  work_id: string | null;
+  source_event_id: string | null;
+  target_surface: string;
+  target_ref: string;
+  status: string;
+  preview_excerpt: string;
+  created_by: string;
+  approved_by: string | null;
+  created_at: string;
+  updated_at: string;
+  sent_at: string | null;
+  latest_delivery_status: string | null;
+  latest_delivery_id: string | null;
+  latest_delivery_error: string | null;
+  delivery_count: number;
+  publish_eligibility: {
+    dry_run: boolean;
+    actual_publish: boolean;
+    reason: string;
+  };
+  summary_reason: string;
+};
+
+type FailedDeliverySummaryItem = {
+  delivery_id: string;
+  publication_id: string;
+  scope: string;
+  target_surface: string;
+  target_ref: string;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  sent_at: string | null;
+  acknowledged_at: string | null;
+  publication_status: string | null;
+  work_id: string | null;
+  summary_reason: string;
+};
+
+type PublicationSummaryResponse = {
+  scope: string;
+  as_of: string;
+  summary: {
+    drafts: PublicationSummaryItem[];
+    approved_previews: PublicationSummaryItem[];
+    sent: PublicationSummaryItem[];
+    failed: PublicationSummaryItem[];
+    cancelled: PublicationSummaryItem[];
+    delivery_status: {
+      pending_count: number;
+      sent_count: number;
+      failed_count: number;
+      acknowledged_count: number;
+    };
+    failed_deliveries: FailedDeliverySummaryItem[];
+  };
+  limits: {
+    bounded_view: true;
+    publication_limit: number;
+    delivery_limit: number;
+  };
+  boundaries: string[];
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -294,6 +362,9 @@ export function AugnesCockpit() {
   const [mailboxSummary, setMailboxSummary] =
     useState<MailboxSummaryResponse | null>(null);
   const [mailboxError, setMailboxError] = useState<string | null>(null);
+  const [publicationSummary, setPublicationSummary] =
+    useState<PublicationSummaryResponse | null>(null);
+  const [publicationError, setPublicationError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -348,6 +419,7 @@ export function AugnesCockpit() {
     setWorkError(null);
     setEventError(null);
     setMailboxError(null);
+    setPublicationError(null);
 
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
@@ -379,6 +451,16 @@ export function AugnesCockpit() {
         error:
           error instanceof Error ? error.message : "Mailbox summary request failed",
       }));
+    const publicationRequest = fetchJson<PublicationSummaryResponse>(
+      `/api/publications/summary?scope=${SCOPE}`,
+    )
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Publication summary request failed",
+      }));
     const [
       snapshotResult,
       trajectoryResult,
@@ -387,6 +469,7 @@ export function AugnesCockpit() {
       workResult,
       eventsResult,
       mailboxResult,
+      publicationResult,
     ] =
       await Promise.all([
         fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
@@ -398,6 +481,7 @@ export function AugnesCockpit() {
         workRequest,
         eventsRequest,
         mailboxRequest,
+        publicationRequest,
       ]);
 
     setSnapshot(snapshotResult);
@@ -457,6 +541,13 @@ export function AugnesCockpit() {
     } else {
       setMailboxSummary(null);
       setMailboxError(mailboxResult.error);
+    }
+
+    if ("value" in publicationResult) {
+      setPublicationSummary(publicationResult.value);
+    } else {
+      setPublicationSummary(null);
+      setPublicationError(publicationResult.error);
     }
   }
 
@@ -658,6 +749,11 @@ export function AugnesCockpit() {
       <MailboxSummaryPanel
         mailboxSummary={mailboxSummary}
         error={mailboxError}
+      />
+
+      <PublicationSummaryPanel
+        publicationSummary={publicationSummary}
+        error={publicationError}
       />
 
       <CoordinationEventTimeline
@@ -1556,6 +1652,261 @@ function MailboxInactiveCounts({
       <strong>{inactive?.superseded_count ?? 0} superseded</strong>
       <strong>{inactive?.expired_count ?? 0} expired</strong>
     </div>
+  );
+}
+
+function PublicationSummaryPanel({
+  publicationSummary,
+  error,
+}: {
+  publicationSummary: PublicationSummaryResponse | null;
+  error: string | null;
+}) {
+  const status = publicationSummary?.summary.delivery_status;
+  const publicationCount = publicationSummary
+    ? publicationSummary.summary.drafts.length +
+      publicationSummary.summary.approved_previews.length +
+      publicationSummary.summary.sent.length +
+      publicationSummary.summary.failed.length +
+      publicationSummary.summary.cancelled.length
+    : 0;
+
+  return (
+    <section
+      className="publication-summary-shell"
+      aria-label="Publication Preview / Delivery Status"
+    >
+      <PanelHeader
+        eyebrow="Publication"
+        title="Preview / Delivery Status"
+        description="Derived bounded read-only view over recent publication drafts and delivery ledger rows. This panel does not approve, publish, retry, post, record proof, or commit state."
+      />
+      {error ? (
+        <EmptyState
+          label="Publication summary unavailable"
+          description={error}
+        />
+      ) : !publicationSummary ? (
+        <LoadingBlock
+          title="Loading publication summary"
+          lines={["Reading publication drafts", "Reading delivery ledger"]}
+        />
+      ) : publicationCount === 0 ? (
+        <div className="publication-summary-empty">
+          <EmptyState
+            label="No publication previews or deliveries"
+            description="Publication drafts and delivery rows will appear here as read-only status."
+          />
+          <PublicationDeliveryCounts
+            limits={publicationSummary.limits}
+            status={status}
+          />
+        </div>
+      ) : (
+        <>
+          <PublicationDeliveryCounts
+            limits={publicationSummary.limits}
+            status={status}
+          />
+          <div className="publication-summary-grid">
+            <PublicationSummaryBucket
+              title="Drafts"
+              items={publicationSummary.summary.drafts}
+              emptyLabel="No draft previews"
+            />
+            <PublicationSummaryBucket
+              title="Approved Previews"
+              items={publicationSummary.summary.approved_previews}
+              emptyLabel="No approved previews"
+            />
+            <PublicationSummaryBucket
+              title="Sent"
+              items={publicationSummary.summary.sent}
+              emptyLabel="No sent publications"
+            />
+            <PublicationSummaryBucket
+              title="Failed"
+              items={publicationSummary.summary.failed}
+              emptyLabel="No failed publications"
+            />
+            <PublicationSummaryBucket
+              title="Cancelled"
+              items={publicationSummary.summary.cancelled}
+              emptyLabel="No cancelled publications"
+            />
+            <PublicationFailedDeliveryBucket
+              items={publicationSummary.summary.failed_deliveries}
+            />
+          </div>
+          <details className="publication-boundaries">
+            <summary>Summary boundaries</summary>
+            <ul>
+              {publicationSummary.boundaries.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
+          </details>
+        </>
+      )}
+    </section>
+  );
+}
+
+function PublicationDeliveryCounts({
+  limits,
+  status,
+}: {
+  limits: PublicationSummaryResponse["limits"] | undefined;
+  status: PublicationSummaryResponse["summary"]["delivery_status"] | undefined;
+}) {
+  return (
+    <div
+      className="publication-delivery-counts"
+      aria-label="Delivery status counts"
+    >
+      <span>
+        Bounded delivery ledger
+        {limits ? `: latest ${limits.delivery_limit}` : ""}
+      </span>
+      <strong>{status?.pending_count ?? 0} pending</strong>
+      <strong>{status?.sent_count ?? 0} sent</strong>
+      <strong>{status?.failed_count ?? 0} failed</strong>
+      <strong>{status?.acknowledged_count ?? 0} acknowledged</strong>
+    </div>
+  );
+}
+
+function PublicationSummaryBucket({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: PublicationSummaryItem[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="publication-summary-bucket">
+      <div className="card-topline">
+        <h3>{title}</h3>
+        <StatusBadge
+          label={`${items.length}`}
+          tone={items.length ? "ready" : "muted"}
+        />
+      </div>
+      {items.length ? (
+        <div className="publication-summary-list">
+          {items.map((item) => (
+            <article
+              className="publication-summary-item"
+              key={item.publication_id}
+            >
+              <div className="card-topline">
+                <strong>{item.work_id ?? "Unscoped work"}</strong>
+                <StatusBadge
+                  label={formatStatusLabel(item.status)}
+                  tone={getPublicationStatusTone(item.status)}
+                />
+              </div>
+              <p>{item.preview_excerpt}</p>
+              <div className="meta-row">
+                <span>{formatStatusLabel(item.target_surface)}</span>
+                <span>
+                  target <code>{item.target_ref}</code>
+                </span>
+                {item.latest_delivery_status ? (
+                  <span>
+                    delivery{" "}
+                    <code>{formatStatusLabel(item.latest_delivery_status)}</code>
+                  </span>
+                ) : (
+                  <span>no delivery rows</span>
+                )}
+                <span>{item.delivery_count} deliveries</span>
+                <time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time>
+              </div>
+              <div className="publication-eligibility">
+                <StatusBadge
+                  label={
+                    item.publish_eligibility.dry_run
+                      ? "Dry-run eligible"
+                      : "Dry-run blocked"
+                  }
+                  tone={item.publish_eligibility.dry_run ? "active" : "muted"}
+                />
+                <StatusBadge
+                  label={
+                    item.publish_eligibility.actual_publish
+                      ? "Backend route preconditions met"
+                      : "Backend route preconditions blocked"
+                  }
+                  tone={
+                    item.publish_eligibility.actual_publish
+                      ? "needs-review"
+                      : "muted"
+                  }
+                />
+              </div>
+              <p className="publication-summary-reason">
+                {item.publish_eligibility.reason}
+              </p>
+              {item.latest_delivery_error ? (
+                <p className="publication-error">
+                  {item.latest_delivery_error}
+                </p>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState label={emptyLabel} />
+      )}
+    </section>
+  );
+}
+
+function PublicationFailedDeliveryBucket({
+  items,
+}: {
+  items: FailedDeliverySummaryItem[];
+}) {
+  return (
+    <section className="publication-summary-bucket">
+      <div className="card-topline">
+        <h3>Failed Deliveries</h3>
+        <StatusBadge
+          label={`${items.length}`}
+          tone={items.length ? "needs-review" : "muted"}
+        />
+      </div>
+      {items.length ? (
+        <div className="publication-summary-list">
+          {items.map((item) => (
+            <article className="publication-summary-item" key={item.delivery_id}>
+              <div className="card-topline">
+                <strong>{item.work_id ?? item.publication_id}</strong>
+                <StatusBadge label="Failed" tone="tension" />
+              </div>
+              <p className="publication-error">
+                {item.error_message ?? "No stored error_message."}
+              </p>
+              <div className="meta-row">
+                <span>{formatStatusLabel(item.target_surface)}</span>
+                <span>
+                  target <code>{item.target_ref}</code>
+                </span>
+                <span>
+                  delivery <code>{item.delivery_id}</code>
+                </span>
+                <time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState label="No failed deliveries" />
+      )}
+    </section>
   );
 }
 
@@ -2531,6 +2882,20 @@ function getMailboxStatusTone(status: string) {
     reviewed: "complete",
     superseded: "expired",
     expired: "expired",
+  };
+
+  return tones[status] ?? "muted";
+}
+
+function getPublicationStatusTone(status: string) {
+  const tones: Record<string, string> = {
+    draft: "muted",
+    approved: "needs-review",
+    sent: "complete",
+    failed: "tension",
+    cancelled: "expired",
+    pending: "active",
+    acknowledged: "reinforced",
   };
 
   return tones[status] ?? "muted";

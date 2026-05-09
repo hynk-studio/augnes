@@ -6,6 +6,7 @@ import type {
   MailboxSummaryResult,
   ObserveResult,
   PlanResult,
+  PublicationSummaryResult,
   StateBrief,
   StateRuntimeActionResultInput,
   StateRuntimeBridgeAdapter,
@@ -443,6 +444,108 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         "Mailbox summaries are derived read-only views, not sources of truth.",
         "Summaries do not approve, reject, commit, execute Codex, publish, or record proof.",
         "Superseded and expired messages are excluded from active summary buckets.",
+      ],
+    };
+  }
+
+  async getPublicationSummary(scope: StateRuntimeScope): Promise<PublicationSummaryResult> {
+    return {
+      scope,
+      as_of: "2026-05-07T00:25:00.000Z",
+      summary: {
+        drafts: [
+          {
+            publication_id: "publication:smoke-draft",
+            scope,
+            work_id: "AG-001",
+            source_event_id: null,
+            target_surface: "github_pr_comment",
+            target_ref: "Aurna-code/augnes#62",
+            status: "draft",
+            preview_excerpt: "Draft preview for smoke validation.",
+            created_by: "chatgpt",
+            approved_by: null,
+            created_at: "2026-05-07T00:21:00.000Z",
+            updated_at: "2026-05-07T00:21:00.000Z",
+            sent_at: null,
+            latest_delivery_status: null,
+            latest_delivery_id: null,
+            latest_delivery_error: null,
+            delivery_count: 0,
+            publish_eligibility: {
+              dry_run: true,
+              actual_publish: false,
+              reason:
+                "GitHub PR comment target can dry-run, but actual publish requires approved status",
+            },
+            summary_reason: "publication status draft; no delivery rows",
+          },
+        ],
+        approved_previews: [
+          {
+            publication_id: "publication:smoke-approved",
+            scope,
+            work_id: "AG-001",
+            source_event_id: null,
+            target_surface: "github_pr_comment",
+            target_ref: "Aurna-code/augnes#63",
+            status: "approved",
+            preview_excerpt: "Approved preview for smoke validation.",
+            created_by: "chatgpt",
+            approved_by: "user",
+            created_at: "2026-05-07T00:22:00.000Z",
+            updated_at: "2026-05-07T00:22:30.000Z",
+            sent_at: null,
+            latest_delivery_status: "pending",
+            latest_delivery_id: "delivery:smoke-pending",
+            latest_delivery_error: null,
+            delivery_count: 1,
+            publish_eligibility: {
+              dry_run: true,
+              actual_publish: true,
+              reason:
+                "approved GitHub PR comment preview meets stored-state preconditions for the explicit backend publish route; this view cannot publish",
+            },
+            summary_reason: "publication status approved; latest delivery pending",
+          },
+        ],
+        sent: [],
+        failed: [],
+        cancelled: [],
+        delivery_status: {
+          pending_count: 1,
+          sent_count: 1,
+          failed_count: 1,
+          acknowledged_count: 1,
+        },
+        failed_deliveries: [
+          {
+            delivery_id: "delivery:smoke-failed",
+            publication_id: "publication:smoke-approved",
+            scope,
+            target_surface: "github_pr_comment",
+            target_ref: "Aurna-code/augnes#63",
+            status: "failed",
+            error_message: "GitHub publish failed: mock token unavailable.",
+            created_at: "2026-05-07T00:23:00.000Z",
+            updated_at: "2026-05-07T00:23:10.000Z",
+            sent_at: null,
+            acknowledged_at: null,
+            publication_status: "approved",
+            work_id: "AG-001",
+            summary_reason: "failed delivery includes stored error_message",
+          },
+        ],
+      },
+      limits: {
+        bounded_view: true,
+        publication_limit: 200,
+        delivery_limit: 200,
+      },
+      boundaries: [
+        "Publication summaries are derived read-only views.",
+        "This view does not approve, publish, retry, post to GitHub, post to Discord, record proof, or commit state.",
+        "Actual GitHub posting remains backend-adapter gated by approved publication status, explicit dry_run=false, backend replay guard, stored target_ref, and token availability.",
       ],
     };
   }

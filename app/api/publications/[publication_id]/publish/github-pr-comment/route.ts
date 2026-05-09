@@ -1,7 +1,5 @@
-import {
-  GITHUB_PR_COMMENT_TARGET_SURFACE,
-  publishGitHubPrComment,
-} from "@/lib/github-publication";
+import { GITHUB_PR_COMMENT_TARGET_SURFACE } from "@/lib/github-pr-comment-target";
+import { publishGitHubPrComment } from "@/lib/github-publication";
 import {
   PublicationNotFoundError,
   PublicationValidationError,
