@@ -464,6 +464,10 @@ Start small:
 - Optional Discord webhook adapter later
 
 All external publishing should be preview-first and approval-based by default.
+The current GitHub PR comment adapter exists behind explicit approval, dry-run,
+stored `target_ref`, idempotency, fresh delivery-row, token, and specific-target
+gates. Do not treat that as live GitHub posting being verified until a separate
+approved live test slice records that evidence.
 
 ### ChatGPT Apps User Surface
 
@@ -476,7 +480,8 @@ Read and preview only unless an explicit bridge-gated approval workflow exists:
 
 ### Cockpit Scope
 
-Add operator controls for:
+Current implemented Cockpit publication behavior is read-only preview and
+delivery status. Future explicit PRs may add operator controls for:
 
 - preview publication draft
 - approve publish
@@ -488,9 +493,11 @@ Add operator controls for:
 
 #### PR 4.1: Publication draft and delivery ledger backend
 
-- Add models and APIs for publication drafts and delivery records.
-- Emit event spine records for draft creation and delivery changes.
-- No external network publisher yet.
+Status: implemented.
+
+- Added models and APIs for publication drafts and delivery records.
+- Emits event spine records for draft creation and delivery changes.
+- No external network publisher was included in this slice.
 
 Verification:
 
@@ -500,9 +507,14 @@ Verification:
 
 #### PR 4.2: GitHub publication adapter
 
-- Add a GitHub PR/issue comment adapter behind explicit approval.
-- Add idempotency key handling to avoid duplicate posting.
-- Do not add auto-merge.
+Status: implemented.
+
+- Added a GitHub PR comment adapter behind explicit approval.
+- Added dry-run behavior, stored `target_ref`, `GITHUB_TOKEN` gating, and
+  idempotency handling to avoid duplicate posting.
+- Did not add auto-merge.
+- Live GitHub posting is not claimed as verified until a separately approved
+  live test target is used.
 
 Verification:
 
@@ -512,9 +524,14 @@ Verification:
 
 #### PR 4.3: App and Cockpit publication views
 
-- ChatGPT Apps can summarize publication previews and delivery status.
-- Cockpit can approve or retry when allowed.
-- Failed deliveries show exact error messages.
+Status: implemented as read-only publication preview and delivery status views.
+
+- ChatGPT Apps can summarize publication previews and delivery status through a
+  bridge-gated read-only tool.
+- Cockpit can show publication previews and delivery status as derived
+  read-only views.
+- Failed deliveries show bounded status/error context.
+- Cockpit approve/publish/retry controls remain future explicit scope.
 
 Verification:
 

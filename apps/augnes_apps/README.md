@@ -27,7 +27,9 @@ The public tool surface remains exactly:
 
 Bridge-gated tools may be enabled for local operator workflows with
 `AUGNES_ENABLE_AGENT_BRIDGE=true`. They are not part of the public default
-surface.
+surface. Current bridge-gated read-only summary tools include
+`augnes_get_mailbox_summary` and `augnes_get_publication_summary`; neither is
+available in public/default mode.
 
 ## Local run
 
@@ -357,7 +359,7 @@ Terminal mailbox states block reactivation to `ready`, `delivered`,
 implemented. Do not create replacement active rows from terminal rows as a
 workaround.
 
-Verification before Phase 4 should confirm:
+Mailbox summary verification should confirm:
 
 - public/default mode does not expose `augnes_get_mailbox_summary`
 - bridge mode exposes `augnes_get_mailbox_summary` as read-only
@@ -367,6 +369,43 @@ Verification before Phase 4 should confirm:
   recording
 - repeated summary reads create no `action_records`, `work_events`, pending
   proposals, committed state transitions, or mailbox status changes
+
+## Bridge-gated publication summaries
+
+When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
+running Augnes runtime, the bridge exposes `augnes_get_publication_summary`.
+
+Use it when a user asks for publication previews or delivery status:
+
+```json
+{
+  "scope": "project:augnes"
+}
+```
+
+The tool calls the runtime `GET /api/publications/summary` endpoint and returns
+`structuredContent.publication_summary`.
+
+Answer pattern:
+
+```text
+Publication summary
+- Summarize publication previews and delivery status.
+- Call out failures only as bounded review context.
+- Compare with the runtime summary endpoint when verifying Developer Mode.
+
+Authority boundary
+- This is a derived read-only view.
+- It does not approve, publish, retry, or record proof.
+- It does not commit/reject Augnes state or execute Codex.
+- It does not mutate GitHub PR reviews, labels, titles, bodies, or merge state.
+```
+
+Do not expose this tool in public/default mode. Public/default mode also must
+not expose publication approval, publish, retry, proof-recording, state-commit,
+or Codex-execution tools. Live GitHub posting requires a separate approved test
+slice with a specific target, scoped `GITHUB_TOKEN`, unique `idempotency_key`,
+and replay check proving no duplicate comment.
 
 ## Inspector and ChatGPT
 

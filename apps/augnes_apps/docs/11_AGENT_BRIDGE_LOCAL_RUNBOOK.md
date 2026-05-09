@@ -91,6 +91,7 @@ With `AUGNES_ENABLE_AGENT_BRIDGE=true`, the Augnes bridge tools are also registe
 - `augnes_generate_codex_handoff_draft`
 - `augnes_review_codex_result_draft`
 - `augnes_get_mailbox_summary`
+- `augnes_get_publication_summary`
 
 ## Verify Bridge Health
 
@@ -297,6 +298,55 @@ or Delivery Ledger work:
 - Confirm repeated summary reads create no `action_records`, no `work_events`,
   no pending proposals, no committed state transitions, and no mailbox status
   changes.
+
+### Publication Summary View
+
+Bridge-enabled mode can read bounded publication preview and delivery status
+buckets through `augnes_get_publication_summary`:
+
+```json
+{
+  "scope": "project:augnes"
+}
+```
+
+Answer from the returned `structuredContent.publication_summary`:
+
+- Summarize pending/approved publication drafts and recent delivery status.
+- Treat publication preview and delivery status as derived read-only views.
+- Include failed delivery status/error context only as bounded review context.
+- Say actual GitHub posting remains separately approval-gated for a specific
+  target.
+
+The publication summary tool does not approve publications, publish to GitHub,
+retry deliveries, record proof, commit or reject Augnes state, execute Codex,
+mutate PR labels/titles/bodies/reviews, post to Discord/webhooks, or create
+free-form agent chat behavior.
+
+Public/default mode must not expose `augnes_get_publication_summary`, and it
+must not expose publication approval, publish, retry, proof-recording,
+state-commit, or Codex-execution tools.
+
+### Publication Summary Developer Mode Verification Checklist
+
+Use this checklist for the next Developer Mode verification pass:
+
+- Start the Augnes runtime from the repo root.
+- Start the bridge with `AUGNES_ENABLE_AGENT_BRIDGE=true` and
+  `AUGNES_API_BASE_URL=http://localhost:3000`.
+- Expose the bridge with `cloudflared tunnel --url http://localhost:8787`.
+- Register only the redacted Developer Mode endpoint shape:
+  `https://<redacted-tunnel-host>/mcp`.
+- Invoke `augnes_get_publication_summary`.
+- Compare the result with
+  `GET /api/publications/summary?scope=project:augnes`.
+- Confirm public/default mode does not expose
+  `augnes_get_publication_summary`.
+- Confirm no approve/publish/retry/proof/state commit/Codex execution authority
+  exists on the ChatGPT App surface.
+
+Do not paste tunnel hostnames, secrets, screenshots, local DB files, generated
+outputs, or local artifacts into git.
 
 6. Record the result with `augnes_record_action_result` or the Codex completion helper only after the user explicitly wants proof recorded.
 
