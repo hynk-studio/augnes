@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dbPath, openDatabase } from "./db-common.mjs";
-import { migrateStateDeltaProposalScoring } from "./db-migrations.mjs";
+import {
+  migrateMailboxCoordinationEventTypes,
+  migrateStateDeltaProposalScoring,
+} from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const db = openDatabase();
@@ -16,6 +19,10 @@ try {
 
   db.exec(readFileSync(schemaPath, "utf8"));
   const postSchemaResult = migrateStateDeltaProposalScoring(db);
+  const mailboxResult = migrateMailboxCoordinationEventTypes(db);
+  if (mailboxResult.rebuilt_coordination_events) {
+    db.exec(readFileSync(schemaPath, "utf8"));
+  }
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
 
   if (!result.table_found) {
@@ -42,6 +49,12 @@ try {
           ? result.created_indexes.join(", ")
           : "none"
       }`,
+    );
+  }
+
+  if (mailboxResult.rebuilt_coordination_events) {
+    console.log(
+      `Migrated coordination_events event_type constraint for mailbox lifecycle events at ${dbPath}`,
     );
   }
 } finally {

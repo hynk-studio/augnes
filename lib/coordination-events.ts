@@ -18,6 +18,12 @@ export const COORDINATION_EVENT_TYPES = [
   "publication_sent",
   "publication_failed",
   "publication_acknowledged",
+  "mailbox_message_created",
+  "mailbox_message_delivered",
+  "mailbox_message_acknowledged",
+  "mailbox_message_reviewed",
+  "mailbox_message_superseded",
+  "mailbox_message_expired",
 ] as const;
 
 export const COORDINATION_AUTHORITY_LEVELS = [

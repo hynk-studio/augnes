@@ -235,6 +235,57 @@ CREATE INDEX IF NOT EXISTS idx_handoffs_scope_work_time
 CREATE INDEX IF NOT EXISTS idx_handoffs_scope_status_time
   ON handoffs(scope, status, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS mailbox_messages (
+  message_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  work_id TEXT,
+  from_agent TEXT NOT NULL,
+  to_agent TEXT NOT NULL,
+  message_type TEXT NOT NULL CHECK (
+    message_type IN (
+      'handoff',
+      'review_request',
+      'blocked_notice',
+      'result_report',
+      'approval_needed',
+      'verification_needed'
+    )
+  ),
+  summary TEXT NOT NULL,
+  payload_ref TEXT,
+  requires_ack INTEGER NOT NULL DEFAULT 0 CHECK (requires_ack IN (0, 1)),
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'draft',
+      'ready',
+      'delivered',
+      'acknowledged',
+      'reviewed',
+      'superseded',
+      'expired'
+    )
+  ),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  acknowledged_at TEXT,
+  supersedes_message_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_time
+  ON mailbox_messages(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_work_time
+  ON mailbox_messages(scope, work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_status_time
+  ON mailbox_messages(scope, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_type_time
+  ON mailbox_messages(scope, message_type, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_to_time
+  ON mailbox_messages(scope, to_agent, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS coordination_events (
   event_id TEXT PRIMARY KEY,
   event_type TEXT NOT NULL CHECK (
@@ -250,7 +301,13 @@ CREATE TABLE IF NOT EXISTS coordination_events (
       'publication_draft_created',
       'publication_sent',
       'publication_failed',
-      'publication_acknowledged'
+      'publication_acknowledged',
+      'mailbox_message_created',
+      'mailbox_message_delivered',
+      'mailbox_message_acknowledged',
+      'mailbox_message_reviewed',
+      'mailbox_message_superseded',
+      'mailbox_message_expired'
     )
   ),
   scope TEXT NOT NULL DEFAULT 'project:augnes',
