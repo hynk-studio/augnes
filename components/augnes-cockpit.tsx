@@ -198,6 +198,27 @@ type WorkListResponse = {
   work_items: WorkItem[];
 };
 
+type CoordinationEvent = {
+  event_id: string;
+  event_type: string;
+  scope: string;
+  work_id: string | null;
+  actor: string;
+  target: string | null;
+  source_surface: string;
+  authority_level: string;
+  state_keys: string[];
+  causal_parent_id: string | null;
+  payload_ref: string | null;
+  result_status: string | null;
+  created_at: string;
+};
+
+type CoordinationEventsResponse = {
+  scope: string;
+  events: CoordinationEvent[];
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -231,6 +252,11 @@ export function AugnesCockpit() {
   const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
   const [workBrief, setWorkBrief] = useState<WorkBriefResponse | null>(null);
   const [workError, setWorkError] = useState<string | null>(null);
+  const [coordinationEvents, setCoordinationEvents] = useState<
+    CoordinationEvent[]
+  >([]);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [eventError, setEventError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -272,9 +298,18 @@ export function AugnesCockpit() {
     );
   }, [selectedTransitionId, trajectory]);
 
+  const selectedCoordinationEvent = useMemo(
+    () =>
+      coordinationEvents.find((event) => event.event_id === selectedEventId) ??
+      coordinationEvents[0] ??
+      null,
+    [coordinationEvents, selectedEventId],
+  );
+
   async function refreshRuntime() {
     setBriefError(null);
     setWorkError(null);
+    setEventError(null);
 
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
@@ -290,12 +325,21 @@ export function AugnesCockpit() {
         error:
           error instanceof Error ? error.message : "Work list request failed",
       }));
+    const eventsRequest = fetchJson<CoordinationEventsResponse>(
+      `/api/events?scope=${SCOPE}`,
+    )
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error ? error.message : "Event spine request failed",
+      }));
     const [
       snapshotResult,
       trajectoryResult,
       proposalResult,
       briefResult,
       workResult,
+      eventsResult,
     ] =
       await Promise.all([
         fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
@@ -305,6 +349,7 @@ export function AugnesCockpit() {
         ),
         briefRequest,
         workRequest,
+        eventsRequest,
       ]);
 
     setSnapshot(snapshotResult);
@@ -339,6 +384,24 @@ export function AugnesCockpit() {
       setWorkItems([]);
       setWorkBrief(null);
       setWorkError(workResult.error);
+    }
+
+    if ("value" in eventsResult) {
+      setCoordinationEvents(eventsResult.value.events);
+      setSelectedEventId((current) => {
+        if (
+          current &&
+          eventsResult.value.events.some((event) => event.event_id === current)
+        ) {
+          return current;
+        }
+
+        return eventsResult.value.events[0]?.event_id ?? null;
+      });
+    } else {
+      setCoordinationEvents([]);
+      setSelectedEventId(null);
+      setEventError(eventsResult.error);
     }
   }
 
@@ -535,6 +598,13 @@ export function AugnesCockpit() {
         workBrief={workBrief}
         error={workError}
         onSelectWork={setSelectedWorkId}
+      />
+
+      <CoordinationEventTimeline
+        events={coordinationEvents}
+        selectedEvent={selectedCoordinationEvent}
+        error={eventError}
+        onSelectEvent={setSelectedEventId}
       />
 
       <section className="cockpit-guidance" aria-label="Cockpit guidance">
@@ -1292,6 +1362,149 @@ function ProofList({ brief }: { brief: WorkBriefResponse }) {
   );
 }
 
+function CoordinationEventTimeline({
+  events,
+  selectedEvent,
+  error,
+  onSelectEvent,
+}: {
+  events: CoordinationEvent[];
+  selectedEvent: CoordinationEvent | null;
+  error: string | null;
+  onSelectEvent: (eventId: string) => void;
+}) {
+  return (
+    <section
+      className="coordination-event-shell"
+      aria-label="Coordination Event Timeline"
+    >
+      <PanelHeader
+        eyebrow="Coordination"
+        title="Coordination Event Timeline"
+      />
+      {error ? (
+        <EmptyState label="Event timeline unavailable" description={error} />
+      ) : events.length === 0 ? (
+        <EmptyState label="No coordination events" />
+      ) : (
+        <div className="coordination-event-grid">
+          <div className="coordination-event-list" aria-label="Event list">
+            {events.map((event) => (
+              <button
+                className={`coordination-event-item${
+                  event.event_id === selectedEvent?.event_id
+                    ? " is-selected"
+                    : ""
+                }`}
+                key={event.event_id}
+                type="button"
+                onClick={() => onSelectEvent(event.event_id)}
+              >
+                <span className="coordination-event-node" aria-hidden="true" />
+                <span className="coordination-event-main">
+                  <strong>{formatStatusLabel(event.event_type)}</strong>
+                  <code>{event.event_id}</code>
+                </span>
+                <span className="coordination-event-meta">
+                  <StatusBadge
+                    label={formatStatusLabel(event.authority_level)}
+                    tone={getAuthorityTone(event.authority_level)}
+                  />
+                  {event.work_id ? (
+                    <span>
+                      Work <code>{event.work_id}</code>
+                    </span>
+                  ) : null}
+                  <time dateTime={event.created_at}>
+                    {formatDate(event.created_at)}
+                  </time>
+                </span>
+              </button>
+            ))}
+          </div>
+          <CoordinationEventInspector event={selectedEvent} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CoordinationEventInspector({
+  event,
+}: {
+  event: CoordinationEvent | null;
+}) {
+  if (!event) {
+    return (
+      <aside className="coordination-event-inspector">
+        <PanelHeader eyebrow="Inspect" title="Event Inspector" />
+        <EmptyState label="Select an event" />
+      </aside>
+    );
+  }
+
+  const details = [
+    ["event_id", event.event_id],
+    ["event_type", event.event_type],
+    ["work_id", event.work_id],
+    ["actor", event.actor],
+    ["target", event.target],
+    ["source_surface", event.source_surface],
+    ["authority_level", event.authority_level],
+    ["payload_ref", event.payload_ref],
+    ["result_status", event.result_status],
+    ["created_at", event.created_at],
+  ] as const;
+
+  return (
+    <aside className="coordination-event-inspector">
+      <PanelHeader eyebrow="Inspect" title="Event Inspector" />
+      <div className="event-inspector-stack">
+        <div className="inspector-heading">
+          <h3>{formatStatusLabel(event.event_type)}</h3>
+          <code>{event.event_id}</code>
+          <time dateTime={event.created_at}>{formatDate(event.created_at)}</time>
+        </div>
+        <div className="timeline-badges">
+          <StatusBadge
+            label={formatStatusLabel(event.authority_level)}
+            tone={getAuthorityTone(event.authority_level)}
+          />
+          {event.result_status ? (
+            <StatusBadge
+              label={formatStatusLabel(event.result_status)}
+              tone={getResultTone(event.result_status)}
+            />
+          ) : null}
+          {event.work_id ? <StatusBadge label={event.work_id} /> : null}
+        </div>
+        <dl className="event-field-grid">
+          {details.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value ? <code>{value}</code> : <span>None</span>}</dd>
+            </div>
+          ))}
+        </dl>
+        <section className="event-state-key-block">
+          <h4>state_keys</h4>
+          {event.state_keys.length ? (
+            <div className="meta-row">
+              {event.state_keys.map((stateKey) => (
+                <span key={stateKey}>
+                  {formatStateKeyLabel(stateKey)} <code>{stateKey}</code>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <EmptyState label="No state keys" />
+          )}
+        </section>
+      </div>
+    </aside>
+  );
+}
+
 function LoadingBlock({ title, lines }: { title: string; lines: string[] }) {
   return (
     <div className="loading-block" aria-busy="true">
@@ -1944,6 +2157,7 @@ function formatStateKeyLabel(stateKey: string) {
     "submission.readme_checklist_created": "README checklist created",
     "security.checklist_created": "Security checklist created",
     "demo.script_created": "Demo script created",
+    "coordination.event_spine": "Coordination event spine",
     "submission.requires_screenshots": "Screenshots required",
     "product.name": "Product name",
     "implementation.stack": "Implementation stack",
@@ -2083,6 +2297,33 @@ function getPriorityTone(priority: string) {
   };
 
   return tones[priority] ?? "muted";
+}
+
+function getAuthorityTone(authorityLevel: string) {
+  const tones: Record<string, string> = {
+    raw_observation: "muted",
+    interpretation_only: "deferred",
+    handoff_guidance: "reinforced",
+    execution_trace: "active",
+    action_proof: "complete",
+    publication_notice: "needs-review",
+    acknowledged_notice: "reinforced",
+    committed_state: "complete",
+  };
+
+  return tones[authorityLevel] ?? "muted";
+}
+
+function getResultTone(resultStatus: string) {
+  const tones: Record<string, string> = {
+    completed: "complete",
+    failed: "tension",
+    blocked: "needs-review",
+    partial: "needs-review",
+    needs_review: "needs-review",
+  };
+
+  return tones[resultStatus] ?? "muted";
 }
 
 function getHandoffStateKeys(handoff: StateBriefAgentHandoff) {
