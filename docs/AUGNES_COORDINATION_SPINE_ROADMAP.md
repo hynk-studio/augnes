@@ -385,11 +385,20 @@ Verification:
 - Mailbox summaries are derived read-only views over mailbox storage, not a source
   of truth and not an approval, status-update, proof-recording, publisher, or
   Codex execution surface.
+- Active mailbox views exclude `superseded` and `expired` messages. Runtime
+  list callers can request that composed view with
+  `GET /api/mailbox?scope=project:augnes&active=true`; summary buckets apply
+  the same exclusion and keep terminal counts as inactive context.
+- Terminal mailbox states `superseded` and `expired` block reactivation to
+  `ready`, `delivered`, `acknowledged`, or `reviewed` unless a future explicit
+  reopen design is implemented.
 
 Verification:
 
 - public profile remains read-only
 - bridge mode summaries match backend state
+- summary reads create no action records, work events, state commits, pending
+  proposals, or mailbox status changes
 
 ## Phase 4: Publisher + Delivery Ledger Lite
 

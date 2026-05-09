@@ -26,10 +26,12 @@ export function GET(request: Request) {
     const fromAgent = searchParams.get("from_agent");
     const toAgent = searchParams.get("to_agent");
     const payloadRef = searchParams.get("payload_ref");
+    const activeOnly = readOptionalActive(searchParams.get("active"));
     const limit = readOptionalLimit(searchParams.get("limit"));
 
     return NextResponse.json({
       scope,
+      active: activeOnly || undefined,
       mailbox_messages: listMailboxMessages({
         scope,
         workId,
@@ -38,6 +40,7 @@ export function GET(request: Request) {
         fromAgent,
         toAgent,
         payloadRef,
+        activeOnly,
         limit,
       }),
     });
@@ -224,4 +227,20 @@ function readOptionalLimit(value: string | null) {
   }
 
   return limit;
+}
+
+function readOptionalActive(value: string | null) {
+  if (!value) {
+    return false;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  throw new MailboxValidationError("active must be true or false.");
 }

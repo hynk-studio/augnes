@@ -994,10 +994,16 @@ export function createMcpAppServer(
             boundaries: {
               derived_view_only: true,
               mailbox_status_update: false,
+              mailbox_status_update_authority: false,
+              handoff_status_update: false,
               codex_execution: false,
+              codex_execution_authority: false,
               proof_recording: false,
+              proof_recording_authority: false,
               state_commit_or_reject: false,
+              state_commit_or_reject_authority: false,
               external_publication: false,
+              publisher_authority: false,
             },
           });
 
