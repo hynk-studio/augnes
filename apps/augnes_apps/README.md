@@ -304,6 +304,47 @@ Do not expose this tool in public/default mode, and do not use it to record
 action proof, create work events, approve state, launch Codex, or publish to any
 external surface.
 
+## Bridge-gated mailbox summaries
+
+When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
+running Augnes runtime, the bridge exposes `augnes_get_mailbox_summary`.
+
+Use it when a user asks what mailbox handoffs, review requests, approval needs,
+or blocked/partial notices require attention:
+
+```json
+{
+  "scope": "project:augnes"
+}
+```
+
+The tool calls the runtime `GET /api/mailbox/summary` endpoint and returns:
+
+- `structuredContent.mailbox_summary.summary.pending_handoffs`
+- `structuredContent.mailbox_summary.summary.needs_review`
+- `structuredContent.mailbox_summary.summary.approval_needed`
+- `structuredContent.mailbox_summary.summary.blocked_or_partial`
+- inactive superseded/expired counts
+
+Answer pattern:
+
+```text
+Mailbox summary
+- Summarize pending handoffs and needs-review items first.
+- Include approval-needed and blocked/partial notices when present.
+- Mention superseded/expired counts only as inactive context.
+
+Authority boundary
+- This is a derived read-only view.
+- It does not acknowledge mailbox messages.
+- It does not approve/reject or commit Augnes state.
+- It does not execute Codex, publish externally, or record proof.
+```
+
+Do not expose this tool in public/default mode, and do not treat mailbox summary
+output as canonical Augnes memory. The mailbox storage/API remains the source;
+summary buckets are bounded classifications for review.
+
 ## Inspector and ChatGPT
 
 Run MCP Inspector against the local server:

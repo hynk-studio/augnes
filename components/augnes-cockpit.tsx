@@ -219,6 +219,40 @@ type CoordinationEventsResponse = {
   events: CoordinationEvent[];
 };
 
+type MailboxSummaryItem = {
+  message_id: string;
+  scope: string;
+  work_id: string | null;
+  from_agent: string;
+  to_agent: string;
+  message_type: string;
+  summary: string;
+  payload_ref: string | null;
+  requires_ack: boolean;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  acknowledged_at: string | null;
+  supersedes_message_id: string | null;
+  summary_reason: string;
+};
+
+type MailboxSummaryResponse = {
+  scope: string;
+  as_of: string;
+  summary: {
+    pending_handoffs: MailboxSummaryItem[];
+    needs_review: MailboxSummaryItem[];
+    approval_needed: MailboxSummaryItem[];
+    blocked_or_partial: MailboxSummaryItem[];
+    inactive: {
+      superseded_count: number;
+      expired_count: number;
+    };
+  };
+  boundaries: string[];
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -257,6 +291,9 @@ export function AugnesCockpit() {
   >([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [eventError, setEventError] = useState<string | null>(null);
+  const [mailboxSummary, setMailboxSummary] =
+    useState<MailboxSummaryResponse | null>(null);
+  const [mailboxError, setMailboxError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -310,6 +347,7 @@ export function AugnesCockpit() {
     setBriefError(null);
     setWorkError(null);
     setEventError(null);
+    setMailboxError(null);
 
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
@@ -333,6 +371,14 @@ export function AugnesCockpit() {
         error:
           error instanceof Error ? error.message : "Event spine request failed",
       }));
+    const mailboxRequest = fetchJson<MailboxSummaryResponse>(
+      `/api/mailbox/summary?scope=${SCOPE}`,
+    )
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error ? error.message : "Mailbox summary request failed",
+      }));
     const [
       snapshotResult,
       trajectoryResult,
@@ -340,6 +386,7 @@ export function AugnesCockpit() {
       briefResult,
       workResult,
       eventsResult,
+      mailboxResult,
     ] =
       await Promise.all([
         fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
@@ -350,6 +397,7 @@ export function AugnesCockpit() {
         briefRequest,
         workRequest,
         eventsRequest,
+        mailboxRequest,
       ]);
 
     setSnapshot(snapshotResult);
@@ -402,6 +450,13 @@ export function AugnesCockpit() {
       setCoordinationEvents([]);
       setSelectedEventId(null);
       setEventError(eventsResult.error);
+    }
+
+    if ("value" in mailboxResult) {
+      setMailboxSummary(mailboxResult.value);
+    } else {
+      setMailboxSummary(null);
+      setMailboxError(mailboxResult.error);
     }
   }
 
@@ -598,6 +653,11 @@ export function AugnesCockpit() {
         workBrief={workBrief}
         error={workError}
         onSelectWork={setSelectedWorkId}
+      />
+
+      <MailboxSummaryPanel
+        mailboxSummary={mailboxSummary}
+        error={mailboxError}
       />
 
       <CoordinationEventTimeline
@@ -1358,6 +1418,143 @@ function ProofList({ brief }: { brief: WorkBriefResponse }) {
           {formatStatusLabel(key)} <code>{formatCompactJson(value)}</code>
         </span>
       ))}
+    </div>
+  );
+}
+
+function MailboxSummaryPanel({
+  mailboxSummary,
+  error,
+}: {
+  mailboxSummary: MailboxSummaryResponse | null;
+  error: string | null;
+}) {
+  const inactive = mailboxSummary?.summary.inactive;
+  const activeCount = mailboxSummary
+    ? mailboxSummary.summary.pending_handoffs.length +
+      mailboxSummary.summary.needs_review.length +
+      mailboxSummary.summary.approval_needed.length +
+      mailboxSummary.summary.blocked_or_partial.length
+    : 0;
+
+  return (
+    <section className="mailbox-summary-shell" aria-label="Mailbox Summary">
+      <PanelHeader
+        eyebrow="Mailbox"
+        title="Read-Only Summary"
+        description="Derived from mailbox messages. This panel does not acknowledge, approve, reject, execute, publish, or record proof."
+      />
+      {error ? (
+        <EmptyState label="Mailbox summary unavailable" description={error} />
+      ) : !mailboxSummary ? (
+        <LoadingBlock
+          title="Loading mailbox summary"
+          lines={["Reading mailbox messages", "Classifying active review items"]}
+        />
+      ) : activeCount === 0 ? (
+        <div className="mailbox-summary-empty">
+          <EmptyState
+            label="No active mailbox summary items"
+            description="Superseded and expired messages stay out of active buckets."
+          />
+          <MailboxInactiveCounts inactive={inactive} />
+        </div>
+      ) : (
+        <>
+          <div className="mailbox-summary-grid">
+            <MailboxSummaryBucket
+              title="Pending Handoffs"
+              items={mailboxSummary.summary.pending_handoffs}
+              emptyLabel="No ready or delivered handoffs"
+            />
+            <MailboxSummaryBucket
+              title="Needs Review"
+              items={mailboxSummary.summary.needs_review}
+              emptyLabel="No review-needed items"
+            />
+            <MailboxSummaryBucket
+              title="Approval Needed"
+              items={mailboxSummary.summary.approval_needed}
+              emptyLabel="No approval-needed notices"
+            />
+            <MailboxSummaryBucket
+              title="Blocked or Partial"
+              items={mailboxSummary.summary.blocked_or_partial}
+              emptyLabel="No blocked or partial result notices"
+            />
+          </div>
+          <MailboxInactiveCounts inactive={inactive} />
+          <details className="mailbox-boundaries">
+            <summary>Summary boundaries</summary>
+            <ul>
+              {mailboxSummary.boundaries.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
+          </details>
+        </>
+      )}
+    </section>
+  );
+}
+
+function MailboxSummaryBucket({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: MailboxSummaryItem[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="mailbox-summary-bucket">
+      <div className="card-topline">
+        <h3>{title}</h3>
+        <StatusBadge label={`${items.length}`} tone={items.length ? "ready" : "muted"} />
+      </div>
+      {items.length ? (
+        <div className="mailbox-summary-list">
+          {items.map((item) => (
+            <article className="mailbox-summary-item" key={item.message_id}>
+              <div className="card-topline">
+                <strong>{item.work_id ?? "Unscoped work"}</strong>
+                <StatusBadge
+                  label={formatStatusLabel(item.status)}
+                  tone={getMailboxStatusTone(item.status)}
+                />
+              </div>
+              <p>{item.summary}</p>
+              <div className="meta-row">
+                <span>{formatStatusLabel(item.message_type)}</span>
+                <span>{formatStatusLabel(item.summary_reason)}</span>
+                {item.payload_ref ? (
+                  <span>
+                    ref <code>{item.payload_ref}</code>
+                  </span>
+                ) : null}
+                <time dateTime={item.created_at}>{formatDate(item.created_at)}</time>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState label={emptyLabel} />
+      )}
+    </section>
+  );
+}
+
+function MailboxInactiveCounts({
+  inactive,
+}: {
+  inactive: MailboxSummaryResponse["summary"]["inactive"] | undefined;
+}) {
+  return (
+    <div className="mailbox-inactive-counts" aria-label="Inactive mailbox counts">
+      <span>Inactive</span>
+      <strong>{inactive?.superseded_count ?? 0} superseded</strong>
+      <strong>{inactive?.expired_count ?? 0} expired</strong>
     </div>
   );
 }
@@ -2324,6 +2521,19 @@ function getResultTone(resultStatus: string) {
   };
 
   return tones[resultStatus] ?? "muted";
+}
+
+function getMailboxStatusTone(status: string) {
+  const tones: Record<string, string> = {
+    ready: "ready",
+    delivered: "active",
+    acknowledged: "reinforced",
+    reviewed: "complete",
+    superseded: "expired",
+    expired: "expired",
+  };
+
+  return tones[status] ?? "muted";
 }
 
 function getHandoffStateKeys(handoff: StateBriefAgentHandoff) {

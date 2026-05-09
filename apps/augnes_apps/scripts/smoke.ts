@@ -162,6 +162,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             resultKind: 'implementation',
             resultSummary: 'Reviewed Codex smoke result and produced record drafts only.',
           },
+          augnes_get_mailbox_summary: {},
         };
         const profiles = {};
         for (const name of AUGNES_BRIDGE_TOOL_NAMES) {
@@ -179,6 +180,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             review: result.structuredContent?.review,
             actionRecordDraft: result.structuredContent?.action_record_draft,
             workEventDraft: result.structuredContent?.work_event_draft,
+            mailboxSummary: result.structuredContent?.mailbox_summary,
             boundaries: result.structuredContent?.boundaries,
           };
         }
@@ -470,6 +472,26 @@ async function main() {
     bridgeSnapshot.profiles.augnes_review_codex_result_draft.text,
     /does not execute Codex, does not record proof, does not commit or reject Augnes state, and does not publish externally/i,
     "augnes_review_codex_result_draft should state the draft-only authority boundary"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_mailbox_summary.mailboxSummary.summary.pending_handoffs.length,
+    1,
+    "augnes_get_mailbox_summary should return pending handoff summary items"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_mailbox_summary.mailboxSummary.summary.inactive.superseded_count,
+    1,
+    "augnes_get_mailbox_summary should preserve inactive counts"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_mailbox_summary.text,
+    /read-only derived view/i,
+    "augnes_get_mailbox_summary should state the derived read-only boundary"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_mailbox_summary.boundaries.state_commit_or_reject,
+    false,
+    "augnes_get_mailbox_summary should not expose state commit or reject authority"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_state_brief.text,

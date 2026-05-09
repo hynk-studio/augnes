@@ -382,6 +382,9 @@ Verification:
 - ChatGPT Apps can summarize pending handoffs and needs-review items.
 - Cockpit can show mailbox state in read/review panels.
 - No automatic execution.
+- Mailbox summaries are derived read-only views over mailbox storage, not a source
+  of truth and not an approval, status-update, proof-recording, publisher, or
+  Codex execution surface.
 
 Verification:
 
