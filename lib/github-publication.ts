@@ -88,8 +88,16 @@ export async function publishGitHubPrComment(
     );
   }
 
-  const targetRef =
-    cleanNullableString(input.targetRefOverride) ?? publication.target_ref;
+  const targetRefOverride = cleanNullableString(input.targetRefOverride);
+  if (!input.dryRun && targetRefOverride) {
+    throw new PublicationValidationError(
+      "target_ref override is only allowed for dry-run validation. Actual publish uses the approved publication target_ref.",
+    );
+  }
+
+  const targetRef = input.dryRun
+    ? (targetRefOverride ?? publication.target_ref)
+    : publication.target_ref;
   const target = parseGitHubPrCommentTargetRef(targetRef);
   const previewBody = requireNonEmptyString(
     publication.preview_body,
@@ -136,45 +144,12 @@ export async function publishGitHubPrComment(
   });
 
   if (existingDelivery) {
-    if (
-      existingDelivery.status === "sent" ||
-      existingDelivery.status === "acknowledged"
-    ) {
-      return {
-        dry_run: false,
-        publication,
-        delivery: existingDelivery,
-        proposed_delivery: null,
-        target_surface: GITHUB_PR_COMMENT_TARGET_SURFACE,
-        target_ref: target.targetRef,
-        would_post: false,
-        posted: false,
-        idempotent_replay: true,
-        github_comment_url: null,
-        github_comment_id: null,
-        error_message: null,
-        requested_by: requestedBy,
-      };
-    }
-
-    return {
-      dry_run: false,
+    return buildIdempotentReplayResult({
       publication,
       delivery: existingDelivery,
-      proposed_delivery: null,
-      target_surface: GITHUB_PR_COMMENT_TARGET_SURFACE,
-      target_ref: target.targetRef,
-      would_post: false,
-      posted: false,
-      idempotent_replay: true,
-      github_comment_url: null,
-      github_comment_id: null,
-      error_message:
-        existingDelivery.status === "failed"
-          ? "Existing failed delivery found for this idempotency_key. Use a new idempotency_key for a retry."
-          : "Existing pending delivery found for this idempotency_key. Refusing to post a duplicate GitHub comment.",
-      requested_by: requestedBy,
-    };
+      targetRef: target.targetRef,
+      requestedBy,
+    });
   }
 
   if (publication.status !== "approved") {
@@ -192,6 +167,15 @@ export async function publishGitHubPrComment(
     idempotency_key: idempotencyKey,
   });
   let delivery = deliveryResult.delivery;
+
+  if (!deliveryResult.created || deliveryResult.idempotent_replay) {
+    return buildIdempotentReplayResult({
+      publication,
+      delivery,
+      targetRef: target.targetRef,
+      requestedBy,
+    });
+  }
 
   const githubToken = cleanNullableString(
     input.githubToken ?? process.env.GITHUB_TOKEN,
@@ -294,6 +278,39 @@ export async function publishGitHubPrComment(
       requested_by: requestedBy,
     };
   }
+}
+
+function buildIdempotentReplayResult({
+  publication,
+  delivery,
+  targetRef,
+  requestedBy,
+}: {
+  publication: PublicationDraft;
+  delivery: DeliveryRecord;
+  targetRef: string;
+  requestedBy: string | null;
+}): GitHubPrCommentPublishResult {
+  const isSent =
+    delivery.status === "sent" || delivery.status === "acknowledged";
+
+  return {
+    dry_run: false,
+    publication,
+    delivery,
+    proposed_delivery: null,
+    target_surface: GITHUB_PR_COMMENT_TARGET_SURFACE,
+    target_ref: targetRef,
+    would_post: false,
+    posted: false,
+    idempotent_replay: true,
+    github_comment_url: null,
+    github_comment_id: null,
+    error_message: isSent
+      ? null
+      : `Existing ${delivery.status} delivery found for this idempotency_key. Use a new idempotency_key for retry.`,
+    requested_by: requestedBy,
+  };
 }
 
 export function parseGitHubPrCommentTargetRef(
