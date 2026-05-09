@@ -15,16 +15,21 @@ Phase 2 integration runbook                       complete
 Phase 3 / PR 3.1 Mailbox Lite storage and API      complete
 Phase 3 / PR 3.2 Mailbox-handoff status sync       complete
 Phase 3 / PR 3.3 Mailbox summary views             complete
+Phase 4 / PR 4.1 Publication draft + delivery ledger backend complete
+Phase 4 / PR 4.2 GitHub PR comment publication adapter complete
+Phase 4 / PR 4.3 App and Cockpit publication preview / delivery status views complete
 ```
 
-The next implementation decision is:
+The next sequence is:
 
 ```text
-Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
+1. Developer Mode verification pass for augnes_get_publication_summary.
+2. Live GitHub test flow for the PR comment adapter, only after explicit user/PM approval, a specific test PR target, and a safe scoped GITHUB_TOKEN.
+3. Future explicit approve/publish Cockpit workflow only if separately scoped.
 ```
 
-unless a future explicit Phase 3 polish/reopen task is chosen first. Mailbox
-summaries are derived read-only views, not sources of truth.
+Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
+are derived read-only views, not sources of truth.
 
 ## Read These First
 
@@ -102,15 +107,28 @@ Phase 3 completed:
 - ChatGPT App mailbox summary tooling is bridge-gated and read-only.
 - No mailbox summary surface can acknowledge messages, approve/reject state, execute Codex, publish externally, or record proof.
 
+Phase 4 completed:
+
+- PR 4.1: Publication draft and delivery ledger backend records are complete.
+- PR 4.2: GitHub PR comment publication adapter is complete behind explicit approval, dry-run, stored `target_ref`, idempotency, and token gates.
+- PR 4.3: App and Cockpit publication preview / delivery status views are complete.
+- Publication preview and delivery status views are bounded derived read-only views, not authority.
+- Actual GitHub posting remains gated by approved publication status, explicit `dry_run=false`, stored publication `target_ref`, required `idempotency_key`, fresh delivery row, token availability, and explicit user/PM approval for a specific target.
+- No Cockpit publish controls, ChatGPT App publish tools, Discord/webhook adapter, auto-posting, or proof recording have been added.
+
 ## Current Next Goal
 
-Next default implementation slice:
+Next default sequence:
 
 ```text
-Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
+1. Developer Mode verification pass for augnes_get_publication_summary.
+2. Live GitHub test flow for the PR comment adapter, only after explicit user/PM approval, a specific test PR target, and a safe scoped GITHUB_TOKEN.
+3. Future explicit approve/publish Cockpit workflow only if separately scoped.
 ```
 
-Only choose more Phase 3 polish first when the user explicitly scopes it.
+Do not restart Phase 4 / PR 4.1. Do not add publish buttons, approval
+controls, retry controls, or ChatGPT App publish tools without a separate
+explicit PR.
 
 Phase 3 added a narrow task-oriented mailbox for handoffs and review-needed
 notices. It should not become a free-form agent social network.
@@ -182,6 +200,66 @@ Phase 3 mailbox surfaces must not add:
 - Cockpit write controls
 - mailbox summaries as sources of truth
 - automatic proof recording
+
+## Current Phase 4 Publication Baseline
+
+Current publication behavior after PR 4.3:
+
+- Publication drafts are backend records.
+- Delivery ledger entries are backend records.
+- The GitHub PR comment adapter exists, but actual posting is approval-gated.
+- Publication summary is bounded and read-only.
+- Cockpit publication panel is read-only.
+- ChatGPT App publication summary is bridge-gated and read-only.
+- No Cockpit publish controls exist.
+- No ChatGPT App publish tools exist.
+- No Discord/webhook adapter exists.
+- No auto-posting exists.
+- No proof recording is performed by publication preview or summary views.
+
+Publication preview and delivery status surfaces must remain derived views. They
+must not become publication authority, approval authority, retry authority,
+proof authority, or durable state authority.
+
+Actual GitHub posting remains gated by all of the following:
+
+- approved publication status
+- explicit `dry_run=false`
+- stored publication `target_ref`
+- required `idempotency_key`
+- fresh delivery row
+- token availability
+- explicit user/PM approval for a specific target
+
+## Next Verification Slice: Developer Mode Publication Summary
+
+The next PR should verify `augnes_get_publication_summary` through true ChatGPT
+Developer Mode if available:
+
+1. Start the Augnes runtime.
+2. Start the Augnes Apps bridge with `AUGNES_ENABLE_AGENT_BRIDGE=true`.
+3. Expose the bridge with `cloudflared`.
+4. Register the redacted `/mcp` endpoint in ChatGPT Developer Mode.
+5. Invoke `augnes_get_publication_summary`.
+6. Compare the result with `GET /api/publications/summary?scope=project:augnes`.
+7. Verify read-only boundaries.
+8. Verify public/default mode exposes no publication summary, approval, publish, or retry tools.
+
+Tunnel URLs and screenshots are local artifacts unless the user explicitly asks
+to commit them. Redact tunnel hostnames in PR bodies and proof notes.
+
+## Next Live GitHub Test Slice
+
+Live GitHub testing must not be bundled into docs or summary view PRs. It
+requires:
+
+- explicit user/PM approval
+- specific test PR `target_ref`
+- scoped `GITHUB_TOKEN`
+- unique `idempotency_key`
+- one comment only
+- replay check proving no duplicate comment
+- no PR merge, review, label, title, or body mutation
 
 ## Working Directory Rules
 
@@ -267,6 +345,16 @@ GET  /api/mailbox/summary?scope=project:augnes
 POST /api/mailbox
 GET  /api/mailbox/{message_id}
 POST /api/mailbox/{message_id}/status
+GET  /api/publications?scope=project:augnes
+POST /api/publications
+GET  /api/publications/{publication_id}?scope=project:augnes
+POST /api/publications/{publication_id}/status
+GET  /api/deliveries?scope=project:augnes
+POST /api/deliveries
+GET  /api/deliveries/{delivery_id}?scope=project:augnes
+POST /api/deliveries/{delivery_id}/status
+GET  /api/publications/summary?scope=project:augnes
+POST /api/publications/{publication_id}/publish/github-pr-comment
 POST /api/actions/record
 POST /api/work/{work_id}/events
 ```
@@ -280,13 +368,17 @@ augnes_get_work_brief
 augnes_generate_codex_handoff_draft
 augnes_review_codex_result_draft
 augnes_get_mailbox_summary
+augnes_get_publication_summary
 augnes_record_action_result
 augnes_record_work_event
 ```
 
 Public/default ChatGPT App mode must not expose bridge-gated write/draft tools.
-Public/default ChatGPT App mode must also not expose mailbox summary tools;
-`augnes_get_mailbox_summary` is bridge-gated and read-only.
+Public/default ChatGPT App mode must also not expose mailbox summary or
+publication summary tools; `augnes_get_mailbox_summary` and
+`augnes_get_publication_summary` are bridge-gated and read-only.
+Public/default mode must not expose publication approval, publish, or retry
+tools.
 
 ## Authority Boundaries to Preserve
 
@@ -299,11 +391,13 @@ No ChatGPT App commit/reject authority.
 No GitHub auto-merge.
 No hosted auth/deployment semantics unless explicitly scoped.
 No secret handling changes unless explicitly scoped.
-No publisher behavior unless explicitly scoped.
-No GitHub/Discord posting unless explicitly scoped.
+No new publisher behavior unless explicitly scoped.
+No GitHub/Discord posting unless explicitly scoped and explicitly approved for a specific target.
+No publication approval/publish/retry tools unless explicitly scoped.
 No Cockpit write controls unless explicitly scoped.
 No free-form agent social chat.
 Mailbox summaries are derived read-only views, not sources of truth.
+Publication previews and delivery summaries are derived read-only views, not sources of truth.
 No automatic proof recording from review/draft tools.
 ```
 
@@ -312,8 +406,8 @@ No automatic proof recording from review/draft tools.
 A fresh ChatGPT session should do this:
 
 1. Read this file and the roadmap/runbooks listed above.
-2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, and Phase 3 PR 3.3 are complete.
-3. Ask the user to decide whether the next implementation slice should be Phase 4 / PR 4.1 Publisher + Delivery Ledger Lite backend unless they explicitly choose a future Phase 3 polish/reopen task first.
+2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, Phase 3 PR 3.3, Phase 4 PR 4.1, Phase 4 PR 4.2, and Phase 4 PR 4.3 are complete.
+3. Continue with the Developer Mode verification pass for `augnes_get_publication_summary`, unless the user explicitly chooses the separately gated live GitHub test slice or a future approve/publish Cockpit workflow.
 4. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
 5. Let Codex implement and open or update a draft PR.
 6. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
@@ -323,10 +417,10 @@ ChatGPT should not merge on its own unless the user explicitly directs it throug
 
 ## Historical Starter Prompts
 
-The old Phase 3 / PR 3.1 starter prompt has been removed from this onboarding
-entrypoint because PR 3.1 is complete. If historical prompt text is needed for
-review, use Git history or the merged PR record. A fresh session should not
-start PR 3.1 again.
+The old Phase 3 / PR 3.1 and Phase 4 / PR 4.1 starter prompts have been
+removed from this onboarding entrypoint because those slices are complete. If
+historical prompt text is needed for review, use Git history or the merged PR
+record. A fresh session should not start PR 3.1 or PR 4.1 again.
 
 ## Merge Discipline
 
@@ -342,13 +436,13 @@ Do not collapse this into autonomous implementation. The boring boundary is doin
 
 ## Current Next Goal
 
-Begin:
+Begin with:
 
 ```text
-Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
+Developer Mode verification pass for augnes_get_publication_summary
 ```
 
-unless the user explicitly chooses a future Phase 3 polish/reopen task first.
-
-Do not add publisher behavior, delivery ledger behavior, external posting, or
-automatic proof recording until the user explicitly scopes that work.
+Then, only after explicit user/PM approval and a specific safe target, perform a
+live GitHub test flow for the PR comment adapter. Do not add publish buttons,
+approval controls, retry controls, external posting, Discord/webhook behavior,
+or automatic proof recording until the user explicitly scopes that work.
