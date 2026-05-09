@@ -12,16 +12,21 @@ Current implementation position:
 Phase 1: Trace Spine                              complete
 Phase 2: Handoff Registry + ChatGPT-Codex Review  complete
 Phase 2 integration runbook                       complete
-Next target: Phase 3 / PR 3.1 Mailbox Lite storage and API
+Phase 3 / PR 3.1 Mailbox Lite storage and API      complete
+Phase 3 / PR 3.2 Mailbox-handoff status sync       complete
+Phase 3 / PR 3.3 Mailbox summary views             implemented in PR #60, pending review/merge
 ```
 
-The next implementation slice should be:
+The next decision after PR #60 should be one of:
 
 ```text
-Phase 3 / PR 3.1: Mailbox Lite storage and API
+1. Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
+2. Small Phase 3 polish/docs cleanup: active mailbox filters, reopen behavior, or onboarding cleanup
 ```
 
-Do not skip directly to UI summaries, publisher behavior, Discord/GitHub posting, or free-form agent chat.
+Do not begin Phase 4 publisher behavior until the user decides that PR #60 is
+ready to merge or explicitly scopes follow-up work. Mailbox summaries are
+derived read-only views, not sources of truth.
 
 ## Read These First
 
@@ -88,23 +93,37 @@ Phase 2 completed:
 
 The current bridge tools are useful for drafting and reviewing handoffs, not for executing Codex or approving state.
 
+Phase 3 completed or in review:
+
+- PR 3.1: Mailbox Lite storage and API is complete.
+- PR 3.2: Mailbox integration with handoff status changes is complete.
+- PR 3.3: App and Cockpit mailbox summaries are implemented in draft PR #60 and pending review/merge.
+- Backend mailbox storage/API remains the source of truth.
+- Mailbox summaries are bounded derived views over mailbox messages.
+- Cockpit mailbox summary panels are read-only.
+- ChatGPT App mailbox summary tooling is bridge-gated and read-only.
+- No mailbox summary surface can acknowledge messages, approve/reject state, execute Codex, publish externally, or record proof.
+
 ## Current Next Goal
 
-Implement Phase 3 / PR 3.1:
+After PR #60, decide between:
 
 ```text
-Mailbox Lite storage and API
+Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
 ```
 
-Phase 3 should add a narrow task-oriented mailbox for handoffs and review-needed notices.
+or:
 
-It should not become a free-form agent social network.
+```text
+Small Phase 3 polish/docs cleanup: active mailbox filters, reopen behavior, or onboarding cleanup
+```
 
-## Phase 3 / PR 3.1 Scope
+Phase 3 added a narrow task-oriented mailbox for handoffs and review-needed
+notices. It should not become a free-form agent social network.
 
-Implement backend storage and API only.
+## Phase 3 Mailbox Baseline
 
-Recommended mailbox/message fields from the roadmap:
+Implemented mailbox/message fields:
 
 ```text
 message_id
@@ -145,24 +164,21 @@ superseded
 expired
 ```
 
-Phase 3 / PR 3.1 should:
+Phase 3 completed or in review:
 
-- Add a mailbox/message table.
-- Add create/list/read/update-status API.
-- Link mailbox messages to existing handoff records and event spine where appropriate.
-- Emit coordination events for mailbox message lifecycle changes if scoped.
-- Keep APIs backend/runtime only for this PR.
-- Preserve all Phase 2 authority boundaries.
+- PR 3.1 added mailbox storage and create/list/read/update-status APIs.
+- PR 3.2 linked handoff status changes to mailbox messages.
+- PR 3.3 added derived mailbox summaries for Cockpit and ChatGPT Apps bridge in draft PR #60.
 
-Phase 3 / PR 3.1 should not add:
+Phase 3 mailbox surfaces must not add:
 
 - free-form agent chat
-- ChatGPT App mailbox summaries yet
-- Cockpit mailbox UI yet
 - publisher or delivery ledger behavior
 - GitHub/Discord posting
 - Codex execution or orchestration
 - ChatGPT App commit/reject authority
+- Cockpit write controls
+- mailbox summaries as sources of truth
 - automatic proof recording
 
 ## Working Directory Rules
@@ -243,6 +259,11 @@ GET  /api/work/{work_id}/brief?scope=project:augnes
 POST /api/handoffs/generate
 GET  /api/handoffs?scope=project:augnes
 POST /api/handoffs/review
+GET  /api/mailbox?scope=project:augnes
+GET  /api/mailbox/summary?scope=project:augnes
+POST /api/mailbox
+GET  /api/mailbox/{message_id}
+POST /api/mailbox/{message_id}/status
 POST /api/actions/record
 POST /api/work/{work_id}/events
 ```
@@ -255,11 +276,14 @@ augnes_list_work_items
 augnes_get_work_brief
 augnes_generate_codex_handoff_draft
 augnes_review_codex_result_draft
+augnes_get_mailbox_summary
 augnes_record_action_result
 augnes_record_work_event
 ```
 
 Public/default ChatGPT App mode must not expose bridge-gated write/draft tools.
+Public/default ChatGPT App mode must also not expose mailbox summary tools;
+`augnes_get_mailbox_summary` is bridge-gated and read-only.
 
 ## Authority Boundaries to Preserve
 
@@ -276,6 +300,7 @@ No publisher behavior unless explicitly scoped.
 No GitHub/Discord posting unless explicitly scoped.
 No Cockpit write controls unless explicitly scoped.
 No free-form agent social chat.
+Mailbox summaries are derived read-only views, not sources of truth.
 No automatic proof recording from review/draft tools.
 ```
 
@@ -284,121 +309,22 @@ No automatic proof recording from review/draft tools.
 A fresh ChatGPT session should do this:
 
 1. Read this file and the roadmap/runbooks listed above.
-2. Confirm that Phase 1 and Phase 2 are complete.
-3. Identify the next implementation slice as Phase 3 / PR 3.1 Mailbox Lite storage and API.
-4. Prepare a Codex prompt that includes working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
-5. Let Codex implement and open a draft PR.
-6. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
-7. Let the user decide whether to merge.
+2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, and Phase 3 PR 3.2 are complete.
+3. Confirm that Phase 3 PR 3.3 is implemented in draft PR #60 and still needs user review/merge unless it has already merged.
+4. Ask the user to decide whether the next implementation slice should be Phase 4 / PR 4.1 Publisher + Delivery Ledger Lite backend, or a small Phase 3 polish/docs cleanup PR for active mailbox filters, reopen behavior, or onboarding cleanup.
+5. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
+6. Let Codex implement and open or update a draft PR.
+7. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
+8. Let the user decide whether to merge.
 
 ChatGPT should not merge on its own unless the user explicitly directs it through available GitHub tooling.
 
-## Phase 3 / PR 3.1 Starter Codex Prompt
+## Historical Starter Prompts
 
-Use this as the starting point for the next Codex task.
-
-```text
-Task: Implement Phase 3 / PR 3.1 from docs/AUGNES_COORDINATION_SPINE_ROADMAP.md: Mailbox Lite storage and API.
-
-Repo:
-Aurna-code/augnes
-
-Base branch:
-main
-
-Work branch:
-codex/phase-3-mailbox-storage-api
-
-Working directory:
-- Start from the repo root: /Users/hynk/Documents/augnes, or the checked-out root of Aurna-code/augnes.
-- Run root package commands from the repo root.
-- Run ChatGPT App package commands with npm --prefix apps/augnes_apps ... from the repo root, or cd apps/augnes_apps first and state that explicitly.
-- For browser/runtime checks, start the root runtime from the repo root with npm run dev -- --port 3000.
-- For bridge checks, start the nested app package from the repo root with:
-  AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
-  Or cd apps/augnes_apps first and run:
-  AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm run dev
-
-Goal:
-Add backend storage and runtime APIs for Mailbox Lite. Mailbox Lite should manage narrow task-oriented handoff/review/approval-needed messages. It must not become free-form agent chat.
-
-Read first:
-- DEVELOPMENT_ONBOARDING.md
-- docs/AUGNES_COORDINATION_SPINE_ROADMAP.md
-- docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md
-- docs/AUTHORITY_MATRIX.md
-- lib/handoffs.ts
-- lib/handoff-review.ts
-- lib/coordination-events.ts
-- lib/work.ts
-- app/api/handoffs routes
-- app/api/events routes
-
-Scope:
-Implement PR 3.1 only:
-- Add mailbox/message schema and storage helpers.
-- Add create/list/read/update-status runtime APIs.
-- Support only allowed message types:
-  handoff, review_request, blocked_notice, result_report, approval_needed, verification_needed
-- Support only allowed statuses:
-  draft, ready, delivered, acknowledged, reviewed, superseded, expired
-- Link messages to handoff records or review payloads through payload_ref where applicable.
-- Emit coordination events for mailbox lifecycle changes only if clearly scoped.
-- Keep all APIs backend/runtime only in this PR.
-
-Do not add:
-- ChatGPT App mailbox summaries
-- Cockpit mailbox UI
-- publisher behavior
-- delivery ledger
-- GitHub/Discord posting
-- Codex execution/orchestration
-- ChatGPT App commit/reject authority
-- free-form agent chat
-- automatic proof recording
-
-Suggested API paths:
-- GET /api/mailbox?scope=project:augnes
-- POST /api/mailbox
-- GET /api/mailbox/{message_id}
-- POST /api/mailbox/{message_id}/status
-
-Required checks:
-- npm run db:reset
-- npm run db:migrate
-- npm run demo:seed
-- npm run typecheck
-- npm run build
-- npm --prefix apps/augnes_apps run typecheck
-- npm --prefix apps/augnes_apps run smoke
-- npm --prefix apps/augnes_apps run invariants
-
-Runtime checks:
-- npm run dev -- --port 3000
-- Create a mailbox message for a generated handoff.
-- List mailbox messages by scope and work_id.
-- Read the message by ID.
-- Update message status to delivered or acknowledged.
-- Verify /api/state/brief, /api/work/AG-006/brief, /api/handoffs, and /api/events still work.
-
-Browser/Cockpit check:
-- Open http://localhost:3000.
-- Confirm Current Work, Work Focus, Coordination Event Timeline, State Snapshot, and Temporal State Graph still render.
-- Confirm no mailbox UI or new write controls were added.
-
-PR requirements:
-- Open a draft PR against main.
-- Use .github/pull_request_template.md.
-- Augnes Work ID: AG-006.
-- Related state keys: coordination.mailbox, coordination.handoff_registry, coordination.event_spine.
-- Include Expected Impact vs Actual Result.
-- Include Verification Evidence Pack.
-- Include exact command results and skipped reasons.
-- Confirm no direct Codex orchestration, no autonomous Codex execution, no ChatGPT App commit/reject authority, no publisher behavior, no GitHub/Discord posting, no Cockpit write controls, no free-form agent chat, and no secrets/local DB/build artifacts committed.
-
-Handoff / Reality Feedback Report:
-At the end, leave a concise report in the PR body covering changed files, tests run with exact results, browser checks, ChatGPT App / bridge checks, skipped checks and exact reasons, blockers, repo/task mismatches, scope risks, assumptions, questions requiring user/PM judgment, whether completion proof was recorded or skipped, and the next suggested goal.
-```
+The old Phase 3 / PR 3.1 starter prompt has been removed from this onboarding
+entrypoint because PR 3.1 is complete. If historical prompt text is needed for
+review, use Git history or the merged PR record. A fresh session should not
+start PR 3.1 again.
 
 ## Merge Discipline
 
@@ -412,14 +338,21 @@ The user decides whether to merge.
 
 Do not collapse this into autonomous implementation. The boring boundary is doing important work. Annoying, yes. Useful, also yes.
 
-## Current Open Question Before Phase 3 UI Work
+## Current Open Question After PR 3.3
 
-After PR 3.1 storage/API, decide whether mailbox summaries should appear first in:
+After PR #60 review, decide whether to begin:
 
 ```text
-Cockpit
-ChatGPT Apps bridge
-backend-only APIs for one more slice
+Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
 ```
 
-Default recommendation: backend-only first, then ChatGPT App summary, then Cockpit summary, unless the user wants visual operator workflow first.
+or run a small Phase 3 polish/docs cleanup PR first for:
+
+```text
+active mailbox filters
+reopen behavior
+onboarding cleanup
+```
+
+Do not add publisher behavior, delivery ledger behavior, external posting, or
+automatic proof recording until the user explicitly scopes that work.
