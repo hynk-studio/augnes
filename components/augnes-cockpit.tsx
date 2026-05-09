@@ -287,7 +287,6 @@ type FailedDeliverySummaryItem = {
   target_ref: string;
   status: string;
   error_message: string | null;
-  idempotency_key: string | null;
   created_at: string;
   updated_at: string;
   sent_at: string | null;
@@ -313,6 +312,11 @@ type PublicationSummaryResponse = {
       acknowledged_count: number;
     };
     failed_deliveries: FailedDeliverySummaryItem[];
+  };
+  limits: {
+    bounded_view: true;
+    publication_limit: number;
+    delivery_limit: number;
   };
   boundaries: string[];
 };
@@ -1675,7 +1679,7 @@ function PublicationSummaryPanel({
       <PanelHeader
         eyebrow="Publication"
         title="Preview / Delivery Status"
-        description="Derived read-only view over publication drafts and the delivery ledger. This panel does not approve, publish, retry, post, record proof, or commit state."
+        description="Derived bounded read-only view over recent publication drafts and delivery ledger rows. This panel does not approve, publish, retry, post, record proof, or commit state."
       />
       {error ? (
         <EmptyState
@@ -1693,11 +1697,17 @@ function PublicationSummaryPanel({
             label="No publication previews or deliveries"
             description="Publication drafts and delivery rows will appear here as read-only status."
           />
-          <PublicationDeliveryCounts status={status} />
+          <PublicationDeliveryCounts
+            limits={publicationSummary.limits}
+            status={status}
+          />
         </div>
       ) : (
         <>
-          <PublicationDeliveryCounts status={status} />
+          <PublicationDeliveryCounts
+            limits={publicationSummary.limits}
+            status={status}
+          />
           <div className="publication-summary-grid">
             <PublicationSummaryBucket
               title="Drafts"
@@ -1743,8 +1753,10 @@ function PublicationSummaryPanel({
 }
 
 function PublicationDeliveryCounts({
+  limits,
   status,
 }: {
+  limits: PublicationSummaryResponse["limits"] | undefined;
   status: PublicationSummaryResponse["summary"]["delivery_status"] | undefined;
 }) {
   return (
@@ -1752,7 +1764,10 @@ function PublicationDeliveryCounts({
       className="publication-delivery-counts"
       aria-label="Delivery status counts"
     >
-      <span>Delivery ledger</span>
+      <span>
+        Bounded delivery ledger
+        {limits ? `: latest ${limits.delivery_limit}` : ""}
+      </span>
       <strong>{status?.pending_count ?? 0} pending</strong>
       <strong>{status?.sent_count ?? 0} sent</strong>
       <strong>{status?.failed_count ?? 0} failed</strong>
@@ -1822,8 +1837,8 @@ function PublicationSummaryBucket({
                 <StatusBadge
                   label={
                     item.publish_eligibility.actual_publish
-                      ? "Actual publish eligible"
-                      : "Actual publish blocked"
+                      ? "Backend route preconditions met"
+                      : "Backend route preconditions blocked"
                   }
                   tone={
                     item.publish_eligibility.actual_publish

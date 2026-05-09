@@ -1,4 +1,8 @@
 import {
+  GITHUB_PR_COMMENT_TARGET_SURFACE,
+  parseGitHubPrCommentTargetRef,
+} from "@/lib/github-pr-comment-target";
+import {
   DELIVERY_STATUSES,
   PUBLICATION_STATUSES,
   listDeliveries,
@@ -12,9 +16,6 @@ import { normalizeScope } from "@/lib/work";
 
 const SUMMARY_LIMIT = 200;
 const PREVIEW_EXCERPT_LIMIT = 320;
-const GITHUB_PR_COMMENT_TARGET_SURFACE = "github_pr_comment";
-const GITHUB_PR_REF_PATTERN =
-  /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}[A-Za-z0-9])?)\/([A-Za-z0-9._-]{1,100})#([1-9][0-9]*)$/;
 
 export type PublicationEligibility = {
   dry_run: boolean;
@@ -52,7 +53,6 @@ export type FailedDeliverySummaryItem = {
   target_ref: string;
   status: string;
   error_message: string | null;
-  idempotency_key: string | null;
   created_at: string;
   updated_at: string;
   sent_at: string | null;
@@ -76,13 +76,18 @@ export type PublicationSummaryResult = {
   scope: string;
   as_of: string;
   summary: PublicationSummary;
+  limits: {
+    bounded_view: true;
+    publication_limit: number;
+    delivery_limit: number;
+  };
   boundaries: string[];
 };
 
 export const PUBLICATION_SUMMARY_BOUNDARIES = [
   "Publication summaries are derived read-only views.",
   "This view does not approve, publish, retry, post to GitHub, post to Discord, record proof, or commit state.",
-  "Actual GitHub posting remains backend-adapter gated by approved publication status, explicit dry_run=false, idempotency key, stored target_ref, and token availability.",
+  "Actual GitHub posting remains backend-adapter gated by approved publication status, explicit dry_run=false, backend replay guard, stored target_ref, and token availability.",
 ];
 
 export function buildPublicationSummary({
@@ -143,6 +148,11 @@ export function buildPublicationSummary({
           ),
         ),
     },
+    limits: {
+      bounded_view: true,
+      publication_limit: SUMMARY_LIMIT,
+      delivery_limit: SUMMARY_LIMIT,
+    },
     boundaries: PUBLICATION_SUMMARY_BOUNDARIES,
   };
 }
@@ -188,7 +198,6 @@ function buildFailedDeliverySummaryItem(
     target_ref: delivery.target_ref,
     status: delivery.status,
     error_message: delivery.error_message,
-    idempotency_key: delivery.idempotency_key,
     created_at: delivery.created_at,
     updated_at: delivery.updated_at,
     sent_at: delivery.sent_at,
@@ -249,7 +258,7 @@ function getPublishEligibility(
     };
   }
 
-  if (!GITHUB_PR_REF_PATTERN.test(publication.target_ref)) {
+  if (!isValidGitHubPrCommentTargetRef(publication.target_ref)) {
     return {
       dry_run: false,
       actual_publish: false,
@@ -270,7 +279,7 @@ function getPublishEligibility(
       dry_run: true,
       actual_publish: true,
       reason:
-        "approved GitHub PR comment preview can dry-run or publish through the explicit backend route with idempotency key",
+        "approved GitHub PR comment preview meets stored-state preconditions for the explicit backend publish route; this view cannot publish",
     };
   }
 
@@ -280,6 +289,15 @@ function getPublishEligibility(
     reason:
       "GitHub PR comment target can dry-run, but actual publish requires approved status",
   };
+}
+
+function isValidGitHubPrCommentTargetRef(targetRef: string) {
+  try {
+    parseGitHubPrCommentTargetRef(targetRef);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getPublicationSummaryReason(

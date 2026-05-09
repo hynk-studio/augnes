@@ -390,7 +390,6 @@ export const FailedDeliverySummaryItemSchema = z
     target_ref: z.string(),
     status: z.string(),
     error_message: z.string().nullable(),
-    idempotency_key: z.string().nullable(),
     created_at: z.string(),
     updated_at: z.string(),
     sent_at: z.string().nullable(),
@@ -425,6 +424,13 @@ export const PublicationSummaryResultSchema = z
     scope: z.string(),
     as_of: z.string(),
     summary: PublicationSummarySchema,
+    limits: z
+      .object({
+        bounded_view: z.literal(true),
+        publication_limit: z.number(),
+        delivery_limit: z.number(),
+      })
+      .passthrough(),
     boundaries: z.array(z.string()),
   })
   .passthrough();

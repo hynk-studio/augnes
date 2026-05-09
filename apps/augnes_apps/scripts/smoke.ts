@@ -506,6 +506,16 @@ async function main() {
     "augnes_get_publication_summary should preserve failed delivery error messages"
   );
   assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_summary.publicationSummary.limits.bounded_view,
+    true,
+    "augnes_get_publication_summary should declare bounded summary semantics"
+  );
+  assert.doesNotMatch(
+    JSON.stringify(bridgeSnapshot.profiles.augnes_get_publication_summary.publicationSummary),
+    /idempotency_key|idempotencyKey/,
+    "augnes_get_publication_summary publication_summary must not expose idempotency keys"
+  );
+  assert.equal(
     bridgeSnapshot.profiles.augnes_get_publication_summary.boundaries.publish_authority,
     false,
     "augnes_get_publication_summary should not expose publish authority"

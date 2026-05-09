@@ -504,7 +504,7 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
               dry_run: true,
               actual_publish: true,
               reason:
-                "approved GitHub PR comment preview can dry-run or publish through the explicit backend route with idempotency key",
+                "approved GitHub PR comment preview meets stored-state preconditions for the explicit backend publish route; this view cannot publish",
             },
             summary_reason: "publication status approved; latest delivery pending",
           },
@@ -527,7 +527,6 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
             target_ref: "Aurna-code/augnes#63",
             status: "failed",
             error_message: "GitHub publish failed: mock token unavailable.",
-            idempotency_key: "smoke-failed-key",
             created_at: "2026-05-07T00:23:00.000Z",
             updated_at: "2026-05-07T00:23:10.000Z",
             sent_at: null,
@@ -538,10 +537,15 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
           },
         ],
       },
+      limits: {
+        bounded_view: true,
+        publication_limit: 200,
+        delivery_limit: 200,
+      },
       boundaries: [
         "Publication summaries are derived read-only views.",
         "This view does not approve, publish, retry, post to GitHub, post to Discord, record proof, or commit state.",
-        "Actual GitHub posting remains backend-adapter gated by approved publication status, explicit dry_run=false, idempotency key, stored target_ref, and token availability.",
+        "Actual GitHub posting remains backend-adapter gated by approved publication status, explicit dry_run=false, backend replay guard, stored target_ref, and token availability.",
       ],
     };
   }
