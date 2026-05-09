@@ -261,7 +261,7 @@ export function createPublication(input: PublicationDraftInput) {
 
   assertPublicationId(row.publication_id);
   assertPublicationStatus(row.status);
-  validatePublicationStatusMetadata(row.status, row.approved_by, row.sent_at);
+  validatePublicationCreateMetadata(row.status, row.approved_by, row.sent_at);
   validatePublicationReferences({ scope, workId, sourceEventId });
 
   const db = openDatabase();
@@ -322,7 +322,7 @@ export function updatePublicationStatus(input: PublicationStatusUpdateInput) {
   const now = new Date().toISOString();
   const approvedBy = cleanNullableString(input.approved_by);
   const sentAt = cleanNullableString(input.sent_at);
-  validatePublicationStatusMetadata(input.status, approvedBy, sentAt);
+  validatePublicationStatusUpdateMetadata(input.status, approvedBy, sentAt);
 
   const db = openDatabase();
   let publication: PublicationDraft;
@@ -512,7 +512,13 @@ export function createDelivery(input: DeliveryRecordInput): DeliveryCreateResult
   };
 
   assertDeliveryId(row.delivery_id);
-  validateDeliveryStatusMetadata(row.status, row.sent_at, row.acknowledged_at);
+  validateDeliveryStatusMetadata({
+    status: row.status,
+    sentAt: row.sent_at,
+    acknowledgedAt: row.acknowledged_at,
+    errorMessage: row.error_message,
+    existingErrorMessage: null,
+  });
 
   const db = openDatabase();
   let delivery: DeliveryRecord;
@@ -575,7 +581,6 @@ export function updateDeliveryStatus(input: DeliveryStatusUpdateInput) {
   const sentAt = cleanNullableString(input.sent_at);
   const acknowledgedAt = cleanNullableString(input.acknowledged_at);
   const errorMessage = cleanNullableString(input.error_message);
-  validateDeliveryStatusMetadata(input.status, sentAt, acknowledgedAt);
 
   const db = openDatabase();
   let previousStatus = "";
@@ -585,6 +590,13 @@ export function updateDeliveryStatus(input: DeliveryStatusUpdateInput) {
     delivery = db.transaction(() => {
       const existing = selectDeliveryById(db, deliveryId, normalizedScope);
       previousStatus = existing.status;
+      validateDeliveryStatusMetadata({
+        status: input.status,
+        sentAt,
+        acknowledgedAt,
+        errorMessage,
+        existingErrorMessage: existing.error_message,
+      });
 
       const params = [
         input.status,
@@ -876,11 +888,41 @@ function parseDeliveryRecordRow(row: DeliveryRecordRow): DeliveryRecord {
   return row;
 }
 
-function validatePublicationStatusMetadata(
+function validatePublicationCreateMetadata(
   status: PublicationStatus,
   approvedBy: string | null,
   sentAt: string | null,
 ) {
+  if (status !== "draft") {
+    throw new PublicationValidationError(
+      "Publication drafts must be created with status draft. Use the publication status API for approved, sent, failed, or cancelled.",
+    );
+  }
+
+  if (approvedBy) {
+    throw new PublicationValidationError(
+      "approved_by is not allowed when creating a publication draft. Use the publication status API with status approved.",
+    );
+  }
+
+  if (sentAt) {
+    throw new PublicationValidationError(
+      "sent_at is not allowed when creating a publication draft. Use the publication status API with status sent.",
+    );
+  }
+}
+
+function validatePublicationStatusUpdateMetadata(
+  status: PublicationStatus,
+  approvedBy: string | null,
+  sentAt: string | null,
+) {
+  if (status === "approved" && !approvedBy) {
+    throw new PublicationValidationError(
+      "approved_by is required when status is approved.",
+    );
+  }
+
   if (approvedBy && status !== "approved") {
     throw new PublicationValidationError(
       "approved_by may only be provided when status is approved.",
@@ -894,11 +936,19 @@ function validatePublicationStatusMetadata(
   }
 }
 
-function validateDeliveryStatusMetadata(
-  status: DeliveryStatus,
-  sentAt: string | null,
-  acknowledgedAt: string | null,
-) {
+function validateDeliveryStatusMetadata({
+  status,
+  sentAt,
+  acknowledgedAt,
+  errorMessage,
+  existingErrorMessage,
+}: {
+  status: DeliveryStatus;
+  sentAt: string | null;
+  acknowledgedAt: string | null;
+  errorMessage: string | null;
+  existingErrorMessage: string | null;
+}) {
   if (sentAt && status !== "sent" && status !== "acknowledged") {
     throw new PublicationValidationError(
       "sent_at may only be provided when delivery status is sent or acknowledged.",
@@ -908,6 +958,12 @@ function validateDeliveryStatusMetadata(
   if (acknowledgedAt && status !== "acknowledged") {
     throw new PublicationValidationError(
       "acknowledged_at may only be provided when delivery status is acknowledged.",
+    );
+  }
+
+  if (status === "failed" && !errorMessage && !existingErrorMessage) {
+    throw new PublicationValidationError(
+      "error_message is required when delivery status is failed.",
     );
   }
 }
