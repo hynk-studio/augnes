@@ -311,12 +311,10 @@ export function updateHandoffStatus({
   const now = new Date().toISOString();
   const db = openDatabase();
   let handoff: HandoffRecord;
-  let previousStatus: string;
 
   try {
-    ({ handoff, previousStatus } = db.transaction(() => {
-      const existing = selectHandoffById(db, handoffId.trim(), normalizedScope);
-      previousStatus = existing.status;
+    handoff = db.transaction(() => {
+      selectHandoffById(db, handoffId.trim(), normalizedScope);
 
       db.prepare(
         `
@@ -331,16 +329,13 @@ export function updateHandoffStatus({
         ) as string[]),
       );
 
-      return {
-        handoff: selectHandoffById(db, handoffId.trim(), normalizedScope),
-        previousStatus,
-      };
-    })());
+      return selectHandoffById(db, handoffId.trim(), normalizedScope);
+    })();
   } finally {
     db.close();
   }
 
-  if (status === "ready" && previousStatus !== "ready") {
+  if (status === "ready") {
     appendHandoffEvent(handoff, "handoff_ready", now);
   }
 
@@ -353,6 +348,9 @@ function appendHandoffEvent(
   createdAt: string,
 ) {
   return appendCoordinationEvent({
+    event_id: `event:${handoff.handoff_id}:${
+      eventType === "handoff_created" ? "created" : "ready"
+    }`,
     event_type: eventType,
     scope: handoff.scope,
     work_id: handoff.work_id,
