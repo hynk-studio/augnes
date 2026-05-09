@@ -213,6 +213,14 @@ export function createMailboxMessage(input: MailboxMessageInput) {
   const scope = normalizeScope(input.scope);
   const workId = input.work_id ? normalizeWorkId(input.work_id) : null;
   const payloadRef = cleanNullableString(input.payload_ref);
+  const status = input.status ?? "draft";
+  const acknowledgedAt = cleanNullableString(input.acknowledged_at);
+  if (acknowledgedAt && status !== "acknowledged") {
+    throw new MailboxValidationError(
+      "acknowledged_at may only be set when status is acknowledged.",
+    );
+  }
+
   const row = {
     message_id:
       cleanNullableString(input.message_id) ?? `mailbox:${randomUUID()}`,
@@ -224,12 +232,10 @@ export function createMailboxMessage(input: MailboxMessageInput) {
     summary: requireNonEmptyString(input.summary, "summary"),
     payload_ref: payloadRef,
     requires_ack: input.requires_ack ? 1 : 0,
-    status: input.status ?? "draft",
+    status,
     created_at: now,
     updated_at: now,
-    acknowledged_at:
-      cleanNullableString(input.acknowledged_at) ??
-      (input.status === "acknowledged" ? now : null),
+    acknowledged_at: acknowledgedAt ?? (status === "acknowledged" ? now : null),
     supersedes_message_id: cleanNullableString(input.supersedes_message_id),
   };
   assertMailboxMessageType(row.message_type);
@@ -363,15 +369,25 @@ function appendMailboxStatusEvent(
   createdAt: string,
 ) {
   if (status === "delivered") {
-    appendMailboxEvent(message, "mailbox_message_delivered", createdAt);
+    appendMailboxEvent(message, "mailbox_message_delivered", createdAt, {
+      uniqueEventId: true,
+    });
   } else if (status === "acknowledged") {
-    appendMailboxEvent(message, "mailbox_message_acknowledged", createdAt);
+    appendMailboxEvent(message, "mailbox_message_acknowledged", createdAt, {
+      uniqueEventId: true,
+    });
   } else if (status === "reviewed") {
-    appendMailboxEvent(message, "mailbox_message_reviewed", createdAt);
+    appendMailboxEvent(message, "mailbox_message_reviewed", createdAt, {
+      uniqueEventId: true,
+    });
   } else if (status === "superseded") {
-    appendMailboxEvent(message, "mailbox_message_superseded", createdAt);
+    appendMailboxEvent(message, "mailbox_message_superseded", createdAt, {
+      uniqueEventId: true,
+    });
   } else if (status === "expired") {
-    appendMailboxEvent(message, "mailbox_message_expired", createdAt);
+    appendMailboxEvent(message, "mailbox_message_expired", createdAt, {
+      uniqueEventId: true,
+    });
   }
 }
 
@@ -385,11 +401,15 @@ function appendMailboxEvent(
     | "mailbox_message_superseded"
     | "mailbox_message_expired",
   createdAt: string,
+  options?: { uniqueEventId?: boolean },
 ) {
   const suffix = eventType.replace("mailbox_message_", "");
+  const eventId = options?.uniqueEventId
+    ? `event:${message.message_id}:${suffix}:${randomUUID()}`
+    : `event:${message.message_id}:${suffix}`;
 
   return appendCoordinationEvent({
-    event_id: `event:${message.message_id}:${suffix}`,
+    event_id: eventId,
     event_type: eventType,
     scope: message.scope,
     work_id: message.work_id,
