@@ -6,6 +6,13 @@ import { getWorkItem, normalizeScope, normalizeWorkId } from "@/lib/work";
 
 const DEFAULT_MAILBOX_LIMIT = 50;
 const MAX_MAILBOX_LIMIT = 200;
+const TERMINAL_MAILBOX_STATUSES = ["superseded", "expired"] as const;
+const ACTIVE_REACTIVATION_STATUSES = [
+  "ready",
+  "delivered",
+  "acknowledged",
+  "reviewed",
+] as const;
 
 export const MAILBOX_MESSAGE_TYPES = [
   "handoff",
@@ -92,6 +99,7 @@ export function listMailboxMessages({
   fromAgent,
   toAgent,
   payloadRef,
+  activeOnly = false,
   limit = DEFAULT_MAILBOX_LIMIT,
 }: {
   scope?: string | null;
@@ -101,6 +109,7 @@ export function listMailboxMessages({
   fromAgent?: string | null;
   toAgent?: string | null;
   payloadRef?: string | null;
+  activeOnly?: boolean;
   limit?: number;
 }) {
   const normalizedScope = normalizeScope(scope);
@@ -116,6 +125,11 @@ export function listMailboxMessages({
     assertMailboxStatus(status);
     clauses.push("status = ?");
     params.push(status);
+  }
+
+  if (activeOnly) {
+    clauses.push("status NOT IN (?, ?)");
+    params.push(...TERMINAL_MAILBOX_STATUSES);
   }
 
   if (messageType) {
@@ -333,6 +347,7 @@ export function updateMailboxMessageStatus({
         normalizedScope,
       );
       previousStatus = existing.status;
+      assertTerminalStatusDoesNotReactivate(previousStatus, status);
 
       db.prepare(
         `
@@ -369,6 +384,24 @@ export function updateMailboxMessageStatus({
   }
 
   return message;
+}
+
+function assertTerminalStatusDoesNotReactivate(
+  previousStatus: string,
+  targetStatus: MailboxStatus,
+) {
+  if (
+    TERMINAL_MAILBOX_STATUSES.includes(
+      previousStatus as (typeof TERMINAL_MAILBOX_STATUSES)[number],
+    ) &&
+    ACTIVE_REACTIVATION_STATUSES.includes(
+      targetStatus as (typeof ACTIVE_REACTIVATION_STATUSES)[number],
+    )
+  ) {
+    throw new MailboxValidationError(
+      `Cannot reactivate terminal mailbox message from ${previousStatus} to ${targetStatus}. Reopen behavior is not implemented.`,
+    );
+  }
 }
 
 function appendMailboxStatusEvent(

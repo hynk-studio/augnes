@@ -261,6 +261,43 @@ The mailbox summary tool does not acknowledge messages, update handoff status,
 approve or reject Augnes state, execute Codex, record proof, publish externally,
 post to GitHub or Discord, or create free-form agent chat behavior.
 
+### Mailbox Active View and Reopen Policy
+
+Active mailbox views exclude terminal messages with `superseded` or `expired`
+status. The runtime list API exposes the same read-only composed view with:
+
+```bash
+curl "http://localhost:3000/api/mailbox?scope=project:augnes&active=true"
+```
+
+The summary buckets also exclude `superseded` and `expired` messages and report
+those statuses only under inactive counts. Terminal mailbox states block
+reactivation to `ready`, `delivered`, `acknowledged`, or `reviewed` unless a
+future explicit reopen design is implemented. Do not create a new active mailbox
+row from a terminal row as a workaround.
+
+### Mailbox Summary Verification Checklist
+
+Use this checklist when validating the mailbox summary bridge before Publisher
+or Delivery Ledger work:
+
+- Confirm `GET /api/mailbox/summary?scope=project:augnes` returns a derived
+  read-only view and does not mutate mailbox messages.
+- Confirm public/default ChatGPT App mode does not expose
+  `augnes_get_mailbox_summary`.
+- Confirm bridge mode exposes `augnes_get_mailbox_summary` with
+  `readOnlyHint: true` and `destructiveHint: false`.
+- Confirm bridge output includes `structuredContent.mailbox_summary` and
+  boundary flags or text for derived view only, no mailbox status update, no
+  state commit/reject, no Codex execution, no external publication, and no proof
+  recording.
+- Confirm Cockpit Mailbox Summary has no mailbox write buttons, no
+  approve/reject controls, no commit/reject controls, no Codex execution
+  controls, no publisher controls, and no proof-recording controls.
+- Confirm repeated summary reads create no `action_records`, no `work_events`,
+  no pending proposals, no committed state transitions, and no mailbox status
+  changes.
+
 6. Record the result with `augnes_record_action_result` or the Codex completion helper only after the user explicitly wants proof recorded.
 
 ```json

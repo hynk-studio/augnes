@@ -14,19 +14,17 @@ Phase 2: Handoff Registry + ChatGPT-Codex Review  complete
 Phase 2 integration runbook                       complete
 Phase 3 / PR 3.1 Mailbox Lite storage and API      complete
 Phase 3 / PR 3.2 Mailbox-handoff status sync       complete
-Phase 3 / PR 3.3 Mailbox summary views             implemented in PR #60, pending review/merge
+Phase 3 / PR 3.3 Mailbox summary views             complete
 ```
 
-The next decision after PR #60 should be one of:
+The next implementation decision is:
 
 ```text
-1. Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
-2. Small Phase 3 polish/docs cleanup: active mailbox filters, reopen behavior, or onboarding cleanup
+Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
 ```
 
-Do not begin Phase 4 publisher behavior until the user decides that PR #60 is
-ready to merge or explicitly scopes follow-up work. Mailbox summaries are
-derived read-only views, not sources of truth.
+unless a future explicit Phase 3 polish/reopen task is chosen first. Mailbox
+summaries are derived read-only views, not sources of truth.
 
 ## Read These First
 
@@ -93,11 +91,11 @@ Phase 2 completed:
 
 The current bridge tools are useful for drafting and reviewing handoffs, not for executing Codex or approving state.
 
-Phase 3 completed or in review:
+Phase 3 completed:
 
 - PR 3.1: Mailbox Lite storage and API is complete.
 - PR 3.2: Mailbox integration with handoff status changes is complete.
-- PR 3.3: App and Cockpit mailbox summaries are implemented in draft PR #60 and pending review/merge.
+- PR 3.3: App and Cockpit mailbox summaries are complete.
 - Backend mailbox storage/API remains the source of truth.
 - Mailbox summaries are bounded derived views over mailbox messages.
 - Cockpit mailbox summary panels are read-only.
@@ -106,17 +104,13 @@ Phase 3 completed or in review:
 
 ## Current Next Goal
 
-After PR #60, decide between:
+Next default implementation slice:
 
 ```text
 Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
 ```
 
-or:
-
-```text
-Small Phase 3 polish/docs cleanup: active mailbox filters, reopen behavior, or onboarding cleanup
-```
+Only choose more Phase 3 polish first when the user explicitly scopes it.
 
 Phase 3 added a narrow task-oriented mailbox for handoffs and review-needed
 notices. It should not become a free-form agent social network.
@@ -164,11 +158,19 @@ superseded
 expired
 ```
 
-Phase 3 completed or in review:
+Phase 3 completed:
 
 - PR 3.1 added mailbox storage and create/list/read/update-status APIs.
 - PR 3.2 linked handoff status changes to mailbox messages.
-- PR 3.3 added derived mailbox summaries for Cockpit and ChatGPT Apps bridge in draft PR #60.
+- PR 3.3 added derived mailbox summaries for Cockpit and ChatGPT Apps bridge.
+
+Active mailbox views are composed by excluding terminal `superseded` and
+`expired` messages. The list API supports the read-only filter
+`GET /api/mailbox?scope=project:augnes&active=true`; summary buckets apply the
+same terminal exclusion and report superseded/expired counts only as inactive
+context. Terminal mailbox messages must not be reactivated to `ready`,
+`delivered`, `acknowledged`, or `reviewed` unless a future explicit reopen
+design is implemented.
 
 Phase 3 mailbox surfaces must not add:
 
@@ -260,6 +262,7 @@ POST /api/handoffs/generate
 GET  /api/handoffs?scope=project:augnes
 POST /api/handoffs/review
 GET  /api/mailbox?scope=project:augnes
+GET  /api/mailbox?scope=project:augnes&active=true
 GET  /api/mailbox/summary?scope=project:augnes
 POST /api/mailbox
 GET  /api/mailbox/{message_id}
@@ -309,13 +312,12 @@ No automatic proof recording from review/draft tools.
 A fresh ChatGPT session should do this:
 
 1. Read this file and the roadmap/runbooks listed above.
-2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, and Phase 3 PR 3.2 are complete.
-3. Confirm that Phase 3 PR 3.3 is implemented in draft PR #60 and still needs user review/merge unless it has already merged.
-4. Ask the user to decide whether the next implementation slice should be Phase 4 / PR 4.1 Publisher + Delivery Ledger Lite backend, or a small Phase 3 polish/docs cleanup PR for active mailbox filters, reopen behavior, or onboarding cleanup.
-5. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
-6. Let Codex implement and open or update a draft PR.
-7. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
-8. Let the user decide whether to merge.
+2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, and Phase 3 PR 3.3 are complete.
+3. Ask the user to decide whether the next implementation slice should be Phase 4 / PR 4.1 Publisher + Delivery Ledger Lite backend unless they explicitly choose a future Phase 3 polish/reopen task first.
+4. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
+5. Let Codex implement and open or update a draft PR.
+6. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
+7. Let the user decide whether to merge.
 
 ChatGPT should not merge on its own unless the user explicitly directs it through available GitHub tooling.
 
@@ -338,21 +340,15 @@ The user decides whether to merge.
 
 Do not collapse this into autonomous implementation. The boring boundary is doing important work. Annoying, yes. Useful, also yes.
 
-## Current Open Question After PR 3.3
+## Current Next Goal
 
-After PR #60 review, decide whether to begin:
+Begin:
 
 ```text
 Phase 4 / PR 4.1: Publisher + Delivery Ledger Lite backend
 ```
 
-or run a small Phase 3 polish/docs cleanup PR first for:
-
-```text
-active mailbox filters
-reopen behavior
-onboarding cleanup
-```
+unless the user explicitly chooses a future Phase 3 polish/reopen task first.
 
 Do not add publisher behavior, delivery ledger behavior, external posting, or
 automatic proof recording until the user explicitly scopes that work.

@@ -345,6 +345,29 @@ Do not expose this tool in public/default mode, and do not treat mailbox summary
 output as canonical Augnes memory. The mailbox storage/API remains the source;
 summary buckets are bounded classifications for review.
 
+Active mailbox views exclude terminal `superseded` and `expired` messages. The
+runtime list API exposes that read-only view with:
+
+```bash
+curl "http://localhost:3000/api/mailbox?scope=project:augnes&active=true"
+```
+
+Terminal mailbox states block reactivation to `ready`, `delivered`,
+`acknowledged`, or `reviewed` unless a future explicit reopen design is
+implemented. Do not create replacement active rows from terminal rows as a
+workaround.
+
+Verification before Phase 4 should confirm:
+
+- public/default mode does not expose `augnes_get_mailbox_summary`
+- bridge mode exposes `augnes_get_mailbox_summary` as read-only
+- summary output includes `structuredContent.mailbox_summary` and explicit
+  boundaries for derived view only, no mailbox status update, no state
+  commit/reject, no Codex execution, no external publication, and no proof
+  recording
+- repeated summary reads create no `action_records`, `work_events`, pending
+  proposals, committed state transitions, or mailbox status changes
+
 ## Inspector and ChatGPT
 
 Run MCP Inspector against the local server:
