@@ -25,6 +25,7 @@ export function GET(request: Request) {
     );
     const fromAgent = searchParams.get("from_agent");
     const toAgent = searchParams.get("to_agent");
+    const payloadRef = searchParams.get("payload_ref");
     const limit = readOptionalLimit(searchParams.get("limit"));
 
     return NextResponse.json({
@@ -36,6 +37,7 @@ export function GET(request: Request) {
         messageType,
         fromAgent,
         toAgent,
+        payloadRef,
         limit,
       }),
     });

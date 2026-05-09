@@ -286,6 +286,9 @@ CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_type_time
 CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_to_time
   ON mailbox_messages(scope, to_agent, created_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_mailbox_messages_scope_payload_time
+  ON mailbox_messages(scope, payload_ref, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS coordination_events (
   event_id TEXT PRIMARY KEY,
   event_type TEXT NOT NULL CHECK (

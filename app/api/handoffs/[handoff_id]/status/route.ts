@@ -4,6 +4,7 @@ import {
   updateHandoffStatus,
   type HandoffStatus,
 } from "@/lib/handoffs";
+import { syncMailboxForHandoff } from "@/lib/handoff-mailbox";
 import { normalizeScope } from "@/lib/work";
 import { NextResponse } from "next/server";
 
@@ -25,10 +26,17 @@ export async function POST(
       scope: scope ? normalizeScope(scope) : null,
       status,
     });
+    const mailboxSync = syncMailboxForHandoff(handoff);
 
     return NextResponse.json({
       scope: handoff.scope,
       handoff,
+      ...(mailboxSync.mailbox_message
+        ? {
+            mailbox_message: mailboxSync.mailbox_message,
+            mailbox_sync: mailboxSync.action,
+          }
+        : {}),
     });
   } catch (error) {
     if (error instanceof HandoffNotFoundError) {

@@ -290,9 +290,7 @@ export function createHandoff(input: HandoffInput) {
   }
 
   appendHandoffEvent(handoff, "handoff_created", handoff.created_at);
-  if (handoff.status === "ready") {
-    appendHandoffEvent(handoff, "handoff_ready", handoff.created_at);
-  }
+  appendHandoffStatusEvent(handoff, handoff.created_at);
 
   return handoff;
 }
@@ -335,22 +333,34 @@ export function updateHandoffStatus({
     db.close();
   }
 
-  if (status === "ready") {
-    appendHandoffEvent(handoff, "handoff_ready", now);
-  }
+  appendHandoffStatusEvent(handoff, now);
 
   return handoff;
 }
 
+function appendHandoffStatusEvent(handoff: HandoffRecord, createdAt: string) {
+  if (handoff.status === "ready") {
+    appendHandoffEvent(handoff, "handoff_ready", createdAt);
+  } else if (handoff.status === "delivered") {
+    appendHandoffEvent(handoff, "handoff_delivered", createdAt);
+  } else if (handoff.status === "acknowledged") {
+    appendHandoffEvent(handoff, "handoff_acknowledged", createdAt);
+  }
+}
+
 function appendHandoffEvent(
   handoff: HandoffRecord,
-  eventType: "handoff_created" | "handoff_ready",
+  eventType:
+    | "handoff_created"
+    | "handoff_ready"
+    | "handoff_delivered"
+    | "handoff_acknowledged",
   createdAt: string,
 ) {
+  const suffix = eventType.replace("handoff_", "");
+
   return appendCoordinationEvent({
-    event_id: `event:${handoff.handoff_id}:${
-      eventType === "handoff_created" ? "created" : "ready"
-    }`,
+    event_id: `event:${handoff.handoff_id}:${suffix}`,
     event_type: eventType,
     scope: handoff.scope,
     work_id: handoff.work_id,
