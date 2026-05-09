@@ -744,7 +744,7 @@ function requirePublicationForDelivery(
   return publication;
 }
 
-function getDeliveryByIdempotencyKey({
+export function getDeliveryByIdempotencyKey({
   publicationId,
   targetSurface,
   targetRef,
