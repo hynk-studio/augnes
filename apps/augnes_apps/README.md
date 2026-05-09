@@ -242,6 +242,68 @@ Authority boundary
 Do not expose this tool in public/default mode, and do not use it to launch
 Codex, merge GitHub PRs, post to Discord/GitHub, or approve Augnes state.
 
+## Bridge-gated Codex result review drafts
+
+When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
+running Augnes runtime, the bridge also exposes
+`augnes_review_codex_result_draft`.
+
+Use it after Codex reports work against a handoff:
+
+```json
+{
+  "scope": "project:augnes",
+  "handoffId": "handoff:...",
+  "actualFilesChanged": ["lib/handoff-review.ts"],
+  "actualStateKeys": ["coordination.handoff_registry"],
+  "actualChecks": ["npm run typecheck"],
+  "actualExecutionSurfaces": ["local_runtime", "github"],
+  "resultStatus": "partial",
+  "resultKind": "implementation",
+  "resultSummary": "Implemented review helper and route; browser checks were skipped.",
+  "relatedPr": "https://github.com/Aurna-code/augnes/pull/___",
+  "skippedChecks": [
+    {
+      "check": "ChatGPT Developer Mode",
+      "reason": "No tunnel or Developer Mode session was available."
+    }
+  ]
+}
+```
+
+The tool calls the runtime `POST /api/handoffs/review` endpoint and returns:
+
+- `structuredContent.review`
+- `structuredContent.action_record_draft`
+- `structuredContent.work_event_draft`
+
+Answer pattern:
+
+```text
+Reviewed handoff
+- Identify the handoff ID and work ID.
+
+Expected vs actual
+- Summarize files, state keys, checks, and execution surfaces.
+- Call out skipped checks and exact reasons.
+
+Recommended record
+- Show recommended result status/kind.
+- Show the action record draft and work event draft.
+
+Authority boundary
+- This is review/draft only.
+- It does not execute Codex.
+- It does not record proof.
+- It does not commit/reject Augnes state.
+- It does not publish externally.
+- Proof recording and durable approval remain separate user-directed steps.
+```
+
+Do not expose this tool in public/default mode, and do not use it to record
+action proof, create work events, approve state, launch Codex, or publish to any
+external surface.
+
 ## Inspector and ChatGPT
 
 Run MCP Inspector against the local server:

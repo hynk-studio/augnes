@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import {
   ActionRecordResultSchema,
+  CodexResultReviewDraftSchema,
   GeneratedHandoffDraftSchema,
   ObserveResultSchema,
   PendingProposalsResultSchema,
@@ -11,6 +12,7 @@ import {
   WorkEventResultSchema,
   WorkListResultSchema,
   type ActionRecordResult,
+  type CodexResultReviewDraft,
   type GeneratedHandoffDraft,
   type GenerateHandoffDraftInput,
   type ObserveResult,
@@ -22,6 +24,7 @@ import {
   type StateRuntimeProposal,
   type StateRuntimeScope,
   type StateRuntimeWorkEventInput,
+  type ReviewCodexResultDraftInput,
   type WorkBrief,
   type WorkEventResult,
   type WorkItem,
@@ -39,6 +42,7 @@ const endpointContract = {
   workBrief: { method: "GET", path: "/api/work" },
   recordWorkEvent: { method: "POST", path: "/api/work" },
   generateHandoffDraft: { method: "POST", path: "/api/handoffs/generate" },
+  reviewCodexResultDraft: { method: "POST", path: "/api/handoffs/review" },
 } as const;
 
 export class AugnesStateRuntimeHttpError extends Error {
@@ -283,6 +287,37 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       endpointContract.generateHandoffDraft.path,
       GeneratedHandoffDraftSchema,
       "handoff draft",
+      { body }
+    );
+  }
+
+  async reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft> {
+    const handoffId = input.handoffId.trim();
+    if (!handoffId) {
+      throw new AugnesStateRuntimeHttpError("Augnes handoffId is required.");
+    }
+
+    const body: Record<string, unknown> = {
+      scope: parseScope(input.scope),
+      handoff_id: handoffId,
+      result_summary: input.resultSummary,
+      actual_files_changed: input.actualFilesChanged ?? [],
+      actual_state_keys: input.actualStateKeys ?? [],
+      actual_checks: input.actualChecks ?? [],
+      actual_execution_surfaces: input.actualExecutionSurfaces ?? [],
+      blockers_or_failures: input.blockersOrFailures ?? [],
+      skipped_checks: input.skippedChecks ?? [],
+    };
+
+    if (input.resultStatus) body.result_status = input.resultStatus;
+    if (input.resultKind) body.result_kind = input.resultKind;
+    if (input.relatedPr) body.related_pr = input.relatedPr;
+
+    return this.requestJson(
+      endpointContract.reviewCodexResultDraft.method,
+      endpointContract.reviewCodexResultDraft.path,
+      CodexResultReviewDraftSchema,
+      "Codex result review draft",
       { body }
     );
   }
