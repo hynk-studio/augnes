@@ -3,6 +3,7 @@ import type {
   CodexResultReviewDraft,
   GeneratedHandoffDraft,
   GenerateHandoffDraftInput,
+  MailboxSummaryResult,
   ObserveResult,
   PlanResult,
   StateBrief,
@@ -385,6 +386,64 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         ...(input.relatedPr ? { related_pr: input.relatedPr } : {}),
         related_state_keys: actualStateKeys,
       },
+    };
+  }
+
+  async getMailboxSummary(scope: StateRuntimeScope): Promise<MailboxSummaryResult> {
+    return {
+      scope,
+      as_of: "2026-05-07T00:20:00.000Z",
+      summary: {
+        pending_handoffs: [
+          {
+            message_id: "mailbox:smoke-ready-handoff",
+            scope,
+            work_id: "AG-001",
+            from_agent: "chatgpt",
+            to_agent: "codex",
+            message_type: "handoff",
+            summary: "AG-001 handoff for codex: verify bridge summary behavior.",
+            payload_ref: "handoff:smoke-draft-1",
+            requires_ack: true,
+            status: "ready",
+            created_at: "2026-05-07T00:18:00.000Z",
+            updated_at: "2026-05-07T00:18:00.000Z",
+            acknowledged_at: null,
+            supersedes_message_id: null,
+            summary_reason: "handoff message is ready or delivered",
+          },
+        ],
+        needs_review: [
+          {
+            message_id: "mailbox:smoke-review-request",
+            scope,
+            work_id: "AG-001",
+            from_agent: "codex",
+            to_agent: "chatgpt",
+            message_type: "verification_needed",
+            summary: "Verify the mailbox summary bridge output against runtime state.",
+            payload_ref: null,
+            requires_ack: false,
+            status: "delivered",
+            created_at: "2026-05-07T00:19:00.000Z",
+            updated_at: "2026-05-07T00:19:00.000Z",
+            acknowledged_at: null,
+            supersedes_message_id: null,
+            summary_reason: "message_type is verification_needed",
+          },
+        ],
+        approval_needed: [],
+        blocked_or_partial: [],
+        inactive: {
+          superseded_count: 1,
+          expired_count: 0,
+        },
+      },
+      boundaries: [
+        "Mailbox summaries are derived read-only views, not sources of truth.",
+        "Summaries do not approve, reject, commit, execute Codex, publish, or record proof.",
+        "Superseded and expired messages are excluded from active summary buckets.",
+      ],
     };
   }
 }

@@ -24,6 +24,7 @@ const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_record_work_event",
   "augnes_generate_codex_handoff_draft",
   "augnes_review_codex_result_draft",
+  "augnes_get_mailbox_summary",
 ] as const;
 const INTENDED_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -86,7 +87,12 @@ function assertLegacyTools(tools: Record<string, RegisteredTool>) {
 }
 
 function assertBridgeTools(tools: Record<string, RegisteredTool>) {
-  for (const name of ["augnes_get_state_brief", "augnes_plan", "augnes_list_pending_proposals"] as const) {
+  for (const name of [
+    "augnes_get_state_brief",
+    "augnes_plan",
+    "augnes_list_pending_proposals",
+    "augnes_get_mailbox_summary",
+  ] as const) {
     const tool = tools[name];
     assert.ok(tool, `${name} should be registered`);
     assert.equal(tool.enabled, true, `${name} should be enabled`);

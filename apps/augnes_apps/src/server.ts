@@ -49,6 +49,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_record_work_event",
   "augnes_generate_codex_handoff_draft",
   "augnes_review_codex_result_draft",
+  "augnes_get_mailbox_summary",
 ] as const;
 export const AUGNES_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -231,6 +232,19 @@ function describeCodexResultReviewDraft(handoffId: string, status: string, kind:
   return [
     `Created Codex result review draft for ${handoffId}; recommended ${status}/${kind}.`,
     "This is review/draft only: it does not execute Codex, does not record proof, does not commit or reject Augnes state, and does not publish externally.",
+  ].join(" ");
+}
+
+function describeMailboxSummary(summary: Awaited<ReturnType<StateRuntimeBridgeAdapter["getMailboxSummary"]>>): string {
+  const activeCount =
+    summary.summary.pending_handoffs.length +
+    summary.summary.needs_review.length +
+    summary.summary.approval_needed.length +
+    summary.summary.blocked_or_partial.length;
+
+  return [
+    `Mailbox summary for ${summary.scope}: ${summary.summary.pending_handoffs.length} pending handoff(s), ${summary.summary.needs_review.length} needs-review item(s), ${summary.summary.approval_needed.length} approval-needed item(s), ${summary.summary.blocked_or_partial.length} blocked/partial item(s), ${activeCount} active categorization(s).`,
+    "This is a read-only derived view: it does not acknowledge messages, approve or reject state, execute Codex, publish externally, or record proof.",
   ].join(" ");
 }
 
@@ -954,6 +968,46 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_review_codex_result_draft", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_mailbox_summary",
+      {
+        title: "Get mailbox summary",
+        description:
+          "Read the Augnes mailbox summary buckets for pending handoffs, review needs, approval needs, and blocked or partial results. This is a derived read-only view and does not update mailbox, handoff, state, proof, Codex, or publication surfaces.",
+        inputSchema: { scope: z.string().min(1).optional() },
+        annotations: bridgeReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const mailboxSummary = await stateRuntimeAdapter.getMailboxSummary(resolvedScope);
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            mailbox_summary: mailboxSummary,
+            boundaries: {
+              derived_view_only: true,
+              mailbox_status_update: false,
+              codex_execution: false,
+              proof_recording: false,
+              state_commit_or_reject: false,
+              external_publication: false,
+            },
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeMailboxSummary(mailboxSummary)),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_mailbox_summary", error);
         }
       }
     );

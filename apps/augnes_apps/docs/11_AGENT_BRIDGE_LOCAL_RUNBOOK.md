@@ -90,6 +90,7 @@ With `AUGNES_ENABLE_AGENT_BRIDGE=true`, the Augnes bridge tools are also registe
 - `augnes_record_work_event`
 - `augnes_generate_codex_handoff_draft`
 - `augnes_review_codex_result_draft`
+- `augnes_get_mailbox_summary`
 
 ## Verify Bridge Health
 
@@ -237,6 +238,28 @@ or reject Augnes state, mark handoffs reviewed, post to GitHub or Discord,
 publish externally, or create mailbox behavior. The runtime may append a
 `result_review_created` coordination event with `interpretation_only`
 authority so the review attempt is visible on the event spine.
+
+### Mailbox Summary View
+
+Bridge-enabled mode can read bounded mailbox summary buckets through
+`augnes_get_mailbox_summary`:
+
+```json
+{
+  "scope": "project:augnes"
+}
+```
+
+Answer from the returned `structuredContent.mailbox_summary`:
+
+- Summarize pending handoffs and needs-review items first.
+- Include approval-needed and blocked/partial notices when present.
+- Treat superseded and expired counts as inactive context only.
+- Say the summary is a derived read-only view, not a source of truth.
+
+The mailbox summary tool does not acknowledge messages, update handoff status,
+approve or reject Augnes state, execute Codex, record proof, publish externally,
+post to GitHub or Discord, or create free-form agent chat behavior.
 
 6. Record the result with `augnes_record_action_result` or the Codex completion helper only after the user explicitly wants proof recorded.
 

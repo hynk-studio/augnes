@@ -307,6 +307,50 @@ export const CodexResultReviewDraftSchema = z
   })
   .passthrough();
 
+export const MailboxSummaryItemSchema = z
+  .object({
+    message_id: z.string(),
+    scope: z.string(),
+    work_id: z.string().nullable(),
+    from_agent: z.string(),
+    to_agent: z.string(),
+    message_type: z.string(),
+    summary: z.string(),
+    payload_ref: z.string().nullable(),
+    requires_ack: z.boolean(),
+    status: z.string(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    acknowledged_at: z.string().nullable(),
+    supersedes_message_id: z.string().nullable(),
+    summary_reason: z.string(),
+  })
+  .passthrough();
+
+export const MailboxSummarySchema = z
+  .object({
+    pending_handoffs: z.array(MailboxSummaryItemSchema),
+    needs_review: z.array(MailboxSummaryItemSchema),
+    approval_needed: z.array(MailboxSummaryItemSchema),
+    blocked_or_partial: z.array(MailboxSummaryItemSchema),
+    inactive: z
+      .object({
+        superseded_count: z.number(),
+        expired_count: z.number(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+export const MailboxSummaryResultSchema = z
+  .object({
+    scope: z.string(),
+    as_of: z.string(),
+    summary: MailboxSummarySchema,
+    boundaries: z.array(z.string()),
+  })
+  .passthrough();
+
 export const PendingProposalsResultSchema = z.union([
   z.array(StateRuntimeProposalSchema),
   z
@@ -335,6 +379,7 @@ export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
 export type CodexResultReviewDraft = z.infer<typeof CodexResultReviewDraftSchema>;
+export type MailboxSummaryResult = z.infer<typeof MailboxSummaryResultSchema>;
 
 export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
@@ -397,4 +442,5 @@ export interface StateRuntimeBridgeAdapter {
   recordWorkEvent(input: StateRuntimeWorkEventInput): Promise<WorkEventResult>;
   generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft>;
   reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft>;
+  getMailboxSummary(scope: StateRuntimeScope): Promise<MailboxSummaryResult>;
 }

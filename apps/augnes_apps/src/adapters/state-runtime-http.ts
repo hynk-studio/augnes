@@ -3,6 +3,7 @@ import {
   ActionRecordResultSchema,
   CodexResultReviewDraftSchema,
   GeneratedHandoffDraftSchema,
+  MailboxSummaryResultSchema,
   ObserveResultSchema,
   PendingProposalsResultSchema,
   PlanResultSchema,
@@ -15,6 +16,7 @@ import {
   type CodexResultReviewDraft,
   type GeneratedHandoffDraft,
   type GenerateHandoffDraftInput,
+  type MailboxSummaryResult,
   type ObserveResult,
   type PlanResult,
   type StateBrief,
@@ -43,6 +45,7 @@ const endpointContract = {
   recordWorkEvent: { method: "POST", path: "/api/work" },
   generateHandoffDraft: { method: "POST", path: "/api/handoffs/generate" },
   reviewCodexResultDraft: { method: "POST", path: "/api/handoffs/review" },
+  mailboxSummary: { method: "GET", path: "/api/mailbox/summary" },
 } as const;
 
 export class AugnesStateRuntimeHttpError extends Error {
@@ -319,6 +322,18 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       CodexResultReviewDraftSchema,
       "Codex result review draft",
       { body }
+    );
+  }
+
+  async getMailboxSummary(scope: StateRuntimeScope): Promise<MailboxSummaryResult> {
+    return this.requestJson(
+      endpointContract.mailboxSummary.method,
+      endpointContract.mailboxSummary.path,
+      MailboxSummaryResultSchema,
+      "mailbox summary",
+      {
+        query: { scope: parseScope(scope) },
+      }
     );
   }
 
