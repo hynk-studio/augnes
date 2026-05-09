@@ -25,6 +25,10 @@ The public tool surface remains exactly:
 - `navigate_repo`
 - `get_governance_audit`
 
+Bridge-gated tools may be enabled for local operator workflows with
+`AUGNES_ENABLE_AGENT_BRIDGE=true`. They are not part of the public default
+surface.
+
 ## Local run
 
 ```bash
@@ -194,6 +198,49 @@ Set these in the shell or in an untracked local `.env` file:
 `AUGNES_RESOURCE_DOMAIN` is used for the widget resource domain. `AUGNES_APP_DOMAIN` and `AUGNES_CONNECT_DOMAIN` remain available for compatibility with earlier local app metadata, but the widget itself does not require external connect or resource domains. Only safe origins should be configured.
 
 Backward compatibility: without `AUGNES_CORE_MODE`, `AUGNES_USE_MOCK=true` selects mock mode and `AUGNES_USE_MOCK=false` selects HTTP mode. The default remains mock.
+
+## Bridge-gated Codex handoff drafts
+
+When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
+running Augnes runtime, the bridge exposes
+`augnes_generate_codex_handoff_draft`.
+
+Use it when a user asks for a Codex handoff draft for a work ID:
+
+```json
+{
+  "scope": "project:augnes",
+  "workId": "AG-006",
+  "targetAgent": "codex",
+  "createdBy": "chatgpt"
+}
+```
+
+The tool calls the runtime `POST /api/handoffs/generate` endpoint and returns:
+
+- a plain-language reminder that the result is a draft guidance packet
+- `structuredContent.handoff`
+- `structuredContent.packet_text`
+- expected files, state keys, checks, execution surfaces, safety boundaries, and completion record fields
+
+Answer pattern:
+
+```text
+Current state
+- Summarize the relevant state/work context briefly.
+
+Codex handoff draft
+- Say this is a draft/guidance packet, not an execution trigger.
+- Show or offer to copy packet_text.
+
+Authority boundary
+- Codex execution happens outside this tool.
+- Durable approval remains in Augnes Core or Runtime Cockpit.
+- The tool does not commit/reject state, mark the handoff ready/delivered, or publish externally.
+```
+
+Do not expose this tool in public/default mode, and do not use it to launch
+Codex, merge GitHub PRs, post to Discord/GitHub, or approve Augnes state.
 
 ## Inspector and ChatGPT
 

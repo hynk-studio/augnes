@@ -197,6 +197,38 @@ export const WorkEventResultSchema = z
   })
   .passthrough();
 
+export const HandoffRecordSchema = z
+  .object({
+    handoff_id: z.string(),
+    scope: z.string(),
+    work_id: z.string().nullable(),
+    source_state_brief_ref: z.string().nullable(),
+    source_work_brief_ref: z.string().nullable(),
+    target_agent: z.string(),
+    status: z.string(),
+    current_committed_state_summary: z.string(),
+    task_brief: z.string(),
+    expected_files: z.array(z.string()),
+    expected_state_keys: z.array(z.string()),
+    expected_checks: z.array(z.string()),
+    expected_execution_surfaces: z.array(z.string()),
+    safety_boundaries: z.array(z.string()),
+    completion_record_fields: z.record(z.unknown()),
+    created_by: z.string(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    supersedes_handoff_id: z.string().nullable(),
+  })
+  .passthrough();
+
+export const GeneratedHandoffDraftSchema = z
+  .object({
+    scope: z.string(),
+    handoff: HandoffRecordSchema,
+    packet_text: z.string(),
+  })
+  .passthrough();
+
 export const PendingProposalsResultSchema = z.union([
   z.array(StateRuntimeProposalSchema),
   z
@@ -222,6 +254,8 @@ export type StateRuntimeActionResultKind = z.infer<typeof StateRuntimeActionResu
 export type WorkItem = z.infer<typeof WorkItemSchema>;
 export type WorkBrief = z.infer<typeof WorkBriefSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
+export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
+export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
 
 export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
@@ -251,6 +285,13 @@ export interface StateRuntimeWorkEventInput {
   relatedStateKeys?: string[];
 }
 
+export interface GenerateHandoffDraftInput {
+  scope: StateRuntimeScope;
+  workId: string;
+  targetAgent?: string;
+  createdBy?: string;
+}
+
 export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   observe(input: StateRuntimeMessageInput): Promise<ObserveResult>;
@@ -260,4 +301,5 @@ export interface StateRuntimeBridgeAdapter {
   listWorkItems(scope: StateRuntimeScope): Promise<WorkItem[]>;
   getWorkBrief(scope: StateRuntimeScope, workId: string): Promise<WorkBrief>;
   recordWorkEvent(input: StateRuntimeWorkEventInput): Promise<WorkEventResult>;
+  generateHandoffDraft(input: GenerateHandoffDraftInput): Promise<GeneratedHandoffDraft>;
 }

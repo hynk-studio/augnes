@@ -22,6 +22,7 @@ const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_record_action_result",
   "augnes_list_pending_proposals",
   "augnes_record_work_event",
+  "augnes_generate_codex_handoff_draft",
 ] as const;
 const INTENDED_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -92,7 +93,12 @@ function assertBridgeTools(tools: Record<string, RegisteredTool>) {
     assert.equal(tool.execution?.taskSupport, "forbidden", `${name} must not expose task/job execution`);
   }
 
-  for (const name of ["augnes_observe", "augnes_record_action_result", "augnes_record_work_event"] as const) {
+  for (const name of [
+    "augnes_observe",
+    "augnes_record_action_result",
+    "augnes_record_work_event",
+    "augnes_generate_codex_handoff_draft",
+  ] as const) {
     const tool = tools[name];
     assert.ok(tool, `${name} should be registered`);
     assert.equal(tool.enabled, true, `${name} should be enabled`);

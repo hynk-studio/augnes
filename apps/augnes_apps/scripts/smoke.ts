@@ -147,6 +147,11 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             resultKind: 'verification',
             relatedStateKeys: ['current_focus'],
           },
+          augnes_generate_codex_handoff_draft: {
+            workId: 'AG-001',
+            targetAgent: 'codex',
+            createdBy: 'chatgpt',
+          },
         };
         const profiles = {};
         for (const name of AUGNES_BRIDGE_TOOL_NAMES) {
@@ -158,6 +163,9 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             agentHandoff: result.structuredContent?.brief?.agent_handoff,
             actionRecord: result.structuredContent?.actionRecord,
             eventResult: result.structuredContent?.eventResult,
+            handoff: result.structuredContent?.handoff,
+            packetText: result.structuredContent?.packet_text,
+            expectedStateKeys: result.structuredContent?.expected_state_keys,
           };
         }
         const richRecordResult = await server._registeredTools.augnes_record_action_result.handler({
@@ -408,6 +416,26 @@ async function main() {
     bridgeSnapshot.profiles.augnes_record_work_event.text,
     /no state deltas were committed or rejected/i,
     "augnes_record_work_event should state that it does not commit or reject state"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.handoff.status,
+    "draft",
+    "augnes_generate_codex_handoff_draft should leave generated handoffs in draft status"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.text,
+    /does not execute Codex/i,
+    "augnes_generate_codex_handoff_draft should state that it is not an execution trigger"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.packetText,
+    /Codex Handoff Packet/,
+    "augnes_generate_codex_handoff_draft should return copyable packet_text"
+  );
+  assert.deepEqual(
+    bridgeSnapshot.profiles.augnes_generate_codex_handoff_draft.expectedStateKeys,
+    ["current_focus"],
+    "augnes_generate_codex_handoff_draft should expose expected_state_keys in structuredContent"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_state_brief.text,

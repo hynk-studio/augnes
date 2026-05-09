@@ -86,6 +86,7 @@ With `AUGNES_ENABLE_AGENT_BRIDGE=true`, the Augnes bridge tools are also registe
 - `augnes_plan`
 - `augnes_record_action_result`
 - `augnes_list_pending_proposals`
+- `augnes_generate_codex_handoff_draft`
 
 ## Verify Bridge Health
 
@@ -162,6 +163,30 @@ When the Augnes runtime includes `agent_handoff` in `/api/state/brief`, `augnes_
 3. Generate or copy a Codex Handoff Packet.
 
 Use `docs/CODEX_HANDOFF_PACKET.md` as the format. The handoff should name the `AG-xxx` work ID, related state keys, expected files, verification commands, expected surfaces, and safety boundaries. The handoff is a packet for the user or Codex to execute; it is not a ChatGPT App command to run Codex.
+
+Bridge-enabled mode can create a durable draft packet through
+`augnes_generate_codex_handoff_draft`:
+
+```json
+{
+  "scope": "project:augnes",
+  "workId": "AG-006",
+  "targetAgent": "codex",
+  "createdBy": "chatgpt"
+}
+```
+
+Answer from the returned `structuredContent`:
+
+- Explain the current state or work context briefly.
+- Say this is a Codex handoff draft and guidance packet.
+- Show or offer to copy `packet_text`.
+- Remind the user that Codex execution happens outside this tool.
+- Remind the user that durable approval remains in Augnes Core or Runtime Cockpit.
+
+The tool creates a draft handoff record only. It does not call Codex, mark the
+handoff ready or delivered, commit or reject Augnes state, publish externally,
+post to GitHub or Discord, or create mailbox behavior.
 
 4. Let Codex perform a small repo task using its own capabilities, for example:
 
