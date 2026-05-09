@@ -331,6 +331,7 @@ https://<tunnel-host>/mcp
 
 Runbooks:
 
+- [Phase 2 Handoff Review Integration Runbook](../../docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md)
 - [Developer Mode Runbook](docs/07_DEVELOPER_MODE_RUNBOOK.md)
 - [Work Tools Live Validation](docs/08_WORK_TOOLS_LIVE_VALIDATION.md)
 - [First Run Validation](docs/08_FIRST_RUN_VALIDATION.md)

@@ -13,6 +13,7 @@ This roadmap should be read together with:
 - `docs/VERIFICATION_EVIDENCE_PACK.md`
 - `docs/EXECUTION_SURFACE_RECORD.md`
 - `docs/EXPECTED_IMPACT_CHECK.md`
+- `docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md`
 - `.github/pull_request_template.md`
 - `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md`
 - `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md`

@@ -19,6 +19,7 @@ Use the root trace docs for PR work:
 - `docs/VERIFICATION_EVIDENCE_PACK.md`
 - `docs/EXECUTION_SURFACE_RECORD.md`
 - `docs/EXPECTED_IMPACT_CHECK.md`
+- `docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md`
 - `.github/pull_request_template.md`
 
 ## Prerequisites
