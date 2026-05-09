@@ -24,9 +24,10 @@ const DEFAULT_EXPECTED_CHECKS = [
 
 const DEFAULT_EXECUTION_SURFACES = [
   "local_runtime",
-  "Browser/Chrome",
-  "GitHub",
-  "ChatGPT Developer Mode when available",
+  "browser",
+  "chrome",
+  "github",
+  "chatgpt_developer_mode",
 ];
 
 const BASE_SAFETY_BOUNDARIES = [
