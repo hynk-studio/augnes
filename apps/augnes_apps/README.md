@@ -386,6 +386,10 @@ Use it when a user asks for publication previews or delivery status:
 The tool calls the runtime `GET /api/publications/summary` endpoint and returns
 `structuredContent.publication_summary`.
 
+`augnes_get_publication_summary` has been verified in ChatGPT Developer Mode via
+PR #66. It is still a bridge-gated read-only summary tool; it does not publish,
+approve, retry, or authorize anything.
+
 Answer pattern:
 
 ```text
@@ -405,7 +409,9 @@ Do not expose this tool in public/default mode. Public/default mode also must
 not expose publication approval, publish, retry, proof-recording, state-commit,
 or Codex-execution tools. Live GitHub posting requires a separate approved test
 slice with a specific target, scoped `GITHUB_TOKEN`, unique `idempotency_key`,
-and replay check proving no duplicate comment.
+and replay check proving no duplicate comment. PR #67 completed the first live
+GitHub adapter test and kept the test comment as evidence; that test does not
+authorize automatic posting in future PRs.
 
 ## Inspector and ChatGPT
 

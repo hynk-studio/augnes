@@ -466,8 +466,11 @@ Start small:
 All external publishing should be preview-first and approval-based by default.
 The current GitHub PR comment adapter exists behind explicit approval, dry-run,
 stored `target_ref`, idempotency, fresh delivery-row, token, and specific-target
-gates. Do not treat that as live GitHub posting being verified until a separate
-approved live test slice records that evidence.
+gates. PR #67 recorded the first approved live GitHub PR comment adapter test:
+one comment was posted to PR #67, replay with the same `idempotency_key` created
+no duplicate comment, one sent delivery was recorded, and no PR merge/review or
+Discord/webhook/proof/state mutation occurred. This evidence does not authorize
+automatic posting in future PRs.
 
 ### ChatGPT Apps User Surface
 
@@ -513,8 +516,8 @@ Status: implemented.
 - Added dry-run behavior, stored `target_ref`, `GITHUB_TOKEN` gating, and
   idempotency handling to avoid duplicate posting.
 - Did not add auto-merge.
-- Live GitHub posting is not claimed as verified until a separately approved
-  live test target is used.
+- Live GitHub posting was verified by PR #67 with one retained test comment and
+  an idempotent replay check that produced no duplicate.
 
 Verification:
 
@@ -537,6 +540,15 @@ Verification:
 
 - no automatic posting in public profile
 - delivery status visible after success/failure
+
+#### Phase 4 verification status
+
+- PR 4.1 backend is complete.
+- PR 4.2 GitHub PR comment adapter is complete.
+- PR 4.3 read-only App and Cockpit views are complete.
+- Developer Mode publication summary verification is complete via PR #66.
+- First live GitHub PR comment test is complete via PR #67, with one retained
+  test comment and no duplicate replay.
 
 ## Cross-Phase Invariants
 

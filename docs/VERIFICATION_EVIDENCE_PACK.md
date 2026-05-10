@@ -66,6 +66,16 @@ For MCP Inspector or widget checks, record:
 - widget URI and profile when relevant
 - proof recorded back into Augnes, if any
 
+### Live Publication Adapter Checks
+
+Only include live GitHub publication adapter evidence when the user/PM explicitly
+approved one specific target for that PR. Record the target PR, comment id/URL,
+`idempotency_key`, dry-run result, actual publish result, replay result, delivery
+ledger result, and event-spine result. PR #67 is the baseline example: one live
+GitHub PR comment, comment id `4414174258`, one sent delivery, publication
+became sent, replay produced no duplicate, and the retained comment remains
+evidence. This does not authorize automatic posting in future PRs.
+
 ### Artifacts
 
 Artifacts include screenshots, local DB files, generated `outputs/`, log captures, and tunnel URLs. The evidence pack should summarize artifacts without committing them.

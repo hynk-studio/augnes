@@ -18,18 +18,21 @@ Phase 3 / PR 3.3 Mailbox summary views             complete
 Phase 4 / PR 4.1 Publication draft + delivery ledger backend complete
 Phase 4 / PR 4.2 GitHub PR comment publication adapter complete
 Phase 4 / PR 4.3 App and Cockpit publication preview / delivery status views complete
+Developer Mode publication summary verification via PR #66 complete
+Live GitHub PR comment adapter test via PR #67 complete
 ```
 
-The next sequence is:
+The next decision is one of:
 
 ```text
-1. Developer Mode verification pass for augnes_get_publication_summary.
-2. Live GitHub test flow for the PR comment adapter, only after explicit user/PM approval, a specific test PR target, and a safe scoped GITHUB_TOKEN.
-3. Future explicit approve/publish Cockpit workflow only if separately scoped.
+1. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
+2. Additional live-test/hardening only if a new adapter or target surface is introduced.
+3. Discord/webhook adapter only if explicitly scoped later.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
-are derived read-only views, not sources of truth.
+are derived read-only views, not sources of truth. Do not repeat live GitHub
+posting unless the user/PM explicitly approves one specific target.
 
 ## Read These First
 
@@ -112,23 +115,44 @@ Phase 4 completed:
 - PR 4.1: Publication draft and delivery ledger backend records are complete.
 - PR 4.2: GitHub PR comment publication adapter is complete behind explicit approval, dry-run, stored `target_ref`, idempotency, and token gates.
 - PR 4.3: App and Cockpit publication preview / delivery status views are complete.
+- Developer Mode publication summary verification is complete via PR #66.
+- Live GitHub PR comment adapter testing is complete via PR #67.
 - Publication preview and delivery status views are bounded derived read-only views, not authority.
 - Actual GitHub posting remains gated by approved publication status, explicit `dry_run=false`, stored publication `target_ref`, required `idempotency_key`, fresh delivery row, token availability, and explicit user/PM approval for a specific target.
 - No Cockpit publish controls, ChatGPT App publish tools, Discord/webhook adapter, auto-posting, or proof recording have been added.
 
+## Live GitHub Adapter Test Baseline
+
+PR #67 performed the first approved live GitHub PR comment adapter test:
+
+- One live GitHub PR comment was posted to PR #67.
+- Test comment id: `4414174258`.
+- Test comment URL: `https://github.com/Aurna-code/augnes/pull/67#issuecomment-4414174258`.
+- The comment is intentionally kept as evidence. Do not delete it unless the user explicitly requests deletion.
+- Replaying the same `idempotency_key` created no duplicate comment.
+- The delivery ledger recorded one sent delivery.
+- The publication became `sent`.
+- No auto-merge, PR review approval, reviewer request, PR title/body/label mutation, Discord/webhook posting, proof recording, state commit/reject, or Codex execution occurred.
+- This test does not authorize automatic posting in future PRs.
+
+Future live posting must remain preview-first, approval-gated, idempotent, and
+target-specific.
+
 ## Current Next Goal
 
-Next default sequence:
+Next default decision:
 
 ```text
-1. Developer Mode verification pass for augnes_get_publication_summary.
-2. Live GitHub test flow for the PR comment adapter, only after explicit user/PM approval, a specific test PR target, and a safe scoped GITHUB_TOKEN.
-3. Future explicit approve/publish Cockpit workflow only if separately scoped.
+1. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
+2. Additional live-test/hardening only if a new adapter or target surface is introduced.
+3. Discord/webhook adapter only if explicitly scoped later.
 ```
 
 Do not restart Phase 4 / PR 4.1. Do not add publish buttons, approval
 controls, retry controls, or ChatGPT App publish tools without a separate
-explicit PR.
+explicit PR. Do not repeat live GitHub posting unless the user/PM explicitly
+approves a specific target. Do not delete the PR #67 test comment unless the
+user explicitly requests deletion.
 
 Phase 3 added a narrow task-oriented mailbox for handoffs and review-needed
 notices. It should not become a free-form agent social network.
@@ -231,27 +255,15 @@ Actual GitHub posting remains gated by all of the following:
 - token availability
 - explicit user/PM approval for a specific target
 
-## Next Verification Slice: Developer Mode Publication Summary
+## Completed Publication Verification Slices
 
-The next PR should verify `augnes_get_publication_summary` through true ChatGPT
-Developer Mode if available:
+`augnes_get_publication_summary` has true ChatGPT Developer Mode verification
+from PR #66. The tool remains bridge-gated and read-only; public/default mode
+must not expose publication summary, approval, publish, or retry tools.
 
-1. Start the Augnes runtime.
-2. Start the Augnes Apps bridge with `AUGNES_ENABLE_AGENT_BRIDGE=true`.
-3. Expose the bridge with `cloudflared`.
-4. Register the redacted `/mcp` endpoint in ChatGPT Developer Mode.
-5. Invoke `augnes_get_publication_summary`.
-6. Compare the result with `GET /api/publications/summary?scope=project:augnes`.
-7. Verify read-only boundaries.
-8. Verify public/default mode exposes no publication summary, approval, publish, or retry tools.
-
-Tunnel URLs and screenshots are local artifacts unless the user explicitly asks
-to commit them. Redact tunnel hostnames in PR bodies and proof notes.
-
-## Next Live GitHub Test Slice
-
-Live GitHub testing must not be bundled into docs or summary view PRs. It
-requires:
+The GitHub PR comment adapter has a completed live GitHub test from PR #67.
+Future live GitHub testing must not be bundled into unrelated docs or summary
+view PRs. It requires:
 
 - explicit user/PM approval
 - specific test PR `target_ref`
@@ -260,6 +272,9 @@ requires:
 - one comment only
 - replay check proving no duplicate comment
 - no PR merge, review, label, title, or body mutation
+
+The PR #67 test comment is intentionally retained as evidence. Do not delete it
+unless explicitly requested.
 
 ## Working Directory Rules
 
@@ -406,8 +421,8 @@ No automatic proof recording from review/draft tools.
 A fresh ChatGPT session should do this:
 
 1. Read this file and the roadmap/runbooks listed above.
-2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, Phase 3 PR 3.3, Phase 4 PR 4.1, Phase 4 PR 4.2, and Phase 4 PR 4.3 are complete.
-3. Continue with the Developer Mode verification pass for `augnes_get_publication_summary`, unless the user explicitly chooses the separately gated live GitHub test slice or a future approve/publish Cockpit workflow.
+2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, Phase 3 PR 3.3, Phase 4 PR 4.1, Phase 4 PR 4.2, Phase 4 PR 4.3, Developer Mode publication summary verification via PR #66, and the live GitHub adapter test via PR #67 are complete.
+3. Ask the user to choose whether to scope an explicit approve/publish Cockpit workflow PR, pause Phase 4 publication work, add live-test/hardening only for a new adapter or target surface, or separately scope a Discord/webhook adapter.
 4. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
 5. Let Codex implement and open or update a draft PR.
 6. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
@@ -439,10 +454,11 @@ Do not collapse this into autonomous implementation. The boring boundary is doin
 Begin with:
 
 ```text
-Developer Mode verification pass for augnes_get_publication_summary
+Decide whether to scope an explicit approve/publish Cockpit workflow PR, or pause Phase 4 publication work.
 ```
 
-Then, only after explicit user/PM approval and a specific safe target, perform a
-live GitHub test flow for the PR comment adapter. Do not add publish buttons,
-approval controls, retry controls, external posting, Discord/webhook behavior,
-or automatic proof recording until the user explicitly scopes that work.
+Do not repeat live GitHub posting unless the user/PM explicitly approves a
+specific target. Do not delete the PR #67 test comment unless explicitly
+requested. Do not add publish buttons, approval controls, retry controls,
+external posting, Discord/webhook behavior, or automatic proof recording until
+the user explicitly scopes that work.
