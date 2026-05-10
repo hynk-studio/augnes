@@ -1,7 +1,8 @@
-# Augnes C5 Live GitHub Publish Test Decision
+# Augnes C5 Live GitHub Publish Test Decision Pattern
 
-This document prepares, but does not approve or execute, a future live C5
-GitHub PR comment publish test.
+This document preserves the first approved C5 live-test decision pattern and
+the historical PR #81 decision packet. It also keeps the approval packet
+template for any future live C5 GitHub PR comment publish test.
 
 ## Purpose
 
@@ -12,17 +13,44 @@ POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-co
 ```
 
 The C5 route has been verified with `dry_run=true` previews and blocked
-validation checks. The `dry_run=false` live path exists, but live posting
-remains unverified after C5.
+validation checks. PR #78 implemented the `dry_run=false` live path without
+executing live posting in that implementation PR. PR #81 later fulfilled the
+first approved live C5 test with one retained GitHub PR comment. PR #82 fixed
+same-key sent/acknowledged replay semantics discovered by that PR #81 evidence.
 
-A live C5 test would create one real GitHub PR comment. That external side
-effect requires explicit user/PM approval for one exact target before any
-`dry_run=false` request is made.
+A live C5 test creates one real GitHub PR comment. That external side effect
+requires explicit user/PM approval for one exact target before any
+`dry_run=false` request is made. PR #81 satisfied that requirement only for its
+own exact target.
 
-PR #67 remains historical evidence only. It proved one earlier approved live
-adapter test and replay behavior, but it does not authorize this future live
-post, automatic posting, broad GitHub write authority, or bundled posting in an
-unrelated PR.
+PR #67 remains historical evidence for the lower-level adapter path. PR #81
+remains historical evidence for the Core-gated C5 path. Neither authorizes a
+future live post, automatic posting, broad GitHub write authority, or bundled
+posting in an unrelated PR.
+
+## Historical PR #81 Decision Packet
+
+PR #81 fulfilled the first approved live C5 test:
+
+- Target: `Aurna-code/augnes#81`.
+- Idempotency key: `augnes-c5-live-test-pr-81-v1`.
+- GitHub comment id: `4414928332`.
+- GitHub comment URL: `https://github.com/Aurna-code/augnes/pull/81#issuecomment-4414928332`.
+- Delivery status: `sent`.
+- Publication status: `sent`.
+- Exactly one matching comment was observed.
+- No manual GitHub UI posting occurred.
+- No merge/review/label/title/body mutation occurred.
+- No proof recording, mailbox status update, or Augnes state mutation occurred.
+
+PR #82 fixed same-key replay semantics after the PR #81 live test:
+
+- Same-key sent/acknowledged replay returns HTTP 200 with
+  `idempotent_replay=true` and `posted=false`.
+- Different-key duplicate remains HTTP 409.
+- Pending delivery remains HTTP 409.
+- `dry_run=true` with an existing sent delivery remains blocked.
+- No live GitHub posting occurred in PR #82.
 
 ## Current Authority Boundary
 
@@ -40,24 +68,24 @@ unrelated PR.
   record proof, update mailbox status, commit/reject Augnes state, or execute
   Codex.
 
-## Candidate Live-Test Target
+## Candidate Future Live-Test Target
 
 No target is approved by this document.
 
-Recommended candidate:
+Future recommended candidate:
 
 ```text
 Aurna-code/augnes#<LIVE_TEST_PR_NUMBER>
 ```
 
 The recommended candidate is the future live-test PR itself, opened separately
-after this decision PR is reviewed and merged. A self-targeted live-test PR is
-self-contained, auditable, low ambiguity, and easy to retain as evidence.
+after the user/PM decides a new live test is needed. A self-targeted live-test
+PR is self-contained, auditable, low ambiguity, and easy to retain as evidence.
 
 The exact target must be filled in only after the PR number exists and the
 user/PM explicitly approves it.
 
-## Proposed Live-Test Comment Body
+## Proposed Future Live-Test Comment Body
 
 Use this exact body unless the future approval packet explicitly changes it:
 
@@ -78,9 +106,9 @@ This is a test comment and should be retained as evidence unless the user/PM exp
 The final comment body must not include secrets, local paths, tunnel URLs,
 screenshots, or local-only artifact references.
 
-## Required Explicit Approval Packet
+## Required Explicit Approval Packet For Future Live Tests
 
-A later live-test PR must not run `dry_run=false` until the user/PM explicitly
+Any later live-test PR must not run `dry_run=false` until the user/PM explicitly
 approves all fields below:
 
 ```yaml
@@ -121,9 +149,10 @@ Approval must name the exact target and exact `idempotency_key`. Approval for a
 template, placeholder, different PR number, different repository, or general
 future posting is not sufficient.
 
-## Proposed Live-Test Sequence For A Later PR
+## Proposed Future Live-Test Sequence
 
-These steps are documentation only. Do not execute them in this decision PR.
+These steps are documentation only. Do not execute them without a new exact
+approval packet.
 
 1. Confirm the exact user/PM approval packet for one target.
 2. Start a local runtime with the approved `GITHUB_TOKEN` available only for
@@ -154,9 +183,9 @@ These steps are documentation only. Do not execute them in this decision PR.
 - A failed live test does not authorize repeated attempts.
 - A new `idempotency_key` is not a retry authorization.
 
-## Non-Goals
+## Non-Goals For This Pattern Document
 
-This decision PR does not:
+This pattern document does not:
 
 - run `dry_run=false`
 - use `GITHUB_TOKEN`
@@ -172,14 +201,15 @@ This decision PR does not:
 - mutate PR merge, review, label, title, or body state, except for normal PR
   body updates performed by Codex while opening this documentation PR
 
-## Decision Needed
+## Decision Needed For Future Live Tests
 
-The next step requires user/PM judgment:
+Any future live test requires user/PM judgment:
 
 ```text
-Should Augnes run one live C5 GitHub PR comment publish test, and if so, what
-exact target, exact idempotency_key, exact comment body, token scope, and
+Should Augnes run another live C5 GitHub PR comment publish test, and if so,
+what exact target, exact idempotency_key, exact comment body, token scope, and
 retain/delete decision are approved?
 ```
 
-Without that explicit approval packet, live C5 publish remains unapproved.
+Without that explicit approval packet, another live C5 publish remains
+unapproved. PR #81 does not authorize broad or automatic future posting.

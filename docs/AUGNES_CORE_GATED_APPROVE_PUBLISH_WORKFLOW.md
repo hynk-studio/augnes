@@ -4,10 +4,12 @@ This document defines the Core-gated approve/publish workflow for Augnes.
 C1 approval request records, C2 read-only gate-state rendering, C3
 Core-gated approval grant routing, and C4 Core-gated dry-run publish readiness
 routing are implemented. C5 explicit Core-gated GitHub PR comment publish
-routing is also implemented, with `dry_run=true` preview verification only in
-the implementation PR. The implemented C4 route records readiness evidence
-only; it does not publish, retry, create delivery rows, record proof, update
-mailbox status, commit/reject state, execute Codex, invoke the GitHub PR comment
+routing is also implemented. PR #78 implemented C5 without live posting. PR #81
+executed one approved live C5 GitHub PR comment publish test against
+`Aurna-code/augnes#81`. PR #82 fixed same-key sent/acknowledged replay semantics
+without live posting. The implemented C4 route records readiness evidence only;
+it does not publish, retry, create delivery rows, record proof, update mailbox
+status, commit/reject state, execute Codex, invoke the GitHub PR comment
 adapter, use `GITHUB_TOKEN`, post to GitHub, post to Discord, add app tools, or
 add Cockpit write controls.
 
@@ -37,6 +39,14 @@ It proved that one approved target could be posted once, replayed without a
 duplicate, and recorded in the delivery ledger. It does not grant future
 automatic posting permission, broad GitHub write authority, or permission to
 bundle live posting into unrelated PRs.
+
+PR #81 is evidence of the first target-specific live C5 publish test. It posted
+one retained GitHub PR comment to `Aurna-code/augnes#81` under exact approval,
+with comment id `4414928332` and URL
+`https://github.com/Aurna-code/augnes/pull/81#issuecomment-4414928332`. It did
+not authorize automatic posting, broad GitHub write authority, or additional
+future live posts. Future live tests still require a fresh exact approval
+packet.
 
 ## Authority Model
 
@@ -345,15 +355,20 @@ Recommended slices:
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
   preserving PR #67 idempotency rules. Status: implemented at
   `POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment`;
-  the C5 implementation PR did not execute live posting.
-- PR C5 live-test decision: Status: documented in
-  `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md`; no live target is
-  approved by that document.
-- PR C6: Retry workflow design and implementation only after C5 evidence.
-- PR C7: Optional Cockpit write controls, only after Core approval/publish
-  routes exist.
-- PR C8: Optional ChatGPT Apps intent collection, only if the user explicitly
-  approves that surface behavior.
+  PR #78 did not execute live posting.
+- PR C5 live-test decision: Status: complete via PR #79. The decision document
+  is now a historical decision pattern and future approval template, not
+  standing approval for additional live posts.
+- PR C5 live test: Status: complete via PR #81. One approved live C5 publish
+  posted exactly one retained GitHub PR comment to `Aurna-code/augnes#81`.
+- PR C5 replay semantics fix: Status: complete via PR #82. Same-key
+  sent/acknowledged replay returns HTTP 200 with `idempotent_replay=true` and
+  `posted=false`; different-key duplicate and pending delivery conflicts remain
+  blocked.
+- Next productization slice after C5 live evidence: session model, temporal
+  interpretation, delivery external artifact persistence, ChatGPT Apps
+  cross-session tools, Codex session adapter, Cockpit write-control design,
+  GitHub App/token model, or retry design if needed.
 
 Each implementation PR should restate expected versus actual impact, authority
 boundaries, verification evidence, skipped checks, and whether any live external
@@ -361,7 +376,7 @@ posting was explicitly approved for one target.
 
 ## Remaining Non-Goals
 
-The implemented C1-C5 slices do not add:
+The implemented C1-C5 slices and PR #81 live test do not add:
 
 - App tools.
 - Cockpit buttons.
@@ -369,7 +384,7 @@ The implemented C1-C5 slices do not add:
 - Proof recording.
 - Mailbox status updates.
 - State commit/reject behavior.
-- GitHub posting.
+- unapproved, automatic, or additional GitHub posting.
 - Discord/webhook posting.
 - Auto-merge.
 - PR review, label, title, or body mutation.
@@ -576,19 +591,34 @@ The C5 slice implements an explicit Core-gated GitHub PR comment publish route:
   `POST /api/publications/{publication_id}/publish/github-pr-comment` route is
   disabled so it cannot bypass C1-C4 gates.
 
-The C5 implementation PR did not execute `dry_run=false`, did not post a live
-GitHub comment, and did not use `GITHUB_TOKEN`. A future live test requires
-explicit user/PM approval for one specific target and a unique
-`idempotency_key`. PR #67 remains a single target-specific historical live
-adapter test, not broad posting permission.
+The C5 implementation PR #78 did not execute `dry_run=false`, did not post a
+live GitHub comment, and did not use `GITHUB_TOKEN`. PR #81 separately executed
+one approved live C5 publish to `Aurna-code/augnes#81` with idempotency key
+`augnes-c5-live-test-pr-81-v1`, GitHub comment id `4414928332`, and URL
+`https://github.com/Aurna-code/augnes/pull/81#issuecomment-4414928332`.
+Delivery status and publication status were `sent`; exactly one matching
+comment was observed; no manual GitHub UI posting, PR merge/review/label/title/
+body mutation, proof recording, mailbox status update, or Augnes state mutation
+occurred.
 
-`docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` prepares the approval
-packet and future live-test procedure. It does not approve a target, run
-`dry_run=false`, use `GITHUB_TOKEN`, create delivery rows, or post to GitHub.
+PR #82 fixed same-key replay semantics discovered by the PR #81 evidence:
+same-key sent/acknowledged replay now returns HTTP 200 with
+`idempotent_replay=true` and `posted=false`; different-key duplicate remains
+HTTP 409; pending delivery remains HTTP 409; `dry_run=true` with an existing
+sent delivery remains blocked. PR #82 did not post to GitHub.
 
-The next likely decision is whether the user/PM approves one exact future live
-C5 GitHub posting test target, body, idempotency key, token permission, and
-retain/delete decision.
+`docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
+live-test decision pattern and historical PR #81 decision packet while keeping
+the approval template for future live tests. It does not approve a future
+target, run `dry_run=false`, use `GITHUB_TOKEN`, create delivery rows, or post
+to GitHub.
+
+The next likely decision is which productization slice to take after C5 live
+evidence: session model, temporal interpretation, delivery external artifact
+persistence, ChatGPT Apps cross-session tools, Codex session adapter, Cockpit
+write-control design, GitHub App/token model, or retry design if needed. Future
+live tests still require a fresh exact approval packet naming the target, body,
+idempotency key, token use, and retain/delete decision.
 
 ## Original Design-Only Verification Boundary
 
@@ -599,8 +629,8 @@ ChatGPT Developer Mode and MCP verification were not required for the original
 workflow design PR because it changed no app tool, bridge behavior, widget
 behavior, or MCP contract.
 
-Live GitHub posting remains prohibited for approval workflow slices unless a
-future user/PM explicitly approves one specific target. `GITHUB_TOKEN` is not
-required for C1, C2, C3, C4, or C5 dry-run preview verification. The legacy
+Additional live GitHub posting remains prohibited for approval workflow slices
+unless a future user/PM explicitly approves one specific target. `GITHUB_TOKEN`
+is not required for C1, C2, C3, C4, or C5 dry-run preview verification. The legacy
 `POST /api/publications/{publication_id}/publish/github-pr-comment` route is
 disabled and must not be used as a publish bypass.

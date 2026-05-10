@@ -11,10 +11,13 @@ That API is a generated, derived, unstored view. It does not add approval flow,
 publisher behavior, Cockpit write controls, ChatGPT App tools, proof recording,
 or durable state authority.
 
-The future Core-gated approve/publish workflow is defined separately in
-`docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`. That workflow is
-design-only until future explicit PRs add Core routes, surface controls, or
-publication execution.
+The Core-gated approve/publish workflow is defined separately in
+`docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`. C1-C5 are implemented:
+approval request records, read-only gate-state rendering, Core-gated approval
+grant routing, dry-run readiness, and the explicit Core-gated GitHub PR comment
+publish route. PR #81 provides first live C5 publish evidence for one approved
+target. Surface controls, retries, Cockpit write controls, and ChatGPT Apps
+intent/write tools remain future explicit scope.
 
 ## Motivation
 
@@ -300,25 +303,17 @@ permission. PR #67 proved one approved, target-specific live GitHub PR comment
 adapter test and an idempotent replay. It did not authorize future automatic
 posting.
 
+No surface should turn the PR #81 live C5 publish test into general automatic
+posting permission either. PR #81 proved one approved C5 route execution against
+`Aurna-code/augnes#81`, with retained GitHub comment id `4414928332` and no
+manual GitHub UI posting or unrelated GitHub/proof/mailbox/state mutation. PR
+#82 fixed same-key replay semantics after that evidence. Future live posts still
+require a new exact approval packet.
+
 ## Future Implementation Path
 
-These are proposed future slices. PR A is implemented; later slices remain
-future work unless separately approved:
-
-- PR A: implement a read-only control packet API,
-  `GET /api/control/brief?scope=project:augnes`. Status: implemented as
-  `control_packet.v1`.
-- PR B: add a ChatGPT App decision card for publication control, read-only
-  first. Status: implemented as the bridge-gated
-  `augnes_get_publication_decision_card` tool, derived from the Control Packet.
-- PR C: add a Codex task-control packet or PR-readiness packet.
-- PR D: refine Cockpit observability for gates and open loops.
-- PR E: review the design-only Core-gated approve/publish workflow before any
-  approve/publish actions.
-- PR F and later: only then consider separately scoped Core-gated approval,
-  dry-run, publish, retry, Cockpit write-control, or ChatGPT Apps intent
-  collection slices.
-
-The recommended next product decision is whether to review/iterate the
-Core-gated approve/publish workflow design before implementing any write
-controls.
+After C5 live evidence and the replay fix, the recommended next decision is to
+choose a productization slice: session model, temporal interpretation, delivery
+external artifact persistence, ChatGPT Apps cross-session tools, Codex session
+adapter, Cockpit write-control design, GitHub App/token model, or retry design
+if needed. Future write controls require separate explicit scope.
