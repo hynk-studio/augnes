@@ -27,6 +27,11 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
 - Source-of-truth authority: Augnes Core remains the durable authority runtime
   for committed state, proof records, event spine, mailbox, publication drafts,
   delivery ledger, and gate validation.
+- Future approve/publish controls must route through Augnes Core and explicit
+  user approval. The design-only workflow is documented in
+  `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`; it does not grant any
+  surface new write authority until future explicit PRs implement Core-gated
+  routes and controls.
 
 ## Capability Matrix
 

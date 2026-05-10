@@ -11,6 +11,11 @@ That API is a generated, derived, unstored view. It does not add approval flow,
 publisher behavior, Cockpit write controls, ChatGPT App tools, proof recording,
 or durable state authority.
 
+The future Core-gated approve/publish workflow is defined separately in
+`docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`. That workflow is
+design-only until future explicit PRs add Core routes, surface controls, or
+publication execution.
+
 ## Motivation
 
 Augnes now has several surfaces that can help a user or agent understand work:
@@ -238,6 +243,13 @@ Use these principles when designing new controls:
 - Publication is a single explicit external side effect.
 - Replay must not create a second side effect.
 - Summary views are not source of truth.
+
+Before adding any approve, publish, retry, cancel, or acknowledgement control,
+review `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md` and keep the future
+implementation split into explicit Core-gated PR slices.
+
+The existing boundary rules remain:
+
 - User remains durable approval authority.
 - Augnes Core remains durable state and gate authority.
 - Read and summary access can be broad.
@@ -301,8 +313,12 @@ future work unless separately approved:
   `augnes_get_publication_decision_card` tool, derived from the Control Packet.
 - PR C: add a Codex task-control packet or PR-readiness packet.
 - PR D: refine Cockpit observability for gates and open loops.
-- PR E: only then consider Core-gated approve/publish actions.
+- PR E: review the design-only Core-gated approve/publish workflow before any
+  approve/publish actions.
+- PR F and later: only then consider separately scoped Core-gated approval,
+  dry-run, publish, retry, Cockpit write-control, or ChatGPT Apps intent
+  collection slices.
 
 The recommended next product decision is whether to review/iterate the
-read-only ChatGPT Apps decision-card surface or scope the next separately gated
-workflow.
+Core-gated approve/publish workflow design before implementing any write
+controls.

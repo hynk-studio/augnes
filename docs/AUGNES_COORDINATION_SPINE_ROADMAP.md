@@ -10,6 +10,7 @@ This roadmap should be read together with:
 
 - `docs/AUTHORITY_MATRIX.md`
 - `docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md`
+- `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`
 - `docs/CODEX_HANDOFF_PACKET.md`
 - `docs/VERIFICATION_EVIDENCE_PACK.md`
 - `docs/EXECUTION_SURFACE_RECORD.md`
@@ -488,7 +489,7 @@ Current implemented Cockpit publication behavior is read-only preview and
 delivery status. Future explicit PRs may add operator controls for:
 
 - preview publication draft
-- approve publish
+- approve/publish action
 - cancel draft
 - retry failed delivery
 - inspect delivery history
@@ -550,14 +551,37 @@ Verification:
 - Developer Mode publication summary verification is complete via PR #66.
 - First live GitHub PR comment test is complete via PR #67, with one retained
   test comment and no duplicate replay.
+- True ChatGPT Developer Mode publication decision-card verification is
+  complete via PR #72.
 
 Next design concern: cross-surface control UX and authority separation. PR A is
 implemented as the read-only `GET /api/control/brief?scope=project:augnes`
 Control Packet API. PR B adds a bridge-gated read-only ChatGPT Apps publication
-decision-card surface derived from that packet. Before adding approve/publish
-controls or new adapters, keep ChatGPT Apps, Codex, Cockpit, and Augnes Core on
-one source-of-truth timeline while keeping user approval and Core gate
-validation centralized.
+decision-card surface derived from that packet, with true ChatGPT Developer
+Mode verification complete via PR #72.
+
+The next roadmap step is design-only: review the Core-gated approve/publish
+workflow in `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md` before
+implementing any write controls. That design defines authority, states, gates,
+surface responsibilities, audit/event requirements, failure/retry behavior, UX
+requirements, non-goals, and future implementation slices. It does not add
+routes, tools, buttons, proof behavior, mailbox behavior, state commit/reject
+behavior, or external posting.
+
+Future implementation slices must remain separate from this design step:
+
+- PR C1: Core approval intent model and approval request records only, with no
+  publish execution.
+- PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer.
+- PR C3: Core-gated approve action route, with no publish execution.
+- PR C4: Core-gated dry-run publish readiness route.
+- PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
+  preserving PR #67 idempotency rules.
+- PR C6: Retry workflow design and implementation only after C5 evidence.
+- PR C7: Optional Cockpit write controls, only after Core approval/publish
+  routes exist.
+- PR C8: Optional ChatGPT Apps intent collection, only if the user explicitly
+  approves that surface behavior.
 
 ## Cross-Phase Invariants
 
@@ -589,6 +613,8 @@ Every phase must preserve these rules:
 10. Publication draft and delivery ledger backend
 11. GitHub publication adapter
 12. Publication preview/delivery status surfaces
+13. Read-only Control Packet and publication decision-card verification
+14. Core-gated approve/publish workflow design before write controls
 ```
 
 ## Success Criteria
