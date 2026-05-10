@@ -22,14 +22,17 @@ Developer Mode publication summary verification via PR #66 complete
 Live GitHub PR comment adapter test via PR #67 complete
 Cross-surface Control Packet / surface roles design via PR #69 complete
 Read-only Control Packet API slice complete
+Read-only ChatGPT Apps publication decision-card slice complete
 ```
 
-The next recommended design slice is cross-surface control packet / surface role
-design before adding approve/publish controls. After that design is reviewed,
-the next decision is one of:
+The cross-surface control packet / surface role design and the first read-only
+Control Packet API slice are complete. The first ChatGPT Apps publication
+decision-card slice is also read-only: it explains decisions and consequences
+without granting approval, publish, retry, proof, state, Codex, GitHub, or
+Discord authority. The next decision is one of:
 
 ```text
-1. ChatGPT Apps decision-card design for publication control, read-only first.
+1. Review/iterate the read-only ChatGPT Apps publication decision-card surface.
 2. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
 3. Additional live-test/hardening only if a new adapter or target surface is introduced.
 4. Discord/webhook adapter only if explicitly scoped later.
@@ -149,7 +152,7 @@ target-specific.
 Next default decision:
 
 ```text
-1. ChatGPT Apps decision-card design for publication control, read-only first.
+1. Review/iterate the read-only ChatGPT Apps publication decision-card surface.
 2. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
 3. Additional live-test/hardening only if a new adapter or target surface is introduced.
 4. Discord/webhook adapter only if explicitly scoped later.
@@ -399,6 +402,7 @@ augnes_generate_codex_handoff_draft
 augnes_review_codex_result_draft
 augnes_get_mailbox_summary
 augnes_get_publication_summary
+augnes_get_publication_decision_card
 augnes_record_action_result
 augnes_record_work_event
 ```
@@ -407,6 +411,10 @@ Public/default ChatGPT App mode must not expose bridge-gated write/draft tools.
 Public/default ChatGPT App mode must also not expose mailbox summary or
 publication summary tools; `augnes_get_mailbox_summary` and
 `augnes_get_publication_summary` are bridge-gated and read-only.
+`augnes_get_publication_decision_card` is also bridge-gated and read-only; it
+derives a user-facing publication decision card from the Control Packet and does
+not approve, publish, retry, record proof, commit/reject state, execute Codex,
+mutate GitHub, or post to Discord.
 Public/default mode must not expose publication approval, publish, or retry
 tools.
 
@@ -437,7 +445,7 @@ A fresh ChatGPT session should do this:
 
 1. Read this file and the roadmap/runbooks listed above.
 2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, Phase 3 PR 3.3, Phase 4 PR 4.1, Phase 4 PR 4.2, Phase 4 PR 4.3, Developer Mode publication summary verification via PR #66, and the live GitHub adapter test via PR #67 are complete.
-3. Ask the user to choose whether to proceed to a user-facing ChatGPT Apps decision-card design for publication control, scope an explicit approve/publish Cockpit workflow PR, pause Phase 4 publication work, add live-test/hardening only for a new adapter or target surface, or separately scope a Discord/webhook adapter.
+3. Ask the user to choose whether to review/iterate the read-only ChatGPT Apps publication decision-card surface, scope an explicit approve/publish Cockpit workflow PR, pause Phase 4 publication work, add live-test/hardening only for a new adapter or target surface, or separately scope a Discord/webhook adapter.
 4. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
 5. Let Codex implement and open or update a draft PR.
 6. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
@@ -469,7 +477,7 @@ Do not collapse this into autonomous implementation. The boring boundary is doin
 Begin with:
 
 ```text
-Decide whether to proceed to a user-facing ChatGPT Apps decision-card design for publication control.
+Decide whether to review/iterate the read-only ChatGPT Apps publication decision-card surface or scope the next separately gated workflow.
 ```
 
 Do not repeat live GitHub posting unless the user/PM explicitly approves a

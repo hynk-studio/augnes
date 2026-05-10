@@ -26,6 +26,7 @@ const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_review_codex_result_draft",
   "augnes_get_mailbox_summary",
   "augnes_get_publication_summary",
+  "augnes_get_publication_decision_card",
 ] as const;
 const INTENDED_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -94,6 +95,7 @@ function assertBridgeTools(tools: Record<string, RegisteredTool>) {
     "augnes_list_pending_proposals",
     "augnes_get_mailbox_summary",
     "augnes_get_publication_summary",
+    "augnes_get_publication_decision_card",
   ] as const) {
     const tool = tools[name];
     assert.ok(tool, `${name} should be registered`);

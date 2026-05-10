@@ -435,6 +435,53 @@ export const PublicationSummaryResultSchema = z
   })
   .passthrough();
 
+export const ControlPacketBoundariesSchema = z
+  .object({
+    derived_view_only: z.literal(true),
+    approval_authority: z.literal(false),
+    publish_authority: z.literal(false),
+    retry_authority: z.literal(false),
+    proof_recording: z.literal(false),
+    state_commit_or_reject: z.literal(false),
+    codex_execution: z.literal(false),
+    source_of_truth: z.literal(false),
+    creates_durable_records: z.literal(false),
+    external_side_effects: z.literal(false),
+  })
+  .passthrough();
+
+export const ControlPacketSchema = z
+  .object({
+    runtime: z.string(),
+    packet_version: z.string(),
+    scope: z.string(),
+    as_of: z.string(),
+    source_refs: z.record(z.unknown()),
+    relevant_publication_state: z
+      .object({
+        drafts: z.array(PublicationSummaryItemSchema),
+        approved_previews: z.array(PublicationSummaryItemSchema),
+        sent: z.array(PublicationSummaryItemSchema),
+        failed: z.array(PublicationSummaryItemSchema),
+        cancelled: z.array(PublicationSummaryItemSchema),
+      })
+      .passthrough(),
+    relevant_delivery_state: z
+      .object({
+        status_counts: z.record(z.number()),
+        failed_deliveries: z.array(FailedDeliverySummaryItemSchema),
+      })
+      .passthrough(),
+    pending_user_decisions: z.array(z.unknown()),
+    active_risks: z.array(z.unknown()),
+    authority_boundaries: z.record(z.unknown()),
+    next_suggested_goal: z.record(z.unknown()),
+    surface_rendering_hints: z.record(z.unknown()),
+    forbidden_actions: z.array(z.unknown()).optional(),
+    boundaries: ControlPacketBoundariesSchema,
+  })
+  .passthrough();
+
 export const PendingProposalsResultSchema = z.union([
   z.array(StateRuntimeProposalSchema),
   z
@@ -465,6 +512,7 @@ export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
 export type CodexResultReviewDraft = z.infer<typeof CodexResultReviewDraftSchema>;
 export type MailboxSummaryResult = z.infer<typeof MailboxSummaryResultSchema>;
 export type PublicationSummaryResult = z.infer<typeof PublicationSummaryResultSchema>;
+export type ControlPacket = z.infer<typeof ControlPacketSchema>;
 
 export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
@@ -529,4 +577,5 @@ export interface StateRuntimeBridgeAdapter {
   reviewCodexResultDraft(input: ReviewCodexResultDraftInput): Promise<CodexResultReviewDraft>;
   getMailboxSummary(scope: StateRuntimeScope): Promise<MailboxSummaryResult>;
   getPublicationSummary(scope: StateRuntimeScope): Promise<PublicationSummaryResult>;
+  getControlPacket(scope: StateRuntimeScope): Promise<ControlPacket>;
 }

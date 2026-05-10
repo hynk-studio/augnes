@@ -99,6 +99,7 @@ With `AUGNES_ENABLE_AGENT_BRIDGE=true`, the Augnes bridge tools are also registe
 - `augnes_review_codex_result_draft`
 - `augnes_get_mailbox_summary`
 - `augnes_get_publication_summary`
+- `augnes_get_publication_decision_card`
 
 ## Verify Bridge Health
 
@@ -339,6 +340,42 @@ via PR #66. Treat that as evidence that the bridge-gated summary read works in
 Developer Mode, not as publish authority. ChatGPT App still does not expose
 publish, approve, or retry tools. Live GitHub posting is a backend adapter flow
 only and is not initiated from the ChatGPT App.
+
+## Bridge-gated publication decision cards
+
+When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
+running Augnes runtime, the bridge exposes
+`augnes_get_publication_decision_card`.
+
+Use it when a user asks what publication-related decisions or consequences need
+attention:
+
+```json
+{
+  "scope": "project:augnes"
+}
+```
+
+The tool calls the runtime `GET /api/control/brief` endpoint and returns
+`structuredContent.decision_card`.
+
+Answer pattern:
+
+```text
+Publication decision card
+- Summarize draft, approved, sent, failed, cancelled, and failed-delivery counts.
+- Highlight approved previews as near an external side-effect boundary.
+- Explain actual GitHub posting remains separately gated.
+
+Authority boundary
+- This is a read-only decision card.
+- It does not approve, publish, retry, record proof, commit/reject state, execute Codex, mutate GitHub, or post to Discord.
+- Augnes Core remains source of truth and durable authority runtime.
+```
+
+Do not expose this tool in public/default mode. Do not treat the card as
+publication authority, approval authority, proof authority, state authority, or
+GitHub mutation authority.
 
 ### Publication Summary Developer Mode Verification Checklist
 

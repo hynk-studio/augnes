@@ -1,6 +1,7 @@
 import type {
   ActionRecordResult,
   CodexResultReviewDraft,
+  ControlPacket,
   GeneratedHandoffDraft,
   GenerateHandoffDraftInput,
   MailboxSummaryResult,
@@ -547,6 +548,160 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         "This view does not approve, publish, retry, post to GitHub, post to Discord, record proof, or commit state.",
         "Actual GitHub posting remains backend-adapter gated by approved publication status, explicit dry_run=false, backend replay guard, stored target_ref, and token availability.",
       ],
+    };
+  }
+
+  async getControlPacket(scope: StateRuntimeScope): Promise<ControlPacket> {
+    const publicationSummary = await this.getPublicationSummary(scope);
+    const mailboxSummary = await this.getMailboxSummary(scope);
+
+    return {
+      runtime: "augnes",
+      packet_version: "control_packet.v1",
+      scope,
+      as_of: "2026-05-07T00:30:00.000Z",
+      source_refs: {
+        state_brief_as_of: "2026-05-03T00:00:00.000Z",
+        state_brief_generated_at: "2026-05-07T00:30:00.000Z",
+        included_work_item_ids: ["AG-001"],
+        included_coordination_event_ids: ["coordination-event-smoke-1"],
+        mailbox_summary_as_of: mailboxSummary.as_of,
+        mailbox_message_ids: [
+          "mailbox:smoke-ready-handoff",
+          "mailbox:smoke-review-request",
+        ],
+        publication_summary_as_of: publicationSummary.as_of,
+        publication_ids: [
+          "publication:smoke-draft",
+          "publication:smoke-approved",
+        ],
+        delivery_ids: [
+          "delivery:smoke-pending",
+          "delivery:smoke-failed",
+        ],
+        state_keys: ["current_focus"],
+      },
+      current_phase: {
+        value: null,
+        status: "unknown",
+        related_state_keys: [],
+        summary_reason:
+          "No durable runtime state entry with a phase-like key was found; repo docs are intentionally not treated as Core truth.",
+      },
+      current_work_items: [{ ...workItem, recent_event_ids: [], related_prs: [], summary_reason: "mock current work" }],
+      recent_completed_prs: {
+        items: [],
+        summary_reason:
+          "Runtime work links/events included no completed PR refs in the bounded read window.",
+      },
+      active_open_loops: [],
+      pending_user_decisions: [
+        {
+          ref_type: "publication",
+          ref_id: "publication:smoke-draft",
+          summary: "github_pr_comment Aurna-code/augnes#62",
+          summary_reason:
+            "draft publication may require a future explicit approval decision; this packet cannot approve it",
+        },
+        {
+          ref_type: "publication",
+          ref_id: "publication:smoke-approved",
+          summary: "github_pr_comment Aurna-code/augnes#63",
+          summary_reason:
+            "approved preview may require a separate explicit publish decision; approval is not publication",
+        },
+      ],
+      active_risks: [
+        {
+          ref_type: "publication",
+          ref_id: "publication:smoke-approved",
+          summary: "github_pr_comment Aurna-code/augnes#63",
+          summary_reason:
+            "approved publication preview is near an external side-effect boundary; publish remains separately gated",
+        },
+        {
+          ref_type: "delivery",
+          ref_id: "delivery:smoke-failed",
+          summary: "GitHub publish failed: mock token unavailable.",
+          summary_reason: "failed delivery includes stored error_message",
+        },
+      ],
+      allowed_actions: [],
+      forbidden_actions: [
+        {
+          action: "Approve, publish, retry, commit/reject state, record proof, or acknowledge mailbox messages.",
+          surface: "all",
+          summary_reason: "The control packet API is read-only and exposes no write routes.",
+        },
+      ],
+      required_verification: [],
+      relevant_publication_state: {
+        summary_reason:
+          "Derived from existing publication summary buckets; this packet cannot approve, publish, retry, or mutate publication records.",
+        drafts: publicationSummary.summary.drafts,
+        approved_previews: publicationSummary.summary.approved_previews,
+        sent: publicationSummary.summary.sent,
+        failed: publicationSummary.summary.failed,
+        cancelled: publicationSummary.summary.cancelled,
+      },
+      relevant_delivery_state: {
+        summary_reason:
+          "Derived from existing delivery ledger summary counts and failed delivery refs; this packet does not create delivery rows.",
+        status_counts: {
+          pending_count: publicationSummary.summary.delivery_status.pending_count,
+          sent_count: publicationSummary.summary.delivery_status.sent_count,
+          failed_count: publicationSummary.summary.delivery_status.failed_count,
+          acknowledged_count: publicationSummary.summary.delivery_status.acknowledged_count,
+        },
+        failed_deliveries: publicationSummary.summary.failed_deliveries,
+        delivery_refs: ["delivery:smoke-pending", "delivery:smoke-failed"],
+      },
+      relevant_mailbox_state: {
+        summary_reason:
+          "Derived from mailbox summary buckets; this packet cannot acknowledge, reactivate, or update mailbox messages.",
+        pending_handoffs: mailboxSummary.summary.pending_handoffs,
+        needs_review: mailboxSummary.summary.needs_review,
+        approval_needed: mailboxSummary.summary.approval_needed,
+        blocked_or_partial: mailboxSummary.summary.blocked_or_partial,
+        inactive: mailboxSummary.summary.inactive,
+      },
+      related_event_refs: [],
+      authority_boundaries: {
+        chatgpt_apps: [
+          "Primary user decision surface.",
+          "Does not own durable approval, publication, proof, commit/reject, GitHub mutation, or Codex execution.",
+        ],
+        augnes_core: ["Source of truth and durable authority runtime."],
+        github_publication: [
+          "PR #67 does not authorize automatic future posting.",
+        ],
+      },
+      next_suggested_goal: {
+        title: "Review publication decision-card behavior",
+        rationale: "Decision-card output should clarify consequences without granting authority.",
+        suggested_actor: "chatgpt_apps",
+        priority: "next",
+        related_state_keys: ["coordination.publication"],
+        summary_reason:
+          "Derived from mock state runtime context for bridge validation.",
+      },
+      surface_rendering_hints: {
+        chatgpt_apps: ["Render as a user-facing decision summary or decision-card input."],
+        codex: ["Render as PR-readiness context."],
+        cockpit: ["Render as observability context."],
+      },
+      boundaries: {
+        derived_view_only: true,
+        approval_authority: false,
+        publish_authority: false,
+        retry_authority: false,
+        proof_recording: false,
+        state_commit_or_reject: false,
+        codex_execution: false,
+        source_of_truth: false,
+        creates_durable_records: false,
+        external_side_effects: false,
+      },
     };
   }
 }

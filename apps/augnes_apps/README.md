@@ -28,8 +28,9 @@ The public tool surface remains exactly:
 Bridge-gated tools may be enabled for local operator workflows with
 `AUGNES_ENABLE_AGENT_BRIDGE=true`. They are not part of the public default
 surface. Current bridge-gated read-only summary tools include
-`augnes_get_mailbox_summary` and `augnes_get_publication_summary`; neither is
-available in public/default mode.
+`augnes_get_mailbox_summary`, `augnes_get_publication_summary`, and
+`augnes_get_publication_decision_card`; none are available in public/default
+mode.
 
 For cross-surface decision/control roles, see
 `../../docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md`.
@@ -415,6 +416,19 @@ slice with a specific target, scoped `GITHUB_TOKEN`, unique `idempotency_key`,
 and replay check proving no duplicate comment. PR #67 completed the first live
 GitHub adapter test and kept the test comment as evidence; that test does not
 authorize automatic posting in future PRs.
+
+## Bridge-gated publication decision cards
+
+When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
+running Augnes runtime with the Control Packet API, the bridge exposes
+`augnes_get_publication_decision_card`.
+
+The tool calls `GET /api/control/brief?scope=project:augnes` and returns
+`structuredContent.decision_card` with publication items, delivery status,
+pending user decisions, active risks, safe next steps, and authority
+boundaries. It is a read-only decision surface: it does not approve, publish,
+retry, record proof, commit/reject state, execute Codex, mutate GitHub, or post
+to Discord.
 
 ## Inspector and ChatGPT
 

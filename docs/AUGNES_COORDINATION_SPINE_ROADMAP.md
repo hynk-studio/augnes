@@ -553,9 +553,11 @@ Verification:
 
 Next design concern: cross-surface control UX and authority separation. PR A is
 implemented as the read-only `GET /api/control/brief?scope=project:augnes`
-Control Packet API. Before adding approve/publish controls or new adapters, keep
-ChatGPT Apps, Codex, Cockpit, and Augnes Core on one source-of-truth timeline
-while keeping user approval and Core gate validation centralized.
+Control Packet API. PR B adds a bridge-gated read-only ChatGPT Apps publication
+decision-card surface derived from that packet. Before adding approve/publish
+controls or new adapters, keep ChatGPT Apps, Codex, Cockpit, and Augnes Core on
+one source-of-truth timeline while keeping user approval and Core gate
+validation centralized.
 
 ## Cross-Phase Invariants
 
