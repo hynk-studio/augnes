@@ -50,10 +50,9 @@ Recommended candidate:
 Aurna-code/augnes#<LIVE_TEST_PR_NUMBER>
 ```
 
-The recommended candidate is the future live-test PR itself, likely PR #79 if
-that PR is opened specifically for the live test after this decision PR. A
-self-targeted live-test PR is self-contained, auditable, low ambiguity, and
-easy to retain as evidence.
+The recommended candidate is the future live-test PR itself, opened separately
+after this decision PR is reviewed and merged. A self-targeted live-test PR is
+self-contained, auditable, low ambiguity, and easy to retain as evidence.
 
 The exact target must be filled in only after the PR number exists and the
 user/PM explicitly approves it.
