@@ -20,6 +20,8 @@ Phase 4 / PR 4.2 GitHub PR comment publication adapter complete
 Phase 4 / PR 4.3 App and Cockpit publication preview / delivery status views complete
 Developer Mode publication summary verification via PR #66 complete
 Live GitHub PR comment adapter test via PR #67 complete
+Cross-surface Control Packet / surface roles design via PR #69 complete
+Read-only Control Packet API slice complete
 ```
 
 The next recommended design slice is cross-surface control packet / surface role
@@ -27,7 +29,7 @@ design before adding approve/publish controls. After that design is reviewed,
 the next decision is one of:
 
 ```text
-1. Read-only Control Packet API or ChatGPT Apps decision-card design.
+1. ChatGPT Apps decision-card design for publication control, read-only first.
 2. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
 3. Additional live-test/hardening only if a new adapter or target surface is introduced.
 4. Discord/webhook adapter only if explicitly scoped later.
@@ -147,7 +149,7 @@ target-specific.
 Next default decision:
 
 ```text
-1. Read-only Control Packet API or ChatGPT Apps decision-card design.
+1. ChatGPT Apps decision-card design for publication control, read-only first.
 2. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
 3. Additional live-test/hardening only if a new adapter or target surface is introduced.
 4. Discord/webhook adapter only if explicitly scoped later.
@@ -360,6 +362,7 @@ Core runtime:
 
 ```text
 GET  /api/state/brief?scope=project:augnes
+GET  /api/control/brief?scope=project:augnes
 GET  /api/events?scope=project:augnes
 GET  /api/work?scope=project:augnes
 GET  /api/work/{work_id}/brief?scope=project:augnes
@@ -434,7 +437,7 @@ A fresh ChatGPT session should do this:
 
 1. Read this file and the roadmap/runbooks listed above.
 2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, Phase 3 PR 3.3, Phase 4 PR 4.1, Phase 4 PR 4.2, Phase 4 PR 4.3, Developer Mode publication summary verification via PR #66, and the live GitHub adapter test via PR #67 are complete.
-3. Ask the user to choose whether to implement a read-only Control Packet API, proceed to a user-facing ChatGPT Apps decision-card design for publication control, scope an explicit approve/publish Cockpit workflow PR, pause Phase 4 publication work, add live-test/hardening only for a new adapter or target surface, or separately scope a Discord/webhook adapter.
+3. Ask the user to choose whether to proceed to a user-facing ChatGPT Apps decision-card design for publication control, scope an explicit approve/publish Cockpit workflow PR, pause Phase 4 publication work, add live-test/hardening only for a new adapter or target surface, or separately scope a Discord/webhook adapter.
 4. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
 5. Let Codex implement and open or update a draft PR.
 6. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
@@ -466,7 +469,7 @@ Do not collapse this into autonomous implementation. The boring boundary is doin
 Begin with:
 
 ```text
-Decide whether to implement a read-only Control Packet API, or proceed to a user-facing ChatGPT Apps decision-card design for publication control.
+Decide whether to proceed to a user-facing ChatGPT Apps decision-card design for publication control.
 ```
 
 Do not repeat live GitHub posting unless the user/PM explicitly approves a

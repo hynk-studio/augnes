@@ -551,10 +551,11 @@ Verification:
 - First live GitHub PR comment test is complete via PR #67, with one retained
   test comment and no duplicate replay.
 
-Next design concern: cross-surface control UX and authority separation. Before
-adding approve/publish controls or new adapters, define how ChatGPT Apps,
-Codex, Cockpit, and Augnes Core share one source-of-truth timeline while keeping
-user approval and Core gate validation centralized.
+Next design concern: cross-surface control UX and authority separation. PR A is
+implemented as the read-only `GET /api/control/brief?scope=project:augnes`
+Control Packet API. Before adding approve/publish controls or new adapters, keep
+ChatGPT Apps, Codex, Cockpit, and Augnes Core on one source-of-truth timeline
+while keeping user approval and Core gate validation centralized.
 
 ## Cross-Phase Invariants
 
