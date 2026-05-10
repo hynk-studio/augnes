@@ -330,6 +330,47 @@ CREATE INDEX IF NOT EXISTS idx_publication_drafts_scope_target_time
 CREATE INDEX IF NOT EXISTS idx_publication_drafts_scope_sent_time
   ON publication_drafts(scope, sent_at DESC);
 
+CREATE TABLE IF NOT EXISTS publication_approval_requests (
+  approval_request_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  publication_id TEXT NOT NULL,
+  work_id TEXT,
+  target_surface TEXT NOT NULL,
+  target_ref TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'requested',
+      'superseded',
+      'cancelled',
+      'expired'
+    )
+  ),
+  decision_prompt TEXT NOT NULL,
+  side_effect_summary TEXT NOT NULL,
+  required_gate_checks TEXT NOT NULL DEFAULT '[]',
+  authority_boundaries TEXT NOT NULL DEFAULT '[]',
+  source_control_packet_ref TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  supersedes_request_id TEXT,
+  FOREIGN KEY (publication_id) REFERENCES publication_drafts(publication_id),
+  FOREIGN KEY (supersedes_request_id) REFERENCES publication_approval_requests(approval_request_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_requests_scope_time
+  ON publication_approval_requests(scope, requested_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_requests_scope_publication_time
+  ON publication_approval_requests(scope, publication_id, requested_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_requests_scope_status_time
+  ON publication_approval_requests(scope, status, requested_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_requests_scope_target_time
+  ON publication_approval_requests(scope, target_surface, target_ref, requested_at DESC);
+
 CREATE TABLE IF NOT EXISTS delivery_ledger (
   delivery_id TEXT PRIMARY KEY,
   publication_id TEXT NOT NULL,

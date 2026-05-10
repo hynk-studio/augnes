@@ -571,7 +571,10 @@ behavior, or external posting.
 Future implementation slices must remain separate from this design step:
 
 - PR C1: Core approval intent model and approval request records only, with no
-  publish execution.
+  publish execution. Status: implemented as durable approval request records
+  and read/create APIs only; request creation does not grant approval, change
+  publication status, create delivery rows, dry-run, publish, retry, record
+  proof, update mailbox status, or commit/reject state.
 - PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer.
 - PR C3: Core-gated approve action route, with no publish execution.
 - PR C4: Core-gated dry-run publish readiness route.
@@ -615,6 +618,7 @@ Every phase must preserve these rules:
 12. Publication preview/delivery status surfaces
 13. Read-only Control Packet and publication decision-card verification
 14. Core-gated approve/publish workflow design before write controls
+15. Core approval request records only, with no publish execution
 ```
 
 ## Success Criteria

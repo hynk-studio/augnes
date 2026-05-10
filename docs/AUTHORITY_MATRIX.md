@@ -32,6 +32,10 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`; it does not grant any
   surface new write authority until future explicit PRs implement Core-gated
   routes and controls.
+- Core approval request records may durably represent that approval is being
+  requested for a specific publication target. They are not approval grants and
+  do not change publication status, create delivery rows, publish, retry, record
+  proof, update mailbox status, or commit/reject state.
 
 ## Capability Matrix
 

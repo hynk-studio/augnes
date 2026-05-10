@@ -329,7 +329,8 @@ side-effect boundary.
 Recommended future slices:
 
 - PR C1: Core approval intent model and approval request records only, with no
-  publish execution.
+  publish execution. Status: implemented as durable approval request records
+  and read/create APIs only.
 - PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer.
 - PR C3: Core-gated approve action route, with no publish execution.
 - PR C4: Core-gated dry-run publish readiness route.
@@ -367,6 +368,43 @@ This design PR does not add:
 - Direct Codex orchestration.
 - Autonomous Codex execution.
 - Free-form agent chat.
+
+## C1 Implementation Status
+
+The C1 slice implements durable Core-side approval request records only:
+
+- Approval requests can be created for an existing publication in the same
+  scope.
+- The request copies `target_surface`, `target_ref`, and `work_id` from the
+  referenced publication at creation time.
+- Approval requests can be listed and read.
+- Request records include decision prompt text, side-effect summary text,
+  conceptual gate checks, and authority-boundary reminders.
+
+C1 does not add:
+
+- Approval grant behavior.
+- Approval denial behavior.
+- Publication status changes.
+- Dry-run readiness checks.
+- Publish execution.
+- Retry execution.
+- Delivery ledger writes.
+- GitHub adapter calls.
+- Cockpit write controls.
+- ChatGPT App intent tools.
+- Proof recording.
+- Mailbox status updates.
+- State commit/reject behavior.
+- Coordination event append behavior; event-spine wiring is deferred to a later
+  explicit slice.
+
+Approval request records are not approval grants. Creating a request means a
+user/PM decision is being requested for a specific target; it does not approve
+the publication and does not move the publication toward execution.
+
+The next likely slice is either C2 read-only gate-state rendering or C3 a
+Core-gated approve action route, depending on user/PM decision.
 
 ## Design-Only Verification Boundary
 
