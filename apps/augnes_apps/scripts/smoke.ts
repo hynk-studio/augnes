@@ -164,6 +164,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           },
           augnes_get_mailbox_summary: {},
           augnes_get_publication_summary: {},
+          augnes_get_publication_decision_card: {},
         };
         const profiles = {};
         for (const name of AUGNES_BRIDGE_TOOL_NAMES) {
@@ -183,6 +184,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             workEventDraft: result.structuredContent?.work_event_draft,
             mailboxSummary: result.structuredContent?.mailbox_summary,
             publicationSummary: result.structuredContent?.publication_summary,
+            decisionCard: result.structuredContent?.decision_card,
             boundaries: result.structuredContent?.boundaries,
           };
         }
@@ -529,6 +531,48 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_publication_summary.text,
     /derived read-only view/i,
     "augnes_get_publication_summary should state the derived read-only boundary"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_decision_card.decisionCard.status_summary.approved_preview_count,
+    1,
+    "augnes_get_publication_decision_card should count approved previews"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_decision_card.decisionCard.status_summary.failed_delivery_count,
+    1,
+    "augnes_get_publication_decision_card should count failed deliveries"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_decision_card.decisionCard.publication_items.find(
+      (item: { publication_id: string }) => item.publication_id === "publication:smoke-approved"
+    )?.decision_state,
+    "approved_preview_needs_separate_publish_decision",
+    "augnes_get_publication_decision_card should map approved previews to separate publish decisions"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_decision_card.decisionCard.boundaries.publish_authority,
+    false,
+    "augnes_get_publication_decision_card should not expose publish authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_publication_decision_card.decisionCard.boundaries.external_side_effects,
+    false,
+    "augnes_get_publication_decision_card should not expose external side effects"
+  );
+  assert.doesNotMatch(
+    JSON.stringify(bridgeSnapshot.profiles.augnes_get_publication_decision_card.decisionCard),
+    /idempotency_key|idempotencyKey/,
+    "augnes_get_publication_decision_card must not expose idempotency keys"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_publication_decision_card.text,
+    /Read-only publication decision card/i,
+    "augnes_get_publication_decision_card should state the read-only decision-card boundary"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_publication_decision_card.text,
+    /does not approve, publish, retry, record proof, commit or reject state, execute Codex, mutate GitHub, or post to Discord/i,
+    "augnes_get_publication_decision_card should deny approval, publication, proof, state, Codex, GitHub, and Discord authority"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_state_brief.text,

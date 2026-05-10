@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 import {
   ActionRecordResultSchema,
   CodexResultReviewDraftSchema,
+  ControlPacketSchema,
   GeneratedHandoffDraftSchema,
   MailboxSummaryResultSchema,
   ObserveResultSchema,
@@ -15,6 +16,7 @@ import {
   WorkListResultSchema,
   type ActionRecordResult,
   type CodexResultReviewDraft,
+  type ControlPacket,
   type GeneratedHandoffDraft,
   type GenerateHandoffDraftInput,
   type MailboxSummaryResult,
@@ -49,6 +51,7 @@ const endpointContract = {
   reviewCodexResultDraft: { method: "POST", path: "/api/handoffs/review" },
   mailboxSummary: { method: "GET", path: "/api/mailbox/summary" },
   publicationSummary: { method: "GET", path: "/api/publications/summary" },
+  controlPacket: { method: "GET", path: "/api/control/brief" },
 } as const;
 
 export class AugnesStateRuntimeHttpError extends Error {
@@ -346,6 +349,18 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       endpointContract.publicationSummary.path,
       PublicationSummaryResultSchema,
       "publication summary",
+      {
+        query: { scope: parseScope(scope) },
+      }
+    );
+  }
+
+  async getControlPacket(scope: StateRuntimeScope): Promise<ControlPacket> {
+    return this.requestJson(
+      endpointContract.controlPacket.method,
+      endpointContract.controlPacket.path,
+      ControlPacketSchema,
+      "control packet",
       {
         query: { scope: parseScope(scope) },
       }

@@ -17,6 +17,8 @@ import { sanitizeValue } from "./lib/sanitize.js";
 import {
   StateRuntimeActionResultKindSchema,
   StateRuntimeActionResultStatusSchema,
+  type ControlPacket,
+  type PublicationSummaryResult,
   type StateBrief,
   type StateRuntimeBridgeAdapter,
   type WorkBrief,
@@ -51,6 +53,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_review_codex_result_draft",
   "augnes_get_mailbox_summary",
   "augnes_get_publication_summary",
+  "augnes_get_publication_decision_card",
 ] as const;
 export const AUGNES_WORK_READ_TOOL_NAMES = [
   "augnes_list_work_items",
@@ -261,6 +264,218 @@ function describePublicationSummary(summary: Awaited<ReturnType<StateRuntimeBrid
   return [
     `Publication summary for ${summary.scope}: bounded to latest ${summary.limits.publication_limit} publication preview(s) and latest ${summary.limits.delivery_limit} delivery row(s); ${publicationCount} publication preview(s), ${summary.summary.approved_previews.length} approved preview(s), ${summary.summary.failed_deliveries.length} failed delivery item(s). Bounded delivery ledger counts: ${deliveryStatus.pending_count} pending, ${deliveryStatus.sent_count} sent, ${deliveryStatus.failed_count} failed, ${deliveryStatus.acknowledged_count} acknowledged.`,
     "This is a derived read-only view: it does not approve, publish, retry, post to GitHub or Discord, record proof, commit or reject state, or execute Codex.",
+  ].join(" ");
+}
+
+type PublicationSummaryItem = PublicationSummaryResult["summary"]["drafts"][number];
+type FailedDeliverySummaryItem = PublicationSummaryResult["summary"]["failed_deliveries"][number];
+
+type PublicationDecisionCardItem = {
+  publication_id: string;
+  target_surface: string;
+  target_ref: string;
+  status: string;
+  preview_excerpt: string;
+  latest_delivery_status: string | null;
+  latest_delivery_error: string | null;
+  publish_eligibility: PublicationSummaryItem["publish_eligibility"];
+  decision_state: string;
+  user_facing_implication: string;
+  required_user_decision: string;
+  safe_next_step: string;
+  source_refs: {
+    publication_id: string;
+    work_id: string | null;
+    source_event_id: string | null;
+    latest_delivery_id: string | null;
+    failed_delivery_ids: string[];
+    publication_summary_as_of: unknown;
+    control_packet_as_of: string;
+  };
+};
+
+type PublicationDecisionCard = {
+  scope: string;
+  as_of: string;
+  title: string;
+  status_summary: {
+    draft_count: number;
+    approved_preview_count: number;
+    sent_count: number;
+    failed_count: number;
+    cancelled_count: number;
+    failed_delivery_count: number;
+    approved_previews_near_external_side_effect_boundary: boolean;
+  };
+  publication_items: PublicationDecisionCardItem[];
+  delivery_status: {
+    status_counts: Record<string, number>;
+    failed_deliveries: Array<{
+      delivery_id: string;
+      publication_id: string;
+      status: string;
+      error_message: string | null;
+      target_surface: string;
+      target_ref: string;
+      summary_reason: string;
+    }>;
+  };
+  pending_user_decisions: ControlPacket["pending_user_decisions"];
+  active_risks: ControlPacket["active_risks"];
+  authority_boundaries: ControlPacket["authority_boundaries"];
+  forbidden_actions: NonNullable<ControlPacket["forbidden_actions"]>;
+  safe_next_steps: string[];
+  boundaries: ControlPacket["boundaries"];
+};
+
+function buildPublicationDecisionCard(packet: ControlPacket): PublicationDecisionCard {
+  const publicationState = packet.relevant_publication_state;
+  const failedDeliveries = packet.relevant_delivery_state.failed_deliveries;
+  const failedDeliveriesByPublication = failedDeliveries.reduce((map, delivery) => {
+    const existing = map.get(delivery.publication_id) ?? [];
+    existing.push(delivery);
+    map.set(delivery.publication_id, existing);
+    return map;
+  }, new Map<string, FailedDeliverySummaryItem[]>());
+
+  const publicationItems = [
+    ...publicationState.drafts.map((item) => buildPublicationDecisionCardItem(item, packet, failedDeliveriesByPublication)),
+    ...publicationState.approved_previews.map((item) => buildPublicationDecisionCardItem(item, packet, failedDeliveriesByPublication)),
+    ...publicationState.sent.map((item) => buildPublicationDecisionCardItem(item, packet, failedDeliveriesByPublication)),
+    ...publicationState.failed.map((item) => buildPublicationDecisionCardItem(item, packet, failedDeliveriesByPublication)),
+    ...publicationState.cancelled.map((item) => buildPublicationDecisionCardItem(item, packet, failedDeliveriesByPublication)),
+  ];
+
+  return {
+    scope: packet.scope,
+    as_of: packet.as_of,
+    title: "Read-only publication decision card",
+    status_summary: {
+      draft_count: publicationState.drafts.length,
+      approved_preview_count: publicationState.approved_previews.length,
+      sent_count: publicationState.sent.length,
+      failed_count: publicationState.failed.length,
+      cancelled_count: publicationState.cancelled.length,
+      failed_delivery_count: failedDeliveries.length,
+      approved_previews_near_external_side_effect_boundary: publicationState.approved_previews.length > 0,
+    },
+    publication_items: publicationItems,
+    delivery_status: {
+      status_counts: packet.relevant_delivery_state.status_counts,
+      failed_deliveries: failedDeliveries.map((delivery) => ({
+        delivery_id: delivery.delivery_id,
+        publication_id: delivery.publication_id,
+        status: delivery.status,
+        error_message: delivery.error_message,
+        target_surface: delivery.target_surface,
+        target_ref: delivery.target_ref,
+        summary_reason: delivery.summary_reason,
+      })),
+    },
+    pending_user_decisions: packet.pending_user_decisions,
+    active_risks: packet.active_risks,
+    authority_boundaries: packet.authority_boundaries,
+    forbidden_actions: packet.forbidden_actions ?? [],
+    safe_next_steps: [
+      "Review publication previews, target refs, delivery state, and active risks.",
+      "Treat approved previews as near an external side-effect boundary; approval is not publication.",
+      "Use a separately scoped Core-gated workflow for any future approval, publish, retry, or proof-recording action.",
+      "Do not treat PR #67 as automatic posting permission.",
+    ],
+    boundaries: packet.boundaries,
+  };
+}
+
+function buildPublicationDecisionCardItem(
+  item: PublicationSummaryItem,
+  packet: ControlPacket,
+  failedDeliveriesByPublication: Map<string, FailedDeliverySummaryItem[]>
+): PublicationDecisionCardItem {
+  const failedDeliveries = failedDeliveriesByPublication.get(item.publication_id) ?? [];
+  const mapping = publicationDecisionMapping(item.status);
+  const latestFailedDelivery = failedDeliveries[0];
+
+  return {
+    publication_id: item.publication_id,
+    target_surface: item.target_surface,
+    target_ref: item.target_ref,
+    status: item.status,
+    preview_excerpt: item.preview_excerpt,
+    latest_delivery_status: item.latest_delivery_status ?? latestFailedDelivery?.status ?? null,
+    latest_delivery_error: item.latest_delivery_error ?? latestFailedDelivery?.error_message ?? null,
+    publish_eligibility: item.publish_eligibility,
+    decision_state: mapping.decision_state,
+    user_facing_implication: mapping.user_facing_implication,
+    required_user_decision: mapping.required_user_decision,
+    safe_next_step: mapping.safe_next_step,
+    source_refs: {
+      publication_id: item.publication_id,
+      work_id: item.work_id,
+      source_event_id: item.source_event_id,
+      latest_delivery_id: item.latest_delivery_id,
+      failed_delivery_ids: failedDeliveries.map((delivery) => delivery.delivery_id),
+      publication_summary_as_of: packet.source_refs.publication_summary_as_of,
+      control_packet_as_of: packet.as_of,
+    },
+  };
+}
+
+function publicationDecisionMapping(status: string) {
+  switch (status) {
+    case "draft":
+      return {
+        decision_state: "needs_preview_or_approval_decision",
+        user_facing_implication: "A draft preview exists, but this card cannot approve it or create any external side effect.",
+        required_user_decision: "Review whether this draft should be approved later; this tool cannot approve it.",
+        safe_next_step: "Review the preview and scope any later approval through a separate Core-gated workflow.",
+      };
+    case "approved":
+      return {
+        decision_state: "approved_preview_needs_separate_publish_decision",
+        user_facing_implication: "This approved preview is near an external side-effect boundary; approval is not publication.",
+        required_user_decision: "Decide separately whether to publish to the stored target; approval is not publication.",
+        safe_next_step: "Confirm target approval, delivery freshness, token availability, idempotency, and replay/no-duplicate evidence before any separate publish workflow.",
+      };
+    case "sent":
+      return {
+        decision_state: "already_sent",
+        user_facing_implication: "The publication is already recorded as sent; this card is only review context.",
+        required_user_decision: "No publish decision needed unless follow-up acknowledgement/review is separately scoped.",
+        safe_next_step: "Review acknowledgement or follow-up only if separately scoped.",
+      };
+    case "failed":
+      return {
+        decision_state: "failed_delivery_needs_review",
+        user_facing_implication: "A delivery failed and may need diagnosis; this card cannot retry it.",
+        required_user_decision: "Review failure context; retry is not available from this tool.",
+        safe_next_step: "Inspect failure context and scope any retry through a separate Core-gated workflow.",
+      };
+    case "cancelled":
+      return {
+        decision_state: "cancelled",
+        user_facing_implication: "The draft was cancelled; no publish flow is active from this item.",
+        required_user_decision: "No publish decision needed unless a new draft is separately created.",
+        safe_next_step: "Create or review a new draft only through a separately scoped workflow.",
+      };
+    default:
+      return {
+        decision_state: "unknown_publication_status_needs_review",
+        user_facing_implication: "The publication status is not recognized by this card; no write action is available.",
+        required_user_decision: "Review this status in Augnes Core/Cockpit before scoping any follow-up.",
+        safe_next_step: "Use read-only source refs to inspect the publication state.",
+      };
+  }
+}
+
+function describePublicationDecisionCard(card: PublicationDecisionCard): string {
+  const summary = card.status_summary;
+
+  return [
+    `Read-only publication decision card for ${card.scope}: ${summary.draft_count} draft(s), ${summary.approved_preview_count} approved preview(s), ${summary.sent_count} sent, ${summary.failed_count} failed, ${summary.cancelled_count} cancelled, and ${summary.failed_delivery_count} failed delivery item(s).`,
+    summary.approved_preview_count > 0
+      ? "Approved previews are near an external side-effect boundary; actual GitHub posting remains separately gated."
+      : "No approved preview is currently near the publish boundary in this bounded view.",
+    "This tool does not approve, publish, retry, record proof, commit or reject state, execute Codex, mutate GitHub, or post to Discord.",
   ].join(" ");
 }
 
@@ -1074,6 +1289,40 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_get_publication_summary", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_publication_decision_card",
+      {
+        title: "Get publication decision card",
+        description:
+          "Read a ChatGPT-facing publication decision card derived from the Augnes Control Packet. This is bridge-gated and read-only; it does not approve, publish, retry, record proof, commit or reject state, execute Codex, mutate GitHub, or post externally.",
+        inputSchema: { scope: z.string().min(1).optional() },
+        annotations: bridgeReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const controlPacket = await stateRuntimeAdapter.getControlPacket(resolvedScope);
+          const decisionCard = buildPublicationDecisionCard(controlPacket);
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            decision_card: decisionCard,
+            boundaries: decisionCard.boundaries,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describePublicationDecisionCard(decisionCard)),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_publication_decision_card", error);
         }
       }
     );

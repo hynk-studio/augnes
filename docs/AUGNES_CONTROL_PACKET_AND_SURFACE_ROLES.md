@@ -297,10 +297,12 @@ future work unless separately approved:
   `GET /api/control/brief?scope=project:augnes`. Status: implemented as
   `control_packet.v1`.
 - PR B: add a ChatGPT App decision card for publication control, read-only
-  first.
+  first. Status: implemented as the bridge-gated
+  `augnes_get_publication_decision_card` tool, derived from the Control Packet.
 - PR C: add a Codex task-control packet or PR-readiness packet.
 - PR D: refine Cockpit observability for gates and open loops.
 - PR E: only then consider Core-gated approve/publish actions.
 
-The recommended next product decision is whether to proceed to a user-facing
-ChatGPT Apps decision-card design for publication control.
+The recommended next product decision is whether to review/iterate the
+read-only ChatGPT Apps decision-card surface or scope the next separately gated
+workflow.
