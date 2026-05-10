@@ -47,6 +47,14 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   not publication: it does not publish, retry, create delivery rows, record
   proof, update mailbox status, commit/reject state, execute Codex, invoke
   GitHub, use `GITHUB_TOKEN`, post to GitHub, or post to Discord.
+- Core-gated publish routing may validate one fresh readiness check and, only
+  when `dry_run=false` plus explicit target approval fields and token
+  availability are present, execute one GitHub PR comment publish path. In the
+  C5 implementation PR, only `dry_run=true` preview and blocked checks were
+  verified; no live GitHub comment was posted and `GITHUB_TOKEN` was not used.
+  `dry_run=true` creates no delivery rows and has no external side effects.
+  PR #67 remains a single target-specific historical live adapter test, not
+  broad posting permission.
 - Approval gate-state summaries and Cockpit renderers are derived read-only
   views. They may show request readiness, target matching, delivery status, gate
   reasons, approval decision state, readiness check state, and safe next steps,
