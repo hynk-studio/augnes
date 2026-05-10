@@ -28,6 +28,7 @@ Core approval request records slice complete
 Read-only approval gate-state renderer slice complete
 C3 Core-gated approve action route complete
 C4 Core-gated dry-run publish readiness route complete
+C5 explicit Core-gated GitHub PR comment publish route complete, with no live posting executed in verification
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -36,12 +37,13 @@ decision-card slice is also read-only: it explains decisions and consequences
 without granting approval, publish, retry, proof, state, Codex, GitHub, or
 Discord authority. True ChatGPT Developer Mode verification for the publication
 decision card is complete via PR #72. The C3 Core-gated approve action route is
-implemented for stored approval requests and targets, and C4 dry-run publish
-readiness checks are implemented as Core-gated readiness records. The next
-likely slice is:
+implemented for stored approval requests and targets, C4 dry-run publish
+readiness checks are implemented as Core-gated readiness records, and C5 adds
+an explicit Core-gated GitHub PR comment publish route from a fresh readiness
+check. C5 verification did not execute live posting. The next likely slice is:
 
 ```text
-C5 explicit publish action, still separately scoped and requiring extra review.
+Separately approved live GitHub posting test for one specific target, or C5 hardening.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -57,7 +59,7 @@ A new session should read these files in this order:
 3. `docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md` - completed Phase 2 flow.
 4. `docs/AUTHORITY_MATRIX.md` - actor/surface authority boundaries.
 5. `docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md` - cross-surface control packet and surface roles.
-6. `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md` - Core-gated approve/publish workflow and implemented C1-C4 boundaries.
+6. `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md` - Core-gated approve/publish workflow and implemented C1-C5 boundaries.
 7. `docs/CODEX_HANDOFF_PACKET.md` - handoff packet shape.
 8. `docs/EXPECTED_IMPACT_CHECK.md` - expected-vs-actual review discipline.
 9. `docs/VERIFICATION_EVIDENCE_PACK.md` - PR verification evidence format.
@@ -160,6 +162,22 @@ Phase 4 completed:
   adapter, use `GITHUB_TOKEN`, post externally, record proof, update mailbox
   status, commit/reject Augnes state, execute Codex, add ChatGPT App tools, or
   add Cockpit write controls.
+- C5 explicit Core-gated GitHub PR comment publish routing is complete at
+  `POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment`.
+  `dry_run=true` returns a publish readiness preview only; it does not call the
+  GitHub adapter, require or use `GITHUB_TOKEN`, create delivery rows, update
+  publication status, create `publication_sent` or `publication_failed` events,
+  record proof, update mailbox status, commit/reject Augnes state, execute
+  Codex, post externally, add ChatGPT App tools, or add Cockpit write controls.
+- C5 `dry_run=false` is implemented as the only actual publish path, but it was
+  not executed live in the C5 implementation PR. It requires a fresh ready
+  readiness check, approved decision, requested approval request, approved
+  publication, exact stored GitHub PR target match, explicit target approval
+  fields, required `idempotency_key`, token availability before adapter
+  execution, and replay/no-duplicate gates.
+- The legacy
+  `POST /api/publications/{publication_id}/publish/github-pr-comment` route is
+  disabled so it cannot bypass C1-C4 gates.
 - Publication preview and delivery status views are bounded derived read-only views, not authority.
 - Actual GitHub posting remains gated by approved publication status, explicit `dry_run=false`, stored publication `target_ref`, required `idempotency_key`, fresh delivery row, token availability, and explicit user/PM approval for a specific target.
 - No Cockpit publish controls, ChatGPT App publish tools, Discord/webhook adapter, auto-posting, or proof recording have been added.
@@ -186,8 +204,9 @@ target-specific.
 Next default decision:
 
 ```text
-Choose whether C5 explicit publish action should be the next Core-gated
-approve/publish slice, with extra review before any external side effect.
+Choose whether the next slice should be a separately approved live GitHub
+posting test for one specific target or C5 hardening. C5 route implementation
+exists, but live posting was not executed in its implementation PR.
 ```
 
 Do not restart Phase 4 / PR 4.1. Do not add publish buttons, Cockpit write
@@ -485,11 +504,12 @@ A fresh ChatGPT session should do this:
 4. Confirm that C2 read-only approval gate-state rendering is derived context only and does not grant approval, change publication status, create deliveries, dry-run, publish, retry, record proof, update mailbox status, or commit/reject state.
 5. Confirm that C3 Core-gated approve action routing grants approval only for the stored target and does not dry-run, publish, retry, create delivery rows, record proof, update mailbox status, commit/reject state, execute Codex, invoke GitHub, use `GITHUB_TOKEN`, or post externally.
 6. Confirm that C4 Core-gated dry-run publish readiness records readiness evidence only and does not publish, retry, create delivery rows, record proof, update mailbox status, commit/reject state, execute Codex, invoke GitHub, use `GITHUB_TOKEN`, post externally, add ChatGPT App tools, or add Cockpit write controls.
-7. Ask the user to choose whether the next slice should be C5 explicit publish action or further hardening.
-8. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
-9. Let Codex implement and open or update a draft PR.
-10. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
-11. Let the user decide whether to merge.
+7. Confirm that C5 Core-gated publish routing exists, `dry_run=true` previews only and creates no delivery rows, `dry_run=false` requires explicit target approval plus token availability, and C5 verification did not execute live GitHub posting.
+8. Ask the user to choose whether the next slice should be a separately approved live GitHub posting test for one specific target or C5 hardening.
+9. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
+10. Let Codex implement and open or update a draft PR.
+11. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
+12. Let the user decide whether to merge.
 
 ChatGPT should not merge on its own unless the user explicitly directs it through available GitHub tooling.
 

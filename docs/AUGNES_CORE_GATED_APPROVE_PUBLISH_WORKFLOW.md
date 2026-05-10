@@ -3,11 +3,13 @@
 This document defines the Core-gated approve/publish workflow for Augnes.
 C1 approval request records, C2 read-only gate-state rendering, C3
 Core-gated approval grant routing, and C4 Core-gated dry-run publish readiness
-routing are implemented. Later workflow slices remain future work. The
-implemented C4 route records readiness evidence only; it does not publish,
-retry, create delivery rows, record proof, update mailbox status, commit/reject
-state, execute Codex, invoke the GitHub PR comment adapter, use `GITHUB_TOKEN`,
-post to GitHub, post to Discord, add app tools, or add Cockpit write controls.
+routing are implemented. C5 explicit Core-gated GitHub PR comment publish
+routing is also implemented, with `dry_run=true` preview verification only in
+the implementation PR. The implemented C4 route records readiness evidence
+only; it does not publish, retry, create delivery rows, record proof, update
+mailbox status, commit/reject state, execute Codex, invoke the GitHub PR comment
+adapter, use `GITHUB_TOKEN`, post to GitHub, post to Discord, add app tools, or
+add Cockpit write controls.
 
 ## Purpose
 
@@ -341,7 +343,9 @@ Recommended slices:
 - PR C4: Core-gated dry-run publish readiness route. Status: implemented as
   durable `publication_readiness_checks` and a dry-run readiness route.
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
-  preserving PR #67 idempotency rules.
+  preserving PR #67 idempotency rules. Status: implemented at
+  `POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment`;
+  the C5 implementation PR did not execute live posting.
 - PR C6: Retry workflow design and implementation only after C5 evidence.
 - PR C7: Optional Cockpit write controls, only after Core approval/publish
   routes exist.
@@ -354,11 +358,10 @@ posting was explicitly approved for one target.
 
 ## Remaining Non-Goals
 
-The implemented C1-C4 slices do not add:
+The implemented C1-C5 slices do not add:
 
 - App tools.
 - Cockpit buttons.
-- Publish routes.
 - Retry routes.
 - Proof recording.
 - Mailbox status updates.
@@ -542,14 +545,42 @@ C4 does not add:
 - Codex execution.
 
 Dry-run readiness is not publication. It records readiness evidence for the
-stored target only. Future publish still requires explicit target approval,
-approved publication status, `dry_run=false`, stored `target_ref`, required
-`idempotency_key`, delivery freshness, token availability, and
-replay/no-duplicate evidence. PR #67 does not authorize automatic posting.
+stored target only.
 
-The next likely slice is C5: an explicit Core-gated publish action. It remains
-separately scoped, requires extra review, and must preserve PR #67 idempotency
-rules.
+## C5 Implementation Status
+
+The C5 slice implements an explicit Core-gated GitHub PR comment publish route:
+
+- `POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment`
+  is the approved future publish path.
+- `dry_run=true` validates the Core gates and returns a publish readiness
+  preview with `would_publish=true`, target evidence, `idempotency_key`,
+  gate checks, blocked reasons, boundaries, and readiness freshness.
+- `dry_run=true` never calls the GitHub adapter, never requires or uses
+  `GITHUB_TOKEN`, never creates delivery rows, never updates publication status,
+  never creates `publication_sent` or `publication_failed` events, never records
+  proof, never updates mailbox status, never commits/rejects state, and never
+  posts externally.
+- `dry_run=false` requires a fresh ready readiness check, approved decision,
+  requested approval request, approved publication, exact target match, explicit
+  target approval fields, required `idempotency_key`, token availability before
+  adapter execution, and replay/no-duplicate gates.
+- Actual publish posts one GitHub PR comment only. It does not merge PRs,
+  submit PR reviews, request reviewers, mutate labels/titles/bodies, post to
+  Discord or webhooks, record proof, update mailbox status, commit/reject
+  state, or execute Codex.
+- The legacy
+  `POST /api/publications/{publication_id}/publish/github-pr-comment` route is
+  disabled so it cannot bypass C1-C4 gates.
+
+The C5 implementation PR did not execute `dry_run=false`, did not post a live
+GitHub comment, and did not use `GITHUB_TOKEN`. A future live test requires
+explicit user/PM approval for one specific target and a unique
+`idempotency_key`. PR #67 remains a single target-specific historical live
+adapter test, not broad posting permission.
+
+The next likely slice is a separately approved live GitHub posting test for one
+specific target, or C5 hardening before such a live test.
 
 ## Original Design-Only Verification Boundary
 
@@ -562,6 +593,6 @@ behavior, or MCP contract.
 
 Live GitHub posting remains prohibited for approval workflow slices unless a
 future user/PM explicitly approves one specific target. `GITHUB_TOKEN` is not
-required for C1, C2, C3, or C4, and
-`POST /api/publications/{publication_id}/publish/github-pr-comment` must not be
-invoked.
+required for C1, C2, C3, C4, or C5 dry-run preview verification. The legacy
+`POST /api/publications/{publication_id}/publish/github-pr-comment` route is
+disabled and must not be used as a publish bypass.
