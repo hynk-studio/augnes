@@ -31,6 +31,9 @@ surface. Current bridge-gated read-only summary tools include
 `augnes_get_mailbox_summary` and `augnes_get_publication_summary`; neither is
 available in public/default mode.
 
+For cross-surface decision/control roles, see
+`../../docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md`.
+
 ## Local run
 
 ```bash

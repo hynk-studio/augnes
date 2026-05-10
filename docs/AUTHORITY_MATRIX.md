@@ -11,6 +11,23 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
 - ChatGPT App owns conversational interpretation and handoff, not execution control.
 - Browser/Chrome and MCP Inspector are verification surfaces, not authorities.
 
+## Surface Role Distinctions
+
+- User decision surface: ChatGPT Apps should be the primary human-facing place
+  to understand pending choices, approval implications, and external side
+  effects. They may collect intent, but they do not own durable state,
+  publication, proof, or commit/reject authority.
+- Implementation control surface: Codex should show task scope, changed files,
+  verification evidence, skipped checks, blockers, assumptions, and PR
+  readiness. It can implement and open PRs, but it does not own durable
+  approval, publication, proof, or merge authority.
+- Observability surface: Cockpit should show event spine, mailbox, handoff,
+  publication, delivery, proof, and gate state. It should not become hidden
+  authority; any future write controls must be separately scoped and Core-gated.
+- Source-of-truth authority: Augnes Core remains the durable authority runtime
+  for committed state, proof records, event spine, mailbox, publication drafts,
+  delivery ledger, and gate validation.
+
 ## Capability Matrix
 
 | Actor or surface | Read Augnes state | Propose pending state | Record proof or trace | Commit/reject Augnes state | Edit repo | Use Browser/Chrome | Open PR |
