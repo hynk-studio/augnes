@@ -13,7 +13,7 @@ This app is intentionally narrow:
 - Narrator text is never treated as Evidence.
 - Repo search/explore stay view-only; fetch is the only repo path that can later become an evidence candidate.
 
-The public tool surface remains exactly:
+The original legacy public tool surface remains:
 
 - `search`
 - `fetch`
@@ -24,6 +24,11 @@ The public tool surface remains exactly:
 - `get_continuity_report`
 - `navigate_repo`
 - `get_governance_audit`
+
+Public/default mode also exposes the two read-only Augnes work tools:
+
+- `augnes_list_work_items`
+- `augnes_get_work_brief`
 
 Bridge-gated tools may be enabled for local operator workflows with
 `AUGNES_ENABLE_AGENT_BRIDGE=true`. They are not part of the public default
