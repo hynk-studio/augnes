@@ -321,6 +321,64 @@ type PublicationSummaryResponse = {
   boundaries: string[];
 };
 
+type ApprovalGateStateItem = {
+  approval_request_id: string;
+  publication_id: string;
+  work_id: string | null;
+  target_surface: string;
+  target_ref: string;
+  status: string;
+  requested_by: string;
+  requested_at: string;
+  decision_prompt: string;
+  side_effect_summary: string;
+  required_gate_checks: string[];
+  authority_boundaries: string[];
+  publication_status: string | null;
+  publication_target_match: boolean;
+  latest_delivery_status: string | null;
+  latest_delivery_id: string | null;
+  latest_delivery_error: string | null;
+  gate_state: string;
+  gate_reasons: string[];
+  safe_next_step: string;
+  source_refs: {
+    approval_request_id: string;
+    publication_id: string;
+    latest_delivery_id: string | null;
+  };
+};
+
+type ApprovalGateStateSummaryResponse = {
+  scope: string;
+  as_of: string;
+  summary: {
+    requested: ApprovalGateStateItem[];
+    blocked_or_not_ready: ApprovalGateStateItem[];
+    ready_for_future_approval_review: ApprovalGateStateItem[];
+    stale_or_mismatched: ApprovalGateStateItem[];
+    terminal_or_inactive: {
+      superseded_count: number;
+      cancelled_count: number;
+      expired_count: number;
+    };
+  };
+  counts: {
+    requested_count: number;
+    blocked_count: number;
+    ready_for_review_count: number;
+    superseded_count: number;
+    cancelled_count: number;
+    expired_count: number;
+  };
+  limits: {
+    bounded_view: true;
+    approval_request_limit: number;
+    delivery_limit: number;
+  };
+  boundaries: string[];
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -365,6 +423,9 @@ export function AugnesCockpit() {
   const [publicationSummary, setPublicationSummary] =
     useState<PublicationSummaryResponse | null>(null);
   const [publicationError, setPublicationError] = useState<string | null>(null);
+  const [approvalGateState, setApprovalGateState] =
+    useState<ApprovalGateStateSummaryResponse | null>(null);
+  const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -420,6 +481,7 @@ export function AugnesCockpit() {
     setEventError(null);
     setMailboxError(null);
     setPublicationError(null);
+    setApprovalGateError(null);
 
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
@@ -461,6 +523,16 @@ export function AugnesCockpit() {
             ? error.message
             : "Publication summary request failed",
       }));
+    const approvalGateRequest = fetchJson<ApprovalGateStateSummaryResponse>(
+      `/api/approval-gate-state/summary?scope=${SCOPE}`,
+    )
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Approval gate-state request failed",
+      }));
     const [
       snapshotResult,
       trajectoryResult,
@@ -470,6 +542,7 @@ export function AugnesCockpit() {
       eventsResult,
       mailboxResult,
       publicationResult,
+      approvalGateResult,
     ] =
       await Promise.all([
         fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
@@ -482,6 +555,7 @@ export function AugnesCockpit() {
         eventsRequest,
         mailboxRequest,
         publicationRequest,
+        approvalGateRequest,
       ]);
 
     setSnapshot(snapshotResult);
@@ -548,6 +622,13 @@ export function AugnesCockpit() {
     } else {
       setPublicationSummary(null);
       setPublicationError(publicationResult.error);
+    }
+
+    if ("value" in approvalGateResult) {
+      setApprovalGateState(approvalGateResult.value);
+    } else {
+      setApprovalGateState(null);
+      setApprovalGateError(approvalGateResult.error);
     }
   }
 
@@ -754,6 +835,11 @@ export function AugnesCockpit() {
       <PublicationSummaryPanel
         publicationSummary={publicationSummary}
         error={publicationError}
+      />
+
+      <ApprovalGateStatePanel
+        approvalGateState={approvalGateState}
+        error={approvalGateError}
       />
 
       <CoordinationEventTimeline
@@ -1910,6 +1996,220 @@ function PublicationFailedDeliveryBucket({
   );
 }
 
+function ApprovalGateStatePanel({
+  approvalGateState,
+  error,
+}: {
+  approvalGateState: ApprovalGateStateSummaryResponse | null;
+  error: string | null;
+}) {
+  const counts = approvalGateState?.counts;
+  const requestedItems = approvalGateState?.summary.requested ?? [];
+
+  return (
+    <section className="approval-gate-shell" aria-label="Approval Gate State">
+      <PanelHeader
+        eyebrow="Approval Gate"
+        title="Read-Only Gate State"
+        description="Derived from approval request records, publication drafts, and delivery ledger rows. This panel does not approve, publish, retry, post, record proof, update mailbox status, or commit state."
+      />
+      {error ? (
+        <EmptyState
+          label="Approval gate-state unavailable"
+          description={error}
+        />
+      ) : !approvalGateState ? (
+        <LoadingBlock
+          title="Loading approval gate state"
+          lines={[
+            "Reading approval request records",
+            "Comparing publication targets and deliveries",
+          ]}
+        />
+      ) : requestedItems.length === 0 ? (
+        <div className="approval-gate-empty">
+          <EmptyState
+            label="No requested approval gate records"
+            description="Approval request records will appear here as read-only gate context."
+          />
+          <ApprovalGateCounts counts={counts} limits={approvalGateState.limits} />
+        </div>
+      ) : (
+        <>
+          <ApprovalGateCounts counts={counts} limits={approvalGateState.limits} />
+          <div className="approval-gate-grid">
+            <ApprovalGateBucket
+              title="Ready For Review"
+              items={approvalGateState.summary.ready_for_future_approval_review}
+              emptyLabel="No request is ready for future approval review"
+            />
+            <ApprovalGateBucket
+              title="Blocked or Not Ready"
+              items={approvalGateState.summary.blocked_or_not_ready}
+              emptyLabel="No blocked active requests"
+            />
+            <ApprovalGateBucket
+              title="Stale or Mismatched"
+              items={approvalGateState.summary.stale_or_mismatched}
+              emptyLabel="No stale or mismatched requests"
+            />
+          </div>
+          <ApprovalGateInactiveCounts
+            inactive={approvalGateState.summary.terminal_or_inactive}
+          />
+          <details className="approval-gate-boundaries">
+            <summary>Gate-state boundaries</summary>
+            <ul>
+              {approvalGateState.boundaries.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
+          </details>
+        </>
+      )}
+    </section>
+  );
+}
+
+function ApprovalGateCounts({
+  counts,
+  limits,
+}: {
+  counts: ApprovalGateStateSummaryResponse["counts"] | undefined;
+  limits: ApprovalGateStateSummaryResponse["limits"] | undefined;
+}) {
+  return (
+    <div className="approval-gate-counts" aria-label="Approval gate counts">
+      <span>
+        Bounded approval requests
+        {limits ? `: latest ${limits.approval_request_limit}` : ""}
+      </span>
+      <strong>{counts?.requested_count ?? 0} requested</strong>
+      <strong>{counts?.ready_for_review_count ?? 0} ready for review</strong>
+      <strong>{counts?.blocked_count ?? 0} blocked</strong>
+      <strong>{counts?.superseded_count ?? 0} superseded</strong>
+      <strong>{counts?.cancelled_count ?? 0} cancelled</strong>
+      <strong>{counts?.expired_count ?? 0} expired</strong>
+    </div>
+  );
+}
+
+function ApprovalGateInactiveCounts({
+  inactive,
+}: {
+  inactive:
+    | ApprovalGateStateSummaryResponse["summary"]["terminal_or_inactive"]
+    | undefined;
+}) {
+  return (
+    <div
+      className="approval-gate-inactive-counts"
+      aria-label="Inactive approval request counts"
+    >
+      <span>Inactive</span>
+      <strong>{inactive?.superseded_count ?? 0} superseded</strong>
+      <strong>{inactive?.cancelled_count ?? 0} cancelled</strong>
+      <strong>{inactive?.expired_count ?? 0} expired</strong>
+    </div>
+  );
+}
+
+function ApprovalGateBucket({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: ApprovalGateStateItem[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="approval-gate-bucket">
+      <div className="card-topline">
+        <h3>{title}</h3>
+        <StatusBadge
+          label={`${items.length}`}
+          tone={items.length ? "needs-review" : "muted"}
+        />
+      </div>
+      {items.length ? (
+        <div className="approval-gate-list">
+          {items.map((item) => (
+            <article
+              className="approval-gate-item"
+              key={item.approval_request_id}
+            >
+              <div className="card-topline">
+                <strong>{item.work_id ?? item.publication_id}</strong>
+                <StatusBadge
+                  label={formatStatusLabel(item.gate_state)}
+                  tone={getApprovalGateStateTone(item.gate_state)}
+                />
+              </div>
+              <p>{item.decision_prompt}</p>
+              <p className="approval-gate-side-effect">
+                {item.side_effect_summary}
+              </p>
+              <div className="meta-row">
+                <span>
+                  request <code>{item.approval_request_id}</code>
+                </span>
+                <span>
+                  publication <code>{item.publication_id}</code>
+                </span>
+                <span>{formatStatusLabel(item.target_surface)}</span>
+                <span>
+                  target <code>{item.target_ref}</code>
+                </span>
+                <span>
+                  publication{" "}
+                  <code>
+                    {item.publication_status
+                      ? formatStatusLabel(item.publication_status)
+                      : "missing"}
+                  </code>
+                </span>
+                <span>
+                  target match <code>{item.publication_target_match ? "yes" : "no"}</code>
+                </span>
+                {item.latest_delivery_status ? (
+                  <span>
+                    delivery{" "}
+                    <code>{formatStatusLabel(item.latest_delivery_status)}</code>
+                  </span>
+                ) : (
+                  <span>no delivery rows</span>
+                )}
+                <time dateTime={item.requested_at}>
+                  {formatDate(item.requested_at)}
+                </time>
+              </div>
+              {item.latest_delivery_error ? (
+                <p className="approval-gate-error">
+                  {item.latest_delivery_error}
+                </p>
+              ) : null}
+              <section className="approval-gate-reasons">
+                <h4>Gate reasons</h4>
+                <ul>
+                  {item.gate_reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              </section>
+              <p className="approval-gate-next-step">
+                {item.safe_next_step}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState label={emptyLabel} />
+      )}
+    </section>
+  );
+}
+
 function CoordinationEventTimeline({
   events,
   selectedEvent,
@@ -2899,6 +3199,22 @@ function getPublicationStatusTone(status: string) {
   };
 
   return tones[status] ?? "muted";
+}
+
+function getApprovalGateStateTone(gateState: string) {
+  const tones: Record<string, string> = {
+    ready_for_future_approval_review: "needs-review",
+    blocked_missing_publication: "tension",
+    blocked_target_mismatch: "tension",
+    blocked_already_sent: "expired",
+    blocked_cancelled_publication: "expired",
+    blocked_existing_sent_delivery: "expired",
+    needs_failure_review: "needs-review",
+    inactive_request: "muted",
+    blocked_or_not_ready: "muted",
+  };
+
+  return tones[gateState] ?? "muted";
 }
 
 function getHandoffStateKeys(handoff: StateBriefAgentHandoff) {
