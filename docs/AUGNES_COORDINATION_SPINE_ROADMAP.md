@@ -567,7 +567,9 @@ C5 adds an explicit Core-gated GitHub PR comment publish route. C5
 `dry_run=true` previews only and creates no delivery rows or external side
 effects. C5 `dry_run=false` requires explicit target approval, idempotency,
 fresh readiness, token availability, and replay/no-duplicate gates, but live
-posting was not executed in the C5 implementation PR.
+posting was not executed in the C5 implementation PR. The C5 live-test decision
+packet documents the approval requirements and future test procedure, but it
+does not approve or execute a live post.
 
 Future implementation slices must remain separate from this design step:
 
@@ -593,6 +595,9 @@ Future implementation slices must remain separate from this design step:
   preserving PR #67 idempotency rules. Status: implemented at
   `POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment`;
   dry-run preview verified, live posting not executed.
+- PR C5 live-test decision: Status: documented in
+  `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md`; decision-only, no
+  live posting, no `dry_run=false`, no `GITHUB_TOKEN`, and no delivery rows.
 - PR C6: Retry workflow design and implementation only after C5 evidence.
 - PR C7: Optional Cockpit write controls, only after Core approval/publish
   routes exist.
@@ -638,6 +643,8 @@ Every phase must preserve these rules:
 19. Explicit Core-gated GitHub PR comment publish route, with dry-run preview
     verification only and no live posting until one target is separately
     approved
+20. Decision packet for a future live C5 GitHub publish test, with no live
+    posting and no target approval by documentation alone
 ```
 
 ## Success Criteria
