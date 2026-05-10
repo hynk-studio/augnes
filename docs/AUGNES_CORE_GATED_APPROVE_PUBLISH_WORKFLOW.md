@@ -1,11 +1,13 @@
 # Augnes Core-Gated Approve/Publish Workflow Design
 
-This document designs a future Core-gated approve/publish workflow for Augnes.
-It is intentionally design-only. It does not add runtime API routes, app tools,
-Cockpit buttons, approval routes, publish routes, retry routes, proof recording,
-mailbox status updates, state commit/reject behavior, GitHub posting,
-Discord/webhook posting, secret handling changes, or hosted auth/deployment
-semantics.
+This document defines the Core-gated approve/publish workflow for Augnes.
+C1 approval request records, C2 read-only gate-state rendering, and C3
+Core-gated approval grant routing are implemented. Later workflow slices remain
+future work. The implemented C3 route grants approval only for one stored
+approval request target; it does not dry-run, publish, retry, create delivery
+rows, record proof, update mailbox status, commit/reject state, execute Codex,
+invoke the GitHub PR comment adapter, use `GITHUB_TOKEN`, post to GitHub, post
+to Discord, add app tools, or add Cockpit write controls.
 
 ## Purpose
 
@@ -326,14 +328,16 @@ side-effect boundary.
 
 ## Future Implementation Slices
 
-Recommended future slices:
+Recommended slices:
 
 - PR C1: Core approval intent model and approval request records only, with no
   publish execution. Status: implemented as durable approval request records
   and read/create APIs only.
 - PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer. Status:
   implemented as a derived Core summary API and read-only Cockpit panel.
-- PR C3: Core-gated approve action route, with no publish execution.
+- PR C3: Core-gated approve action route, with no publish execution. Status:
+  implemented as a target-specific approval grant route backed by
+  `publication_approval_decisions`.
 - PR C4: Core-gated dry-run publish readiness route.
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
   preserving PR #67 idempotency rules.
@@ -347,16 +351,15 @@ Each implementation PR should restate expected versus actual impact, authority
 boundaries, verification evidence, skipped checks, and whether any live external
 posting was explicitly approved for one target.
 
-## Non-Goals
+## Remaining Non-Goals
 
-This design PR does not add:
+The implemented C1-C3 slices do not add:
 
-- Runtime API routes.
 - App tools.
 - Cockpit buttons.
-- Approval routes.
 - Publish routes.
 - Retry routes.
+- Dry-run readiness routes.
 - Proof recording.
 - Mailbox status updates.
 - State commit/reject behavior.
@@ -443,12 +446,57 @@ Approval request records remain requests only. Gate-state rendering can help a
 user inspect whether a request is target-matched and reviewable, but it does not
 approve the request and does not move any publication toward execution.
 
-No approve route exists yet. No publish route exists yet. No retry route exists
-yet.
+## C3 Implementation Status
 
-The next likely slice is C3 a Core-gated approve action route, with no publish
-execution, or further C2 read-only renderer hardening if user/PM review calls
-for it.
+The C3 slice implements a Core-gated approve action route with no publish
+execution:
+
+- `POST /api/publication-approval-requests/{approval_request_id}/approve`
+  validates one existing approval request in scope and records an approved
+  decision for the stored target.
+- `publication_approval_decisions` stores durable approval grants separately
+  from `publication_approval_requests`.
+- `GET /api/publication-approval-decisions?scope=project:augnes` lists decision
+  records, and
+  `GET /api/publication-approval-decisions/{approval_decision_id}?scope=project:augnes`
+  reads one decision record.
+- The approve route requires the request status to be `requested`, the linked
+  publication to exist in the same scope, the request target to match the stored
+  publication target, publication status to be `draft`, no sent delivery for the
+  publication target, and no existing approved decision for the request.
+- On success, the route inserts one approved decision row and transitions the
+  linked publication to `approved` with `approved_by = decided_by`.
+- A duplicate approval attempt returns a conflict instead of creating another
+  decision or another side effect.
+- The gate-state summary and read-only Cockpit panel can show
+  `approved_for_future_publish_readiness` when a matching approval decision
+  exists.
+
+C3 does not add:
+
+- Dry-run readiness checks.
+- Publish execution.
+- Retry execution.
+- Delivery ledger writes.
+- `publication_sent` or `publication_failed` events.
+- GitHub adapter calls.
+- `GITHUB_TOKEN` usage.
+- GitHub or Discord posting.
+- Cockpit write controls.
+- ChatGPT App publish, approval, or retry tools.
+- Proof recording.
+- Mailbox status updates.
+- State commit/reject behavior.
+- Codex execution.
+
+Approval grant is still not publication. It grants approval for the stored
+target only. Future publish still requires explicit target approval, approved
+publication status, `dry_run=false`, stored `target_ref`, required
+`idempotency_key`, delivery freshness, token availability, and
+replay/no-duplicate evidence. PR #67 does not authorize automatic posting.
+
+The next likely slice is C4: a Core-gated dry-run publish readiness route. It
+must remain separate from approval grant and from publish execution.
 
 ## Original Design-Only Verification Boundary
 
@@ -459,8 +507,8 @@ ChatGPT Developer Mode and MCP verification were not required for the original
 workflow design PR because it changed no app tool, bridge behavior, widget
 behavior, or MCP contract.
 
-Live GitHub posting remains prohibited for read-only approval workflow slices
-unless a future user/PM explicitly approves one specific target. `GITHUB_TOKEN`
-is not required for C1 or C2, and
+Live GitHub posting remains prohibited for approval workflow slices unless a
+future user/PM explicitly approves one specific target. `GITHUB_TOKEN` is not
+required for C1, C2, or C3, and
 `POST /api/publications/{publication_id}/publish/github-pr-comment` must not be
 invoked.

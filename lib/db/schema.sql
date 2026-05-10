@@ -371,6 +371,45 @@ CREATE INDEX IF NOT EXISTS idx_publication_approval_requests_scope_status_time
 CREATE INDEX IF NOT EXISTS idx_publication_approval_requests_scope_target_time
   ON publication_approval_requests(scope, target_surface, target_ref, requested_at DESC);
 
+CREATE TABLE IF NOT EXISTS publication_approval_decisions (
+  approval_decision_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  approval_request_id TEXT NOT NULL,
+  publication_id TEXT NOT NULL,
+  work_id TEXT,
+  target_surface TEXT NOT NULL,
+  target_ref TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (
+    decision IN (
+      'approved'
+    )
+  ),
+  decided_by TEXT NOT NULL,
+  decided_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  decision_reason TEXT NOT NULL,
+  gate_checks TEXT NOT NULL DEFAULT '[]',
+  authority_boundaries TEXT NOT NULL DEFAULT '[]',
+  source_control_packet_ref TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  FOREIGN KEY (approval_request_id) REFERENCES publication_approval_requests(approval_request_id),
+  FOREIGN KEY (publication_id) REFERENCES publication_drafts(publication_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_publication_approval_decisions_request_decision
+  ON publication_approval_decisions(approval_request_id, decision);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_decisions_scope_time
+  ON publication_approval_decisions(scope, decided_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_decisions_scope_publication_time
+  ON publication_approval_decisions(scope, publication_id, decided_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_decisions_scope_request_time
+  ON publication_approval_decisions(scope, approval_request_id, decided_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_approval_decisions_scope_target_time
+  ON publication_approval_decisions(scope, target_surface, target_ref, decided_at DESC);
+
 CREATE TABLE IF NOT EXISTS delivery_ledger (
   delivery_id TEXT PRIMARY KEY,
   publication_id TEXT NOT NULL,

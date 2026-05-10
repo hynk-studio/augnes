@@ -560,13 +560,12 @@ Control Packet API. PR B adds a bridge-gated read-only ChatGPT Apps publication
 decision-card surface derived from that packet, with true ChatGPT Developer
 Mode verification complete via PR #72.
 
-The next roadmap step is design-only: review the Core-gated approve/publish
-workflow in `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md` before
-implementing any write controls. That design defines authority, states, gates,
-surface responsibilities, audit/event requirements, failure/retry behavior, UX
-requirements, non-goals, and future implementation slices. It does not add
-routes, tools, buttons, proof behavior, mailbox behavior, state commit/reject
-behavior, or external posting.
+The Core-gated approve/publish workflow is now partially implemented through
+C3. C1 created approval request records, C2 rendered read-only gate state, and
+C3 adds a Core-gated approve action route that grants approval only for one
+stored request target. C3 does not dry-run, publish, retry, create delivery
+rows, record proof, update mailbox status, commit/reject state, execute Codex,
+invoke GitHub, use `GITHUB_TOKEN`, post to GitHub, or post to Discord.
 
 Future implementation slices must remain separate from this design step:
 
@@ -580,7 +579,10 @@ Future implementation slices must remain separate from this design step:
   rendering does not grant approval, change publication status, create delivery
   rows, dry-run, publish, retry, record proof, update mailbox status, or
   commit/reject state.
-- PR C3: Core-gated approve action route, with no publish execution.
+- PR C3: Core-gated approve action route, with no publish execution. Status:
+  implemented as `POST /api/publication-approval-requests/{approval_request_id}/approve`
+  and durable `publication_approval_decisions`; approval grant is still not
+  publication and does not create delivery rows or external side effects.
 - PR C4: Core-gated dry-run publish readiness route.
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
   preserving PR #67 idempotency rules.
@@ -624,6 +626,7 @@ Every phase must preserve these rules:
 14. Core-gated approve/publish workflow design before write controls
 15. Core approval request records only, with no publish execution
 16. Read-only approval gate-state renderer, with no approve/publish execution
+17. Core-gated approve action route, with no publish execution
 ```
 
 ## Success Criteria
