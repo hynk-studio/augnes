@@ -327,9 +327,16 @@ Public/default mode must not expose `augnes_get_publication_summary`, and it
 must not expose publication approval, publish, retry, proof-recording,
 state-commit, or Codex-execution tools.
 
+Developer Mode verification for `augnes_get_publication_summary` is complete
+via PR #66. Treat that as evidence that the bridge-gated summary read works in
+Developer Mode, not as publish authority. ChatGPT App still does not expose
+publish, approve, or retry tools. Live GitHub posting is a backend adapter flow
+only and is not initiated from the ChatGPT App.
+
 ### Publication Summary Developer Mode Verification Checklist
 
-Use this checklist for the next Developer Mode verification pass:
+Use this checklist only when re-validating Developer Mode behavior after a
+relevant bridge or registration change:
 
 - Start the Augnes runtime from the repo root.
 - Start the bridge with `AUGNES_ENABLE_AGENT_BRIDGE=true` and

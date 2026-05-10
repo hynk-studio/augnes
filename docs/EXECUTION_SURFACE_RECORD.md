@@ -37,6 +37,12 @@ execution_surfaces:
 
 Use for repository inspection, commits, branches, PRs, review comments, and CI status. GitHub owns code history, not Augnes committed state.
 
+Live GitHub publication adapter tests are not general GitHub usage. They require
+explicit user/PM approval for a specific target, a scoped token, a unique
+`idempotency_key`, and replay evidence proving no duplicate comment. PR #67 is
+the baseline example: one retained test comment on PR #67, one sent delivery,
+and no automatic posting authority.
+
 ### `browser` and `chrome`
 
 Use for rendered UI checks. Browser/Chrome can observe behavior and produce evidence summaries. They do not approve state, edit repo, or open PRs by themselves.
