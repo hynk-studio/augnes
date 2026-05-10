@@ -112,6 +112,22 @@ function rejectUnsupportedOverrides(record: Record<string, unknown>) {
     "publication_id",
     "target_surface",
     "target_ref",
+    "dry_run",
+    "idempotency_key",
+    "idempotencyKey",
+    "publish",
+    "retry",
+    "delivery_id",
+    "delivery_status",
+    "github_token",
+    "GITHUB_TOKEN",
+    "target_override",
+    "expected_target_surface",
+    "actual_publish",
+    "post_to_github",
+    "post_to_discord",
+    "proof",
+    "record_proof",
   ].filter((key) => record[key] !== undefined);
 
   if (unsupportedKeys.length > 0) {
