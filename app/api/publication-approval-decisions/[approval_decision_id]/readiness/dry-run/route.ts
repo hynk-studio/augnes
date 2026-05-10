@@ -83,6 +83,15 @@ async function readJsonBody(request: Request) {
 
 function rejectUnsupportedFields(record: Record<string, unknown>) {
   const unsupportedKeys = [
+    "status",
+    "ready",
+    "publication_id",
+    "approval_request_id",
+    "gate_checks",
+    "blocked_reasons",
+    "readiness_summary",
+    "idempotency_key_required",
+    "publish_route_required",
     "dry_run",
     "dryRun",
     "publish",
