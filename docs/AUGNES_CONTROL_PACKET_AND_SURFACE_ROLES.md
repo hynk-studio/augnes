@@ -1,8 +1,15 @@
 # Augnes Control Packet and Surface Roles
 
-This document is a design note for a future cross-surface control packet and
-surface role model. It does not add an API, tool, route, approval flow,
-publisher, Cockpit control, or ChatGPT App behavior in this PR.
+This document defines the cross-surface control packet and surface role model.
+The first read-only runtime API slice is now implemented as:
+
+```text
+GET /api/control/brief?scope=project:augnes
+```
+
+That API is a generated, derived, unstored view. It does not add approval flow,
+publisher behavior, Cockpit write controls, ChatGPT App tools, proof recording,
+or durable state authority.
 
 ## Motivation
 
@@ -36,8 +43,10 @@ Control can appear across surfaces, but authority remains centralized and gated.
 An Augnes Control Packet is a derived, bounded, source-of-truth-backed packet
 that can be rendered differently by each surface.
 
-It is not a new API in this PR. It is a design concept for a later read-only
-implementation, if approved.
+The first implemented API version is `control_packet.v1`. It composes existing
+runtime reads such as state brief, work items, coordination events, mailbox
+summary, and publication summary. It must not create a second durable store,
+event ledger, mailbox, publication ledger, proof record, or approval state.
 
 A future packet could include fields such as:
 
@@ -281,16 +290,17 @@ posting.
 
 ## Future Implementation Path
 
-These are proposed future slices, not work implemented by this PR:
+These are proposed future slices. PR A is implemented; later slices remain
+future work unless separately approved:
 
-- PR A: implement a read-only control packet API, for example
-  `GET /api/control/brief?scope=project:augnes`, if later approved.
+- PR A: implement a read-only control packet API,
+  `GET /api/control/brief?scope=project:augnes`. Status: implemented as
+  `control_packet.v1`.
 - PR B: add a ChatGPT App decision card for publication control, read-only
   first.
 - PR C: add a Codex task-control packet or PR-readiness packet.
 - PR D: refine Cockpit observability for gates and open loops.
 - PR E: only then consider Core-gated approve/publish actions.
 
-The recommended next product decision is whether to implement a read-only
-Control Packet API or proceed to a user-facing ChatGPT Apps decision-card design
-for publication control.
+The recommended next product decision is whether to proceed to a user-facing
+ChatGPT Apps decision-card design for publication control.
