@@ -25,6 +25,7 @@ Read-only Control Packet API slice complete
 Read-only ChatGPT Apps publication decision-card slice complete
 True ChatGPT Developer Mode publication decision-card verification via PR #72 complete
 Core approval request records slice complete
+Read-only approval gate-state renderer slice complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -35,8 +36,9 @@ Discord authority. True ChatGPT Developer Mode verification for the publication
 decision card is complete via PR #72. The next decision is:
 
 ```text
-Review whether the next Core-gated approve/publish slice should be a read-only
-gate-state renderer or a Core-gated approve action route.
+Review whether the next Core-gated approve/publish slice should be the
+Core-gated approve action route, or whether the read-only gate-state renderer
+needs additional hardening first.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -133,6 +135,11 @@ Phase 4 completed:
   approval is being requested for a specific publication target; they do not
   grant approval, change publication status, create delivery rows, dry-run,
   publish, retry, record proof, update mailbox status, or commit/reject state.
+- Read-only approval gate-state rendering is complete. The derived summary API
+  and Cockpit panel make approval request records visible as gate context; they
+  do not grant approval, change publication status, create delivery rows,
+  dry-run, publish, retry, record proof, update mailbox status, or commit/reject
+  state. Gate-state views are derived views, not sources of truth.
 - Publication preview and delivery status views are bounded derived read-only views, not authority.
 - Actual GitHub posting remains gated by approved publication status, explicit `dry_run=false`, stored publication `target_ref`, required `idempotency_key`, fresh delivery row, token availability, and explicit user/PM approval for a specific target.
 - No Cockpit publish controls, ChatGPT App publish tools, Discord/webhook adapter, auto-posting, or proof recording have been added.
@@ -159,8 +166,8 @@ target-specific.
 Next default decision:
 
 ```text
-Choose the next Core-gated approve/publish slice: C2 read-only gate-state
-renderer or C3 Core-gated approve action route.
+Choose the next Core-gated approve/publish slice: C3 Core-gated approve action
+route, or further C2 read-only renderer hardening if needed.
 ```
 
 Do not restart Phase 4 / PR 4.1. Do not add publish buttons, approval
@@ -455,11 +462,12 @@ A fresh ChatGPT session should do this:
 1. Read this file and the roadmap/runbooks listed above.
 2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, Phase 3 PR 3.3, Phase 4 PR 4.1, Phase 4 PR 4.2, Phase 4 PR 4.3, Developer Mode publication summary verification via PR #66, the live GitHub adapter test via PR #67, and true ChatGPT Developer Mode publication decision-card verification via PR #72 are complete.
 3. Confirm that C1 Core approval request records are records-only and do not grant approval, change publication status, create deliveries, dry-run, publish, retry, record proof, update mailbox status, or commit/reject state.
-4. Ask the user to choose whether the next slice should be C2 read-only gate-state renderer or C3 Core-gated approve action route.
-5. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
-6. Let Codex implement and open or update a draft PR.
-7. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
-8. Let the user decide whether to merge.
+4. Confirm that C2 read-only approval gate-state rendering is derived context only and does not grant approval, change publication status, create deliveries, dry-run, publish, retry, record proof, update mailbox status, or commit/reject state.
+5. Ask the user to choose whether the next slice should be C3 Core-gated approve action route or further C2 renderer hardening.
+6. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
+7. Let Codex implement and open or update a draft PR.
+8. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
+9. Let the user decide whether to merge.
 
 ChatGPT should not merge on its own unless the user explicitly directs it through available GitHub tooling.
 
@@ -487,8 +495,8 @@ Do not collapse this into autonomous implementation. The boring boundary is doin
 Begin with:
 
 ```text
-Choose the next Core-gated approve/publish slice: C2 read-only gate-state
-renderer or C3 Core-gated approve action route.
+Choose the next Core-gated approve/publish slice: C3 Core-gated approve action
+route, or further C2 read-only renderer hardening if needed.
 ```
 
 Do not repeat live GitHub posting unless the user/PM explicitly approves a

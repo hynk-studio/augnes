@@ -36,6 +36,11 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   requested for a specific publication target. They are not approval grants and
   do not change publication status, create delivery rows, publish, retry, record
   proof, update mailbox status, or commit/reject state.
+- Approval gate-state summaries and Cockpit renderers are derived read-only
+  views. They may show request readiness, target matching, delivery status, gate
+  reasons, and safe next steps, but they are not sources of truth and do not add
+  approve, publish, retry, proof, mailbox, state, GitHub, Discord, or Codex
+  execution authority.
 
 ## Capability Matrix
 

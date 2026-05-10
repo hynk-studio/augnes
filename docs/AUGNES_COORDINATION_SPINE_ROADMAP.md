@@ -575,7 +575,11 @@ Future implementation slices must remain separate from this design step:
   and read/create APIs only; request creation does not grant approval, change
   publication status, create delivery rows, dry-run, publish, retry, record
   proof, update mailbox status, or commit/reject state.
-- PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer.
+- PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer. Status:
+  implemented as a derived Core summary API and read-only Cockpit panel; gate
+  rendering does not grant approval, change publication status, create delivery
+  rows, dry-run, publish, retry, record proof, update mailbox status, or
+  commit/reject state.
 - PR C3: Core-gated approve action route, with no publish execution.
 - PR C4: Core-gated dry-run publish readiness route.
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
@@ -619,6 +623,7 @@ Every phase must preserve these rules:
 13. Read-only Control Packet and publication decision-card verification
 14. Core-gated approve/publish workflow design before write controls
 15. Core approval request records only, with no publish execution
+16. Read-only approval gate-state renderer, with no approve/publish execution
 ```
 
 ## Success Criteria

@@ -331,7 +331,8 @@ Recommended future slices:
 - PR C1: Core approval intent model and approval request records only, with no
   publish execution. Status: implemented as durable approval request records
   and read/create APIs only.
-- PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer.
+- PR C2: ChatGPT Apps or Cockpit read-only gate-state renderer. Status:
+  implemented as a derived Core summary API and read-only Cockpit panel.
 - PR C3: Core-gated approve action route, with no publish execution.
 - PR C4: Core-gated dry-run publish readiness route.
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
@@ -403,17 +404,63 @@ Approval request records are not approval grants. Creating a request means a
 user/PM decision is being requested for a specific target; it does not approve
 the publication and does not move the publication toward execution.
 
-The next likely slice is either C2 read-only gate-state rendering or C3 a
-Core-gated approve action route, depending on user/PM decision.
+## C2 Implementation Status
 
-## Design-Only Verification Boundary
+The C2 slice implements read-only approval gate-state rendering:
 
-Browser/Cockpit verification is not required for this PR because it changes only
-docs and adds no UI or runtime behavior.
+- `GET /api/approval-gate-state/summary?scope=project:augnes` returns a
+  bounded derived view over approval request records, publication drafts, and
+  delivery ledger state.
+- The Cockpit shows a read-only Approval Gate State panel with requested counts,
+  ready-for-review counts, blocked counts, inactive counts, target references,
+  publication status, gate reasons, safe next steps, and boundary text.
+- Gate-state views are derived views, not sources of truth. Durable request
+  records remain in `publication_approval_requests`; publication records and
+  delivery rows remain their own Core records.
+- Control Packet integration remains deferred to avoid changing that packet
+  contract in the read-only renderer slice.
 
-ChatGPT Developer Mode and MCP verification are not required for this PR because
-it changes no app tool, bridge behavior, widget behavior, or MCP contract.
+C2 does not add:
 
-Live GitHub posting is prohibited for this PR. `GITHUB_TOKEN` is not required,
-and `POST /api/publications/{publication_id}/publish/github-pr-comment` must not
-be invoked.
+- Approval grant behavior.
+- Approval denial behavior.
+- Approval routes.
+- Publish routes.
+- Retry routes.
+- Publication status changes.
+- Dry-run readiness checks.
+- Publish execution.
+- Retry execution.
+- Delivery ledger writes from gate-state reads.
+- GitHub adapter calls.
+- ChatGPT App intent tools.
+- Cockpit write controls.
+- Proof recording.
+- Mailbox status updates.
+- State commit/reject behavior.
+
+Approval request records remain requests only. Gate-state rendering can help a
+user inspect whether a request is target-matched and reviewable, but it does not
+approve the request and does not move any publication toward execution.
+
+No approve route exists yet. No publish route exists yet. No retry route exists
+yet.
+
+The next likely slice is C3 a Core-gated approve action route, with no publish
+execution, or further C2 read-only renderer hardening if user/PM review calls
+for it.
+
+## Original Design-Only Verification Boundary
+
+Browser/Cockpit verification was not required for the original workflow design
+PR because it changed only docs and added no UI or runtime behavior.
+
+ChatGPT Developer Mode and MCP verification were not required for the original
+workflow design PR because it changed no app tool, bridge behavior, widget
+behavior, or MCP contract.
+
+Live GitHub posting remains prohibited for read-only approval workflow slices
+unless a future user/PM explicitly approves one specific target. `GITHUB_TOKEN`
+is not required for C1 or C2, and
+`POST /api/publications/{publication_id}/publish/github-pr-comment` must not be
+invoked.
