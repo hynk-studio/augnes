@@ -336,6 +336,10 @@ type ApprovalGateStateItem = {
   authority_boundaries: string[];
   publication_status: string | null;
   publication_target_match: boolean;
+  approval_decision_id: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  approval_decision_reason: string | null;
   latest_delivery_status: string | null;
   latest_delivery_id: string | null;
   latest_delivery_error: string | null;
@@ -356,6 +360,7 @@ type ApprovalGateStateSummaryResponse = {
     requested: ApprovalGateStateItem[];
     blocked_or_not_ready: ApprovalGateStateItem[];
     ready_for_future_approval_review: ApprovalGateStateItem[];
+    approved_for_future_publish_readiness: ApprovalGateStateItem[];
     stale_or_mismatched: ApprovalGateStateItem[];
     terminal_or_inactive: {
       superseded_count: number;
@@ -367,6 +372,7 @@ type ApprovalGateStateSummaryResponse = {
     requested_count: number;
     blocked_count: number;
     ready_for_review_count: number;
+    approved_count: number;
     superseded_count: number;
     cancelled_count: number;
     expired_count: number;
@@ -2039,6 +2045,14 @@ function ApprovalGateStatePanel({
           <ApprovalGateCounts counts={counts} limits={approvalGateState.limits} />
           <div className="approval-gate-grid">
             <ApprovalGateBucket
+              title="Approved For Future Readiness"
+              items={
+                approvalGateState.summary
+                  .approved_for_future_publish_readiness
+              }
+              emptyLabel="No request has a stored approval grant"
+            />
+            <ApprovalGateBucket
               title="Ready For Review"
               items={approvalGateState.summary.ready_for_future_approval_review}
               emptyLabel="No request is ready for future approval review"
@@ -2085,6 +2099,7 @@ function ApprovalGateCounts({
         {limits ? `: latest ${limits.approval_request_limit}` : ""}
       </span>
       <strong>{counts?.requested_count ?? 0} requested</strong>
+      <strong>{counts?.approved_count ?? 0} approved</strong>
       <strong>{counts?.ready_for_review_count ?? 0} ready for review</strong>
       <strong>{counts?.blocked_count ?? 0} blocked</strong>
       <strong>{counts?.superseded_count ?? 0} superseded</strong>
@@ -2172,6 +2187,16 @@ function ApprovalGateBucket({
                 <span>
                   target match <code>{item.publication_target_match ? "yes" : "no"}</code>
                 </span>
+                {item.approval_decision_id ? (
+                  <>
+                    <span>
+                      approval decision <code>{item.approval_decision_id}</code>
+                    </span>
+                    <span>
+                      approved by <code>{item.approved_by}</code>
+                    </span>
+                  </>
+                ) : null}
                 {item.latest_delivery_status ? (
                   <span>
                     delivery{" "}
@@ -2183,7 +2208,17 @@ function ApprovalGateBucket({
                 <time dateTime={item.requested_at}>
                   {formatDate(item.requested_at)}
                 </time>
+                {item.approved_at ? (
+                  <time dateTime={item.approved_at}>
+                    approved {formatDate(item.approved_at)}
+                  </time>
+                ) : null}
               </div>
+              {item.approval_decision_reason ? (
+                <p className="approval-gate-side-effect">
+                  {item.approval_decision_reason}
+                </p>
+              ) : null}
               {item.latest_delivery_error ? (
                 <p className="approval-gate-error">
                   {item.latest_delivery_error}
@@ -3203,6 +3238,7 @@ function getPublicationStatusTone(status: string) {
 
 function getApprovalGateStateTone(gateState: string) {
   const tones: Record<string, string> = {
+    approved_for_future_publish_readiness: "ready",
     ready_for_future_approval_review: "needs-review",
     blocked_missing_publication: "tension",
     blocked_target_mismatch: "tension",

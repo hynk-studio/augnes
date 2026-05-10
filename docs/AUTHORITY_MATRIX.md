@@ -27,20 +27,26 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
 - Source-of-truth authority: Augnes Core remains the durable authority runtime
   for committed state, proof records, event spine, mailbox, publication drafts,
   delivery ledger, and gate validation.
-- Future approve/publish controls must route through Augnes Core and explicit
-  user approval. The design-only workflow is documented in
-  `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`; it does not grant any
-  surface new write authority until future explicit PRs implement Core-gated
-  routes and controls.
+- Approve/publish controls must route through Augnes Core and explicit user
+  approval. The workflow is documented in
+  `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`; C3 implements a narrow
+  Core-gated approve action route, but later dry-run, publish, retry, and
+  surface-control behavior still require future explicit PRs.
 - Core approval request records may durably represent that approval is being
   requested for a specific publication target. They are not approval grants and
   do not change publication status, create delivery rows, publish, retry, record
   proof, update mailbox status, or commit/reject state.
+- Core approval decision records may durably grant approval for one stored
+  approval request target and transition the linked publication from `draft` to
+  `approved`. Approval grant is still not publication: it does not dry-run,
+  publish, retry, create delivery rows, record proof, update mailbox status,
+  commit/reject state, execute Codex, invoke GitHub, use `GITHUB_TOKEN`, post to
+  GitHub, or post to Discord.
 - Approval gate-state summaries and Cockpit renderers are derived read-only
   views. They may show request readiness, target matching, delivery status, gate
-  reasons, and safe next steps, but they are not sources of truth and do not add
-  approve, publish, retry, proof, mailbox, state, GitHub, Discord, or Codex
-  execution authority.
+  reasons, approval decision state, and safe next steps, but they are not
+  sources of truth and do not add approve, publish, retry, proof, mailbox,
+  state, GitHub, Discord, or Codex execution authority.
 
 ## Capability Matrix
 
