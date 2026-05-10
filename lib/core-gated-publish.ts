@@ -15,6 +15,7 @@ import {
   getPublicationReadinessCheck,
   type PublicationReadinessCheck,
 } from "@/lib/publication-readiness-checks";
+import { openDatabase } from "@/lib/db";
 import {
   getDeliveryByIdempotencyKey,
   getPublication,
@@ -54,8 +55,9 @@ export const CORE_GATED_PUBLISH_GATE_CHECKS = [
   "target_ref uses owner/repo#pull_number format",
   "preview_body is non-empty",
   "idempotency_key is required",
-  "no duplicate pending delivery exists for the publication target and idempotency_key",
-  "dry_run=true has no sent delivery for the publication target and idempotency_key",
+  "no pending delivery exists for the same publication target, even under a different idempotency_key",
+  "no sent or acknowledged delivery exists for the same publication target unless it is a same-key idempotent replay",
+  "replay only applies to the same idempotency_key",
   "readiness check is fresh within 30 minutes",
   "dry_run is explicitly present as a boolean",
   "dry_run=true never calls the GitHub adapter and never creates delivery rows",
@@ -123,6 +125,7 @@ export type PublishGateResult = {
     age_ms: number;
   };
   existing_delivery: DeliveryRecord | null;
+  target_blocking_deliveries: TargetBlockingDeliveries;
 };
 
 export type DryRunPublishPreview = {
@@ -181,6 +184,11 @@ export class PublishTokenUnavailableError extends Error {
   }
 }
 
+type TargetBlockingDeliveries = {
+  pending: DeliveryRecord[];
+  sent_or_acknowledged: DeliveryRecord[];
+};
+
 export function validateGitHubPrCommentPublishRequest({
   readinessCheckId,
   body,
@@ -207,6 +215,17 @@ export function validateGitHubPrCommentPublishRequest({
     body,
     "approved_target_surface",
   );
+
+  if (
+    dryRun &&
+    (body.explicit_target_approval !== undefined ||
+      body.approved_target_ref !== undefined ||
+      body.approved_target_surface !== undefined)
+  ) {
+    throw new PublishGateValidationError(
+      "dry_run=true does not accept explicit target approval fields.",
+    );
+  }
 
   if (!dryRun) {
     if (explicitTargetApproval !== true) {
@@ -372,6 +391,11 @@ function validateCoreGatedPublish(
     targetRef: readinessCheck.target_ref,
     idempotencyKey: request.idempotencyKey,
   });
+  const targetBlockingDeliveries = getBlockingDeliveriesForPublicationTarget({
+    publicationId: readinessCheck.publication_id,
+    targetSurface: readinessCheck.target_surface,
+    targetRef: readinessCheck.target_ref,
+  });
   const freshness = getReadinessFreshness(readinessCheck.checked_at);
   const blockedReasons = collectBlockedReasons({
     request,
@@ -380,6 +404,7 @@ function validateCoreGatedPublish(
     approvalRequest,
     publication,
     existingDelivery,
+    targetBlockingDeliveries,
     freshness,
   });
 
@@ -407,6 +432,7 @@ function validateCoreGatedPublish(
     boundaries: CORE_GATED_PUBLISH_BOUNDARIES,
     freshness,
     existing_delivery: existingDelivery,
+    target_blocking_deliveries: targetBlockingDeliveries,
   };
 }
 
@@ -417,6 +443,7 @@ function collectBlockedReasons({
   approvalRequest,
   publication,
   existingDelivery,
+  targetBlockingDeliveries,
   freshness,
 }: {
   request: CoreGatedPublishRequest;
@@ -425,6 +452,7 @@ function collectBlockedReasons({
   approvalRequest: PublicationApprovalRequest | null;
   publication: PublicationDraft | null;
   existingDelivery: DeliveryRecord | null;
+  targetBlockingDeliveries: TargetBlockingDeliveries;
   freshness: PublishGateResult["freshness"];
 }) {
   const reasons: string[] = [];
@@ -493,25 +521,12 @@ function collectBlockedReasons({
     );
   }
 
-  if (
-    existingDelivery &&
-    existingDelivery.status === "pending" &&
-    existingDelivery.idempotency_key === request.idempotencyKey
-  ) {
-    reasons.push(
-      "a pending delivery already exists for this publication target and idempotency_key",
-    );
-  }
-  if (
-    request.dryRun &&
-    existingDelivery &&
-    (existingDelivery.status === "sent" ||
-      existingDelivery.status === "acknowledged")
-  ) {
-    reasons.push(
-      "a sent delivery already exists for this publication target and idempotency_key",
-    );
-  }
+  reasons.push(
+    ...getTargetDeliveryBlockedReasons({
+      request,
+      targetBlockingDeliveries,
+    }),
+  );
   if (
     existingDelivery &&
     existingDelivery.status === "failed" &&
@@ -530,6 +545,60 @@ function collectBlockedReasons({
   }
 
   return [...new Set(reasons)];
+}
+
+function getTargetDeliveryBlockedReasons({
+  request,
+  targetBlockingDeliveries,
+}: {
+  request: CoreGatedPublishRequest;
+  targetBlockingDeliveries: TargetBlockingDeliveries;
+}) {
+  const reasons: string[] = [];
+  const sameKeyPending = targetBlockingDeliveries.pending.some((delivery) =>
+    hasSameIdempotencyKey(delivery, request.idempotencyKey),
+  );
+  const differentKeyPending = targetBlockingDeliveries.pending.some(
+    (delivery) => !hasSameIdempotencyKey(delivery, request.idempotencyKey),
+  );
+  const sameKeySentOrAcknowledged =
+    targetBlockingDeliveries.sent_or_acknowledged.some((delivery) =>
+      hasSameIdempotencyKey(delivery, request.idempotencyKey),
+    );
+  const differentKeySentOrAcknowledged =
+    targetBlockingDeliveries.sent_or_acknowledged.some(
+      (delivery) => !hasSameIdempotencyKey(delivery, request.idempotencyKey),
+    );
+
+  if (sameKeyPending) {
+    reasons.push(
+      "a pending delivery already exists for this publication target and idempotency_key",
+    );
+  }
+  if (differentKeyPending) {
+    reasons.push(
+      "a pending delivery already exists for this publication target with a different idempotency_key",
+    );
+  }
+  if (differentKeySentOrAcknowledged) {
+    reasons.push(
+      "a sent delivery already exists for this publication target with a different idempotency_key",
+    );
+  }
+  if (request.dryRun && sameKeySentOrAcknowledged) {
+    reasons.push(
+      "a sent delivery already exists for this publication target and idempotency_key",
+    );
+  }
+
+  return reasons;
+}
+
+function hasSameIdempotencyKey(
+  delivery: DeliveryRecord,
+  idempotencyKey: string,
+) {
+  return delivery.idempotency_key === idempotencyKey;
 }
 
 function targetMatchesReadiness(
@@ -561,6 +630,74 @@ function getReadinessFreshness(checkedAt: string) {
     window_ms: PUBLISH_READINESS_FRESHNESS_WINDOW_MS,
     age_ms: Date.now() - checkedAtMs,
   };
+}
+
+function getBlockingDeliveriesForPublicationTarget({
+  publicationId,
+  targetSurface,
+  targetRef,
+}: {
+  publicationId: string;
+  targetSurface: string;
+  targetRef: string;
+}): TargetBlockingDeliveries {
+  const deliveries = listDeliveriesForPublicationTarget({
+    publicationId,
+    targetSurface,
+    targetRef,
+  });
+
+  return {
+    pending: deliveries.filter((delivery) => delivery.status === "pending"),
+    sent_or_acknowledged: deliveries.filter(
+      (delivery) =>
+        delivery.status === "sent" || delivery.status === "acknowledged",
+    ),
+  };
+}
+
+function listDeliveriesForPublicationTarget({
+  publicationId,
+  targetSurface,
+  targetRef,
+}: {
+  publicationId: string;
+  targetSurface: string;
+  targetRef: string;
+}) {
+  const db = openDatabase();
+
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT
+            delivery_id,
+            publication_id,
+            scope,
+            target_surface,
+            target_ref,
+            status,
+            sent_at,
+            acknowledged_at,
+            error_message,
+            idempotency_key,
+            created_at,
+            updated_at
+          FROM delivery_ledger
+          WHERE publication_id = ?
+            AND target_surface = ?
+            AND target_ref = ?
+            AND status IN ('pending', 'sent', 'acknowledged')
+          ORDER BY created_at DESC, delivery_id ASC
+        `,
+      )
+      .all(publicationId, targetSurface, targetRef) as DeliveryRecord[];
+
+    return rows;
+  } finally {
+    db.close();
+  }
 }
 
 function buildPreviewExcerpt(value: string) {
