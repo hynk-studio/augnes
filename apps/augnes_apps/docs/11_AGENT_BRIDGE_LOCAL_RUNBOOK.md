@@ -12,9 +12,16 @@ The ChatGPT App can create a Codex Handoff Packet from Augnes state and work bri
 
 Augnes records proof and trace notes after the work. It does not directly orchestrate Codex, launch autonomous Codex execution, approve durable state, merge GitHub PRs, or turn ChatGPT App into a commit/reject authority.
 
+ChatGPT Apps are the primary user-facing decision surface for Augnes, but they
+remain bridge-gated and Core-authorized. They should help the user understand
+choices and consequences; they must not become an independent source of truth,
+publication authority, approval authority, proof authority, or durable state
+authority.
+
 Use the root trace docs for PR work:
 
 - `docs/AUTHORITY_MATRIX.md`
+- `docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md`
 - `docs/CODEX_HANDOFF_PACKET.md`
 - `docs/VERIFICATION_EVIDENCE_PACK.md`
 - `docs/EXECUTION_SURFACE_RECORD.md`

@@ -22,12 +22,15 @@ Developer Mode publication summary verification via PR #66 complete
 Live GitHub PR comment adapter test via PR #67 complete
 ```
 
-The next decision is one of:
+The next recommended design slice is cross-surface control packet / surface role
+design before adding approve/publish controls. After that design is reviewed,
+the next decision is one of:
 
 ```text
-1. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
-2. Additional live-test/hardening only if a new adapter or target surface is introduced.
-3. Discord/webhook adapter only if explicitly scoped later.
+1. Read-only Control Packet API or ChatGPT Apps decision-card design.
+2. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
+3. Additional live-test/hardening only if a new adapter or target surface is introduced.
+4. Discord/webhook adapter only if explicitly scoped later.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -42,13 +45,14 @@ A new session should read these files in this order:
 2. `docs/AUGNES_COORDINATION_SPINE_ROADMAP.md` - full roadmap and phase order.
 3. `docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md` - completed Phase 2 flow.
 4. `docs/AUTHORITY_MATRIX.md` - actor/surface authority boundaries.
-5. `docs/CODEX_HANDOFF_PACKET.md` - handoff packet shape.
-6. `docs/EXPECTED_IMPACT_CHECK.md` - expected-vs-actual review discipline.
-7. `docs/VERIFICATION_EVIDENCE_PACK.md` - PR verification evidence format.
-8. `docs/EXECUTION_SURFACE_RECORD.md` - canonical execution surface names.
-9. `.github/pull_request_template.md` - required PR trace format.
-10. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-11. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+5. `docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md` - cross-surface control packet and surface roles.
+6. `docs/CODEX_HANDOFF_PACKET.md` - handoff packet shape.
+7. `docs/EXPECTED_IMPACT_CHECK.md` - expected-vs-actual review discipline.
+8. `docs/VERIFICATION_EVIDENCE_PACK.md` - PR verification evidence format.
+9. `docs/EXECUTION_SURFACE_RECORD.md` - canonical execution surface names.
+10. `.github/pull_request_template.md` - required PR trace format.
+11. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+12. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 
@@ -143,9 +147,10 @@ target-specific.
 Next default decision:
 
 ```text
-1. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
-2. Additional live-test/hardening only if a new adapter or target surface is introduced.
-3. Discord/webhook adapter only if explicitly scoped later.
+1. Read-only Control Packet API or ChatGPT Apps decision-card design.
+2. Explicit approve/publish Cockpit workflow PR, if the user wants controlled UI actions.
+3. Additional live-test/hardening only if a new adapter or target surface is introduced.
+4. Discord/webhook adapter only if explicitly scoped later.
 ```
 
 Do not restart Phase 4 / PR 4.1. Do not add publish buttons, approval
@@ -153,6 +158,13 @@ controls, retry controls, or ChatGPT App publish tools without a separate
 explicit PR. Do not repeat live GitHub posting unless the user/PM explicitly
 approves a specific target. Do not delete the PR #67 test comment unless the
 user explicitly requests deletion.
+
+Before adding approve/publish controls, read
+`docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md` and keep the cross-surface
+control/authority split intact: ChatGPT Apps may be the primary user-facing
+decision surface, Codex may be the implementation control surface, Cockpit may
+be the observability surface, and Augnes Core remains the source of truth and
+durable authority runtime.
 
 Phase 3 added a narrow task-oriented mailbox for handoffs and review-needed
 notices. It should not become a free-form agent social network.
@@ -422,7 +434,7 @@ A fresh ChatGPT session should do this:
 
 1. Read this file and the roadmap/runbooks listed above.
 2. Confirm that Phase 1, Phase 2, Phase 3 PR 3.1, Phase 3 PR 3.2, Phase 3 PR 3.3, Phase 4 PR 4.1, Phase 4 PR 4.2, Phase 4 PR 4.3, Developer Mode publication summary verification via PR #66, and the live GitHub adapter test via PR #67 are complete.
-3. Ask the user to choose whether to scope an explicit approve/publish Cockpit workflow PR, pause Phase 4 publication work, add live-test/hardening only for a new adapter or target surface, or separately scope a Discord/webhook adapter.
+3. Ask the user to choose whether to implement a read-only Control Packet API, proceed to a user-facing ChatGPT Apps decision-card design for publication control, scope an explicit approve/publish Cockpit workflow PR, pause Phase 4 publication work, add live-test/hardening only for a new adapter or target surface, or separately scope a Discord/webhook adapter.
 4. Prepare a Codex prompt only after that decision, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
 5. Let Codex implement and open or update a draft PR.
 6. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
@@ -454,7 +466,7 @@ Do not collapse this into autonomous implementation. The boring boundary is doin
 Begin with:
 
 ```text
-Decide whether to scope an explicit approve/publish Cockpit workflow PR, or pause Phase 4 publication work.
+Decide whether to implement a read-only Control Packet API, or proceed to a user-facing ChatGPT Apps decision-card design for publication control.
 ```
 
 Do not repeat live GitHub posting unless the user/PM explicitly approves a

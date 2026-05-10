@@ -9,6 +9,7 @@ Augnes should reduce the human-message-bus burden while improving temporal state
 This roadmap should be read together with:
 
 - `docs/AUTHORITY_MATRIX.md`
+- `docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md`
 - `docs/CODEX_HANDOFF_PACKET.md`
 - `docs/VERIFICATION_EVIDENCE_PACK.md`
 - `docs/EXECUTION_SURFACE_RECORD.md`
@@ -549,6 +550,11 @@ Verification:
 - Developer Mode publication summary verification is complete via PR #66.
 - First live GitHub PR comment test is complete via PR #67, with one retained
   test comment and no duplicate replay.
+
+Next design concern: cross-surface control UX and authority separation. Before
+adding approve/publish controls or new adapters, define how ChatGPT Apps,
+Codex, Cockpit, and Augnes Core share one source-of-truth timeline while keeping
+user approval and Core gate validation centralized.
 
 ## Cross-Phase Invariants
 
