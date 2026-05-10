@@ -519,7 +519,7 @@ function buildActiveRisks({
 }): SummaryRef[] {
   return [
     ...openTensions
-      .filter((tension) => ["high", "critical"].includes(tension.severity))
+      .filter(isHighSeverityTension)
       .map((tension) => ({
         ref_type: "state_tension",
         ref_id: tension.id,
@@ -654,8 +654,22 @@ function buildAuthorityBoundaries() {
 }
 
 function isPhaseEntry(entry: StateEntry) {
-  return /(^|[._-])(current_phase|phase|roadmap_phase)([._-]|$)/i.test(
-    entry.state_key,
+  const normalizedKey = entry.state_key.toLowerCase();
+
+  // Generic "phase" is intentionally not enough: historical keys such as
+  // phase_1_complete or publication.phase_gate are not current phase sources.
+  return (
+    normalizedKey === "current_phase" ||
+    normalizedKey === "roadmap_phase" ||
+    normalizedKey === "roadmap_current_phase" ||
+    normalizedKey.endsWith(".current_phase") ||
+    normalizedKey.endsWith(".roadmap_phase")
+  );
+}
+
+function isHighSeverityTension(tension: StateTension) {
+  return ["critical", "high", "blocker", "severe"].includes(
+    tension.severity.toLowerCase(),
   );
 }
 
