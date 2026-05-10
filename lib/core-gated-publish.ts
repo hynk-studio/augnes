@@ -48,7 +48,7 @@ export const CORE_GATED_PUBLISH_GATE_CHECKS = [
   "linked approval request exists",
   "approval request status is requested",
   "linked publication exists",
-  "publication status is approved",
+  "publication status is approved, unless returning a same-key sent or acknowledged delivery replay",
   "publication approved_by is present",
   "target_surface is github_pr_comment",
   "target_ref matches readiness check, approval decision, approval request, and publication",
@@ -58,7 +58,7 @@ export const CORE_GATED_PUBLISH_GATE_CHECKS = [
   "no pending delivery exists for the same publication target, even under a different idempotency_key",
   "no sent or acknowledged delivery exists for the same publication target unless it is a same-key idempotent replay",
   "replay only applies to the same idempotency_key",
-  "readiness check is fresh within 30 minutes",
+  "readiness check is fresh within 30 minutes, unless returning a durable same-key sent or acknowledged delivery replay",
   "dry_run is explicitly present as a boolean",
   "dry_run=true never calls the GitHub adapter and never creates delivery rows",
   "dry_run=false requires explicit target approval",
@@ -396,6 +396,12 @@ function validateCoreGatedPublish(
     targetSurface: readinessCheck.target_surface,
     targetRef: readinessCheck.target_ref,
   });
+  const sameKeySentOrAcknowledgedReplay =
+    isSameKeySentOrAcknowledgedReplayCandidate({
+      request,
+      readinessCheck,
+      existingDelivery,
+    });
   const freshness = getReadinessFreshness(readinessCheck.checked_at);
   const blockedReasons = collectBlockedReasons({
     request,
@@ -405,6 +411,7 @@ function validateCoreGatedPublish(
     publication,
     existingDelivery,
     targetBlockingDeliveries,
+    sameKeySentOrAcknowledgedReplay,
     freshness,
   });
 
@@ -444,6 +451,7 @@ function collectBlockedReasons({
   publication,
   existingDelivery,
   targetBlockingDeliveries,
+  sameKeySentOrAcknowledgedReplay,
   freshness,
 }: {
   request: CoreGatedPublishRequest;
@@ -453,6 +461,7 @@ function collectBlockedReasons({
   publication: PublicationDraft | null;
   existingDelivery: DeliveryRecord | null;
   targetBlockingDeliveries: TargetBlockingDeliveries;
+  sameKeySentOrAcknowledgedReplay: boolean;
   freshness: PublishGateResult["freshness"];
 }) {
   const reasons: string[] = [];
@@ -493,7 +502,13 @@ function collectBlockedReasons({
   if (!publication) {
     reasons.push("linked publication is missing");
   } else {
-    if (publication.status !== "approved") {
+    if (sameKeySentOrAcknowledgedReplay) {
+      if (publication.status !== "approved" && publication.status !== "sent") {
+        reasons.push(
+          `publication status is ${publication.status}; same-key replay requires approved or sent publication status`,
+        );
+      }
+    } else if (publication.status !== "approved") {
       reasons.push(`publication status is ${publication.status}`);
     }
     if (!publication.approved_by) {
@@ -537,14 +552,38 @@ function collectBlockedReasons({
     );
   }
 
-  if (freshness.age_ms > PUBLISH_READINESS_FRESHNESS_WINDOW_MS) {
+  if (
+    !sameKeySentOrAcknowledgedReplay &&
+    freshness.age_ms > PUBLISH_READINESS_FRESHNESS_WINDOW_MS
+  ) {
     reasons.push("readiness check is stale; rerun dry-run readiness first");
   }
-  if (freshness.age_ms < -60_000) {
+  if (!sameKeySentOrAcknowledgedReplay && freshness.age_ms < -60_000) {
     reasons.push("readiness check checked_at is in the future");
   }
 
   return [...new Set(reasons)];
+}
+
+function isSameKeySentOrAcknowledgedReplayCandidate({
+  request,
+  readinessCheck,
+  existingDelivery,
+}: {
+  request: CoreGatedPublishRequest;
+  readinessCheck: PublicationReadinessCheck;
+  existingDelivery: DeliveryRecord | null;
+}) {
+  return (
+    request.dryRun === false &&
+    existingDelivery !== null &&
+    (existingDelivery.status === "sent" ||
+      existingDelivery.status === "acknowledged") &&
+    existingDelivery.publication_id === readinessCheck.publication_id &&
+    existingDelivery.target_surface === readinessCheck.target_surface &&
+    existingDelivery.target_ref === readinessCheck.target_ref &&
+    existingDelivery.idempotency_key === request.idempotencyKey
+  );
 }
 
 function getTargetDeliveryBlockedReasons({
