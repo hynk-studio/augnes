@@ -340,6 +340,11 @@ type ApprovalGateStateItem = {
   approved_by: string | null;
   approved_at: string | null;
   approval_decision_reason: string | null;
+  latest_readiness_check_id: string | null;
+  latest_readiness_status: string | null;
+  latest_readiness_checked_at: string | null;
+  latest_readiness_summary: string | null;
+  latest_readiness_blocked_reasons: string[];
   latest_delivery_status: string | null;
   latest_delivery_id: string | null;
   latest_delivery_error: string | null;
@@ -349,6 +354,7 @@ type ApprovalGateStateItem = {
   source_refs: {
     approval_request_id: string;
     publication_id: string;
+    readiness_check_id: string | null;
     latest_delivery_id: string | null;
   };
 };
@@ -361,6 +367,8 @@ type ApprovalGateStateSummaryResponse = {
     blocked_or_not_ready: ApprovalGateStateItem[];
     ready_for_future_approval_review: ApprovalGateStateItem[];
     approved_for_future_publish_readiness: ApprovalGateStateItem[];
+    dry_run_ready_for_future_publish: ApprovalGateStateItem[];
+    dry_run_blocked: ApprovalGateStateItem[];
     stale_or_mismatched: ApprovalGateStateItem[];
     terminal_or_inactive: {
       superseded_count: number;
@@ -373,6 +381,8 @@ type ApprovalGateStateSummaryResponse = {
     blocked_count: number;
     ready_for_review_count: number;
     approved_count: number;
+    dry_run_ready_count: number;
+    dry_run_blocked_count: number;
     superseded_count: number;
     cancelled_count: number;
     expired_count: number;
@@ -2045,6 +2055,19 @@ function ApprovalGateStatePanel({
           <ApprovalGateCounts counts={counts} limits={approvalGateState.limits} />
           <div className="approval-gate-grid">
             <ApprovalGateBucket
+              title="Dry-Run Ready"
+              items={
+                approvalGateState.summary
+                  .dry_run_ready_for_future_publish
+              }
+              emptyLabel="No request has passed dry-run readiness"
+            />
+            <ApprovalGateBucket
+              title="Dry-Run Blocked"
+              items={approvalGateState.summary.dry_run_blocked}
+              emptyLabel="No dry-run readiness blockers"
+            />
+            <ApprovalGateBucket
               title="Approved For Future Readiness"
               items={
                 approvalGateState.summary
@@ -2099,6 +2122,8 @@ function ApprovalGateCounts({
         {limits ? `: latest ${limits.approval_request_limit}` : ""}
       </span>
       <strong>{counts?.requested_count ?? 0} requested</strong>
+      <strong>{counts?.dry_run_ready_count ?? 0} dry-run ready</strong>
+      <strong>{counts?.dry_run_blocked_count ?? 0} dry-run blocked</strong>
       <strong>{counts?.approved_count ?? 0} approved</strong>
       <strong>{counts?.ready_for_review_count ?? 0} ready for review</strong>
       <strong>{counts?.blocked_count ?? 0} blocked</strong>
@@ -2213,11 +2238,46 @@ function ApprovalGateBucket({
                     approved {formatDate(item.approved_at)}
                   </time>
                 ) : null}
+                {item.latest_readiness_checked_at ? (
+                  <time dateTime={item.latest_readiness_checked_at}>
+                    readiness {formatDate(item.latest_readiness_checked_at)}
+                  </time>
+                ) : null}
               </div>
               {item.approval_decision_reason ? (
                 <p className="approval-gate-side-effect">
                   {item.approval_decision_reason}
                 </p>
+              ) : null}
+              {item.latest_readiness_check_id ? (
+                <div className="meta-row">
+                  <span>
+                    readiness check <code>{item.latest_readiness_check_id}</code>
+                  </span>
+                  <span>
+                    readiness{" "}
+                    <code>
+                      {item.latest_readiness_status
+                        ? formatStatusLabel(item.latest_readiness_status)
+                        : "unknown"}
+                    </code>
+                  </span>
+                </div>
+              ) : null}
+              {item.latest_readiness_summary ? (
+                <p className="approval-gate-next-step">
+                  {item.latest_readiness_summary}
+                </p>
+              ) : null}
+              {item.latest_readiness_blocked_reasons.length ? (
+                <section className="approval-gate-reasons">
+                  <h4>Readiness blockers</h4>
+                  <ul>
+                    {item.latest_readiness_blocked_reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </section>
               ) : null}
               {item.latest_delivery_error ? (
                 <p className="approval-gate-error">
@@ -3238,6 +3298,8 @@ function getPublicationStatusTone(status: string) {
 
 function getApprovalGateStateTone(gateState: string) {
   const tones: Record<string, string> = {
+    dry_run_ready_for_future_publish: "ready",
+    dry_run_blocked: "tension",
     approved_for_future_publish_readiness: "ready",
     ready_for_future_approval_review: "needs-review",
     blocked_missing_publication: "tension",

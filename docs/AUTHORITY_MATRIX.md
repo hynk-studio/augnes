@@ -42,11 +42,16 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   publish, retry, create delivery rows, record proof, update mailbox status,
   commit/reject state, execute Codex, invoke GitHub, use `GITHUB_TOKEN`, post to
   GitHub, or post to Discord.
+- Core dry-run readiness records may durably capture readiness evidence for one
+  approved decision and stored publication target. Dry-run readiness is still
+  not publication: it does not publish, retry, create delivery rows, record
+  proof, update mailbox status, commit/reject state, execute Codex, invoke
+  GitHub, use `GITHUB_TOKEN`, post to GitHub, or post to Discord.
 - Approval gate-state summaries and Cockpit renderers are derived read-only
   views. They may show request readiness, target matching, delivery status, gate
-  reasons, approval decision state, and safe next steps, but they are not
-  sources of truth and do not add approve, publish, retry, proof, mailbox,
-  state, GitHub, Discord, or Codex execution authority.
+  reasons, approval decision state, readiness check state, and safe next steps,
+  but they are not sources of truth and do not add approve, publish, retry,
+  proof, mailbox, state, GitHub, Discord, or Codex execution authority.
 
 ## Capability Matrix
 

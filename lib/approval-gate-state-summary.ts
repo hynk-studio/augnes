@@ -8,6 +8,10 @@ import {
   type PublicationApprovalDecision,
 } from "@/lib/publication-approval-decisions";
 import {
+  listPublicationReadinessChecks,
+  type PublicationReadinessCheck,
+} from "@/lib/publication-readiness-checks";
+import {
   getPublication,
   listDeliveries,
   type DeliveryRecord,
@@ -20,6 +24,8 @@ const MAX_GATE_STATE_LIMIT = 200;
 const DELIVERY_LOOKBACK_LIMIT = 200;
 
 export type ApprovalGateState =
+  | "dry_run_ready_for_future_publish"
+  | "dry_run_blocked"
   | "approved_for_future_publish_readiness"
   | "ready_for_future_approval_review"
   | "blocked_missing_publication"
@@ -50,6 +56,11 @@ export type ApprovalGateStateItem = {
   approved_by: string | null;
   approved_at: string | null;
   approval_decision_reason: string | null;
+  latest_readiness_check_id: string | null;
+  latest_readiness_status: string | null;
+  latest_readiness_checked_at: string | null;
+  latest_readiness_summary: string | null;
+  latest_readiness_blocked_reasons: string[];
   latest_delivery_status: string | null;
   latest_delivery_id: string | null;
   latest_delivery_error: string | null;
@@ -59,6 +70,7 @@ export type ApprovalGateStateItem = {
   source_refs: {
     approval_request_id: string;
     publication_id: string;
+    readiness_check_id: string | null;
     latest_delivery_id: string | null;
   };
 };
@@ -71,6 +83,8 @@ export type ApprovalGateStateSummaryResult = {
     blocked_or_not_ready: ApprovalGateStateItem[];
     ready_for_future_approval_review: ApprovalGateStateItem[];
     approved_for_future_publish_readiness: ApprovalGateStateItem[];
+    dry_run_ready_for_future_publish: ApprovalGateStateItem[];
+    dry_run_blocked: ApprovalGateStateItem[];
     stale_or_mismatched: ApprovalGateStateItem[];
     terminal_or_inactive: {
       superseded_count: number;
@@ -83,6 +97,8 @@ export type ApprovalGateStateSummaryResult = {
     blocked_count: number;
     ready_for_review_count: number;
     approved_count: number;
+    dry_run_ready_count: number;
+    dry_run_blocked_count: number;
     superseded_count: number;
     cancelled_count: number;
     expired_count: number;
@@ -101,6 +117,7 @@ export const APPROVAL_GATE_STATE_BOUNDARIES = [
   "Approval decision records grant approval only for the stored target.",
   "Approval is not publication.",
   "Dry-run is not publication.",
+  "Dry-run readiness is not publication.",
   "Publish execution remains a separate future Core-gated route.",
   "This view does not approve, publish, retry, record proof, update mailbox status, commit or reject state, execute Codex, mutate GitHub, post to Discord, or create delivery rows.",
   "PR #67 remains one target-specific live adapter test only and does not authorize automatic future posting.",
@@ -136,10 +153,16 @@ export function buildApprovalGateStateSummary({
     scope: normalizedScope,
     limit: MAX_GATE_STATE_LIMIT,
   });
+  const readinessChecks = listPublicationReadinessChecks({
+    scope: normalizedScope,
+    limit: MAX_GATE_STATE_LIMIT,
+  });
   const latestDeliveriesByPublication = groupLatestDeliveriesByPublication(
     deliveries,
   );
   const decisionsByRequest = groupApprovalDecisionsByRequest(decisions);
+  const readinessChecksByDecision =
+    groupLatestReadinessChecksByDecision(readinessChecks);
   const items = requests.map((approvalRequest) => {
     const publication = getPublication(
       approvalRequest.publication_id,
@@ -151,6 +174,11 @@ export function buildApprovalGateStateSummary({
       publication,
       approvalDecision:
         decisionsByRequest.get(approvalRequest.approval_request_id) ?? null,
+      readinessCheck:
+        readinessChecksByDecision.get(
+          decisionsByRequest.get(approvalRequest.approval_request_id)
+            ?.approval_decision_id ?? "",
+        ) ?? null,
       latestDelivery:
         latestDeliveriesByPublication.get(approvalRequest.publication_id) ??
         null,
@@ -169,6 +197,12 @@ export function buildApprovalGateStateSummary({
   const approvedItems = items.filter(
     (item) => item.gate_state === "approved_for_future_publish_readiness",
   );
+  const dryRunReadyItems = items.filter(
+    (item) => item.gate_state === "dry_run_ready_for_future_publish",
+  );
+  const dryRunBlockedItems = items.filter(
+    (item) => item.gate_state === "dry_run_blocked",
+  );
   const staleOrMismatchedItems = items.filter(
     (item) =>
       item.gate_state === "blocked_missing_publication" ||
@@ -178,7 +212,8 @@ export function buildApprovalGateStateSummary({
     (item) =>
       item.status === "requested" &&
       item.gate_state !== "ready_for_future_approval_review" &&
-      item.gate_state !== "approved_for_future_publish_readiness",
+      item.gate_state !== "approved_for_future_publish_readiness" &&
+      item.gate_state !== "dry_run_ready_for_future_publish",
   );
   const blockedOrNotReadyItems = activeBlockedItems.filter(
     (item) =>
@@ -194,6 +229,8 @@ export function buildApprovalGateStateSummary({
       blocked_or_not_ready: blockedOrNotReadyItems,
       ready_for_future_approval_review: readyItems,
       approved_for_future_publish_readiness: approvedItems,
+      dry_run_ready_for_future_publish: dryRunReadyItems,
+      dry_run_blocked: dryRunBlockedItems,
       stale_or_mismatched: staleOrMismatchedItems,
       terminal_or_inactive: {
         superseded_count: supersededCount,
@@ -207,6 +244,8 @@ export function buildApprovalGateStateSummary({
       blocked_count: activeBlockedItems.length,
       ready_for_review_count: readyItems.length,
       approved_count: approvedItems.length,
+      dry_run_ready_count: dryRunReadyItems.length,
+      dry_run_blocked_count: dryRunBlockedItems.length,
       superseded_count: supersededCount,
       cancelled_count: cancelledCount,
       expired_count: expiredCount,
@@ -224,11 +263,13 @@ function buildApprovalGateStateItem({
   approvalRequest,
   publication,
   approvalDecision,
+  readinessCheck,
   latestDelivery,
 }: {
   approvalRequest: PublicationApprovalRequest;
   publication: PublicationDraft | null;
   approvalDecision: PublicationApprovalDecision | null;
+  readinessCheck: PublicationReadinessCheck | null;
   latestDelivery: DeliveryRecord | null;
 }): ApprovalGateStateItem {
   const targetMatches =
@@ -241,11 +282,19 @@ function buildApprovalGateStateItem({
   );
   const matchingDecision =
     approvalDecisionMatches && approvalDecision ? approvalDecision : null;
+  const readinessCheckMatches = isMatchingReadinessCheck(
+    matchingDecision,
+    readinessCheck,
+  );
+  const matchingReadinessCheck =
+    readinessCheckMatches && readinessCheck ? readinessCheck : null;
   const gate = getGateState({
     approvalRequest,
     publication,
     approvalDecision,
     approvalDecisionMatches,
+    readinessCheck,
+    readinessCheckMatches,
     latestDelivery,
     targetMatches,
   });
@@ -269,6 +318,13 @@ function buildApprovalGateStateItem({
     approved_by: matchingDecision?.decided_by ?? null,
     approved_at: matchingDecision?.decided_at ?? null,
     approval_decision_reason: matchingDecision?.decision_reason ?? null,
+    latest_readiness_check_id:
+      matchingReadinessCheck?.readiness_check_id ?? null,
+    latest_readiness_status: matchingReadinessCheck?.status ?? null,
+    latest_readiness_checked_at: matchingReadinessCheck?.checked_at ?? null,
+    latest_readiness_summary: matchingReadinessCheck?.readiness_summary ?? null,
+    latest_readiness_blocked_reasons:
+      matchingReadinessCheck?.blocked_reasons ?? [],
     latest_delivery_status: latestDelivery?.status ?? null,
     latest_delivery_id: latestDelivery?.delivery_id ?? null,
     latest_delivery_error: latestDelivery?.error_message ?? null,
@@ -278,6 +334,7 @@ function buildApprovalGateStateItem({
     source_refs: {
       approval_request_id: approvalRequest.approval_request_id,
       publication_id: approvalRequest.publication_id,
+      readiness_check_id: matchingReadinessCheck?.readiness_check_id ?? null,
       latest_delivery_id: latestDelivery?.delivery_id ?? null,
     },
   };
@@ -288,6 +345,8 @@ function getGateState({
   publication,
   approvalDecision,
   approvalDecisionMatches,
+  readinessCheck,
+  readinessCheckMatches,
   latestDelivery,
   targetMatches,
 }: {
@@ -295,6 +354,8 @@ function getGateState({
   publication: PublicationDraft | null;
   approvalDecision: PublicationApprovalDecision | null;
   approvalDecisionMatches: boolean;
+  readinessCheck: PublicationReadinessCheck | null;
+  readinessCheckMatches: boolean;
   latestDelivery: DeliveryRecord | null;
   targetMatches: boolean;
 }): {
@@ -370,6 +431,45 @@ function getGateState({
     };
   }
 
+  if (
+    approvalDecisionMatches &&
+    approvalDecision &&
+    readinessCheckMatches &&
+    readinessCheck?.status === "ready"
+  ) {
+    return {
+      gate_state: "dry_run_ready_for_future_publish",
+      gate_reasons: [
+        "approval request is requested",
+        "matching approved decision exists for the stored target",
+        `readiness check ${readinessCheck.readiness_check_id} is ready`,
+        "dry-run readiness passed for future publish review only",
+        "no sent delivery is visible in the bounded delivery ledger",
+      ],
+      safe_next_step:
+        "Dry-run readiness passed; actual publish remains a separate Core-gated C5 route.",
+    };
+  }
+
+  if (
+    approvalDecisionMatches &&
+    approvalDecision &&
+    readinessCheckMatches &&
+    readinessCheck?.status === "blocked"
+  ) {
+    return {
+      gate_state: "dry_run_blocked",
+      gate_reasons: [
+        "approval request is requested",
+        "matching approved decision exists for the stored target",
+        `readiness check ${readinessCheck.readiness_check_id} is blocked`,
+        ...readinessCheck.blocked_reasons,
+      ],
+      safe_next_step:
+        "Resolve readiness blockers before any future publish route.",
+    };
+  }
+
   if (approvalDecisionMatches && approvalDecision) {
     return {
       gate_state: "approved_for_future_publish_readiness",
@@ -430,6 +530,37 @@ function groupApprovalDecisionsByRequest(
   for (const decision of decisions) {
     if (!grouped.has(decision.approval_request_id)) {
       grouped.set(decision.approval_request_id, decision);
+    }
+  }
+
+  return grouped;
+}
+
+function isMatchingReadinessCheck(
+  approvalDecision: PublicationApprovalDecision | null,
+  readinessCheck: PublicationReadinessCheck | null,
+) {
+  return (
+    !!approvalDecision &&
+    !!readinessCheck &&
+    readinessCheck.approval_decision_id ===
+      approvalDecision.approval_decision_id &&
+    readinessCheck.approval_request_id ===
+      approvalDecision.approval_request_id &&
+    readinessCheck.publication_id === approvalDecision.publication_id &&
+    readinessCheck.target_surface === approvalDecision.target_surface &&
+    readinessCheck.target_ref === approvalDecision.target_ref
+  );
+}
+
+function groupLatestReadinessChecksByDecision(
+  readinessChecks: PublicationReadinessCheck[],
+) {
+  const grouped = new Map<string, PublicationReadinessCheck>();
+
+  for (const readinessCheck of readinessChecks) {
+    if (!grouped.has(readinessCheck.approval_decision_id)) {
+      grouped.set(readinessCheck.approval_decision_id, readinessCheck);
     }
   }
 
