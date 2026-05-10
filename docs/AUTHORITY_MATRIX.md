@@ -29,9 +29,10 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   delivery ledger, and gate validation.
 - Approve/publish controls must route through Augnes Core and explicit user
   approval. The workflow is documented in
-  `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`; C3 implements a narrow
-  Core-gated approve action route, but later dry-run, publish, retry, and
-  surface-control behavior still require future explicit PRs.
+  `docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md`; C1-C5 now implement
+  request records, gate-state rendering, approval grant routing, dry-run
+  readiness, and the explicit Core-gated GitHub PR comment publish route. Retry
+  and surface-control behavior still require future explicit PRs.
 - Core approval request records may durably represent that approval is being
   requested for a specific publication target. They are not approval grants and
   do not change publication status, create delivery rows, publish, retry, record
@@ -49,15 +50,21 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   GitHub, use `GITHUB_TOKEN`, post to GitHub, or post to Discord.
 - Core-gated publish routing may validate one fresh readiness check and, only
   when `dry_run=false` plus explicit target approval fields and token
-  availability are present, execute one GitHub PR comment publish path. In the
-  C5 implementation PR, only `dry_run=true` preview and blocked checks were
-  verified; no live GitHub comment was posted and `GITHUB_TOKEN` was not used.
-  `dry_run=true` creates no delivery rows and has no external side effects.
-  PR #67 remains a single target-specific historical live adapter test, not
-  broad posting permission.
+  availability are present, execute one GitHub PR comment publish path. PR #78
+  implemented the C5 route without live posting; only `dry_run=true` preview
+  and blocked checks were verified in that implementation PR, and `GITHUB_TOKEN`
+  was not used. `dry_run=true` creates no delivery rows and has no external
+  side effects. PR #81 separately executed one approved exact-target live C5
+  publish to `Aurna-code/augnes#81`, with GitHub comment id `4414928332` and no
+  manual GitHub UI posting, PR merge/review/label/title/body mutation, proof
+  recording, mailbox update, or state mutation. PR #82 fixed same-key
+  sent/acknowledged replay semantics so replay returns HTTP 200 with
+  `idempotent_replay=true` and `posted=false`; different-key duplicates and
+  pending delivery conflicts remain blocked. PR #67 and PR #81 remain
+  target-specific historical evidence, not broad posting permission.
 - A decision document or PR body can describe a future C5 live-test approval
-  packet, but it is not approval by itself. Actual `dry_run=false` still
-  requires explicit user/PM approval for the exact target, body,
+  packet, but it is not approval by itself. Future live posts still require
+  explicit user/PM approval for the exact target, exact body, exact
   `idempotency_key`, token use, and retain/delete decision.
 - Approval gate-state summaries and Cockpit renderers are derived read-only
   views. They may show request readiness, target matching, delivery status, gate

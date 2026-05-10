@@ -553,6 +553,10 @@ Verification:
   test comment and no duplicate replay.
 - True ChatGPT Developer Mode publication decision-card verification is
   complete via PR #72.
+- The first approved C5 live GitHub PR comment publish test is complete via PR
+  #81, with one retained comment on `Aurna-code/augnes#81` and exactly one
+  matching comment observed.
+- The C5 same-key replay semantics fix is complete via PR #82.
 
 Next design concern: cross-surface control UX and authority separation. PR A is
 implemented as the read-only `GET /api/control/brief?scope=project:augnes`
@@ -566,10 +570,16 @@ Core-gated approve action route, C4 adds durable dry-run readiness checks, and
 C5 adds an explicit Core-gated GitHub PR comment publish route. C5
 `dry_run=true` previews only and creates no delivery rows or external side
 effects. C5 `dry_run=false` requires explicit target approval, idempotency,
-fresh readiness, token availability, and replay/no-duplicate gates, but live
-posting was not executed in the C5 implementation PR. The C5 live-test decision
-packet documents the approval requirements and future test procedure, but it
-does not approve or execute a live post.
+fresh readiness, token availability, and replay/no-duplicate gates. PR #78 did
+not execute live posting in the C5 implementation PR. PR #81 separately
+executed one approved live C5 publish to `Aurna-code/augnes#81`, retained GitHub
+comment id `4414928332`, and confirmed exactly one matching comment with no
+manual GitHub UI posting, PR merge/review/label/title/body mutation, proof
+recording, mailbox status update, or Augnes state mutation. PR #82 fixed the
+same-key replay mismatch: sent/acknowledged same-key replay now returns HTTP 200
+with `idempotent_replay=true` and `posted=false`; different-key duplicate,
+pending delivery, and `dry_run=true` with existing sent delivery remain blocked.
+Future live tests still require a fresh exact approval packet.
 
 Future implementation slices must remain separate from this design step:
 
@@ -594,15 +604,19 @@ Future implementation slices must remain separate from this design step:
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
   preserving PR #67 idempotency rules. Status: implemented at
   `POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment`;
-  dry-run preview verified, live posting not executed.
-- PR C5 live-test decision: Status: documented in
-  `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md`; decision-only, no
-  live posting, no `dry_run=false`, no `GITHUB_TOKEN`, and no delivery rows.
-- PR C6: Retry workflow design and implementation only after C5 evidence.
-- PR C7: Optional Cockpit write controls, only after Core approval/publish
-  routes exist.
-- PR C8: Optional ChatGPT Apps intent collection, only if the user explicitly
-  approves that surface behavior.
+  dry-run preview verified in PR #78 without live posting.
+- PR C5 live-test decision: Status: complete via PR #79; retained as a
+  historical decision pattern and future approval template.
+- PR C5 live publish test: Status: complete via PR #81; one approved live post
+  to `Aurna-code/augnes#81`, one retained GitHub comment, no duplicate, and no
+  unrelated GitHub/proof/mailbox/state mutation.
+- PR C5 same-key replay semantics fix: Status: complete via PR #82; same-key
+  sent/acknowledged replay is idempotent HTTP 200 with `posted=false`, while
+  different-key duplicate and pending delivery conflicts remain blocked.
+- Next productization slice after C5 live evidence: session model, temporal
+  interpretation, delivery external artifact persistence, ChatGPT Apps
+  cross-session tools, Codex session adapter, Cockpit write-control design,
+  GitHub App/token model, or retry design if needed.
 
 ## Cross-Phase Invariants
 
@@ -641,10 +655,16 @@ Every phase must preserve these rules:
 17. Core-gated approve action route, with no publish execution
 18. Core-gated dry-run publish readiness route, with no publish execution
 19. Explicit Core-gated GitHub PR comment publish route, with dry-run preview
-    verification only and no live posting until one target is separately
-    approved
-20. Decision packet for a future live C5 GitHub publish test, with no live
-    posting and no target approval by documentation alone
+    verification in PR #78 and no live posting in that implementation PR
+20. Decision packet for a future live C5 GitHub publish test, completed in PR
+    #79 and retained as the approval-template pattern
+21. Approved C5 live publish test, completed in PR #81 with one exact-target
+    GitHub PR comment and no broad posting permission
+22. C5 same-key replay semantics fix, completed in PR #82
+23. Choose the next productization slice after C5 live evidence: session model,
+    temporal interpretation, delivery external artifact persistence, ChatGPT
+    Apps cross-session tools, Codex session adapter, Cockpit write-control
+    design, GitHub App/token model, or retry design if needed
 ```
 
 ## Success Criteria
