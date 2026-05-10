@@ -346,6 +346,9 @@ Recommended slices:
   preserving PR #67 idempotency rules. Status: implemented at
   `POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment`;
   the C5 implementation PR did not execute live posting.
+- PR C5 live-test decision: Status: documented in
+  `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md`; no live target is
+  approved by that document.
 - PR C6: Retry workflow design and implementation only after C5 evidence.
 - PR C7: Optional Cockpit write controls, only after Core approval/publish
   routes exist.
@@ -579,8 +582,13 @@ explicit user/PM approval for one specific target and a unique
 `idempotency_key`. PR #67 remains a single target-specific historical live
 adapter test, not broad posting permission.
 
-The next likely slice is a separately approved live GitHub posting test for one
-specific target, or C5 hardening before such a live test.
+`docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` prepares the approval
+packet and future live-test procedure. It does not approve a target, run
+`dry_run=false`, use `GITHUB_TOKEN`, create delivery rows, or post to GitHub.
+
+The next likely decision is whether the user/PM approves one exact future live
+C5 GitHub posting test target, body, idempotency key, token permission, and
+retain/delete decision.
 
 ## Original Design-Only Verification Boundary
 

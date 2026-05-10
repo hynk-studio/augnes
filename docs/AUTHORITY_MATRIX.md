@@ -55,6 +55,10 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   `dry_run=true` creates no delivery rows and has no external side effects.
   PR #67 remains a single target-specific historical live adapter test, not
   broad posting permission.
+- A decision document or PR body can describe a future C5 live-test approval
+  packet, but it is not approval by itself. Actual `dry_run=false` still
+  requires explicit user/PM approval for the exact target, body,
+  `idempotency_key`, token use, and retain/delete decision.
 - Approval gate-state summaries and Cockpit renderers are derived read-only
   views. They may show request readiness, target matching, delivery status, gate
   reasons, approval decision state, readiness check state, and safe next steps,
