@@ -561,11 +561,11 @@ decision-card surface derived from that packet, with true ChatGPT Developer
 Mode verification complete via PR #72.
 
 The Core-gated approve/publish workflow is now partially implemented through
-C3. C1 created approval request records, C2 rendered read-only gate state, and
-C3 adds a Core-gated approve action route that grants approval only for one
-stored request target. C3 does not dry-run, publish, retry, create delivery
-rows, record proof, update mailbox status, commit/reject state, execute Codex,
-invoke GitHub, use `GITHUB_TOKEN`, post to GitHub, or post to Discord.
+C4. C1 created approval request records, C2 rendered read-only gate state, C3
+adds a Core-gated approve action route, and C4 adds durable dry-run readiness
+checks. C4 does not publish, retry, create delivery rows, record proof, update
+mailbox status, commit/reject state, execute Codex, invoke GitHub, use
+`GITHUB_TOKEN`, post to GitHub, or post to Discord.
 
 Future implementation slices must remain separate from this design step:
 
@@ -583,9 +583,13 @@ Future implementation slices must remain separate from this design step:
   implemented as `POST /api/publication-approval-requests/{approval_request_id}/approve`
   and durable `publication_approval_decisions`; approval grant is still not
   publication and does not create delivery rows or external side effects.
-- PR C4: Core-gated dry-run publish readiness route.
+- PR C4: Core-gated dry-run publish readiness route. Status: implemented as
+  `POST /api/publication-approval-decisions/{approval_decision_id}/readiness/dry-run`
+  and durable `publication_readiness_checks`; dry-run readiness is still not
+  publication and does not create delivery rows or external side effects.
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
-  preserving PR #67 idempotency rules.
+  preserving PR #67 idempotency rules. Status: next likely slice, separately
+  scoped and requiring extra review.
 - PR C6: Retry workflow design and implementation only after C5 evidence.
 - PR C7: Optional Cockpit write controls, only after Core approval/publish
   routes exist.
@@ -627,6 +631,7 @@ Every phase must preserve these rules:
 15. Core approval request records only, with no publish execution
 16. Read-only approval gate-state renderer, with no approve/publish execution
 17. Core-gated approve action route, with no publish execution
+18. Core-gated dry-run publish readiness route, with no publish execution
 ```
 
 ## Success Criteria

@@ -1,13 +1,13 @@
 # Augnes Core-Gated Approve/Publish Workflow Design
 
 This document defines the Core-gated approve/publish workflow for Augnes.
-C1 approval request records, C2 read-only gate-state rendering, and C3
-Core-gated approval grant routing are implemented. Later workflow slices remain
-future work. The implemented C3 route grants approval only for one stored
-approval request target; it does not dry-run, publish, retry, create delivery
-rows, record proof, update mailbox status, commit/reject state, execute Codex,
-invoke the GitHub PR comment adapter, use `GITHUB_TOKEN`, post to GitHub, post
-to Discord, add app tools, or add Cockpit write controls.
+C1 approval request records, C2 read-only gate-state rendering, C3
+Core-gated approval grant routing, and C4 Core-gated dry-run publish readiness
+routing are implemented. Later workflow slices remain future work. The
+implemented C4 route records readiness evidence only; it does not publish,
+retry, create delivery rows, record proof, update mailbox status, commit/reject
+state, execute Codex, invoke the GitHub PR comment adapter, use `GITHUB_TOKEN`,
+post to GitHub, post to Discord, add app tools, or add Cockpit write controls.
 
 ## Purpose
 
@@ -338,7 +338,8 @@ Recommended slices:
 - PR C3: Core-gated approve action route, with no publish execution. Status:
   implemented as a target-specific approval grant route backed by
   `publication_approval_decisions`.
-- PR C4: Core-gated dry-run publish readiness route.
+- PR C4: Core-gated dry-run publish readiness route. Status: implemented as
+  durable `publication_readiness_checks` and a dry-run readiness route.
 - PR C5: Core-gated explicit publish action with the GitHub PR comment adapter,
   preserving PR #67 idempotency rules.
 - PR C6: Retry workflow design and implementation only after C5 evidence.
@@ -353,13 +354,12 @@ posting was explicitly approved for one target.
 
 ## Remaining Non-Goals
 
-The implemented C1-C3 slices do not add:
+The implemented C1-C4 slices do not add:
 
 - App tools.
 - Cockpit buttons.
 - Publish routes.
 - Retry routes.
-- Dry-run readiness routes.
 - Proof recording.
 - Mailbox status updates.
 - State commit/reject behavior.
@@ -495,8 +495,61 @@ publication status, `dry_run=false`, stored `target_ref`, required
 `idempotency_key`, delivery freshness, token availability, and
 replay/no-duplicate evidence. PR #67 does not authorize automatic posting.
 
-The next likely slice is C4: a Core-gated dry-run publish readiness route. It
-must remain separate from approval grant and from publish execution.
+The C4 dry-run readiness slice remains separate from approval grant and from
+publish execution.
+
+## C4 Implementation Status
+
+The C4 slice implements a Core-gated dry-run publish readiness route with no
+publish execution:
+
+- `POST /api/publication-approval-decisions/{approval_decision_id}/readiness/dry-run`
+  validates one approved decision, its approval request, its linked
+  publication, and the stored publication target.
+- `publication_readiness_checks` stores durable readiness evidence separately
+  from approval decisions and delivery rows.
+- `GET /api/publication-readiness-checks?scope=project:augnes` lists readiness
+  records, and
+  `GET /api/publication-readiness-checks/{readiness_check_id}?scope=project:augnes`
+  reads one readiness record.
+- The readiness route checks approval decision status, approval request status,
+  publication status, `approved_by`, target matching, `github_pr_comment`
+  target support, `owner/repo#pull_number` target format, non-empty preview
+  body, absence of sent or pending delivery rows for the publication target,
+  future idempotency-key requirement, and future `dry_run=false` publish-route
+  separation.
+- On success, the route inserts a readiness check with status `ready`. If Core
+  gates fail for an otherwise valid approval decision, it inserts status
+  `blocked` with explicit blocked reasons.
+- The gate-state summary and read-only Cockpit panel can show
+  `dry_run_ready_for_future_publish` or `dry_run_blocked` when latest readiness
+  evidence exists.
+
+C4 does not add:
+
+- Publish execution.
+- Retry execution.
+- Delivery ledger writes.
+- `publication_sent` or `publication_failed` events.
+- GitHub adapter calls.
+- `GITHUB_TOKEN` usage.
+- GitHub or Discord posting.
+- Cockpit write controls.
+- ChatGPT App publish, approval, dry-run, or retry tools.
+- Proof recording.
+- Mailbox status updates.
+- State commit/reject behavior.
+- Codex execution.
+
+Dry-run readiness is not publication. It records readiness evidence for the
+stored target only. Future publish still requires explicit target approval,
+approved publication status, `dry_run=false`, stored `target_ref`, required
+`idempotency_key`, delivery freshness, token availability, and
+replay/no-duplicate evidence. PR #67 does not authorize automatic posting.
+
+The next likely slice is C5: an explicit Core-gated publish action. It remains
+separately scoped, requires extra review, and must preserve PR #67 idempotency
+rules.
 
 ## Original Design-Only Verification Boundary
 
@@ -509,6 +562,6 @@ behavior, or MCP contract.
 
 Live GitHub posting remains prohibited for approval workflow slices unless a
 future user/PM explicitly approves one specific target. `GITHUB_TOKEN` is not
-required for C1, C2, or C3, and
+required for C1, C2, C3, or C4, and
 `POST /api/publications/{publication_id}/publish/github-pr-comment` must not be
 invoked.

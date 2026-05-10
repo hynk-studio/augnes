@@ -410,6 +410,51 @@ CREATE INDEX IF NOT EXISTS idx_publication_approval_decisions_scope_request_time
 CREATE INDEX IF NOT EXISTS idx_publication_approval_decisions_scope_target_time
   ON publication_approval_decisions(scope, target_surface, target_ref, decided_at DESC);
 
+CREATE TABLE IF NOT EXISTS publication_readiness_checks (
+  readiness_check_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  publication_id TEXT NOT NULL,
+  approval_request_id TEXT NOT NULL,
+  approval_decision_id TEXT NOT NULL,
+  work_id TEXT,
+  target_surface TEXT NOT NULL,
+  target_ref TEXT NOT NULL,
+  dry_run INTEGER NOT NULL DEFAULT 1 CHECK (dry_run IN (0, 1)),
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'ready',
+      'blocked'
+    )
+  ),
+  checked_by TEXT NOT NULL,
+  checked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  gate_checks TEXT NOT NULL DEFAULT '[]',
+  blocked_reasons TEXT NOT NULL DEFAULT '[]',
+  readiness_summary TEXT NOT NULL,
+  idempotency_key_required INTEGER NOT NULL DEFAULT 1 CHECK (idempotency_key_required IN (0, 1)),
+  publish_route_required TEXT NOT NULL DEFAULT 'future_core_gated_publish_route',
+  source_control_packet_ref TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  FOREIGN KEY (publication_id) REFERENCES publication_drafts(publication_id),
+  FOREIGN KEY (approval_request_id) REFERENCES publication_approval_requests(approval_request_id),
+  FOREIGN KEY (approval_decision_id) REFERENCES publication_approval_decisions(approval_decision_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_publication_readiness_checks_scope_time
+  ON publication_readiness_checks(scope, checked_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_readiness_checks_scope_publication_time
+  ON publication_readiness_checks(scope, publication_id, checked_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_readiness_checks_scope_decision_time
+  ON publication_readiness_checks(scope, approval_decision_id, checked_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_readiness_checks_scope_status_time
+  ON publication_readiness_checks(scope, status, checked_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_publication_readiness_checks_scope_target_time
+  ON publication_readiness_checks(scope, target_surface, target_ref, checked_at DESC);
+
 CREATE TABLE IF NOT EXISTS delivery_ledger (
   delivery_id TEXT PRIMARY KEY,
   publication_id TEXT NOT NULL,
