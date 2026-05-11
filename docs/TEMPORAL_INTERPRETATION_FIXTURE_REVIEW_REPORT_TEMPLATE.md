@@ -165,6 +165,46 @@ If a required source, answer, or reviewer judgment is unavailable, use
 `blocked`, `missing_evidence`, or `needs_judgment` instead of inferring a
 result.
 
+## Repeated review result location guidance
+
+Repeated manual fixture review results should be recorded in standalone review
+report documents by default. Each repeated report should identify its scope,
+reviewed artifact type, source fixture file, reviewed artifact, reviewer,
+review date, allowed decision after review, and what remains blocked.
+
+The accepted baseline fixture file is not a running review log. Do not append
+repeated review results to
+`docs/TEMPORAL_INTERPRETATION_MARKDOWN_REVIEW_FIXTURES.md` merely because a
+fixture was reviewed again.
+
+PR comments are discussion aids, not canonical long-term record unless
+separately decided. They may support review discussion, identify requested
+edits, or preserve reviewer context during a PR, but a durable review result
+should live in a standalone review report document by default.
+
+A cumulative review log requires separate user/PM decision. A future
+cumulative log may be useful if repeated reports become hard to discover, but
+this template does not create that log, define its format, or approve it as
+canonical record.
+
+Repeated review reports should preserve:
+
+- reviewed artifact type
+- exact reviewed answer text or precise answer summary
+- concrete source refs inspected
+- missing evidence
+- stale or unavailable external refs
+- source authority profile
+- counterexamples
+- residual tensions
+- non-authority boundary
+- allowed decision after review
+- what remains blocked
+
+This guidance is documentation and review process only. It is not schema/API
+design, JSON fixture design, executable test design, runtime state, automatic
+scoring output, or implementation approval.
+
 ## Overall review report template
 
 Copy this block into a future review report and fill it in. Do not treat this

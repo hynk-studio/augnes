@@ -77,7 +77,7 @@ baseline. It is accepted for manual review, not validated for runtime.
 | Reviewed answer text or summary | high | `TIRF-P4-001`, `TIRF-P4-003`, `TIRF-P4-004`, `TIRF-P4-006`, `TIRF-P4-007` | Future reports need to show what answer was actually evaluated. | Useful before JSON discussion | No | Could be mistaken for an executable test input. |
 | Actual evidence path | high | `TIRF-P4-003`, `TIRF-P4-006`, `TIRF-P4-007` | Explanation fidelity requires comparing rationale to evidence path. | Useful before JSON discussion | No | Could harden into an API contract if over-structured. |
 | Axis-mapping tension | medium | `TIRF-P4-005` | The axis fixture should make mapping uncertainty and duplicate-effect tension visible. | Useful before JSON discussion | No | Could invite new axis machinery too early. |
-| Repeated-review result location | medium | all seven | Review outcomes need a stable place if multiple manual reviews occur. | Helpful before JSON discussion | No | Could create process overhead before it is needed. |
+| Repeated-review result location | medium | all seven | Standalone review report documents by default give repeated outcomes a durable place without turning the baseline fixture file into a running log. | Helpful before JSON discussion | No | Could create process overhead or imply a cumulative log before user/PM separately approves one. |
 | Stale or unavailable external refs | medium | all seven | Future evidence refs may be unavailable, stale, or mutable. | Helpful before JSON discussion | No | Could overcomplicate current manual review. |
 | Fixture-definition vs answer behavior | high | all seven | Baseline acceptance must not be confused with runtime behavior pass. | Useful before JSON discussion | No | Low risk if kept as wording guidance. |
 | Reviewed artifact type | medium | all seven | Review reports should distinguish fixture-definition review, hypothetical answer review, actual answer review, and implementation-readiness review. | Helpful before JSON discussion | No | Could imply stages are mandatory workflow gates if overdone. |
@@ -93,7 +93,10 @@ baseline. It is accepted for manual review, not validated for runtime.
    review.
 5. Add stronger axis-mapping tension notes for
    `TIRF-P4-005-axis-proliferation`.
-6. Add repeated-review result location guidance.
+6. Add repeated-review result location guidance: standalone review report
+   documents by default, no running log inside the accepted baseline fixture
+   file, PR comments as discussion aids rather than canonical record, and a
+   cumulative review log deferred unless separately approved.
 7. Add stale or unavailable external ref handling guidance.
 8. Add clearer distinction between fixture-definition adequacy and actual
    answer behavior in future reports.
@@ -194,7 +197,14 @@ baseline. It is accepted for manual review, not validated for runtime.
 - Add reviewed-artifact-type guidance so reports can distinguish
   fixture-definition review, hypothetical answer review, actual
   `PerspectiveSnapshot` answer review, and implementation-readiness review.
-- Add a repeated-review outcome convention before multiple reports accumulate.
+- Use standalone review report documents by default for repeated manual review
+  results.
+- The accepted baseline fixture file is not a running review log.
+- PR comments are discussion aids, not canonical long-term record unless
+  separately decided.
+- A cumulative review log requires separate user/PM decision.
+- Treat repeated-review location guidance as optional process refinement, not
+  a blocker to manual review use.
 - Add stale-ref handling guidance for external evidence that may change or
   become unavailable.
 - Preserve `blocked`, `needs_judgment`, and `missing_evidence` as first-class
@@ -239,6 +249,13 @@ manual review use.
 
 Future review reports may use these notes to decide what information to record
 more explicitly.
+
+Repeated manual review results should live in standalone review report
+documents by default. The accepted baseline fixture file should remain the
+fixture baseline, not a running log of review outcomes. PR comments may support
+discussion, but they are not the canonical long-term record unless user/PM
+separately decides otherwise. A cumulative review log remains deferred unless
+separately approved.
 
 The most useful near-term additions for review reports are likely:
 
@@ -297,8 +314,8 @@ implementation scope.
 - Which refinement should be applied first if only one is chosen?
 - Should reviewed-artifact-type guidance live in the fixture baseline, the
   review report template, or both?
-- Should repeated review results live in standalone reports or in a cumulative
-  review log?
+- What user/PM signal would justify creating a cumulative review log instead
+  of continuing with standalone review report documents by default?
 - How should stale or unavailable external refs be represented without
   over-structuring the fixture format?
 - What user/PM signal would be sufficient to start a separate JSON fixture
@@ -306,9 +323,8 @@ implementation scope.
 
 ## Next suggested goal
 
-Decide whether to apply one small refinement PR to the existing Markdown
-fixture baseline, or keep the accepted baseline unchanged and defer JSON
-fixture shape discussion until explicitly approved.
+Decide whether to stop refinement here and keep using the current manual
+review baseline, or explicitly approve a separate JSON fixture shape discussion.
 
 ## Final summary
 
@@ -319,9 +335,14 @@ Optional refinements are useful, especially before any JSON fixture design
 discussion, but they are not required before using the current baseline for
 manual review.
 
-The next safe step after this note is either to choose a small refinement PR
-that updates the existing Markdown fixture baseline, or to defer refinements
-and continue using the current baseline for manual review.
+The repeated-review location default is standalone review report documents by
+default. The accepted baseline fixture file is not a running review log. PR
+comments are discussion aids, not canonical long-term record unless separately
+decided. A cumulative review log requires separate user/PM decision.
+
+The next safe step after this refinement is to stop refinement and keep using
+the current manual review baseline, unless user/PM explicitly approves a
+separate JSON fixture shape discussion.
 
 JSON fixture design is not the automatic next step. P4 implementation is not
 recommended or approved. Runtime/schema/API/UI/App work and P5
