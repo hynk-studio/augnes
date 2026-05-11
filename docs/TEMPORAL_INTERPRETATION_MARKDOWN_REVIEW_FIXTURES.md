@@ -20,6 +20,10 @@ This document converts the seven minimum P4 fixture drafts into actual
 Markdown review fixtures while keeping the format reviewable before any JSON,
 TypeScript test, or directory layout is designed.
 
+The manual review baseline remains accepted. This refinement improves review
+clarity; it does not approve JSON fixture design, executable tests, P4
+implementation, runtime/schema/API/UI/App work, or P5 rule work.
+
 ## Purpose
 
 The purpose of this fixture set is to let a human reviewer evaluate whether a
@@ -56,6 +60,33 @@ Each fixture uses the same review structure:
 The format is Markdown only. Field names in this document are reviewer labels,
 not API fields, DB fields, JSON keys, or executable test contracts.
 
+## Reviewed artifact type guidance
+
+Future fixture reviews should record what kind of artifact is being reviewed.
+This is reviewer guidance only. Reviewed artifact type is not an API field, DB
+field, JSON key, schema field, or executable test field.
+
+Acceptable reviewed artifact types:
+
+- `fixture-definition review`: review of whether the fixture definition is
+  structurally adequate for manual review. This is not actual answer behavior
+  pass.
+- `hypothetical answer review`: review of a proposed or imagined answer. The
+  review must say it did not inspect runtime behavior.
+- `actual PerspectiveSnapshot answer review`: review of an actual generated
+  `PerspectiveSnapshot`-style answer, if one exists in a future phase. The
+  review must preserve exact answer text or a precise answer summary, evidence
+  anchors, missing evidence, source authority profile, and non-authority
+  boundary.
+- `implementation-readiness review`: review of whether implementation should
+  be considered. This requires separate user/PM scope and approval and cannot
+  be created by implication from fixture review.
+
+Actual answer review is not implementation readiness. Implementation-readiness
+review would require a separate user/PM decision and separately scoped work.
+No reviewed artifact type can approve JSON fixture design, executable tests,
+P4 implementation, runtime/schema/API/UI/App work, or P5 rule work by itself.
+
 ## Review status labels
 
 Human reviewers may use these labels when reviewing each fixture:
@@ -91,6 +122,10 @@ API fields, DB fields, automatic scoring outputs, or runtime state.
 - Suppressed alternatives must not be treated as false or permanently
   rejected.
 - A current recommendation must not be treated as final truth.
+- Reviews of an answer should record the exact reviewed answer text or a
+  precise answer summary.
+- Reviews should record concrete source refs inspected, missing evidence, and
+  stale or unavailable refs when applicable.
 - No fixture can approve implementation.
 - No fixture can promote `RuleCandidate` or `PromotedRule`.
 - No fixture can create runtime authority.
@@ -107,6 +142,7 @@ Acceptable anchor categories include:
 - proof/trace evidence
 - committed-state evidence
 - external refs such as PRs, commits, and test outputs
+- stale or unavailable external refs, when applicable
 - counterexample refs
 - tension refs
 - explicit reviewer notes that preserve missing evidence or unresolved
@@ -114,6 +150,9 @@ Acceptable anchor categories include:
 
 Summary/view refs may help retrieve or display evidence. They do not satisfy
 evidence-anchor requirements by themselves.
+
+If an external ref is stale or unavailable, reviewers should record that state
+explicitly instead of treating the ref as confirmed evidence.
 
 Reviewer output should preserve a source authority profile. Raw evidence,
 proof/trace evidence, committed-state evidence, external refs, summaries,
