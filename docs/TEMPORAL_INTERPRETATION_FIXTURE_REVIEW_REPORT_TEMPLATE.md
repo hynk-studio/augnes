@@ -17,6 +17,10 @@ temporal interpretation Markdown review fixtures. It does not perform a
 review, mark any fixture as pass/fail, claim P4 implementation readiness, add
 JSON fixtures, or add executable tests.
 
+The manual review baseline remains accepted. This refinement improves review
+clarity; it does not approve JSON fixture design, executable tests, P4
+implementation, runtime/schema/API/UI/App work, or P5 rule work.
+
 ## Purpose
 
 The purpose of this template is to define how a future reviewer should record:
@@ -96,6 +100,33 @@ These labels are human-review labels only. They are not executable statuses,
 API fields, DB fields, automatic scoring outputs, or runtime state. They do
 not create runtime authority.
 
+## Reviewed artifact type guidance
+
+Future review reports should record the reviewed artifact type. This is
+reviewer guidance only. It is not a schema/API/JSON field, DB field,
+executable test field, automatic scoring output, or runtime state.
+
+Acceptable reviewed artifact type values:
+
+- `fixture-definition review`
+- `hypothetical answer review`
+- `actual PerspectiveSnapshot answer review`
+- `implementation-readiness review`
+
+If reviewed artifact type is `fixture-definition review`, the report must not
+claim actual answer behavior passed.
+
+If reviewed artifact type is `hypothetical answer review`, the report must say
+it did not inspect runtime behavior.
+
+If reviewed artifact type is `actual PerspectiveSnapshot answer review`, the
+report must preserve exact answer text or a precise answer summary, evidence
+anchors, missing evidence, source authority profile, and non-authority
+boundary.
+
+`implementation-readiness review` requires a separate user/PM decision and
+cannot be created by implication from a fixture review report.
+
 ## Reviewer roles and decision authority
 
 - Reviewer: inspects fixture evidence and records findings. The reviewer may
@@ -116,15 +147,19 @@ merely by filling out the template.
 
 1. Identify the fixture IDs under review.
 2. Inspect the source fixture file and relevant temporal interpretation docs.
-3. Record the evidence inspected, including missing evidence.
-4. Record the hypothetical or actual `PerspectiveSnapshot`-style answer being
+3. Record the reviewed artifact type.
+4. Record the evidence inspected, including concrete source refs, missing
+   evidence, and stale or unavailable external refs.
+5. Record the exact reviewed answer text or a precise answer summary when an
+   answer is being evaluated.
+6. Record the hypothetical or actual `PerspectiveSnapshot`-style answer being
    evaluated, if one exists.
-5. Check evidence anchors, summary/view refs, counterexamples, residual
+7. Check evidence anchors, summary/view refs, counterexamples, residual
    tensions, source authority profile, and explanation fidelity.
-6. Assign a human-review status for each reviewed fixture.
-7. Record what decision is allowed after the review.
-8. Record what remains blocked.
-9. Preserve the non-authority statement.
+8. Assign a human-review status for each reviewed fixture.
+9. Record what decision is allowed after the review.
+10. Record what remains blocked.
+11. Preserve the non-authority statement.
 
 If a required source, answer, or reviewer judgment is unavailable, use
 `blocked`, `missing_evidence`, or `needs_judgment` instead of inferring a
@@ -146,6 +181,9 @@ template block as a completed review.
 - Scope: [all fixtures / selected fixtures / follow-up review]
 - Source fixture file:
   `docs/TEMPORAL_INTERPRETATION_MARKDOWN_REVIEW_FIXTURES.md`
+- Reviewed artifact type: [fixture-definition review / hypothetical answer
+  review / actual PerspectiveSnapshot answer review /
+  implementation-readiness review]
 - Fixtures reviewed:
   - [fixture ID]
 - Fixtures explicitly deferred:
@@ -199,12 +237,21 @@ this template PR.
 
 - Fixture ID: [fill in]
 - Fixture name: [fill in]
+- Reviewed artifact type: [fixture-definition review / hypothetical answer
+  review / actual PerspectiveSnapshot answer review /
+  implementation-readiness review]
 - Review status: [pass / fail / partial_support / missing_evidence / blocked /
   needs_judgment / out_of_scope]
 - Evidence inspected:
   - [source ref]
+- Concrete source refs inspected:
+  - [source ref or none]
+- Stale or unavailable external refs:
+  - [stale/unavailable ref or none]
 - Hypothetical or actual answer reviewed:
   - [paste or summarize the reviewed answer, or state none]
+- Exact reviewed answer text or precise answer summary:
+  - [exact text / precise summary / none]
 - Required evidence anchors present: [yes / no / partial / not reviewed]
 - Missing evidence:
   - [missing ref or none]
@@ -246,6 +293,10 @@ Use this structure inside the overall report or inside each fixture block.
   - [ref or not inspected]
 - External evidence:
   - [PR, commit, test output, uploaded file, or not inspected]
+- Concrete source refs inspected:
+  - [exact source ref or none]
+- Stale or unavailable external refs:
+  - [stale/unavailable ref or none]
 - Summary/view refs:
   - [ref or none]
 - Counterexample refs:
