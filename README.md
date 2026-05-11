@@ -107,7 +107,33 @@ OpenAI APIs are used for interpretation, not direct mutation.
 
 `POST /api/plan` asks the model to recommend actions grounded in committed state. The planner receives active, future, completed, deprecated, and tension state so it can avoid treating future work as current work.
 
+`POST /api/temporal-interpretation/preview` asks the model to generate a read-only PerspectiveSnapshot-like Temporal Interpretation Preview from current project/demo context. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, a safe next step, and a non-authority boundary. The route then runs deterministic local guardrails before returning the preview.
+
 Local demos do not require an API key. If `OPENAI_API_KEY` is missing, Augnes uses deterministic mock behavior for observe and planner flows so the full demo remains runnable from a clean checkout.
+
+The Temporal Interpretation Preview also has deterministic mock fallback. If `OPENAI_API_KEY` is unset, `generator` is `mock`; if OpenAI fails, the route returns `mock_fallback` with a warning. Cockpit OpenAI usage is explicit and button-triggered: the panel does not call the preview route on page load. This preview is intentionally read-only: it does not commit state, approve work, publish proof, mutate mailbox state, promote rules, or claim full P4 PerspectiveSnapshot readiness.
+
+## Temporal Interpretation Preview
+
+The Runtime Cockpit includes a read-only `Temporal Interpretation Preview` panel. It starts in a not-generated state and calls the preview route only after the user clicks `Generate Preview` or `Refresh Preview`. It demonstrates Augnes applying the temporal interpretation model to current project/demo context without adding durable snapshot authority.
+
+API check:
+
+```bash
+curl -s -X POST "http://localhost:3000/api/temporal-interpretation/preview" \
+  -H "Content-Type: application/json" \
+  -d '{"scope":"project:augnes"}' | jq .
+```
+
+Smoke check while the Next server is running:
+
+```bash
+npm run smoke:temporal-preview
+```
+
+OpenAI is useful here because the preview is interpretive rather than a direct state read: it relates current context, prior interpretation, counterexamples, residual tensions, and authority boundaries while preserving structured anchors. The local guardrails remain deterministic and run for both OpenAI and mock output. In the Cockpit, OpenAI is used only after an explicit button click when `OPENAI_API_KEY` is present.
+
+See `docs/TEMPORAL_INTERPRETATION_PREVIEW_RUNBOOK.md` for run instructions, guardrails, boundaries, and intentionally omitted P4 work.
 
 ## Temporal State Delta Proposals
 
