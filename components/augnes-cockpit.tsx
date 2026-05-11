@@ -1,5 +1,6 @@
 "use client";
 
+import type { TemporalPreviewResponse } from "@/lib/temporal-interpretation/types";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const SCOPE = "project:augnes";
@@ -442,6 +443,13 @@ export function AugnesCockpit() {
   const [approvalGateState, setApprovalGateState] =
     useState<ApprovalGateStateSummaryResponse | null>(null);
   const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
+  const [temporalPreview, setTemporalPreview] =
+    useState<TemporalPreviewResponse | null>(null);
+  const [temporalPreviewError, setTemporalPreviewError] = useState<string | null>(
+    null,
+  );
+  const [temporalPreviewBusy, setTemporalPreviewBusy] = useState(false);
+  const [temporalPreviewRequested, setTemporalPreviewRequested] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -665,6 +673,34 @@ export function AugnesCockpit() {
     }
   }
 
+  async function refreshTemporalPreview() {
+    setTemporalPreviewRequested(true);
+    setTemporalPreviewBusy(true);
+    setTemporalPreviewError(null);
+
+    try {
+      setTemporalPreview(
+        await fetchJson<TemporalPreviewResponse>(
+          "/api/temporal-interpretation/preview",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scope: SCOPE }),
+          },
+        ),
+      );
+    } catch (error) {
+      setTemporalPreview(null);
+      setTemporalPreviewError(
+        error instanceof Error
+          ? error.message
+          : "Temporal interpretation preview request failed",
+      );
+    } finally {
+      setTemporalPreviewBusy(false);
+    }
+  }
+
   async function observe(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy("observe");
@@ -856,6 +892,14 @@ export function AugnesCockpit() {
       <ApprovalGateStatePanel
         approvalGateState={approvalGateState}
         error={approvalGateError}
+      />
+
+      <TemporalInterpretationPreviewPanel
+        previewResponse={temporalPreview}
+        error={temporalPreviewError}
+        busy={temporalPreviewBusy}
+        requested={temporalPreviewRequested}
+        onRefresh={() => void refreshTemporalPreview()}
       />
 
       <CoordinationEventTimeline
@@ -2301,6 +2345,256 @@ function ApprovalGateBucket({
       ) : (
         <EmptyState label={emptyLabel} />
       )}
+    </section>
+  );
+}
+
+function TemporalInterpretationPreviewPanel({
+  previewResponse,
+  error,
+  busy,
+  requested,
+  onRefresh,
+}: {
+  previewResponse: TemporalPreviewResponse | null;
+  error: string | null;
+  busy: boolean;
+  requested: boolean;
+  onRefresh: () => void;
+}) {
+  const preview = previewResponse?.preview;
+  const guardrails = previewResponse?.guardrails;
+
+  return (
+    <section
+      className="temporal-preview-shell"
+      aria-label="Temporal Interpretation Preview"
+    >
+      <div className="temporal-preview-heading">
+        <PanelHeader
+          eyebrow="Temporal Interpretation"
+          title="Preview"
+          description="Generate is explicit and button-triggered. OpenAI is used only after user action when OPENAI_API_KEY is set; otherwise the route returns deterministic mock output."
+        />
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onRefresh}
+          disabled={busy}
+        >
+          {previewResponse ? "Refresh Preview" : "Generate Preview"}
+        </button>
+      </div>
+
+      {error ? (
+        <EmptyState
+          label="Temporal interpretation preview unavailable"
+          description={error}
+        />
+      ) : busy || (requested && (!previewResponse || !preview)) ? (
+        <LoadingBlock
+          title="Loading temporal interpretation preview"
+          lines={[
+            "Reading current demo context",
+            "Applying local guardrails",
+          ]}
+        />
+      ) : !previewResponse || !preview ? (
+        <EmptyState
+          label="Preview not generated"
+          description="Click Generate Preview to request the read-only temporal interpretation preview."
+        />
+      ) : (
+        <>
+          <div className="temporal-preview-status">
+            <StatusBadge label={formatStatusLabel(previewResponse.generator)} />
+            <StatusBadge
+              label={guardrails?.passed ? "guardrails passed" : "guardrail warnings"}
+              tone={guardrails?.passed ? "ready" : "needs-review"}
+            />
+            <StatusBadge
+              label={formatStatusLabel(preview.transition_relation)}
+            />
+            {previewResponse.model ? (
+              <span>
+                model <code>{previewResponse.model}</code>
+              </span>
+            ) : null}
+          </div>
+
+          <div className="temporal-preview-grid">
+            <section className="temporal-preview-card is-wide">
+              <h3>Current interpretation</h3>
+              <p>{preview.current_interpretation}</p>
+            </section>
+            <section className="temporal-preview-card is-wide">
+              <h3>Active prior context</h3>
+              <p>{preview.active_prior_context}</p>
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Evidence anchors</h3>
+              <TemporalRefList
+                items={preview.evidence_anchors.map((anchor) => ({
+                  ref: anchor.ref,
+                  text: `${anchor.claim} (${formatStatusLabel(anchor.source_type)})`,
+                }))}
+                emptyLabel="No evidence anchors"
+              />
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Summary refs</h3>
+              <TemporalRefList
+                items={preview.summary_refs.map((ref) => ({
+                  ref: ref.ref,
+                  text: ref.summary,
+                }))}
+                emptyLabel="No summary refs"
+              />
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Source authority profile</h3>
+              <TemporalAuthorityProfile
+                profile={preview.source_authority_profile}
+              />
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Counterexamples</h3>
+              <TemporalRefList
+                items={preview.counterexamples.map((item) => ({
+                  ref: item.ref,
+                  text: item.description,
+                }))}
+                emptyLabel="No counterexamples"
+              />
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Residual tensions</h3>
+              <TemporalRefList
+                items={preview.residual_tensions.map((item) => ({
+                  ref: item.ref,
+                  text: item.description,
+                }))}
+                emptyLabel="No residual tensions"
+              />
+            </section>
+            <section className="temporal-preview-card is-wide">
+              <h3>Transition relation</h3>
+              <p>{preview.revision_explanation}</p>
+              <p>{preview.user_context_vs_factuality}</p>
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Safe next step</h3>
+              <p>{preview.safe_next_step}</p>
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Non-authority boundary</h3>
+              <p>{preview.non_authority_boundary}</p>
+            </section>
+          </div>
+
+          <TemporalWarnings
+            warnings={preview.warnings}
+            openaiError={previewResponse.openai_error}
+          />
+        </>
+      )}
+    </section>
+  );
+}
+
+function TemporalRefList({
+  items,
+  emptyLabel,
+}: {
+  items: { ref: string; text: string }[];
+  emptyLabel: string;
+}) {
+  if (items.length === 0) {
+    return <EmptyState label={emptyLabel} />;
+  }
+
+  return (
+    <div className="temporal-ref-list">
+      {items.map((item) => (
+        <article className="temporal-ref-item" key={item.ref}>
+          <code>{item.ref}</code>
+          <p>{item.text}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function TemporalAuthorityProfile({
+  profile,
+}: {
+  profile: TemporalPreviewResponse["preview"]["source_authority_profile"];
+}) {
+  return (
+    <div className="temporal-authority-profile">
+      <TemporalAuthorityBucket
+        title="Committed authority"
+        items={profile.committed_state_authority}
+      />
+      <TemporalAuthorityBucket
+        title="Summary-only"
+        items={profile.summary_only_refs}
+      />
+      <TemporalAuthorityBucket title="Allowed now" items={profile.allowed_now} />
+      <TemporalAuthorityBucket title="Blocked now" items={profile.blocked_now} />
+    </div>
+  );
+}
+
+function TemporalAuthorityBucket({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="temporal-authority-bucket">
+      <strong>{title}</strong>
+      <div className="meta-row">
+        {items.length ? (
+          items.map((item) => (
+            <span key={item}>
+              <code>{item}</code>
+            </span>
+          ))
+        ) : (
+          <span>none</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TemporalWarnings({
+  warnings,
+  openaiError,
+}: {
+  warnings: string[];
+  openaiError?: string;
+}) {
+  if (warnings.length === 0 && !openaiError) {
+    return (
+      <div className="temporal-preview-warnings is-clear">
+        <strong>Guardrails clear</strong>
+      </div>
+    );
+  }
+
+  return (
+    <section className="temporal-preview-warnings">
+      <h3>Guardrail warnings</h3>
+      {openaiError ? <p>{openaiError}</p> : null}
+      <ul>
+        {warnings.map((warning) => (
+          <li key={warning}>{warning}</li>
+        ))}
+      </ul>
     </section>
   );
 }
