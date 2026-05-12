@@ -94,6 +94,45 @@ for (const driver of preview.interpretive_drivers) {
   }
 }
 
+function axisPressureReasonContainsScoringPattern(reason) {
+  const text = reason.toLowerCase();
+
+  return (
+    /\b(?:score|confidence|weight|numeric_rating|rating)\s*[:=]?\s*\d+(?:\.\d+)?\b/.test(
+      text,
+    ) ||
+    /\b\d+(?:\.\d+)?\s*%/.test(text) ||
+    /\b\d+\s*\/\s*\d+\b/.test(text)
+  );
+}
+
+const allowedAxisPressureIdentifiers = [
+  "P4 remains out of scope for this preview.",
+  "v0.1 and v0.1.1 are version references, not scores.",
+  "PR #100 established the baseline route.",
+  "AG-001 is a work trace identifier.",
+  "2026 is a calendar year.",
+];
+for (const reason of allowedAxisPressureIdentifiers) {
+  if (axisPressureReasonContainsScoringPattern(reason)) {
+    throw new Error(`Axis pressure helper rejected allowed identifier: ${reason}`);
+  }
+}
+
+const scoringAxisPressureExamples = [
+  "score 0.8",
+  "confidence 0.9",
+  "weight 3",
+  "70%",
+  "3/5",
+  "numeric_rating: 4",
+];
+for (const reason of scoringAxisPressureExamples) {
+  if (!axisPressureReasonContainsScoringPattern(reason)) {
+    throw new Error(`Axis pressure helper allowed scoring pattern: ${reason}`);
+  }
+}
+
 const allowedPressures = new Set([
   "high",
   "medium",
@@ -110,8 +149,10 @@ for (const pressure of preview.axis_pressures) {
       `Temporal preview axis pressure has invalid label: ${pressure.pressure}`,
     );
   }
-  if (/\d/.test(`${pressure.axis} ${pressure.pressure} ${pressure.reason}`)) {
-    throw new Error("Temporal preview axis_pressures includes a numeric value.");
+  if (axisPressureReasonContainsScoringPattern(pressure.reason)) {
+    throw new Error(
+      "Temporal preview axis_pressures includes a numeric scoring pattern.",
+    );
   }
 }
 

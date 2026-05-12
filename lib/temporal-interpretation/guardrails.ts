@@ -104,9 +104,9 @@ export function validateTemporalPreviewGuardrails({
     );
   }
 
-  if (axisPressuresContainNumbers(preview)) {
+  if (axisPressuresContainScoringPattern(preview)) {
     warnings.push(
-      "axis_pressures must be qualitative labels only and must not include numeric values.",
+      "axis_pressures must be qualitative labels only and must not include numeric scoring patterns.",
     );
   }
 
@@ -184,10 +184,22 @@ function treatsSuppressedAlternativesAsFalse(
   });
 }
 
-function axisPressuresContainNumbers(preview: TemporalInterpretationPreview) {
+function axisPressuresContainScoringPattern(
+  preview: TemporalInterpretationPreview,
+) {
   return preview.axis_pressures.some((pressure) =>
-    [pressure.axis, pressure.pressure, pressure.reason].some((value) =>
-      /\d/.test(value),
-    ),
+    axisPressureReasonContainsScoringPattern(pressure.reason),
+  );
+}
+
+function axisPressureReasonContainsScoringPattern(reason: string) {
+  const text = reason.toLowerCase();
+
+  return (
+    /\b(?:score|confidence|weight|numeric_rating|rating)\s*[:=]?\s*\d+(?:\.\d+)?\b/.test(
+      text,
+    ) ||
+    /\b\d+(?:\.\d+)?\s*%/.test(text) ||
+    /\b\d+\s*\/\s*\d+\b/.test(text)
   );
 }
