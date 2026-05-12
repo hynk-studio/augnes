@@ -16,7 +16,11 @@ verification-gap records. The implemented C4 route records readiness evidence
 only; it does not publish, retry, create delivery rows, record proof, update
 mailbox status, commit/reject state, execute Codex, invoke the GitHub PR comment
 adapter, use `GITHUB_TOKEN`, post to GitHub, post to Discord, add app tools, or
-add Cockpit write controls.
+add Cockpit write controls. Structured verification evidence records add a
+narrow observation layer for command/check, replay, and duplicate-block facts.
+These records are proof traces only: they do not approve, publish, replay,
+retry, change publication, approval, readiness, delivery, mailbox, or committed
+state rows, and they do not call GitHub or OpenAI.
 
 ## Purpose
 
@@ -259,6 +263,21 @@ Future Augnes Core slices own:
 
 Core should expose derived read-only state for surfaces and keep durable writes
 behind explicit, auditable routes.
+
+### Verification Evidence Records
+
+`verification_evidence_records` stores bounded local observations:
+
+- command/check observations: `command_run`, `check_passed`, `check_failed`,
+  and `check_skipped`
+- replay observations: `replay_observed`
+- duplicate-block observations: `duplicate_block_observed`
+
+These records are read by Evidence Pack v0.1 to distinguish observed facts from
+missing evidence gaps. Evidence Pack remains read-only and never creates these
+records. Recording a replay or duplicate-block observation means the behavior
+was explicitly observed elsewhere; the record creation route must not execute
+replay or attempt a duplicate publish.
 
 ### GitHub
 

@@ -12,6 +12,7 @@
     "demo:seed": "node scripts/demo-seed.mjs",
     "smoke:temporal-preview": "node scripts/smoke-temporal-preview.mjs",
     "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
+    "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "codex:record-completion": "npm --prefix apps/augnes_apps run codex:record-completion",
     "typecheck": "tsc --noEmit"
   },

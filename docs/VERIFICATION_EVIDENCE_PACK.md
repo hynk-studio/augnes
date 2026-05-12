@@ -33,6 +33,30 @@ when those fields are stored. Missing command/skipped-check structure is shown
 as `gaps`; the endpoint must not fabricate verification results to make a pack
 look complete.
 
+Structured verification evidence records are now stored separately from
+approval, publication, readiness, delivery, mailbox, and committed state rows.
+The local runtime exposes:
+
+```text
+GET /api/evidence/records?scope=project:augnes
+POST /api/evidence/records
+```
+
+`POST /api/evidence/records` records bounded observation evidence only. It can
+store `command_run`, `check_passed`, `check_failed`, `check_skipped`,
+`replay_observed`, and `duplicate_block_observed` records. It does not approve,
+publish, replay, retry, commit or reject state, mutate mailbox, call GitHub,
+call OpenAI, or require `GITHUB_TOKEN` / `OPENAI_API_KEY`.
+
+Evidence Pack reads matching records for the selected work, publication,
+delivery, or target. Matching `command_run` records populate
+`verification_trace.commands_run`; matching `check_passed` records populate
+`verification_trace.checks_passed`; matching `check_skipped` records populate
+`verification_trace.skipped_checks`; matching `replay_observed` and
+`duplicate_block_observed` records set the corresponding replay observation
+fields. Gaps are reduced only when matching records exist. Unrelated evidence
+records must not make a selected pack appear complete.
+
 ## Evidence Categories
 
 ### Command Checks
@@ -54,6 +78,11 @@ npm --prefix apps/augnes_apps run typecheck
 npm --prefix apps/augnes_apps run smoke
 npm --prefix apps/augnes_apps run invariants
 ```
+
+After running a command, Codex or another local verifier may record a bounded
+`command_run` evidence record. The record says the command was reported as run;
+it is not broad proof of correctness beyond that exact command and result
+summary.
 
 ### Browser/Chrome Checks
 
@@ -79,6 +108,9 @@ When available, record:
 
 A skipped Developer Mode check is acceptable when no tunnel, local runtime, or Developer Mode access is available. State the reason plainly.
 
+Skipped checks should be recorded as `check_skipped` with a concrete
+`skipped_reason` when the evidence record API is available.
+
 ### MCP / Widget Checks
 
 For MCP Inspector or widget checks, record:
@@ -99,6 +131,10 @@ ledger result, stored `external_artifact_id`/`external_artifact_url`/
 example: one live GitHub PR comment, comment id `4414174258`, one sent delivery,
 publication became sent, replay produced no duplicate, and the retained comment
 remains evidence. This does not authorize automatic posting in future PRs.
+
+Replay and duplicate-block observations are stored only when explicitly
+observed elsewhere. Creating `replay_observed` or `duplicate_block_observed`
+records must not itself execute replay or attempt a duplicate publish.
 
 ### Artifacts
 

@@ -121,6 +121,143 @@ export function migrateDeliveryExternalArtifacts(db) {
   };
 }
 
+export const verificationEvidenceRecordsTableSql = `
+  CREATE TABLE IF NOT EXISTS verification_evidence_records (
+    evidence_id TEXT PRIMARY KEY,
+    scope TEXT NOT NULL DEFAULT 'project:augnes',
+    work_id TEXT,
+    publication_id TEXT,
+    delivery_id TEXT,
+    target_surface TEXT,
+    target_ref TEXT,
+    evidence_kind TEXT NOT NULL CHECK (
+      evidence_kind IN (
+        'command_run',
+        'check_passed',
+        'check_failed',
+        'check_skipped',
+        'replay_observed',
+        'duplicate_block_observed'
+      )
+    ),
+    label TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (
+      status IN (
+        'passed',
+        'failed',
+        'skipped',
+        'observed',
+        'blocked',
+        'needs_review'
+      )
+    ),
+    command TEXT,
+    result_summary TEXT NOT NULL,
+    skipped_reason TEXT,
+    observed_behavior TEXT,
+    source_surface TEXT NOT NULL,
+    source_ref TEXT,
+    related_action_id TEXT,
+    related_work_event_id TEXT,
+    metadata TEXT NOT NULL DEFAULT '{}',
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY (scope, work_id) REFERENCES work_items(scope, work_id),
+    FOREIGN KEY (publication_id) REFERENCES publication_drafts(publication_id),
+    FOREIGN KEY (delivery_id) REFERENCES delivery_ledger(delivery_id),
+    FOREIGN KEY (related_action_id) REFERENCES action_records(id),
+    FOREIGN KEY (related_work_event_id) REFERENCES work_events(id)
+  )
+`;
+
+export const verificationEvidenceRecordsIndexes = [
+  {
+    name: "idx_verification_evidence_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_time
+        ON verification_evidence_records(scope, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_verification_evidence_scope_work_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_work_time
+        ON verification_evidence_records(scope, work_id, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_verification_evidence_scope_publication_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_publication_time
+        ON verification_evidence_records(scope, publication_id, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_verification_evidence_scope_delivery_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_delivery_time
+        ON verification_evidence_records(scope, delivery_id, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_verification_evidence_scope_target_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_target_time
+        ON verification_evidence_records(scope, target_surface, target_ref, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_verification_evidence_scope_kind_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_kind_time
+        ON verification_evidence_records(scope, evidence_kind, created_at DESC)
+    `,
+  },
+];
+
+export function migrateVerificationEvidenceRecords(db) {
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'verification_evidence_records'
+      `,
+    )
+    .get();
+  const createdTable = !existingTable;
+
+  db.prepare(verificationEvidenceRecordsTableSql).run();
+
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = 'verification_evidence_records'
+        `,
+      )
+      .all()
+      .map((index) => index.name),
+  );
+  const createdIndexes = [];
+
+  for (const { name, sql } of verificationEvidenceRecordsIndexes) {
+    if (!existingIndexes.has(name)) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    created_table: createdTable,
+    created_indexes: createdIndexes,
+  };
+}
+
 export function migrateMailboxCoordinationEventTypes(db) {
   const table = db
     .prepare(

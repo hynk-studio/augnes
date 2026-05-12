@@ -5,6 +5,10 @@ import {
 } from "@/lib/core-gated-publish";
 import { listActionRecords, type ActionRecord } from "@/lib/db";
 import {
+  listEvidenceRecords,
+  type EvidenceRecord,
+} from "@/lib/evidence-records";
+import {
   listPublicationApprovalDecisions,
   type PublicationApprovalDecision,
 } from "@/lib/publication-approval-decisions";
@@ -203,6 +207,13 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
     publication,
     approvalDecision,
   });
+  const evidenceRecords = selectEvidenceRecordsForContext({
+    scope: normalizedScope,
+    work,
+    publication,
+    delivery,
+    targetRef: context.targetRef,
+  });
   const stateBrief = buildStateBrief(normalizedScope);
   const gaps = collectGaps({
     work,
@@ -211,6 +222,7 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
     approvalRequest,
     approvalDecision,
     readinessCheck,
+    evidenceRecords,
   });
 
   return {
@@ -291,13 +303,14 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
       external_artifact_url: delivery?.external_artifact_url ?? null,
       external_artifact_type: delivery?.external_artifact_type ?? null,
     },
-    replay_trace: buildReplayTrace(delivery),
+    replay_trace: buildReplayTrace(delivery, evidenceRecords),
     verification_trace: buildVerificationTrace({
       scope: normalizedScope,
       work,
       recentEvents,
       publication,
       delivery,
+      evidenceRecords,
     }),
     authority_trace: {
       allowed_now: [
@@ -644,22 +657,36 @@ function selectReadinessCheck({
   );
 }
 
-function buildReplayTrace(delivery: DeliveryRecord | null) {
+function buildReplayTrace(
+  delivery: DeliveryRecord | null,
+  evidenceRecords: EvidenceRecord[],
+) {
   const sameKeyReplaySupported = Boolean(
     delivery?.idempotency_key &&
       (delivery.status === "sent" || delivery.status === "acknowledged"),
   );
+  const replayRecords = evidenceRecords.filter(
+    (record) => record.evidence_kind === "replay_observed",
+  );
+  const duplicateBlockRecords = evidenceRecords.filter(
+    (record) => record.evidence_kind === "duplicate_block_observed",
+  );
 
   return {
     same_key_replay_supported: sameKeyReplaySupported,
-    same_key_replay_observed: null,
-    duplicate_block_observed: null,
+    same_key_replay_observed: replayRecords.length ? true : null,
+    duplicate_block_observed: duplicateBlockRecords.length ? true : null,
     notes: [
       "Evidence Pack does not execute replay, publish, or adapter calls.",
       sameKeyReplaySupported
         ? "Replay support is inferred from a sent/acknowledged delivery with an idempotency_key; no replay action was executed by this endpoint."
         : "No sent/acknowledged delivery with an idempotency_key was selected, so same-key replay support is not inferred for this pack.",
-      "Different-key duplicate blocking is not marked observed unless an explicit stored verification record says so.",
+      replayRecords.length
+        ? `Replay observation records: ${replayRecords.map((record) => record.evidence_id).join(", ")}.`
+        : "Same-key replay is not marked observed unless an explicit stored verification record says so.",
+      duplicateBlockRecords.length
+        ? `Duplicate-block observation records: ${duplicateBlockRecords.map((record) => record.evidence_id).join(", ")}.`
+        : "Different-key duplicate blocking is not marked observed unless an explicit stored verification record says so.",
     ],
   };
 }
@@ -670,16 +697,28 @@ function buildVerificationTrace({
   recentEvents,
   publication,
   delivery,
+  evidenceRecords,
 }: {
   scope: string;
   work: WorkItem | null;
   recentEvents: WorkEvent[];
   publication: PublicationDraft | null;
   delivery: DeliveryRecord | null;
+  evidenceRecords: EvidenceRecord[];
 }) {
   const actionRecords = selectActionRecords(scope, recentEvents);
   const verificationEvents = recentEvents.filter(isVerificationEvent);
+  const commandRecords = evidenceRecords.filter(
+    (record) => record.evidence_kind === "command_run",
+  );
+  const checkPassedRecords = evidenceRecords.filter(
+    (record) => record.evidence_kind === "check_passed",
+  );
+  const skippedCheckRecords = evidenceRecords.filter(
+    (record) => record.evidence_kind === "check_skipped",
+  );
   const checksPassed = [
+    ...checkPassedRecords.map(formatEvidenceRecordForTrace),
     ...verificationEvents
       .filter((event) => isPassedStatus(event.result_status))
       .map((event) => ({
@@ -700,16 +739,19 @@ function buildVerificationTrace({
   ];
 
   return {
-    commands_run: [],
+    commands_run: commandRecords.map(formatEvidenceRecordForTrace),
     checks_passed: checksPassed,
-    skipped_checks: verificationEvents
-      .filter((event) => isSkippedStatus(event.result_status))
-      .map((event) => ({
-        source: "work_events",
-        id: event.id,
-        result_status: event.result_status,
-        summary: event.summary,
-      })),
+    skipped_checks: [
+      ...skippedCheckRecords.map(formatEvidenceRecordForTrace),
+      ...verificationEvents
+        .filter((event) => isSkippedStatus(event.result_status))
+        .map((event) => ({
+          source: "work_events",
+          id: event.id,
+          result_status: event.result_status,
+          summary: event.summary,
+        })),
+    ],
     source_refs: [
       "docs/VERIFICATION_EVIDENCE_PACK.md",
       "docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md",
@@ -719,6 +761,10 @@ function buildVerificationTrace({
       ...(work ? [`work:${work.work_id}`] : []),
       ...(publication ? [`publication:${publication.publication_id}`] : []),
       ...(delivery ? [`delivery:${delivery.delivery_id}`] : []),
+      ...evidenceRecords.map((record) => `evidence:${record.evidence_id}`),
+      ...evidenceRecords
+        .map((record) => record.source_ref)
+        .filter((ref): ref is string => Boolean(ref)),
       ...recentEvents.map((event) => `work_event:${event.id}`),
       ...actionRecords.map((record) => `action_record:${record.id}`),
       ...listCoordinationEvents({
@@ -737,6 +783,7 @@ function collectGaps({
   approvalRequest,
   approvalDecision,
   readinessCheck,
+  evidenceRecords,
 }: {
   work: WorkItem | null;
   publication: PublicationDraft | null;
@@ -744,14 +791,26 @@ function collectGaps({
   approvalRequest: PublicationApprovalRequest | null;
   approvalDecision: PublicationApprovalDecision | null;
   readinessCheck: PublicationReadinessCheck | null;
+  evidenceRecords: EvidenceRecord[];
 }) {
-  const gaps: string[] = [
-    "commands_run are not yet persisted as structured Core records",
-    "skipped_checks are not yet fully structured in Core records",
-    "same-key replay observations are not persisted as first-class Core records",
-    "duplicate-block observations are not persisted as first-class Core records",
-    "Temporal Preview is not invoked by Evidence Pack v0.1",
-  ];
+  const gaps: string[] = ["Temporal Preview is not invoked by Evidence Pack v0.1"];
+
+  if (!evidenceRecords.some((record) => record.evidence_kind === "command_run")) {
+    gaps.push("commands_run are not yet persisted as structured Core records");
+  }
+  if (!evidenceRecords.some((record) => record.evidence_kind === "check_skipped")) {
+    gaps.push("skipped_checks are not yet fully structured in Core records");
+  }
+  if (!evidenceRecords.some((record) => record.evidence_kind === "replay_observed")) {
+    gaps.push("same-key replay observations are not persisted as first-class Core records");
+  }
+  if (
+    !evidenceRecords.some(
+      (record) => record.evidence_kind === "duplicate_block_observed",
+    )
+  ) {
+    gaps.push("duplicate-block observations are not persisted as first-class Core records");
+  }
 
   if (!work) {
     gaps.push("No linked work trace was found for the selected evidence");
@@ -779,6 +838,101 @@ function collectGaps({
   }
 
   return [...new Set(gaps)];
+}
+
+function selectEvidenceRecordsForContext({
+  scope,
+  work,
+  publication,
+  delivery,
+  targetRef,
+}: {
+  scope: string;
+  work: WorkItem | null;
+  publication: PublicationDraft | null;
+  delivery: DeliveryRecord | null;
+  targetRef: string | null;
+}) {
+  const selectedWorkId = work?.work_id ?? publication?.work_id ?? null;
+  const selectedPublicationId =
+    publication?.publication_id ?? delivery?.publication_id ?? null;
+  const selectedDeliveryId = delivery?.delivery_id ?? null;
+  const selectedTargetSurface =
+    delivery?.target_surface ?? publication?.target_surface ?? null;
+  const selectedTargetRef =
+    targetRef ?? delivery?.target_ref ?? publication?.target_ref ?? null;
+
+  return listEvidenceRecords({ scope, limit: LOOKBACK_LIMIT }).filter((record) =>
+    isEvidenceRecordForSelection({
+      record,
+      selectedWorkId,
+      selectedPublicationId,
+      selectedDeliveryId,
+      selectedTargetSurface,
+      selectedTargetRef,
+    }),
+  );
+}
+
+function isEvidenceRecordForSelection({
+  record,
+  selectedWorkId,
+  selectedPublicationId,
+  selectedDeliveryId,
+  selectedTargetSurface,
+  selectedTargetRef,
+}: {
+  record: EvidenceRecord;
+  selectedWorkId: string | null;
+  selectedPublicationId: string | null;
+  selectedDeliveryId: string | null;
+  selectedTargetSurface: string | null;
+  selectedTargetRef: string | null;
+}) {
+  const matchesDelivery = Boolean(
+    selectedDeliveryId && record.delivery_id === selectedDeliveryId,
+  );
+  const matchesPublication = Boolean(
+    selectedPublicationId && record.publication_id === selectedPublicationId,
+  );
+  const matchesTarget = Boolean(
+    selectedTargetSurface &&
+      selectedTargetRef &&
+      record.target_surface === selectedTargetSurface &&
+      record.target_ref === selectedTargetRef,
+  );
+
+  if (
+    record.evidence_kind === "replay_observed" ||
+    record.evidence_kind === "duplicate_block_observed"
+  ) {
+    return matchesDelivery || matchesPublication || matchesTarget;
+  }
+
+  return (
+    matchesDelivery ||
+    matchesPublication ||
+    Boolean(selectedWorkId && record.work_id === selectedWorkId) ||
+    matchesTarget
+  );
+}
+
+function formatEvidenceRecordForTrace(record: EvidenceRecord) {
+  return {
+    source: "verification_evidence_records",
+    evidence_id: record.evidence_id,
+    evidence_kind: record.evidence_kind,
+    status: record.status,
+    label: record.label,
+    command: record.command,
+    result_summary: record.result_summary,
+    skipped_reason: record.skipped_reason,
+    observed_behavior: record.observed_behavior,
+    source_surface: record.source_surface,
+    source_ref: record.source_ref,
+    created_by: record.created_by,
+    created_at: record.created_at,
+  };
 }
 
 function selectActionRecords(scope: string, recentEvents: WorkEvent[]) {
