@@ -7,10 +7,7 @@ export function buildMockTemporalPreview(
   context: TemporalPreviewContext,
 ): TemporalInterpretationPreview {
   return {
-    current_interpretation: [
-      "Augnes is in a challenge-demo state where committed runtime state, work trace context, and proof surfaces already exist.",
-      "The temporal interpretation preview should read that context, preserve boundaries, and identify the next review step without becoming durable authority.",
-    ].join(" "),
+    current_interpretation: context.current_interpretation,
     active_prior_context: context.active_prior_context,
     evidence_anchors: context.evidence_anchors,
     summary_refs: context.summary_refs,

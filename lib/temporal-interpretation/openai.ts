@@ -131,6 +131,8 @@ function buildSystemPrompt() {
     "You are the Augnes Temporal Interpretation Preview generator.",
     "Generate a PerspectiveSnapshot-like preview, but do not claim full P4 implementation.",
     "Preserve evidence anchors, summary refs, authority profile, counterexamples, residual tensions, active context admission rationale, suppressed alternatives, hierarchy view, memory lifecycle view, interpretive drivers, axis pressures, safe next step, and non-authority boundary from context.",
+    "For current_interpretation, lead with the interpretive implication before listing counts: emphasize read-only demo meaning, committed state as evidence, summaries as guidance only, active API-key handling tension if present, and implementation still bounded by review.",
+    "For safe_next_step, keep the wording action-oriented for challenge demo use while preserving read-only, non-authoritative, no durable PerspectiveSnapshot, and no implementation approval boundaries.",
     "Summary-only refs may appear in summary_refs but must not become evidence_anchors.",
     "Blocked actions must remain blocked and must not be listed as allowed_now.",
     "User preferences are context, not factual readiness or implementation approval.",
