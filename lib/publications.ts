@@ -27,8 +27,12 @@ export const DELIVERY_STATUSES = [
   "acknowledged",
 ] as const;
 
+export const DELIVERY_EXTERNAL_ARTIFACT_TYPES = ["github_pr_comment"] as const;
+
 export type PublicationStatus = (typeof PUBLICATION_STATUSES)[number];
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
+export type DeliveryExternalArtifactType =
+  (typeof DELIVERY_EXTERNAL_ARTIFACT_TYPES)[number];
 
 export type PublicationDraft = {
   publication_id: string;
@@ -57,6 +61,9 @@ export type DeliveryRecord = {
   acknowledged_at: string | null;
   error_message: string | null;
   idempotency_key: string | null;
+  external_artifact_id: string | null;
+  external_artifact_url: string | null;
+  external_artifact_type: DeliveryExternalArtifactType | string | null;
   created_at: string;
   updated_at: string;
 };
@@ -95,6 +102,9 @@ export type DeliveryRecordInput = {
   acknowledged_at?: string | null;
   error_message?: string | null;
   idempotency_key?: string | null;
+  external_artifact_id?: string | null;
+  external_artifact_url?: string | null;
+  external_artifact_type?: DeliveryExternalArtifactType | null;
   created_at?: string;
 };
 
@@ -107,6 +117,13 @@ export type DeliveryStatusUpdateInput = {
   error_message?: string | null;
 };
 
+export type DeliveryStatusAndExternalArtifactUpdateInput =
+  DeliveryStatusUpdateInput & {
+    external_artifact_id: string;
+    external_artifact_url?: string | null;
+    external_artifact_type: DeliveryExternalArtifactType;
+  };
+
 export type DeliveryCreateResult = {
   delivery: DeliveryRecord;
   created: boolean;
@@ -114,7 +131,16 @@ export type DeliveryCreateResult = {
 };
 
 type PublicationDraftRow = PublicationDraft;
-type DeliveryRecordRow = DeliveryRecord;
+type DeliveryRecordRow = Omit<
+  DeliveryRecord,
+  "external_artifact_id" | "external_artifact_url" | "external_artifact_type"
+> &
+  Partial<
+    Pick<
+      DeliveryRecord,
+      "external_artifact_id" | "external_artifact_url" | "external_artifact_type"
+    >
+  >;
 
 export class PublicationNotFoundError extends Error {
   constructor(publicationId: string, scope: string | null) {
@@ -427,6 +453,9 @@ export function listDeliveries({
             acknowledged_at,
             error_message,
             idempotency_key,
+            external_artifact_id,
+            external_artifact_url,
+            external_artifact_type,
             created_at,
             updated_at
           FROM delivery_ledger
@@ -507,6 +536,11 @@ export function createDelivery(input: DeliveryRecordInput): DeliveryCreateResult
     acknowledged_at: acknowledgedAt ?? (status === "acknowledged" ? now : null),
     error_message: cleanNullableString(input.error_message),
     idempotency_key: idempotencyKey,
+    external_artifact_id: cleanNullableString(input.external_artifact_id),
+    external_artifact_url: cleanNullableString(input.external_artifact_url),
+    external_artifact_type: cleanNullableExternalArtifactType(
+      input.external_artifact_type,
+    ),
     created_at: now,
     updated_at: now,
   };
@@ -518,6 +552,11 @@ export function createDelivery(input: DeliveryRecordInput): DeliveryCreateResult
     acknowledgedAt: row.acknowledged_at,
     errorMessage: row.error_message,
     existingErrorMessage: null,
+  });
+  validateDeliveryExternalArtifact({
+    externalArtifactId: row.external_artifact_id,
+    externalArtifactUrl: row.external_artifact_url,
+    externalArtifactType: row.external_artifact_type,
   });
 
   const db = openDatabase();
@@ -538,6 +577,9 @@ export function createDelivery(input: DeliveryRecordInput): DeliveryCreateResult
             acknowledged_at,
             error_message,
             idempotency_key,
+            external_artifact_id,
+            external_artifact_url,
+            external_artifact_type,
             created_at,
             updated_at
           )
@@ -552,6 +594,9 @@ export function createDelivery(input: DeliveryRecordInput): DeliveryCreateResult
             @acknowledged_at,
             @error_message,
             @idempotency_key,
+            @external_artifact_id,
+            @external_artifact_url,
+            @external_artifact_type,
             @created_at,
             @updated_at
           )
@@ -574,6 +619,31 @@ export function createDelivery(input: DeliveryRecordInput): DeliveryCreateResult
 }
 
 export function updateDeliveryStatus(input: DeliveryStatusUpdateInput) {
+  return updateDeliveryStatusInternal(input);
+}
+
+export function updateDeliveryStatusAndExternalArtifact(
+  input: DeliveryStatusAndExternalArtifactUpdateInput,
+) {
+  return updateDeliveryStatusInternal(input, {
+    externalArtifact: {
+      external_artifact_id: input.external_artifact_id,
+      external_artifact_url: input.external_artifact_url ?? null,
+      external_artifact_type: input.external_artifact_type,
+    },
+  });
+}
+
+function updateDeliveryStatusInternal(
+  input: DeliveryStatusUpdateInput,
+  options?: {
+    externalArtifact: {
+      external_artifact_id: string;
+      external_artifact_url: string | null;
+      external_artifact_type: DeliveryExternalArtifactType;
+    };
+  },
+) {
   assertDeliveryStatus(input.status);
   const normalizedScope = input.scope ? normalizeScope(input.scope) : null;
   const deliveryId = normalizeDeliveryId(input.deliveryId);
@@ -581,6 +651,23 @@ export function updateDeliveryStatus(input: DeliveryStatusUpdateInput) {
   const sentAt = cleanNullableString(input.sent_at);
   const acknowledgedAt = cleanNullableString(input.acknowledged_at);
   const errorMessage = cleanNullableString(input.error_message);
+  const externalArtifact = options?.externalArtifact
+    ? {
+        externalArtifactId: requireNonEmptyString(
+          options.externalArtifact.external_artifact_id,
+          "external_artifact_id",
+        ),
+        externalArtifactUrl: cleanNullableString(
+          options.externalArtifact.external_artifact_url,
+        ),
+        externalArtifactType: cleanNullableExternalArtifactType(
+          options.externalArtifact.external_artifact_type,
+        ),
+      }
+    : null;
+  if (externalArtifact) {
+    validateDeliveryExternalArtifact(externalArtifact);
+  }
 
   const db = openDatabase();
   let previousStatus = "";
@@ -609,6 +696,13 @@ export function updateDeliveryStatus(input: DeliveryStatusUpdateInput) {
         now,
         input.status,
         errorMessage,
+        ...(externalArtifact
+          ? [
+              externalArtifact.externalArtifactId,
+              externalArtifact.externalArtifactUrl,
+              externalArtifact.externalArtifactType,
+            ]
+          : []),
         deliveryId,
       ];
       if (normalizedScope) {
@@ -633,6 +727,14 @@ export function updateDeliveryStatus(input: DeliveryStatusUpdateInput) {
               WHEN ? = 'failed' THEN COALESCE(?, error_message)
               ELSE error_message
             END
+            ${
+              externalArtifact
+                ? `,
+            external_artifact_id = ?,
+            external_artifact_url = ?,
+            external_artifact_type = ?`
+                : ""
+            }
           WHERE delivery_id = ?
             ${normalizedScope ? "AND scope = ?" : ""}
         `,
@@ -772,6 +874,9 @@ export function getDeliveryByIdempotencyKey({
             acknowledged_at,
             error_message,
             idempotency_key,
+            external_artifact_id,
+            external_artifact_url,
+            external_artifact_type,
             created_at,
             updated_at
           FROM delivery_ledger
@@ -868,6 +973,9 @@ function selectDeliveryByIdOrNull(
           acknowledged_at,
           error_message,
           idempotency_key,
+          external_artifact_id,
+          external_artifact_url,
+          external_artifact_type,
           created_at,
           updated_at
         FROM delivery_ledger
@@ -885,7 +993,12 @@ function parsePublicationDraftRow(row: PublicationDraftRow): PublicationDraft {
 }
 
 function parseDeliveryRecordRow(row: DeliveryRecordRow): DeliveryRecord {
-  return row;
+  return {
+    ...row,
+    external_artifact_id: row.external_artifact_id ?? null,
+    external_artifact_url: row.external_artifact_url ?? null,
+    external_artifact_type: row.external_artifact_type ?? null,
+  };
 }
 
 function validatePublicationCreateMetadata(
@@ -968,6 +1081,34 @@ function validateDeliveryStatusMetadata({
   }
 }
 
+function validateDeliveryExternalArtifact({
+  externalArtifactId,
+  externalArtifactUrl,
+  externalArtifactType,
+}: {
+  externalArtifactId: string | null;
+  externalArtifactUrl: string | null;
+  externalArtifactType: string | null;
+}) {
+  if (!externalArtifactId && !externalArtifactUrl && !externalArtifactType) {
+    return;
+  }
+
+  if (!externalArtifactType) {
+    throw new PublicationValidationError(
+      "external_artifact_type is required when delivery external artifact fields are present.",
+    );
+  }
+
+  assertDeliveryExternalArtifactType(externalArtifactType);
+
+  if (!externalArtifactId) {
+    throw new PublicationValidationError(
+      "external_artifact_id is required when delivery external artifact fields are present.",
+    );
+  }
+}
+
 function normalizeLimit(limit: number, defaultLimit: number, maxLimit: number) {
   if (!Number.isFinite(limit)) {
     return defaultLimit;
@@ -992,6 +1133,33 @@ function assertDeliveryStatus(value: string): asserts value is DeliveryStatus {
       `status must be one of: ${DELIVERY_STATUSES.join(", ")}.`,
     );
   }
+}
+
+function assertDeliveryExternalArtifactType(
+  value: string,
+): asserts value is DeliveryExternalArtifactType {
+  if (
+    !DELIVERY_EXTERNAL_ARTIFACT_TYPES.includes(
+      value as DeliveryExternalArtifactType,
+    )
+  ) {
+    throw new PublicationValidationError(
+      `external_artifact_type must be one of: ${DELIVERY_EXTERNAL_ARTIFACT_TYPES.join(", ")}.`,
+    );
+  }
+}
+
+function cleanNullableExternalArtifactType(
+  value: DeliveryExternalArtifactType | string | null | undefined,
+) {
+  const artifactType = cleanNullableString(value);
+  if (!artifactType) {
+    return null;
+  }
+
+  assertDeliveryExternalArtifactType(artifactType);
+
+  return artifactType;
 }
 
 function normalizeTargetSurface(value: string) {

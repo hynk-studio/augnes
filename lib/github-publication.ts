@@ -11,6 +11,7 @@ import {
   createDelivery,
   getDeliveryByIdempotencyKey,
   getPublication,
+  updateDeliveryStatusAndExternalArtifact,
   updateDeliveryStatus,
   updatePublicationStatus,
 } from "@/lib/publications";
@@ -211,10 +212,13 @@ export async function publishGitHubPrComment(
       body: previewBody,
       token: githubToken,
     });
-    delivery = updateDeliveryStatus({
+    delivery = updateDeliveryStatusAndExternalArtifact({
       deliveryId: delivery.delivery_id,
       scope: delivery.scope,
       status: "sent",
+      external_artifact_id: String(comment.id),
+      external_artifact_url: comment.htmlUrl,
+      external_artifact_type: "github_pr_comment",
     });
     const sentPublication = updatePublicationStatus({
       publicationId: publication.publication_id,
@@ -297,8 +301,10 @@ function buildIdempotentReplayResult({
     would_post: false,
     posted: false,
     idempotent_replay: true,
-    github_comment_url: null,
-    github_comment_id: null,
+    github_comment_url: isSent ? delivery.external_artifact_url : null,
+    github_comment_id: isSent
+      ? parsePersistedGitHubCommentId(delivery.external_artifact_id)
+      : null,
     error_message: isSent
       ? null
       : `Existing ${delivery.status} delivery found for this idempotency_key. Use a new idempotency_key for retry.`,
@@ -370,4 +376,14 @@ function cleanNullableString(value: string | null | undefined) {
   }
 
   return value.trim() || null;
+}
+
+function parsePersistedGitHubCommentId(value: string | null) {
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }

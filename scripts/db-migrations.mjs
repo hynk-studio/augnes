@@ -76,6 +76,51 @@ export function migrateStateDeltaProposalScoring(db) {
   };
 }
 
+export const deliveryExternalArtifactColumns = [
+  { name: "external_artifact_id", definition: "TEXT" },
+  { name: "external_artifact_url", definition: "TEXT" },
+  { name: "external_artifact_type", definition: "TEXT" },
+];
+
+export function migrateDeliveryExternalArtifacts(db) {
+  const table = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'delivery_ledger'
+      `,
+    )
+    .get();
+
+  if (!table) {
+    return {
+      table_found: false,
+      added_columns: [],
+    };
+  }
+
+  const existingColumns = new Set(
+    db
+      .prepare("PRAGMA table_info(delivery_ledger)")
+      .all()
+      .map((column) => column.name),
+  );
+  const addedColumns = [];
+
+  for (const { name, definition } of deliveryExternalArtifactColumns) {
+    if (!existingColumns.has(name)) {
+      db.prepare(`ALTER TABLE delivery_ledger ADD COLUMN ${name} ${definition}`).run();
+      addedColumns.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    added_columns: addedColumns,
+  };
+}
+
 export function migrateMailboxCoordinationEventTypes(db) {
   const table = db
     .prepare(

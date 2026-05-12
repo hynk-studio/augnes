@@ -71,10 +71,11 @@ For MCP Inspector or widget checks, record:
 Only include live GitHub publication adapter evidence when the user/PM explicitly
 approved one specific target for that PR. Record the target PR, comment id/URL,
 `idempotency_key`, dry-run result, actual publish result, replay result, delivery
-ledger result, and event-spine result. PR #67 is the baseline example: one live
-GitHub PR comment, comment id `4414174258`, one sent delivery, publication
-became sent, replay produced no duplicate, and the retained comment remains
-evidence. This does not authorize automatic posting in future PRs.
+ledger result, stored `external_artifact_id`/`external_artifact_url`/
+`external_artifact_type`, and event-spine result. PR #67 is the baseline
+example: one live GitHub PR comment, comment id `4414174258`, one sent delivery,
+publication became sent, replay produced no duplicate, and the retained comment
+remains evidence. This does not authorize automatic posting in future PRs.
 
 ### Artifacts
 

@@ -31,6 +31,7 @@ C4 Core-gated dry-run publish readiness route complete
 C5 explicit Core-gated GitHub PR comment publish route complete via PR #78, with no live posting executed in that implementation PR
 Approved C5 live GitHub PR comment publish test complete via PR #81
 C5 same-key replay semantics fix complete via PR #82
+C5 delivery external artifact persistence complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -45,12 +46,15 @@ an explicit Core-gated GitHub PR comment publish route from a fresh readiness
 check. PR #78 implemented C5 without live posting. PR #81 separately executed
 one approved live C5 publish test against `Aurna-code/augnes#81`. PR #82 fixed
 same-key sent/acknowledged replay semantics so a replay returns HTTP 200 with
-`idempotent_replay=true` and `posted=false`. The next likely product track is:
+`idempotent_replay=true` and `posted=false`. C5 delivery rows now persist
+nullable external artifact id, URL, and type fields for GitHub PR comments so
+same-key replay can return the stored GitHub comment artifact without another
+adapter call or token requirement. The next likely product track is:
 
 ```text
-Choose the next productization slice after C5 live evidence: session model,
-temporal interpretation, delivery external artifact persistence, ChatGPT Apps
-cross-session tools, Codex session adapter, Cockpit write-control design,
+Choose the next productization slice after C5 live evidence and delivery
+external artifact persistence: session model, temporal interpretation, ChatGPT
+Apps cross-session tools, Codex session adapter, Cockpit write-control design,
 GitHub App/token model, or retry design if needed.
 ```
 
@@ -250,6 +254,14 @@ PR #82 then fixed C5 same-key replay semantics:
 - `dry_run=true` with an existing sent delivery remains blocked.
 - No live GitHub posting occurred in PR #82.
 
+The delivery ledger now also stores C5 external artifact evidence for GitHub PR
+comments in nullable `external_artifact_id`, `external_artifact_url`, and
+`external_artifact_type` fields. Successful C5 GitHub PR comment publishes set
+`external_artifact_type` to `github_pr_comment`, and same-key sent or
+acknowledged replay can return the persisted comment id and URL without calling
+the adapter or requiring token availability. Older delivery rows with null
+artifact fields remain valid and serialize with null artifact values.
+
 Future live posting must remain preview-first, approval-gated, idempotent,
 target-specific, and freshly approved for the exact target.
 
@@ -258,9 +270,9 @@ target-specific, and freshly approved for the exact target.
 Next default decision:
 
 ```text
-Choose the next productization slice after C5 live evidence: session model,
-temporal interpretation, delivery external artifact persistence, ChatGPT Apps
-cross-session tools, Codex session adapter, Cockpit write-control design,
+Choose the next productization slice after C5 live evidence and delivery
+external artifact persistence: session model, temporal interpretation, ChatGPT
+Apps cross-session tools, Codex session adapter, Cockpit write-control design,
 GitHub App/token model, or retry design if needed.
 ```
 
@@ -573,7 +585,7 @@ A fresh ChatGPT session should do this:
 6. Confirm that C4 Core-gated dry-run publish readiness records readiness evidence only and does not publish, retry, create delivery rows, record proof, update mailbox status, commit/reject state, execute Codex, invoke GitHub, use `GITHUB_TOKEN`, post externally, add ChatGPT App tools, or add Cockpit write controls.
 7. Confirm that C5 Core-gated publish routing exists, PR #78 did not execute live posting, PR #81 separately executed one approved live post to `Aurna-code/augnes#81`, and PR #82 fixed same-key replay semantics without live posting.
 8. Read `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` before preparing any future live C5 publish test prompt; it is a historical pattern and template, not standing approval.
-9. Ask the user which next productization slice to prioritize after C5 live evidence: session model, temporal interpretation, delivery external artifact persistence, ChatGPT Apps cross-session tools, Codex session adapter, Cockpit write-control design, GitHub App/token model, or retry design if needed.
+9. Ask the user which next productization slice to prioritize after C5 live evidence and delivery external artifact persistence: session model, temporal interpretation, ChatGPT Apps cross-session tools, Codex session adapter, Cockpit write-control design, GitHub App/token model, or retry design if needed.
 10. Prepare a Codex prompt for that productization slice, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
 11. Let Codex implement and open or update a draft PR.
 12. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
@@ -605,9 +617,9 @@ Do not collapse this into autonomous implementation. The boring boundary is doin
 Begin with:
 
 ```text
-Choose the next productization slice after C5 live evidence: session model,
-temporal interpretation, delivery external artifact persistence, ChatGPT Apps
-cross-session tools, Codex session adapter, Cockpit write-control design,
+Choose the next productization slice after C5 live evidence and delivery
+external artifact persistence: session model, temporal interpretation, ChatGPT
+Apps cross-session tools, Codex session adapter, Cockpit write-control design,
 GitHub App/token model, or retry design if needed.
 ```
 
