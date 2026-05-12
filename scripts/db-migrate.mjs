@@ -6,6 +6,7 @@ import {
   migrateDeliveryExternalArtifacts,
   migrateMailboxCoordinationEventTypes,
   migrateStateDeltaProposalScoring,
+  migrateVerificationEvidenceRecords,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,6 +26,7 @@ try {
     db.exec(readFileSync(schemaPath, "utf8"));
   }
   const deliveryArtifactsResult = migrateDeliveryExternalArtifacts(db);
+  const verificationEvidenceResult = migrateVerificationEvidenceRecords(db);
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
 
   if (!result.table_found) {
@@ -69,6 +71,21 @@ try {
   } else {
     console.log(`Migrated delivery_ledger external artifact columns at ${dbPath}`);
     console.log(`Added columns: ${deliveryArtifactsResult.added_columns.join(", ")}`);
+  }
+
+  if (verificationEvidenceResult.created_table) {
+    console.log(`Created verification_evidence_records table at ${dbPath}`);
+  } else if (verificationEvidenceResult.created_indexes.length === 0) {
+    console.log(
+      `Verification evidence migration no-op: verification_evidence_records schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated verification_evidence_records indexes at ${dbPath}`);
+  }
+  if (verificationEvidenceResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${verificationEvidenceResult.created_indexes.join(", ")}`,
+    );
   }
 } finally {
   db.close();

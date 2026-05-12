@@ -33,6 +33,7 @@ Approved C5 live GitHub PR comment publish test complete via PR #81
 C5 same-key replay semantics fix complete via PR #82
 C5 delivery external artifact persistence complete
 Evidence Pack v0.1 read-only API/Cockpit review bundle complete
+Structured verification/replay evidence records v0.1 in progress
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -53,8 +54,13 @@ same-key replay can return the stored GitHub comment artifact without another
 adapter call or token requirement. Evidence Pack v0.1 is the next narrow review
 slice: a derived read-only API and optional Cockpit display that collects
 existing work/publication/approval/readiness/delivery/artifact/replay context
-and verification gaps without creating authority or side effects. The next
-likely product track after Evidence Pack is:
+and verification gaps without creating authority or side effects. The current
+narrow follow-up adds structured verification evidence records for command/check
+observations, skipped checks, explicit replay observations, and explicit
+duplicate-block observations. Evidence Pack may read matching records to reduce
+gaps, but it still must not create records, execute replay, attempt duplicate
+publish, call GitHub, call OpenAI, or add approval/publish authority. The next
+likely product track after this evidence-record slice is:
 
 ```text
 Choose the next productization slice after Evidence Pack v0.1: session model,

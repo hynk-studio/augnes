@@ -84,6 +84,40 @@ The helper checks that `CODEX_WORK_ID` exists, then records `/api/actions/record
 
 The helper never calls commit/reject routes and never creates autonomous execution, GitHub sync, Discord sync, or workflow orchestration.
 
+## Structured Verification Evidence
+
+When the local runtime is available, Codex may also record bounded verification
+observations through:
+
+```bash
+curl -sS -X POST "http://localhost:3000/api/evidence/records" \
+  -H "content-type: application/json" \
+  -d '{
+    "scope": "project:augnes",
+    "work_id": "AG-004",
+    "evidence_kind": "command_run",
+    "label": "Root typecheck",
+    "status": "passed",
+    "command": "npm run typecheck",
+    "result_summary": "TypeScript completed with no errors.",
+    "source_surface": "codex",
+    "source_ref": "PR verification log",
+    "created_by": "codex"
+  }' | jq .
+```
+
+Allowed `evidence_kind` values are `command_run`, `check_passed`,
+`check_failed`, `check_skipped`, `replay_observed`, and
+`duplicate_block_observed`. `command_run` requires `command`; `check_skipped`
+requires `skipped_reason`. Replay and duplicate-block records describe behavior
+explicitly observed elsewhere; creating the record must not execute replay or
+attempt a duplicate publish.
+
+These records are observation traces only. They do not approve, publish, retry,
+commit/reject state, mutate mailbox, call GitHub, call OpenAI, or create broad
+correctness proof. Evidence Pack v0.1 reads matching records to distinguish
+observed facts from remaining gaps.
+
 ## Manual Fallback
 
 If the helper is unavailable, confirm the work ID exists before recording the action result:
