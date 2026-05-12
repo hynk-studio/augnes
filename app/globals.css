@@ -1067,7 +1067,8 @@ h1 {
 }
 
 .temporal-ref-list,
-.temporal-authority-profile {
+.temporal-authority-profile,
+.temporal-detail-list {
   display: grid;
   gap: 8px;
 }
@@ -1084,6 +1085,21 @@ h1 {
 
 .temporal-ref-item code {
   overflow-wrap: anywhere;
+}
+
+.temporal-ref-item strong,
+.temporal-detail strong {
+  color: #27384e;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.temporal-detail {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
 .temporal-authority-bucket {

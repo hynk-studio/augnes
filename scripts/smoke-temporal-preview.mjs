@@ -23,6 +23,12 @@ const requiredFields = [
   "transition_relation",
   "revision_explanation",
   "user_context_vs_factuality",
+  "active_context_admission_rationale",
+  "suppressed_alternatives",
+  "temporal_hierarchy_view",
+  "memory_lifecycle_view",
+  "interpretive_drivers",
+  "axis_pressures",
   "safe_next_step",
   "non_authority_boundary",
   "warnings",
@@ -50,6 +56,86 @@ if (
   throw new Error("Temporal preview allowed_now includes a blocked_now action.");
 }
 
+if (!Array.isArray(preview.active_context_admission_rationale)) {
+  throw new Error("Temporal preview active_context_admission_rationale must be an array.");
+}
+
+if (preview.active_context_admission_rationale.length === 0) {
+  throw new Error("Temporal preview active_context_admission_rationale is empty.");
+}
+
+const requiredAdmissionFields = [
+  "context_ref",
+  "admission_role",
+  "why_admitted",
+  "why_not_merely_summary",
+];
+for (const item of preview.active_context_admission_rationale) {
+  for (const field of requiredAdmissionFields) {
+    if (!item[field]) {
+      throw new Error(`Temporal preview admission rationale missing field: ${field}`);
+    }
+  }
+}
+
+const allowedAxes = new Set([
+  "factuality",
+  "continuity",
+  "user_context",
+  "boundary",
+  "exploration",
+  "implementation",
+  "stability",
+  "revision",
+]);
+for (const driver of preview.interpretive_drivers) {
+  if (!allowedAxes.has(driver.axis)) {
+    throw new Error(`Temporal preview interpretive driver has invalid axis: ${driver.axis}`);
+  }
+}
+
+const allowedPressures = new Set([
+  "high",
+  "medium",
+  "low",
+  "blocked",
+  "needs_review",
+]);
+for (const pressure of preview.axis_pressures) {
+  if (!allowedAxes.has(pressure.axis)) {
+    throw new Error(`Temporal preview axis pressure has invalid axis: ${pressure.axis}`);
+  }
+  if (!allowedPressures.has(pressure.pressure)) {
+    throw new Error(
+      `Temporal preview axis pressure has invalid label: ${pressure.pressure}`,
+    );
+  }
+  if (/\d/.test(`${pressure.axis} ${pressure.pressure} ${pressure.reason}`)) {
+    throw new Error("Temporal preview axis_pressures includes a numeric value.");
+  }
+}
+
+const suppressedAlternativeText = preview.suppressed_alternatives
+  .map((item) =>
+    [
+      item.alternative,
+      item.why_deferred,
+      item.what_would_change_status,
+      item.status,
+    ].join(" "),
+  )
+  .join(" ")
+  .toLowerCase();
+if (
+  suppressedAlternativeText.includes("is false") ||
+  suppressedAlternativeText.includes("are false") ||
+  suppressedAlternativeText.includes("permanently rejected")
+) {
+  throw new Error(
+    "Temporal preview suppressed_alternatives treats alternatives as false or permanently rejected.",
+  );
+}
+
 console.log(
   JSON.stringify(
     {
@@ -57,6 +143,11 @@ console.log(
       guardrails_passed: payload.guardrails.passed,
       warning_count: payload.guardrails.warnings.length,
       transition_relation: preview.transition_relation,
+      admission_rationale_count:
+        preview.active_context_admission_rationale.length,
+      suppressed_alternative_count: preview.suppressed_alternatives.length,
+      interpretive_driver_count: preview.interpretive_drivers.length,
+      axis_pressure_count: preview.axis_pressures.length,
     },
     null,
     2,

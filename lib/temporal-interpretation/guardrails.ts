@@ -1,4 +1,5 @@
 import {
+  TEMPORAL_INTERPRETATION_AXES,
   TRANSITION_RELATIONS,
   type TemporalInterpretationPreview,
   type TemporalPreviewContext,
@@ -16,6 +17,10 @@ export function validateTemporalPreviewGuardrails({
 
   if (!preview.non_authority_boundary.trim()) {
     warnings.push("non_authority_boundary is required.");
+  }
+
+  if (preview.active_context_admission_rationale.length === 0) {
+    warnings.push("active_context_admission_rationale is required.");
   }
 
   const summaryOnlyRefs = new Set([
@@ -82,6 +87,29 @@ export function validateTemporalPreviewGuardrails({
     );
   }
 
+  const invalidDriverAxes = preview.interpretive_drivers
+    .map((driver) => driver.axis)
+    .filter((axis) => !TEMPORAL_INTERPRETATION_AXES.includes(axis));
+  if (invalidDriverAxes.length > 0) {
+    warnings.push(
+      `interpretive_drivers axes must use the fixed Axis Bank: ${[
+        ...new Set(invalidDriverAxes),
+      ].join(", ")}`,
+    );
+  }
+
+  if (treatsSuppressedAlternativesAsFalse(preview)) {
+    warnings.push(
+      "suppressed_alternatives must be treated as deferred paths, not false claims or permanent rejections.",
+    );
+  }
+
+  if (axisPressuresContainNumbers(preview)) {
+    warnings.push(
+      "axis_pressures must be qualitative labels only and must not include numeric values.",
+    );
+  }
+
   if (claimsFullP4Readiness(preview)) {
     warnings.push(
       "Preview must not claim full P4 implementation readiness by default.",
@@ -130,5 +158,36 @@ function claimsFullP4Readiness(preview: TemporalInterpretationPreview) {
       (statement.includes("ready") ||
         statement.includes("implemented") ||
         statement.includes("complete")),
+  );
+}
+
+function treatsSuppressedAlternativesAsFalse(
+  preview: TemporalInterpretationPreview,
+) {
+  return preview.suppressed_alternatives.some((alternative) => {
+    const text = [
+      alternative.alternative,
+      alternative.why_deferred,
+      alternative.what_would_change_status,
+      alternative.status,
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      text.includes("is false") ||
+      text.includes("are false") ||
+      text.includes("false claim") ||
+      text.includes("permanently rejected") ||
+      text.includes("permanent rejection")
+    );
+  });
+}
+
+function axisPressuresContainNumbers(preview: TemporalInterpretationPreview) {
+  return preview.axis_pressures.some((pressure) =>
+    [pressure.axis, pressure.pressure, pressure.reason].some((value) =>
+      /\d/.test(value),
+    ),
   );
 }
