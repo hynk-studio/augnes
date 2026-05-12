@@ -211,6 +211,7 @@ export function openDatabase() {
   const db = new Database(dbPath, { fileMustExist: false });
   db.pragma("foreign_keys = ON");
   migrateStateDeltaProposalScoringColumns(db);
+  migrateDeliveryExternalArtifactColumns(db);
   return db;
 }
 
@@ -1484,6 +1485,41 @@ function migrateStateDeltaProposalScoringColumns(db: Database.Database) {
 
   for (const { sql } of proposalScoringSchema.indexes) {
     db.prepare(sql).run();
+  }
+}
+
+function migrateDeliveryExternalArtifactColumns(db: Database.Database) {
+  const table = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'delivery_ledger'
+      `,
+    )
+    .get();
+
+  if (!table) {
+    return;
+  }
+
+  const existingColumns = new Set(
+    (
+      db.prepare("PRAGMA table_info(delivery_ledger)").all() as {
+        name: string;
+      }[]
+    ).map((column) => column.name),
+  );
+  const columns = [
+    "external_artifact_id",
+    "external_artifact_url",
+    "external_artifact_type",
+  ];
+
+  for (const column of columns) {
+    if (!existingColumns.has(column)) {
+      db.prepare(`ALTER TABLE delivery_ledger ADD COLUMN ${column} TEXT`).run();
+    }
   }
 }
 

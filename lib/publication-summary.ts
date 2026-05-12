@@ -40,6 +40,9 @@ export type PublicationSummaryItem = {
   latest_delivery_status: string | null;
   latest_delivery_id: string | null;
   latest_delivery_error: string | null;
+  latest_delivery_external_artifact_id: string | null;
+  latest_delivery_external_artifact_url: string | null;
+  latest_delivery_external_artifact_type: string | null;
   delivery_count: number;
   publish_eligibility: PublicationEligibility;
   summary_reason: string;
@@ -57,6 +60,9 @@ export type FailedDeliverySummaryItem = {
   updated_at: string;
   sent_at: string | null;
   acknowledged_at: string | null;
+  external_artifact_id: string | null;
+  external_artifact_url: string | null;
+  external_artifact_type: string | null;
   publication_status: string | null;
   work_id: string | null;
   summary_reason: string;
@@ -180,6 +186,12 @@ function buildPublicationSummaryItem(
     latest_delivery_status: latestDelivery?.status ?? null,
     latest_delivery_id: latestDelivery?.delivery_id ?? null,
     latest_delivery_error: latestDelivery?.error_message ?? null,
+    latest_delivery_external_artifact_id:
+      latestDelivery?.external_artifact_id ?? null,
+    latest_delivery_external_artifact_url:
+      latestDelivery?.external_artifact_url ?? null,
+    latest_delivery_external_artifact_type:
+      latestDelivery?.external_artifact_type ?? null,
     delivery_count: deliveries.length,
     publish_eligibility: getPublishEligibility(publication),
     summary_reason: getPublicationSummaryReason(publication, latestDelivery),
@@ -202,6 +214,9 @@ function buildFailedDeliverySummaryItem(
     updated_at: delivery.updated_at,
     sent_at: delivery.sent_at,
     acknowledged_at: delivery.acknowledged_at,
+    external_artifact_id: delivery.external_artifact_id,
+    external_artifact_url: delivery.external_artifact_url,
+    external_artifact_type: delivery.external_artifact_type,
     publication_status: publication?.status ?? null,
     work_id: publication?.work_id ?? null,
     summary_reason: delivery.error_message

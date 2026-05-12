@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dbPath, openDatabase } from "./db-common.mjs";
 import {
+  migrateDeliveryExternalArtifacts,
   migrateMailboxCoordinationEventTypes,
   migrateStateDeltaProposalScoring,
 } from "./db-migrations.mjs";
@@ -23,6 +24,7 @@ try {
   if (mailboxResult.rebuilt_coordination_events) {
     db.exec(readFileSync(schemaPath, "utf8"));
   }
+  const deliveryArtifactsResult = migrateDeliveryExternalArtifacts(db);
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
 
   if (!result.table_found) {
@@ -56,6 +58,17 @@ try {
     console.log(
       `Migrated coordination_events event_type constraint for mailbox lifecycle events at ${dbPath}`,
     );
+  }
+
+  if (!deliveryArtifactsResult.table_found) {
+    console.log(
+      `Delivery artifact migration skipped: delivery_ledger table was not found at ${dbPath}`,
+    );
+  } else if (deliveryArtifactsResult.added_columns.length === 0) {
+    console.log(`Delivery artifact migration no-op: delivery_ledger schema is current at ${dbPath}`);
+  } else {
+    console.log(`Migrated delivery_ledger external artifact columns at ${dbPath}`);
+    console.log(`Added columns: ${deliveryArtifactsResult.added_columns.join(", ")}`);
   }
 } finally {
   db.close();

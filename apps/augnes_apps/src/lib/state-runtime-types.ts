@@ -369,6 +369,9 @@ export const PublicationSummaryItemSchema = z
     latest_delivery_status: z.string().nullable(),
     latest_delivery_id: z.string().nullable(),
     latest_delivery_error: z.string().nullable(),
+    latest_delivery_external_artifact_id: z.string().nullable().optional(),
+    latest_delivery_external_artifact_url: z.string().nullable().optional(),
+    latest_delivery_external_artifact_type: z.string().nullable().optional(),
     delivery_count: z.number(),
     publish_eligibility: z
       .object({
@@ -394,6 +397,9 @@ export const FailedDeliverySummaryItemSchema = z
     updated_at: z.string(),
     sent_at: z.string().nullable(),
     acknowledged_at: z.string().nullable(),
+    external_artifact_id: z.string().nullable().optional(),
+    external_artifact_url: z.string().nullable().optional(),
+    external_artifact_type: z.string().nullable().optional(),
     publication_status: z.string().nullable(),
     work_id: z.string().nullable(),
     summary_reason: z.string(),

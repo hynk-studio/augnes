@@ -473,6 +473,9 @@ CREATE TABLE IF NOT EXISTS delivery_ledger (
   acknowledged_at TEXT,
   error_message TEXT,
   idempotency_key TEXT,
+  external_artifact_id TEXT,
+  external_artifact_url TEXT,
+  external_artifact_type TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (publication_id) REFERENCES publication_drafts(publication_id)

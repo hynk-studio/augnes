@@ -7,9 +7,12 @@ routing are implemented. C5 explicit Core-gated GitHub PR comment publish
 routing is also implemented. PR #78 implemented C5 without live posting. PR #81
 executed one approved live C5 GitHub PR comment publish test against
 `Aurna-code/augnes#81`. PR #82 fixed same-key sent/acknowledged replay semantics
-without live posting. The implemented C4 route records readiness evidence only;
-it does not publish, retry, create delivery rows, record proof, update mailbox
-status, commit/reject state, execute Codex, invoke the GitHub PR comment
+without live posting. C5 delivery rows now persist nullable external artifact
+id, URL, and type fields for GitHub PR comments, and same-key sent or
+acknowledged replay can return that stored artifact without another adapter
+call or token requirement. The implemented C4 route records readiness evidence
+only; it does not publish, retry, create delivery rows, record proof, update
+mailbox status, commit/reject state, execute Codex, invoke the GitHub PR comment
 adapter, use `GITHUB_TOKEN`, post to GitHub, post to Discord, add app tools, or
 add Cockpit write controls.
 
@@ -365,8 +368,13 @@ Recommended slices:
   sent/acknowledged replay returns HTTP 200 with `idempotent_replay=true` and
   `posted=false`; different-key duplicate and pending delivery conflicts remain
   blocked.
-- Next productization slice after C5 live evidence: session model, temporal
-  interpretation, delivery external artifact persistence, ChatGPT Apps
+- PR C5 delivery external artifact persistence: Status: complete. Successful
+  GitHub PR comment publish stores `external_artifact_id`,
+  `external_artifact_url`, and `external_artifact_type=github_pr_comment` on the
+  delivery row; same-key sent/acknowledged replay returns the persisted
+  artifact fields without adapter execution.
+- Next productization slice after C5 live evidence and delivery external
+  artifact persistence: session model, temporal interpretation, ChatGPT Apps
   cross-session tools, Codex session adapter, Cockpit write-control design,
   GitHub App/token model, or retry design if needed.
 
@@ -606,6 +614,12 @@ same-key sent/acknowledged replay now returns HTTP 200 with
 `idempotent_replay=true` and `posted=false`; different-key duplicate remains
 HTTP 409; pending delivery remains HTTP 409; `dry_run=true` with an existing
 sent delivery remains blocked. PR #82 did not post to GitHub.
+
+C5 delivery external artifact persistence now stores the GitHub PR comment
+artifact on the sent delivery row as `external_artifact_id`,
+`external_artifact_url`, and `external_artifact_type=github_pr_comment`.
+Same-key sent/acknowledged replay returns the persisted comment id/URL when
+available and preserves nulls for older delivery rows.
 
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping

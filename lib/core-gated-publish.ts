@@ -327,8 +327,10 @@ export async function executeGitHubPrCommentPublish(
       target_ref: gate.target_ref,
       publication: gate.publication,
       delivery: gate.existing_delivery,
-      github_comment_url: null,
-      github_comment_id: null,
+      github_comment_url: gate.existing_delivery.external_artifact_url,
+      github_comment_id: parsePersistedGitHubCommentId(
+        gate.existing_delivery.external_artifact_id,
+      ),
       error_message: null,
       requested_by: request.requestedBy,
       gate_checks: gate.gate_checks,
@@ -721,6 +723,9 @@ function listDeliveriesForPublicationTarget({
             acknowledged_at,
             error_message,
             idempotency_key,
+            external_artifact_id,
+            external_artifact_url,
+            external_artifact_type,
             created_at,
             updated_at
           FROM delivery_ledger
@@ -751,6 +756,16 @@ function readRuntimeGitHubToken() {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
+}
+
+function parsePersistedGitHubCommentId(value: string | null) {
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 function requireString(record: Record<string, unknown>, key: string) {

@@ -2,7 +2,10 @@ import Database from "better-sqlite3";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { migrateStateDeltaProposalScoring } from "./db-migrations.mjs";
+import {
+  migrateDeliveryExternalArtifacts,
+  migrateStateDeltaProposalScoring,
+} from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -28,6 +31,7 @@ export function initializeDatabase(db = openDatabase()) {
   }
   db.exec(schema);
   migrateStateDeltaProposalScoring(db);
+  migrateDeliveryExternalArtifacts(db);
   return db;
 }
 
