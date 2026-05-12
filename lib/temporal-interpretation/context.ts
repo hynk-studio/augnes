@@ -42,6 +42,7 @@ export function buildTemporalPreviewContext(
   ].slice(0, 8);
   const counterexamples = buildCounterexamples({ brief });
   const residualTensions = buildResidualTensions({ brief });
+  const currentInterpretation = buildCurrentInterpretation({ brief });
   const activeContextAdmissionRationale =
     buildActiveContextAdmissionRationale({
       currentStatusRef: "summary:agent_handoff.current_status",
@@ -69,7 +70,7 @@ export function buildTemporalPreviewContext(
   return {
     scope,
     as_of: asOf,
-    current_interpretation: brief.agent_handoff.current_status.summary,
+    current_interpretation: currentInterpretation,
     active_prior_context: [
       "Augnes currently treats committed temporal state as the source of truth.",
       "Pending proposals, summaries, and handoff packets are interpretive aids, not durable authority.",
@@ -111,7 +112,7 @@ export function buildTemporalPreviewContext(
       "OpenAI should be optional locally because mock fallback must work from a clean checkout.",
     ],
     safe_next_step:
-      "Review the read-only preview against the accepted manual temporal interpretation baseline before promoting any durable P4 implementation work.",
+      "Use this read-only preview as demo evidence, verify no API-key leakage, capture the Cockpit screenshot with OpenAI enabled, and keep durable PerspectiveSnapshot work behind separate review.",
     non_authority_boundary:
       "This preview is non-authoritative: it does not commit state, approve work, publish proof, mutate mailbox status, promote rules, or claim full P4 PerspectiveSnapshot readiness.",
     active_context_admission_rationale: activeContextAdmissionRationale,
@@ -317,6 +318,44 @@ function buildCounterexamples({
   ];
 }
 
+function buildCurrentInterpretation({
+  brief,
+}: {
+  brief: ReturnType<typeof buildStateBrief>;
+}) {
+  const apiKeyTensionCount = brief.open_tensions.filter((tension) => {
+    const text = [
+      tension.id,
+      tension.state_key,
+      tension.title,
+      tension.description,
+      tension.severity,
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      isHighSeverityTension(tension.severity) &&
+      (text.includes("api key") ||
+        text.includes("api-key") ||
+        text.includes("api_keys") ||
+        text.includes("secret"))
+    );
+  }).length;
+
+  const tensionPhrase =
+    apiKeyTensionCount === 1
+      ? "but one high-severity API-key handling tension remains active"
+      : apiKeyTensionCount > 1
+        ? `but ${apiKeyTensionCount} high-severity API-key handling tensions remain active`
+        : "while any unresolved tensions remain active review constraints";
+
+  return [
+    `Augnes has enough committed project state to generate a read-only temporal interpretation preview, ${tensionPhrase}.`,
+    "The preview treats committed state as evidence, summaries as guidance only, and implementation work as still bounded by review.",
+  ].join(" ");
+}
+
 function buildResidualTensions({
   brief,
 }: {
@@ -338,4 +377,10 @@ function buildResidualTensions({
         "The preview can demonstrate temporal interpretation but remains separate from durable P4 PerspectiveSnapshot implementation.",
     },
   ];
+}
+
+function isHighSeverityTension(severity: string) {
+  return ["critical", "high", "blocker", "severe"].includes(
+    severity.toLowerCase(),
+  );
 }
