@@ -23,6 +23,12 @@ const requiredFields = [
   "transition_relation",
   "revision_explanation",
   "user_context_vs_factuality",
+  "active_context_admission_rationale",
+  "suppressed_alternatives",
+  "temporal_hierarchy_view",
+  "memory_lifecycle_view",
+  "interpretive_drivers",
+  "axis_pressures",
   "safe_next_step",
   "non_authority_boundary",
   "warnings",
@@ -50,6 +56,127 @@ if (
   throw new Error("Temporal preview allowed_now includes a blocked_now action.");
 }
 
+if (!Array.isArray(preview.active_context_admission_rationale)) {
+  throw new Error("Temporal preview active_context_admission_rationale must be an array.");
+}
+
+if (preview.active_context_admission_rationale.length === 0) {
+  throw new Error("Temporal preview active_context_admission_rationale is empty.");
+}
+
+const requiredAdmissionFields = [
+  "context_ref",
+  "admission_role",
+  "why_admitted",
+  "why_not_merely_summary",
+];
+for (const item of preview.active_context_admission_rationale) {
+  for (const field of requiredAdmissionFields) {
+    if (!item[field]) {
+      throw new Error(`Temporal preview admission rationale missing field: ${field}`);
+    }
+  }
+}
+
+const allowedAxes = new Set([
+  "factuality",
+  "continuity",
+  "user_context",
+  "boundary",
+  "exploration",
+  "implementation",
+  "stability",
+  "revision",
+]);
+for (const driver of preview.interpretive_drivers) {
+  if (!allowedAxes.has(driver.axis)) {
+    throw new Error(`Temporal preview interpretive driver has invalid axis: ${driver.axis}`);
+  }
+}
+
+function axisPressureReasonContainsScoringPattern(reason) {
+  const text = reason.toLowerCase();
+
+  return (
+    /\b(?:score|confidence|weight|numeric_rating|rating)\s*[:=]?\s*\d+(?:\.\d+)?\b/.test(
+      text,
+    ) ||
+    /\b\d+(?:\.\d+)?\s*%/.test(text) ||
+    /\b\d+\s*\/\s*\d+\b/.test(text)
+  );
+}
+
+const allowedAxisPressureIdentifiers = [
+  "P4 remains out of scope for this preview.",
+  "v0.1 and v0.1.1 are version references, not scores.",
+  "PR #100 established the baseline route.",
+  "AG-001 is a work trace identifier.",
+  "2026 is a calendar year.",
+];
+for (const reason of allowedAxisPressureIdentifiers) {
+  if (axisPressureReasonContainsScoringPattern(reason)) {
+    throw new Error(`Axis pressure helper rejected allowed identifier: ${reason}`);
+  }
+}
+
+const scoringAxisPressureExamples = [
+  "score 0.8",
+  "confidence 0.9",
+  "weight 3",
+  "70%",
+  "3/5",
+  "numeric_rating: 4",
+];
+for (const reason of scoringAxisPressureExamples) {
+  if (!axisPressureReasonContainsScoringPattern(reason)) {
+    throw new Error(`Axis pressure helper allowed scoring pattern: ${reason}`);
+  }
+}
+
+const allowedPressures = new Set([
+  "high",
+  "medium",
+  "low",
+  "blocked",
+  "needs_review",
+]);
+for (const pressure of preview.axis_pressures) {
+  if (!allowedAxes.has(pressure.axis)) {
+    throw new Error(`Temporal preview axis pressure has invalid axis: ${pressure.axis}`);
+  }
+  if (!allowedPressures.has(pressure.pressure)) {
+    throw new Error(
+      `Temporal preview axis pressure has invalid label: ${pressure.pressure}`,
+    );
+  }
+  if (axisPressureReasonContainsScoringPattern(pressure.reason)) {
+    throw new Error(
+      "Temporal preview axis_pressures includes a numeric scoring pattern.",
+    );
+  }
+}
+
+const suppressedAlternativeText = preview.suppressed_alternatives
+  .map((item) =>
+    [
+      item.alternative,
+      item.why_deferred,
+      item.what_would_change_status,
+      item.status,
+    ].join(" "),
+  )
+  .join(" ")
+  .toLowerCase();
+if (
+  suppressedAlternativeText.includes("is false") ||
+  suppressedAlternativeText.includes("are false") ||
+  suppressedAlternativeText.includes("permanently rejected")
+) {
+  throw new Error(
+    "Temporal preview suppressed_alternatives treats alternatives as false or permanently rejected.",
+  );
+}
+
 console.log(
   JSON.stringify(
     {
@@ -57,6 +184,11 @@ console.log(
       guardrails_passed: payload.guardrails.passed,
       warning_count: payload.guardrails.warnings.length,
       transition_relation: preview.transition_relation,
+      admission_rationale_count:
+        preview.active_context_admission_rationale.length,
+      suppressed_alternative_count: preview.suppressed_alternatives.length,
+      interpretive_driver_count: preview.interpretive_drivers.length,
+      axis_pressure_count: preview.axis_pressures.length,
     },
     null,
     2,

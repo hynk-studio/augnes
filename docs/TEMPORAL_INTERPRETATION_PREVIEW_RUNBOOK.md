@@ -1,10 +1,19 @@
-# Temporal Interpretation Preview v0.1 Runbook
+# Temporal Interpretation Preview v0.1.1 Runbook
 
 ## What This Is
 
-Temporal Interpretation Preview v0.1 is a read-only demo slice that generates a PerspectiveSnapshot-like interpretation from current Augnes project context. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, a safe next step, and an explicit non-authority boundary.
+Temporal Interpretation Preview v0.1.1 is a read-only demo slice that generates a PerspectiveSnapshot-like interpretation from current Augnes project context. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, active context admission rationale, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, a safe next step, and an explicit non-authority boundary.
 
-This is not full P4 PerspectiveSnapshot implementation. It adds no database table, migration, durable snapshot authority, runtime write behavior, rule runtime, approval authority, publication authority, or automatic promotion.
+v0.1.1 adds qualitative research-model fields for reviewer-visible structure:
+
+- active context admission rationale
+- suppressed alternatives
+- temporal hierarchy
+- memory lifecycle
+- interpretive drivers
+- qualitative axis pressures
+
+These fields are not DB schema, numeric scoring, rule-vector formula runtime, automatic memory admission, durable authority, or governance runtime. This is not full P4 PerspectiveSnapshot implementation. It adds no database table, migration, durable snapshot authority, runtime write behavior, rule runtime, approval authority, publication authority, or automatic promotion.
 
 ## API Route
 
@@ -65,12 +74,16 @@ Never commit `.env.local`, API keys, local secrets, generated SQLite files, scre
 The route runs deterministic guardrails that check:
 
 - `non_authority_boundary` is present.
+- `active_context_admission_rationale` is present and non-empty.
 - Summary-only support is not used as an evidence anchor.
 - `blocked_now` actions are not listed as `allowed_now`.
 - User preference is not treated as factual readiness or implementation approval.
 - Counterexamples from context are preserved.
 - Residual tensions from context are preserved.
 - `transition_relation` is one of `continuity`, `revision`, `drift`, `branch`, `reversal`, `suspension`.
+- `interpretive_drivers` use only the fixed Axis Bank: `factuality`, `continuity`, `user_context`, `boundary`, `exploration`, `implementation`, `stability`, `revision`.
+- `suppressed_alternatives` are not treated as false claims or permanent rejections.
+- `axis_pressures` use qualitative labels only and do not include numeric values.
 - The preview does not claim full P4 implementation readiness by default.
 
 Route smoke check:
@@ -87,6 +100,12 @@ The Runtime Cockpit includes a read-only `Temporal Interpretation Preview` panel
 
 - current interpretation
 - active prior context
+- active context admission rationale
+- suppressed alternatives
+- temporal hierarchy
+- memory lifecycle
+- interpretive drivers
+- qualitative axis pressures
 - evidence anchors
 - summary refs
 - source authority profile

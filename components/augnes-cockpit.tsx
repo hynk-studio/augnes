@@ -2431,6 +2431,36 @@ function TemporalInterpretationPreviewPanel({
               <h3>Active prior context</h3>
               <p>{preview.active_prior_context}</p>
             </section>
+            <section className="temporal-preview-card is-wide">
+              <h3>Active context admission</h3>
+              <TemporalAdmissionRationale
+                items={preview.active_context_admission_rationale}
+              />
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Suppressed alternatives</h3>
+              <TemporalSuppressedAlternatives
+                items={preview.suppressed_alternatives}
+              />
+            </section>
+            <section className="temporal-preview-card is-wide">
+              <h3>Temporal hierarchy</h3>
+              <TemporalHierarchyView view={preview.temporal_hierarchy_view} />
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Memory lifecycle</h3>
+              <TemporalMemoryLifecycle view={preview.memory_lifecycle_view} />
+            </section>
+            <section className="temporal-preview-card is-wide">
+              <h3>Interpretive drivers</h3>
+              <TemporalInterpretiveDrivers
+                items={preview.interpretive_drivers}
+              />
+            </section>
+            <section className="temporal-preview-card">
+              <h3>Axis pressures</h3>
+              <TemporalAxisPressures items={preview.axis_pressures} />
+            </section>
             <section className="temporal-preview-card">
               <h3>Evidence anchors</h3>
               <TemporalRefList
@@ -2499,6 +2529,148 @@ function TemporalInterpretationPreviewPanel({
         </>
       )}
     </section>
+  );
+}
+
+function TemporalAdmissionRationale({
+  items,
+}: {
+  items: TemporalPreviewResponse["preview"]["active_context_admission_rationale"];
+}) {
+  if (items.length === 0) {
+    return <EmptyState label="No active context admission rationale" />;
+  }
+
+  return (
+    <div className="temporal-ref-list">
+      {items.map((item) => (
+        <article className="temporal-ref-item" key={item.context_ref}>
+          <code>{item.context_ref}</code>
+          <div className="meta-row">
+            <StatusBadge label={formatStatusLabel(item.admission_role)} />
+          </div>
+          <p>{item.why_admitted}</p>
+          <p>{item.why_not_merely_summary}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function TemporalSuppressedAlternatives({
+  items,
+}: {
+  items: TemporalPreviewResponse["preview"]["suppressed_alternatives"];
+}) {
+  if (items.length === 0) {
+    return <EmptyState label="No suppressed alternatives" />;
+  }
+
+  return (
+    <div className="temporal-ref-list">
+      {items.map((item) => (
+        <article className="temporal-ref-item" key={item.alternative}>
+          <strong>{item.alternative}</strong>
+          <div className="meta-row">
+            <StatusBadge label={formatStatusLabel(item.status)} />
+          </div>
+          <p>{item.why_deferred}</p>
+          <p>{item.what_would_change_status}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function TemporalHierarchyView({
+  view,
+}: {
+  view: TemporalPreviewResponse["preview"]["temporal_hierarchy_view"];
+}) {
+  return (
+    <div className="temporal-detail-list">
+      <TemporalDetail label="Raw" value={view.raw_observation_level} />
+      <TemporalDetail label="Work" value={view.work_or_session_level} />
+      <TemporalDetail label="Project" value={view.project_status_level} />
+      <TemporalDetail label="Stance" value={view.current_interpretive_stance} />
+      <TemporalDetail label="Caution" value={view.hierarchy_caution} />
+    </div>
+  );
+}
+
+function TemporalMemoryLifecycle({
+  view,
+}: {
+  view: TemporalPreviewResponse["preview"]["memory_lifecycle_view"];
+}) {
+  return (
+    <div className="temporal-detail-list">
+      <TemporalDetail label="Active" value={view.active_context.join(", ")} />
+      <TemporalDetail label="Retrieved" value={view.retrieved_context.join(", ")} />
+      <TemporalDetail label="Summary" value={view.summary_or_view.join(", ")} />
+      <TemporalDetail
+        label="Deferred"
+        value={view.stale_or_deferred_context.join(", ")}
+      />
+      <TemporalDetail label="Caution" value={view.lifecycle_caution} />
+    </div>
+  );
+}
+
+function TemporalInterpretiveDrivers({
+  items,
+}: {
+  items: TemporalPreviewResponse["preview"]["interpretive_drivers"];
+}) {
+  if (items.length === 0) {
+    return <EmptyState label="No interpretive drivers" />;
+  }
+
+  return (
+    <div className="temporal-ref-list">
+      {items.map((item) => (
+        <article className="temporal-ref-item" key={`${item.axis}:${item.driver}`}>
+          <div className="meta-row">
+            <StatusBadge label={formatStatusLabel(item.axis)} />
+          </div>
+          <p>{item.driver}</p>
+          <p>{item.effect}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function TemporalAxisPressures({
+  items,
+}: {
+  items: TemporalPreviewResponse["preview"]["axis_pressures"];
+}) {
+  if (items.length === 0) {
+    return <EmptyState label="No axis pressures" />;
+  }
+
+  return (
+    <div className="temporal-ref-list">
+      {items.map((item) => (
+        <article className="temporal-ref-item" key={`${item.axis}:${item.pressure}`}>
+          <div className="meta-row">
+            <StatusBadge label={formatStatusLabel(item.axis)} />
+            <StatusBadge label={formatStatusLabel(item.pressure)} />
+          </div>
+          <p>{item.reason}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function TemporalDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="temporal-detail">
+      <strong>{label}</strong>
+      <p>{value || "none"}</p>
+    </div>
   );
 }
 
