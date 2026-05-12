@@ -397,6 +397,86 @@ type ApprovalGateStateSummaryResponse = {
   boundaries: string[];
 };
 
+type EvidencePackResponse = {
+  scope: string;
+  generated_at: string;
+  evidence_pack_version: "v0.1";
+  selection: {
+    mode: string;
+    work_id: string | null;
+    publication_id: string | null;
+    delivery_id: string | null;
+    target_ref: string | null;
+    selection_reason: string;
+  };
+  work_trace: {
+    work_id: string | null;
+    title: string | null;
+    status: string | null;
+    next_action: string | null;
+    recent_events: WorkEvent[];
+  };
+  publication_trace: {
+    publication_id: string | null;
+    status: string | null;
+    target_surface: string | null;
+    target_ref: string | null;
+    preview_excerpt: string | null;
+    sent_at: string | null;
+  };
+  approval_trace: {
+    approval_request_id: string | null;
+    approval_request_status: string | null;
+    approval_decision_id: string | null;
+    approval_decision: string | null;
+    decided_by: string | null;
+    decided_at: string | null;
+  };
+  readiness_trace: {
+    readiness_check_id: string | null;
+    status: string | null;
+    dry_run: boolean | null;
+    blocked_reasons: string[];
+    gate_checks: string[];
+  };
+  delivery_trace: {
+    delivery_id: string | null;
+    status: string | null;
+    target_surface: string | null;
+    target_ref: string | null;
+    idempotency_key_present: boolean;
+    sent_at: string | null;
+    acknowledged_at: string | null;
+    error_message: string | null;
+    external_artifact_id: string | null;
+    external_artifact_url: string | null;
+    external_artifact_type: string | null;
+  };
+  replay_trace: {
+    same_key_replay_supported: boolean;
+    same_key_replay_observed: boolean | null;
+    duplicate_block_observed: boolean | null;
+    notes: string[];
+  };
+  verification_trace: {
+    commands_run: Array<Record<string, unknown>>;
+    checks_passed: Array<Record<string, unknown>>;
+    skipped_checks: Array<Record<string, unknown>>;
+    source_refs: string[];
+  };
+  authority_trace: {
+    non_authority_statement: string;
+    allowed_now: string[];
+    blocked_now: string[];
+  };
+  temporal_preview_trace: {
+    available: boolean;
+    non_authority_boundary: string | null;
+  };
+  gaps: string[];
+  next_suggested_goal: string | null;
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -451,6 +531,10 @@ export function AugnesCockpit() {
   );
   const [temporalPreviewBusy, setTemporalPreviewBusy] = useState(false);
   const [temporalPreviewRequested, setTemporalPreviewRequested] = useState(false);
+  const [evidencePack, setEvidencePack] = useState<EvidencePackResponse | null>(
+    null,
+  );
+  const [evidencePackError, setEvidencePackError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [plan, setPlan] = useState<PlanResponse | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -507,6 +591,7 @@ export function AugnesCockpit() {
     setMailboxError(null);
     setPublicationError(null);
     setApprovalGateError(null);
+    setEvidencePackError(null);
 
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
@@ -699,6 +784,28 @@ export function AugnesCockpit() {
       );
     } finally {
       setTemporalPreviewBusy(false);
+    }
+  }
+
+  async function loadEvidencePack() {
+    setBusy("evidence-pack");
+    setEvidencePackError(null);
+
+    try {
+      setEvidencePack(
+        await fetchJson<EvidencePackResponse>(
+          `/api/evidence-pack?scope=${SCOPE}`,
+        ),
+      );
+    } catch (error) {
+      setEvidencePack(null);
+      setEvidencePackError(
+        error instanceof Error
+          ? error.message
+          : "Evidence Pack request failed",
+      );
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -901,6 +1008,13 @@ export function AugnesCockpit() {
         busy={temporalPreviewBusy}
         requested={temporalPreviewRequested}
         onRefresh={() => void refreshTemporalPreview()}
+      />
+
+      <EvidencePackPanel
+        evidencePack={evidencePack}
+        error={evidencePackError}
+        loading={busy === "evidence-pack"}
+        onLoad={() => void loadEvidencePack()}
       />
 
       <CoordinationEventTimeline
@@ -2559,6 +2673,264 @@ function TemporalInterpretationPreviewPanel({
             openaiError={previewResponse.openai_error}
           />
         </>
+      )}
+    </section>
+  );
+}
+
+function EvidencePackPanel({
+  evidencePack,
+  error,
+  loading,
+  onLoad,
+}: {
+  evidencePack: EvidencePackResponse | null;
+  error: string | null;
+  loading: boolean;
+  onLoad: () => void;
+}) {
+  return (
+    <section className="evidence-pack-shell" aria-label="Evidence Pack">
+      <div className="panel-control-row">
+        <PanelHeader
+          eyebrow="Evidence Pack"
+          title="v0.1 Review Bundle"
+          description="Button-loaded derived read-only view over work, approval, readiness, delivery, artifact, replay, verification, authority, and gap records."
+        />
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onLoad}
+          disabled={loading}
+        >
+          {loading ? "Loading" : "Load Evidence Pack"}
+        </button>
+      </div>
+
+      {error ? (
+        <EmptyState label="Evidence Pack unavailable" description={error} />
+      ) : !evidencePack ? (
+        <EmptyState
+          label="Evidence Pack not loaded"
+          description="Use the button to fetch the latest derived pack for this scope."
+        />
+      ) : (
+        <div className="evidence-pack-grid">
+          <article className="evidence-pack-card evidence-pack-card-wide">
+            <div className="card-topline">
+              <h3>Selection</h3>
+              <StatusBadge label={formatStatusLabel(evidencePack.selection.mode)} />
+            </div>
+            <p>{evidencePack.selection.selection_reason}</p>
+            <div className="meta-row">
+              {evidencePack.selection.work_id ? (
+                <span>
+                  work <code>{evidencePack.selection.work_id}</code>
+                </span>
+              ) : null}
+              {evidencePack.selection.publication_id ? (
+                <span>
+                  publication <code>{evidencePack.selection.publication_id}</code>
+                </span>
+              ) : null}
+              {evidencePack.selection.delivery_id ? (
+                <span>
+                  delivery <code>{evidencePack.selection.delivery_id}</code>
+                </span>
+              ) : null}
+              {evidencePack.selection.target_ref ? (
+                <span>
+                  target <code>{evidencePack.selection.target_ref}</code>
+                </span>
+              ) : null}
+              <time dateTime={evidencePack.generated_at}>
+                {formatDate(evidencePack.generated_at)}
+              </time>
+            </div>
+          </article>
+
+          <article className="evidence-pack-card">
+            <h3>Publication and Delivery</h3>
+            <div className="meta-row">
+              <span>
+                publication{" "}
+                <code>{evidencePack.publication_trace.status ?? "none"}</code>
+              </span>
+              <span>
+                delivery <code>{evidencePack.delivery_trace.status ?? "none"}</code>
+              </span>
+              <span>
+                idempotency{" "}
+                <code>
+                  {evidencePack.delivery_trace.idempotency_key_present
+                    ? "present"
+                    : "missing"}
+                </code>
+              </span>
+            </div>
+            {evidencePack.publication_trace.preview_excerpt ? (
+              <p>{evidencePack.publication_trace.preview_excerpt}</p>
+            ) : null}
+            {evidencePack.delivery_trace.error_message ? (
+              <p className="evidence-pack-error">
+                {evidencePack.delivery_trace.error_message}
+              </p>
+            ) : null}
+          </article>
+
+          <article className="evidence-pack-card">
+            <h3>External Artifact</h3>
+            {evidencePack.delivery_trace.external_artifact_id ||
+            evidencePack.delivery_trace.external_artifact_url ||
+            evidencePack.delivery_trace.external_artifact_type ? (
+              <>
+                <div className="meta-row">
+                  {evidencePack.delivery_trace.external_artifact_type ? (
+                    <span>
+                      type{" "}
+                      <code>
+                        {formatStatusLabel(
+                          evidencePack.delivery_trace.external_artifact_type,
+                        )}
+                      </code>
+                    </span>
+                  ) : null}
+                  {evidencePack.delivery_trace.external_artifact_id ? (
+                    <span>
+                      id <code>{evidencePack.delivery_trace.external_artifact_id}</code>
+                    </span>
+                  ) : null}
+                </div>
+                {evidencePack.delivery_trace.external_artifact_url ? (
+                  <a
+                    href={evidencePack.delivery_trace.external_artifact_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open artifact
+                  </a>
+                ) : null}
+              </>
+            ) : (
+              <EmptyState label="No external artifact recorded" />
+            )}
+          </article>
+
+          <article className="evidence-pack-card">
+            <h3>Approval and Readiness</h3>
+            <div className="meta-row">
+              <span>
+                request{" "}
+                <code>
+                  {evidencePack.approval_trace.approval_request_status ??
+                    "none"}
+                </code>
+              </span>
+              <span>
+                decision{" "}
+                <code>{evidencePack.approval_trace.approval_decision ?? "none"}</code>
+              </span>
+              <span>
+                readiness{" "}
+                <code>{evidencePack.readiness_trace.status ?? "none"}</code>
+              </span>
+              <span>
+                dry-run{" "}
+                <code>
+                  {evidencePack.readiness_trace.dry_run === null
+                    ? "unknown"
+                    : evidencePack.readiness_trace.dry_run
+                      ? "true"
+                      : "false"}
+                </code>
+              </span>
+            </div>
+            {evidencePack.readiness_trace.blocked_reasons.length ? (
+              <ul>
+                {evidencePack.readiness_trace.blocked_reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            ) : null}
+          </article>
+
+          <article className="evidence-pack-card">
+            <h3>Replay</h3>
+            <div className="meta-row">
+              <span>
+                same-key support{" "}
+                <code>
+                  {evidencePack.replay_trace.same_key_replay_supported
+                    ? "inferred"
+                    : "not inferred"}
+                </code>
+              </span>
+              <span>
+                observed{" "}
+                <code>
+                  {evidencePack.replay_trace.same_key_replay_observed === null
+                    ? "not recorded"
+                    : String(evidencePack.replay_trace.same_key_replay_observed)}
+                </code>
+              </span>
+            </div>
+            <ul>
+              {evidencePack.replay_trace.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="evidence-pack-card">
+            <h3>Verification</h3>
+            <div className="meta-row">
+              <span>{evidencePack.verification_trace.commands_run.length} commands</span>
+              <span>{evidencePack.verification_trace.checks_passed.length} passed</span>
+              <span>{evidencePack.verification_trace.skipped_checks.length} skipped</span>
+            </div>
+            <details>
+              <summary>Source refs</summary>
+              <ul>
+                {evidencePack.verification_trace.source_refs.slice(0, 12).map((ref) => (
+                  <li key={ref}>{ref}</li>
+                ))}
+              </ul>
+            </details>
+          </article>
+
+          <article className="evidence-pack-card evidence-pack-card-wide">
+            <h3>Authority Boundary</h3>
+            <p>{evidencePack.authority_trace.non_authority_statement}</p>
+            <div className="meta-row">
+              <span>
+                temporal preview{" "}
+                <code>
+                  {evidencePack.temporal_preview_trace.available
+                    ? "available"
+                    : "not invoked"}
+                </code>
+              </span>
+              {evidencePack.next_suggested_goal ? (
+                <span>
+                  next <code>{evidencePack.next_suggested_goal}</code>
+                </span>
+              ) : null}
+            </div>
+          </article>
+
+          <article className="evidence-pack-card evidence-pack-card-wide">
+            <h3>Gaps</h3>
+            {evidencePack.gaps.length ? (
+              <ul>
+                {evidencePack.gaps.map((gap) => (
+                  <li key={gap}>{gap}</li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState label="No gaps surfaced" />
+            )}
+          </article>
+        </div>
       )}
     </section>
   );

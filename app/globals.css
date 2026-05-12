@@ -985,6 +985,90 @@ h1 {
   padding-left: 18px;
 }
 
+.evidence-pack-shell {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 14px;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(27, 35, 45, 0.05);
+}
+
+.evidence-pack-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.evidence-pack-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dfe6ef;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.evidence-pack-card-wide {
+  grid-column: 1 / -1;
+}
+
+.evidence-pack-card h3 {
+  margin: 0;
+  color: #203047;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.evidence-pack-card p,
+.evidence-pack-card li {
+  color: #405168;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+}
+
+.evidence-pack-card p {
+  margin: 0;
+}
+
+.evidence-pack-card ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.evidence-pack-card a {
+  width: fit-content;
+  color: #0d4f3e;
+  font-size: 0.82rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.evidence-pack-card details {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.evidence-pack-card summary {
+  cursor: pointer;
+}
+
+.evidence-pack-error {
+  color: #9d2f2f;
+}
+
 .temporal-preview-shell {
   display: grid;
   gap: 14px;
@@ -2219,6 +2303,7 @@ h1 {
   .handoff-actions,
   .work-copy-row,
   .temporal-preview-heading,
+  .evidence-pack-grid,
   .cockpit-guidance ol {
     grid-template-columns: 1fr;
   }

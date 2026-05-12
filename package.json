@@ -11,6 +11,7 @@
     "db:reset": "node scripts/db-reset.mjs",
     "demo:seed": "node scripts/demo-seed.mjs",
     "smoke:temporal-preview": "node scripts/smoke-temporal-preview.mjs",
+    "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
     "codex:record-completion": "npm --prefix apps/augnes_apps run codex:record-completion",
     "typecheck": "tsc --noEmit"
   },

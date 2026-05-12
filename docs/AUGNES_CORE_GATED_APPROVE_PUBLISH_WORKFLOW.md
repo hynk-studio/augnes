@@ -10,7 +10,9 @@ executed one approved live C5 GitHub PR comment publish test against
 without live posting. C5 delivery rows now persist nullable external artifact
 id, URL, and type fields for GitHub PR comments, and same-key sent or
 acknowledged replay can return that stored artifact without another adapter
-call or token requirement. The implemented C4 route records readiness evidence
+call or token requirement. Evidence Pack v0.1 adds a derived read-only review
+bundle over existing work, approval, readiness, delivery, artifact, replay, and
+verification-gap records. The implemented C4 route records readiness evidence
 only; it does not publish, retry, create delivery rows, record proof, update
 mailbox status, commit/reject state, execute Codex, invoke the GitHub PR comment
 adapter, use `GITHUB_TOKEN`, post to GitHub, post to Discord, add app tools, or
@@ -373,10 +375,14 @@ Recommended slices:
   `external_artifact_url`, and `external_artifact_type=github_pr_comment` on the
   delivery row; same-key sent/acknowledged replay returns the persisted
   artifact fields without adapter execution.
-- Next productization slice after C5 live evidence and delivery external
-  artifact persistence: session model, temporal interpretation, ChatGPT Apps
-  cross-session tools, Codex session adapter, Cockpit write-control design,
-  GitHub App/token model, or retry design if needed.
+- Evidence Pack v0.1: Status: complete. The pack is derived read-only data
+  exposed through `GET /api/evidence-pack`; it does not publish, replay, call
+  GitHub, call OpenAI, record proof, commit/reject state, mutate mailbox, or add
+  ChatGPT App write tools.
+- Next productization slice after Evidence Pack v0.1: session model, temporal
+  interpretation hardening, ChatGPT Apps cross-session tools, Codex session
+  adapter, Cockpit write-control design, GitHub App/token model, or retry design
+  if needed.
 
 Each implementation PR should restate expected versus actual impact, authority
 boundaries, verification evidence, skipped checks, and whether any live external

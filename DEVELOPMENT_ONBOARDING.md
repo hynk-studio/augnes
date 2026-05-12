@@ -32,6 +32,7 @@ C5 explicit Core-gated GitHub PR comment publish route complete via PR #78, with
 Approved C5 live GitHub PR comment publish test complete via PR #81
 C5 same-key replay semantics fix complete via PR #82
 C5 delivery external artifact persistence complete
+Evidence Pack v0.1 read-only API/Cockpit review bundle complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -49,13 +50,17 @@ same-key sent/acknowledged replay semantics so a replay returns HTTP 200 with
 `idempotent_replay=true` and `posted=false`. C5 delivery rows now persist
 nullable external artifact id, URL, and type fields for GitHub PR comments so
 same-key replay can return the stored GitHub comment artifact without another
-adapter call or token requirement. The next likely product track is:
+adapter call or token requirement. Evidence Pack v0.1 is the next narrow review
+slice: a derived read-only API and optional Cockpit display that collects
+existing work/publication/approval/readiness/delivery/artifact/replay context
+and verification gaps without creating authority or side effects. The next
+likely product track after Evidence Pack is:
 
 ```text
-Choose the next productization slice after C5 live evidence and delivery
-external artifact persistence: session model, temporal interpretation, ChatGPT
-Apps cross-session tools, Codex session adapter, Cockpit write-control design,
-GitHub App/token model, or retry design if needed.
+Choose the next productization slice after Evidence Pack v0.1: session model,
+temporal interpretation hardening, ChatGPT Apps cross-session tools, Codex
+session adapter, Cockpit write-control design, GitHub App/token model, or retry
+design if needed.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
