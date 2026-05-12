@@ -1,6 +1,7 @@
 "use client";
 
 import type { TemporalPreviewResponse } from "@/lib/temporal-interpretation/types";
+import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const SCOPE = "project:augnes";
@@ -2420,17 +2421,32 @@ function TemporalInterpretationPreviewPanel({
                 model <code>{previewResponse.model}</code>
               </span>
             ) : null}
+            <span>read-only interpretation preview</span>
           </div>
 
-          <div className="temporal-preview-grid">
-            <section className="temporal-preview-card is-wide">
+          <div className="temporal-preview-summary-grid">
+            <section className="temporal-preview-card is-hero">
               <h3>Current interpretation</h3>
               <p>{preview.current_interpretation}</p>
+            </section>
+            <section className="temporal-preview-card is-action">
+              <h3>Safe next step</h3>
+              <p>{preview.safe_next_step}</p>
+            </section>
+            <section className="temporal-preview-card is-boundary">
+              <h3>Non-authority boundary</h3>
+              <p>{preview.non_authority_boundary}</p>
             </section>
             <section className="temporal-preview-card is-wide">
               <h3>Active prior context</h3>
               <p>{preview.active_prior_context}</p>
             </section>
+          </div>
+
+          <TemporalPreviewSection
+            title="Context reasoning"
+            description="Why prior context is admitted now, and which plausible paths remain deferred."
+          >
             <section className="temporal-preview-card is-wide">
               <h3>Active context admission</h3>
               <TemporalAdmissionRationale
@@ -2443,6 +2459,12 @@ function TemporalInterpretationPreviewPanel({
                 items={preview.suppressed_alternatives}
               />
             </section>
+          </TemporalPreviewSection>
+
+          <TemporalPreviewSection
+            title="Temporal structure"
+            description="How the preview relates raw observations, session work, project state, and memory lifecycle."
+          >
             <section className="temporal-preview-card is-wide">
               <h3>Temporal hierarchy</h3>
               <TemporalHierarchyView view={preview.temporal_hierarchy_view} />
@@ -2451,6 +2473,12 @@ function TemporalInterpretationPreviewPanel({
               <h3>Memory lifecycle</h3>
               <TemporalMemoryLifecycle view={preview.memory_lifecycle_view} />
             </section>
+          </TemporalPreviewSection>
+
+          <TemporalPreviewSection
+            title="Research drivers"
+            description="Plain-language drivers and qualitative axis pressures. These are diagnostic labels, not scores."
+          >
             <section className="temporal-preview-card is-wide">
               <h3>Interpretive drivers</h3>
               <TemporalInterpretiveDrivers
@@ -2461,6 +2489,12 @@ function TemporalInterpretationPreviewPanel({
               <h3>Axis pressures</h3>
               <TemporalAxisPressures items={preview.axis_pressures} />
             </section>
+          </TemporalPreviewSection>
+
+          <TemporalPreviewSection
+            title="Evidence and authority"
+            description="Structured anchors, summary-only references, and the source authority profile."
+          >
             <section className="temporal-preview-card">
               <h3>Evidence anchors</h3>
               <TemporalRefList
@@ -2487,6 +2521,12 @@ function TemporalInterpretationPreviewPanel({
                 profile={preview.source_authority_profile}
               />
             </section>
+          </TemporalPreviewSection>
+
+          <TemporalPreviewSection
+            title="Review constraints"
+            description="Counterexamples, residual tensions, and the transition relation that constrain interpretation."
+          >
             <section className="temporal-preview-card">
               <h3>Counterexamples</h3>
               <TemporalRefList
@@ -2512,15 +2552,7 @@ function TemporalInterpretationPreviewPanel({
               <p>{preview.revision_explanation}</p>
               <p>{preview.user_context_vs_factuality}</p>
             </section>
-            <section className="temporal-preview-card">
-              <h3>Safe next step</h3>
-              <p>{preview.safe_next_step}</p>
-            </section>
-            <section className="temporal-preview-card">
-              <h3>Non-authority boundary</h3>
-              <p>{preview.non_authority_boundary}</p>
-            </section>
-          </div>
+          </TemporalPreviewSection>
 
           <TemporalWarnings
             warnings={preview.warnings}
@@ -2528,6 +2560,26 @@ function TemporalInterpretationPreviewPanel({
           />
         </>
       )}
+    </section>
+  );
+}
+
+function TemporalPreviewSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="temporal-preview-section">
+      <div className="temporal-preview-section-header">
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+      <div className="temporal-preview-grid">{children}</div>
     </section>
   );
 }
