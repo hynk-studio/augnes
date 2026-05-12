@@ -10,6 +10,29 @@ A Verification Evidence Pack is the small review bundle Codex should leave behin
 - Show which execution surfaces were used.
 - Keep secrets, local DB files, screenshots, tunnel URLs, generated outputs, and local artifacts out of git.
 
+## Evidence Pack v0.1 API
+
+The runtime exposes a narrow derived review bundle at:
+
+```text
+GET /api/evidence-pack?scope=project:augnes
+```
+
+Optional filters are `work_id`, `publication_id`, `delivery_id`, and
+`target_ref`. If no filter is supplied, v0.1 selects deterministically: latest
+delivery by `updated_at`, `created_at`, then `delivery_id`; otherwise latest
+publication; otherwise the first deterministic work item; otherwise an empty
+pack with gaps. If multiple filters are supplied, selection priority is
+`delivery_id`, `publication_id`, `work_id`, then `target_ref`.
+
+Evidence Pack v0.1 is read-only derived data. It does not approve, publish,
+retry, acknowledge, record proof, commit or reject state, mutate mailbox, call
+GitHub, call OpenAI, or create delivery rows. It includes delivery
+`external_artifact_id`, `external_artifact_url`, and `external_artifact_type`
+when those fields are stored. Missing command/skipped-check structure is shown
+as `gaps`; the endpoint must not fabricate verification results to make a pack
+look complete.
+
 ## Evidence Categories
 
 ### Command Checks
