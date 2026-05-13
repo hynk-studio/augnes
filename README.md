@@ -120,7 +120,7 @@ The Temporal Interpretation Preview also has deterministic mock fallback. If `OP
 
 ## Temporal Interpretation Preview
 
-The Runtime Cockpit includes a read-only `Temporal Interpretation Preview` panel. It starts in a not-generated state and calls the preview route only after the user clicks `Generate Preview` or `Refresh Preview`. It demonstrates Augnes applying the temporal interpretation model to current project/demo context without adding durable snapshot authority.
+The Runtime Cockpit includes a read-only `Temporal Interpretation Preview` panel. It starts in a not-generated state and calls the preview route only after the user clicks `Generate Preview` or `Refresh Preview`. It demonstrates Augnes applying the temporal interpretation model to current project/demo context without adding durable snapshot authority. The panel renders active context admission rationale plus structured admission decisions when the preview returns `active_context_admission`.
 
 Preview v0.1.1 adds qualitative research-model fields for reviewer-visible structure: active context admission rationale, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, and qualitative axis pressures. These fields are not DB schema, numeric scoring, rule-vector formula runtime, automatic memory admission, or runtime authority.
 
@@ -147,6 +147,7 @@ Smoke check while the Next server is running:
 npm run smoke:temporal-preview
 npm run smoke:temporal-hardening
 npm run smoke:temporal-manual-review-report
+npm run smoke:cockpit-temporal-admission
 ```
 
 OpenAI is useful here because the preview is interpretive rather than a direct state read: it relates current context, prior interpretation, counterexamples, residual tensions, and authority boundaries while preserving structured anchors. The local guardrails remain deterministic and run for both OpenAI and mock output. In the Cockpit, OpenAI is used only after an explicit button click when `OPENAI_API_KEY` is present.

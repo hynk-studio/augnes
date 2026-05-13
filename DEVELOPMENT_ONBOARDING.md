@@ -42,6 +42,7 @@ ChatGPT Apps cross-session read tools complete via PR #111/#112
 Codex Session Adapter v0.2 workflow packaging complete
 Temporal Interpretation Preview hardening v0.2 complete
 Temporal Interpretation Preview manual review example added
+Read-only Cockpit rendering for Temporal active-context admission decisions complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -98,17 +99,19 @@ context admission rubric, semantic fidelity fixtures, stronger guardrails, and a
 manual review report template for temporal preview outputs. The filled mock
 preview example at
 `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`
-validates the template against the deterministic bounded fixture output. It
-remains a read-only preview and does not add PerspectiveSnapshot storage,
+validates the template against the deterministic bounded fixture output. The
+Cockpit Temporal Interpretation Preview panel renders the structured
+`active_context_admission.decisions` block read-only when returned by the
+preview. It remains a read-only preview and does not add PerspectiveSnapshot storage,
 RawEpisodeBundle runtime, approval/publish/replay authority, ChatGPT App write
 tools, Cockpit write controls, or DB schema.
 The next likely product track after this trace slice is:
 
 ```text
-Choose the next productization slice after the Temporal Interpretation Preview
-manual review example: route-captured temporal preview review, Cockpit
-write-control design, GitHub App/token model, retry design, or a narrowly
-scoped hosted runtime/auth plan if needed.
+Choose the next productization slice after Cockpit admission-decision rendering:
+route-captured temporal preview review, Cockpit write-control design, GitHub
+App/token model, retry design, or a narrowly scoped hosted runtime/auth plan if
+needed.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

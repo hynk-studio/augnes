@@ -1423,6 +1423,40 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.temporal-admission-decisions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.temporal-admission-card {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #dbe4ee;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.temporal-admission-card code {
+  overflow-wrap: anywhere;
+}
+
+.temporal-admission-refs {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.temporal-admission-refs strong {
+  color: #5d6b7c;
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .temporal-ref-item strong,
 .temporal-detail strong {
   color: #27384e;
