@@ -180,6 +180,95 @@ The helper also accepts `CODEX_EVIDENCE_BATCH_JSON` as a JSON array of evidence
 record inputs for low-friction batch recording. Batch mode still posts records
 one at a time to the same local endpoint and does not add execution authority.
 
+## Structured Evidence Recording Closeout
+
+Every Codex implementation or review PR should try to leave structured
+verification evidence rows after running checks. Use `npm run codex:record-evidence`
+when a local Augnes runtime is available and the evidence API is reachable.
+Keep the PR prose too; the rows make the same observations machine-readable for
+Core and Evidence Pack.
+
+Use these kinds consistently:
+
+- `command_run`: exact command execution, such as `npm run typecheck` or
+  `npm run build`, with `CODEX_COMMAND`.
+- `check_passed`: higher-level check passed, such as a smoke script or Evidence
+  Pack verification summary.
+- `check_failed`: higher-level check failed, preserving the exact failure in
+  `CODEX_RESULT_SUMMARY`.
+- `check_skipped`: expected or requested check was skipped, with
+  `CODEX_SKIPPED_REASON`.
+- `replay_observed`: same-key replay behavior was actually observed elsewhere.
+- `duplicate_block_observed`: duplicate-block behavior was actually observed
+  elsewhere.
+
+Command examples:
+
+```bash
+CODEX_WORK_ID=AG-___ \
+CODEX_EVIDENCE_KIND=command_run \
+CODEX_EVIDENCE_STATUS=passed \
+CODEX_EVIDENCE_LABEL="Root typecheck" \
+CODEX_COMMAND="npm run typecheck" \
+CODEX_RESULT_SUMMARY="npm run typecheck passed." \
+npm run codex:record-evidence
+```
+
+```bash
+CODEX_WORK_ID=AG-___ \
+CODEX_EVIDENCE_KIND=command_run \
+CODEX_EVIDENCE_STATUS=passed \
+CODEX_EVIDENCE_LABEL="Root build" \
+CODEX_COMMAND="npm run build" \
+CODEX_RESULT_SUMMARY="npm run build completed successfully." \
+npm run codex:record-evidence
+```
+
+Smoke and skipped-check examples:
+
+```bash
+CODEX_WORK_ID=AG-___ \
+CODEX_EVIDENCE_KIND=check_passed \
+CODEX_EVIDENCE_STATUS=passed \
+CODEX_EVIDENCE_LABEL="Evidence Pack smoke" \
+CODEX_RESULT_SUMMARY="npm run smoke:evidence-pack passed with fetch_calls: 0." \
+npm run codex:record-evidence
+```
+
+```bash
+CODEX_WORK_ID=AG-___ \
+CODEX_EVIDENCE_KIND=check_skipped \
+CODEX_EVIDENCE_STATUS=skipped \
+CODEX_EVIDENCE_LABEL="Browser screenshot check" \
+CODEX_RESULT_SUMMARY="Browser screenshot check was not run." \
+CODEX_SKIPPED_REASON="No browser runtime was available in this environment." \
+npm run codex:record-evidence
+```
+
+Replay and duplicate examples are observation-only. Record them only after the
+behavior was observed through another explicit, approved process; the evidence
+helper must not execute replay or attempt duplicate publish:
+
+```bash
+CODEX_PUBLICATION_ID="publication:..." \
+CODEX_EVIDENCE_KIND=replay_observed \
+CODEX_EVIDENCE_STATUS=observed \
+CODEX_EVIDENCE_LABEL="Same-key replay observation" \
+CODEX_RESULT_SUMMARY="Same-key replay was observed elsewhere and returned the stored artifact." \
+CODEX_OBSERVED_BEHAVIOR="idempotent_replay=true and posted=false" \
+npm run codex:record-evidence
+```
+
+After recording, copy the returned `evidence_id` values into the PR template's
+Structured Evidence Records section and the Reality Feedback Report. If local
+runtime or `/api/evidence/records` is unavailable, do not fabricate rows. State
+the exact skipped reason, such as `local runtime unavailable`, `evidence API
+unavailable`, `docs-only PR`, or `external check not applicable`.
+
+Evidence records are observation traces. They do not approve, publish, replay,
+retry, commit or reject state, call GitHub, call OpenAI, mutate mailbox, or
+prove broad correctness beyond the exact command/check summary recorded.
+
 ## Manual Fallback
 
 If the helper is unavailable, confirm the work ID exists before recording the action result:

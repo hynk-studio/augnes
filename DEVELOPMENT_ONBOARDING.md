@@ -34,7 +34,8 @@ C5 same-key replay semantics fix complete via PR #82
 C5 delivery external artifact persistence complete
 Evidence Pack v0.1 read-only API/Cockpit review bundle complete
 Structured verification/replay evidence records v0.1 complete
-Codex structured verification evidence helper in progress
+Codex structured verification evidence helper complete
+Codex structured evidence closeout workflow in progress
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -60,10 +61,11 @@ verification evidence records are complete for command/check observations,
 skipped checks, explicit replay observations, and explicit duplicate-block
 observations. Evidence Pack may read matching records to reduce gaps, but it
 still must not create records, execute replay, attempt duplicate publish, call
-GitHub, call OpenAI, or add approval/publish authority. The current narrow
-follow-up adds a Codex helper for recording those structured evidence records
-through the local Augnes API after implementation or review work. The next
-likely product track after this helper slice is:
+GitHub, call OpenAI, or add approval/publish authority. The Codex helper for
+recording those structured evidence records through the local Augnes API is
+complete. The current narrow follow-up makes structured evidence record IDs, or
+the exact skipped reason, part of the standard Codex PR closeout workflow. The
+next likely product track after this closeout slice is:
 
 ```text
 Choose the next productization slice after Evidence Pack v0.1: session model,

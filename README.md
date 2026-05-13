@@ -325,6 +325,10 @@ The evidence helper reads env vars such as `CODEX_EVIDENCE_KIND`,
 it does not approve, publish, replay, call GitHub/OpenAI, or mutate authority
 rows directly.
 
+Codex PR closeout should report the returned evidence IDs in the PR template.
+When the local runtime or evidence API is unavailable, the PR should state the
+exact reason structured evidence rows were skipped.
+
 ## External State Brief
 
 `GET /api/state/brief?scope=project:augnes` returns compact continuity context for Codex or another external agent.

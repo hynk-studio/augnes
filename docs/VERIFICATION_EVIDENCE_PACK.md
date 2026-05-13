@@ -80,6 +80,37 @@ mailbox, or committed state rows directly. It also supports
 `CODEX_EVIDENCE_BATCH_JSON` as a JSON array of evidence record inputs; batch
 mode still records observation rows one at a time through the same local API.
 
+## Structured Records And PR Evidence
+
+PR body text remains useful for human review: it explains context, failures,
+environment limits, screenshots, and artifacts. `verification_evidence_records`
+are the machine-readable Core evidence layer for the same bounded observations.
+Future Codex PRs should include both when a local runtime is available.
+
+Evidence Pack can read matching structured records for the selected work,
+publication, delivery, or target and reduce gaps in `verification_trace` and
+`replay_trace`. Missing rows must remain visible as gaps. Do not fabricate
+commands, skipped checks, replay observations, or duplicate-block observations
+in the PR body or in Core just to make a pack look complete.
+
+Structured records should use exact labels and summaries:
+
+- Commands: include the exact command in `command`, such as
+  `npm run typecheck`.
+- Passed checks: use concrete labels, such as `Evidence Pack smoke`, and include
+  important result facts like `fetch_calls: 0`.
+- Failed checks: preserve the exact failure or blocker in `result_summary`.
+- Skipped checks: record `check_skipped` with a specific `skipped_reason`, not a
+  generic note.
+- Replay or duplicate-block observations: record only when actually observed
+  elsewhere; recording the row must not execute replay or attempt duplicate
+  publish.
+
+Every PR should report the returned `evidence_id` values in the Structured
+Evidence Records section. If records were not created, state the exact reason:
+local runtime unavailable, evidence API unavailable, docs-only PR, external
+check not applicable, or another concrete reason.
+
 ## Evidence Categories
 
 ### Command Checks
