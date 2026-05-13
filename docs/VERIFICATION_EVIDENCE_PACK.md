@@ -118,6 +118,14 @@ Evidence Records section. If records were not created, state the exact reason:
 local runtime unavailable, evidence API unavailable, docs-only PR, external
 check not applicable, or another concrete reason.
 
+## Codex Session Adapter v0.2 Closeout Review
+
+Evidence Pack is part of the Codex Session Adapter v0.2 closeout review. Use it
+with structured evidence rows and session trace refs to connect work, session,
+PR, and evidence context without adding new authority. Matching rows and refs
+may reduce review gaps; missing rows or refs must remain visible gaps and must
+not be filled in by invented IDs or summaries.
+
 ## Evidence Categories
 
 ### Command Checks

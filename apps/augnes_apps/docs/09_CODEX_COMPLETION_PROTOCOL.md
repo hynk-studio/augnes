@@ -299,6 +299,22 @@ Evidence records are observation traces. They do not approve, publish, replay,
 retry, commit or reject state, call GitHub, call OpenAI, mutate mailbox, or
 prove broad correctness beyond the exact command/check summary recorded.
 
+## Codex Session Adapter v0.2 Closeout Flow
+
+Use `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md` as the standard workflow for
+Codex session start, optional existing-session binding, structured evidence,
+completion proof, and read-only review traces. The compact closeout sequence is:
+
+1. Read current context with `npm run codex:read-brief`.
+2. Optionally bind a pre-existing session with `npm run codex:bind-session`.
+3. Run verification and record rows with `npm run codex:record-evidence`.
+4. Record completion with `npm run codex:record-completion`.
+5. Run or reference `npm run codex:handoff-check` when validating the handoff path.
+6. Review `GET /api/evidence-pack` and `GET /api/sessions/trace`.
+7. When ChatGPT App bridge review is relevant, use only read-only tools:
+   `augnes_get_evidence_pack`, `augnes_get_session_trace`, and
+   `augnes_get_verification_evidence_records`.
+
 ## Manual Fallback
 
 If the helper is unavailable, confirm the work ID exists before recording the action result:
