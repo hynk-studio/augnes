@@ -40,6 +40,7 @@ Session Binding v0.1 trace API complete via PR #109
 Read-only Cockpit Session Trace surfacing complete
 ChatGPT Apps cross-session read tools complete via PR #111/#112
 Codex Session Adapter v0.2 workflow packaging complete
+Temporal Interpretation Preview hardening v0.2 complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -91,13 +92,19 @@ Trace outputs. It is documentation and smoke coverage over existing helpers and
 read-only surfaces only; it does not create sessions automatically, execute
 Codex from ChatGPT, add ChatGPT App write tools, publish, replay, approve, or
 mutate state.
+Temporal Interpretation Preview hardening v0.2 adds a deterministic active
+context admission rubric, semantic fidelity fixtures, stronger guardrails, and a
+manual review report template for temporal preview outputs. It remains a
+read-only preview and does not add PerspectiveSnapshot storage,
+RawEpisodeBundle runtime, approval/publish/replay authority, ChatGPT App write
+tools, Cockpit write controls, or DB schema.
 The next likely product track after this trace slice is:
 
 ```text
-Choose the next productization slice after Codex Session Adapter v0.2 workflow
-packaging: temporal interpretation hardening, Cockpit write-control design,
-GitHub App/token model, retry design, or a narrowly scoped hosted runtime/auth
-plan if needed.
+Choose the next productization slice after Temporal Interpretation Preview
+hardening v0.2: manual review of temporal fixtures, Cockpit write-control
+design, GitHub App/token model, retry design, or a narrowly scoped hosted
+runtime/auth plan if needed.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -120,9 +127,10 @@ A new session should read these files in this order:
 9. `docs/EXPECTED_IMPACT_CHECK.md` - expected-vs-actual review discipline.
 10. `docs/VERIFICATION_EVIDENCE_PACK.md` - PR verification evidence format.
 11. `docs/EXECUTION_SURFACE_RECORD.md` - canonical execution surface names.
-12. `.github/pull_request_template.md` - required PR trace format.
-13. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-14. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+12. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md` - temporal preview manual review template.
+13. `.github/pull_request_template.md` - required PR trace format.
+14. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+15. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 

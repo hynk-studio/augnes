@@ -185,6 +185,7 @@ The PR body must include:
 - Structured evidence record IDs by kind, or the exact skipped reason.
 - Completion recording status, related action/work event IDs if returned, or skipped reason.
 - Evidence Pack and Session Trace review status.
+- Temporal Interpretation Manual Review Report status for temporal preview tasks.
 - Changed files, tests, blockers, assumptions, scope risks, questions, and next goal.
 
 ## Missing Runtime, Session, Or Work

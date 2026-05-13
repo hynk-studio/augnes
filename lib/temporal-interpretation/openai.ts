@@ -1,4 +1,5 @@
 import {
+  ACTIVE_CONTEXT_ADMISSION_CATEGORIES,
   ACTIVE_CONTEXT_ADMISSION_ROLES,
   AXIS_PRESSURE_LABELS,
   SUPPRESSED_ALTERNATIVE_STATUSES,
@@ -102,6 +103,9 @@ export function validateTemporalPreview(
       value,
       "active_context_admission_rationale",
     ).map(validateActiveContextAdmissionRationale),
+    active_context_admission: isRecord(value.active_context_admission)
+      ? validateActiveContextAdmission(value.active_context_admission)
+      : undefined,
     suppressed_alternatives: requireArray(
       value,
       "suppressed_alternatives",
@@ -131,6 +135,7 @@ function buildSystemPrompt() {
     "You are the Augnes Temporal Interpretation Preview generator.",
     "Generate a PerspectiveSnapshot-like preview, but do not claim full P4 implementation.",
     "Preserve evidence anchors, summary refs, authority profile, counterexamples, residual tensions, active context admission rationale, suppressed alternatives, hierarchy view, memory lifecycle view, interpretive drivers, axis pressures, safe next step, and non-authority boundary from context.",
+    "When active_context_admission is present in context, preserve its decisions and note. Do not invent evidence refs, hide counterexamples, or turn admission decisions into authority.",
     "For current_interpretation, lead with the interpretive implication before listing counts: emphasize read-only demo meaning, committed state as evidence, summaries as guidance only, active API-key handling tension if present, and implementation still bounded by review.",
     "For safe_next_step, keep the wording action-oriented for challenge demo use while preserving read-only, non-authoritative, no durable PerspectiveSnapshot, and no implementation approval boundaries.",
     "Summary-only refs may appear in summary_refs but must not become evidence_anchors.",
@@ -245,6 +250,35 @@ function validateActiveContextAdmissionRationale(value: unknown) {
     admission_role: requireActiveContextAdmissionRole(value.admission_role),
     why_admitted: requireString(value, "why_admitted"),
     why_not_merely_summary: requireString(value, "why_not_merely_summary"),
+  };
+}
+
+function validateActiveContextAdmission(value: unknown) {
+  if (!isRecord(value)) {
+    throw new Error("active_context_admission must be an object.");
+  }
+
+  return {
+    decisions: requireArray(value, "decisions").map(
+      validateActiveContextAdmissionDecision,
+    ),
+    note: requireString(value, "note"),
+  };
+}
+
+function validateActiveContextAdmissionDecision(value: unknown) {
+  if (!isRecord(value)) {
+    throw new Error("Active context admission decision must be an object.");
+  }
+
+  return {
+    candidate_id: requireString(value, "candidate_id"),
+    category: requireActiveContextAdmissionCategory(value.category),
+    reason: requireString(value, "reason"),
+    source_authority: requireString(value, "source_authority"),
+    evidence_refs: requireStringArray(value, "evidence_refs"),
+    counterexample_refs: requireStringArray(value, "counterexample_refs"),
+    residual_tension_refs: requireStringArray(value, "residual_tension_refs"),
   };
 }
 
@@ -391,6 +425,23 @@ function requireActiveContextAdmissionRole(value: unknown) {
   );
 }
 
+function requireActiveContextAdmissionCategory(value: unknown) {
+  if (
+    typeof value === "string" &&
+    ACTIVE_CONTEXT_ADMISSION_CATEGORIES.includes(
+      value as (typeof ACTIVE_CONTEXT_ADMISSION_CATEGORIES)[number],
+    )
+  ) {
+    return value as (typeof ACTIVE_CONTEXT_ADMISSION_CATEGORIES)[number];
+  }
+
+  throw new Error(
+    `active context admission category must be one of: ${ACTIVE_CONTEXT_ADMISSION_CATEGORIES.join(
+      ", ",
+    )}`,
+  );
+}
+
 function requireSuppressedAlternativeStatus(value: unknown) {
   if (
     typeof value === "string" &&
@@ -472,6 +523,45 @@ const activeContextAdmissionRationaleSchema = {
     "why_admitted",
     "why_not_merely_summary",
   ],
+};
+
+const activeContextAdmissionDecisionSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    candidate_id: { type: "string" },
+    category: {
+      type: "string",
+      enum: ACTIVE_CONTEXT_ADMISSION_CATEGORIES,
+    },
+    reason: { type: "string" },
+    source_authority: { type: "string" },
+    evidence_refs: stringArraySchema,
+    counterexample_refs: stringArraySchema,
+    residual_tension_refs: stringArraySchema,
+  },
+  required: [
+    "candidate_id",
+    "category",
+    "reason",
+    "source_authority",
+    "evidence_refs",
+    "counterexample_refs",
+    "residual_tension_refs",
+  ],
+};
+
+const activeContextAdmissionSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    decisions: {
+      type: "array",
+      items: activeContextAdmissionDecisionSchema,
+    },
+    note: { type: "string" },
+  },
+  required: ["decisions", "note"],
 };
 
 const suppressedAlternativeSchema = {
@@ -619,6 +709,7 @@ const temporalPreviewSchema = {
       type: "array",
       items: activeContextAdmissionRationaleSchema,
     },
+    active_context_admission: activeContextAdmissionSchema,
     suppressed_alternatives: {
       type: "array",
       items: suppressedAlternativeSchema,
@@ -649,6 +740,7 @@ const temporalPreviewSchema = {
     "revision_explanation",
     "user_context_vs_factuality",
     "active_context_admission_rationale",
+    "active_context_admission",
     "suppressed_alternatives",
     "temporal_hierarchy_view",
     "memory_lifecycle_view",

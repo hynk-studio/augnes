@@ -34,6 +34,20 @@ export const ACTIVE_CONTEXT_ADMISSION_ROLES = [
 export type ActiveContextAdmissionRole =
   (typeof ACTIVE_CONTEXT_ADMISSION_ROLES)[number];
 
+export const ACTIVE_CONTEXT_ADMISSION_CATEGORIES = [
+  "admit_primary_active",
+  "admit_boundary_active",
+  "admit_tension_active",
+  "retain_recallable",
+  "exclude_duplicate",
+  "exclude_summary_only",
+  "exclude_out_of_scope",
+  "suspend_pending_evidence",
+] as const;
+
+export type ActiveContextAdmissionCategory =
+  (typeof ACTIVE_CONTEXT_ADMISSION_CATEGORIES)[number];
+
 export const SUPPRESSED_ALTERNATIVE_STATUSES = [
   "deferred",
   "needs_approval",
@@ -91,6 +105,21 @@ export type ActiveContextAdmissionRationale = {
   why_not_merely_summary: string;
 };
 
+export type ActiveContextAdmissionDecision = {
+  candidate_id: string;
+  category: ActiveContextAdmissionCategory;
+  reason: string;
+  source_authority: string;
+  evidence_refs: string[];
+  counterexample_refs: string[];
+  residual_tension_refs: string[];
+};
+
+export type ActiveContextAdmission = {
+  decisions: ActiveContextAdmissionDecision[];
+  note: string;
+};
+
 export type SuppressedAlternative = {
   alternative: string;
   why_deferred: string;
@@ -140,6 +169,7 @@ export type TemporalPreviewContext = {
   safe_next_step: string;
   non_authority_boundary: string;
   active_context_admission_rationale: ActiveContextAdmissionRationale[];
+  active_context_admission: ActiveContextAdmission;
   suppressed_alternatives: SuppressedAlternative[];
   temporal_hierarchy_view: TemporalHierarchyView;
   memory_lifecycle_view: MemoryLifecycleView;
@@ -159,6 +189,7 @@ export type TemporalInterpretationPreview = {
   revision_explanation: string;
   user_context_vs_factuality: string;
   active_context_admission_rationale: ActiveContextAdmissionRationale[];
+  active_context_admission?: ActiveContextAdmission;
   suppressed_alternatives: SuppressedAlternative[];
   temporal_hierarchy_view: TemporalHierarchyView;
   memory_lifecycle_view: MemoryLifecycleView;

@@ -1,4 +1,5 @@
 import { buildStateBrief } from "@/lib/state/brief";
+import { buildActiveContextAdmission } from "@/lib/temporal-interpretation/admission";
 import {
   type ActiveContextAdmissionRationale,
   type AxisPressure,
@@ -66,6 +67,26 @@ export function buildTemporalPreviewContext(
   });
   const interpretiveDrivers = buildInterpretiveDrivers();
   const axisPressures = buildAxisPressures();
+  const userPreferences = [
+    "The challenge-demo slice should prioritize a small working preview over conceptual documentation.",
+    "OpenAI should be optional locally because mock fallback must work from a clean checkout.",
+  ];
+  const activeContextAdmission = buildActiveContextAdmission({
+    evidenceAnchors,
+    summaryRefs: [
+      {
+        ref: "summary:agent_handoff.current_status",
+        summary: brief.agent_handoff.current_status.summary,
+      },
+      {
+        ref: "summary:agent_handoff.next_recommended_action",
+        summary: brief.agent_handoff.next_recommended_action.title,
+      },
+    ],
+    counterexamples,
+    residualTensions,
+    userPreferences,
+  });
 
   return {
     scope,
@@ -107,15 +128,13 @@ export function buildTemporalPreviewContext(
     },
     counterexamples,
     residual_tensions: residualTensions,
-    user_preferences: [
-      "The challenge-demo slice should prioritize a small working preview over conceptual documentation.",
-      "OpenAI should be optional locally because mock fallback must work from a clean checkout.",
-    ],
+    user_preferences: userPreferences,
     safe_next_step:
       "Use this read-only preview as demo evidence, verify no API-key leakage, capture the Cockpit screenshot with OpenAI enabled, and keep durable PerspectiveSnapshot work behind separate review.",
     non_authority_boundary:
       "This preview is non-authoritative: it does not commit state, approve work, publish proof, mutate mailbox status, promote rules, or claim full P4 PerspectiveSnapshot readiness.",
     active_context_admission_rationale: activeContextAdmissionRationale,
+    active_context_admission: activeContextAdmission,
     suppressed_alternatives: suppressedAlternatives,
     temporal_hierarchy_view: temporalHierarchyView,
     memory_lifecycle_view: memoryLifecycleView,

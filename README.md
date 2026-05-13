@@ -112,7 +112,7 @@ OpenAI APIs are used for interpretation, not direct mutation.
 
 `POST /api/plan` asks the model to recommend actions grounded in committed state. The planner receives active, future, completed, deprecated, and tension state so it can avoid treating future work as current work.
 
-`POST /api/temporal-interpretation/preview` asks the model to generate a read-only PerspectiveSnapshot-like Temporal Interpretation Preview from current project/demo context. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, active context admission rationale, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, a safe next step, and a non-authority boundary. The route then runs deterministic local guardrails before returning the preview.
+`POST /api/temporal-interpretation/preview` asks the model to generate a read-only PerspectiveSnapshot-like Temporal Interpretation Preview from current project/demo context. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, active context admission rationale, active context admission decisions, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, a safe next step, and a non-authority boundary. The route then runs deterministic local guardrails before returning the preview.
 
 Local demos do not require an API key. If `OPENAI_API_KEY` is missing, Augnes uses deterministic mock behavior for observe and planner flows so the full demo remains runnable from a clean checkout.
 
@@ -123,6 +123,13 @@ The Temporal Interpretation Preview also has deterministic mock fallback. If `OP
 The Runtime Cockpit includes a read-only `Temporal Interpretation Preview` panel. It starts in a not-generated state and calls the preview route only after the user clicks `Generate Preview` or `Refresh Preview`. It demonstrates Augnes applying the temporal interpretation model to current project/demo context without adding durable snapshot authority.
 
 Preview v0.1.1 adds qualitative research-model fields for reviewer-visible structure: active context admission rationale, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, and qualitative axis pressures. These fields are not DB schema, numeric scoring, rule-vector formula runtime, automatic memory admission, or runtime authority.
+
+Preview hardening v0.2 adds a deterministic active-context admission rubric,
+semantic fidelity fixtures, stronger guardrails for summary/evidence drift,
+counterexample and residual tension preservation, unsafe safe-next-step
+language, and a manual review report template at
+`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md`. This remains read-only
+and non-authoritative.
 
 API check:
 
@@ -136,6 +143,7 @@ Smoke check while the Next server is running:
 
 ```bash
 npm run smoke:temporal-preview
+npm run smoke:temporal-hardening
 ```
 
 OpenAI is useful here because the preview is interpretive rather than a direct state read: it relates current context, prior interpretation, counterexamples, residual tensions, and authority boundaries while preserving structured anchors. The local guardrails remain deterministic and run for both OpenAI and mock output. In the Cockpit, OpenAI is used only after an explicit button click when `OPENAI_API_KEY` is present.

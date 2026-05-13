@@ -126,6 +126,13 @@ PR, and evidence context without adding new authority. Matching rows and refs
 may reduce review gaps; missing rows or refs must remain visible gaps and must
 not be filled in by invented IDs or summaries.
 
+For Temporal Interpretation Preview work, attach or summarize the manual review
+using `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md`. The report should
+preserve preview input/output, source refs, admission decisions,
+counterexamples, residual tensions, summary/evidence separation, authority
+boundary checks, safe-next-step review, verdict, notes, and follow-up action.
+It is a review artifact, not durable state or approval.
+
 ## Evidence Categories
 
 ### Command Checks
