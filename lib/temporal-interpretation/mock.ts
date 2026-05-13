@@ -21,6 +21,7 @@ export function buildMockTemporalPreview(
       "User preferences explain demo priority and constraints, but factual readiness still depends on committed state, evidence anchors, guardrails, and verification results.",
     active_context_admission_rationale:
       context.active_context_admission_rationale,
+    active_context_admission: context.active_context_admission,
     suppressed_alternatives: context.suppressed_alternatives,
     temporal_hierarchy_view: context.temporal_hierarchy_view,
     memory_lifecycle_view: context.memory_lifecycle_view,

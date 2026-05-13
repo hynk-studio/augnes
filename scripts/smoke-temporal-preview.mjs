@@ -24,6 +24,7 @@ const requiredFields = [
   "revision_explanation",
   "user_context_vs_factuality",
   "active_context_admission_rationale",
+  "active_context_admission",
   "suppressed_alternatives",
   "temporal_hierarchy_view",
   "memory_lifecycle_view",
@@ -37,6 +38,45 @@ const requiredFields = [
 for (const field of requiredFields) {
   if (!(field in preview)) {
     throw new Error(`Temporal preview missing field: ${field}`);
+  }
+}
+
+if (!preview.active_context_admission || !Array.isArray(preview.active_context_admission.decisions)) {
+  throw new Error("Temporal preview active_context_admission decisions are missing.");
+}
+
+const allowedAdmissionCategories = new Set([
+  "admit_primary_active",
+  "admit_boundary_active",
+  "admit_tension_active",
+  "retain_recallable",
+  "exclude_duplicate",
+  "exclude_summary_only",
+  "exclude_out_of_scope",
+  "suspend_pending_evidence",
+]);
+for (const decision of preview.active_context_admission.decisions) {
+  if (!allowedAdmissionCategories.has(decision.category)) {
+    throw new Error(`Temporal preview active_context_admission has invalid category: ${decision.category}`);
+  }
+  for (const field of [
+    "candidate_id",
+    "category",
+    "reason",
+    "source_authority",
+  ]) {
+    if (!decision[field]) {
+      throw new Error(`Temporal preview active_context_admission decision missing field: ${field}`);
+    }
+  }
+  for (const field of [
+    "evidence_refs",
+    "counterexample_refs",
+    "residual_tension_refs",
+  ]) {
+    if (!Array.isArray(decision[field])) {
+      throw new Error(`Temporal preview active_context_admission decision ${field} must be an array.`);
+    }
   }
 }
 
@@ -186,6 +226,8 @@ console.log(
       transition_relation: preview.transition_relation,
       admission_rationale_count:
         preview.active_context_admission_rationale.length,
+      admission_decision_count:
+        preview.active_context_admission.decisions.length,
       suppressed_alternative_count: preview.suppressed_alternatives.length,
       interpretive_driver_count: preview.interpretive_drivers.length,
       axis_pressure_count: preview.axis_pressures.length,
