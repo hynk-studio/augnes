@@ -132,6 +132,9 @@ preserve preview input/output, source refs, admission decisions,
 counterexamples, residual tensions, summary/evidence separation, authority
 boundary checks, safe-next-step review, verdict, notes, and follow-up action.
 It is a review artifact, not durable state or approval.
+The deterministic mock example at
+`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` can be
+used as a filled reference for the template structure.
 
 ## Evidence Categories
 

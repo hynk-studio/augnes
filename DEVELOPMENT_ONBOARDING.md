@@ -41,6 +41,7 @@ Read-only Cockpit Session Trace surfacing complete
 ChatGPT Apps cross-session read tools complete via PR #111/#112
 Codex Session Adapter v0.2 workflow packaging complete
 Temporal Interpretation Preview hardening v0.2 complete
+Temporal Interpretation Preview manual review example added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -94,17 +95,20 @@ Codex from ChatGPT, add ChatGPT App write tools, publish, replay, approve, or
 mutate state.
 Temporal Interpretation Preview hardening v0.2 adds a deterministic active
 context admission rubric, semantic fidelity fixtures, stronger guardrails, and a
-manual review report template for temporal preview outputs. It remains a
-read-only preview and does not add PerspectiveSnapshot storage,
+manual review report template for temporal preview outputs. The filled mock
+preview example at
+`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`
+validates the template against the deterministic bounded fixture output. It
+remains a read-only preview and does not add PerspectiveSnapshot storage,
 RawEpisodeBundle runtime, approval/publish/replay authority, ChatGPT App write
 tools, Cockpit write controls, or DB schema.
 The next likely product track after this trace slice is:
 
 ```text
-Choose the next productization slice after Temporal Interpretation Preview
-hardening v0.2: manual review of temporal fixtures, Cockpit write-control
-design, GitHub App/token model, retry design, or a narrowly scoped hosted
-runtime/auth plan if needed.
+Choose the next productization slice after the Temporal Interpretation Preview
+manual review example: route-captured temporal preview review, Cockpit
+write-control design, GitHub App/token model, retry design, or a narrowly
+scoped hosted runtime/auth plan if needed.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -128,9 +132,10 @@ A new session should read these files in this order:
 10. `docs/VERIFICATION_EVIDENCE_PACK.md` - PR verification evidence format.
 11. `docs/EXECUTION_SURFACE_RECORD.md` - canonical execution surface names.
 12. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md` - temporal preview manual review template.
-13. `.github/pull_request_template.md` - required PR trace format.
-14. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-15. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+13. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` - filled mock preview review example.
+14. `.github/pull_request_template.md` - required PR trace format.
+15. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+16. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 
