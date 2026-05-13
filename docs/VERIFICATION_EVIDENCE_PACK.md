@@ -134,7 +134,9 @@ boundary checks, safe-next-step review, verdict, notes, and follow-up action.
 It is a review artifact, not durable state or approval.
 The deterministic mock example at
 `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` can be
-used as a filled reference for the template structure.
+used as a filled reference for the template structure. Cockpit review should
+also confirm the read-only Temporal Preview panel renders structured
+`active_context_admission.decisions` when present.
 
 ## Evidence Categories
 

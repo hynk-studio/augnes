@@ -140,6 +140,29 @@ type StateBriefResponse = {
   agent_handoff?: StateBriefAgentHandoff;
 };
 
+type CockpitTemporalAdmissionDecision = {
+  candidate_id: string;
+  category: string;
+  reason: string;
+  source_authority: string;
+  evidence_refs: string[];
+  counterexample_refs: string[];
+  residual_tension_refs: string[];
+};
+
+type CockpitTemporalActiveContextAdmission = {
+  decisions: CockpitTemporalAdmissionDecision[];
+  note: string;
+};
+
+type CockpitTemporalPreviewResponse = TemporalPreviewResponse & {
+  preview: TemporalPreviewResponse["preview"] & {
+    active_context_admission?: CockpitTemporalActiveContextAdmission;
+  };
+};
+
+type TemporalActiveContextAdmission = CockpitTemporalActiveContextAdmission;
+
 type WorkItem = {
   work_id: string;
   scope: string;
@@ -596,7 +619,7 @@ export function AugnesCockpit() {
   const [sessionTraceBusy, setSessionTraceBusy] = useState(false);
   const [sessionTraceRequested, setSessionTraceRequested] = useState(false);
   const [temporalPreview, setTemporalPreview] =
-    useState<TemporalPreviewResponse | null>(null);
+    useState<CockpitTemporalPreviewResponse | null>(null);
   const [temporalPreviewError, setTemporalPreviewError] = useState<string | null>(
     null,
   );
@@ -837,7 +860,7 @@ export function AugnesCockpit() {
 
     try {
       setTemporalPreview(
-        await fetchJson<TemporalPreviewResponse>(
+        await fetchJson<CockpitTemporalPreviewResponse>(
           "/api/temporal-interpretation/preview",
           {
             method: "POST",
@@ -2820,7 +2843,7 @@ function TemporalInterpretationPreviewPanel({
   requested,
   onRefresh,
 }: {
-  previewResponse: TemporalPreviewResponse | null;
+  previewResponse: CockpitTemporalPreviewResponse | null;
   error: string | null;
   busy: boolean;
   requested: boolean;
@@ -2914,6 +2937,12 @@ function TemporalInterpretationPreviewPanel({
               <h3>Active context admission</h3>
               <TemporalAdmissionRationale
                 items={preview.active_context_admission_rationale}
+              />
+            </section>
+            <section className="temporal-preview-card is-wide">
+              <h3>Structured admission decisions</h3>
+              <TemporalAdmissionDecisions
+                admission={preview.active_context_admission}
               />
             </section>
             <section className="temporal-preview-card">
@@ -3325,6 +3354,90 @@ function TemporalAdmissionRationale({
           <p>{item.why_not_merely_summary}</p>
         </article>
       ))}
+    </div>
+  );
+}
+
+function TemporalAdmissionDecisions({
+  admission,
+}: {
+  admission?: CockpitTemporalActiveContextAdmission;
+}) {
+  if (!admission) {
+    return (
+      <div className="temporal-admission-decisions">
+        <EmptyState label="No structured admission decisions were returned by this preview." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="temporal-admission-decisions">
+      <p>{admission.note}</p>
+      <div className="meta-row">
+        <span>{admission.decisions.length} decisions</span>
+      </div>
+      <div className="temporal-ref-list">
+        {admission.decisions.map((decision) => (
+          <TemporalAdmissionDecisionCard
+            decision={decision}
+            key={`${decision.candidate_id}:${decision.category}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TemporalAdmissionDecisionCard({
+  decision,
+}: {
+  decision: TemporalActiveContextAdmission["decisions"][number];
+}) {
+  return (
+    <article className="temporal-admission-card">
+      <div className="meta-row">
+        <StatusBadge label={formatStatusLabel(decision.category)} />
+        <span>
+          source <code>{decision.source_authority}</code>
+        </span>
+      </div>
+      <code>{decision.candidate_id}</code>
+      <p>{decision.reason}</p>
+      <TemporalAdmissionRefs label="Evidence refs" refs={decision.evidence_refs} />
+      <TemporalAdmissionRefs
+        label="Counterexample refs"
+        refs={decision.counterexample_refs}
+      />
+      <TemporalAdmissionRefs
+        label="Residual tension refs"
+        refs={decision.residual_tension_refs}
+      />
+    </article>
+  );
+}
+
+function TemporalAdmissionRefs({
+  label,
+  refs,
+}: {
+  label: string;
+  refs: string[];
+}) {
+  return (
+    <div className="temporal-admission-refs">
+      <strong>{label}</strong>
+      <div className="meta-row">
+        {refs.length ? (
+          refs.map((ref) => (
+            <span key={ref}>
+              <code>{ref}</code>
+            </span>
+          ))
+        ) : (
+          <span>none</span>
+        )}
+      </div>
     </div>
   );
 }
