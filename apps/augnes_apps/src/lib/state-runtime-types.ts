@@ -236,6 +236,7 @@ export const SessionTraceToolInputSchema = z
 
 export const SessionTraceLatestMessageSchema = z
   .object({
+    id: z.string().nullable().optional(),
     role: z.string().nullable().optional(),
     created_at: z.string().nullable().optional(),
     date: z.string().nullable().optional(),
@@ -261,10 +262,30 @@ export const SessionTraceLatestWorkEventSchema = z
 export const SessionTraceLatestEvidenceRecordSchema = z
   .object({
     evidence_id: z.string().nullable().optional(),
+    evidence_kind: z.string().nullable().optional(),
     kind: z.string().nullable().optional(),
     status: z.string().nullable().optional(),
     label: z.string().nullable().optional(),
     created_at: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const SessionTraceEvidenceCountsSchema = z
+  .object({
+    messages: z.number().optional(),
+    action_records_by_session: z.number().optional(),
+    verification_evidence_records_for_work: z.number().optional(),
+    verification_evidence_records_for_pr: z.number().optional(),
+    verification_evidence_records_total: z.number().optional(),
+  })
+  .passthrough();
+
+export const SessionTraceWorkEventCountsSchema = z
+  .object({
+    total: z.number().optional(),
+    by_event_type: z.record(z.number()).optional(),
+    with_related_action_id: z.number().optional(),
+    with_related_pr: z.number().optional(),
   })
   .passthrough();
 
@@ -281,14 +302,17 @@ export const SessionTraceSessionSchema = z
     evidence_pack_ref: z.string().nullable().optional(),
     started_at: z.string().nullable().optional(),
     ended_at: z.string().nullable().optional(),
+    evidence_counts: SessionTraceEvidenceCountsSchema.optional(),
     message_count: z.number().nullable().optional(),
     latest_message: SessionTraceLatestMessageSchema.nullable().optional(),
-    work_event_counts: z.record(z.number().nullable()).nullable().optional(),
+    work_event_counts: SessionTraceWorkEventCountsSchema.nullable().optional(),
     action_records_by_session: z.union([z.number(), z.array(z.unknown()), z.record(z.unknown())]).nullable().optional(),
     action_records_by_session_count: z.number().nullable().optional(),
     verification_evidence_records_total: z.number().nullable().optional(),
     latest_work_event: SessionTraceLatestWorkEventSchema.nullable().optional(),
     latest_evidence_record: SessionTraceLatestEvidenceRecordSchema.nullable().optional(),
+    action_records: z.array(z.unknown()).optional(),
+    work: z.record(z.unknown()).nullable().optional(),
     gaps: z.array(z.string()).optional(),
   })
   .passthrough();

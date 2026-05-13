@@ -72,7 +72,7 @@ const httpServer = createServer((req, res) => {
     return;
   }
 
-  if (url.pathname === "/api/sessions/session%3Asmoke-1/trace") {
+  if (url.pathname === "/api/sessions/trace" || url.pathname === "/api/sessions/session%3Asmoke-1/trace") {
     res.end(
       JSON.stringify({
         runtime: "augnes",
@@ -81,7 +81,16 @@ const httpServer = createServer((req, res) => {
         sessions: [
           {
             session_id: "session:smoke-1",
+            surface: "chatgpt_developer_mode",
+            actor: "chatgpt",
             title: "Smoke session",
+            summary: "Actual-like runtime session trace payload.",
+            related_work_id: "AG-001",
+            related_pr: "111",
+            handoff_ref: "handoff:smoke-1",
+            evidence_pack_ref: "/api/evidence-pack?scope=project%3Aaugnes&work_id=AG-001",
+            started_at: "2026-05-09T00:00:00.000Z",
+            ended_at: null,
             message_count: 3,
             evidence_counts: {
               messages: 3,
@@ -90,12 +99,39 @@ const httpServer = createServer((req, res) => {
               verification_evidence_records_for_pr: 0,
               verification_evidence_records_total: 1,
             },
+            work_event_counts: {
+              total: 2,
+              by_event_type: {
+                verification: 1,
+                handoff: 1,
+              },
+              with_related_action_id: 1,
+              with_related_pr: 1,
+            },
+            latest_work_event: {
+              id: "work_event:smoke-1",
+              work_id: "AG-001",
+              scope: url.searchParams.get("scope"),
+              actor: "codex",
+              event_type: "verification",
+              summary: "Verified cross-session read tools smoke.",
+              created_at: "2026-05-09T00:02:00.000Z",
+            },
             latest_evidence_record: {
               evidence_id: "evidence:smoke-1",
               evidence_kind: "check_passed",
+              kind: "check_passed",
               status: "passed",
               label: "Smoke verification",
+              created_at: "2026-05-09T00:03:00.000Z",
             },
+            latest_message: {
+              id: "message:smoke-1",
+              role: "assistant",
+              created_at: "2026-05-09T00:04:00.000Z",
+            },
+            action_records: [],
+            work: null,
             gaps: [],
           },
         ],
@@ -113,10 +149,10 @@ const httpServer = createServer((req, res) => {
         count: 1,
         records: [
           {
-    evidence_id: "evidence:smoke-1",
-    work_id: url.searchParams.get("work_id"),
-    evidence_kind: url.searchParams.get("evidence_kind") ?? "check_passed",
-    status: url.searchParams.get("status") ?? "passed",
+            evidence_id: "evidence:smoke-1",
+            work_id: url.searchParams.get("work_id"),
+            evidence_kind: url.searchParams.get("evidence_kind") ?? "check_passed",
+            status: url.searchParams.get("status") ?? "passed",
             label: "Smoke verification",
             created_at: "2026-05-09T00:00:00.000Z",
           },
@@ -211,9 +247,19 @@ try {
 
   const evidencePackResult = await tools.augnes_get_evidence_pack.handler(evidencePackParsed);
   const sessionTraceResult = await tools.augnes_get_session_trace.handler(sessionTraceParsed);
+  const sessionTraceListResult = await tools.augnes_get_session_trace.handler({ scope: "project:augnes", limit: 5 });
   const verificationResult = await tools.augnes_get_verification_evidence_records.handler(verificationParsed);
   const evidencePackStructured = evidencePackResult.structuredContent as { boundaries?: { read_only?: boolean } } | undefined;
   const sessionTraceStructured = sessionTraceResult.structuredContent as {
+    session_trace?: {
+      sessions?: Array<{
+        session_id?: string;
+        evidence_counts?: { verification_evidence_records_total?: number };
+        work_event_counts?: { by_event_type?: Record<string, number> };
+      }>;
+    };
+  } | undefined;
+  const sessionTraceListStructured = sessionTraceListResult.structuredContent as {
     session_trace?: { sessions?: Array<{ session_id?: string }> };
   } | undefined;
   const verificationStructured = verificationResult.structuredContent as {
@@ -231,6 +277,21 @@ try {
     "session trace tool should preserve session_id in structured content"
   );
   assert.equal(
+    sessionTraceStructured?.session_trace?.sessions?.[0]?.work_event_counts?.by_event_type?.verification,
+    1,
+    "session trace tool should preserve nested work_event_counts.by_event_type in structured content"
+  );
+  assert.equal(
+    sessionTraceStructured?.session_trace?.sessions?.[0]?.evidence_counts?.verification_evidence_records_total,
+    1,
+    "session trace tool should preserve evidence_counts.verification_evidence_records_total in structured content"
+  );
+  assert.equal(
+    sessionTraceListStructured?.session_trace?.sessions?.[0]?.session_id,
+    "session:smoke-1",
+    "session trace list route should return the mocked sessions envelope"
+  );
+  assert.equal(
     verificationStructured?.verification_evidence_records?.records?.length,
     1,
     "verification evidence tool should return the mocked records envelope"
@@ -238,7 +299,7 @@ try {
 
   assert.deepEqual(
     requestLog.map((request) => request.method),
-    ["GET", "GET", "GET"],
+    ["GET", "GET", "GET", "GET"],
     "cross-session read tools should only issue GET requests"
   );
   assert.ok(
@@ -249,6 +310,15 @@ try {
         request.searchParams.get("limit") === "5"
     ),
     "session trace tool should call the session-specific GET trace route"
+  );
+  assert.ok(
+    requestLog.some(
+      (request) =>
+        request.pathname === "/api/sessions/trace" &&
+        request.searchParams.get("scope") === "project:augnes" &&
+        request.searchParams.get("limit") === "5"
+    ),
+    "session trace tool should call the GET trace list route"
   );
   assert.ok(
     requestLog.some(
