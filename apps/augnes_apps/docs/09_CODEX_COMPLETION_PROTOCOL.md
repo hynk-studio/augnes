@@ -60,6 +60,36 @@ npm run codex:record-completion
 
 `CODEX_RELATED_PR` and `CODEX_RELATED_STATE_KEYS` are the core trace fields that connect GitHub history back to Augnes continuity. `CODEX_RELATED_PR` points from the work event to the PR where Codex changed or verified the repo. `CODEX_RELATED_STATE_KEYS` names the committed state lanes or expected state lanes the work depended on, affected, or verified. Together with `CODEX_WORK_ID`, they let reviewers move from PR, to work trace, to state graph without giving GitHub or ChatGPT App authority over committed Augnes state.
 
+Optionally bind the current Codex session after the local runtime has a
+pre-existing session row:
+
+```bash
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_SESSION_ID=session:... \
+CODEX_SESSION_SURFACE=codex \
+CODEX_WORK_ID=AG-004 \
+CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/..." \
+CODEX_SESSION_SUMMARY="Short continuity summary for this Codex session." \
+CODEX_EVIDENCE_PACK_REF="evidence-pack:..." \
+npm run codex:bind-session
+```
+
+The bind helper calls only `POST /api/sessions/bind`. It fails closed when the
+session row does not already exist, validates `CODEX_SESSION_ID` before POST,
+defaults `CODEX_SESSION_SURFACE` to `codex`, and records metadata only:
+surface, actor, related work ID, related PR, summary, handoff ref, and Evidence
+Pack ref. It does not execute Codex, call GitHub/OpenAI, create evidence,
+approve, publish, replay, or mutate work/evidence/publication/delivery/readiness
+mailbox/state rows.
+
+Read back the trace with:
+
+```bash
+curl -sS "http://localhost:3000/api/sessions/trace?scope=project:augnes" | jq .
+curl -sS "http://localhost:3000/api/sessions/session:.../trace?scope=project:augnes" | jq .
+```
+
 Allowed `CODEX_RESULT_STATUS` values:
 
 - `completed`

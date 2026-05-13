@@ -11,6 +11,107 @@ export const mailboxCoordinationEventTypes = [
   "mailbox_message_expired",
 ];
 
+export const sessionBindingColumns = [
+  {
+    name: "surface",
+    definition:
+      "TEXT CHECK (surface IS NULL OR surface IN ('chatgpt', 'codex', 'cockpit', 'browser', 'github', 'local_runtime', 'other'))",
+  },
+  { name: "actor", definition: "TEXT" },
+  { name: "related_work_id", definition: "TEXT" },
+  { name: "related_pr", definition: "TEXT" },
+  { name: "summary", definition: "TEXT" },
+  { name: "handoff_ref", definition: "TEXT" },
+  { name: "evidence_pack_ref", definition: "TEXT" },
+];
+
+export const sessionBindingIndexes = [
+  {
+    name: "idx_sessions_scope_surface_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_sessions_scope_surface_time
+        ON sessions(scope, surface, started_at DESC)
+    `,
+  },
+  {
+    name: "idx_sessions_scope_work_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_sessions_scope_work_time
+        ON sessions(scope, related_work_id, started_at DESC)
+    `,
+  },
+  {
+    name: "idx_sessions_scope_pr_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_sessions_scope_pr_time
+        ON sessions(scope, related_pr, started_at DESC)
+    `,
+  },
+];
+
+export function migrateSessionBindingColumns(db) {
+  const table = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'sessions'
+      `,
+    )
+    .get();
+
+  if (!table) {
+    return {
+      table_found: false,
+      added_columns: [],
+      created_indexes: [],
+    };
+  }
+
+  const existingColumns = new Set(
+    db
+      .prepare("PRAGMA table_info(sessions)")
+      .all()
+      .map((column) => column.name),
+  );
+  const addedColumns = [];
+
+  for (const { name, definition } of sessionBindingColumns) {
+    if (!existingColumns.has(name)) {
+      db.prepare(`ALTER TABLE sessions ADD COLUMN ${name} ${definition}`).run();
+      addedColumns.push(name);
+    }
+  }
+
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = 'sessions'
+        `,
+      )
+      .all()
+      .map((index) => index.name),
+  );
+  const createdIndexes = [];
+
+  for (const { name, sql } of sessionBindingIndexes) {
+    if (!existingIndexes.has(name)) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    added_columns: addedColumns,
+    created_indexes: createdIndexes,
+  };
+}
+
 export function migrateStateDeltaProposalScoring(db) {
   const table = db
     .prepare(

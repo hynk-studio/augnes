@@ -14,8 +14,34 @@ CREATE TABLE IF NOT EXISTS sessions (
   title TEXT NOT NULL,
   started_at TEXT NOT NULL DEFAULT (datetime('now')),
   ended_at TEXT,
+  surface TEXT CHECK (
+    surface IS NULL OR surface IN (
+      'chatgpt',
+      'codex',
+      'cockpit',
+      'browser',
+      'github',
+      'local_runtime',
+      'other'
+    )
+  ),
+  actor TEXT,
+  related_work_id TEXT,
+  related_pr TEXT,
+  summary TEXT,
+  handoff_ref TEXT,
+  evidence_pack_ref TEXT,
   FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_sessions_scope_surface_time
+  ON sessions(scope, surface, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_scope_work_time
+  ON sessions(scope, related_work_id, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_scope_pr_time
+  ON sessions(scope, related_pr, started_at DESC);
 
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,

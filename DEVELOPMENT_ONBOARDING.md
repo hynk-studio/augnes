@@ -35,7 +35,8 @@ C5 delivery external artifact persistence complete
 Evidence Pack v0.1 read-only API/Cockpit review bundle complete
 Structured verification/replay evidence records v0.1 complete
 Codex structured verification evidence helper complete
-Codex structured evidence closeout workflow in progress
+Codex structured evidence closeout workflow complete
+Session Binding v0.1 trace hardening in progress
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -64,12 +65,22 @@ still must not create records, execute replay, attempt duplicate publish, call
 GitHub, call OpenAI, or add approval/publish authority. The Codex helper for
 recording those structured evidence records through the local Augnes API is
 complete. The current narrow follow-up makes structured evidence record IDs, or
-the exact skipped reason, part of the standard Codex PR closeout workflow. The
-next likely product track after this closeout slice is:
+the exact skipped reason, part of the standard Codex PR closeout workflow.
+Session Binding v0.1 is the next narrow trace-hardening slice: existing
+`sessions` rows gain nullable metadata for surface, actor, related work ID,
+related PR, summary, handoff ref, and Evidence Pack ref. The local runtime
+exposes `POST /api/sessions/bind`, `GET /api/sessions/trace`, and
+`GET /api/sessions/{session_id}/trace`. The bind route fails closed for unknown
+sessions and updates only session metadata. Trace routes are read-only and
+connect sessions to bounded message counts, work events, action records, and
+verification evidence records where refs exist. They do not execute Codex, call
+GitHub/OpenAI, approve, publish, replay, or mutate work/evidence/publication/
+delivery/readiness/mailbox/state records. The next likely product track after
+this trace slice is:
 
 ```text
-Choose the next productization slice after Evidence Pack v0.1: session model,
-temporal interpretation hardening, ChatGPT Apps cross-session tools, Codex
+Choose the next productization slice after Session Binding v0.1: temporal
+interpretation hardening, ChatGPT Apps cross-session read tools, a fuller Codex
 session adapter, Cockpit write-control design, GitHub App/token model, or retry
 design if needed.
 ```
@@ -287,8 +298,9 @@ Next default decision:
 
 ```text
 Choose the next productization slice after C5 live evidence and delivery
-external artifact persistence: session model, temporal interpretation, ChatGPT
-Apps cross-session tools, Codex session adapter, Cockpit write-control design,
+external artifact persistence and Evidence Pack closeout: Session Binding v0.1
+trace hardening first, then temporal interpretation, ChatGPT Apps cross-session
+read tools, a fuller Codex session adapter, Cockpit write-control design,
 GitHub App/token model, or retry design if needed.
 ```
 

@@ -5,6 +5,7 @@ import { dbPath, openDatabase } from "./db-common.mjs";
 import {
   migrateDeliveryExternalArtifacts,
   migrateMailboxCoordinationEventTypes,
+  migrateSessionBindingColumns,
   migrateStateDeltaProposalScoring,
   migrateVerificationEvidenceRecords,
 } from "./db-migrations.mjs";
@@ -25,6 +26,7 @@ try {
   if (mailboxResult.rebuilt_coordination_events) {
     db.exec(readFileSync(schemaPath, "utf8"));
   }
+  const sessionBindingResult = migrateSessionBindingColumns(db);
   const deliveryArtifactsResult = migrateDeliveryExternalArtifacts(db);
   const verificationEvidenceResult = migrateVerificationEvidenceRecords(db);
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
@@ -59,6 +61,33 @@ try {
   if (mailboxResult.rebuilt_coordination_events) {
     console.log(
       `Migrated coordination_events event_type constraint for mailbox lifecycle events at ${dbPath}`,
+    );
+  }
+
+  if (!sessionBindingResult.table_found) {
+    console.log(
+      `Session binding migration skipped: sessions table was not found at ${dbPath}`,
+    );
+  } else if (
+    sessionBindingResult.added_columns.length === 0 &&
+    sessionBindingResult.created_indexes.length === 0
+  ) {
+    console.log(`Session binding migration no-op: sessions schema is current at ${dbPath}`);
+  } else {
+    console.log(`Migrated session binding columns at ${dbPath}`);
+    console.log(
+      `Added columns: ${
+        sessionBindingResult.added_columns.length > 0
+          ? sessionBindingResult.added_columns.join(", ")
+          : "none"
+      }`,
+    );
+    console.log(
+      `Created indexes: ${
+        sessionBindingResult.created_indexes.length > 0
+          ? sessionBindingResult.created_indexes.join(", ")
+          : "none"
+      }`,
     );
   }
 

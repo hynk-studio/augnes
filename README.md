@@ -79,6 +79,7 @@ The current challenge build includes:
 - ChatGPT App read tools for state and work briefs, with bridge-gated write tools for action and work-event proof.
 - `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
 - `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
+- `npm run codex:bind-session` for binding a pre-existing session row to Codex/work/PR continuity metadata.
 - MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
 
 ## Single-Repo Layout
@@ -92,11 +93,12 @@ The challenge submission is now a single GitHub repository:
 
 ## Coordination Layers
 
-Augnes now has three visible coordination layers:
+Augnes now has four visible coordination layers:
 
 1. Project-level Current Work answers "Where are we?" for the whole project.
 2. Work-level Trace Spine / Work Focus answers "Where is AG-001?" for a specific work item.
 3. Completion / Proof records what changed, why, and which agent or tool produced the result.
+4. Session Binding v0.1 answers "Which human/tool session carried this work/PR/evidence context?"
 
 These layers do not replace the commit/reject gate. Committed Augnes state remains the source of truth. A `work_id` is only a trace anchor. `action_records` are official execution proof. `work_events` are human-readable trace notes.
 
@@ -328,6 +330,21 @@ rows directly.
 Codex PR closeout should report the returned evidence IDs in the PR template.
 When the local runtime or evidence API is unavailable, the PR should state the
 exact reason structured evidence rows were skipped.
+
+Codex sessions can be bound to an existing Augnes session row with:
+
+```bash
+npm run codex:bind-session
+```
+
+The helper calls only `POST /api/sessions/bind`, fails when
+`CODEX_SESSION_ID` is missing or unknown, and records metadata such as
+`CODEX_SESSION_SURFACE`, `CODEX_WORK_ID`, `CODEX_RELATED_PR`,
+`CODEX_SESSION_SUMMARY`, `CODEX_HANDOFF_REF`, and `CODEX_EVIDENCE_PACK_REF`.
+Trace can be read with `GET /api/sessions/trace` or
+`GET /api/sessions/{session_id}/trace`. Session binding does not execute Codex,
+call GitHub/OpenAI, record evidence, approve, publish, replay, or mutate
+publication/approval/readiness/delivery/mailbox/state rows.
 
 ## External State Brief
 
