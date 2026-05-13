@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "inspect": "npx @modelcontextprotocol/inspector@latest --server-url http://localhost:8787/mcp --transport http",
     "smoke": "tsx scripts/smoke.ts",
+    "smoke:cross-session-read-tools": "tsx scripts/smoke-cross-session-read-tools.ts",
     "invariants": "node --import tsx scripts/invariants.ts",
     "codex:read-brief": "tsx scripts/codex-read-brief.ts",
     "codex:record-result": "tsx scripts/codex-record-result.ts",

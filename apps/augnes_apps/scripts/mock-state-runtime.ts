@@ -2,20 +2,26 @@ import type {
   ActionRecordResult,
   CodexResultReviewDraft,
   ControlPacket,
+  EvidencePackResult,
   GeneratedHandoffDraft,
   GenerateHandoffDraftInput,
   MailboxSummaryResult,
   ObserveResult,
   PlanResult,
   PublicationSummaryResult,
+  SessionTraceResult,
   StateBrief,
   StateRuntimeActionResultInput,
   StateRuntimeBridgeAdapter,
+  StateRuntimeEvidencePackInput,
   StateRuntimeMessageInput,
   StateRuntimeProposal,
   StateRuntimeScope,
+  StateRuntimeSessionTraceInput,
+  StateRuntimeVerificationEvidenceRecordsInput,
   StateRuntimeWorkEventInput,
   ReviewCodexResultDraftInput,
+  VerificationEvidenceRecordsResult,
   WorkBrief,
   WorkEventResult,
   WorkItem,
@@ -45,6 +51,22 @@ const workItem: WorkItem = {
   created_at: "2026-05-07T00:00:00.000Z",
   updated_at: "2026-05-07T00:05:00.000Z",
 };
+
+const verificationEvidenceRecord = {
+  evidence_id: "evidence:smoke-1",
+  scope: "project:augnes",
+  work_id: "AG-001",
+  publication_id: null,
+  delivery_id: null,
+  target_surface: "chatgpt_developer_mode",
+  target_ref: "local-bridge",
+  evidence_kind: "check_passed",
+  status: "passed",
+  label: "Bridge smoke verification",
+  summary: "Mock verification evidence record for cross-session read tooling.",
+  created_at: "2026-05-08T00:00:00.000Z",
+  updated_at: "2026-05-08T00:00:00.000Z",
+} as const;
 
 export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter {
   async getStateBrief(scope: StateRuntimeScope): Promise<StateBrief> {
@@ -112,6 +134,126 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
           },
         ],
       },
+    };
+  }
+
+  async getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult> {
+    return {
+      scope: input.scope,
+      generated_at: "2026-05-08T00:00:00.000Z",
+      source_refs: {
+        state_brief: `/api/state/brief?scope=${encodeURIComponent(input.scope)}`,
+        work_brief: input.workId
+          ? `/api/work/${input.workId.toUpperCase()}/brief?scope=${encodeURIComponent(input.scope)}`
+          : null,
+      },
+      filters: {
+        work_id: input.workId ?? null,
+        publication_id: input.publicationId ?? null,
+        delivery_id: input.deliveryId ?? null,
+        target_ref: input.targetRef ?? null,
+      },
+      records: [verificationEvidenceRecord],
+      boundaries: [
+        "Read-only derived evidence pack.",
+        "Does not create evidence records, bind sessions, publish externally, or mutate Augnes state.",
+      ],
+    };
+  }
+
+  async getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult> {
+    const session = {
+      session_id: input.sessionId ?? "session:smoke-1",
+      surface: "chatgpt_developer_mode",
+      actor: "chatgpt",
+      title: "Bridge smoke session",
+      summary: "Mock cross-session continuity view for bridge smoke validation.",
+      related_work_id: "AG-001",
+      related_pr: null,
+      handoff_ref: "handoff:smoke-draft-1",
+      evidence_pack_ref: "/api/evidence-pack?scope=project%3Aaugnes&work_id=AG-001",
+      started_at: "2026-05-08T00:00:00.000Z",
+      ended_at: "2026-05-08T00:10:00.000Z",
+      message_count: 4,
+      latest_message: {
+        role: "assistant",
+        created_at: "2026-05-08T00:10:00.000Z",
+        summary: "Summarized the current state of the bridge smoke task.",
+      },
+      work_event_counts: {
+        total: 2,
+        verification: 1,
+        handoff: 1,
+      },
+      action_records_by_session_count: 1,
+      verification_evidence_records_total: 1,
+      latest_work_event: {
+        summary: "Recorded bridge smoke verification.",
+        result_status: "completed",
+        result_kind: "verification",
+        created_at: "2026-05-08T00:11:00.000Z",
+      },
+      latest_evidence_record: {
+        evidence_id: verificationEvidenceRecord.evidence_id,
+        kind: verificationEvidenceRecord.evidence_kind,
+        status: verificationEvidenceRecord.status,
+        label: verificationEvidenceRecord.label,
+        created_at: verificationEvidenceRecord.created_at,
+      },
+      gaps: [],
+    };
+
+    if (input.sessionId) {
+      return {
+        ...session,
+        scope: input.scope,
+        generated_at: "2026-05-08T00:12:00.000Z",
+        boundaries: [
+          "Read-only session trace view.",
+          "Does not bind, create, or update sessions.",
+        ],
+      };
+    }
+
+    return {
+      scope: input.scope,
+      generated_at: "2026-05-08T00:12:00.000Z",
+      sessions: [session],
+      session_count: 1,
+      action_records_by_session: {
+        [session.session_id]: 1,
+      },
+      gaps: [],
+      boundaries: [
+        "Read-only session trace view.",
+        "Does not bind, create, or update sessions.",
+      ],
+    };
+  }
+
+  async getVerificationEvidenceRecords(
+    input: StateRuntimeVerificationEvidenceRecordsInput
+  ): Promise<VerificationEvidenceRecordsResult> {
+    return {
+      scope: input.scope,
+      generated_at: "2026-05-08T00:00:00.000Z",
+      count: 1,
+      records: [
+        {
+          ...verificationEvidenceRecord,
+          work_id: input.workId ?? verificationEvidenceRecord.work_id,
+          publication_id: input.publicationId ?? verificationEvidenceRecord.publication_id,
+          delivery_id: input.deliveryId ?? verificationEvidenceRecord.delivery_id,
+          target_surface: input.targetSurface ?? verificationEvidenceRecord.target_surface,
+          target_ref: input.targetRef ?? verificationEvidenceRecord.target_ref,
+          evidence_kind: input.evidenceKind ?? verificationEvidenceRecord.evidence_kind,
+          status: input.status ?? verificationEvidenceRecord.status,
+        },
+      ],
+      boundaries: [
+        "Read-only verification evidence record list.",
+        "Does not create evidence rows, publish externally, or mutate state.",
+      ],
     };
   }
 

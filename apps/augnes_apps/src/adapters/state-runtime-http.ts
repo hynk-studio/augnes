@@ -3,34 +3,45 @@ import {
   ActionRecordResultSchema,
   CodexResultReviewDraftSchema,
   ControlPacketSchema,
+  EvidencePackResultSchema,
   GeneratedHandoffDraftSchema,
   MailboxSummaryResultSchema,
   ObserveResultSchema,
   PendingProposalsResultSchema,
   PlanResultSchema,
   PublicationSummaryResultSchema,
+  SessionTraceResultSchema,
   StateBriefSchema,
+  StateRuntimeLimitSchema,
   StateRuntimeScopeSchema,
+  VerificationEvidenceRecordsResultSchema,
   WorkBriefSchema,
   WorkEventResultSchema,
   WorkListResultSchema,
   type ActionRecordResult,
   type CodexResultReviewDraft,
   type ControlPacket,
+  type EvidencePackResult,
   type GeneratedHandoffDraft,
   type GenerateHandoffDraftInput,
   type MailboxSummaryResult,
   type ObserveResult,
   type PlanResult,
   type PublicationSummaryResult,
+  type SessionTraceResult,
   type StateBrief,
   type StateRuntimeActionResultInput,
   type StateRuntimeBridgeAdapter,
+  type StateRuntimeEvidencePackInput,
+  type StateRuntimeLimit,
   type StateRuntimeMessageInput,
   type StateRuntimeProposal,
   type StateRuntimeScope,
+  type StateRuntimeSessionTraceInput,
+  type StateRuntimeVerificationEvidenceRecordsInput,
   type StateRuntimeWorkEventInput,
   type ReviewCodexResultDraftInput,
+  type VerificationEvidenceRecordsResult,
   type WorkBrief,
   type WorkEventResult,
   type WorkItem,
@@ -40,6 +51,10 @@ const DEFAULT_API_BASE_URL = "http://localhost:3000";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
+  evidencePack: { method: "GET", path: "/api/evidence-pack" },
+  sessionTrace: { method: "GET", path: "/api/sessions/trace" },
+  sessionTraceById: { method: "GET", path: "/api/sessions" },
+  verificationEvidenceRecords: { method: "GET", path: "/api/evidence/records" },
   observe: { method: "POST", path: "/api/observe" },
   plan: { method: "POST", path: "/api/plan" },
   recordActionResult: { method: "POST", path: "/api/actions/record" },
@@ -104,6 +119,17 @@ function parseScope(scope: StateRuntimeScope): StateRuntimeScope {
   return parsed.data;
 }
 
+function parseLimit(limit: StateRuntimeLimit | undefined): string | undefined {
+  if (limit === undefined) return undefined;
+
+  const parsed = StateRuntimeLimitSchema.safeParse(limit);
+  if (!parsed.success) {
+    throw new AugnesStateRuntimeHttpError("Augnes state runtime limit must be an integer between 1 and 50.");
+  }
+
+  return String(parsed.data);
+}
+
 async function readJson(response: Response, label: string): Promise<unknown> {
   const text = await response.text();
   if (!text) return null;
@@ -148,6 +174,76 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       "state brief",
       {
         query: { scope: parseScope(scope) },
+      }
+    );
+  }
+
+  async getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult> {
+    return this.requestJson(
+      endpointContract.evidencePack.method,
+      endpointContract.evidencePack.path,
+      EvidencePackResultSchema,
+      "evidence pack",
+      {
+        query: {
+          scope: parseScope(input.scope),
+          work_id: input.workId,
+          publication_id: input.publicationId,
+          delivery_id: input.deliveryId,
+          target_ref: input.targetRef,
+        },
+      }
+    );
+  }
+
+  async getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult> {
+    const scope = parseScope(input.scope);
+    const limit = parseLimit(input.limit);
+    const normalizedSessionId = input.sessionId?.trim();
+
+    if (normalizedSessionId) {
+      return this.requestJson(
+        endpointContract.sessionTraceById.method,
+        `${endpointContract.sessionTraceById.path}/${encodeURIComponent(normalizedSessionId)}/trace`,
+        SessionTraceResultSchema,
+        "session trace",
+        {
+          query: { scope, limit },
+        }
+      );
+    }
+
+    return this.requestJson(
+      endpointContract.sessionTrace.method,
+      endpointContract.sessionTrace.path,
+      SessionTraceResultSchema,
+      "session trace",
+      {
+        query: { scope, limit },
+      }
+    );
+  }
+
+  async getVerificationEvidenceRecords(
+    input: StateRuntimeVerificationEvidenceRecordsInput
+  ): Promise<VerificationEvidenceRecordsResult> {
+    return this.requestJson(
+      endpointContract.verificationEvidenceRecords.method,
+      endpointContract.verificationEvidenceRecords.path,
+      VerificationEvidenceRecordsResultSchema,
+      "verification evidence records",
+      {
+        query: {
+          scope: parseScope(input.scope),
+          work_id: input.workId,
+          publication_id: input.publicationId,
+          delivery_id: input.deliveryId,
+          target_surface: input.targetSurface,
+          target_ref: input.targetRef,
+          evidence_kind: input.evidenceKind,
+          status: input.status,
+          limit: parseLimit(input.limit),
+        },
       }
     );
   }

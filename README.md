@@ -77,7 +77,7 @@ The current challenge build includes:
 - Work Trace Spine and Work Focus for `AG-xxx` task context.
 - Work APIs for listing work items, reading work briefs, and recording work events.
 - Read-only Cockpit Session Trace continuity panel for already-bound sessions.
-- ChatGPT App read tools for state and work briefs, with bridge-gated write tools for action and work-event proof.
+- ChatGPT App read tools for state/work briefs and bridge-gated cross-session continuity reads, with bridge-gated write tools for action and work-event proof.
 - `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
 - `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
 - `npm run codex:bind-session` for binding a pre-existing session row to Codex/work/PR continuity metadata.
@@ -390,6 +390,9 @@ Augnes also has a bridge proof through the nested package `apps/augnes_apps`.
 The bridge exposes the Augnes runtime to MCP-compatible clients and ChatGPT Developer Mode through tools such as:
 
 - `augnes_get_state_brief`
+- `augnes_get_evidence_pack`
+- `augnes_get_session_trace`
+- `augnes_get_verification_evidence_records`
 - `augnes_observe`
 - `augnes_plan`
 - `augnes_record_action_result`
@@ -404,6 +407,12 @@ The work-specific ChatGPT App tools are:
 - `augnes_record_work_event`: bridge-gated write tool for recording human-readable work trace notes.
 
 `augnes_record_work_event` is only available when the bridge is explicitly enabled with `AUGNES_ENABLE_AGENT_BRIDGE=true`. Recording a work event does not commit or reject state proposals. ChatGPT App bridge tools do not get commit/reject authority.
+
+When the runtime exposes the cross-session continuity routes, bridge-enabled
+mode also provides read-only access to the derived Evidence Pack, Session
+Trace, and Verification Evidence Records views. These tools do not bind or
+create sessions, create evidence rows, approve/publish/replay publications,
+call GitHub or OpenAI, execute Codex, or mutate Augnes state.
 
 Local bridge and Developer Mode validation covered two flows:
 

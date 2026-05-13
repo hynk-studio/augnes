@@ -15,12 +15,17 @@ import { config } from "./lib/config.js";
 import { withPresentation } from "./lib/profile.js";
 import { sanitizeValue } from "./lib/sanitize.js";
 import {
+  EvidencePackToolInputSchema,
+  SessionTraceToolInputSchema,
   StateRuntimeActionResultKindSchema,
   StateRuntimeActionResultStatusSchema,
+  VerificationEvidenceRecordsToolInputSchema,
   type ControlPacket,
   type PublicationSummaryResult,
+  type SessionTraceResult,
   type StateBrief,
   type StateRuntimeBridgeAdapter,
+  type VerificationEvidenceRecordsResult,
   type WorkBrief,
   type WorkItem,
 } from "./lib/state-runtime-types.js";
@@ -44,6 +49,9 @@ export const LEGACY_PUBLIC_TOOL_NAMES = [
 ] as const;
 export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_get_state_brief",
+  "augnes_get_evidence_pack",
+  "augnes_get_session_trace",
+  "augnes_get_verification_evidence_records",
   "augnes_observe",
   "augnes_plan",
   "augnes_record_action_result",
@@ -77,6 +85,19 @@ const bridgeWriteAnnotations = {
   readOnlyHint: false,
   destructiveHint: false,
   openWorldHint: true,
+} as const;
+const crossSessionReadBoundaries = {
+  read_only: true,
+  approval_authority: false,
+  publish_authority: false,
+  replay_authority: false,
+  state_commit_or_reject: false,
+  session_bind_create_or_update: false,
+  evidence_record_creation: false,
+  github_calls: false,
+  openai_calls: false,
+  codex_execution: false,
+  source_of_truth: false,
 } as const;
 export const WIDGET_CSP = {
   connectDomains: [],
@@ -214,6 +235,90 @@ function describeStateBrief(brief: StateBrief): string {
     : "";
 
   return `State brief for ${brief.scope}: ${stateBlockCount(brief.active_state)} active, ${brief.pending_proposals.length} pending, ${brief.recent_actions.length} recent action(s), ${brief.open_tensions.length} open tension(s).${agentHandoffSuffix}`;
+}
+
+function summarizeNamedFilters(entries: Array<[string, string | undefined]>): string {
+  const parts = entries.filter(([, value]) => value).map(([label, value]) => `${label}=${value}`);
+  return parts.length ? parts.join(", ") : "no additional filters";
+}
+
+function describeEvidencePack(
+  scope: string,
+  filters: {
+    workId?: string;
+    publicationId?: string;
+    deliveryId?: string;
+    targetRef?: string;
+  }
+): string {
+  return [
+    `Read-only evidence pack for ${scope} with ${summarizeNamedFilters([
+      ["work_id", filters.workId],
+      ["publication_id", filters.publicationId],
+      ["delivery_id", filters.deliveryId],
+      ["target_ref", filters.targetRef],
+    ])}.`,
+    "This tool does not create evidence rows, bind sessions, publish, replay, approve, mutate state, call GitHub or OpenAI, or execute Codex.",
+  ].join(" ");
+}
+
+function isSessionTraceListResult(trace: SessionTraceResult): trace is Extract<SessionTraceResult, { sessions: unknown[] }> {
+  return Object.prototype.hasOwnProperty.call(trace, "sessions") && Array.isArray((trace as { sessions?: unknown }).sessions);
+}
+
+function describeSessionTrace(scope: string, trace: SessionTraceResult, sessionId?: string): string {
+  if (isSessionTraceListResult(trace)) {
+    const sessionCount = trace.session_count ?? trace.sessions.length;
+    const gapCount = trace.gaps?.length ?? 0;
+    return [
+      `Read-only session trace for ${scope}: ${sessionCount} session(s), ${gapCount} top-level gap(s).`,
+      "This tool does not bind, create, or update sessions; create evidence; publish, replay, approve, mutate state, call GitHub or OpenAI, or execute Codex.",
+    ].join(" ");
+  }
+
+  const resolvedSessionId = sessionId ?? trace.session_id;
+  const gapCount = trace.gaps?.length ?? 0;
+  return [
+    `Read-only session trace for ${resolvedSessionId} in ${scope}: ${gapCount} gap(s) in this bounded view.`,
+    "This tool does not bind, create, or update sessions; create evidence; publish, replay, approve, mutate state, call GitHub or OpenAI, or execute Codex.",
+  ].join(" ");
+}
+
+function countVerificationEvidenceRecords(result: VerificationEvidenceRecordsResult): number {
+  if (Array.isArray(result)) {
+    return result.length;
+  }
+
+  return result.records?.length ?? result.items?.length ?? result.count ?? 0;
+}
+
+function describeVerificationEvidenceRecords(
+  scope: string,
+  result: VerificationEvidenceRecordsResult,
+  filters: {
+    workId?: string;
+    publicationId?: string;
+    deliveryId?: string;
+    targetSurface?: string;
+    targetRef?: string;
+    evidenceKind?: string;
+    status?: string;
+    limit?: number;
+  }
+): string {
+  return [
+    `Read-only verification evidence records for ${scope}: ${countVerificationEvidenceRecords(result)} record(s) with ${summarizeNamedFilters([
+      ["work_id", filters.workId],
+      ["publication_id", filters.publicationId],
+      ["delivery_id", filters.deliveryId],
+      ["target_surface", filters.targetSurface],
+      ["target_ref", filters.targetRef],
+      ["evidence_kind", filters.evidenceKind],
+      ["status", filters.status],
+      ["limit", filters.limit === undefined ? undefined : String(filters.limit)],
+    ])}.`,
+    "This tool does not create evidence rows, bind sessions, publish, replay, approve, mutate state, call GitHub or OpenAI, or execute Codex.",
+  ].join(" ");
 }
 
 function describeWorkItems(scope: string, workItems: WorkItem[]): string {
@@ -841,7 +946,7 @@ export function createMcpAppServer(
       "augnes_get_state_brief",
       {
         title: "Get Augnes state brief",
-        description: "Return a compact Augnes runtime state brief for an agent scope.",
+        description: "Read-only: return a compact Augnes runtime state brief for an agent scope.",
         inputSchema: { scope: z.string().min(1).optional() },
         annotations: bridgeReadAnnotations,
         _meta: modelOnlyToolMeta,
@@ -859,6 +964,143 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_get_state_brief", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_evidence_pack",
+      {
+        title: "Get Augnes evidence pack",
+        description:
+          "Read-only: return the derived Augnes Evidence Pack view for a scope and optional work/publication/delivery/target filters. This tool does not create evidence records, bind sessions, publish, replay, approve, mutate state, call GitHub or OpenAI, or execute Codex.",
+        inputSchema: EvidencePackToolInputSchema.shape,
+        annotations: bridgeReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, workId, publicationId, deliveryId, targetRef }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const evidencePack = await stateRuntimeAdapter.getEvidencePack({
+            scope: resolvedScope,
+            workId,
+            publicationId,
+            deliveryId,
+            targetRef,
+          });
+          const structuredContent = {
+            profile: config.appProfile,
+            evidence_pack: evidencePack,
+            boundaries: crossSessionReadBoundaries,
+          };
+
+          return {
+            structuredContent,
+            content: narrative(
+              describeEvidencePack(resolvedScope, {
+                workId,
+                publicationId,
+                deliveryId,
+                targetRef,
+              })
+            ),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_evidence_pack", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_session_trace",
+      {
+        title: "Get Augnes session trace",
+        description:
+          "Read-only: return the bounded Augnes Session Trace continuity view for a scope or one bound session. This tool does not bind, create, or update sessions; create evidence records; publish, replay, approve, mutate state, call GitHub or OpenAI, or execute Codex.",
+        inputSchema: SessionTraceToolInputSchema.shape,
+        annotations: bridgeReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, sessionId, limit }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const sessionTrace = await stateRuntimeAdapter.getSessionTrace({
+            scope: resolvedScope,
+            sessionId,
+            limit,
+          });
+          const structuredContent = {
+            profile: config.appProfile,
+            session_trace: sessionTrace,
+            boundaries: crossSessionReadBoundaries,
+          };
+
+          return {
+            structuredContent,
+            content: narrative(describeSessionTrace(resolvedScope, sessionTrace, sessionId)),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_session_trace", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_verification_evidence_records",
+      {
+        title: "Get Augnes verification evidence records",
+        description:
+          "Read-only: return structured Augnes verification evidence records for a scope and optional work/publication/delivery/target filters. This tool does not create evidence records, bind sessions, publish, replay, approve, mutate state, call GitHub or OpenAI, or execute Codex.",
+        inputSchema: VerificationEvidenceRecordsToolInputSchema.shape,
+        annotations: bridgeReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, workId, publicationId, deliveryId, targetSurface, targetRef, evidenceKind, status, limit }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const verificationEvidenceRecords = await stateRuntimeAdapter.getVerificationEvidenceRecords({
+            scope: resolvedScope,
+            workId,
+            publicationId,
+            deliveryId,
+            targetSurface,
+            targetRef,
+            evidenceKind,
+            status,
+            limit,
+          });
+          const structuredContent = {
+            profile: config.appProfile,
+            verification_evidence_records: verificationEvidenceRecords,
+            boundaries: crossSessionReadBoundaries,
+          };
+
+          return {
+            structuredContent,
+            content: narrative(
+              describeVerificationEvidenceRecords(resolvedScope, verificationEvidenceRecords, {
+                workId,
+                publicationId,
+                deliveryId,
+                targetSurface,
+                targetRef,
+                evidenceKind,
+                status,
+                limit,
+              })
+            ),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_verification_evidence_records", error);
         }
       }
     );

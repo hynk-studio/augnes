@@ -17,6 +17,9 @@ const INTENDED_LEGACY_TOOL_NAMES = [
 ] as const;
 const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_get_state_brief",
+  "augnes_get_evidence_pack",
+  "augnes_get_session_trace",
+  "augnes_get_verification_evidence_records",
   "augnes_observe",
   "augnes_plan",
   "augnes_record_action_result",
@@ -91,6 +94,9 @@ function assertLegacyTools(tools: Record<string, RegisteredTool>) {
 function assertBridgeTools(tools: Record<string, RegisteredTool>) {
   for (const name of [
     "augnes_get_state_brief",
+    "augnes_get_evidence_pack",
+    "augnes_get_session_trace",
+    "augnes_get_verification_evidence_records",
     "augnes_plan",
     "augnes_list_pending_proposals",
     "augnes_get_mailbox_summary",
