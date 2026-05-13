@@ -32,10 +32,14 @@ Public/default mode also exposes the two read-only Augnes work tools:
 
 Bridge-gated tools may be enabled for local operator workflows with
 `AUGNES_ENABLE_AGENT_BRIDGE=true`. They are not part of the public default
-surface. Current bridge-gated read-only summary tools include
+surface. Current bridge-gated read-only tools include
+`augnes_get_state_brief`, `augnes_get_evidence_pack`,
+`augnes_get_session_trace`, `augnes_get_verification_evidence_records`,
 `augnes_get_mailbox_summary`, `augnes_get_publication_summary`, and
 `augnes_get_publication_decision_card`; none are available in public/default
-mode.
+mode. The cross-session read tools require the corresponding runtime routes and
+remain read-only: no session bind/create/update, no evidence creation, no
+publish/replay/approval, no GitHub/OpenAI calls, and no Codex execution.
 
 For cross-surface decision/control roles, see
 `../../docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md`.
@@ -46,6 +50,7 @@ For cross-surface decision/control roles, see
 npm install
 npm run typecheck
 npm run smoke
+npm run smoke:cross-session-read-tools
 npm run invariants
 npm run dev
 ```
@@ -378,6 +383,20 @@ Mailbox summary verification should confirm:
   recording
 - repeated summary reads create no `action_records`, `work_events`, pending
   proposals, committed state transitions, or mailbox status changes
+
+## Bridge-gated cross-session read tools
+
+When `AUGNES_ENABLE_AGENT_BRIDGE=true` and `AUGNES_API_BASE_URL` points at a
+running Augnes runtime with the cross-session continuity routes, the bridge
+also exposes these read-only tools:
+
+- `augnes_get_evidence_pack` -> `GET /api/evidence-pack`
+- `augnes_get_session_trace` -> `GET /api/sessions/trace` or `GET /api/sessions/{session_id}/trace`
+- `augnes_get_verification_evidence_records` -> `GET /api/evidence/records`
+
+These tools are read-only continuity views. They do not bind, create, or update
+sessions; create evidence rows; approve, publish, or replay publications;
+commit or reject Augnes state; call GitHub or OpenAI; or execute Codex.
 
 ## Bridge-gated publication summaries
 

@@ -79,6 +79,9 @@ GitHub/OpenAI, approve, publish, replay, or mutate work/evidence/publication/
 delivery/readiness/mailbox/state records. Read-only Cockpit Session Trace
 surfacing is also complete: operators can load the bounded continuity view on
 demand without binding sessions, creating sessions, or adding write controls.
+The bridge package now also wraps the read-only cross-session continuity route
+contract for Evidence Pack, Session Trace, and Verification Evidence Records
+when those runtime routes are present.
 The next likely product track after this trace slice is:
 
 ```text
@@ -561,6 +564,9 @@ Bridge-gated ChatGPT App tools include:
 
 ```text
 augnes_get_state_brief
+augnes_get_evidence_pack
+augnes_get_session_trace
+augnes_get_verification_evidence_records
 augnes_list_work_items
 augnes_get_work_brief
 augnes_generate_codex_handoff_draft
@@ -574,8 +580,10 @@ augnes_record_work_event
 
 Public/default ChatGPT App mode must not expose bridge-gated write/draft tools.
 Public/default ChatGPT App mode must also not expose mailbox summary or
-publication summary tools; `augnes_get_mailbox_summary` and
-`augnes_get_publication_summary` are bridge-gated and read-only.
+publication summary tools; `augnes_get_mailbox_summary`,
+`augnes_get_publication_summary`, `augnes_get_evidence_pack`,
+`augnes_get_session_trace`, and `augnes_get_verification_evidence_records` are
+bridge-gated and read-only.
 `augnes_get_publication_decision_card` is also bridge-gated and read-only; it
 derives a user-facing publication decision card from the Control Packet and does
 not approve, publish, retry, record proof, commit/reject state, execute Codex,

@@ -90,6 +90,9 @@ Without `AUGNES_ENABLE_AGENT_BRIDGE=true`, the app remains public directory-safe
 With `AUGNES_ENABLE_AGENT_BRIDGE=true`, the Augnes bridge tools are also registered:
 
 - `augnes_get_state_brief`
+- `augnes_get_evidence_pack`
+- `augnes_get_session_trace`
+- `augnes_get_verification_evidence_records`
 - `augnes_observe`
 - `augnes_plan`
 - `augnes_record_action_result`
@@ -164,7 +167,17 @@ Use this flow to demonstrate ChatGPT interpretation, Codex implementation, GitHu
 
 When the Augnes runtime includes `agent_handoff` in `/api/state/brief`, `augnes_get_state_brief` preserves it under `structuredContent.brief.agent_handoff`. The packet is intended for current status, next action, blockers or open tensions, verification commands, and the action record template. It remains bridge-gated and does not add public default write tools.
 
-2. Ask for a state-grounded plan with `augnes_plan`.
+2. Read cross-session continuity views when the runtime exposes the routes.
+
+Use the bridge-gated read-only tools to inspect the derived continuity surfaces
+without binding sessions, creating evidence rows, publishing externally, or
+mutating Augnes state:
+
+- `augnes_get_evidence_pack` -> `GET /api/evidence-pack`
+- `augnes_get_session_trace` -> `GET /api/sessions/trace` or `GET /api/sessions/{session_id}/trace`
+- `augnes_get_verification_evidence_records` -> `GET /api/evidence/records`
+
+3. Ask for a state-grounded plan with `augnes_plan`.
 
 ```json
 {
@@ -173,7 +186,7 @@ When the Augnes runtime includes `agent_handoff` in `/api/state/brief`, `augnes_
 }
 ```
 
-3. Generate or copy a Codex Handoff Packet.
+4. Generate or copy a Codex Handoff Packet.
 
 Use `docs/CODEX_HANDOFF_PACKET.md` as the format. The handoff should name the `AG-xxx` work ID, related state keys, expected files, verification commands, expected surfaces, and safety boundaries. The handoff is a packet for the user or Codex to execute; it is not a ChatGPT App command to run Codex.
 
@@ -201,7 +214,7 @@ The tool creates a draft handoff record only. It does not call Codex, mark the
 handoff ready or delivered, commit or reject Augnes state, publish externally,
 post to GitHub or Discord, or create mailbox behavior.
 
-4. Let Codex perform a small repo task using its own capabilities, for example:
+5. Let Codex perform a small repo task using its own capabilities, for example:
 
 - Update a docs file.
 - Add a PR trace template.
@@ -209,7 +222,7 @@ post to GitHub or Discord, or create mailbox behavior.
 - Use GitHub to inspect or open a PR.
 - Use Browser/Chrome only for UI verification when a local runtime exists.
 
-5. Review the Codex result and prepare record drafts.
+6. Review the Codex result and prepare record drafts.
 
 Bridge-enabled mode can compare the reported Codex result against the handoff
 without recording proof through `augnes_review_codex_result_draft`:

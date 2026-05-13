@@ -1,6 +1,23 @@
 import { z } from "zod";
 
 export const StateRuntimeScopeSchema = z.string().min(1);
+export const StateRuntimeLimitSchema = z.number().int().min(1).max(50);
+export const EvidenceKindSchema = z.enum([
+  "command_run",
+  "check_passed",
+  "check_failed",
+  "check_skipped",
+  "replay_observed",
+  "duplicate_block_observed",
+]);
+export const EvidenceStatusSchema = z.enum([
+  "passed",
+  "failed",
+  "skipped",
+  "observed",
+  "blocked",
+  "needs_review",
+]);
 
 export const StateRuntimeStateItemSchema = z.record(z.unknown());
 export const StateRuntimeStateBlockSchema = z.union([
@@ -189,6 +206,162 @@ export const WorkListResultSchema = z
     work_items: z.array(WorkItemSchema),
   })
   .passthrough();
+
+export const EvidencePackToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+    workId: z.string().min(1).optional(),
+    publicationId: z.string().min(1).optional(),
+    deliveryId: z.string().min(1).optional(),
+    targetRef: z.string().min(1).optional(),
+  })
+  .strip();
+
+export const EvidencePackResultSchema = z
+  .object({
+    scope: z.string().optional(),
+    as_of: z.string().optional(),
+    generated_at: z.string().optional(),
+    boundaries: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
+export const SessionTraceToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+    sessionId: z.string().min(1).optional(),
+    limit: StateRuntimeLimitSchema.optional(),
+  })
+  .strip();
+
+export const SessionTraceLatestMessageSchema = z
+  .object({
+    role: z.string().nullable().optional(),
+    created_at: z.string().nullable().optional(),
+    date: z.string().nullable().optional(),
+    summary: z.string().nullable().optional(),
+    content_preview: z.string().nullable().optional(),
+    text: z.string().nullable().optional(),
+    message: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const SessionTraceLatestWorkEventSchema = z
+  .object({
+    summary: z.string().nullable().optional(),
+    status: z.string().nullable().optional(),
+    result_status: z.string().nullable().optional(),
+    kind: z.string().nullable().optional(),
+    result_kind: z.string().nullable().optional(),
+    event_type: z.string().nullable().optional(),
+    created_at: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const SessionTraceLatestEvidenceRecordSchema = z
+  .object({
+    evidence_id: z.string().nullable().optional(),
+    kind: z.string().nullable().optional(),
+    status: z.string().nullable().optional(),
+    label: z.string().nullable().optional(),
+    created_at: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export const SessionTraceSessionSchema = z
+  .object({
+    session_id: z.string(),
+    surface: z.string().nullable().optional(),
+    actor: z.string().nullable().optional(),
+    title: z.string().nullable().optional(),
+    summary: z.string().nullable().optional(),
+    related_work_id: z.string().nullable().optional(),
+    related_pr: z.string().nullable().optional(),
+    handoff_ref: z.string().nullable().optional(),
+    evidence_pack_ref: z.string().nullable().optional(),
+    started_at: z.string().nullable().optional(),
+    ended_at: z.string().nullable().optional(),
+    message_count: z.number().nullable().optional(),
+    latest_message: SessionTraceLatestMessageSchema.nullable().optional(),
+    work_event_counts: z.record(z.number().nullable()).nullable().optional(),
+    action_records_by_session: z.union([z.number(), z.array(z.unknown()), z.record(z.unknown())]).nullable().optional(),
+    action_records_by_session_count: z.number().nullable().optional(),
+    verification_evidence_records_total: z.number().nullable().optional(),
+    latest_work_event: SessionTraceLatestWorkEventSchema.nullable().optional(),
+    latest_evidence_record: SessionTraceLatestEvidenceRecordSchema.nullable().optional(),
+    gaps: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
+export const SessionTraceListResultSchema = z
+  .object({
+    scope: z.string().optional(),
+    generated_at: z.string(),
+    sessions: z.array(SessionTraceSessionSchema),
+    session_count: z.number().optional(),
+    action_records_by_session: z.record(z.union([z.number(), z.array(z.unknown())])).nullable().optional(),
+    gaps: z.array(z.string()).optional(),
+    boundaries: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
+export const SessionTraceSingleResultSchema = SessionTraceSessionSchema.extend({
+  scope: z.string().optional(),
+  generated_at: z.string().optional(),
+  action_records_by_session: z.record(z.union([z.number(), z.array(z.unknown())])).nullable().optional(),
+  boundaries: z.array(z.string()).optional(),
+}).passthrough();
+
+export const SessionTraceResultSchema = z.union([SessionTraceListResultSchema, SessionTraceSingleResultSchema]);
+
+export const VerificationEvidenceRecordsToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+    workId: z.string().min(1).optional(),
+    publicationId: z.string().min(1).optional(),
+    deliveryId: z.string().min(1).optional(),
+    targetSurface: z.string().min(1).optional(),
+    targetRef: z.string().min(1).optional(),
+    evidenceKind: EvidenceKindSchema.optional(),
+    status: EvidenceStatusSchema.optional(),
+    limit: StateRuntimeLimitSchema.optional(),
+  })
+  .strip();
+
+export const VerificationEvidenceRecordSchema = z
+  .object({
+    evidence_id: z.string().optional(),
+    scope: z.string().optional(),
+    work_id: z.string().nullable().optional(),
+    publication_id: z.string().nullable().optional(),
+    delivery_id: z.string().nullable().optional(),
+    target_surface: z.string().nullable().optional(),
+    target_ref: z.string().nullable().optional(),
+    evidence_kind: EvidenceKindSchema.nullable().optional(),
+    status: EvidenceStatusSchema.nullable().optional(),
+    label: z.string().nullable().optional(),
+    summary: z.string().nullable().optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+  })
+  .passthrough();
+
+export const VerificationEvidenceRecordsEnvelopeSchema = z
+  .object({
+    scope: z.string().optional(),
+    as_of: z.string().optional(),
+    generated_at: z.string().optional(),
+    boundaries: z.array(z.string()).optional(),
+    count: z.number().optional(),
+    records: z.array(VerificationEvidenceRecordSchema).optional(),
+    items: z.array(VerificationEvidenceRecordSchema).optional(),
+  })
+  .passthrough();
+
+export const VerificationEvidenceRecordsResultSchema = z.union([
+  z.array(VerificationEvidenceRecordSchema),
+  VerificationEvidenceRecordsEnvelopeSchema,
+]);
 
 export const WorkEventResultSchema = z
   .object({
@@ -498,6 +671,9 @@ export const PendingProposalsResultSchema = z.union([
 ]);
 
 export type StateRuntimeScope = z.infer<typeof StateRuntimeScopeSchema>;
+export type StateRuntimeLimit = z.infer<typeof StateRuntimeLimitSchema>;
+export type EvidenceKind = z.infer<typeof EvidenceKindSchema>;
+export type EvidenceStatus = z.infer<typeof EvidenceStatusSchema>;
 export type StateRuntimeStateItem = z.infer<typeof StateRuntimeStateItemSchema>;
 export type StateRuntimeStateBlock = z.infer<typeof StateRuntimeStateBlockSchema>;
 export type StateRuntimeProposal = z.infer<typeof StateRuntimeProposalSchema>;
@@ -512,6 +688,11 @@ export type StateRuntimeActionResultStatus = z.infer<typeof StateRuntimeActionRe
 export type StateRuntimeActionResultKind = z.infer<typeof StateRuntimeActionResultKindSchema>;
 export type WorkItem = z.infer<typeof WorkItemSchema>;
 export type WorkBrief = z.infer<typeof WorkBriefSchema>;
+export type EvidencePackResult = z.infer<typeof EvidencePackResultSchema>;
+export type SessionTraceSession = z.infer<typeof SessionTraceSessionSchema>;
+export type SessionTraceResult = z.infer<typeof SessionTraceResultSchema>;
+export type VerificationEvidenceRecord = z.infer<typeof VerificationEvidenceRecordSchema>;
+export type VerificationEvidenceRecordsResult = z.infer<typeof VerificationEvidenceRecordsResultSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
@@ -523,6 +704,32 @@ export type ControlPacket = z.infer<typeof ControlPacketSchema>;
 export interface StateRuntimeMessageInput {
   scope: StateRuntimeScope;
   message: string;
+}
+
+export interface StateRuntimeEvidencePackInput {
+  scope: StateRuntimeScope;
+  workId?: string;
+  publicationId?: string;
+  deliveryId?: string;
+  targetRef?: string;
+}
+
+export interface StateRuntimeSessionTraceInput {
+  scope: StateRuntimeScope;
+  sessionId?: string;
+  limit?: StateRuntimeLimit;
+}
+
+export interface StateRuntimeVerificationEvidenceRecordsInput {
+  scope: StateRuntimeScope;
+  workId?: string;
+  publicationId?: string;
+  deliveryId?: string;
+  targetSurface?: string;
+  targetRef?: string;
+  evidenceKind?: EvidenceKind;
+  status?: EvidenceStatus;
+  limit?: StateRuntimeLimit;
 }
 
 export interface StateRuntimeActionResultInput {
@@ -572,6 +779,11 @@ export interface ReviewCodexResultDraftInput {
 
 export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
+  getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;
+  getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult>;
+  getVerificationEvidenceRecords(
+    input: StateRuntimeVerificationEvidenceRecordsInput
+  ): Promise<VerificationEvidenceRecordsResult>;
   observe(input: StateRuntimeMessageInput): Promise<ObserveResult>;
   plan(input: StateRuntimeMessageInput): Promise<PlanResult>;
   recordActionResult(input: StateRuntimeActionResultInput): Promise<ActionRecordResult>;

@@ -129,6 +129,9 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
         const server = createMcpAppServer(new MockAugnesCoreAdapter(), new MockStateRuntimeBridgeAdapter(), { enableAgentBridge: true });
         const args = {
           augnes_get_state_brief: {},
+          augnes_get_evidence_pack: {},
+          augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
+          augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
           augnes_observe: { message: 'Record the current bridge smoke context.' },
           augnes_plan: { message: 'What should happen next?' },
           augnes_record_action_result: {
@@ -182,6 +185,9 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             review: result.structuredContent?.review,
             actionRecordDraft: result.structuredContent?.action_record_draft,
             workEventDraft: result.structuredContent?.work_event_draft,
+            evidencePack: result.structuredContent?.evidence_pack,
+            sessionTrace: result.structuredContent?.session_trace,
+            verificationEvidenceRecords: result.structuredContent?.verification_evidence_records,
             mailboxSummary: result.structuredContent?.mailbox_summary,
             publicationSummary: result.structuredContent?.publication_summary,
             decisionCard: result.structuredContent?.decision_card,
@@ -583,6 +589,21 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_state_brief.agentHandoff,
     (await new MockStateRuntimeBridgeAdapter().getStateBrief("project:augnes")).agent_handoff,
     "augnes_get_state_brief should preserve structuredContent.brief.agent_handoff when present"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_evidence_pack.boundaries.read_only,
+    true,
+    "augnes_get_evidence_pack should expose read-only boundaries"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_session_trace.sessionTrace.session_id,
+    "session:smoke-1",
+    "augnes_get_session_trace should preserve structured session identifiers"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_verification_evidence_records.verificationEvidenceRecords.records.length,
+    1,
+    "augnes_get_verification_evidence_records should preserve the records list"
   );
   assert.equal(
     bridgeSnapshot.richRecord.action_name,
