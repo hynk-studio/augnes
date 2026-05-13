@@ -140,6 +140,9 @@ also confirm the read-only Temporal Preview panel renders structured
 the strict `active_context_admission` schema is tracked in
 `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`; the validation command
 is opt-in and must not make normal smoke checks require `OPENAI_API_KEY`.
+For the current v0.2 authority boundary, validation matrix, guarded failure
+modes, known limitations, and roadmap recommendation, reference
+`docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md`.
 
 ## Evidence Categories
 
