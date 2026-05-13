@@ -38,6 +38,8 @@ Codex structured verification evidence helper complete
 Codex structured evidence closeout workflow complete
 Session Binding v0.1 trace API complete via PR #109
 Read-only Cockpit Session Trace surfacing complete
+ChatGPT Apps cross-session read tools complete via PR #111/#112
+Codex Session Adapter v0.2 workflow packaging complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -82,13 +84,20 @@ demand without binding sessions, creating sessions, or adding write controls.
 The bridge package now also wraps the read-only cross-session continuity route
 contract for Evidence Pack, Session Trace, and Verification Evidence Records
 when those runtime routes are present.
+Codex Session Adapter v0.2 now standardizes the repo workflow for reading the
+state/work brief, optionally binding an existing session, recording structured
+evidence rows, recording completion, and reviewing Evidence Pack plus Session
+Trace outputs. It is documentation and smoke coverage over existing helpers and
+read-only surfaces only; it does not create sessions automatically, execute
+Codex from ChatGPT, add ChatGPT App write tools, publish, replay, approve, or
+mutate state.
 The next likely product track after this trace slice is:
 
 ```text
-Choose the next productization slice after Cockpit Session Trace surfacing: temporal
-interpretation hardening, ChatGPT Apps cross-session read tools, a fuller Codex
-session adapter, Cockpit write-control design, GitHub App/token model, or retry
-design if needed.
+Choose the next productization slice after Codex Session Adapter v0.2 workflow
+packaging: temporal interpretation hardening, Cockpit write-control design,
+GitHub App/token model, retry design, or a narrowly scoped hosted runtime/auth
+plan if needed.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

@@ -81,6 +81,7 @@ The current challenge build includes:
 - `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
 - `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
 - `npm run codex:bind-session` for binding a pre-existing session row to Codex/work/PR continuity metadata.
+- Codex Session Adapter v0.2 workflow documentation that standardizes `codex:read-brief`, `codex:bind-session`, `codex:record-evidence`, `codex:record-completion`, Evidence Pack review, and Session Trace review without adding new runtime authority.
 - MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
 
 ## Single-Repo Layout
@@ -200,6 +201,13 @@ Current Work is a user-facing summary surface, not a new state authority. It sum
 The Runtime Cockpit includes a read-only `Session Trace` panel for Session Binding v0.1 continuity. It is button-triggered and calls `GET /api/sessions/trace?scope=project:augnes` only after the operator clicks `Load Session Trace` or `Refresh Session Trace`.
 
 The panel displays bound session metadata, message/work/action/evidence counts, latest continuity records, gaps, and trace boundaries. It does not create sessions, bind sessions, add write controls, mutate evidence packs, or expand evidence packs with full nested session trace bodies.
+
+Codex Session Adapter v0.2 is documented in
+`docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`. It packages the existing brief,
+binding, evidence, completion, Evidence Pack, Session Trace, and ChatGPT App
+read-only continuity surfaces into a standard Codex start/closeout workflow. It
+does not create sessions automatically, execute Codex from ChatGPT, add
+ChatGPT App write tools, approve, publish, retry, replay, or mutate state.
 
 ## Temporal State Graph
 

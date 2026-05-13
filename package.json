@@ -17,7 +17,9 @@
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",
     "smoke:codex-closeout-docs": "node scripts/smoke-codex-closeout-docs.mjs",
     "smoke:session-binding": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-session-binding.mjs",
+    "smoke:codex-session-adapter-v2": "node scripts/smoke-codex-session-adapter-v2.mjs",
     "codex:record-completion": "npm --prefix apps/augnes_apps run codex:record-completion",
+    "codex:read-brief": "npm --prefix apps/augnes_apps run codex:read-brief",
     "codex:record-evidence": "npm --prefix apps/augnes_apps run codex:record-evidence",
     "codex:bind-session": "npm --prefix apps/augnes_apps run codex:bind-session",
     "typecheck": "tsc --noEmit"
