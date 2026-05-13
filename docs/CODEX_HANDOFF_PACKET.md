@@ -92,6 +92,7 @@ Codex should report:
 - ChatGPT Developer Mode and MCP/widget checks run or skipped with reason
 - expected impact vs actual result
 - PR URL, if opened
+- structured evidence record IDs, or the exact reason evidence rows were skipped
 - whether `npm run codex:record-completion` was run or why it was skipped
 
 ## Boundary

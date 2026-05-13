@@ -62,6 +62,22 @@ Paste the command and result. If a command is unavailable or skipped, state the 
 
 Do not commit secrets, local DB files, screenshots, generated outputs, or tunnel URLs containing private material.
 
+## Structured Evidence Records
+
+- Were structured evidence records created? `yes | no`
+- Evidence record IDs:
+  - `command_run`:
+  - `check_passed`:
+  - `check_failed`:
+  - `check_skipped`:
+  - `replay_observed`:
+  - `duplicate_block_observed`:
+- If not recorded, exact reason: `local runtime unavailable | evidence API unavailable | docs-only PR | external check not applicable | other:`
+- Confirm evidence recording:
+  - [ ] Did not call GitHub/OpenAI.
+  - [ ] Did not execute replay or duplicate publish.
+  - [ ] Did not mutate publication/approval/readiness/delivery/mailbox/state rows directly.
+
 ## Expected Impact vs Actual Result
 
 - Expected files changed:
