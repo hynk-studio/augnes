@@ -159,7 +159,7 @@ npm run codex:record-evidence
 Use Browser/Chrome when the local runtime or UI is available. Record:
 
 - URL opened
-- surface checked, such as Runtime Cockpit, Temporal State Graph, or Work Focus
+- surface checked, such as Runtime Cockpit, Temporal State Graph, Work Focus, or the read-only Session Trace panel
 - expected behavior
 - actual behavior
 - whether screenshots were produced and where they remained locally

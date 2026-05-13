@@ -366,4 +366,6 @@ Open the Runtime Cockpit and confirm Work Focus shows the event. When applicable
 external.ag_004_codex_completion_protocol_recorded
 ```
 
+After binding session metadata, use the Cockpit Session Trace panel to inspect the read-only continuity view and confirm the session link, latest work event, latest evidence record, and gaps without creating or rebinding sessions.
+
 For PR work, include the Verification Evidence Pack, Execution Surface Record, and Expected Impact vs Actual Result Check in the PR body or completion summary. If Browser/Chrome, ChatGPT Developer Mode, MCP Inspector, or local runtime checks are unavailable, record the exact skipped reason.

@@ -76,6 +76,7 @@ The current challenge build includes:
 - Project-level Current Work through `agent_handoff`.
 - Work Trace Spine and Work Focus for `AG-xxx` task context.
 - Work APIs for listing work items, reading work briefs, and recording work events.
+- Read-only Cockpit Session Trace continuity panel for already-bound sessions.
 - ChatGPT App read tools for state and work briefs, with bridge-gated write tools for action and work-event proof.
 - `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
 - `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
@@ -193,6 +194,12 @@ Current Work shows:
 - copyable templates for recording external work
 
 Current Work is a user-facing summary surface, not a new state authority. It summarizes committed state, pending proposals, open tensions, and recent actions that already exist in the runtime. It does not create state and does not bypass commit/reject.
+
+## Session Trace
+
+The Runtime Cockpit includes a read-only `Session Trace` panel for Session Binding v0.1 continuity. It is button-triggered and calls `GET /api/sessions/trace?scope=project:augnes` only after the operator clicks `Load Session Trace` or `Refresh Session Trace`.
+
+The panel displays bound session metadata, message/work/action/evidence counts, latest continuity records, gaps, and trace boundaries. It does not create sessions, bind sessions, add write controls, mutate evidence packs, or expand evidence packs with full nested session trace bodies.
 
 ## Temporal State Graph
 
