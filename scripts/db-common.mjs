@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   migrateDeliveryExternalArtifacts,
+  migrateSessionBindingColumns,
   migrateStateDeltaProposalScoring,
   migrateVerificationEvidenceRecords,
 } from "./db-migrations.mjs";
@@ -32,6 +33,7 @@ export function initializeDatabase(db = openDatabase()) {
   }
   db.exec(schema);
   migrateStateDeltaProposalScoring(db);
+  migrateSessionBindingColumns(db);
   migrateDeliveryExternalArtifacts(db);
   migrateVerificationEvidenceRecords(db);
   return db;

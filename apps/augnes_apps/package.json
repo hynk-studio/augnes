@@ -18,6 +18,7 @@
     "codex:record-result": "tsx scripts/codex-record-result.ts",
     "codex:record-completion": "tsx scripts/codex-record-completion.ts",
     "codex:record-evidence": "tsx scripts/codex-record-verification-evidence.ts",
+    "codex:bind-session": "tsx scripts/codex-bind-session.ts",
     "codex:handoff-check": "tsx scripts/codex-handoff-check.ts"
   },
   "dependencies": {

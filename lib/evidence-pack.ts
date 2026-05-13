@@ -28,6 +28,7 @@ import {
   type DeliveryRecord,
   type PublicationDraft,
 } from "@/lib/publications";
+import { listSessionRefs, type SessionRef } from "@/lib/session-binding";
 import { buildStateBrief } from "@/lib/state/brief";
 import {
   getWorkItem,
@@ -141,6 +142,10 @@ export type EvidencePack = {
     skipped_checks: Array<Record<string, unknown>>;
     source_refs: string[];
   };
+  session_trace: {
+    session_refs: SessionRef[];
+    note: string;
+  };
   authority_trace: {
     allowed_now: string[];
     blocked_now: string[];
@@ -213,6 +218,16 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
     publication,
     delivery,
     targetRef: context.targetRef,
+  });
+  const sessionRefs = listSessionRefs({
+    scope: normalizedScope,
+    work_id: work?.work_id ?? publication?.work_id ?? null,
+    related_pr:
+      context.targetRef ??
+      delivery?.target_ref ??
+      publication?.target_ref ??
+      null,
+    limit: 20,
   });
   const stateBrief = buildStateBrief(normalizedScope);
   const gaps = collectGaps({
@@ -312,6 +327,11 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
       delivery,
       evidenceRecords,
     }),
+    session_trace: {
+      session_refs: sessionRefs,
+      note:
+        "Session refs are binding metadata only; Evidence Pack does not create, bind, or expand sessions.",
+    },
     authority_trace: {
       allowed_now: [
         "Read this derived Evidence Pack.",

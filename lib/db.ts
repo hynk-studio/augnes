@@ -120,6 +120,15 @@ export type SessionRecord = {
   agent_id: string | null;
   scope: string;
   title: string;
+  started_at?: string;
+  ended_at?: string | null;
+  surface?: string | null;
+  actor?: string | null;
+  related_work_id?: string | null;
+  related_pr?: string | null;
+  summary?: string | null;
+  handoff_ref?: string | null;
+  evidence_pack_ref?: string | null;
 };
 
 export type MessageRecord = {
@@ -211,6 +220,7 @@ export function openDatabase() {
   const db = new Database(dbPath, { fileMustExist: false });
   db.pragma("foreign_keys = ON");
   migrateStateDeltaProposalScoringColumns(db);
+  migrateSessionBindingColumns(db);
   migrateDeliveryExternalArtifactColumns(db);
   migrateVerificationEvidenceRecordsTable(db);
   return db;
@@ -1521,6 +1531,68 @@ function migrateDeliveryExternalArtifactColumns(db: Database.Database) {
     if (!existingColumns.has(column)) {
       db.prepare(`ALTER TABLE delivery_ledger ADD COLUMN ${column} TEXT`).run();
     }
+  }
+}
+
+function migrateSessionBindingColumns(db: Database.Database) {
+  const table = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'sessions'
+      `,
+    )
+    .get();
+
+  if (!table) {
+    return;
+  }
+
+  const existingColumns = new Set(
+    (
+      db.prepare("PRAGMA table_info(sessions)").all() as {
+        name: string;
+      }[]
+    ).map((column) => column.name),
+  );
+  const columns = [
+    {
+      name: "surface",
+      definition:
+        "TEXT CHECK (surface IS NULL OR surface IN ('chatgpt', 'codex', 'cockpit', 'browser', 'github', 'local_runtime', 'other'))",
+    },
+    { name: "actor", definition: "TEXT" },
+    { name: "related_work_id", definition: "TEXT" },
+    { name: "related_pr", definition: "TEXT" },
+    { name: "summary", definition: "TEXT" },
+    { name: "handoff_ref", definition: "TEXT" },
+    { name: "evidence_pack_ref", definition: "TEXT" },
+  ];
+
+  for (const { name, definition } of columns) {
+    if (!existingColumns.has(name)) {
+      db.prepare(`ALTER TABLE sessions ADD COLUMN ${name} ${definition}`).run();
+    }
+  }
+
+  const indexes = [
+    `
+      CREATE INDEX IF NOT EXISTS idx_sessions_scope_surface_time
+        ON sessions(scope, surface, started_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_sessions_scope_work_time
+        ON sessions(scope, related_work_id, started_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_sessions_scope_pr_time
+        ON sessions(scope, related_pr, started_at DESC)
+    `,
+  ];
+
+  for (const sql of indexes) {
+    db.prepare(sql).run();
   }
 }
 

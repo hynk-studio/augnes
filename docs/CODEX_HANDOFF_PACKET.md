@@ -73,6 +73,9 @@ ChatGPT App / Developer Mode checks:
 Completion record fields:
 CODEX_WORK_ID=AG-___
 CODEX_SCOPE=project:augnes
+CODEX_SESSION_ID=session:___
+CODEX_SESSION_SURFACE=codex
+CODEX_SESSION_SUMMARY=
 CODEX_ACTION_NAME=
 CODEX_RESULT_SUMMARY=
 CODEX_FILES_CHANGED=
@@ -94,7 +97,13 @@ Codex should report:
 - PR URL, if opened
 - structured evidence record IDs, or the exact reason evidence rows were skipped
 - whether `npm run codex:record-completion` was run or why it was skipped
+- whether `npm run codex:bind-session` was run or why it was skipped
 
 ## Boundary
 
 The packet is not an instruction for ChatGPT App to run Codex. It is a durable handoff format that a user, ChatGPT, or Augnes can present to Codex so execution remains explicit, user-directed, and reviewable.
+
+Session binding is optional metadata over an existing `sessions` row. Unknown
+sessions fail closed; the bind route does not create sessions, execute Codex,
+call GitHub/OpenAI, record evidence, approve, publish, replay, or mutate
+publication/approval/readiness/delivery/mailbox/state records.

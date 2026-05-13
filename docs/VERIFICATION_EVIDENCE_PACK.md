@@ -93,6 +93,13 @@ publication, delivery, or target and reduce gaps in `verification_trace` and
 commands, skipped checks, replay observations, or duplicate-block observations
 in the PR body or in Core just to make a pack look complete.
 
+Evidence Pack v0.1 also includes a small `session_trace.session_refs` list when
+stored session bindings match the selected work or target ref. These are string
+and metadata refs only. Evidence Pack does not create sessions, bind sessions,
+expand full session traces, execute Codex, call GitHub/OpenAI, or mutate Core
+records. Use `GET /api/sessions/trace?scope=project:augnes` for the full
+bounded session trace view.
+
 Structured records should use exact labels and summaries:
 
 - Commands: include the exact command in `command`, such as
