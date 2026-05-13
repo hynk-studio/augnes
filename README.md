@@ -136,6 +136,10 @@ opt-in OpenAI-path validation harness and report live at
 `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`. This remains
 read-only and non-authoritative.
 
+The v0.2 status, validation matrix, guarded failure modes, known limitations,
+and productization options are summarized in
+`docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md`.
+
 API check:
 
 ```bash
@@ -152,6 +156,7 @@ npm run smoke:temporal-hardening
 npm run smoke:temporal-manual-review-report
 npm run smoke:cockpit-temporal-admission
 npm run smoke:temporal-openai-validation-docs
+npm run smoke:temporal-v02-status-roadmap
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the
