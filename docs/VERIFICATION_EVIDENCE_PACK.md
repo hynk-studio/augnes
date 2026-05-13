@@ -136,7 +136,10 @@ The deterministic mock example at
 `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` can be
 used as a filled reference for the template structure. Cockpit review should
 also confirm the read-only Temporal Preview panel renders structured
-`active_context_admission.decisions` when present.
+`active_context_admission.decisions` when present. OpenAI-path validation for
+the strict `active_context_admission` schema is tracked in
+`docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`; the validation command
+is opt-in and must not make normal smoke checks require `OPENAI_API_KEY`.
 
 ## Evidence Categories
 

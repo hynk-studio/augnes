@@ -130,8 +130,11 @@ counterexample and residual tension preservation, unsafe safe-next-step
 language, and a manual review report template at
 `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md`. A filled deterministic
 mock review example lives at
-`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`. This
-remains read-only and non-authoritative.
+`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`. The
+opt-in OpenAI-path validation harness and report live at
+`scripts/validate-temporal-openai-path.mjs` and
+`docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`. This remains
+read-only and non-authoritative.
 
 API check:
 
@@ -148,6 +151,14 @@ npm run smoke:temporal-preview
 npm run smoke:temporal-hardening
 npm run smoke:temporal-manual-review-report
 npm run smoke:cockpit-temporal-admission
+npm run smoke:temporal-openai-validation-docs
+```
+
+Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the
+environment:
+
+```bash
+npm run validate:temporal-openai-path
 ```
 
 OpenAI is useful here because the preview is interpretive rather than a direct state read: it relates current context, prior interpretation, counterexamples, residual tensions, and authority boundaries while preserving structured anchors. The local guardrails remain deterministic and run for both OpenAI and mock output. In the Cockpit, OpenAI is used only after an explicit button click when `OPENAI_API_KEY` is present.
