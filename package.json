@@ -13,6 +13,7 @@
     "smoke:cockpit-session-trace": "node scripts/smoke-cockpit-session-trace.mjs",
     "smoke:temporal-preview": "node scripts/smoke-temporal-preview.mjs",
     "smoke:temporal-hardening": "node scripts/smoke-temporal-hardening.mjs",
+    "smoke:temporal-manual-review-report": "node scripts/smoke-temporal-manual-review-report.mjs",
     "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
     "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",
