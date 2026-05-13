@@ -36,7 +36,8 @@ Evidence Pack v0.1 read-only API/Cockpit review bundle complete
 Structured verification/replay evidence records v0.1 complete
 Codex structured verification evidence helper complete
 Codex structured evidence closeout workflow complete
-Session Binding v0.1 trace hardening in progress
+Session Binding v0.1 trace API complete via PR #109
+Read-only Cockpit Session Trace surfacing complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -54,10 +55,10 @@ same-key sent/acknowledged replay semantics so a replay returns HTTP 200 with
 `idempotent_replay=true` and `posted=false`. C5 delivery rows now persist
 nullable external artifact id, URL, and type fields for GitHub PR comments so
 same-key replay can return the stored GitHub comment artifact without another
-adapter call or token requirement. Evidence Pack v0.1 is the next narrow review
-slice: a derived read-only API and optional Cockpit display that collects
-existing work/publication/approval/readiness/delivery/artifact/replay context
-and verification gaps without creating authority or side effects. Structured
+adapter call or token requirement. Evidence Pack v0.1 is complete as a derived
+read-only API/Cockpit review bundle over existing
+work/publication/approval/readiness/delivery/artifact/replay context and
+verification gaps. Structured
 verification evidence records are complete for command/check observations,
 skipped checks, explicit replay observations, and explicit duplicate-block
 observations. Evidence Pack may read matching records to reduce gaps, but it
@@ -66,7 +67,7 @@ GitHub, call OpenAI, or add approval/publish authority. The Codex helper for
 recording those structured evidence records through the local Augnes API is
 complete. The current narrow follow-up makes structured evidence record IDs, or
 the exact skipped reason, part of the standard Codex PR closeout workflow.
-Session Binding v0.1 is the next narrow trace-hardening slice: existing
+Session Binding v0.1 trace API is complete via PR #109: existing
 `sessions` rows gain nullable metadata for surface, actor, related work ID,
 related PR, summary, handoff ref, and Evidence Pack ref. The local runtime
 exposes `POST /api/sessions/bind`, `GET /api/sessions/trace`, and
@@ -75,11 +76,13 @@ sessions and updates only session metadata. Trace routes are read-only and
 connect sessions to bounded message counts, work events, action records, and
 verification evidence records where refs exist. They do not execute Codex, call
 GitHub/OpenAI, approve, publish, replay, or mutate work/evidence/publication/
-delivery/readiness/mailbox/state records. The next likely product track after
-this trace slice is:
+delivery/readiness/mailbox/state records. Read-only Cockpit Session Trace
+surfacing is also complete: operators can load the bounded continuity view on
+demand without binding sessions, creating sessions, or adding write controls.
+The next likely product track after this trace slice is:
 
 ```text
-Choose the next productization slice after Session Binding v0.1: temporal
+Choose the next productization slice after Cockpit Session Trace surfacing: temporal
 interpretation hardening, ChatGPT Apps cross-session read tools, a fuller Codex
 session adapter, Cockpit write-control design, GitHub App/token model, or retry
 design if needed.

@@ -987,7 +987,7 @@ h1 {
 
 .evidence-pack-shell {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: 0 0 12px;
   padding: 14px;
   border: 1px solid #dbe2ea;
@@ -1067,6 +1067,178 @@ h1 {
 
 .evidence-pack-error {
   color: #9d2f2f;
+}
+
+.session-trace-shell {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 14px;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(27, 35, 45, 0.05);
+}
+
+.session-trace-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.session-trace-status,
+.session-trace-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.session-trace-status span,
+.session-trace-status strong,
+.session-trace-metrics strong {
+  min-height: 26px;
+  padding: 5px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel-subtle);
+}
+
+.session-trace-list {
+  display: grid;
+  gap: 10px;
+}
+
+.session-trace-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #dfe6ef;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.session-trace-card h3,
+.session-trace-card h4 {
+  margin: 0;
+  color: #203047;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.session-trace-summary,
+.session-trace-latest-grid p {
+  margin: 0;
+  color: #405168;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+}
+
+.session-trace-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.session-trace-fields div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.session-trace-fields dt {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.session-trace-fields dd {
+  margin: 0;
+  color: #263850;
+  font-size: 0.8rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.session-trace-latest-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.session-trace-latest-grid section {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.session-trace-gaps {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #efd8d8;
+  border-radius: 8px;
+  background: #fffafa;
+}
+
+.session-trace-gaps.is-clear {
+  border-color: #d9e9df;
+  background: #f5fbf7;
+}
+
+.session-trace-gaps h4,
+.session-trace-gaps strong {
+  margin: 0;
+  color: #203047;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.session-trace-gaps ul {
+  display: grid;
+  gap: 4px;
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: #8d3434;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.session-trace-boundaries {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.session-trace-boundaries summary {
+  cursor: pointer;
+}
+
+.session-trace-boundaries ul {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding-left: 18px;
 }
 
 .temporal-preview-shell {
@@ -2255,6 +2427,8 @@ h1 {
   .mailbox-summary-grid,
   .publication-summary-grid,
   .approval-gate-grid,
+  .session-trace-fields,
+  .session-trace-latest-grid,
   .temporal-preview-summary-grid,
   .temporal-preview-grid,
   .coordination-event-grid,
@@ -2302,6 +2476,7 @@ h1 {
   .cockpit-guidance,
   .handoff-actions,
   .work-copy-row,
+  .session-trace-heading,
   .temporal-preview-heading,
   .evidence-pack-grid,
   .cockpit-guidance ol {

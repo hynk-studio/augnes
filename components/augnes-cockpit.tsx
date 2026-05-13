@@ -477,6 +477,71 @@ type EvidencePackResponse = {
   next_suggested_goal: string | null;
 };
 
+type SessionTraceLatestMessage = {
+  id: string;
+  role: string;
+  created_at: string;
+};
+
+type SessionTraceActionRecord = {
+  id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+};
+
+type SessionTraceLatestEvidenceRecord = {
+  evidence_id: string;
+  evidence_kind: string;
+  status: string;
+  label: string;
+  created_at: string;
+};
+
+type SessionTraceSession = {
+  session_id: string;
+  surface: string | null;
+  actor: string | null;
+  title: string;
+  summary: string | null;
+  related_work_id: string | null;
+  related_pr: string | null;
+  handoff_ref: string | null;
+  evidence_pack_ref: string | null;
+  started_at: string;
+  ended_at: string | null;
+  evidence_counts: {
+    messages: number;
+    action_records_by_session: number;
+    verification_evidence_records_for_work: number;
+    verification_evidence_records_for_pr: number;
+    verification_evidence_records_total: number;
+  };
+  work_event_counts: {
+    total: number;
+    by_event_type: Record<string, number>;
+    with_related_action_id: number;
+    with_related_pr: number;
+  };
+  latest_work_event: WorkEvent | null;
+  latest_evidence_record: SessionTraceLatestEvidenceRecord | null;
+  message_count: number;
+  latest_message: SessionTraceLatestMessage | null;
+  action_records: SessionTraceActionRecord[];
+  work: WorkItem | null;
+  gaps: string[];
+};
+
+type SessionTraceResponse = {
+  runtime: "augnes";
+  scope: string;
+  generated_at: string;
+  sessions: SessionTraceSession[];
+  gaps: string[];
+  boundaries: string[];
+};
+
 type ConsolidationResponse = {
   evaluated_count: number;
   ready_count: number;
@@ -524,6 +589,12 @@ export function AugnesCockpit() {
   const [approvalGateState, setApprovalGateState] =
     useState<ApprovalGateStateSummaryResponse | null>(null);
   const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
+  const [sessionTrace, setSessionTrace] = useState<SessionTraceResponse | null>(
+    null,
+  );
+  const [sessionTraceError, setSessionTraceError] = useState<string | null>(null);
+  const [sessionTraceBusy, setSessionTraceBusy] = useState(false);
+  const [sessionTraceRequested, setSessionTraceRequested] = useState(false);
   const [temporalPreview, setTemporalPreview] =
     useState<TemporalPreviewResponse | null>(null);
   const [temporalPreviewError, setTemporalPreviewError] = useState<string | null>(
@@ -809,6 +880,27 @@ export function AugnesCockpit() {
     }
   }
 
+  async function refreshSessionTrace() {
+    setSessionTraceRequested(true);
+    setSessionTraceBusy(true);
+    setSessionTraceError(null);
+
+    try {
+      setSessionTrace(
+        await fetchJson<SessionTraceResponse>(
+          `/api/sessions/trace?scope=${SCOPE}`,
+        ),
+      );
+    } catch (error) {
+      setSessionTrace(null);
+      setSessionTraceError(
+        error instanceof Error ? error.message : "Session trace request failed",
+      );
+    } finally {
+      setSessionTraceBusy(false);
+    }
+  }
+
   async function observe(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy("observe");
@@ -1000,6 +1092,14 @@ export function AugnesCockpit() {
       <ApprovalGateStatePanel
         approvalGateState={approvalGateState}
         error={approvalGateError}
+      />
+
+      <SessionTracePanel
+        trace={sessionTrace}
+        error={sessionTraceError}
+        busy={sessionTraceBusy}
+        requested={sessionTraceRequested}
+        onRefresh={() => void refreshSessionTrace()}
       />
 
       <TemporalInterpretationPreviewPanel
@@ -2464,6 +2564,255 @@ function ApprovalGateBucket({
   );
 }
 
+function SessionTracePanel({
+  trace,
+  error,
+  busy,
+  requested,
+  onRefresh,
+}: {
+  trace: SessionTraceResponse | null;
+  error: string | null;
+  busy: boolean;
+  requested: boolean;
+  onRefresh: () => void;
+}) {
+  const sessionCount = trace?.sessions.length ?? 0;
+  const gaps = trace?.gaps ?? [];
+
+  return (
+    <section className="session-trace-shell" aria-label="Session Trace">
+      <div className="session-trace-heading">
+        <PanelHeader
+          eyebrow="Session Trace"
+          title="Continuity"
+          description="Read-only Session Binding v0.1 trace data. This panel loads only after operator action and does not bind, create, update, or record sessions."
+        />
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onRefresh}
+          disabled={busy}
+        >
+          {trace ? "Refresh Session Trace" : "Load Session Trace"}
+        </button>
+      </div>
+
+      {error ? (
+        <EmptyState label="Session trace unavailable" description={error} />
+      ) : busy || (requested && !trace) ? (
+        <LoadingBlock
+          title="Loading session trace"
+          lines={[
+            "Reading bound session metadata",
+            "Summarizing continuity evidence",
+          ]}
+        />
+      ) : !trace ? (
+        <EmptyState
+          label="Session trace not loaded"
+          description="Click Load Session Trace to inspect the read-only continuity view."
+        />
+      ) : (
+        <>
+          <div className="session-trace-status">
+            <span>
+              generated{" "}
+              <time dateTime={trace.generated_at}>
+                {formatDate(trace.generated_at)}
+              </time>
+            </span>
+            <strong>{sessionCount} sessions</strong>
+            <strong>{gaps.length} top-level gaps</strong>
+            <span>read-only continuity trace</span>
+          </div>
+
+          <SessionTraceGaps title="Top-level gaps" gaps={gaps} />
+
+          {trace.boundaries?.length ? (
+            <details className="session-trace-boundaries">
+              <summary>Trace boundaries</summary>
+              <ul>
+                {trace.boundaries.map((boundary) => (
+                  <li key={boundary}>{boundary}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+
+          {trace.sessions.length ? (
+            <div className="session-trace-list">
+              {trace.sessions.map((session) => (
+                <SessionTraceCard session={session} key={session.session_id} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              label="No bound sessions"
+              description="The session trace API returned no sessions for this scope."
+            />
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function SessionTraceCard({ session }: { session: SessionTraceSession }) {
+  return (
+    <article className="session-trace-card">
+      <div className="card-topline">
+        <div className="state-key-heading">
+          <h3>{session.title || session.session_id}</h3>
+          <code>{session.session_id}</code>
+        </div>
+        <div className="timeline-badges">
+          <StatusBadge label={formatStatusLabel(session.surface ?? "unknown")} />
+          <StatusBadge label={session.actor ?? "unknown"} />
+        </div>
+      </div>
+
+      {session.summary ? (
+        <p className="session-trace-summary">{session.summary}</p>
+      ) : null}
+
+      <dl className="session-trace-fields">
+        <SessionTraceField label="related_work_id" value={session.related_work_id} />
+        <SessionTraceField label="related_pr" value={session.related_pr} />
+        <SessionTraceField label="handoff_ref" value={session.handoff_ref} />
+        <SessionTraceField
+          label="evidence_pack_ref"
+          value={session.evidence_pack_ref}
+        />
+        <SessionTraceField label="started_at" value={session.started_at} />
+        <SessionTraceField label="ended_at" value={session.ended_at} />
+      </dl>
+
+      <div className="session-trace-metrics">
+        <strong>{session.message_count} messages</strong>
+        <strong>{session.work_event_counts.total} work events</strong>
+        <strong>{session.evidence_counts.action_records_by_session} action records</strong>
+        <strong>
+          {session.evidence_counts.verification_evidence_records_total} verification evidence
+        </strong>
+      </div>
+
+      <div className="session-trace-latest-grid">
+        <section>
+          <h4>Latest message</h4>
+          {session.latest_message ? (
+            <>
+              <div className="meta-row">
+                <span>{formatStatusLabel(session.latest_message.role)}</span>
+                <time dateTime={session.latest_message.created_at}>
+                  {formatDate(session.latest_message.created_at)}
+                </time>
+              </div>
+              <p>
+                message <code>{session.latest_message.id}</code>
+              </p>
+            </>
+          ) : (
+            <EmptyState label="No latest message" />
+          )}
+        </section>
+
+        <section>
+          <h4>Latest work event</h4>
+          {session.latest_work_event ? (
+            <>
+              <div className="meta-row">
+                {session.latest_work_event.result_status ? (
+                  <span>{formatStatusLabel(session.latest_work_event.result_status)}</span>
+                ) : null}
+                {session.latest_work_event.result_kind ? (
+                  <span>{formatStatusLabel(session.latest_work_event.result_kind)}</span>
+                ) : (
+                  <span>{formatStatusLabel(session.latest_work_event.event_type)}</span>
+                )}
+                <time dateTime={session.latest_work_event.created_at}>
+                  {formatDate(session.latest_work_event.created_at)}
+                </time>
+              </div>
+              <p>{session.latest_work_event.summary}</p>
+            </>
+          ) : (
+            <EmptyState label="No latest work event" />
+          )}
+        </section>
+
+        <section>
+          <h4>Latest evidence record</h4>
+          {session.latest_evidence_record ? (
+            <>
+              <div className="meta-row">
+                {session.latest_evidence_record.evidence_id ? (
+                  <span>
+                    evidence <code>{session.latest_evidence_record.evidence_id}</code>
+                  </span>
+                ) : null}
+                {session.latest_evidence_record.evidence_kind ? (
+                  <span>
+                    {formatStatusLabel(session.latest_evidence_record.evidence_kind)}
+                  </span>
+                ) : null}
+                {session.latest_evidence_record.status ? (
+                  <span>
+                    {formatStatusLabel(session.latest_evidence_record.status)}
+                  </span>
+                ) : null}
+              </div>
+              {session.latest_evidence_record.label ? (
+                <p>{session.latest_evidence_record.label}</p>
+              ) : null}
+            </>
+          ) : (
+            <EmptyState label="No latest evidence record" />
+          )}
+        </section>
+      </div>
+
+      <SessionTraceGaps title="Session gaps" gaps={session.gaps ?? []} />
+    </article>
+  );
+}
+
+function SessionTraceField({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value ? <code>{value}</code> : <span>None</span>}</dd>
+    </div>
+  );
+}
+
+function SessionTraceGaps({ title, gaps }: { title: string; gaps: string[] }) {
+  if (gaps.length === 0) {
+    return (
+      <div className="session-trace-gaps is-clear">
+        <strong>{title}: none</strong>
+      </div>
+    );
+  }
+
+  return (
+    <section className="session-trace-gaps">
+      <h4>{title}</h4>
+      <ul>
+        {gaps.map((gap) => (
+          <li key={gap}>{gap}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function TemporalInterpretationPreviewPanel({
   previewResponse,
   error,
@@ -2935,7 +3284,6 @@ function EvidencePackPanel({
     </section>
   );
 }
-
 function TemporalPreviewSection({
   title,
   description,
