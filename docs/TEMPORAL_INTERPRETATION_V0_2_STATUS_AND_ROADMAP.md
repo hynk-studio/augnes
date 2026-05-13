@@ -15,6 +15,7 @@ The v0.2 slice includes:
 - Semantic fidelity fixtures.
 - Guardrail hardening.
 - Manual review report template and filled mock review report.
+- Route-captured mock-mode manual review report.
 - Cockpit read-only rendering for admission decisions.
 - OpenAI-path validation for the strict preview shape.
 
@@ -121,6 +122,11 @@ and follow-up action.
 filled deterministic mock review report for
 `TEMPORAL_HARDENING_FIXTURES[0]` / `valid_review_bounded_preview`.
 
+`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md` is
+the filled mock-mode route-captured review report for a real
+`POST /api/temporal-interpretation/preview` response with `OPENAI_API_KEY`
+unset.
+
 ### Cockpit rendering
 
 The Runtime Cockpit Temporal Interpretation Preview panel renders
@@ -145,6 +151,7 @@ Current smoke coverage includes:
 - `smoke:temporal-preview`
 - `smoke:temporal-hardening`
 - `smoke:temporal-manual-review-report`
+- `smoke:temporal-route-review-report`
 - `smoke:cockpit-temporal-admission`
 - `smoke:temporal-openai-validation-docs`
 - `smoke:temporal-v02-status-roadmap`
@@ -159,9 +166,11 @@ not normal smoke.
 | `smoke:temporal-preview` | Confirms the preview route returns a bounded read-only Temporal Interpretation Preview. | Complete | `scripts/smoke-temporal-preview.mjs` |
 | `smoke:temporal-hardening` | Confirms fixture-aware guardrails catch drift and preserve required semantic refs. | Complete | `scripts/smoke-temporal-hardening.mjs` |
 | `smoke:temporal-manual-review-report` | Confirms the manual review template and filled mock review report exist and contain required review fields. | Complete | `scripts/smoke-temporal-manual-review-report.mjs` |
+| `smoke:temporal-route-review-report` | Confirms the route-captured mock-mode manual review report exists and records route endpoint, mock generator, admission decisions, refs, authority checks, and raw JSON boundary. | Complete | `scripts/smoke-temporal-route-review-report.mjs` |
 | `smoke:cockpit-temporal-admission` | Confirms Cockpit source renders structured `active_context_admission.decisions` read-only. | Complete | `scripts/smoke-cockpit-temporal-admission.mjs` |
 | `validate:temporal-openai-path` | Opt-in live OpenAI-path schema and guardrail validation. | Complete for one fixture pass | `scripts/validate-temporal-openai-path.mjs` and `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` |
 | `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` | Filled manual review of deterministic mock preview output. | Complete | Passing report with preserved counterexample and residual tension refs |
+| `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md` | Filled manual review of real route output captured in mock mode. | Complete | Passing report with `generator: mock`, zero warnings, preserved counterexample and residual tension refs |
 | `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` | Redacted OpenAI-path validation report. | Complete | `generator=openai`, one OpenAI call, seven decisions, zero warnings, no secrets |
 | Cockpit Temporal Preview rendering | Reviewer-visible read-only rendering for admission decisions. | Complete at source/smoke level | `smoke:cockpit-temporal-admission`; no browser screenshot validation yet |
 
@@ -198,8 +207,8 @@ Temporal Interpretation v0.2 is:
   retrieval engine.
 - Guardrails are structural plus fixture-aware, not full semantic truth
   verification.
-- Manual review currently has one filled mock/fixture report, not a large
-  corpus.
+- Manual review currently has one filled mock/fixture report and one
+  route-captured mock-mode report, not a large corpus.
 - OpenAI validation is one pass on the fixture context, not exhaustive.
 - Cockpit rendering is static/read-only and not browser-screenshot validated.
 - No durable `PerspectiveSnapshot` persistence.
@@ -212,7 +221,7 @@ Temporal Interpretation v0.2 is:
 
 | Option | Value | Risk | Prerequisites | Recommended priority |
 | --- | --- | --- | --- | --- |
-| A. Route-captured manual review report | Confirms the manual review process works against an actual route response, not only fixture construction. | May expose route/demo context gaps that require fixture updates. | Running local route and a bounded review capture. | now |
+| A. Route-captured manual review report | Confirms the manual review process works against an actual route response, not only fixture construction. | May expose route/demo context gaps that require fixture updates. | Running local route and a bounded review capture. | complete |
 | B. Browser/Cockpit screenshot validation | Confirms reviewer-visible rendering works in the real browser surface. | Screenshot tests can be brittle if UI layout is still moving. | Stable local Cockpit startup and deterministic preview output. | now |
 | C. OpenAI validation corpus expansion | Tests more semantic cases and model variability. | Costs API calls and may blur the opt-in boundary if not documented tightly. | More fixtures, redaction discipline, explicit key-provided runs. | soon |
 | D. Dedicated Temporal Interpretation work item / evidence binding | Gives this slice durable project traceability without changing preview authority. | Could be mistaken for preview-created evidence if wording is loose. | Existing work/evidence binding conventions and explicit non-authority language. | soon |
@@ -224,14 +233,16 @@ Temporal Interpretation v0.2 is:
 
 ## Recommended next step
 
-Next should be a small route-captured Temporal Preview manual review report or a
-browser/Cockpit screenshot validation, not durable persistence yet.
+Next should be browser/Cockpit screenshot validation, not durable persistence
+yet.
 
 Reason:
 
 - v0.2 has API/mock/OpenAI/schema/fixture/UI validation.
-- Before persistence, the project should observe one real route/Cockpit output
-  and confirm the manual review process still works.
+- The project has now observed one real route output and confirmed the manual
+  review process still works.
+- Before persistence, the project should confirm the same reviewer-visible
+  state in the Cockpit/browser surface.
 - Durable `PerspectiveSnapshot` or `RawEpisodeBundle` runtime should wait until
   route/Cockpit review artifacts are stable.
 
@@ -239,6 +250,7 @@ Reason:
 
 - `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md`
 - `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`
+- `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md`
 - `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`
 - `lib/temporal-interpretation/admission.ts`
 - `lib/temporal-interpretation/fixtures.ts`
@@ -246,5 +258,6 @@ Reason:
 - `scripts/smoke-temporal-preview.mjs`
 - `scripts/smoke-temporal-hardening.mjs`
 - `scripts/smoke-temporal-manual-review-report.mjs`
+- `scripts/smoke-temporal-route-review-report.mjs`
 - `scripts/smoke-cockpit-temporal-admission.mjs`
 - `scripts/validate-temporal-openai-path.mjs`

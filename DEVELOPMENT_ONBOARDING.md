@@ -45,6 +45,7 @@ Temporal Interpretation Preview manual review example added
 Read-only Cockpit rendering for Temporal active-context admission decisions complete
 Temporal Interpretation Preview OpenAI-path validation harness added
 Temporal Interpretation v0.2 status and roadmap doc added
+Temporal Interpretation route-captured manual review report added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -102,7 +103,11 @@ manual review report template for temporal preview outputs. The filled mock
 preview example at
 `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`
 validates the template against the deterministic bounded fixture output. The
-Cockpit Temporal Interpretation Preview panel renders the structured
+route-captured mock-mode report at
+`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md`
+validates the same review process against a real
+`POST /api/temporal-interpretation/preview` response with `OPENAI_API_KEY`
+unset. The Cockpit Temporal Interpretation Preview panel renders the structured
 `active_context_admission.decisions` block read-only when returned by the
 preview. The opt-in OpenAI-path validation harness at
 `scripts/validate-temporal-openai-path.mjs` validates the strict schema when an
@@ -117,9 +122,8 @@ recommended next step are summarized in
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Choose a small route-captured Temporal Preview manual review report or
-browser/Cockpit screenshot validation before durable PerspectiveSnapshot or
-RawEpisodeBundle persistence.
+Choose browser/Cockpit screenshot validation before durable PerspectiveSnapshot
+or RawEpisodeBundle persistence.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -144,11 +148,12 @@ A new session should read these files in this order:
 11. `docs/EXECUTION_SURFACE_RECORD.md` - canonical execution surface names.
 12. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md` - temporal preview manual review template.
 13. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` - filled mock preview review example.
-14. `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` - OpenAI-path validation report.
-15. `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md` - Temporal Interpretation v0.2 status, authority boundary, and next productization options.
-16. `.github/pull_request_template.md` - required PR trace format.
-17. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-18. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+14. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md` - filled route-captured mock preview review example.
+15. `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` - OpenAI-path validation report.
+16. `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md` - Temporal Interpretation v0.2 status, authority boundary, and next productization options.
+17. `.github/pull_request_template.md` - required PR trace format.
+18. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+19. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 
