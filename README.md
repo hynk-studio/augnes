@@ -78,6 +78,7 @@ The current challenge build includes:
 - Work APIs for listing work items, reading work briefs, and recording work events.
 - ChatGPT App read tools for state and work briefs, with bridge-gated write tools for action and work-event proof.
 - `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
+- `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
 - MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
 
 ## Single-Repo Layout
@@ -310,6 +311,19 @@ The helper lives in `apps/augnes_apps` and is exposed from the root package for 
 Before writing an action record, the helper preflights `CODEX_WORK_ID` with `GET /api/work/{work_id}?scope=<scope>`. Unknown work IDs fail before `/api/actions/record`, which avoids orphan action records caused by mistyped trace anchors.
 
 The protocol preserves real `result_status` and `result_kind` values, including `failed`, `blocked`, `partial`, and `needs_review`. It never calls commit/reject routes and does not add autonomous Codex execution, GitHub sync, Discord sync, or automatic work status inference.
+
+Codex verification evidence can be recorded with:
+
+```bash
+npm run codex:record-evidence
+```
+
+The evidence helper reads env vars such as `CODEX_EVIDENCE_KIND`,
+`CODEX_EVIDENCE_STATUS`, `CODEX_EVIDENCE_LABEL`, `CODEX_COMMAND`,
+`CODEX_RESULT_SUMMARY`, and `CODEX_SKIPPED_REASON`, then calls only
+`POST /api/evidence/records`. It records observation traces for Evidence Pack;
+it does not approve, publish, replay, call GitHub/OpenAI, or mutate authority
+rows directly.
 
 ## External State Brief
 

@@ -87,24 +87,43 @@ The helper never calls commit/reject routes and never creates autonomous executi
 ## Structured Verification Evidence
 
 When the local runtime is available, Codex may also record bounded verification
-observations through:
+observations with the Codex evidence helper:
 
 ```bash
-curl -sS -X POST "http://localhost:3000/api/evidence/records" \
-  -H "content-type: application/json" \
-  -d '{
-    "scope": "project:augnes",
-    "work_id": "AG-004",
-    "evidence_kind": "command_run",
-    "label": "Root typecheck",
-    "status": "passed",
-    "command": "npm run typecheck",
-    "result_summary": "TypeScript completed with no errors.",
-    "source_surface": "codex",
-    "source_ref": "PR verification log",
-    "created_by": "codex"
-  }' | jq .
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_WORK_ID=AG-004 \
+CODEX_EVIDENCE_KIND=command_run \
+CODEX_EVIDENCE_STATUS=passed \
+CODEX_EVIDENCE_LABEL="Root typecheck" \
+CODEX_COMMAND="npm run typecheck" \
+CODEX_RESULT_SUMMARY="TypeScript completed with no errors." \
+npm run codex:record-evidence
 ```
+
+The helper validates environment input before POST, defaults
+`AUGNES_API_BASE_URL` to `http://localhost:3000`, defaults `CODEX_SCOPE` to
+`project:augnes`, defaults `CODEX_SOURCE_SURFACE` to `codex`, defaults
+`CODEX_CREATED_BY` to `codex`, validates `CODEX_METADATA_JSON` as a JSON object
+string when provided, and then calls only `POST /api/evidence/records`.
+
+Inputs:
+
+- `CODEX_SCOPE`, optional, defaults to `project:augnes`
+- `CODEX_WORK_ID`, `CODEX_PUBLICATION_ID`, `CODEX_DELIVERY_ID`, optional trace links
+- `CODEX_TARGET_SURFACE`, `CODEX_TARGET_REF`, optional target links
+- `CODEX_EVIDENCE_KIND`, required
+- `CODEX_EVIDENCE_STATUS`, required
+- `CODEX_EVIDENCE_LABEL`, required
+- `CODEX_COMMAND`, required only for `command_run`
+- `CODEX_RESULT_SUMMARY`, required
+- `CODEX_SKIPPED_REASON`, required only for `check_skipped`
+- `CODEX_OBSERVED_BEHAVIOR`, optional
+- `CODEX_SOURCE_SURFACE`, optional, defaults to `codex`
+- `CODEX_SOURCE_REF`, optional
+- `CODEX_RELATED_ACTION_ID`, `CODEX_RELATED_WORK_EVENT_ID`, optional
+- `CODEX_METADATA_JSON`, optional JSON object string
+- `CODEX_CREATED_BY`, optional, defaults to `codex`
 
 Allowed `evidence_kind` values are `command_run`, `check_passed`,
 `check_failed`, `check_skipped`, `replay_observed`, and
@@ -113,10 +132,53 @@ requires `skipped_reason`. Replay and duplicate-block records describe behavior
 explicitly observed elsewhere; creating the record must not execute replay or
 attempt a duplicate publish.
 
+Common examples:
+
+```bash
+CODEX_EVIDENCE_KIND=check_passed \
+CODEX_EVIDENCE_STATUS=passed \
+CODEX_EVIDENCE_LABEL="Evidence Pack smoke" \
+CODEX_RESULT_SUMMARY="npm run smoke:evidence-pack passed with fetch_calls: 0." \
+npm run codex:record-evidence
+```
+
+```bash
+CODEX_EVIDENCE_KIND=check_skipped \
+CODEX_EVIDENCE_STATUS=skipped \
+CODEX_EVIDENCE_LABEL="Browser screenshot check" \
+CODEX_RESULT_SUMMARY="Browser screenshot check was not run." \
+CODEX_SKIPPED_REASON="No browser runtime was available in this environment." \
+npm run codex:record-evidence
+```
+
+```bash
+CODEX_EVIDENCE_KIND=replay_observed \
+CODEX_EVIDENCE_STATUS=observed \
+CODEX_EVIDENCE_LABEL="Same-key replay observation" \
+CODEX_PUBLICATION_ID="publication:..." \
+CODEX_RESULT_SUMMARY="Same-key replay was observed outside this helper and returned the stored delivery artifact." \
+CODEX_OBSERVED_BEHAVIOR="idempotent_replay=true and posted=false" \
+npm run codex:record-evidence
+```
+
+```bash
+CODEX_EVIDENCE_KIND=duplicate_block_observed \
+CODEX_EVIDENCE_STATUS=blocked \
+CODEX_EVIDENCE_LABEL="Different-key duplicate block observation" \
+CODEX_TARGET_REF="Aurna-code/augnes#..." \
+CODEX_RESULT_SUMMARY="A duplicate publish attempt observed outside this helper was blocked before posting." \
+CODEX_OBSERVED_BEHAVIOR="HTTP 409 duplicate block" \
+npm run codex:record-evidence
+```
+
 These records are observation traces only. They do not approve, publish, retry,
 commit/reject state, mutate mailbox, call GitHub, call OpenAI, or create broad
 correctness proof. Evidence Pack v0.1 reads matching records to distinguish
 observed facts from remaining gaps.
+
+The helper also accepts `CODEX_EVIDENCE_BATCH_JSON` as a JSON array of evidence
+record inputs for low-friction batch recording. Batch mode still posts records
+one at a time to the same local endpoint and does not add execution authority.
 
 ## Manual Fallback
 

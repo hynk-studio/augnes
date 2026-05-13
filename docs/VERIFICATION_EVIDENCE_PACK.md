@@ -57,6 +57,29 @@ delivery, or target. Matching `command_run` records populate
 fields. Gaps are reduced only when matching records exist. Unrelated evidence
 records must not make a selected pack appear complete.
 
+Codex should use the npm helper when recording these observations after repo
+work:
+
+```bash
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_WORK_ID=AG-004 \
+CODEX_EVIDENCE_KIND=command_run \
+CODEX_EVIDENCE_STATUS=passed \
+CODEX_EVIDENCE_LABEL="Root typecheck" \
+CODEX_COMMAND="npm run typecheck" \
+CODEX_RESULT_SUMMARY="Typecheck passed." \
+npm run codex:record-evidence
+```
+
+The helper is env-only, validates required fields before POST, validates
+`CODEX_METADATA_JSON` as a JSON object string when provided, and calls only
+`POST /api/evidence/records`. It does not call GitHub or OpenAI, execute replay,
+attempt duplicate publish, or mutate publication, approval, readiness, delivery,
+mailbox, or committed state rows directly. It also supports
+`CODEX_EVIDENCE_BATCH_JSON` as a JSON array of evidence record inputs; batch
+mode still records observation rows one at a time through the same local API.
+
 ## Evidence Categories
 
 ### Command Checks
@@ -83,6 +106,15 @@ After running a command, Codex or another local verifier may record a bounded
 `command_run` evidence record. The record says the command was reported as run;
 it is not broad proof of correctness beyond that exact command and result
 summary.
+
+```bash
+CODEX_EVIDENCE_KIND=command_run \
+CODEX_EVIDENCE_STATUS=passed \
+CODEX_EVIDENCE_LABEL="Root typecheck" \
+CODEX_COMMAND="npm run typecheck" \
+CODEX_RESULT_SUMMARY="Typecheck passed." \
+npm run codex:record-evidence
+```
 
 ### Browser/Chrome Checks
 
@@ -111,6 +143,15 @@ A skipped Developer Mode check is acceptable when no tunnel, local runtime, or D
 Skipped checks should be recorded as `check_skipped` with a concrete
 `skipped_reason` when the evidence record API is available.
 
+```bash
+CODEX_EVIDENCE_KIND=check_skipped \
+CODEX_EVIDENCE_STATUS=skipped \
+CODEX_EVIDENCE_LABEL="Browser screenshot check" \
+CODEX_RESULT_SUMMARY="Browser screenshot check was not run." \
+CODEX_SKIPPED_REASON="No browser runtime was available in this environment." \
+npm run codex:record-evidence
+```
+
 ### MCP / Widget Checks
 
 For MCP Inspector or widget checks, record:
@@ -135,6 +176,28 @@ remains evidence. This does not authorize automatic posting in future PRs.
 Replay and duplicate-block observations are stored only when explicitly
 observed elsewhere. Creating `replay_observed` or `duplicate_block_observed`
 records must not itself execute replay or attempt a duplicate publish.
+
+Observation-only examples:
+
+```bash
+CODEX_EVIDENCE_KIND=replay_observed \
+CODEX_EVIDENCE_STATUS=observed \
+CODEX_EVIDENCE_LABEL="Same-key replay observation" \
+CODEX_DELIVERY_ID="delivery:..." \
+CODEX_RESULT_SUMMARY="Same-key replay was observed outside this helper and returned the stored artifact." \
+CODEX_OBSERVED_BEHAVIOR="idempotent_replay=true and posted=false" \
+npm run codex:record-evidence
+```
+
+```bash
+CODEX_EVIDENCE_KIND=duplicate_block_observed \
+CODEX_EVIDENCE_STATUS=blocked \
+CODEX_EVIDENCE_LABEL="Different-key duplicate block observation" \
+CODEX_TARGET_REF="Aurna-code/augnes#..." \
+CODEX_RESULT_SUMMARY="Duplicate publish behavior was observed outside this helper and blocked before posting." \
+CODEX_OBSERVED_BEHAVIOR="HTTP 409 duplicate block" \
+npm run codex:record-evidence
+```
 
 ### Artifacts
 
