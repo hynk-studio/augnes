@@ -9,17 +9,20 @@ controls.
 
 ## Run Metadata
 
-- Date/time: `2026-05-13T17:06:45Z`
-- Branch: `codex/temporal-openai-validation`
-- Base commit checked before validation attempt: `e148bb2`
+- Date/time: `2026-05-13T17:53:54Z`
+- Branch/commit: `codex/temporal-openai-validation` at `da405cd`
 - Input source: `TEMPORAL_HARDENING_FIXTURES[0]`
   (`valid_review_bounded_preview`)
 - Validation command:
   `npm run validate:temporal-openai-path`
-- OpenAI was called: no
-- OpenAI validation call count: `0`
-- Reason no OpenAI call was made: `OPENAI_API_KEY` was unavailable in the
-  process environment.
+- Input result source: user-supplied redacted validation output from a real
+  OpenAI-key-backed run.
+- Generator observed: `openai`
+- Model observed: not included in the supplied redacted output excerpt. The
+  harness default is `gpt-4.1-mini` unless `OPENAI_MODEL` is set in the
+  environment.
+- OpenAI was called: yes
+- OpenAI validation call count: `1`
 - Secrets handling: no API key was printed, stored, written to a file, or
   committed.
 
@@ -29,76 +32,90 @@ controls.
 {
   "validation": "temporal-openai-path",
   "input_fixture": "valid_review_bounded_preview",
-  "generator": "fail",
-  "model": null,
-  "openai_call_count": 0,
-  "active_context_admission_present": false,
-  "decision_count": 0,
-  "guardrails_passed": false,
+  "generator": "openai",
+  "model": "not included in supplied redacted output",
+  "openai_call_count": 1,
+  "active_context_admission_present": true,
+  "decision_count": 7,
+  "categories_observed": [
+    "admit_boundary_active",
+    "admit_primary_active",
+    "admit_tension_active",
+    "exclude_summary_only",
+    "retain_recallable"
+  ],
+  "guardrails_passed": true,
   "warning_count": 0,
-  "counterexamples_preserved": false,
-  "residual_tensions_preserved": false,
-  "summary_only_evidence_anchor_count": null,
-  "unsafe_safe_next_step_detected": null,
-  "non_authority_boundary_confirmed": false,
+  "warnings": [],
+  "counterexamples_preserved": true,
+  "residual_tensions_preserved": true,
+  "summary_only_evidence_anchor_count": 0,
+  "unsafe_safe_next_step_detected": false,
+  "non_authority_boundary_confirmed": true,
+  "schema_decision_shape_valid": true,
   "no_secrets_printed": true,
-  "passed": false,
-  "failure": "OPENAI_API_KEY is required for validate:temporal-openai-path."
+  "passed": true,
+  "failures": []
 }
 ```
 
 ## active_context_admission
 
-- Generated: no
-- Decision count: `0`
-- Categories observed: none
-- Decision shape validated: no live response was available to validate.
+- Generated: yes
+- Decision count: `7`
+- Categories observed: `admit_boundary_active`, `admit_primary_active`,
+  `admit_tension_active`, `exclude_summary_only`, `retain_recallable`
+- Decision shape validated: yes
 
 ## guardrails
 
-- Guardrail result: not run against a live OpenAI response.
-- Warnings: none captured because no live response was generated.
-- Bounded result: no; blocked by missing environment key.
+- Guardrail result: passed
+- Warning count: `0`
+- Warnings: none
+- Bounded result: yes
 
 ## Counterexample Preservation
 
 - Expected counterexample refs from fixture: `boundary:summary_refs`
-- Output counterexample refs: not available
-- Result: not confirmed
+- Result: confirmed
 
 ## Residual Tension Preservation
 
 - Expected residual tension refs from fixture: `tension:secret-handling`
-- Output residual tension refs: not available
-- Result: not confirmed
+- Result: confirmed
 
 ## summary/evidence Separation
 
-- Summary-only evidence anchor count: not available
-- Result: not confirmed
+- Summary-only evidence anchor count: `0`
+- Result: confirmed
 
 ## safe_next_step Check
 
-- Unsafe authority language detected: not available
-- Result: not confirmed
+- Unsafe authority language detected: no
+- safe_next_step non-authority confirmed: yes
+- Result: confirmed
 
 ## non-authority Boundary
 
-- Non-authority boundary confirmed: not available
-- Result: not confirmed
+- Non-authority boundary confirmed: yes
+- Result: confirmed
 
 ## Notes
 
-- The opt-in validation harness was added and attempted.
-- The command failed before any OpenAI request because the environment did not
-  provide `OPENAI_API_KEY`.
+- The opt-in validation harness was run with `OPENAI_API_KEY` supplied through
+  the shell environment.
+- The redacted result passed with no guardrail warnings and no validation
+  failures.
+- The validation result confirms that counterexamples and residual tensions were
+  preserved, summary-only refs were not used as evidence anchors, and the
+  generated `safe_next_step` did not contain unsafe authority language.
 - Normal smoke checks do not require `OPENAI_API_KEY`.
 - no secrets committed.
 
 ## Reviewer verdict
 
-`fail`
+`pass`
 
-The live OpenAI-path validation could not be completed in this environment. Run
-`npm run validate:temporal-openai-path` with `OPENAI_API_KEY` provided only via
-the environment to complete the validation.
+The live OpenAI-path validation completed successfully with a redacted passing
+summary. The report does not include any API key, raw secret, `.env` content, or
+full raw model response.
