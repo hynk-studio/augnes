@@ -17,6 +17,13 @@ migrations, API routes, runtime persistence, Cockpit code, ChatGPT App tools,
 OpenAI calls, GitHub publication adapter calls, replay, publish, approval, or
 state mutation are added here.
 
+Implementation status: the first narrow read-model slice now exists after this
+design. It adds the `temporal_preview_review_artifacts` table, validation/read
+helper, and read-only list/get APIs. It does not add create/capture routes,
+Cockpit rendering, Evidence Pack integration, ChatGPT App tools, OpenAI calls,
+GitHub publication adapter calls, replay, publish, approval, state mutation,
+`PerspectiveSnapshot` runtime, or `RawEpisodeBundle` runtime.
+
 This design builds on:
 
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`
@@ -262,9 +269,9 @@ publication authority and is not a GitHub publication adapter call.
 Manual reports can be linked with `manual_review_report_path`, such as
 `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md`.
 
-## Future read APIs
+## Read APIs
 
-Future read-only list/get APIs, conceptual only:
+Read-only list/get APIs:
 
 ```text
 GET /api/temporal-interpretation/review-artifacts?scope=...&work_id=...
@@ -363,12 +370,12 @@ Future Cockpit should eventually:
 
 ## Migration strategy
 
-Future implementation sequence:
+Implementation sequence status:
 
-1. Schema migration PR for `temporal_preview_review_artifacts` only.
-2. Type/library helper.
-3. Read-only list/get APIs.
-4. Smoke with temp DB.
+1. Schema migration PR for `temporal_preview_review_artifacts` only. Complete.
+2. Type/library helper. Complete for validation/read/list and smoke-only insert.
+3. Read-only list/get APIs. Complete.
+4. Smoke with temp DB. Complete.
 5. Optional capture helper.
 6. Evidence Pack read-only integration.
 7. Cockpit read-only browser.
@@ -395,11 +402,10 @@ includes the conceptual table name, artifact name, work anchor, forbidden
 fields, bounded preview fields, reviewer fields, linkage fields, Evidence Pack
 integration, read-only list/get APIs, and no implementation boundary.
 
-Future implementation smoke should use a temporary DB outside the repo and
-confirm:
+Read-model implementation smoke uses a temporary DB outside the repo and
+confirms:
 
 - Migration creates only `temporal_preview_review_artifacts`.
-- Rollback/export notes are documented.
 - Insert helper rejects forbidden fields.
 - Insert helper rejects `raw_openai_response`.
 - Insert helper rejects summary-only refs in evidence anchors.
@@ -429,9 +435,6 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: implement only the
-`temporal_preview_review_artifacts` schema, library helper, and read-only
-list/get APIs. Do not add a create route yet. Creation/capture should follow
-after the read model exists and validation fixtures are reviewed.
-
-If that is still too risky, add a forbidden-persistence fixture smoke first.
+Preferred next PR: add forbidden-persistence fixtures or a non-public capture
+helper for `TemporalPreviewReviewArtifact`. Do not expose a create route until
+capture validation, redaction checks, and authority-boundary smoke are reviewed.

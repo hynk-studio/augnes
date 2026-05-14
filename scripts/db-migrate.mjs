@@ -7,6 +7,7 @@ import {
   migrateMailboxCoordinationEventTypes,
   migrateSessionBindingColumns,
   migrateStateDeltaProposalScoring,
+  migrateTemporalPreviewReviewArtifacts,
   migrateVerificationEvidenceRecords,
 } from "./db-migrations.mjs";
 
@@ -29,6 +30,7 @@ try {
   const sessionBindingResult = migrateSessionBindingColumns(db);
   const deliveryArtifactsResult = migrateDeliveryExternalArtifacts(db);
   const verificationEvidenceResult = migrateVerificationEvidenceRecords(db);
+  const temporalReviewArtifactResult = migrateTemporalPreviewReviewArtifacts(db);
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
 
   if (!result.table_found) {
@@ -114,6 +116,21 @@ try {
   if (verificationEvidenceResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${verificationEvidenceResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (temporalReviewArtifactResult.created_table) {
+    console.log(`Created temporal_preview_review_artifacts table at ${dbPath}`);
+  } else if (temporalReviewArtifactResult.created_indexes.length === 0) {
+    console.log(
+      `Temporal review artifact migration no-op: temporal_preview_review_artifacts schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated temporal_preview_review_artifacts indexes at ${dbPath}`);
+  }
+  if (temporalReviewArtifactResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${temporalReviewArtifactResult.created_indexes.join(", ")}`,
     );
   }
 } finally {

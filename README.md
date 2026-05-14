@@ -155,10 +155,15 @@ future Temporal Interpretation evidence, and canonical `target_ref` /
 `source_ref` usage remains available for historical rows and unseeded runtimes.
 The future `TemporalPreviewReviewArtifact` schema design lives at
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`; it is design
-only for a bounded review artifact table and does not add DB schema,
-migrations, API routes, runtime persistence, Cockpit code, ChatGPT App tools,
-OpenAI calls, GitHub publication adapter calls, replay, publish, approval, or
-state mutation.
+for a bounded review artifact table. The first narrow read-model slice now adds
+the `temporal_preview_review_artifacts` table, validation/read helper, and
+read-only list/get APIs at
+`GET /api/temporal-interpretation/review-artifacts` and
+`GET /api/temporal-interpretation/review-artifacts/{artifact_id}`. It still
+does not add create/capture routes, Cockpit rendering, Evidence Pack
+integration, ChatGPT App tools, OpenAI calls, GitHub publication adapter calls,
+replay, publish, approval, state mutation, PerspectiveSnapshot runtime, or
+RawEpisodeBundle runtime.
 
 API check:
 
@@ -183,6 +188,7 @@ npm run smoke:temporal-persistence-design
 npm run smoke:temporal-work-binding
 npm run smoke:temporal-work-seed
 npm run smoke:temporal-review-artifact-schema-design
+npm run smoke:temporal-review-artifact-read-model
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the
