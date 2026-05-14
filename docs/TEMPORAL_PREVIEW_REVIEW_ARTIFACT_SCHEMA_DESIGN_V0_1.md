@@ -42,6 +42,15 @@ App tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
 approval, state mutation, `PerspectiveSnapshot` runtime, or
 `RawEpisodeBundle` runtime.
 
+Future create/capture route contract status: route design now lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`. That
+document recommends
+`POST /api/temporal-interpretation/review-artifacts/capture` as a future
+bounded capture route and remains design only. It does not implement the route,
+add DB schema, add runtime behavior, or add Cockpit, Evidence Pack, ChatGPT App,
+OpenAI, GitHub publication adapter, replay, publish, approval, or state
+mutation behavior.
+
 This design builds on:
 
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`
@@ -309,14 +318,20 @@ Read APIs must:
 
 ## Future create/capture workflow
 
-Future create/capture APIs, conceptual only:
+Future create/capture API, conceptual only:
 
 ```text
-POST /api/temporal-interpretation/review-artifacts
-POST /api/temporal-interpretation/preview/{preview_id}/review-artifact
+POST /api/temporal-interpretation/review-artifacts/capture
 ```
 
 Do not implement now.
+
+The dedicated route contract is designed in
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`. It
+prefers `/capture` because that suffix ties the write to bounded
+preview/review capture output and avoids implying generic artifact insertion.
+The shorter `POST /api/temporal-interpretation/review-artifacts` alternative
+is deferred.
 
 The current non-public capture helper is an internal conversion step only. It
 builds bounded artifact input and leaves persistence to existing internal smoke
@@ -326,6 +341,9 @@ and does not grant write authority to any external surface.
 Future create/capture must:
 
 - Persist only a bounded review artifact after validation.
+- Reuse `buildTemporalPreviewReviewArtifactInputFromRouteCapture`.
+- Use a future private non-smoke `insertTemporalPreviewReviewArtifact` helper.
+- Require a public-route idempotency key.
 - Require explicit `capture_mode`.
 - Require explicit `redaction_status`.
 - Reject raw full OpenAI response.
@@ -401,8 +419,12 @@ Implementation sequence status:
 4. Smoke with temp DB. Complete.
 5. Forbidden-persistence fixture corpus and smoke. Complete.
 6. Non-public capture helper and smoke. Complete.
-7. Evidence Pack read-only integration.
-8. Cockpit read-only browser.
+7. Public create/capture route contract design. Complete in
+   `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`.
+8. Private non-smoke insert helper.
+9. Future public create/capture route.
+10. Evidence Pack read-only integration.
+11. Cockpit read-only browser.
 
 Do not combine with:
 
@@ -470,6 +492,13 @@ Capture-helper smoke uses a temporary DB outside the repo and confirms:
   OpenAI call, GitHub publication adapter call, replay, publish, or approval
   behavior is added.
 
+Create-route design smoke confirms the future route contract document exists
+and includes the recommended `/capture` route, idempotency behavior, duplicate
+`source_ref` plus `preview_hash` policy, forbidden fields, private non-smoke
+insert helper prerequisite, forbidden fixture corpus requirement, and no
+OpenAI, GitHub publication adapter, approval, publish, replay, state mutation,
+Cockpit write button, or ChatGPT App create tool boundary.
+
 ## Acceptance gates before implementation
 
 Required gates:
@@ -483,6 +512,8 @@ Required gates:
 - No-secret policy confirmed.
 - Forbidden-persistence fixtures added.
 - Non-public capture helper added.
+- Create/capture route contract design added.
+- Private non-smoke insert helper planned and tested before any public route.
 - Migration rollback/export note planned.
 - No automatic commit smoke plan.
 - Explicit decision to implement review artifacts only, not

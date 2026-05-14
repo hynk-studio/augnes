@@ -281,6 +281,16 @@ surface, Evidence Pack rendering, Cockpit code, ChatGPT App tools, OpenAI
 calls, GitHub publication adapter calls, replay, publish, approval,
 PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 
+The future public create/capture route contract is now designed in
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`. It
+recommends
+`POST /api/temporal-interpretation/review-artifacts/capture`, requires
+idempotency and the forbidden fixture corpus, and keeps the route bounded to
+review artifact creation only. That document is design only: it does not add a
+POST route, DB schema, runtime behavior, Cockpit write button, ChatGPT App
+create tool, Evidence Pack write integration, OpenAI call, GitHub publication
+adapter call, replay, publish, approval, or state mutation.
+
 ## Required gates before implementation
 
 Before any persistence implementation, these gates must pass:
@@ -316,25 +326,27 @@ ChatGPT App tools.
 5. TemporalPreviewReviewArtifact forbidden-persistence fixture corpus.
    Complete.
 6. Non-public TemporalPreviewReviewArtifact capture helper. Complete.
-7. Evidence Pack read-only integration.
-8. Cockpit read-only review artifact browser.
-9. PerspectiveSnapshotCandidate proposal design.
-10. Approval-gated commit design.
-11. RawEpisodeBundleRef design.
-12. RawEpisodeBundle ingestion prototype.
-13. Learned temporal routing policy research.
+7. TemporalPreviewReviewArtifact create/capture route contract design.
+   Complete.
+8. Private non-smoke insert helper.
+9. Future public create/capture route.
+10. Evidence Pack read-only integration.
+11. Cockpit read-only review artifact browser.
+12. PerspectiveSnapshotCandidate proposal design.
+13. Approval-gated commit design.
+14. RawEpisodeBundleRef design.
+15. RawEpisodeBundle ingestion prototype.
+16. Learned temporal routing policy research.
 
 ## Recommended next step
 
-First create or merge a dedicated Temporal Interpretation work item/evidence
-binding doc or seed record. Then implement review artifact persistence, not
-PerspectiveSnapshot persistence.
-
-If a schema design PR is opened after that work item exists, it should be a
-TemporalPreviewReviewArtifact schema design PR only. It should preserve the
-non-authoritative review-artifact boundary and leave durable
-PerspectiveSnapshot persistence, RawEpisodeBundle runtime, approval-gated
-commit, routing policy, and Cockpit write controls out of scope.
+Next review a private non-smoke `insertTemporalPreviewReviewArtifact` helper
+before any public route. Then implement the future `/capture` route only after
+idempotency storage, duplicate policy, payload bounds, and strict link
+validation are resolved. Preserve the non-authoritative review-artifact
+boundary and leave durable `PerspectiveSnapshot` persistence,
+`RawEpisodeBundle` runtime, approval-gated commit, routing policy, Evidence
+Pack writes, ChatGPT App create tools, and Cockpit write controls out of scope.
 
 ## Relation to existing artifacts
 
