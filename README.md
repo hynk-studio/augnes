@@ -147,6 +147,11 @@ Future persistence boundaries for Temporal Interpretation are documented in
 `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`; that design is not
 implementation and does not add schema, routes, runtime persistence, Cockpit
 write controls, or durable PerspectiveSnapshot/RawEpisodeBundle state.
+The work/evidence binding convention for future Temporal Interpretation
+persistence work lives at
+`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`; it defines the
+documentation-only `AG-TEMPORAL-INTERPRETATION` anchor and canonical
+`target_ref` / `source_ref` usage until a runtime work item exists.
 
 API check:
 
@@ -168,6 +173,7 @@ npm run smoke:temporal-cockpit-screenshot-validation
 npm run smoke:temporal-openai-validation-docs
 npm run smoke:temporal-v02-status-roadmap
 npm run smoke:temporal-persistence-design
+npm run smoke:temporal-work-binding
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

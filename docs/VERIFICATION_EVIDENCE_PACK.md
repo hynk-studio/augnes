@@ -159,6 +159,11 @@ For future Temporal Interpretation persistence boundaries, reference
 design artifact only; it must not be treated as DB schema, API implementation,
 runtime persistence, approval authority, durable PerspectiveSnapshot state, or
 RawEpisodeBundle runtime.
+For Temporal Interpretation work/evidence binding, reference
+`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`. Until the
+dedicated runtime work item exists, use the canonical Temporal Interpretation
+`target_ref` / `source_ref` strings from that document and do not attach future
+Temporal evidence to `AG-004` or another generic Codex work anchor.
 
 ## Evidence Categories
 
