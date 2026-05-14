@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { openDatabase } from "@/lib/db";
 import { normalizeScope, normalizeWorkId } from "@/lib/work";
 
@@ -157,6 +157,31 @@ type TemporalPreviewReviewArtifactRow = Omit<
 type NormalizedTemporalPreviewReviewArtifactRow =
   TemporalPreviewReviewArtifactRow;
 
+type TemporalPreviewReviewArtifactIdempotencyRow = {
+  idempotency_key_hash: string;
+  scope: string;
+  artifact_id: string;
+  payload_hash: string;
+  work_id: string;
+  source_ref: string | null;
+  preview_hash: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+export type TemporalPreviewReviewArtifactIdempotencyResult = {
+  created: boolean;
+  idempotent_replay: boolean;
+  artifact: TemporalPreviewReviewArtifact;
+  idempotency_key_hash: string;
+  payload_hash: string;
+};
+
+export type TemporalPreviewReviewArtifactIdempotencyOptions = {
+  idempotency_key: string;
+  created_by: string;
+};
+
 export class TemporalPreviewReviewArtifactValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -164,9 +189,68 @@ export class TemporalPreviewReviewArtifactValidationError extends Error {
   }
 }
 
-export function normalizeTemporalReviewArtifactId(artifactId?: string | null) {
+export class TemporalPreviewReviewArtifactIdempotencyConflictError extends Error {
+  readonly idempotency_key_hash: string;
+  readonly existing_payload_hash: string;
+  readonly attempted_payload_hash: string;
+
+  constructor({
+    idempotencyKeyHash,
+    existingPayloadHash,
+    attemptedPayloadHash,
+  }: {
+    idempotencyKeyHash: string;
+    existingPayloadHash: string;
+    attemptedPayloadHash: string;
+  }) {
+    super(
+      `TemporalPreviewReviewArtifact idempotency conflict for key hash ${idempotencyKeyHash}.`,
+    );
+    this.name = "TemporalPreviewReviewArtifactIdempotencyConflictError";
+    this.idempotency_key_hash = idempotencyKeyHash;
+    this.existing_payload_hash = existingPayloadHash;
+    this.attempted_payload_hash = attemptedPayloadHash;
+  }
+}
+
+export class TemporalPreviewReviewArtifactDuplicateConflictError extends Error {
+  readonly existing_artifact_id: string;
+  readonly scope: string;
+  readonly work_id: string;
+  readonly source_ref: string;
+  readonly preview_hash: string;
+
+  constructor({
+    existingArtifactId,
+    scope,
+    workId,
+    sourceRef,
+    previewHash,
+  }: {
+    existingArtifactId: string;
+    scope: string;
+    workId: string;
+    sourceRef: string;
+    previewHash: string;
+  }) {
+    super(
+      `TemporalPreviewReviewArtifact duplicate source_ref/preview_hash conflict for artifact_id ${existingArtifactId}.`,
+    );
+    this.name = "TemporalPreviewReviewArtifactDuplicateConflictError";
+    this.existing_artifact_id = existingArtifactId;
+    this.scope = scope;
+    this.work_id = workId;
+    this.source_ref = sourceRef;
+    this.preview_hash = previewHash;
+  }
+}
+
+export function normalizeTemporalReviewArtifactId(
+  artifactId?: string | null,
+  generatedArtifactId = `temporal-review:${randomUUID()}`,
+) {
   const value = artifactId?.trim();
-  return value && value.length > 0 ? value : `temporal-review:${randomUUID()}`;
+  return value && value.length > 0 ? value : generatedArtifactId;
 }
 
 export function normalizeTemporalReviewArtifactScope(scope?: string | null) {
@@ -280,82 +364,235 @@ function insertTemporalPreviewReviewArtifactInternal(
   const db = openDatabase();
 
   try {
-    assertWorkExists(db, row.scope, row.work_id);
-    assertLinkedSessionExists(db, row.linked_session_id);
-    assertLinkedEvidenceRecordsExist(db, row.scope, row.linked_evidence_record_ids);
+    return insertTemporalPreviewReviewArtifactRow(db, row);
+  } finally {
+    db.close();
+  }
+}
 
-    db.prepare(
-      `
-        INSERT INTO temporal_preview_review_artifacts (
-          artifact_id,
-          scope,
-          work_id,
-          source_route,
-          source_surface,
-          source_ref,
-          generator,
-          model,
-          as_of,
-          capture_mode,
-          preview_excerpt,
-          bounded_preview_json,
-          preview_hash,
-          source_refs,
-          evidence_anchor_refs,
-          summary_refs,
-          counterexample_refs,
-          residual_tension_refs,
-          admission_decisions_json,
-          guardrail_passed,
-          guardrail_warnings_json,
-          reviewer_verdict,
-          reviewer_notes,
-          manual_review_report_path,
-          linked_evidence_record_ids,
-          linked_session_id,
-          linked_pr_url,
-          redaction_status,
-          created_by,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          @artifact_id,
-          @scope,
-          @work_id,
-          @source_route,
-          @source_surface,
-          @source_ref,
-          @generator,
-          @model,
-          @as_of,
-          @capture_mode,
-          @preview_excerpt,
-          @bounded_preview_json,
-          @preview_hash,
-          @source_refs,
-          @evidence_anchor_refs,
-          @summary_refs,
-          @counterexample_refs,
-          @residual_tension_refs,
-          @admission_decisions_json,
-          @guardrail_passed,
-          @guardrail_warnings_json,
-          @reviewer_verdict,
-          @reviewer_notes,
-          @manual_review_report_path,
-          @linked_evidence_record_ids,
-          @linked_session_id,
-          @linked_pr_url,
-          @redaction_status,
-          @created_by,
-          @created_at,
-          @updated_at
-        )
-      `,
-    ).run(row);
+export function hashTemporalReviewArtifactIdempotencyKey(rawKey: string) {
+  const key = requireNonEmptyString(rawKey, "idempotency_key");
+  return `sha256:${createHash("sha256").update(key).digest("hex")}`;
+}
 
-    return selectTemporalPreviewReviewArtifactById(db, row.scope, row.artifact_id);
+export function computeTemporalReviewArtifactPayloadHash(
+  input: TemporalPreviewReviewArtifactInput,
+) {
+  const row = validateTemporalPreviewReviewArtifactInput(input, {
+    generatedArtifactId: "temporal-review:payload-hash-placeholder",
+    now: "1970-01-01T00:00:00.000Z",
+  });
+  return `sha256:${createHash("sha256")
+    .update(stableStringify(buildPayloadHashValue(row)))
+    .digest("hex")}`;
+}
+
+export function findTemporalReviewArtifactByIdempotencyKey(
+  scope: string | null | undefined,
+  rawKey: string,
+) {
+  const normalizedScope = normalizeTemporalReviewArtifactScope(scope);
+  const keyHash = hashTemporalReviewArtifactIdempotencyKey(rawKey);
+  const db = openDatabase();
+
+  try {
+    const row = selectTemporalReviewArtifactIdempotencyByHash(
+      db,
+      normalizedScope,
+      keyHash,
+    );
+    if (!row) {
+      return null;
+    }
+
+    return {
+      idempotency: row,
+      artifact: selectTemporalPreviewReviewArtifactById(
+        db,
+        row.scope,
+        row.artifact_id,
+      ),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+export function checkTemporalReviewArtifactIdempotency({
+  scope,
+  rawKey,
+  payloadHash,
+}: {
+  scope: string | null | undefined;
+  rawKey: string;
+  payloadHash: string;
+}) {
+  const normalizedScope = normalizeTemporalReviewArtifactScope(scope);
+  const keyHash = hashTemporalReviewArtifactIdempotencyKey(rawKey);
+  const db = openDatabase();
+
+  try {
+    const row = selectTemporalReviewArtifactIdempotencyByHash(
+      db,
+      normalizedScope,
+      keyHash,
+    );
+    if (!row) {
+      return null;
+    }
+    if (row.payload_hash !== payloadHash) {
+      throw new TemporalPreviewReviewArtifactIdempotencyConflictError({
+        idempotencyKeyHash: keyHash,
+        existingPayloadHash: row.payload_hash,
+        attemptedPayloadHash: payloadHash,
+      });
+    }
+
+    return {
+      idempotent_replay: true,
+      artifact: selectTemporalPreviewReviewArtifactById(
+        db,
+        row.scope,
+        row.artifact_id,
+      ),
+      idempotency: row,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+export function recordTemporalReviewArtifactIdempotency({
+  rawKey,
+  payloadHash,
+  artifact,
+  created_by,
+}: {
+  rawKey: string;
+  payloadHash: string;
+  artifact: TemporalPreviewReviewArtifact;
+  created_by?: string;
+}) {
+  const db = openDatabase();
+
+  try {
+    return insertTemporalReviewArtifactIdempotencyRow(db, {
+      idempotencyKeyHash: hashTemporalReviewArtifactIdempotencyKey(rawKey),
+      payloadHash,
+      artifact,
+      createdBy: created_by ?? artifact.created_by,
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export function findDuplicateTemporalReviewArtifactSourceHash({
+  scope,
+  work_id,
+  source_ref,
+  preview_hash,
+}: {
+  scope: string | null | undefined;
+  work_id: string;
+  source_ref?: string | null;
+  preview_hash?: string | null;
+}) {
+  const normalizedScope = normalizeTemporalReviewArtifactScope(scope);
+  const normalizedWorkId = normalizeWorkId(requireNonEmptyString(work_id, "work_id"));
+  const sourceRef = cleanNullableString(source_ref);
+  const previewHash = cleanNullableString(preview_hash);
+  if (!sourceRef || !previewHash) {
+    return null;
+  }
+
+  const db = openDatabase();
+
+  try {
+    return findDuplicateTemporalReviewArtifactSourceHashWithDb(db, {
+      scope: normalizedScope,
+      work_id: normalizedWorkId,
+      source_ref: sourceRef,
+      preview_hash: previewHash,
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export function insertTemporalPreviewReviewArtifactWithIdempotency(
+  input: TemporalPreviewReviewArtifactInput,
+  options: TemporalPreviewReviewArtifactIdempotencyOptions,
+): TemporalPreviewReviewArtifactIdempotencyResult {
+  const idempotencyKeyHash = hashTemporalReviewArtifactIdempotencyKey(
+    options.idempotency_key,
+  );
+  const payloadHash = computeTemporalReviewArtifactPayloadHash(input);
+  const createdBy = requireNonEmptyString(options.created_by, "created_by");
+  const db = openDatabase();
+
+  try {
+    return db.transaction(() => {
+      const candidateRow = validateTemporalPreviewReviewArtifactInput(input);
+      const existingIdempotency = selectTemporalReviewArtifactIdempotencyByHash(
+        db,
+        candidateRow.scope,
+        idempotencyKeyHash,
+      );
+      if (existingIdempotency) {
+        if (existingIdempotency.payload_hash !== payloadHash) {
+          throw new TemporalPreviewReviewArtifactIdempotencyConflictError({
+            idempotencyKeyHash,
+            existingPayloadHash: existingIdempotency.payload_hash,
+            attemptedPayloadHash: payloadHash,
+          });
+        }
+
+        return {
+          created: false,
+          idempotent_replay: true,
+          artifact: selectTemporalPreviewReviewArtifactById(
+            db,
+            existingIdempotency.scope,
+            existingIdempotency.artifact_id,
+          ),
+          idempotency_key_hash: idempotencyKeyHash,
+          payload_hash: payloadHash,
+        };
+      }
+
+      const duplicate = findDuplicateTemporalReviewArtifactSourceHashWithDb(db, {
+        scope: candidateRow.scope,
+        work_id: candidateRow.work_id,
+        source_ref: candidateRow.source_ref,
+        preview_hash: candidateRow.preview_hash,
+      });
+      if (duplicate && candidateRow.source_ref && candidateRow.preview_hash) {
+        throw new TemporalPreviewReviewArtifactDuplicateConflictError({
+          existingArtifactId: duplicate.artifact_id,
+          scope: candidateRow.scope,
+          workId: candidateRow.work_id,
+          sourceRef: candidateRow.source_ref,
+          previewHash: candidateRow.preview_hash,
+        });
+      }
+
+      const artifact = insertTemporalPreviewReviewArtifactRow(db, candidateRow);
+      insertTemporalReviewArtifactIdempotencyRow(db, {
+        idempotencyKeyHash,
+        payloadHash,
+        artifact,
+        createdBy,
+      });
+
+      return {
+        created: true,
+        idempotent_replay: false,
+        artifact,
+        idempotency_key_hash: idempotencyKeyHash,
+        payload_hash: payloadHash,
+      };
+    })();
   } finally {
     db.close();
   }
@@ -390,9 +627,10 @@ export function deserializeJsonArrayField(value: string, fieldName = "json_array
 
 function validateTemporalPreviewReviewArtifactInput(
   input: TemporalPreviewReviewArtifactInput,
+  options: { now?: string; generatedArtifactId?: string } = {},
 ): NormalizedTemporalPreviewReviewArtifactRow {
   rejectForbiddenFields(input);
-  const now = new Date().toISOString();
+  const now = options.now ?? new Date().toISOString();
   const scope = normalizeTemporalReviewArtifactScope(input.scope);
   const workId = normalizeWorkId(requireNonEmptyString(input.work_id, "work_id"));
   if (workId !== TEMPORAL_INTERPRETATION_WORK_ID) {
@@ -425,7 +663,10 @@ function validateTemporalPreviewReviewArtifactInput(
   assertSummaryRefsNotEvidenceAnchors(evidenceAnchorRefs, summaryRefs);
 
   return {
-    artifact_id: normalizeTemporalReviewArtifactId(input.artifact_id),
+    artifact_id: normalizeTemporalReviewArtifactId(
+      input.artifact_id,
+      options.generatedArtifactId,
+    ),
     scope,
     work_id: workId,
     source_route: requireRouteString(input.source_route),
@@ -589,6 +830,209 @@ function selectColumns() {
     created_at,
     updated_at
   `;
+}
+
+function insertTemporalPreviewReviewArtifactRow(
+  db: ReturnType<typeof openDatabase>,
+  row: NormalizedTemporalPreviewReviewArtifactRow,
+) {
+  assertWorkExists(db, row.scope, row.work_id);
+  assertLinkedSessionExists(db, row.linked_session_id);
+  assertLinkedEvidenceRecordsExist(db, row.scope, row.linked_evidence_record_ids);
+
+  db.prepare(
+    `
+      INSERT INTO temporal_preview_review_artifacts (
+        artifact_id,
+        scope,
+        work_id,
+        source_route,
+        source_surface,
+        source_ref,
+        generator,
+        model,
+        as_of,
+        capture_mode,
+        preview_excerpt,
+        bounded_preview_json,
+        preview_hash,
+        source_refs,
+        evidence_anchor_refs,
+        summary_refs,
+        counterexample_refs,
+        residual_tension_refs,
+        admission_decisions_json,
+        guardrail_passed,
+        guardrail_warnings_json,
+        reviewer_verdict,
+        reviewer_notes,
+        manual_review_report_path,
+        linked_evidence_record_ids,
+        linked_session_id,
+        linked_pr_url,
+        redaction_status,
+        created_by,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        @artifact_id,
+        @scope,
+        @work_id,
+        @source_route,
+        @source_surface,
+        @source_ref,
+        @generator,
+        @model,
+        @as_of,
+        @capture_mode,
+        @preview_excerpt,
+        @bounded_preview_json,
+        @preview_hash,
+        @source_refs,
+        @evidence_anchor_refs,
+        @summary_refs,
+        @counterexample_refs,
+        @residual_tension_refs,
+        @admission_decisions_json,
+        @guardrail_passed,
+        @guardrail_warnings_json,
+        @reviewer_verdict,
+        @reviewer_notes,
+        @manual_review_report_path,
+        @linked_evidence_record_ids,
+        @linked_session_id,
+        @linked_pr_url,
+        @redaction_status,
+        @created_by,
+        @created_at,
+        @updated_at
+      )
+    `,
+  ).run(row);
+
+  return selectTemporalPreviewReviewArtifactById(db, row.scope, row.artifact_id);
+}
+
+function selectTemporalReviewArtifactIdempotencyByHash(
+  db: ReturnType<typeof openDatabase>,
+  scope: string,
+  idempotencyKeyHash: string,
+) {
+  return db
+    .prepare(
+      `
+        SELECT
+          idempotency_key_hash,
+          scope,
+          artifact_id,
+          payload_hash,
+          work_id,
+          source_ref,
+          preview_hash,
+          created_by,
+          created_at
+        FROM temporal_preview_review_artifact_idempotency
+        WHERE scope = ? AND idempotency_key_hash = ?
+      `,
+    )
+    .get(scope, idempotencyKeyHash) as
+    | TemporalPreviewReviewArtifactIdempotencyRow
+    | undefined;
+}
+
+function insertTemporalReviewArtifactIdempotencyRow(
+  db: ReturnType<typeof openDatabase>,
+  {
+    idempotencyKeyHash,
+    payloadHash,
+    artifact,
+    createdBy,
+  }: {
+    idempotencyKeyHash: string;
+    payloadHash: string;
+    artifact: TemporalPreviewReviewArtifact;
+    createdBy: string;
+  },
+) {
+  const row: TemporalPreviewReviewArtifactIdempotencyRow = {
+    idempotency_key_hash: idempotencyKeyHash,
+    scope: artifact.scope,
+    artifact_id: artifact.artifact_id,
+    payload_hash: payloadHash,
+    work_id: artifact.work_id,
+    source_ref: artifact.source_ref,
+    preview_hash: artifact.preview_hash,
+    created_by: createdBy,
+    created_at: artifact.created_at,
+  };
+
+  db.prepare(
+    `
+      INSERT INTO temporal_preview_review_artifact_idempotency (
+        idempotency_key_hash,
+        scope,
+        artifact_id,
+        payload_hash,
+        work_id,
+        source_ref,
+        preview_hash,
+        created_by,
+        created_at
+      )
+      VALUES (
+        @idempotency_key_hash,
+        @scope,
+        @artifact_id,
+        @payload_hash,
+        @work_id,
+        @source_ref,
+        @preview_hash,
+        @created_by,
+        @created_at
+      )
+    `,
+  ).run(row);
+
+  return row;
+}
+
+function findDuplicateTemporalReviewArtifactSourceHashWithDb(
+  db: ReturnType<typeof openDatabase>,
+  {
+    scope,
+    work_id,
+    source_ref,
+    preview_hash,
+  }: {
+    scope: string;
+    work_id: string;
+    source_ref: string | null;
+    preview_hash: string | null;
+  },
+) {
+  if (!source_ref || !preview_hash) {
+    return null;
+  }
+
+  const row = db
+    .prepare(
+      `
+        SELECT ${selectColumns()}
+        FROM temporal_preview_review_artifacts
+        WHERE scope = ?
+          AND work_id = ?
+          AND source_ref = ?
+          AND preview_hash = ?
+        ORDER BY created_at DESC, artifact_id ASC
+        LIMIT 1
+      `,
+    )
+    .get(scope, work_id, source_ref, preview_hash) as
+    | TemporalPreviewReviewArtifactRow
+    | undefined;
+
+  return row ? parseTemporalPreviewReviewArtifactRow(row) : null;
 }
 
 function assertWorkExists(
@@ -891,4 +1335,68 @@ function assertSummaryRefsNotEvidenceAnchors(
       `summary_refs must not be stored as evidence_anchor_refs: ${invalidRefs.join(", ")}.`,
     );
   }
+}
+
+function buildPayloadHashValue(row: NormalizedTemporalPreviewReviewArtifactRow) {
+  return {
+    artifact_id: row.artifact_id,
+    scope: row.scope,
+    work_id: row.work_id,
+    source_route: row.source_route,
+    source_surface: row.source_surface,
+    source_ref: row.source_ref,
+    generator: row.generator,
+    model: row.model,
+    as_of: row.as_of,
+    capture_mode: row.capture_mode,
+    preview_excerpt: row.preview_excerpt,
+    bounded_preview_json: parseJson(row.bounded_preview_json, "bounded_preview_json"),
+    preview_hash: row.preview_hash,
+    source_refs: parseJson(row.source_refs, "source_refs"),
+    evidence_anchor_refs: parseJson(row.evidence_anchor_refs, "evidence_anchor_refs"),
+    summary_refs: parseJson(row.summary_refs, "summary_refs"),
+    counterexample_refs: parseJson(row.counterexample_refs, "counterexample_refs"),
+    residual_tension_refs: parseJson(
+      row.residual_tension_refs,
+      "residual_tension_refs",
+    ),
+    admission_decisions_json: parseJson(
+      row.admission_decisions_json,
+      "admission_decisions_json",
+    ),
+    guardrail_passed: row.guardrail_passed,
+    guardrail_warnings_json: parseJson(
+      row.guardrail_warnings_json,
+      "guardrail_warnings_json",
+    ),
+    reviewer_verdict: row.reviewer_verdict,
+    reviewer_notes: row.reviewer_notes,
+    manual_review_report_path: row.manual_review_report_path,
+    linked_evidence_record_ids: parseJson(
+      row.linked_evidence_record_ids,
+      "linked_evidence_record_ids",
+    ),
+    linked_session_id: row.linked_session_id,
+    linked_pr_url: row.linked_pr_url,
+    redaction_status: row.redaction_status,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(",")}}`;
 }

@@ -7,6 +7,7 @@ import {
   migrateMailboxCoordinationEventTypes,
   migrateSessionBindingColumns,
   migrateStateDeltaProposalScoring,
+  migrateTemporalPreviewReviewArtifactIdempotency,
   migrateTemporalPreviewReviewArtifacts,
   migrateVerificationEvidenceRecords,
 } from "./db-migrations.mjs";
@@ -31,6 +32,8 @@ try {
   const deliveryArtifactsResult = migrateDeliveryExternalArtifacts(db);
   const verificationEvidenceResult = migrateVerificationEvidenceRecords(db);
   const temporalReviewArtifactResult = migrateTemporalPreviewReviewArtifacts(db);
+  const temporalReviewArtifactIdempotencyResult =
+    migrateTemporalPreviewReviewArtifactIdempotency(db);
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
 
   if (!result.table_found) {
@@ -131,6 +134,27 @@ try {
   if (temporalReviewArtifactResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${temporalReviewArtifactResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (temporalReviewArtifactIdempotencyResult.created_table) {
+    console.log(
+      `Created temporal_preview_review_artifact_idempotency table at ${dbPath}`,
+    );
+  } else if (
+    temporalReviewArtifactIdempotencyResult.created_indexes.length === 0
+  ) {
+    console.log(
+      `Temporal review artifact idempotency migration no-op: temporal_preview_review_artifact_idempotency schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated temporal_preview_review_artifact_idempotency indexes at ${dbPath}`,
+    );
+  }
+  if (temporalReviewArtifactIdempotencyResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${temporalReviewArtifactIdempotencyResult.created_indexes.join(", ")}`,
     );
   }
 } finally {

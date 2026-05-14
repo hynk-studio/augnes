@@ -666,6 +666,26 @@ CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_session_time
 CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_pr_time
   ON temporal_preview_review_artifacts(scope, linked_pr_url, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS temporal_preview_review_artifact_idempotency (
+  idempotency_key_hash TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'project:augnes',
+  artifact_id TEXT NOT NULL,
+  payload_hash TEXT NOT NULL,
+  work_id TEXT NOT NULL,
+  source_ref TEXT,
+  preview_hash TEXT,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (artifact_id) REFERENCES temporal_preview_review_artifacts(artifact_id),
+  FOREIGN KEY (scope, work_id) REFERENCES work_items(scope, work_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_temporal_review_artifact_idem_scope_source_hash
+  ON temporal_preview_review_artifact_idempotency(scope, work_id, source_ref, preview_hash);
+
+CREATE INDEX IF NOT EXISTS idx_temporal_review_artifact_idem_scope_artifact
+  ON temporal_preview_review_artifact_idempotency(scope, artifact_id);
+
 CREATE TABLE IF NOT EXISTS coordination_events (
   event_id TEXT PRIMARY KEY,
   event_type TEXT NOT NULL CHECK (

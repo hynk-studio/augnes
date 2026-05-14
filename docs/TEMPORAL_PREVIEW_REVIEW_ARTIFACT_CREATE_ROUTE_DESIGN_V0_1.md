@@ -26,7 +26,13 @@ It must not call the GitHub publication adapter.
 Implementation status: the private non-smoke
 `insertTemporalPreviewReviewArtifact` helper now exists and reuses the same
 validation and insertion path as `insertTemporalPreviewReviewArtifactForSmoke`.
-The public create/capture route is still not implemented.
+Idempotency foundation status: a separate internal
+`temporal_preview_review_artifact_idempotency` table and
+`insertTemporalPreviewReviewArtifactWithIdempotency` helper now support
+same-key replay, same-key conflict detection, and conservative duplicate
+`source_ref` plus `preview_hash` plus `work_id` conflict detection. Raw
+idempotency keys, raw payloads, and raw request bodies are not stored. The
+public create/capture route is still not implemented.
 
 ## Route candidates
 
@@ -212,6 +218,13 @@ the first implementation.
 If idempotency data is stored, store only a hash of the idempotency key, not the
 raw key.
 
+Implementation note: the idempotency foundation stores route/protocol metadata
+in `temporal_preview_review_artifact_idempotency` instead of adding
+idempotency columns to the artifact table. Duplicate `source_ref` plus
+`preview_hash` plus `work_id` is enforced in helper logic for now rather than a
+partial unique index, so the existing artifact insert helper remains unchanged
+and the future route can map the typed conflict to `409`.
+
 ## Authority boundary
 
 The route must:
@@ -377,7 +390,7 @@ Recommended sequence:
 
 1. Add the private non-smoke insert helper,
    `insertTemporalPreviewReviewArtifact`. Complete.
-2. Add idempotency storage/design if needed.
+2. Add idempotency storage/design if needed. Complete as internal foundation.
 3. Implement the route.
 4. Add route smoke.
 5. Add Evidence Pack read-only awareness.
