@@ -173,6 +173,11 @@ fields, Evidence Pack integration design, and read-only list/get API boundary.
 It is not implementation and must not be treated as DB schema, API routes,
 runtime persistence, approval authority, durable PerspectiveSnapshot state, or
 RawEpisodeBundle runtime.
+The first read-model slice now adds the
+`temporal_preview_review_artifacts` table and read-only list/get APIs, but
+Evidence Pack integration remains future work. Evidence Pack must not infer
+approval, publish readiness, replay status, committed state, or memory
+admission from review artifact records.
 
 ## Evidence Categories
 

@@ -223,6 +223,7 @@ export function openDatabase() {
   migrateSessionBindingColumns(db);
   migrateDeliveryExternalArtifactColumns(db);
   migrateVerificationEvidenceRecordsTable(db);
+  migrateTemporalPreviewReviewArtifactsTable(db);
   return db;
 }
 
@@ -1672,6 +1673,100 @@ function migrateVerificationEvidenceRecordsTable(db: Database.Database) {
     `
       CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_kind_time
         ON verification_evidence_records(scope, evidence_kind, created_at DESC)
+    `,
+  ];
+
+  for (const sql of indexes) {
+    db.prepare(sql).run();
+  }
+}
+
+function migrateTemporalPreviewReviewArtifactsTable(db: Database.Database) {
+  db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS temporal_preview_review_artifacts (
+        artifact_id TEXT PRIMARY KEY,
+        scope TEXT NOT NULL DEFAULT 'project:augnes',
+        work_id TEXT NOT NULL,
+        source_route TEXT NOT NULL,
+        source_surface TEXT NOT NULL,
+        source_ref TEXT,
+        generator TEXT NOT NULL,
+        model TEXT,
+        as_of TEXT NOT NULL,
+        capture_mode TEXT NOT NULL CHECK (
+          capture_mode IN (
+            'mock',
+            'openai',
+            'mock_fallback',
+            'route_capture',
+            'cockpit_capture'
+          )
+        ),
+        preview_excerpt TEXT NOT NULL,
+        bounded_preview_json TEXT NOT NULL,
+        preview_hash TEXT,
+        source_refs TEXT NOT NULL DEFAULT '[]',
+        evidence_anchor_refs TEXT NOT NULL DEFAULT '[]',
+        summary_refs TEXT NOT NULL DEFAULT '[]',
+        counterexample_refs TEXT NOT NULL DEFAULT '[]',
+        residual_tension_refs TEXT NOT NULL DEFAULT '[]',
+        admission_decisions_json TEXT NOT NULL DEFAULT '[]',
+        guardrail_passed INTEGER NOT NULL CHECK (guardrail_passed IN (0, 1)),
+        guardrail_warnings_json TEXT NOT NULL DEFAULT '[]',
+        reviewer_verdict TEXT NOT NULL CHECK (
+          reviewer_verdict IN (
+            'pass',
+            'pass_with_notes',
+            'fail',
+            'not_reviewed'
+          )
+        ),
+        reviewer_notes TEXT,
+        manual_review_report_path TEXT,
+        linked_evidence_record_ids TEXT NOT NULL DEFAULT '[]',
+        linked_session_id TEXT,
+        linked_pr_url TEXT,
+        redaction_status TEXT NOT NULL CHECK (
+          redaction_status IN (
+            'redacted',
+            'bounded',
+            'raw_disallowed'
+          )
+        ),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (scope, work_id) REFERENCES work_items(scope, work_id),
+        FOREIGN KEY (linked_session_id) REFERENCES sessions(id)
+      )
+    `,
+  ).run();
+
+  const indexes = [
+    `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_work_time
+        ON temporal_preview_review_artifacts(scope, work_id, created_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_generator_time
+        ON temporal_preview_review_artifacts(scope, generator, created_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_verdict_time
+        ON temporal_preview_review_artifacts(scope, reviewer_verdict, created_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_guardrail_time
+        ON temporal_preview_review_artifacts(scope, guardrail_passed, created_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_session_time
+        ON temporal_preview_review_artifacts(scope, linked_session_id, created_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifacts_scope_pr_time
+        ON temporal_preview_review_artifacts(scope, linked_pr_url, created_at DESC)
     `,
   ];
 

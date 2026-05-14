@@ -258,6 +258,12 @@ table. That design remains conceptual only and does not add migrations, API
 routes, runtime persistence, Cockpit code, ChatGPT App tools, OpenAI calls,
 GitHub publication adapter calls, replay, publish, approval, or state mutation.
 
+The first read-model implementation slice now adds only the
+`temporal_preview_review_artifacts` table, validation/read helper, and
+read-only list/get APIs. Create/capture routes, Evidence Pack integration,
+Cockpit rendering, approval-gated commit, PerspectiveSnapshot runtime, and
+RawEpisodeBundle runtime remain out of scope.
+
 ## Required gates before implementation
 
 Before any persistence implementation, these gates must pass:
@@ -285,9 +291,9 @@ ChatGPT App tools.
 
 1. Persistence design review.
 2. Work item/evidence binding for Temporal Interpretation.
-3. TemporalPreviewReviewArtifact table design.
+3. TemporalPreviewReviewArtifact table design. Complete.
 4. TemporalPreviewReviewArtifact schema, library helper, and read-only list/get
-   API implementation.
+   API implementation. Complete.
 5. Optional capture helper.
 6. Evidence Pack read-only integration.
 7. Cockpit read-only review artifact browser.

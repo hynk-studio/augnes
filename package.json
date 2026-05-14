@@ -24,6 +24,7 @@
     "smoke:temporal-work-binding": "node scripts/smoke-temporal-work-binding.mjs",
     "smoke:temporal-work-seed": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-temporal-work-seed.mjs",
     "smoke:temporal-review-artifact-schema-design": "node scripts/smoke-temporal-review-artifact-schema-design.mjs",
+    "smoke:temporal-review-artifact-read-model": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-temporal-review-artifact-read-model.mjs",
     "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
     "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",

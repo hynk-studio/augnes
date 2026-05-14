@@ -26,6 +26,8 @@ The v0.2 slice includes:
   persistence gate, not preview persistence.
 - TemporalPreviewReviewArtifact schema design v0.1 as the next bounded review
   artifact schema step, not implementation.
+- TemporalPreviewReviewArtifact read model v0.1 with table, helper, read-only
+  list/get APIs, and smoke coverage.
 
 It is not:
 
@@ -190,6 +192,13 @@ design only: no DB schema, migrations, API routes, runtime persistence,
 Cockpit code, ChatGPT App tools, OpenAI calls, GitHub publication adapter
 calls, replay, publish, approval, or state mutation.
 
+The read-model implementation now adds the table, validation/read helper, and
+read-only list/get APIs for bounded review artifacts. It does not add
+create/capture routes, Evidence Pack integration, Cockpit rendering, ChatGPT
+App tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
+approval, state mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle
+runtime.
+
 ### Smoke coverage
 
 Current smoke coverage includes:
@@ -206,6 +215,7 @@ Current smoke coverage includes:
 - `smoke:temporal-work-binding`
 - `smoke:temporal-work-seed`
 - `smoke:temporal-review-artifact-schema-design`
+- `smoke:temporal-review-artifact-read-model`
 
 `validate:temporal-openai-path` is intentionally separate opt-in validation,
 not normal smoke.
@@ -226,6 +236,7 @@ not normal smoke.
 | `smoke:temporal-work-binding` | Confirms the work/evidence binding doc exists, defines the canonical work anchor, target/source refs, AG-004 misuse warning, session boundary, future artifact linkage, and related doc references. | Complete | `scripts/smoke-temporal-work-binding.mjs` |
 | `smoke:temporal-work-seed` | Confirms `AG-TEMPORAL-INTERPRETATION` exists in a seeded temp runtime and can bind bounded evidence while protected authority rows remain unchanged. | Complete | `scripts/smoke-temporal-work-seed.mjs` |
 | `smoke:temporal-review-artifact-schema-design` | Confirms the review artifact schema design doc exists, defines the conceptual table, required fields, forbidden fields, Evidence Pack integration, read-only list/get API design, and no-implementation boundary. | Complete | `scripts/smoke-temporal-review-artifact-schema-design.mjs` |
+| `smoke:temporal-review-artifact-read-model` | Confirms the table, validation/read helper, read-only list/get APIs, forbidden-field rejection, summary/evidence separation, AG-TEMPORAL-INTERPRETATION binding, and no-authority boundary with a temp DB. | Complete | `scripts/smoke-temporal-review-artifact-read-model.mjs` |
 | `validate:temporal-openai-path` | Opt-in live OpenAI-path schema and guardrail validation. | Complete for one fixture pass | `scripts/validate-temporal-openai-path.mjs` and `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` |
 | `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` | Filled manual review of deterministic mock preview output. | Complete | Passing report with preserved counterexample and residual tension refs |
 | `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md` | Filled manual review of real route output captured in mock mode. | Complete | Passing report with `generator: mock`, zero warnings, preserved counterexample and residual tension refs |
@@ -289,6 +300,7 @@ Temporal Interpretation v0.2 is:
 | D. Temporal Interpretation persistence boundary design | Defines what could be persisted later, what remains forbidden, and how review artifacts differ from durable state. | Could be mistaken for implementation if not kept explicitly design-only. | Route-captured review, Cockpit validation, OpenAI-path validation, manual review template. | complete |
 | E. Dedicated Temporal Interpretation work item / evidence binding | Gives this slice durable project traceability without changing preview authority. | Could be mistaken for preview-created evidence if wording is loose. | Existing work/evidence binding conventions and explicit non-authority language. | complete with seeded demo/runtime work item |
 | E2. TemporalPreviewReviewArtifact schema design | Defines the bounded review artifact schema before any migration or route exists. | Could be mistaken for implementation if wording is loose. | Persistence design, work/evidence binding, seeded work anchor, route review, Cockpit validation, OpenAI validation. | complete |
+| E3. TemporalPreviewReviewArtifact read model | Adds the bounded artifact table, helper, and read-only list/get APIs without create/capture authority. | Future callers could mistake read availability for approval or memory admission if boundaries are omitted. | Schema design, seeded work anchor, forbidden-field validation, temp DB smoke. | complete |
 | F. RawEpisodeBundle-derived refs design | Defines how future raw episode references could feed interpretation. | Premature runtime design could overfit current fixtures. | Stable route/Cockpit review artifacts and authority model. | later |
 | G. PerspectiveSnapshot persistence design | Defines durable snapshot boundaries before implementation. | High authority risk if persistence starts before review semantics settle. | Route-captured review, UI validation, broader guardrail confidence. | later |
 | H. Active context retrieval/admission algorithm | Moves beyond fixture/simple-context admission toward real corpus selection. | Retrieval mistakes could make stale or summary-only context look authoritative. | Corpus model, source authority taxonomy, evaluation fixtures. | later |
@@ -297,9 +309,10 @@ Temporal Interpretation v0.2 is:
 
 ## Recommended next step
 
-Next should be implementation of only the `temporal_preview_review_artifacts`
-schema, a library helper, and read-only list/get APIs, with no create route yet.
-Creation/capture should follow only after the read model exists.
+Next should add forbidden-persistence fixtures or a non-public capture helper
+before any create/capture route is exposed. Creation/capture should follow only
+after redaction, forbidden-field rejection, work/evidence/session validation,
+and no-authority smoke are reviewed.
 
 Reason:
 
@@ -345,4 +358,5 @@ Reason:
 - `scripts/smoke-temporal-work-binding.mjs`
 - `scripts/smoke-temporal-work-seed.mjs`
 - `scripts/smoke-temporal-review-artifact-schema-design.mjs`
+- `scripts/smoke-temporal-review-artifact-read-model.mjs`
 - `scripts/validate-temporal-openai-path.mjs`
