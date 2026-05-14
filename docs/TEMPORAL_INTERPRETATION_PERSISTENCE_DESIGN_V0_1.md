@@ -271,6 +271,16 @@ keeps top-level forbidden fields, nested forbidden fields, summary/evidence
 separation, authority confusion, link validation, and route/source validation
 in one reusable place before any future capture helper or create route.
 
+The non-public capture helper prep step is now satisfied by
+`lib/temporal-review-artifact-capture.ts` and
+`scripts/smoke-temporal-review-artifact-capture-helper.mjs`. The helper converts
+bounded Temporal Preview output plus manual review metadata into
+`TemporalPreviewReviewArtifactInput` and reuses existing insert validation in
+smoke. It remains internal-only and does not add a POST route, public write
+surface, Evidence Pack rendering, Cockpit code, ChatGPT App tools, OpenAI
+calls, GitHub publication adapter calls, replay, publish, approval,
+PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
+
 ## Required gates before implementation
 
 Before any persistence implementation, these gates must pass:
@@ -286,6 +296,7 @@ Before any persistence implementation, these gates must pass:
 - Rollback/export story.
 - Test fixtures for forbidden persistence. Complete for
   `TemporalPreviewReviewArtifact`.
+- Non-public capture helper. Complete for `TemporalPreviewReviewArtifact`.
 - Smoke tests for no automatic commit.
 - `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` merged and
   `AG-TEMPORAL-INTERPRETATION` seeded, or an explicit reviewed decision to stay
@@ -304,7 +315,7 @@ ChatGPT App tools.
    API implementation. Complete.
 5. TemporalPreviewReviewArtifact forbidden-persistence fixture corpus.
    Complete.
-6. Optional capture helper.
+6. Non-public TemporalPreviewReviewArtifact capture helper. Complete.
 7. Evidence Pack read-only integration.
 8. Cockpit read-only review artifact browser.
 9. PerspectiveSnapshotCandidate proposal design.

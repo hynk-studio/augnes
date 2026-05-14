@@ -168,6 +168,11 @@ The reusable forbidden-persistence fixture corpus lives at
 `lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
 `smoke:temporal-forbidden-persistence-fixtures`. It is a gate before any
 future capture helper or create route.
+The non-public capture helper lives at
+`lib/temporal-review-artifact-capture.ts`, with smoke coverage in
+`smoke:temporal-review-artifact-capture-helper`. It converts bounded preview
+responses plus manual review metadata into artifact input, but still does not
+add a public create route or write surface.
 
 API check:
 
@@ -194,6 +199,7 @@ npm run smoke:temporal-work-seed
 npm run smoke:temporal-review-artifact-schema-design
 npm run smoke:temporal-review-artifact-read-model
 npm run smoke:temporal-forbidden-persistence-fixtures
+npm run smoke:temporal-review-artifact-capture-helper
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the
