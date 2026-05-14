@@ -143,6 +143,10 @@ read-only and non-authoritative.
 The v0.2 status, validation matrix, guarded failure modes, known limitations,
 and productization options are summarized in
 `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md`.
+Future persistence boundaries for Temporal Interpretation are documented in
+`docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`; that design is not
+implementation and does not add schema, routes, runtime persistence, Cockpit
+write controls, or durable PerspectiveSnapshot/RawEpisodeBundle state.
 
 API check:
 
@@ -163,6 +167,7 @@ npm run smoke:cockpit-temporal-admission
 npm run smoke:temporal-cockpit-screenshot-validation
 npm run smoke:temporal-openai-validation-docs
 npm run smoke:temporal-v02-status-roadmap
+npm run smoke:temporal-persistence-design
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the
