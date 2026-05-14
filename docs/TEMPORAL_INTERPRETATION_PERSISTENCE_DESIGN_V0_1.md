@@ -264,6 +264,13 @@ read-only list/get APIs. Create/capture routes, Evidence Pack integration,
 Cockpit rendering, approval-gated commit, PerspectiveSnapshot runtime, and
 RawEpisodeBundle runtime remain out of scope.
 
+The forbidden-persistence fixture gate for `TemporalPreviewReviewArtifact` is
+now satisfied by `lib/temporal-review-artifact-fixtures.ts` and
+`scripts/smoke-temporal-forbidden-persistence-fixtures.mjs`. The fixture corpus
+keeps top-level forbidden fields, nested forbidden fields, summary/evidence
+separation, authority confusion, link validation, and route/source validation
+in one reusable place before any future capture helper or create route.
+
 ## Required gates before implementation
 
 Before any persistence implementation, these gates must pass:
@@ -277,7 +284,8 @@ Before any persistence implementation, these gates must pass:
 - Explicit approval/commit design.
 - Migration design reviewed.
 - Rollback/export story.
-- Test fixtures for forbidden persistence.
+- Test fixtures for forbidden persistence. Complete for
+  `TemporalPreviewReviewArtifact`.
 - Smoke tests for no automatic commit.
 - `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` merged and
   `AG-TEMPORAL-INTERPRETATION` seeded, or an explicit reviewed decision to stay
@@ -294,14 +302,16 @@ ChatGPT App tools.
 3. TemporalPreviewReviewArtifact table design. Complete.
 4. TemporalPreviewReviewArtifact schema, library helper, and read-only list/get
    API implementation. Complete.
-5. Optional capture helper.
-6. Evidence Pack read-only integration.
-7. Cockpit read-only review artifact browser.
-8. PerspectiveSnapshotCandidate proposal design.
-9. Approval-gated commit design.
-10. RawEpisodeBundleRef design.
-11. RawEpisodeBundle ingestion prototype.
-12. Learned temporal routing policy research.
+5. TemporalPreviewReviewArtifact forbidden-persistence fixture corpus.
+   Complete.
+6. Optional capture helper.
+7. Evidence Pack read-only integration.
+8. Cockpit read-only review artifact browser.
+9. PerspectiveSnapshotCandidate proposal design.
+10. Approval-gated commit design.
+11. RawEpisodeBundleRef design.
+12. RawEpisodeBundle ingestion prototype.
+13. Learned temporal routing policy research.
 
 ## Recommended next step
 

@@ -43,6 +43,9 @@ try {
     getTemporalPreviewReviewArtifact,
     listTemporalPreviewReviewArtifacts,
   } = await import("../lib/temporal-review-artifacts.ts");
+  const { buildValidTemporalPreviewReviewArtifactFixture } = await import(
+    "../lib/temporal-review-artifact-fixtures.ts"
+  );
   const listRoute = await import(
     "../app/api/temporal-interpretation/review-artifacts/route.ts"
   );
@@ -86,70 +89,25 @@ try {
   const workItem = getWorkItem(workId, scope);
   assert.ok(workItem, "AG-TEMPORAL-INTERPRETATION should exist");
 
-  const baseArtifact = {
+  const baseArtifact = buildValidTemporalPreviewReviewArtifactFixture({
     artifact_id: artifactId,
-    scope,
-    work_id: workId,
-    source_route: "/api/temporal-interpretation/preview",
-    source_surface: "local_runtime",
     source_ref: "scripts/smoke-temporal-review-artifact-read-model.mjs",
-    generator: "mock",
-    model: null,
-    as_of: "2026-05-14T00:00:00.000Z",
-    capture_mode: "route_capture",
-    preview_excerpt:
-      "Bounded smoke preview excerpt for TemporalPreviewReviewArtifact read model.",
-    bounded_preview_json: {
-      current_interpretation: "Bounded smoke preview.",
-      non_authority_boundary:
-        "Review artifact only; no approval, publish, replay, or state commit.",
-    },
     preview_hash: "sha256:smoke-temporal-review-artifact",
-    source_refs: ["state:implementation.stack", "summary:agent_handoff.current_status"],
-    evidence_anchor_refs: ["state:implementation.stack"],
-    summary_refs: ["summary:agent_handoff.current_status"],
-    counterexample_refs: ["boundary:summary_refs"],
-    residual_tension_refs: ["tension:tension:unsafe-api-key-handling"],
-    admission_decisions_json: [
-      {
-        candidate_id: "summary:agent_handoff.current_status",
-        category: "exclude_summary_only",
-      },
-    ],
-    guardrail_passed: true,
-    guardrail_warnings_json: [],
-    reviewer_verdict: "pass_with_notes",
     reviewer_notes: "Smoke artifact validates read-only list/get behavior.",
-    manual_review_report_path:
-      "docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md",
-    linked_evidence_record_ids: [],
-    linked_session_id: null,
     linked_pr_url: "https://github.com/Aurna-code/augnes/pull/124",
-    redaction_status: "bounded",
     created_by: "codex-smoke",
-    created_at: "2026-05-14T00:00:00.000Z",
-    updated_at: "2026-05-14T00:00:00.000Z",
-  };
+  });
 
-  for (const field of [
-    "raw_openai_response",
-    "approval_status",
-    "publish_status",
-    "memory_admission_status",
-    "safe_next_step_instruction",
-    "summary_only_ref_as_evidence",
-  ]) {
-    assert.throws(
-      () =>
-        insertTemporalPreviewReviewArtifactForSmoke({
-          ...baseArtifact,
-          artifact_id: `temporal-review:forbidden-${field}`,
-          [field]: "forbidden",
-        }),
-      /forbidden/,
-      `${field} should be rejected`,
-    );
-  }
+  assert.throws(
+    () =>
+      insertTemporalPreviewReviewArtifactForSmoke({
+        ...baseArtifact,
+        artifact_id: "temporal-review:read-model-top-level-raw-response",
+        raw_openai_response: "forbidden",
+      }),
+    /forbidden/,
+    "top-level raw_openai_response should be rejected",
+  );
 
   assert.throws(
     () =>
@@ -166,63 +124,11 @@ try {
     () =>
       insertTemporalPreviewReviewArtifactForSmoke({
         ...baseArtifact,
-        artifact_id: "temporal-review:nested-bounded-raw-response",
-        bounded_preview_json: {
-          preview: {
-            raw_openai_response: "forbidden",
-          },
-        },
+        artifact_id: "temporal-review:read-model-nested-bounded-raw-response",
+        bounded_preview_json: { raw_openai_response: "forbidden" },
       }),
     /forbidden/,
-    "nested raw_openai_response in bounded_preview_json should be rejected",
-  );
-
-  assert.throws(
-    () =>
-      insertTemporalPreviewReviewArtifactForSmoke({
-        ...baseArtifact,
-        artifact_id: "temporal-review:nested-bounded-memory-admission",
-        bounded_preview_json: {
-          preview: {
-            nested: {
-              memory_admission_status: "forbidden",
-            },
-          },
-        },
-      }),
-    /forbidden/,
-    "nested memory_admission_status in bounded_preview_json should be rejected",
-  );
-
-  assert.throws(
-    () =>
-      insertTemporalPreviewReviewArtifactForSmoke({
-        ...baseArtifact,
-        artifact_id: "temporal-review:nested-admission-raw-response",
-        admission_decisions_json: [
-          {
-            candidate_id: "state:implementation.stack",
-            raw_openai_response: "forbidden",
-          },
-        ],
-      }),
-    /forbidden/,
-    "nested raw_openai_response in admission_decisions_json should be rejected",
-  );
-
-  assert.throws(
-    () =>
-      insertTemporalPreviewReviewArtifactForSmoke({
-        ...baseArtifact,
-        artifact_id: "temporal-review:nested-guardrail-approval",
-        guardrail_warnings_json: [
-          {
-            approval_status: "forbidden",
-          },
-        ],
-      }),
-    /forbidden/,
-    "nested approval_status in guardrail_warnings_json should be rejected",
+    "nested forbidden fields in bounded_preview_json should be rejected",
   );
 
   const inserted = insertTemporalPreviewReviewArtifactForSmoke(baseArtifact);

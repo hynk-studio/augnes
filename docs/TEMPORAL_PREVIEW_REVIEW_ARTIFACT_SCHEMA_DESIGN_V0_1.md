@@ -24,6 +24,14 @@ Cockpit rendering, Evidence Pack integration, ChatGPT App tools, OpenAI calls,
 GitHub publication adapter calls, replay, publish, approval, state mutation,
 `PerspectiveSnapshot` runtime, or `RawEpisodeBundle` runtime.
 
+Forbidden-persistence fixture status: a reusable fixture corpus now exists at
+`lib/temporal-review-artifact-fixtures.ts`, with a dedicated smoke at
+`scripts/smoke-temporal-forbidden-persistence-fixtures.mjs`. This is a gate
+before any future capture helper or create route. It exercises the current
+smoke-only insert helper and does not add create/capture routes, Cockpit code,
+Evidence Pack integration, ChatGPT App tools, OpenAI calls, GitHub publication
+adapter calls, replay, publish, approval, or state mutation.
+
 This design builds on:
 
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`
@@ -376,9 +384,10 @@ Implementation sequence status:
 2. Type/library helper. Complete for validation/read/list and smoke-only insert.
 3. Read-only list/get APIs. Complete.
 4. Smoke with temp DB. Complete.
-5. Optional capture helper.
-6. Evidence Pack read-only integration.
-7. Cockpit read-only browser.
+5. Forbidden-persistence fixture corpus and smoke. Complete.
+6. Optional capture helper.
+7. Evidence Pack read-only integration.
+8. Cockpit read-only browser.
 
 Do not combine with:
 
@@ -415,6 +424,22 @@ confirms:
 - No GitHub publication adapter calls occur.
 - No replay, publish, approval, or state commit occurs.
 
+Forbidden-persistence fixture smoke uses a temporary DB outside the repo and
+confirms:
+
+- The valid fixture inserts once against `AG-TEMPORAL-INTERPRETATION`.
+- Top-level forbidden fields are rejected.
+- Nested forbidden fields in bounded preview, admission decisions, and
+  guardrail warnings are rejected.
+- Summary/evidence separation fixtures are rejected.
+- Authority-confusion values are rejected.
+- Missing session and evidence links are rejected.
+- Route/source validation fixtures are rejected.
+- No forbidden fixture creates a row.
+- Protected authority rows are not mutated.
+- No fetch, OpenAI, GitHub publication adapter, replay, publish, or approval
+  behavior occurs.
+
 ## Acceptance gates before implementation
 
 Required gates:
@@ -426,7 +451,7 @@ Required gates:
 - Cockpit validation exists.
 - OpenAI validation exists.
 - No-secret policy confirmed.
-- Forbidden-persistence fixtures planned or added.
+- Forbidden-persistence fixtures added.
 - Migration rollback/export note planned.
 - No automatic commit smoke plan.
 - Explicit decision to implement review artifacts only, not
