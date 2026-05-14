@@ -50,6 +50,7 @@ Temporal Interpretation Cockpit screenshot validation report added
 Temporal Interpretation persistence boundary design v0.1 added
 Temporal Interpretation work/evidence binding convention added
 Temporal Interpretation seeded work anchor added
+TemporalPreviewReviewArtifact schema design v0.1 added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -136,11 +137,18 @@ The work/evidence binding convention is documented in
 `AG-TEMPORAL-INTERPRETATION` is seeded as demo/runtime work trace data for
 future Temporal Interpretation evidence, and canonical `target_ref` /
 `source_ref` usage remains available for historical rows and unseeded runtimes.
+The `TemporalPreviewReviewArtifact` schema design is documented in
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`; it is design
+only for a future bounded review artifact and does not add DB schema,
+migrations, API routes, runtime persistence, Cockpit code, ChatGPT App tools,
+OpenAI calls, GitHub publication adapter calls, replay, publish, approval, or
+state mutation.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Design TemporalPreviewReviewArtifact schema before any runtime review artifact
-persistence implementation.
+Implement only the TemporalPreviewReviewArtifact schema, library helper, and
+read-only list/get APIs after schema-design review; leave creation/capture for a
+later slice.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -171,9 +179,10 @@ A new session should read these files in this order:
 17. `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md` - Temporal Interpretation v0.2 status, authority boundary, and next productization options.
 18. `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md` - Temporal Interpretation persistence boundary design, not implementation.
 19. `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` - Temporal Interpretation work/evidence binding convention.
-20. `.github/pull_request_template.md` - required PR trace format.
-21. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-22. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+20. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` - TemporalPreviewReviewArtifact schema design, not implementation.
+21. `.github/pull_request_template.md` - required PR trace format.
+22. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+23. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 

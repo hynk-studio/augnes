@@ -252,6 +252,12 @@ implementation path. `AG-TEMPORAL-INTERPRETATION` is now seeded as the
 demo/runtime work anchor for future Temporal Interpretation evidence when the
 seed has been applied.
 
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` narrows the next
+schema step to a future `temporal_preview_review_artifacts` review artifact
+table. That design remains conceptual only and does not add migrations, API
+routes, runtime persistence, Cockpit code, ChatGPT App tools, OpenAI calls,
+GitHub publication adapter calls, replay, publish, approval, or state mutation.
+
 ## Required gates before implementation
 
 Before any persistence implementation, these gates must pass:
@@ -280,13 +286,16 @@ ChatGPT App tools.
 1. Persistence design review.
 2. Work item/evidence binding for Temporal Interpretation.
 3. TemporalPreviewReviewArtifact table design.
-4. Read-only list/get API for review artifacts.
-5. Cockpit read-only review artifact browser.
-6. PerspectiveSnapshotCandidate proposal design.
-7. Approval-gated commit design.
-8. RawEpisodeBundleRef design.
-9. RawEpisodeBundle ingestion prototype.
-10. Learned temporal routing policy research.
+4. TemporalPreviewReviewArtifact schema, library helper, and read-only list/get
+   API implementation.
+5. Optional capture helper.
+6. Evidence Pack read-only integration.
+7. Cockpit read-only review artifact browser.
+8. PerspectiveSnapshotCandidate proposal design.
+9. Approval-gated commit design.
+10. RawEpisodeBundleRef design.
+11. RawEpisodeBundle ingestion prototype.
+12. Learned temporal routing policy research.
 
 ## Recommended next step
 

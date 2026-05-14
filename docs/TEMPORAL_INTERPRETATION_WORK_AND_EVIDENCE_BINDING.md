@@ -171,6 +171,12 @@ Temporal Interpretation artifact. They should not fabricate a `CODEX_WORK_ID`.
 
 ## TemporalPreviewReviewArtifact future linkage
 
+The detailed schema design for this future bounded review artifact lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. That document is
+schema design only and does not implement DB schema, migrations, API routes,
+runtime persistence, Cockpit code, ChatGPT App tools, OpenAI calls, GitHub
+publication adapter calls, replay, publish, approval, or state mutation.
+
 Future `TemporalPreviewReviewArtifact` rows should link to:
 
 - `work_id=AG-TEMPORAL-INTERPRETATION` when the seeded work item is available.
