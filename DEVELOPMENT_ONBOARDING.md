@@ -49,6 +49,7 @@ Temporal Interpretation route-captured manual review report added
 Temporal Interpretation Cockpit screenshot validation report added
 Temporal Interpretation persistence boundary design v0.1 added
 Temporal Interpretation work/evidence binding convention added
+Temporal Interpretation seeded work anchor added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -131,14 +132,15 @@ Future Temporal Interpretation persistence boundaries are documented in
 and does not add DB schema, API routes, runtime persistence, Cockpit code,
 ChatGPT App tools, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 The work/evidence binding convention is documented in
-`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`; it defines the
-documentation-only `AG-TEMPORAL-INTERPRETATION` anchor and canonical
-`target_ref` / `source_ref` usage until a runtime work item exists.
+`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`;
+`AG-TEMPORAL-INTERPRETATION` is seeded as demo/runtime work trace data for
+future Temporal Interpretation evidence, and canonical `target_ref` /
+`source_ref` usage remains available for historical rows and unseeded runtimes.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Create a dedicated Temporal Interpretation work item seed or work registry
-entry before any persistence implementation.
+Design TemporalPreviewReviewArtifact schema before any runtime review artifact
+persistence implementation.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

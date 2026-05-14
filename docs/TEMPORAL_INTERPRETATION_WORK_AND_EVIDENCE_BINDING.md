@@ -3,9 +3,11 @@
 ## Executive summary
 
 Temporal Interpretation needs a stable trace anchor before persistence. The
-current validation chain has strong docs and smoke coverage, but much of the
-structured evidence has been recorded through `target_ref` / `source_ref`
-because there is not yet a dedicated Temporal Interpretation work item.
+current validation chain has strong docs and smoke coverage, and
+`AG-TEMPORAL-INTERPRETATION` now exists as a seeded demo/runtime work item for
+future Temporal Interpretation evidence and review-artifact persistence prep.
+Historical structured evidence that used `target_ref` / `source_ref` remains
+valid.
 
 This document defines binding conventions only. It does not create durable
 preview persistence, add DB schema, add API routes, add runtime persistence,
@@ -19,9 +21,11 @@ admission, committed state, or durable `PerspectiveSnapshot` authority.
 
 ## Dedicated work anchor
 
-Option chosen: A, documentation-only work anchor convention.
+Option chosen in v0.1: A, documentation-only work anchor convention. Follow-up
+seed slice result: `AG-TEMPORAL-INTERPRETATION` now exists in the demo/runtime
+seed data.
 
-Canonical future work ID / work anchor label:
+Canonical work ID / work anchor label:
 
 ```text
 AG-TEMPORAL-INTERPRETATION
@@ -46,7 +50,7 @@ Purpose:
 - Keep Temporal Interpretation evidence separate from generic Codex workflow
   evidence and unrelated work trace anchors.
 - Provide a stable linkage target for future `TemporalPreviewReviewArtifact`
-  rows once the work item exists in runtime data.
+  rows.
 
 Owner / surface convention:
 
@@ -75,24 +79,26 @@ Relation to PR #114-#121:
 - PR #120 added browser/Cockpit screenshot/DOM validation.
 - PR #121 added the Temporal Interpretation persistence boundary design.
 
-Runtime seed is intentionally not changed in this slice. The existing demo seed
-script has embedded work item data, and adding a Temporal Interpretation seed
-there would be a runtime data change. Future implementation should create or
-seed the `AG-TEMPORAL-INTERPRETATION` work item in a separate slice with its
-own review, smoke coverage, and rollback story.
+Runtime seed status: `AG-TEMPORAL-INTERPRETATION` is seeded through the existing
+demo work item seed path in `scripts/demo-seed.mjs`. It is demo/development
+trace data only. It is not production authority, committed state, proof
+publication, approval, replay, durable `PerspectiveSnapshot` runtime, or
+RawEpisodeBundle runtime.
 
 ## Evidence binding rules
 
-Prefer `work_id=AG-TEMPORAL-INTERPRETATION` only after that dedicated work item
-exists in the local runtime. Until it exists, use `target_ref` and `source_ref`
-with the canonical strings below. Do not invent `work_id` in helpers, PR
-bodies, or evidence rows just to make a closeout look complete.
+Prefer `work_id=AG-TEMPORAL-INTERPRETATION` for future Temporal Interpretation
+evidence when the seeded demo/runtime work item is available. If a local
+runtime has not been seeded or the work item is unavailable, use `target_ref`
+and `source_ref` with the canonical strings below. Do not invent `work_id` in
+helpers, PR bodies, or evidence rows just to make a closeout look complete.
 Plain-language rule: do not invent work_id values.
 
 Do not attach unrelated Temporal evidence to `AG-004` or any generic Codex work
 anchor. `AG-004` is the Codex completion protocol anchor; future Temporal
 Interpretation evidence belongs to the dedicated Temporal anchor or to
-canonical `target_ref` / `source_ref` strings until that anchor exists.
+canonical `target_ref` / `source_ref` strings when the seeded anchor is
+unavailable.
 
 Preserve `source_surface` and `source_ref` on every evidence row so reviewers
 can tell whether the observation came from local runtime, docs, Cockpit,
@@ -119,7 +125,7 @@ Evidence kind guidance:
 
 | Evidence kind | Binding rule |
 | --- | --- |
-| `command_run` | Record the exact command and result. Use `work_id` only when `AG-TEMPORAL-INTERPRETATION` exists; otherwise use `target_ref` and `source_ref`. |
+| `command_run` | Record the exact command and result. Use `work_id=AG-TEMPORAL-INTERPRETATION` when available; otherwise use `target_ref` and `source_ref`. |
 | `check_passed` | Record concrete passed checks, such as doc smoke or route smoke results. Preserve generator, guardrail, and warning facts when relevant. |
 | `check_failed` | Preserve the exact failure and environment setup. Do not convert a failed route or validation check into a generic note. |
 | `check_skipped` | Record a concrete skipped reason, such as missing local runtime, missing Developer Mode access, or absent `OPENAI_API_KEY` for opt-in validation. |
@@ -133,7 +139,7 @@ Evidence kind guidance:
 - Use an existing `session_id` only.
 - No automatic session creation.
 - Bind a session to `AG-TEMPORAL-INTERPRETATION` only when both the session row
-  and the dedicated work item already exist.
+  and the seeded work item exist in that runtime.
 - If either the session or work item is missing, report the exact skipped
   reason instead of creating replacement records.
 - `evidence_pack_ref` should be a string ref, not an invocation of the Evidence
@@ -142,14 +148,14 @@ Evidence kind guidance:
   sessions, execute Codex, call OpenAI, call GitHub, approve, publish, replay,
   or mutate state authority rows.
 
-Until the work item exists, session closeouts should use `target_ref` and
-`source_ref` to connect the PR/session context to the Temporal Interpretation
-artifact. They should not fabricate a `CODEX_WORK_ID`.
+If a runtime has not been seeded with the work item, session closeouts should
+use `target_ref` and `source_ref` to connect the PR/session context to the
+Temporal Interpretation artifact. They should not fabricate a `CODEX_WORK_ID`.
 
 ## PR binding rules
 
-- PRs should mention `AG-TEMPORAL-INTERPRETATION` or explain why no runtime
-  work item was used.
+- PRs should mention `AG-TEMPORAL-INTERPRETATION` or explain why the seeded
+  runtime work item was unavailable.
 - PR bodies must include structured evidence IDs, or the exact skipped reason
   when evidence rows were not created.
 - PR bodies should include related artifact docs, including route review,
@@ -167,7 +173,7 @@ artifact. They should not fabricate a `CODEX_WORK_ID`.
 
 Future `TemporalPreviewReviewArtifact` rows should link to:
 
-- `work_id` when `AG-TEMPORAL-INTERPRETATION` exists.
+- `work_id=AG-TEMPORAL-INTERPRETATION` when the seeded work item is available.
 - `evidence_record_ids`.
 - Optional `session_id`.
 - `source_route`.
@@ -206,12 +212,13 @@ Prior evidence rows without `work_id` remain valid historical evidence. They
 should not be rewritten casually. Historical rows that used `target_ref` and
 `source_ref` documented the available trace shape at the time.
 
-Future Evidence Pack behavior may discover Temporal Interpretation evidence by
-`target_ref` / `source_ref` until `AG-TEMPORAL-INTERPRETATION` exists as a real
-work item. Optional migration or backfill of historical evidence to a dedicated
-work item must be a separate reviewed slice. It must preserve the original
-source refs, avoid invented evidence IDs, and report whether each row was
-linked, skipped, or left unchanged.
+Future Evidence Pack behavior may discover new Temporal Interpretation evidence
+by `work_id=AG-TEMPORAL-INTERPRETATION` when the seeded work item is available,
+or by `target_ref` / `source_ref` for historical rows and unseeded runtimes.
+Optional migration or backfill of historical evidence to the dedicated work
+item must be a separate reviewed slice. It must preserve the original source
+refs, avoid invented evidence IDs, and report whether each row was linked,
+skipped, or left unchanged.
 
 ## Acceptance gates before persistence implementation
 
@@ -234,16 +241,10 @@ RawEpisodeBundle runtime, approval, publish, replay, or state mutation.
 
 ## Recommended next step
 
-Next PR should create the `AG-TEMPORAL-INTERPRETATION` work item seed or work
-registry entry in a dedicated, reviewed seed-data slice. That PR should explain
-the exact seed file or route touched, prove it does not break existing smoke
-tests, and keep the item clearly scoped as demo/development trace data rather
-than production authority.
-
-After the dedicated work item exists, the next productization step should be
-`TemporalPreviewReviewArtifact` schema design. That schema design should link
-review artifacts to work/evidence/session/PR refs without adding approval,
-publish, replay, durable `PerspectiveSnapshot`, or RawEpisodeBundle runtime.
+The next productization step should be `TemporalPreviewReviewArtifact` schema
+design. That schema design should link review artifacts to
+work/evidence/session/PR refs without adding approval, publish, replay, durable
+`PerspectiveSnapshot`, or RawEpisodeBundle runtime.
 
 ## Related artifacts
 

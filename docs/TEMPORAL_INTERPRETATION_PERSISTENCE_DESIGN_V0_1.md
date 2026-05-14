@@ -248,7 +248,9 @@ slice.
 
 `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` defines the
 required work/evidence/session/PR binding convention for that future
-implementation path. It is a required gate before review artifact schema work.
+implementation path. `AG-TEMPORAL-INTERPRETATION` is now seeded as the
+demo/runtime work anchor for future Temporal Interpretation evidence when the
+seed has been applied.
 
 ## Required gates before implementation
 
@@ -265,8 +267,9 @@ Before any persistence implementation, these gates must pass:
 - Rollback/export story.
 - Test fixtures for forbidden persistence.
 - Smoke tests for no automatic commit.
-- `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` merged or an
-  explicit reviewed decision to stay target_ref-only.
+- `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` merged and
+  `AG-TEMPORAL-INTERPRETATION` seeded, or an explicit reviewed decision to stay
+  target_ref-only for a given runtime.
 
 These gates should be evaluated against the current docs and any new work item
 before writing migrations, API routes, runtime persistence, Cockpit code, or
