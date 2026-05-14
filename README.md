@@ -159,11 +159,13 @@ for a bounded review artifact table. The first narrow read-model slice now adds
 the `temporal_preview_review_artifacts` table, validation/read helper, and
 read-only list/get APIs at
 `GET /api/temporal-interpretation/review-artifacts` and
-`GET /api/temporal-interpretation/review-artifacts/{artifact_id}`. It still
-does not add create/capture routes, Cockpit rendering, Evidence Pack
-integration, ChatGPT App tools, OpenAI calls, GitHub publication adapter calls,
-replay, publish, approval, state mutation, PerspectiveSnapshot runtime, or
-RawEpisodeBundle runtime.
+`GET /api/temporal-interpretation/review-artifacts/{artifact_id}`. The first
+public/non-Cockpit capture route is now available at
+`POST /api/temporal-interpretation/review-artifacts/capture`; it writes only
+bounded review artifacts through the idempotent helper. It still does not add
+Cockpit write controls, Evidence Pack integration, ChatGPT App tools, OpenAI
+calls, GitHub publication adapter calls, replay, publish, approval, state
+mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 The reusable forbidden-persistence fixture corpus lives at
 `lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
 `smoke:temporal-forbidden-persistence-fixtures`. It is a gate before any
@@ -173,14 +175,14 @@ The non-public capture helper lives at
 `smoke:temporal-review-artifact-capture-helper`. It converts bounded preview
 responses plus manual review metadata into artifact input, but still does not
 add a public create route or write surface.
-The future public create/capture route contract lives at
+The public create/capture route contract lives at
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`, with
 smoke coverage in `smoke:temporal-create-route-design`. It recommends
-`POST /api/temporal-interpretation/review-artifacts/capture` for a future
-bounded route, but does not implement a route, DB schema, runtime behavior,
-Cockpit write button, Evidence Pack integration, ChatGPT App create tool,
-OpenAI call, GitHub publication adapter call, replay, publish, approval, or
-state mutation.
+`POST /api/temporal-interpretation/review-artifacts/capture`; the first route
+implementation is covered by `smoke:temporal-capture-route` and remains bounded
+to artifact persistence only. No Cockpit write button, Evidence Pack
+integration, ChatGPT App create tool, OpenAI call, GitHub publication adapter
+call, replay, publish, approval, or state mutation is added.
 The private non-smoke insert helper
 `insertTemporalPreviewReviewArtifact` lives in
 `lib/temporal-review-artifacts.ts`, with smoke coverage in
@@ -192,7 +194,9 @@ The internal idempotency foundation lives in
 `lib/temporal-review-artifacts.ts`, with smoke coverage in
 `smoke:temporal-artifact-idempotency`. It stores hashed idempotency keys and
 payload hashes only, supports same-key replay/conflict checks and conservative
-duplicate source/hash detection, and still does not add a public create route.
+duplicate source/hash detection. The public route uses that idempotency
+foundation while continuing to store no
+raw idempotency key, raw payload, or raw request body.
 
 API check:
 
@@ -223,6 +227,7 @@ npm run smoke:temporal-review-artifact-capture-helper
 npm run smoke:temporal-create-route-design
 npm run smoke:temporal-private-insert-helper
 npm run smoke:temporal-artifact-idempotency
+npm run smoke:temporal-capture-route
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

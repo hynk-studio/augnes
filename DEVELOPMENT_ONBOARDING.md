@@ -54,6 +54,7 @@ TemporalPreviewReviewArtifact schema design v0.1 added
 TemporalPreviewReviewArtifact read model v0.1 added
 TemporalPreviewReviewArtifact forbidden-persistence fixtures added
 TemporalPreviewReviewArtifact non-public capture helper added
+TemporalPreviewReviewArtifact public capture route added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -143,11 +144,13 @@ future Temporal Interpretation evidence, and canonical `target_ref` /
 The `TemporalPreviewReviewArtifact` schema design is documented in
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. The first
 runtime read-model slice adds the `temporal_preview_review_artifacts` table,
-validation/read helper, and read-only list/get APIs. It intentionally does not
-add create/capture routes, Cockpit rendering, Evidence Pack integration,
-ChatGPT App tools, OpenAI calls, GitHub publication adapter calls, replay,
-publish, approval, state mutation, PerspectiveSnapshot runtime, or
-RawEpisodeBundle runtime.
+validation/read helper, and read-only list/get APIs. The first public capture
+route now exists at
+`POST /api/temporal-interpretation/review-artifacts/capture`; it persists only
+bounded review artifacts through the idempotent helper. It intentionally does
+not add Cockpit write controls, Evidence Pack integration, ChatGPT App tools,
+OpenAI calls, GitHub publication adapter calls, replay, publish, approval,
+state mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 The forbidden-persistence fixture corpus at
 `lib/temporal-review-artifact-fixtures.ts` centralizes invalid persistence
 cases for top-level forbidden fields, nested forbidden fields,
@@ -162,13 +165,14 @@ converts bounded Temporal Preview responses plus manual review metadata into
 public create route, Cockpit code, Evidence Pack rendering, ChatGPT App tools,
 OpenAI calls, GitHub publication adapter calls, replay, publish, approval,
 PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
-The future public create/capture route contract is documented in
+The public create/capture route contract is documented in
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md` and covered
 by `smoke:temporal-create-route-design`. It recommends
-`POST /api/temporal-interpretation/review-artifacts/capture` but remains design
-only: no route, DB schema, runtime behavior, Cockpit write button, Evidence
-Pack integration, ChatGPT App create tool, OpenAI call, GitHub publication
-adapter call, replay, publish, approval, or state mutation.
+`POST /api/temporal-interpretation/review-artifacts/capture`; the first route
+implementation is covered by `smoke:temporal-capture-route`. It adds no
+Cockpit write button, Evidence Pack integration, ChatGPT App create tool,
+OpenAI call, GitHub publication adapter call, replay, publish, approval, or
+state mutation.
 The private non-smoke insert helper
 `insertTemporalPreviewReviewArtifact` now lives in
 `lib/temporal-review-artifacts.ts` and is covered by
@@ -180,11 +184,13 @@ The internal idempotency foundation for future review artifact capture lives in
 `lib/temporal-review-artifacts.ts`, with smoke coverage in
 `smoke:temporal-artifact-idempotency`. It stores hashed idempotency keys and
 payload hashes only, supports same-key replay/conflict checks and duplicate
-source/hash conflict checks, and still exposes no public route.
+source/hash conflict checks. The public capture route uses that idempotency
+foundation while storing no raw
+idempotency key, raw payload, or raw request body.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Design the public capture route mapping to the internal idempotency helper.
+Add read-only review-artifact browsing or Evidence Pack read-only awareness.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

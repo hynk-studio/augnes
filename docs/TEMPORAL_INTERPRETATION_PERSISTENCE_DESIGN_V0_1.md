@@ -260,9 +260,12 @@ GitHub publication adapter calls, replay, publish, approval, or state mutation.
 
 The first read-model implementation slice now adds only the
 `temporal_preview_review_artifacts` table, validation/read helper, and
-read-only list/get APIs. Create/capture routes, Evidence Pack integration,
-Cockpit rendering, approval-gated commit, PerspectiveSnapshot runtime, and
-RawEpisodeBundle runtime remain out of scope.
+read-only list/get APIs. The first public/non-Cockpit capture route now adds
+`POST /api/temporal-interpretation/review-artifacts/capture`; it writes only
+bounded review artifacts through the idempotent insert helper. Evidence Pack
+integration, Cockpit rendering/write controls, ChatGPT App create tools,
+approval-gated commit, PerspectiveSnapshot runtime, and RawEpisodeBundle
+runtime remain out of scope.
 
 The forbidden-persistence fixture gate for `TemporalPreviewReviewArtifact` is
 now satisfied by `lib/temporal-review-artifact-fixtures.ts` and
@@ -281,22 +284,22 @@ surface, Evidence Pack rendering, Cockpit code, ChatGPT App tools, OpenAI
 calls, GitHub publication adapter calls, replay, publish, approval,
 PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 
-The future public create/capture route contract is now designed in
+The public create/capture route contract is documented in
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`. It
-recommends
+uses
 `POST /api/temporal-interpretation/review-artifacts/capture`, requires
 idempotency and the forbidden fixture corpus, and keeps the route bounded to
-review artifact creation only. That document is design only: it does not add a
-POST route, DB schema, runtime behavior, Cockpit write button, ChatGPT App
-create tool, Evidence Pack write integration, OpenAI call, GitHub publication
-adapter call, replay, publish, approval, or state mutation.
+review artifact creation only. The first implementation adds that POST route
+without Cockpit write buttons, ChatGPT App create tools, Evidence Pack write
+integration, OpenAI calls, GitHub publication adapter calls, replay, publish,
+approval, or state mutation.
 
 The internal idempotency foundation for that future route is now implemented
 with a separate `temporal_preview_review_artifact_idempotency` table and helper
 logic. It stores hashed idempotency keys and payload hashes only, supports
 same-key replay and conflict detection, and checks duplicate `source_ref` plus
 `preview_hash` plus `work_id` in helper logic. It does not add the public route
-or any UI/write integration.
+by itself or any UI/write integration.
 
 ## Required gates before implementation
 
@@ -337,7 +340,8 @@ ChatGPT App tools.
    Complete.
 8. Private non-smoke insert helper. Complete.
 9. Idempotency storage and duplicate source/hash policy foundation. Complete.
-10. Future public create/capture route.
+10. Public create/capture route. Complete for `POST
+    /api/temporal-interpretation/review-artifacts/capture`.
 11. Evidence Pack read-only integration.
 12. Cockpit read-only review artifact browser.
 13. PerspectiveSnapshotCandidate proposal design.
@@ -348,13 +352,11 @@ ChatGPT App tools.
 
 ## Recommended next step
 
-Next design the future `/capture` route's request/response mapping to the
-internal idempotency helper, but expose it only after payload bounds, redaction,
-strict link validation, and route-level authority smokes are resolved. Preserve
-the non-authoritative review-artifact boundary and leave durable
-`PerspectiveSnapshot` persistence,
-`RawEpisodeBundle` runtime, approval-gated commit, routing policy, Evidence
-Pack writes, ChatGPT App create tools, and Cockpit write controls out of scope.
+Next consider read-only review-artifact browsing or Evidence Pack read-only
+awareness. Preserve the non-authoritative review-artifact boundary and leave
+durable `PerspectiveSnapshot` persistence, `RawEpisodeBundle` runtime,
+approval-gated commit, routing policy, Evidence Pack writes, ChatGPT App create
+tools, and Cockpit write controls out of scope.
 
 ## Relation to existing artifacts
 
