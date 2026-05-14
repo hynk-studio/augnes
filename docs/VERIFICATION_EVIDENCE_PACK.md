@@ -166,6 +166,13 @@ the demo/runtime seed has been applied. Use the canonical Temporal
 Interpretation `target_ref` / `source_ref` strings from that document for
 historical rows and unseeded runtimes, and do not attach future Temporal
 evidence to `AG-004` or another generic Codex work anchor.
+For the future bounded review artifact schema, reference
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. That document
+defines the conceptual `temporal_preview_review_artifacts` table, forbidden
+fields, Evidence Pack integration design, and read-only list/get API boundary.
+It is not implementation and must not be treated as DB schema, API routes,
+runtime persistence, approval authority, durable PerspectiveSnapshot state, or
+RawEpisodeBundle runtime.
 
 ## Evidence Categories
 

@@ -153,6 +153,12 @@ persistence work lives at
 `AG-TEMPORAL-INTERPRETATION` is seeded as demo/runtime work trace data for
 future Temporal Interpretation evidence, and canonical `target_ref` /
 `source_ref` usage remains available for historical rows and unseeded runtimes.
+The future `TemporalPreviewReviewArtifact` schema design lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`; it is design
+only for a bounded review artifact table and does not add DB schema,
+migrations, API routes, runtime persistence, Cockpit code, ChatGPT App tools,
+OpenAI calls, GitHub publication adapter calls, replay, publish, approval, or
+state mutation.
 
 API check:
 
@@ -176,6 +182,7 @@ npm run smoke:temporal-v02-status-roadmap
 npm run smoke:temporal-persistence-design
 npm run smoke:temporal-work-binding
 npm run smoke:temporal-work-seed
+npm run smoke:temporal-review-artifact-schema-design
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the
