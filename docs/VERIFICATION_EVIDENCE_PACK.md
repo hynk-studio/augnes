@@ -184,6 +184,12 @@ The reusable forbidden-persistence fixture corpus for
 `smoke:temporal-forbidden-persistence-fixtures`. It is a validation gate before
 future capture/create work and does not add Evidence Pack rendering or
 artifact-derived authority.
+The non-public capture helper for `TemporalPreviewReviewArtifact` lives at
+`lib/temporal-review-artifact-capture.ts`, with smoke coverage in
+`smoke:temporal-review-artifact-capture-helper`. It builds bounded artifact
+input from preview responses and manual review metadata only; Evidence Pack
+integration remains future read-only work and must not infer authority from
+captured review artifact rows.
 
 ## Evidence Categories
 

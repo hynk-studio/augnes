@@ -53,6 +53,7 @@ Temporal Interpretation seeded work anchor added
 TemporalPreviewReviewArtifact schema design v0.1 added
 TemporalPreviewReviewArtifact read model v0.1 added
 TemporalPreviewReviewArtifact forbidden-persistence fixtures added
+TemporalPreviewReviewArtifact non-public capture helper added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -154,11 +155,18 @@ summary/evidence separation, authority confusion, link validation, and
 route/source validation. `smoke:temporal-forbidden-persistence-fixtures` runs
 the corpus through the current smoke-only insert helper before any capture
 helper or create route exists.
+The non-public capture helper at `lib/temporal-review-artifact-capture.ts`
+converts bounded Temporal Preview responses plus manual review metadata into
+`TemporalPreviewReviewArtifactInput` and is covered by
+`smoke:temporal-review-artifact-capture-helper`. It remains internal-only: no
+public create route, Cockpit code, Evidence Pack rendering, ChatGPT App tools,
+OpenAI calls, GitHub publication adapter calls, replay, publish, approval,
+PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Add a non-public capture helper for TemporalPreviewReviewArtifact only after
-the forbidden-persistence fixture corpus remains green.
+Review a future private insert helper or broaden capture fixtures before any
+public create route.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -189,7 +197,7 @@ A new session should read these files in this order:
 17. `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md` - Temporal Interpretation v0.2 status, authority boundary, and next productization options.
 18. `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md` - Temporal Interpretation persistence boundary design, not implementation.
 19. `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` - Temporal Interpretation work/evidence binding convention.
-20. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` - TemporalPreviewReviewArtifact schema design, read-model implementation status, and forbidden-persistence fixture gate.
+20. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` - TemporalPreviewReviewArtifact schema design, read-model implementation status, forbidden-persistence fixture gate, and non-public capture helper status.
 21. `.github/pull_request_template.md` - required PR trace format.
 22. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
 23. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.

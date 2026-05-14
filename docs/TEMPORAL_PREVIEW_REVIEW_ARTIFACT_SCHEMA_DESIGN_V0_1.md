@@ -32,6 +32,16 @@ smoke-only insert helper and does not add create/capture routes, Cockpit code,
 Evidence Pack integration, ChatGPT App tools, OpenAI calls, GitHub publication
 adapter calls, replay, publish, approval, or state mutation.
 
+Internal capture helper status: a non-public helper now exists at
+`lib/temporal-review-artifact-capture.ts`, with smoke coverage at
+`scripts/smoke-temporal-review-artifact-capture-helper.mjs`. It converts a
+bounded Temporal Preview response plus manual review metadata into a
+`TemporalPreviewReviewArtifactInput` for existing validation. It does not add a
+public create/capture route, Cockpit code, Evidence Pack integration, ChatGPT
+App tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
+approval, state mutation, `PerspectiveSnapshot` runtime, or
+`RawEpisodeBundle` runtime.
+
 This design builds on:
 
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`
@@ -308,6 +318,11 @@ POST /api/temporal-interpretation/preview/{preview_id}/review-artifact
 
 Do not implement now.
 
+The current non-public capture helper is an internal conversion step only. It
+builds bounded artifact input and leaves persistence to existing internal smoke
+validation or a future reviewed private/public insert path. It is not a route
+and does not grant write authority to any external surface.
+
 Future create/capture must:
 
 - Persist only a bounded review artifact after validation.
@@ -385,7 +400,7 @@ Implementation sequence status:
 3. Read-only list/get APIs. Complete.
 4. Smoke with temp DB. Complete.
 5. Forbidden-persistence fixture corpus and smoke. Complete.
-6. Optional capture helper.
+6. Non-public capture helper and smoke. Complete.
 7. Evidence Pack read-only integration.
 8. Cockpit read-only browser.
 
@@ -440,6 +455,21 @@ confirms:
 - No fetch, OpenAI, GitHub publication adapter, replay, publish, or approval
   behavior occurs.
 
+Capture-helper smoke uses a temporary DB outside the repo and confirms:
+
+- A bounded mock Temporal Preview response converts into valid artifact input.
+- The pure helper does not write to the DB by default.
+- Existing insert validation accepts the returned input.
+- Bounded preview JSON, active-context admission decisions, guardrail result,
+  refs, and manual review metadata are preserved.
+- Capture-specific forbidden cases are rejected.
+- The reusable forbidden-persistence corpus remains rejected through capture
+  output.
+- Read-only list/get APIs still read the inserted artifact.
+- No POST route, public write surface, protected authority row mutation, fetch,
+  OpenAI call, GitHub publication adapter call, replay, publish, or approval
+  behavior is added.
+
 ## Acceptance gates before implementation
 
 Required gates:
@@ -452,6 +482,7 @@ Required gates:
 - OpenAI validation exists.
 - No-secret policy confirmed.
 - Forbidden-persistence fixtures added.
+- Non-public capture helper added.
 - Migration rollback/export note planned.
 - No automatic commit smoke plan.
 - Explicit decision to implement review artifacts only, not
@@ -460,6 +491,6 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: add forbidden-persistence fixtures or a non-public capture
-helper for `TemporalPreviewReviewArtifact`. Do not expose a create route until
-capture validation, redaction checks, and authority-boundary smoke are reviewed.
+Preferred next PR: review whether to add a future private insert helper or
+broaden capture fixtures. Do not expose a create route until capture
+validation, redaction checks, and authority-boundary smoke are reviewed.

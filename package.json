@@ -26,6 +26,7 @@
     "smoke:temporal-review-artifact-schema-design": "node scripts/smoke-temporal-review-artifact-schema-design.mjs",
     "smoke:temporal-review-artifact-read-model": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-temporal-review-artifact-read-model.mjs",
     "smoke:temporal-forbidden-persistence-fixtures": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-temporal-forbidden-persistence-fixtures.mjs",
+    "smoke:temporal-review-artifact-capture-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-temporal-review-artifact-capture-helper.mjs",
     "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
     "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",
