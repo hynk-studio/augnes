@@ -135,7 +135,9 @@ filled mock-mode route-captured review lives at
 `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md`. The
 opt-in OpenAI-path validation harness and report live at
 `scripts/validate-temporal-openai-path.mjs` and
-`docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`. This remains
+`docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`. Browser/Cockpit
+screenshot validation for the read-only panel lives at
+`docs/TEMPORAL_INTERPRETATION_COCKPIT_SCREENSHOT_VALIDATION.md`. This remains
 read-only and non-authoritative.
 
 The v0.2 status, validation matrix, guarded failure modes, known limitations,
@@ -158,6 +160,7 @@ npm run smoke:temporal-hardening
 npm run smoke:temporal-manual-review-report
 npm run smoke:temporal-route-review-report
 npm run smoke:cockpit-temporal-admission
+npm run smoke:temporal-cockpit-screenshot-validation
 npm run smoke:temporal-openai-validation-docs
 npm run smoke:temporal-v02-status-roadmap
 ```
