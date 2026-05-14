@@ -20,6 +20,7 @@
     "smoke:temporal-cockpit-screenshot-validation": "node scripts/smoke-temporal-cockpit-screenshot-validation.mjs",
     "smoke:temporal-openai-validation-docs": "node scripts/smoke-temporal-openai-validation-docs.mjs",
     "smoke:temporal-v02-status-roadmap": "node scripts/smoke-temporal-v02-status-roadmap.mjs",
+    "smoke:temporal-persistence-design": "node scripts/smoke-temporal-persistence-design.mjs",
     "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
     "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",

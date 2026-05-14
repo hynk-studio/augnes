@@ -154,6 +154,11 @@ is opt-in and must not make normal smoke checks require `OPENAI_API_KEY`.
 For the current v0.2 authority boundary, validation matrix, guarded failure
 modes, known limitations, and roadmap recommendation, reference
 `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md`.
+For future Temporal Interpretation persistence boundaries, reference
+`docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`. That document is a
+design artifact only; it must not be treated as DB schema, API implementation,
+runtime persistence, approval authority, durable PerspectiveSnapshot state, or
+RawEpisodeBundle runtime.
 
 ## Evidence Categories
 

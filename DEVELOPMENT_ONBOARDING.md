@@ -47,6 +47,7 @@ Temporal Interpretation Preview OpenAI-path validation harness added
 Temporal Interpretation v0.2 status and roadmap doc added
 Temporal Interpretation route-captured manual review report added
 Temporal Interpretation Cockpit screenshot validation report added
+Temporal Interpretation persistence boundary design v0.1 added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -124,11 +125,15 @@ structured admission decisions panel. The current status, validation matrix,
 guarded failure modes, known limitations, roadmap options, and recommended next
 step are summarized in
 `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md`.
+Future Temporal Interpretation persistence boundaries are documented in
+`docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`; this is design only
+and does not add DB schema, API routes, runtime persistence, Cockpit code,
+ChatGPT App tools, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Choose the next Temporal Interpretation productization step only after the
-route, Cockpit source, and browser validation artifacts have been reviewed.
+Create a dedicated Temporal Interpretation work item/evidence binding before
+any persistence implementation.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -157,9 +162,10 @@ A new session should read these files in this order:
 15. `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` - OpenAI-path validation report.
 16. `docs/TEMPORAL_INTERPRETATION_COCKPIT_SCREENSHOT_VALIDATION.md` - browser/Cockpit screenshot validation report.
 17. `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md` - Temporal Interpretation v0.2 status, authority boundary, and next productization options.
-18. `.github/pull_request_template.md` - required PR trace format.
-19. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-20. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+18. `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md` - Temporal Interpretation persistence boundary design, not implementation.
+19. `.github/pull_request_template.md` - required PR trace format.
+20. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+21. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 
