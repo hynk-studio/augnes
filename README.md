@@ -164,6 +164,10 @@ does not add create/capture routes, Cockpit rendering, Evidence Pack
 integration, ChatGPT App tools, OpenAI calls, GitHub publication adapter calls,
 replay, publish, approval, state mutation, PerspectiveSnapshot runtime, or
 RawEpisodeBundle runtime.
+The reusable forbidden-persistence fixture corpus lives at
+`lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
+`smoke:temporal-forbidden-persistence-fixtures`. It is a gate before any
+future capture helper or create route.
 
 API check:
 
@@ -189,6 +193,7 @@ npm run smoke:temporal-work-binding
 npm run smoke:temporal-work-seed
 npm run smoke:temporal-review-artifact-schema-design
 npm run smoke:temporal-review-artifact-read-model
+npm run smoke:temporal-forbidden-persistence-fixtures
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

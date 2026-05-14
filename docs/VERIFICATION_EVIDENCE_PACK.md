@@ -178,6 +178,12 @@ The first read-model slice now adds the
 Evidence Pack integration remains future work. Evidence Pack must not infer
 approval, publish readiness, replay status, committed state, or memory
 admission from review artifact records.
+The reusable forbidden-persistence fixture corpus for
+`TemporalPreviewReviewArtifact` lives at
+`lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
+`smoke:temporal-forbidden-persistence-fixtures`. It is a validation gate before
+future capture/create work and does not add Evidence Pack rendering or
+artifact-derived authority.
 
 ## Evidence Categories
 
