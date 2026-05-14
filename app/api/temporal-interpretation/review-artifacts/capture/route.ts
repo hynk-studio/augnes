@@ -322,7 +322,10 @@ function readLinkedEvidenceRecordIds(links: Record<string, unknown> | null) {
     return [];
   }
   const value = links.linked_evidence_record_ids;
-  if (value === null || typeof value === "string" || Array.isArray(value)) {
+  if (value === null) {
+    return [];
+  }
+  if (Array.isArray(value)) {
     return value;
   }
 

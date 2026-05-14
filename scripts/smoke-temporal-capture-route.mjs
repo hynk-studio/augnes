@@ -534,6 +534,21 @@ function buildRouteForbiddenCases(previewResponse) {
       expected_error_includes: "Unknown linked evidence_id",
     },
     {
+      name: "linked_evidence_record_ids_string_rejected",
+      request: buildRouteRequest({
+        source_ref: "scripts/smoke-temporal-capture-route.mjs#evidence-string",
+        preview_response: previewResponse,
+        idempotency_key: "smoke-temporal-capture-route-evidence-string",
+        links: {
+          linked_evidence_record_ids: "[\"evidence:x\"]",
+          linked_session_id: null,
+          linked_pr_url: null,
+        },
+      }),
+      expected_error_includes:
+        "links.linked_evidence_record_ids must be a JSON array",
+    },
+    {
       name: "missing_linked_session_id",
       request: buildRouteRequest({
         source_ref: "scripts/smoke-temporal-capture-route.mjs#missing-session",
