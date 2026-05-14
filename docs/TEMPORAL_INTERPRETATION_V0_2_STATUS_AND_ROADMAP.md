@@ -22,6 +22,8 @@ The v0.2 slice includes:
   panel.
 - Persistence boundary design v0.1 as a future design artifact, not
   implementation.
+- Work/evidence binding convention as a future persistence gate, not runtime
+  persistence.
 
 It is not:
 
@@ -168,6 +170,15 @@ separates possible future review artifacts, PerspectiveSnapshot candidates,
 RawEpisodeBundle refs, and admission decision records while keeping current
 Temporal Preview read-only and non-authoritative.
 
+### Work/evidence binding convention
+
+`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` defines the
+dedicated Temporal Interpretation work/evidence binding convention for future
+review artifact persistence work. It chooses a documentation-only work anchor
+convention for `AG-TEMPORAL-INTERPRETATION`, keeps runtime seed data unchanged,
+and defines canonical `target_ref` / `source_ref` usage until a dedicated work
+item exists.
+
 ### Smoke coverage
 
 Current smoke coverage includes:
@@ -181,6 +192,7 @@ Current smoke coverage includes:
 - `smoke:temporal-openai-validation-docs`
 - `smoke:temporal-v02-status-roadmap`
 - `smoke:temporal-persistence-design`
+- `smoke:temporal-work-binding`
 
 `validate:temporal-openai-path` is intentionally separate opt-in validation,
 not normal smoke.
@@ -198,6 +210,7 @@ not normal smoke.
 | `smoke:temporal-openai-validation-docs` | Confirms the OpenAI-path validation harness/report exist and normal smoke does not require OpenAI. | Complete | `scripts/smoke-temporal-openai-validation-docs.mjs` |
 | `smoke:temporal-v02-status-roadmap` | Confirms the v0.2 status/roadmap doc exists and is indexed from README/onboarding. | Complete | `scripts/smoke-temporal-v02-status-roadmap.mjs` |
 | `smoke:temporal-persistence-design` | Confirms the persistence design doc exists, defines review-artifact and future-candidate boundaries, references the v0.2 validation artifacts, and is indexed from README/onboarding. | Complete | `scripts/smoke-temporal-persistence-design.mjs` |
+| `smoke:temporal-work-binding` | Confirms the work/evidence binding doc exists, defines the canonical work anchor, target/source refs, AG-004 misuse warning, session boundary, future artifact linkage, and related doc references. | Complete | `scripts/smoke-temporal-work-binding.mjs` |
 | `validate:temporal-openai-path` | Opt-in live OpenAI-path schema and guardrail validation. | Complete for one fixture pass | `scripts/validate-temporal-openai-path.mjs` and `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` |
 | `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` | Filled manual review of deterministic mock preview output. | Complete | Passing report with preserved counterexample and residual tension refs |
 | `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md` | Filled manual review of real route output captured in mock mode. | Complete | Passing report with `generator: mock`, zero warnings, preserved counterexample and residual tension refs |
@@ -243,6 +256,8 @@ Temporal Interpretation v0.2 is:
 - Cockpit rendering has one mock-mode browser screenshot/DOM validation pass,
   not a cross-browser visual regression suite.
 - Persistence v0.1 is design only, not schema or runtime persistence.
+- Work/evidence binding v0.1 is documentation-only; runtime seed data is not
+  changed yet.
 - No durable `PerspectiveSnapshot` persistence.
 - No `RawEpisodeBundle` linkage.
 - No learned temporal routing policy.
@@ -257,7 +272,7 @@ Temporal Interpretation v0.2 is:
 | B. Browser/Cockpit screenshot validation | Confirms reviewer-visible rendering works in the real browser surface. | Screenshot tests can be brittle if UI layout is still moving. | Stable local Cockpit startup and deterministic preview output. | complete |
 | C. OpenAI validation corpus expansion | Tests more semantic cases and model variability. | Costs API calls and may blur the opt-in boundary if not documented tightly. | More fixtures, redaction discipline, explicit key-provided runs. | soon |
 | D. Temporal Interpretation persistence boundary design | Defines what could be persisted later, what remains forbidden, and how review artifacts differ from durable state. | Could be mistaken for implementation if not kept explicitly design-only. | Route-captured review, Cockpit validation, OpenAI-path validation, manual review template. | complete |
-| E. Dedicated Temporal Interpretation work item / evidence binding | Gives this slice durable project traceability without changing preview authority. | Could be mistaken for preview-created evidence if wording is loose. | Existing work/evidence binding conventions and explicit non-authority language. | soon |
+| E. Dedicated Temporal Interpretation work item / evidence binding | Gives this slice durable project traceability without changing preview authority. | Could be mistaken for preview-created evidence if wording is loose. | Existing work/evidence binding conventions and explicit non-authority language. | complete as documentation-only convention |
 | F. RawEpisodeBundle-derived refs design | Defines how future raw episode references could feed interpretation. | Premature runtime design could overfit current fixtures. | Stable route/Cockpit review artifacts and authority model. | later |
 | G. PerspectiveSnapshot persistence design | Defines durable snapshot boundaries before implementation. | High authority risk if persistence starts before review semantics settle. | Route-captured review, UI validation, broader guardrail confidence. | later |
 | H. Active context retrieval/admission algorithm | Moves beyond fixture/simple-context admission toward real corpus selection. | Retrieval mistakes could make stale or summary-only context look authoritative. | Corpus model, source authority taxonomy, evaluation fixtures. | later |
@@ -266,8 +281,8 @@ Temporal Interpretation v0.2 is:
 
 ## Recommended next step
 
-Next should be a dedicated Temporal Interpretation work item/evidence binding
-before any persistence implementation.
+Next should be a dedicated Temporal Interpretation work item seed or work
+registry entry before any persistence implementation.
 
 Reason:
 
@@ -278,6 +293,8 @@ Reason:
   Cockpit/browser surface with mock generator and guardrails passing.
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md` defines the
   future persistence boundary as design only.
+- `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` defines the
+  documentation-only work/evidence binding convention and canonical refs.
 - Review artifact persistence should come before PerspectiveSnapshot
   persistence.
 - Durable `PerspectiveSnapshot` or `RawEpisodeBundle` runtime should wait until
@@ -291,6 +308,7 @@ Reason:
 - `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md`
 - `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`
+- `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`
 - `lib/temporal-interpretation/admission.ts`
 - `lib/temporal-interpretation/fixtures.ts`
 - `lib/temporal-interpretation/guardrails.ts`
@@ -303,4 +321,5 @@ Reason:
 - `scripts/smoke-temporal-openai-validation-docs.mjs`
 - `scripts/smoke-temporal-v02-status-roadmap.mjs`
 - `scripts/smoke-temporal-persistence-design.mjs`
+- `scripts/smoke-temporal-work-binding.mjs`
 - `scripts/validate-temporal-openai-path.mjs`

@@ -246,6 +246,10 @@ work item/evidence binding exists. It should not implement
 `PerspectiveSnapshotCandidate` commit or RawEpisodeBundle ingestion in the same
 slice.
 
+`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` defines the
+required work/evidence/session/PR binding convention for that future
+implementation path. It is a required gate before review artifact schema work.
+
 ## Required gates before implementation
 
 Before any persistence implementation, these gates must pass:
@@ -261,6 +265,8 @@ Before any persistence implementation, these gates must pass:
 - Rollback/export story.
 - Test fixtures for forbidden persistence.
 - Smoke tests for no automatic commit.
+- `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` merged or an
+  explicit reviewed decision to stay target_ref-only.
 
 These gates should be evaluated against the current docs and any new work item
 before writing migrations, API routes, runtime persistence, Cockpit code, or
@@ -281,8 +287,8 @@ ChatGPT App tools.
 
 ## Recommended next step
 
-First create a dedicated Temporal Interpretation work item/evidence binding doc
-or seed record. Then implement review artifact persistence, not
+First create or merge a dedicated Temporal Interpretation work item/evidence
+binding doc or seed record. Then implement review artifact persistence, not
 PerspectiveSnapshot persistence.
 
 If a schema design PR is opened after that work item exists, it should be a
@@ -301,6 +307,7 @@ and authority boundary:
 - `docs/TEMPORAL_INTERPRETATION_COCKPIT_SCREENSHOT_VALIDATION.md`
 - `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`
 - `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`
+- `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`
 - `lib/temporal-interpretation/admission.ts`
 - `lib/temporal-interpretation/guardrails.ts`
 
