@@ -190,6 +190,12 @@ The non-public capture helper for `TemporalPreviewReviewArtifact` lives at
 input from preview responses and manual review metadata only; Evidence Pack
 integration remains future read-only work and must not infer authority from
 captured review artifact rows.
+The private non-smoke insert helper
+`insertTemporalPreviewReviewArtifact` lives at
+`lib/temporal-review-artifacts.ts`, with smoke coverage in
+`smoke:temporal-private-insert-helper`. It shares validation with the existing
+smoke insert helper and remains internal-only. It does not add Evidence Pack
+rendering, a public POST route, or artifact-derived authority.
 
 ## Evidence Categories
 
