@@ -173,6 +173,14 @@ The non-public capture helper lives at
 `smoke:temporal-review-artifact-capture-helper`. It converts bounded preview
 responses plus manual review metadata into artifact input, but still does not
 add a public create route or write surface.
+The future public create/capture route contract lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`, with
+smoke coverage in `smoke:temporal-create-route-design`. It recommends
+`POST /api/temporal-interpretation/review-artifacts/capture` for a future
+bounded route, but does not implement a route, DB schema, runtime behavior,
+Cockpit write button, Evidence Pack integration, ChatGPT App create tool,
+OpenAI call, GitHub publication adapter call, replay, publish, approval, or
+state mutation.
 
 API check:
 
@@ -200,6 +208,7 @@ npm run smoke:temporal-review-artifact-schema-design
 npm run smoke:temporal-review-artifact-read-model
 npm run smoke:temporal-forbidden-persistence-fixtures
 npm run smoke:temporal-review-artifact-capture-helper
+npm run smoke:temporal-create-route-design
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

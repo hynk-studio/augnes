@@ -162,11 +162,17 @@ converts bounded Temporal Preview responses plus manual review metadata into
 public create route, Cockpit code, Evidence Pack rendering, ChatGPT App tools,
 OpenAI calls, GitHub publication adapter calls, replay, publish, approval,
 PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
+The future public create/capture route contract is documented in
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md` and covered
+by `smoke:temporal-create-route-design`. It recommends
+`POST /api/temporal-interpretation/review-artifacts/capture` but remains design
+only: no route, DB schema, runtime behavior, Cockpit write button, Evidence
+Pack integration, ChatGPT App create tool, OpenAI call, GitHub publication
+adapter call, replay, publish, approval, or state mutation.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Review a future private insert helper or broaden capture fixtures before any
-public create route.
+Review a future private non-smoke insert helper before any public create route.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -198,9 +204,10 @@ A new session should read these files in this order:
 18. `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md` - Temporal Interpretation persistence boundary design, not implementation.
 19. `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` - Temporal Interpretation work/evidence binding convention.
 20. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` - TemporalPreviewReviewArtifact schema design, read-model implementation status, forbidden-persistence fixture gate, and non-public capture helper status.
-21. `.github/pull_request_template.md` - required PR trace format.
-22. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-23. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+21. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md` - Future public create/capture route contract design only.
+22. `.github/pull_request_template.md` - required PR trace format.
+23. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+24. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 
