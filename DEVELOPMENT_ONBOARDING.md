@@ -169,10 +169,16 @@ by `smoke:temporal-create-route-design`. It recommends
 only: no route, DB schema, runtime behavior, Cockpit write button, Evidence
 Pack integration, ChatGPT App create tool, OpenAI call, GitHub publication
 adapter call, replay, publish, approval, or state mutation.
+The private non-smoke insert helper
+`insertTemporalPreviewReviewArtifact` now lives in
+`lib/temporal-review-artifacts.ts` and is covered by
+`smoke:temporal-private-insert-helper`. It shares the same internal validation
+and insertion path as `insertTemporalPreviewReviewArtifactForSmoke`; no public
+create route or write surface is exposed.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Review a future private non-smoke insert helper before any public create route.
+Review idempotency storage and duplicate policy before any public create route.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

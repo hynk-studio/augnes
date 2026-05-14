@@ -51,6 +51,15 @@ add DB schema, add runtime behavior, or add Cockpit, Evidence Pack, ChatGPT App,
 OpenAI, GitHub publication adapter, replay, publish, approval, or state
 mutation behavior.
 
+Private insert helper status: `insertTemporalPreviewReviewArtifact` now exists
+in `lib/temporal-review-artifacts.ts` and shares the same internal validation
+and insertion path as `insertTemporalPreviewReviewArtifactForSmoke`. It is an
+internal helper only. It does not add a public create/capture route, API route
+file, DB schema, migration, Cockpit code, Evidence Pack integration, ChatGPT
+App tool, OpenAI call, GitHub publication adapter call, replay, publish,
+approval, state mutation, `PerspectiveSnapshot` runtime, or `RawEpisodeBundle`
+runtime.
+
 This design builds on:
 
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`
@@ -334,15 +343,16 @@ The shorter `POST /api/temporal-interpretation/review-artifacts` alternative
 is deferred.
 
 The current non-public capture helper is an internal conversion step only. It
-builds bounded artifact input and leaves persistence to existing internal smoke
-validation or a future reviewed private/public insert path. It is not a route
-and does not grant write authority to any external surface.
+builds bounded artifact input and leaves persistence to explicit callers such
+as the private non-smoke `insertTemporalPreviewReviewArtifact` helper or the
+existing smoke-only insert helper. It is not a route and does not grant write
+authority to any external surface.
 
 Future create/capture must:
 
 - Persist only a bounded review artifact after validation.
 - Reuse `buildTemporalPreviewReviewArtifactInputFromRouteCapture`.
-- Use a future private non-smoke `insertTemporalPreviewReviewArtifact` helper.
+- Use the private non-smoke `insertTemporalPreviewReviewArtifact` helper.
 - Require a public-route idempotency key.
 - Require explicit `capture_mode`.
 - Require explicit `redaction_status`.
@@ -421,7 +431,7 @@ Implementation sequence status:
 6. Non-public capture helper and smoke. Complete.
 7. Public create/capture route contract design. Complete in
    `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`.
-8. Private non-smoke insert helper.
+8. Private non-smoke insert helper. Complete.
 9. Future public create/capture route.
 10. Evidence Pack read-only integration.
 11. Cockpit read-only browser.
@@ -499,6 +509,20 @@ insert helper prerequisite, forbidden fixture corpus requirement, and no
 OpenAI, GitHub publication adapter, approval, publish, replay, state mutation,
 Cockpit write button, or ChatGPT App create tool boundary.
 
+Private insert-helper smoke uses a temporary DB outside the repo and confirms:
+
+- `insertTemporalPreviewReviewArtifact` inserts a bounded valid fixture.
+- Read helpers and read-only list/get APIs read the inserted artifact.
+- Duplicate `artifact_id` insert follows the existing DB constraint behavior
+  and does not create another row.
+- The reusable forbidden-persistence corpus is rejected through the private
+  helper.
+- Capture-helper output inserts through the private helper.
+- `insertTemporalPreviewReviewArtifactForSmoke` remains available.
+- Protected authority rows are not mutated.
+- No POST route, fetch, OpenAI call, GitHub publication adapter call, replay,
+  publish, approval, or state mutation is added.
+
 ## Acceptance gates before implementation
 
 Required gates:
@@ -513,7 +537,7 @@ Required gates:
 - Forbidden-persistence fixtures added.
 - Non-public capture helper added.
 - Create/capture route contract design added.
-- Private non-smoke insert helper planned and tested before any public route.
+- Private non-smoke insert helper added and tested before any public route.
 - Migration rollback/export note planned.
 - No automatic commit smoke plan.
 - Explicit decision to implement review artifacts only, not
@@ -522,6 +546,7 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: review whether to add a future private insert helper or
-broaden capture fixtures. Do not expose a create route until capture
-validation, redaction checks, and authority-boundary smoke are reviewed.
+Preferred next PR: review idempotency storage and duplicate policy for the
+future public capture route. Do not expose a create route until capture
+validation, redaction checks, payload bounds, and authority-boundary smoke are
+reviewed.

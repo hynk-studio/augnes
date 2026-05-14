@@ -256,8 +256,25 @@ export function getTemporalPreviewReviewArtifact(
   }
 }
 
+export function insertTemporalPreviewReviewArtifact(
+  input: TemporalPreviewReviewArtifactInput,
+): TemporalPreviewReviewArtifact {
+  return insertTemporalPreviewReviewArtifactInternal(input, {
+    caller: "insertTemporalPreviewReviewArtifact",
+  });
+}
+
 export function insertTemporalPreviewReviewArtifactForSmoke(
   input: TemporalPreviewReviewArtifactInput,
+) {
+  return insertTemporalPreviewReviewArtifactInternal(input, {
+    caller: "insertTemporalPreviewReviewArtifactForSmoke",
+  });
+}
+
+function insertTemporalPreviewReviewArtifactInternal(
+  input: TemporalPreviewReviewArtifactInput,
+  _options: { caller: string },
 ) {
   const row = validateTemporalPreviewReviewArtifactInput(input);
   const db = openDatabase();

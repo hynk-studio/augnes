@@ -19,9 +19,14 @@ The route is a capture contract: it accepts bounded Temporal Preview output
 plus manual review metadata, converts it through
 `buildTemporalPreviewReviewArtifactInputFromRouteCapture`, validates the same
 forbidden-field and ref-separation boundaries as current internal helpers, and
-persists only the resulting bounded review artifact through a future private
-non-smoke insert helper.
+persists only the resulting bounded review artifact through the private
+non-smoke `insertTemporalPreviewReviewArtifact` helper.
 It must not call the GitHub publication adapter.
+
+Implementation status: the private non-smoke
+`insertTemporalPreviewReviewArtifact` helper now exists and reuses the same
+validation and insertion path as `insertTemporalPreviewReviewArtifactForSmoke`.
+The public create/capture route is still not implemented.
 
 ## Route candidates
 
@@ -250,9 +255,10 @@ It must not bypass:
 - `work_id` anchor validation.
 - Capture mode, redaction status, and reviewer verdict enums.
 
-## Required New Helper Before Implementation
+## Required Helper Before Implementation
 
-Before any public route implementation, add a private non-smoke insert helper:
+Before any public route implementation, keep the private non-smoke insert
+helper:
 
 ```text
 insertTemporalPreviewReviewArtifact
@@ -264,14 +270,14 @@ It must be separate from:
 insertTemporalPreviewReviewArtifactForSmoke
 ```
 
-The helper should:
+The helper exists and should continue to:
 
 - Reuse the same validation and parsing path as the smoke insert helper.
 - Enforce work, session, evidence, summary/evidence, forbidden-field, and enum
   validation.
 - Be suitable for the future public route.
 - Avoid exposing a route by itself.
-- Be tested before adding any public POST route.
+- Stay tested before adding any public POST route.
 - Keep current read-only list/get behavior unchanged.
 
 ## Required Tests Before Route Implementation
@@ -370,7 +376,7 @@ separate reviewed design.
 Recommended sequence:
 
 1. Add the private non-smoke insert helper,
-   `insertTemporalPreviewReviewArtifact`.
+   `insertTemporalPreviewReviewArtifact`. Complete.
 2. Add idempotency storage/design if needed.
 3. Implement the route.
 4. Add route smoke.
