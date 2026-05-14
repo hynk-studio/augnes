@@ -2,25 +2,25 @@
 
 ## Executive summary
 
-This is route design only. It is not implementation and does not add a POST
-route, API route file, DB schema, migration, runtime behavior, Cockpit code,
-Evidence Pack integration, ChatGPT App tool, OpenAI call, GitHub publication
-adapter call, replay, publish, approval, state mutation,
-`PerspectiveSnapshot` runtime, or `RawEpisodeBundle` runtime.
+This document began as route design. The first narrow public/non-Cockpit
+implementation now adds only:
 
-A future public/non-Cockpit route would create bounded
-`TemporalPreviewReviewArtifact` rows only. It must reuse the current internal
-capture helper and the reusable forbidden-persistence fixture corpus. It must
-not call OpenAI by itself, and it must not approve, publish, replay, commit
-state, infer readiness, or create durable `PerspectiveSnapshot` or
-`RawEpisodeBundle` runtime records.
+```text
+POST /api/temporal-interpretation/review-artifacts/capture
+```
+
+The route creates bounded `TemporalPreviewReviewArtifact` rows only. It reuses
+the internal capture helper, the private idempotent insert helper, and the
+forbidden-persistence fixture corpus. It must not call OpenAI, and it must not
+approve, publish, replay, commit state, infer readiness, or create durable
+`PerspectiveSnapshot` or `RawEpisodeBundle` runtime records.
 
 The route is a capture contract: it accepts bounded Temporal Preview output
 plus manual review metadata, converts it through
 `buildTemporalPreviewReviewArtifactInputFromRouteCapture`, validates the same
 forbidden-field and ref-separation boundaries as current internal helpers, and
-persists only the resulting bounded review artifact through the private
-non-smoke `insertTemporalPreviewReviewArtifact` helper.
+persists only the resulting bounded review artifact through
+`insertTemporalPreviewReviewArtifactWithIdempotency`.
 It must not call the GitHub publication adapter.
 
 Implementation status: the private non-smoke
@@ -31,8 +31,14 @@ Idempotency foundation status: a separate internal
 `insertTemporalPreviewReviewArtifactWithIdempotency` helper now support
 same-key replay, same-key conflict detection, and conservative duplicate
 `source_ref` plus `preview_hash` plus `work_id` conflict detection. Raw
-idempotency keys, raw payloads, and raw request bodies are not stored. The
-public create/capture route is still not implemented.
+idempotency keys, raw payloads, and raw request bodies are not stored. First
+public route implementation status: `POST
+/api/temporal-interpretation/review-artifacts/capture` is implemented with
+route-level payload bounds and smoke coverage in
+`smoke:temporal-capture-route`. Cockpit write controls, ChatGPT App create
+tools, Evidence Pack integration, OpenAI calls, GitHub publication adapter
+calls, replay, publish, approval, state mutation, `PerspectiveSnapshot`
+runtime, and `RawEpisodeBundle` runtime remain absent.
 
 ## Route candidates
 
@@ -86,7 +92,6 @@ Conceptual input shape:
     "capture_mode": "route_capture",
     "redaction_status": "bounded",
     "created_by": "route-client",
-    "artifact_id": "temporal-review:optional-client-id",
     "source_ref": "optional-capture-source-ref"
   },
   "idempotency_key": "client-generated-required-key"
@@ -95,15 +100,11 @@ Conceptual input shape:
 
 Required conceptual fields:
 
-- `source_route`: route string for the source capture route.
+- `source_ref`: source document/report/path for the captured preview.
 - `source_surface`: bounded surface label, such as `local_runtime`.
 - `preview_response`: bounded Temporal Preview response object.
-- `manual_review.reviewer_verdict`: one of `pass`, `pass_with_notes`, `fail`,
-  or `not_reviewed`.
-- `capture.capture_mode`: one of `route_capture`, `cockpit_capture`, `mock`,
-  `openai`, or `mock_fallback`.
-- `capture.redaction_status`: one of `redacted`, `bounded`, or
-  `raw_disallowed`.
+- `manual_review.reviewer_verdict`: one of `pass`, `pass_with_notes`, or
+  `fail`. The public route rejects `not_reviewed`.
 - `capture.created_by`: non-empty actor or helper identifier.
 - `idempotency_key`: required for the public route.
 
@@ -112,12 +113,19 @@ Optional conceptual fields:
 - `scope`, defaulting to `project:augnes`.
 - `work_id`, defaulting to `AG-TEMPORAL-INTERPRETATION` unless a future
   reviewed Temporal work anchor is designed.
-- `source_ref`, `capture.source_ref`, and `capture.artifact_id`.
+- `source_route`, defaulting to `/api/temporal-interpretation/preview`.
+- `capture.capture_mode`, defaulting to `route_capture`.
+- `capture.redaction_status`, defaulting to `bounded`.
+- `capture.source_ref`, which overrides top-level `source_ref`.
 - `manual_review.reviewer_notes`.
 - `manual_review.manual_review_report_path`.
 - `links.linked_evidence_record_ids`.
 - `links.linked_session_id`.
 - `links.linked_pr_url`.
+
+Public route forbidden policy: client-supplied `capture.artifact_id` and
+top-level `artifact_id` are rejected. The server/helper generates
+`artifact_id`.
 
 Forbidden request fields, at any depth:
 
@@ -147,10 +155,15 @@ Success, first creation:
   "runtime": "augnes",
   "scope": "project:augnes",
   "created": true,
+  "idempotent_replay": false,
   "artifact": {},
   "boundaries": [
-    "Created bounded TemporalPreviewReviewArtifact only.",
-    "No OpenAI, GitHub publication adapter, approval, publish, replay, or state mutation occurred."
+    "Creates bounded TemporalPreviewReviewArtifact only.",
+    "Does not call OpenAI.",
+    "Does not call GitHub or GitHub publication adapter.",
+    "Does not approve, publish, replay, or commit state.",
+    "Does not create PerspectiveSnapshot or RawEpisodeBundle runtime.",
+    "Does not update Evidence Pack directly."
   ],
   "gaps": []
 }
@@ -166,7 +179,12 @@ Same idempotency key and same payload replay:
   "idempotent_replay": true,
   "artifact": {},
   "boundaries": [
-    "Returned existing bounded TemporalPreviewReviewArtifact for matching idempotency key and payload hash."
+    "Creates bounded TemporalPreviewReviewArtifact only.",
+    "Does not call OpenAI.",
+    "Does not call GitHub or GitHub publication adapter.",
+    "Does not approve, publish, replay, or commit state.",
+    "Does not create PerspectiveSnapshot or RawEpisodeBundle runtime.",
+    "Does not update Evidence Pack directly."
   ],
   "gaps": []
 }
@@ -181,7 +199,7 @@ Validation failure, `400`:
 - Summary ref used as an evidence anchor.
 - Invalid `capture_mode` or `redaction_status`.
 - Missing required idempotency key.
-- Payload exceeds the configured size bound.
+- Payload exceeds the configured 128 KiB size bound.
 
 Conflict, `409`:
 
@@ -189,8 +207,9 @@ Conflict, `409`:
 - Same idempotency key with a mismatched payload hash.
 - Duplicate `source_ref` plus `preview_hash` plus `work_id` under the initial
   conservative policy.
-- Linked session or evidence record is missing when strict mode requires those
-  links to resolve.
+
+Linked session or evidence record validation failures return `400`; the route
+does not create missing session or evidence rows.
 
 ## Idempotency design
 
@@ -255,8 +274,8 @@ The route must use:
 
 - `buildTemporalPreviewReviewArtifactInputFromRouteCapture` for converting
   bounded route capture payloads into `TemporalPreviewReviewArtifactInput`.
-- `insertTemporalPreviewReviewArtifact`, a future private non-smoke insert
-  helper.
+- `insertTemporalPreviewReviewArtifactWithIdempotency` for persistence,
+  replay, idempotency conflict, and duplicate source/hash conflict behavior.
 - `TEMPORAL_REVIEW_ARTIFACT_FORBIDDEN_PERSISTENCE_FIXTURES` in tests.
 
 It must not bypass:
@@ -268,10 +287,9 @@ It must not bypass:
 - `work_id` anchor validation.
 - Capture mode, redaction status, and reviewer verdict enums.
 
-## Required Helper Before Implementation
+## Helper Prerequisite Status
 
-Before any public route implementation, keep the private non-smoke insert
-helper:
+The private non-smoke insert helper exists:
 
 ```text
 insertTemporalPreviewReviewArtifact
@@ -288,29 +306,38 @@ The helper exists and should continue to:
 - Reuse the same validation and parsing path as the smoke insert helper.
 - Enforce work, session, evidence, summary/evidence, forbidden-field, and enum
   validation.
-- Be suitable for the future public route.
-- Avoid exposing a route by itself.
-- Stay tested before adding any public POST route.
+- Remain usable by internal callers.
+- Avoid exposing additional routes by itself.
+- Stay tested alongside the public capture route.
 - Keep current read-only list/get behavior unchanged.
 
-## Required Tests Before Route Implementation
+The public route uses the idempotent wrapper, not the raw insert helper,
+because the public contract requires same-key replay and conflict handling.
 
-Before route implementation, add tests or smokes for:
+## Route Smoke Coverage
+
+`smoke:temporal-capture-route` now covers:
 
 - Valid route capture creates an artifact.
 - Same idempotency key replay returns the existing artifact.
 - Same idempotency key with different payload returns `409`.
-- Duplicate `source_ref` plus `preview_hash` is rejected.
-- Forbidden fields are rejected using the full forbidden fixture corpus.
+- Duplicate `source_ref` plus `preview_hash` plus `work_id` is rejected.
+- Representative forbidden fixture cases are rejected through the route.
 - `raw_openai_response` is rejected.
+- `approval_status` is rejected.
+- `safe_next_step_instruction` is rejected.
 - Summary refs as evidence anchors are rejected.
-- Invalid `reviewer_verdict` is rejected.
+- `reviewer_verdict=approved` and `reviewer_verdict=not_reviewed` are
+  rejected.
+- Client-supplied `capture.artifact_id` is rejected.
 - Missing linked evidence/session rows are rejected when strict validation
   requires them.
+- Invalid JSON returns `400`.
+- Payloads over 128 KiB return `413`.
 - No OpenAI, GitHub, or `fetch` calls occur.
 - No authority rows are mutated.
 - Read-only list/get shows the created artifact.
-- Evidence Pack is not auto-updated unless a later integration exists.
+- Evidence Pack is not auto-updated.
 
 ## Security and Redaction
 
@@ -333,7 +360,7 @@ safe bounded fields for them.
 
 ## Observability
 
-Future route telemetry should record:
+Future telemetry, if added, should record only bounded metadata:
 
 - `artifact_id`
 - `source_route`
@@ -386,13 +413,14 @@ separate reviewed design.
 
 ## Implementation Sequence
 
-Recommended sequence:
+Implementation sequence:
 
 1. Add the private non-smoke insert helper,
    `insertTemporalPreviewReviewArtifact`. Complete.
 2. Add idempotency storage/design if needed. Complete as internal foundation.
-3. Implement the route.
-4. Add route smoke.
+3. Implement the route. Complete for `POST
+   /api/temporal-interpretation/review-artifacts/capture`.
+4. Add route smoke. Complete as `smoke:temporal-capture-route`.
 5. Add Evidence Pack read-only awareness.
 6. Add Cockpit read-only browser.
 7. Only later, consider an optional controlled UI create action.
@@ -402,14 +430,12 @@ Do not combine these steps with approval, publish, replay, durable
 Cockpit write controls, ChatGPT App tools, OpenAI calls, or GitHub publication
 adapter calls.
 
-## Open Questions
+## Resolved First-Route Decisions
 
-- Where should idempotency key hashes and payload hashes be stored?
-- Should duplicate `source_ref` plus `preview_hash` always return `409`, or
-  should some source surfaces allow repeat capture later?
-- Should `reviewer_verdict=not_reviewed` be allowed on a public capture route,
-  or only through internal/test capture paths?
-- Should linked evidence/session rows be strictly required or optional?
-- What payload size bound is appropriate for bounded preview captures?
-- Should `artifact_id` be client-provided, server-generated only, or
-  client-provided only for internal trusted callers?
+- Idempotency key hashes and payload hashes are stored in
+  `temporal_preview_review_artifact_idempotency`.
+- Duplicate `source_ref` plus `preview_hash` plus `work_id` returns `409`.
+- `reviewer_verdict=not_reviewed` is rejected on the public route.
+- Linked evidence/session rows are optional, but supplied IDs must resolve.
+- The first payload bound is 128 KiB.
+- `artifact_id` is server/helper-generated for the public route.

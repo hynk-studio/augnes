@@ -19,8 +19,11 @@ state mutation are added here.
 
 Implementation status: the first narrow read-model slice now exists after this
 design. It adds the `temporal_preview_review_artifacts` table, validation/read
-helper, and read-only list/get APIs. It does not add create/capture routes,
-Cockpit rendering, Evidence Pack integration, ChatGPT App tools, OpenAI calls,
+helper, and read-only list/get APIs. The first public/non-Cockpit capture route
+now exists at `POST
+/api/temporal-interpretation/review-artifacts/capture` and writes only bounded
+review artifacts through the idempotent insert helper. It does not add Cockpit
+write controls, Evidence Pack integration, ChatGPT App tools, OpenAI calls,
 GitHub publication adapter calls, replay, publish, approval, state mutation,
 `PerspectiveSnapshot` runtime, or `RawEpisodeBundle` runtime.
 
@@ -42,12 +45,13 @@ App tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
 approval, state mutation, `PerspectiveSnapshot` runtime, or
 `RawEpisodeBundle` runtime.
 
-Future create/capture route contract status: route design now lives at
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`. That
-document recommends
-`POST /api/temporal-interpretation/review-artifacts/capture` as a future
-bounded capture route and remains design only. It does not implement the route,
-add DB schema, add runtime behavior, or add Cockpit, Evidence Pack, ChatGPT App,
+Create/capture route status: route design and first implementation notes now
+live at `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`.
+The implemented route is `POST
+/api/temporal-interpretation/review-artifacts/capture`; it requires an
+idempotency key, rejects client-supplied artifact IDs, rejects
+`reviewer_verdict=not_reviewed`, bounds payloads to 128 KiB, and persists only
+bounded review artifacts. It does not add Cockpit, Evidence Pack, ChatGPT App,
 OpenAI, GitHub publication adapter, replay, publish, approval, or state
 mutation behavior.
 
@@ -66,7 +70,8 @@ idempotency keys and payload hashes for future route use. Helper logic supports
 same-key same-payload replay, same-key different-payload conflict, and
 duplicate `source_ref` plus `preview_hash` plus `work_id` conflict detection.
 It does not store raw idempotency keys, raw payloads, or raw request bodies,
-and it does not add a public POST route.
+and the public route stores no raw idempotency key, raw payload, or raw request
+body.
 
 This design builds on:
 
@@ -442,7 +447,8 @@ Implementation sequence status:
    `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`.
 8. Private non-smoke insert helper. Complete.
 9. Idempotency storage and duplicate source/hash policy foundation. Complete.
-10. Future public create/capture route.
+10. Public create/capture route. Complete for `POST
+    /api/temporal-interpretation/review-artifacts/capture`.
 11. Evidence Pack read-only integration.
 12. Cockpit read-only browser.
 
@@ -549,6 +555,26 @@ Idempotency smoke uses a temporary DB outside the repo and confirms:
 - No POST route, fetch, OpenAI call, GitHub publication adapter call, replay,
   publish, approval, or state mutation is added.
 
+Capture-route smoke uses a temporary DB outside the repo and confirms:
+
+- `POST /api/temporal-interpretation/review-artifacts/capture` creates a
+  bounded artifact with a required idempotency key.
+- Same-key same-payload replay returns `200` with `idempotent_replay=true`.
+- Same-key different-payload conflict returns `409`.
+- Duplicate `source_ref` plus `preview_hash` plus `work_id` conflict returns
+  `409`.
+- Different bounded preview hash with a different key creates a second
+  artifact.
+- Raw idempotency keys, raw payloads, and raw request bodies are not stored.
+- Invalid JSON returns `400`; payloads over 128 KiB return `413`.
+- Representative forbidden fixture cases, `reviewer_verdict=not_reviewed`, and
+  client-supplied `capture.artifact_id` are rejected.
+- Read-only list/get APIs remain GET-only and can read created artifacts.
+- No protected authority rows, fetch, OpenAI call, GitHub publication adapter
+  call, replay, publish, approval, Evidence Pack integration, Cockpit code,
+  ChatGPT App tool, `PerspectiveSnapshot` runtime, or `RawEpisodeBundle`
+  runtime is added.
+
 ## Acceptance gates before implementation
 
 Required gates:
@@ -565,6 +591,8 @@ Required gates:
 - Create/capture route contract design added.
 - Private non-smoke insert helper added and tested before any public route.
 - Idempotency foundation added and tested before any public route.
+- Public capture route added and tested without Cockpit/ChatGPT App/Evidence
+  Pack write integration.
 - Migration rollback/export note planned.
 - No automatic commit smoke plan.
 - Explicit decision to implement review artifacts only, not
@@ -573,7 +601,7 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: design the public capture route request/response mapping to
-the internal idempotency helper without adding UI write controls. Do not expose
-a create route until capture validation, redaction checks, payload bounds, and
-authority-boundary smoke are reviewed.
+Preferred next PR: add read-only review-artifact browsing or Evidence Pack
+read-only awareness, if desired, without adding capture buttons, ChatGPT App
+create tools, approval/publish/replay behavior, or durable
+`PerspectiveSnapshot` / `RawEpisodeBundle` runtime.
