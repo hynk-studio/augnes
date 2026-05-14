@@ -149,9 +149,10 @@ implementation and does not add schema, routes, runtime persistence, Cockpit
 write controls, or durable PerspectiveSnapshot/RawEpisodeBundle state.
 The work/evidence binding convention for future Temporal Interpretation
 persistence work lives at
-`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`; it defines the
-documentation-only `AG-TEMPORAL-INTERPRETATION` anchor and canonical
-`target_ref` / `source_ref` usage until a runtime work item exists.
+`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`;
+`AG-TEMPORAL-INTERPRETATION` is seeded as demo/runtime work trace data for
+future Temporal Interpretation evidence, and canonical `target_ref` /
+`source_ref` usage remains available for historical rows and unseeded runtimes.
 
 API check:
 
@@ -174,6 +175,7 @@ npm run smoke:temporal-openai-validation-docs
 npm run smoke:temporal-v02-status-roadmap
 npm run smoke:temporal-persistence-design
 npm run smoke:temporal-work-binding
+npm run smoke:temporal-work-seed
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

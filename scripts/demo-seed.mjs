@@ -655,6 +655,41 @@ function seedWorkTraceSpine() {
       updatedAt: "2026-05-07T01:00:00.000Z",
     },
     {
+      workId: "AG-TEMPORAL-INTERPRETATION",
+      title: "Temporal Interpretation validation and persistence preparation",
+      status: "planned",
+      priority: "normal",
+      summary:
+        "Dedicated work anchor for Temporal Interpretation validation, review artifacts, and future persistence preparation. It is not state authority, proof publication, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.",
+      nextAction:
+        "Use this seeded work anchor for future Temporal Interpretation evidence and TemporalPreviewReviewArtifact schema design.",
+      userAttentionRequired: 0,
+      relatedStateKeys: encodeValue([
+        "temporal.interpretation.preview",
+        "temporal.interpretation.validation",
+        "temporal.interpretation.persistence_design",
+      ]),
+      links: encodeValue({
+        docs: [
+          "docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md",
+          "docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md",
+          "docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md",
+        ],
+        evidence_target_refs: [
+          "temporal:v0.2:hardening",
+          "temporal:v0.2:route-review",
+          "temporal:v0.2:cockpit-validation",
+          "temporal:v0.2:openai-validation",
+          "temporal:persistence-design:v0.1",
+          "temporal:work-binding:v0.1",
+        ],
+        lifecycle_stage: "design/validation/persistence-prep",
+        owner_surface: "user/Core",
+      }),
+      createdAt: "2026-05-14T00:00:00.000Z",
+      updatedAt: "2026-05-14T00:00:00.000Z",
+    },
+    {
       workId: "AG-001",
       title: "Work Trace Spine v0 and Work Focus View",
       status: "completed",

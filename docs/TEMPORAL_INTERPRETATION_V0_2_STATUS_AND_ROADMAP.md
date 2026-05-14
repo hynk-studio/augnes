@@ -22,8 +22,8 @@ The v0.2 slice includes:
   panel.
 - Persistence boundary design v0.1 as a future design artifact, not
   implementation.
-- Work/evidence binding convention as a future persistence gate, not runtime
-  persistence.
+- Work/evidence binding convention and seeded work anchor as a future
+  persistence gate, not preview persistence.
 
 It is not:
 
@@ -174,10 +174,10 @@ Temporal Preview read-only and non-authoritative.
 
 `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` defines the
 dedicated Temporal Interpretation work/evidence binding convention for future
-review artifact persistence work. It chooses a documentation-only work anchor
-convention for `AG-TEMPORAL-INTERPRETATION`, keeps runtime seed data unchanged,
-and defines canonical `target_ref` / `source_ref` usage until a dedicated work
-item exists.
+review artifact persistence work. `AG-TEMPORAL-INTERPRETATION` now exists as a
+seeded demo/runtime work item through `scripts/demo-seed.mjs`, and canonical
+`target_ref` / `source_ref` usage remains available for historical rows and
+unseeded runtimes.
 
 ### Smoke coverage
 
@@ -256,8 +256,8 @@ Temporal Interpretation v0.2 is:
 - Cockpit rendering has one mock-mode browser screenshot/DOM validation pass,
   not a cross-browser visual regression suite.
 - Persistence v0.1 is design only, not schema or runtime persistence.
-- Work/evidence binding v0.1 is documentation-only; runtime seed data is not
-  changed yet.
+- Work/evidence binding v0.1 has a seeded demo/runtime work anchor; it is not
+  state authority.
 - No durable `PerspectiveSnapshot` persistence.
 - No `RawEpisodeBundle` linkage.
 - No learned temporal routing policy.
@@ -272,7 +272,7 @@ Temporal Interpretation v0.2 is:
 | B. Browser/Cockpit screenshot validation | Confirms reviewer-visible rendering works in the real browser surface. | Screenshot tests can be brittle if UI layout is still moving. | Stable local Cockpit startup and deterministic preview output. | complete |
 | C. OpenAI validation corpus expansion | Tests more semantic cases and model variability. | Costs API calls and may blur the opt-in boundary if not documented tightly. | More fixtures, redaction discipline, explicit key-provided runs. | soon |
 | D. Temporal Interpretation persistence boundary design | Defines what could be persisted later, what remains forbidden, and how review artifacts differ from durable state. | Could be mistaken for implementation if not kept explicitly design-only. | Route-captured review, Cockpit validation, OpenAI-path validation, manual review template. | complete |
-| E. Dedicated Temporal Interpretation work item / evidence binding | Gives this slice durable project traceability without changing preview authority. | Could be mistaken for preview-created evidence if wording is loose. | Existing work/evidence binding conventions and explicit non-authority language. | complete as documentation-only convention |
+| E. Dedicated Temporal Interpretation work item / evidence binding | Gives this slice durable project traceability without changing preview authority. | Could be mistaken for preview-created evidence if wording is loose. | Existing work/evidence binding conventions and explicit non-authority language. | complete with seeded demo/runtime work item |
 | F. RawEpisodeBundle-derived refs design | Defines how future raw episode references could feed interpretation. | Premature runtime design could overfit current fixtures. | Stable route/Cockpit review artifacts and authority model. | later |
 | G. PerspectiveSnapshot persistence design | Defines durable snapshot boundaries before implementation. | High authority risk if persistence starts before review semantics settle. | Route-captured review, UI validation, broader guardrail confidence. | later |
 | H. Active context retrieval/admission algorithm | Moves beyond fixture/simple-context admission toward real corpus selection. | Retrieval mistakes could make stale or summary-only context look authoritative. | Corpus model, source authority taxonomy, evaluation fixtures. | later |
@@ -281,8 +281,8 @@ Temporal Interpretation v0.2 is:
 
 ## Recommended next step
 
-Next should be a dedicated Temporal Interpretation work item seed or work
-registry entry before any persistence implementation.
+Next should be TemporalPreviewReviewArtifact schema design before any runtime
+review artifact persistence implementation.
 
 Reason:
 
@@ -294,7 +294,8 @@ Reason:
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md` defines the
   future persistence boundary as design only.
 - `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` defines the
-  documentation-only work/evidence binding convention and canonical refs.
+  work/evidence binding convention and canonical refs.
+- `AG-TEMPORAL-INTERPRETATION` exists as seeded demo/runtime work trace data.
 - Review artifact persistence should come before PerspectiveSnapshot
   persistence.
 - Durable `PerspectiveSnapshot` or `RawEpisodeBundle` runtime should wait until

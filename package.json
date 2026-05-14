@@ -22,6 +22,7 @@
     "smoke:temporal-v02-status-roadmap": "node scripts/smoke-temporal-v02-status-roadmap.mjs",
     "smoke:temporal-persistence-design": "node scripts/smoke-temporal-persistence-design.mjs",
     "smoke:temporal-work-binding": "node scripts/smoke-temporal-work-binding.mjs",
+    "smoke:temporal-work-seed": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-temporal-work-seed.mjs",
     "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
     "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",
