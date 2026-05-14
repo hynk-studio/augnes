@@ -6,6 +6,7 @@ import {
   migrateDeliveryExternalArtifacts,
   migrateSessionBindingColumns,
   migrateStateDeltaProposalScoring,
+  migrateTemporalPreviewReviewArtifactIdempotency,
   migrateTemporalPreviewReviewArtifacts,
   migrateVerificationEvidenceRecords,
 } from "./db-migrations.mjs";
@@ -38,6 +39,7 @@ export function initializeDatabase(db = openDatabase()) {
   migrateDeliveryExternalArtifacts(db);
   migrateVerificationEvidenceRecords(db);
   migrateTemporalPreviewReviewArtifacts(db);
+  migrateTemporalPreviewReviewArtifactIdempotency(db);
   return db;
 }
 

@@ -291,6 +291,13 @@ POST route, DB schema, runtime behavior, Cockpit write button, ChatGPT App
 create tool, Evidence Pack write integration, OpenAI call, GitHub publication
 adapter call, replay, publish, approval, or state mutation.
 
+The internal idempotency foundation for that future route is now implemented
+with a separate `temporal_preview_review_artifact_idempotency` table and helper
+logic. It stores hashed idempotency keys and payload hashes only, supports
+same-key replay and conflict detection, and checks duplicate `source_ref` plus
+`preview_hash` plus `work_id` in helper logic. It does not add the public route
+or any UI/write integration.
+
 ## Required gates before implementation
 
 Before any persistence implementation, these gates must pass:
@@ -328,23 +335,24 @@ ChatGPT App tools.
 6. Non-public TemporalPreviewReviewArtifact capture helper. Complete.
 7. TemporalPreviewReviewArtifact create/capture route contract design.
    Complete.
-8. Private non-smoke insert helper.
-9. Future public create/capture route.
-10. Evidence Pack read-only integration.
-11. Cockpit read-only review artifact browser.
-12. PerspectiveSnapshotCandidate proposal design.
-13. Approval-gated commit design.
-14. RawEpisodeBundleRef design.
-15. RawEpisodeBundle ingestion prototype.
-16. Learned temporal routing policy research.
+8. Private non-smoke insert helper. Complete.
+9. Idempotency storage and duplicate source/hash policy foundation. Complete.
+10. Future public create/capture route.
+11. Evidence Pack read-only integration.
+12. Cockpit read-only review artifact browser.
+13. PerspectiveSnapshotCandidate proposal design.
+14. Approval-gated commit design.
+15. RawEpisodeBundleRef design.
+16. RawEpisodeBundle ingestion prototype.
+17. Learned temporal routing policy research.
 
 ## Recommended next step
 
-Next review a private non-smoke `insertTemporalPreviewReviewArtifact` helper
-before any public route. Then implement the future `/capture` route only after
-idempotency storage, duplicate policy, payload bounds, and strict link
-validation are resolved. Preserve the non-authoritative review-artifact
-boundary and leave durable `PerspectiveSnapshot` persistence,
+Next design the future `/capture` route's request/response mapping to the
+internal idempotency helper, but expose it only after payload bounds, redaction,
+strict link validation, and route-level authority smokes are resolved. Preserve
+the non-authoritative review-artifact boundary and leave durable
+`PerspectiveSnapshot` persistence,
 `RawEpisodeBundle` runtime, approval-gated commit, routing policy, Evidence
 Pack writes, ChatGPT App create tools, and Cockpit write controls out of scope.
 

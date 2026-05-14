@@ -175,10 +175,16 @@ The private non-smoke insert helper
 `smoke:temporal-private-insert-helper`. It shares the same internal validation
 and insertion path as `insertTemporalPreviewReviewArtifactForSmoke`; no public
 create route or write surface is exposed.
+The internal idempotency foundation for future review artifact capture lives in
+`temporal_preview_review_artifact_idempotency` plus helper functions in
+`lib/temporal-review-artifacts.ts`, with smoke coverage in
+`smoke:temporal-artifact-idempotency`. It stores hashed idempotency keys and
+payload hashes only, supports same-key replay/conflict checks and duplicate
+source/hash conflict checks, and still exposes no public route.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Review idempotency storage and duplicate policy before any public create route.
+Design the public capture route mapping to the internal idempotency helper.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

@@ -196,6 +196,13 @@ The private non-smoke insert helper
 `smoke:temporal-private-insert-helper`. It shares validation with the existing
 smoke insert helper and remains internal-only. It does not add Evidence Pack
 rendering, a public POST route, or artifact-derived authority.
+The internal idempotency foundation for `TemporalPreviewReviewArtifact` lives
+in `temporal_preview_review_artifact_idempotency` plus helper logic in
+`lib/temporal-review-artifacts.ts`, with smoke coverage in
+`smoke:temporal-artifact-idempotency`. It stores only hashed idempotency keys
+and payload hashes; raw keys, raw payloads, and raw request bodies are not
+persisted. It does not add Evidence Pack rendering, a public POST route, or
+artifact-derived authority.
 
 ## Evidence Categories
 

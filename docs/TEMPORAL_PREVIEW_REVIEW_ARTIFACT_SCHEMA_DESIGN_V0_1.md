@@ -60,6 +60,14 @@ App tool, OpenAI call, GitHub publication adapter call, replay, publish,
 approval, state mutation, `PerspectiveSnapshot` runtime, or `RawEpisodeBundle`
 runtime.
 
+Idempotency foundation status: the internal
+`temporal_preview_review_artifact_idempotency` table now stores hashed
+idempotency keys and payload hashes for future route use. Helper logic supports
+same-key same-payload replay, same-key different-payload conflict, and
+duplicate `source_ref` plus `preview_hash` plus `work_id` conflict detection.
+It does not store raw idempotency keys, raw payloads, or raw request bodies,
+and it does not add a public POST route.
+
 This design builds on:
 
 - `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`
@@ -353,6 +361,7 @@ Future create/capture must:
 - Persist only a bounded review artifact after validation.
 - Reuse `buildTemporalPreviewReviewArtifactInputFromRouteCapture`.
 - Use the private non-smoke `insertTemporalPreviewReviewArtifact` helper.
+- Use the internal idempotency foundation before exposing a public route.
 - Require a public-route idempotency key.
 - Require explicit `capture_mode`.
 - Require explicit `redaction_status`.
@@ -432,9 +441,10 @@ Implementation sequence status:
 7. Public create/capture route contract design. Complete in
    `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`.
 8. Private non-smoke insert helper. Complete.
-9. Future public create/capture route.
-10. Evidence Pack read-only integration.
-11. Cockpit read-only browser.
+9. Idempotency storage and duplicate source/hash policy foundation. Complete.
+10. Future public create/capture route.
+11. Evidence Pack read-only integration.
+12. Cockpit read-only browser.
 
 Do not combine with:
 
@@ -523,6 +533,22 @@ Private insert-helper smoke uses a temporary DB outside the repo and confirms:
 - No POST route, fetch, OpenAI call, GitHub publication adapter call, replay,
   publish, approval, or state mutation is added.
 
+Idempotency smoke uses a temporary DB outside the repo and confirms:
+
+- `temporal_preview_review_artifact_idempotency` exists.
+- Only idempotency key hashes and payload hashes are stored.
+- Raw idempotency keys, raw payloads, and raw request bodies are not stored.
+- Same key plus same payload returns the existing artifact as an idempotent
+  replay.
+- Same key plus different payload raises a typed conflict.
+- Duplicate `source_ref` plus `preview_hash` plus `work_id` raises a typed
+  duplicate conflict.
+- A different preview hash with a different key creates a new artifact.
+- The forbidden fixture corpus is rejected through the idempotent helper.
+- Read-only list/get APIs still read artifacts.
+- No POST route, fetch, OpenAI call, GitHub publication adapter call, replay,
+  publish, approval, or state mutation is added.
+
 ## Acceptance gates before implementation
 
 Required gates:
@@ -538,6 +564,7 @@ Required gates:
 - Non-public capture helper added.
 - Create/capture route contract design added.
 - Private non-smoke insert helper added and tested before any public route.
+- Idempotency foundation added and tested before any public route.
 - Migration rollback/export note planned.
 - No automatic commit smoke plan.
 - Explicit decision to implement review artifacts only, not
@@ -546,7 +573,7 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: review idempotency storage and duplicate policy for the
-future public capture route. Do not expose a create route until capture
-validation, redaction checks, payload bounds, and authority-boundary smoke are
-reviewed.
+Preferred next PR: design the public capture route request/response mapping to
+the internal idempotency helper without adding UI write controls. Do not expose
+a create route until capture validation, redaction checks, payload bounds, and
+authority-boundary smoke are reviewed.

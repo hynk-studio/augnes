@@ -187,6 +187,12 @@ The private non-smoke insert helper
 `smoke:temporal-private-insert-helper`. It shares the smoke insert helper's
 validation path and remains internal-only; it does not add a public create
 route or write surface.
+The internal idempotency foundation lives in
+`temporal_preview_review_artifact_idempotency` plus helper functions in
+`lib/temporal-review-artifacts.ts`, with smoke coverage in
+`smoke:temporal-artifact-idempotency`. It stores hashed idempotency keys and
+payload hashes only, supports same-key replay/conflict checks and conservative
+duplicate source/hash detection, and still does not add a public create route.
 
 API check:
 
@@ -216,6 +222,7 @@ npm run smoke:temporal-forbidden-persistence-fixtures
 npm run smoke:temporal-review-artifact-capture-helper
 npm run smoke:temporal-create-route-design
 npm run smoke:temporal-private-insert-helper
+npm run smoke:temporal-artifact-idempotency
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

@@ -506,6 +506,83 @@ export function migrateTemporalPreviewReviewArtifacts(db) {
   };
 }
 
+export const temporalPreviewReviewArtifactIdempotencyTableSql = `
+  CREATE TABLE IF NOT EXISTS temporal_preview_review_artifact_idempotency (
+    idempotency_key_hash TEXT PRIMARY KEY,
+    scope TEXT NOT NULL DEFAULT 'project:augnes',
+    artifact_id TEXT NOT NULL,
+    payload_hash TEXT NOT NULL,
+    work_id TEXT NOT NULL,
+    source_ref TEXT,
+    preview_hash TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (artifact_id) REFERENCES temporal_preview_review_artifacts(artifact_id),
+    FOREIGN KEY (scope, work_id) REFERENCES work_items(scope, work_id)
+  )
+`;
+
+export const temporalPreviewReviewArtifactIdempotencyIndexes = [
+  {
+    name: "idx_temporal_review_artifact_idem_scope_source_hash",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifact_idem_scope_source_hash
+        ON temporal_preview_review_artifact_idempotency(scope, work_id, source_ref, preview_hash)
+    `,
+  },
+  {
+    name: "idx_temporal_review_artifact_idem_scope_artifact",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_temporal_review_artifact_idem_scope_artifact
+        ON temporal_preview_review_artifact_idempotency(scope, artifact_id)
+    `,
+  },
+];
+
+export function migrateTemporalPreviewReviewArtifactIdempotency(db) {
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'temporal_preview_review_artifact_idempotency'
+      `,
+    )
+    .get();
+  const createdTable = !existingTable;
+
+  db.prepare(temporalPreviewReviewArtifactIdempotencyTableSql).run();
+
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = 'temporal_preview_review_artifact_idempotency'
+        `,
+      )
+      .all()
+      .map((index) => index.name),
+  );
+  const createdIndexes = [];
+
+  for (const { name, sql } of temporalPreviewReviewArtifactIdempotencyIndexes) {
+    if (!existingIndexes.has(name)) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    created_table: createdTable,
+    created_indexes: createdIndexes,
+  };
+}
+
 export function migrateMailboxCoordinationEventTypes(db) {
   const table = db
     .prepare(
