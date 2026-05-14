@@ -46,6 +46,7 @@ Read-only Cockpit rendering for Temporal active-context admission decisions comp
 Temporal Interpretation Preview OpenAI-path validation harness added
 Temporal Interpretation v0.2 status and roadmap doc added
 Temporal Interpretation route-captured manual review report added
+Temporal Interpretation Cockpit screenshot validation report added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -115,15 +116,19 @@ environment-provided `OPENAI_API_KEY` is available; the validation report lives
 at `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`. It remains a
 read-only preview and does not add PerspectiveSnapshot storage,
 RawEpisodeBundle runtime, approval/publish/replay authority, ChatGPT App write
-tools, Cockpit write controls, or DB schema. The current status, validation
-matrix, guarded failure modes, known limitations, roadmap options, and
-recommended next step are summarized in
+tools, Cockpit write controls, or DB schema. The browser/Cockpit screenshot
+validation report at
+`docs/TEMPORAL_INTERPRETATION_COCKPIT_SCREENSHOT_VALIDATION.md` records a
+mock-mode, `OPENAI_API_KEY`-unset real Cockpit validation of the read-only
+structured admission decisions panel. The current status, validation matrix,
+guarded failure modes, known limitations, roadmap options, and recommended next
+step are summarized in
 `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md`.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Choose browser/Cockpit screenshot validation before durable PerspectiveSnapshot
-or RawEpisodeBundle persistence.
+Choose the next Temporal Interpretation productization step only after the
+route, Cockpit source, and browser validation artifacts have been reviewed.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -150,10 +155,11 @@ A new session should read these files in this order:
 13. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` - filled mock preview review example.
 14. `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md` - filled route-captured mock preview review example.
 15. `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` - OpenAI-path validation report.
-16. `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md` - Temporal Interpretation v0.2 status, authority boundary, and next productization options.
-17. `.github/pull_request_template.md` - required PR trace format.
-18. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-19. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+16. `docs/TEMPORAL_INTERPRETATION_COCKPIT_SCREENSHOT_VALIDATION.md` - browser/Cockpit screenshot validation report.
+17. `docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md` - Temporal Interpretation v0.2 status, authority boundary, and next productization options.
+18. `.github/pull_request_template.md` - required PR trace format.
+19. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+20. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 

@@ -141,6 +141,12 @@ shows the same manual review process against a real
 `POST /api/temporal-interpretation/preview` response with `OPENAI_API_KEY`
 unset. Cockpit review should also confirm the read-only Temporal Preview panel
 renders structured `active_context_admission.decisions` when present.
+Browser/Cockpit screenshot validation is tracked in
+`docs/TEMPORAL_INTERPRETATION_COCKPIT_SCREENSHOT_VALIDATION.md`; it should
+record whether the screenshot was committed or retained only in `/tmp`, the
+observed generator, guardrail result, admission decision count, visible
+`candidate_id`, `source_authority`, `evidence_refs`, `counterexample_refs`, and
+`residual_tension_refs`, plus the no-write-control boundary.
 OpenAI-path validation for the strict `active_context_admission` schema is
 tracked in
 `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`; the validation command
