@@ -43,17 +43,6 @@ const FORBIDDEN_FIELDS = [
   "summary_only_ref_as_evidence",
 ] as const;
 
-const JSON_ARRAY_FIELDS = [
-  "source_refs",
-  "evidence_anchor_refs",
-  "summary_refs",
-  "counterexample_refs",
-  "residual_tension_refs",
-  "admission_decisions_json",
-  "guardrail_warnings_json",
-  "linked_evidence_record_ids",
-] as const;
-
 export type TemporalReviewCaptureMode =
   (typeof TEMPORAL_REVIEW_CAPTURE_MODES)[number];
 export type TemporalReviewVerdict = (typeof TEMPORAL_REVIEW_VERDICTS)[number];
@@ -361,8 +350,13 @@ export function validateTemporalPreviewReviewArtifactRow(
   return parseTemporalPreviewReviewArtifactRow(row);
 }
 
-export function serializeJsonArrayField(value: unknown[] | string | null | undefined) {
-  return JSON.stringify(normalizeJsonArray(value));
+export function serializeJsonArrayField(
+  value: unknown[] | string | null | undefined,
+  fieldName = "json_array",
+) {
+  const array = normalizeJsonArray(value, fieldName);
+  rejectForbiddenFieldsDeep(array, fieldName);
+  return JSON.stringify(array);
 }
 
 export function deserializeJsonArrayField(value: string, fieldName = "json_array") {
@@ -373,6 +367,7 @@ export function deserializeJsonArrayField(value: string, fieldName = "json_array
     );
   }
 
+  rejectForbiddenFieldsDeep(parsed, fieldName);
   return parsed;
 }
 
@@ -435,9 +430,15 @@ function validateTemporalPreviewReviewArtifactInput(
     residual_tension_refs: JSON.stringify(
       normalizeStringArray(input.residual_tension_refs, "residual_tension_refs"),
     ),
-    admission_decisions_json: serializeJsonArrayField(input.admission_decisions_json),
+    admission_decisions_json: serializeJsonArrayField(
+      input.admission_decisions_json,
+      "admission_decisions_json",
+    ),
     guardrail_passed: normalizeGuardrailPassed(input.guardrail_passed),
-    guardrail_warnings_json: serializeJsonArrayField(input.guardrail_warnings_json),
+    guardrail_warnings_json: serializeJsonArrayField(
+      input.guardrail_warnings_json,
+      "guardrail_warnings_json",
+    ),
     reviewer_verdict: reviewerVerdict,
     reviewer_notes: cleanNullableString(input.reviewer_notes),
     manual_review_report_path: cleanNullableString(input.manual_review_report_path),
@@ -461,10 +462,7 @@ function parseTemporalPreviewReviewArtifactRow(
 ): TemporalPreviewReviewArtifact {
   const artifact: TemporalPreviewReviewArtifact = {
     ...row,
-    bounded_preview_json: parseJson(
-      row.bounded_preview_json,
-      "bounded_preview_json",
-    ),
+    bounded_preview_json: parseBoundedPreview(row.bounded_preview_json),
     source_refs: parseStringArray(row.source_refs, "source_refs"),
     evidence_anchor_refs: parseStringArray(
       row.evidence_anchor_refs,
@@ -717,6 +715,7 @@ function serializeBoundedPreview(value: unknown) {
 
 function normalizeStringArray(value: unknown[] | string | null | undefined, fieldName: string) {
   const array = normalizeJsonArray(value, fieldName);
+  rejectForbiddenFieldsDeep(array, fieldName);
   for (const item of array) {
     if (typeof item !== "string" || item.trim().length === 0) {
       throw new TemporalPreviewReviewArtifactValidationError(
@@ -726,6 +725,12 @@ function normalizeStringArray(value: unknown[] | string | null | undefined, fiel
   }
 
   return array.map((item) => item.trim());
+}
+
+function parseBoundedPreview(value: string) {
+  const parsed = parseJson(value, "bounded_preview_json");
+  rejectForbiddenFieldsDeep(parsed, "bounded_preview_json");
+  return parsed;
 }
 
 function normalizeJsonArray(

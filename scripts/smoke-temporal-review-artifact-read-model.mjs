@@ -162,6 +162,69 @@ try {
     "summary-only refs should be rejected as evidence anchors",
   );
 
+  assert.throws(
+    () =>
+      insertTemporalPreviewReviewArtifactForSmoke({
+        ...baseArtifact,
+        artifact_id: "temporal-review:nested-bounded-raw-response",
+        bounded_preview_json: {
+          preview: {
+            raw_openai_response: "forbidden",
+          },
+        },
+      }),
+    /forbidden/,
+    "nested raw_openai_response in bounded_preview_json should be rejected",
+  );
+
+  assert.throws(
+    () =>
+      insertTemporalPreviewReviewArtifactForSmoke({
+        ...baseArtifact,
+        artifact_id: "temporal-review:nested-bounded-memory-admission",
+        bounded_preview_json: {
+          preview: {
+            nested: {
+              memory_admission_status: "forbidden",
+            },
+          },
+        },
+      }),
+    /forbidden/,
+    "nested memory_admission_status in bounded_preview_json should be rejected",
+  );
+
+  assert.throws(
+    () =>
+      insertTemporalPreviewReviewArtifactForSmoke({
+        ...baseArtifact,
+        artifact_id: "temporal-review:nested-admission-raw-response",
+        admission_decisions_json: [
+          {
+            candidate_id: "state:implementation.stack",
+            raw_openai_response: "forbidden",
+          },
+        ],
+      }),
+    /forbidden/,
+    "nested raw_openai_response in admission_decisions_json should be rejected",
+  );
+
+  assert.throws(
+    () =>
+      insertTemporalPreviewReviewArtifactForSmoke({
+        ...baseArtifact,
+        artifact_id: "temporal-review:nested-guardrail-approval",
+        guardrail_warnings_json: [
+          {
+            approval_status: "forbidden",
+          },
+        ],
+      }),
+    /forbidden/,
+    "nested approval_status in guardrail_warnings_json should be rejected",
+  );
+
   const inserted = insertTemporalPreviewReviewArtifactForSmoke(baseArtifact);
   assert.equal(inserted.artifact_id, artifactId);
   assert.equal(inserted.work_id, workId);
@@ -183,6 +246,40 @@ try {
   const directGet = getTemporalPreviewReviewArtifact(artifactId, scope);
   assert.ok(directGet, "get by artifact_id should return sample");
   assert.equal(directGet.artifact_id, artifactId);
+
+  const dbWithExistingForbiddenRow = openDatabase();
+  dbWithExistingForbiddenRow
+    .prepare(
+      `
+        UPDATE temporal_preview_review_artifacts
+        SET admission_decisions_json = ?
+        WHERE scope = ? AND artifact_id = ?
+      `,
+    )
+    .run(
+      JSON.stringify([{ raw_openai_response: "forbidden existing row" }]),
+      scope,
+      artifactId,
+    );
+  dbWithExistingForbiddenRow.close();
+
+  assert.throws(
+    () => getTemporalPreviewReviewArtifact(artifactId, scope),
+    /forbidden/,
+    "read path should reject nested forbidden fields in existing DB rows",
+  );
+
+  const dbRestoreArtifact = openDatabase();
+  dbRestoreArtifact
+    .prepare(
+      `
+        UPDATE temporal_preview_review_artifacts
+        SET admission_decisions_json = ?
+        WHERE scope = ? AND artifact_id = ?
+      `,
+    )
+    .run(JSON.stringify(baseArtifact.admission_decisions_json), scope, artifactId);
+  dbRestoreArtifact.close();
 
   const listResponse = await listRoute.GET(
     new Request(
@@ -260,6 +357,8 @@ try {
         forbidden_fields_rejected: true,
         raw_openai_response_rejected: true,
         approval_publish_memory_fields_rejected: true,
+        nested_forbidden_json_fields_rejected: true,
+        existing_db_forbidden_json_rejected_on_read: true,
         summary_only_refs_blocked_as_evidence_anchors: true,
         list_by_work_id_ok: true,
         get_by_artifact_id_ok: true,
