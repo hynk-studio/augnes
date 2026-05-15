@@ -1,8 +1,9 @@
 # GitHub App Token Management v0.1
 
 This document defines the narrow token authority model for outbound GitHub
-publication credentials. The implementation in this PR adds only an internal
-token provider abstraction for the existing env-token behavior.
+publication credentials. GitHub App/token management v0.1 is closed as a
+bounded foundation line in
+`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md`.
 
 ## Current Implemented Provider
 
@@ -77,6 +78,12 @@ can validate a fake installation-token response through an injected fake fetch.
 It is network-disabled by default and requires `enabled=true` plus an explicit
 `fetchImpl`. It does not use global fetch directly, call real GitHub, persist
 tokens, integrate with C5, or change env `GITHUB_TOKEN` behavior.
+
+The v0.1 closeout confirms this chain is complete only through a
+network-disabled exchange boundary. Live GitHub App installation-token
+exchange, provider integration into `resolveGitHubPublishToken()`, C5 GitHub
+App provider use, and live publish remain future work requiring separate
+approval.
 
 ## Token Authority Boundary
 

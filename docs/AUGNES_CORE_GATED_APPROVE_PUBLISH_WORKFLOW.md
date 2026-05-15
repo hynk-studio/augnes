@@ -46,6 +46,9 @@ The installation-token exchange boundary helper in
 and accepts only an injected fetch when explicitly enabled. Exchange boundary
 work is not approval, readiness, publication, proof, or C5 integration; it does
 not change C5 gates or env `GITHUB_TOKEN` behavior.
+The closeout in `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md` marks this
+as the end of the v0.1 foundation line, not the start of live GitHub App
+provider integration.
 
 ## Purpose
 
@@ -699,6 +702,8 @@ create installation tokens, change C5 gates, or authorize live publish.
 The exchange boundary helper now verifies request/response shape with injected
 fake fetch only. It does not perform live GitHub exchange, integrate with C5,
 create delivery rows, or authorize live publish.
+`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md` closes this foundation
+line and moves live exchange/provider integration outside v0.1.
 
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping

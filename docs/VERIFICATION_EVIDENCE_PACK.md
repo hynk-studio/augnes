@@ -61,6 +61,10 @@ public-safe result categories such as request shape, fake-fetch count, disabled
 network behavior, and redaction checks, but must not record raw JWTs, raw
 installation tokens, authorization headers, raw exchange payloads, private key
 material, or secret-bearing config.
+GitHub App/token management v0.1 closeout verification belongs in bounded
+command evidence, such as `npm run smoke:github-token-management-v01-closeout`.
+It must record only closeout status and docs-smoke facts, not raw token, JWT,
+private key, or exchange payload material.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
@@ -295,6 +299,7 @@ npm run smoke:github-app-config-validator
 npm run smoke:github-app-jwt-fixture
 npm run smoke:github-app-target-policy
 npm run smoke:github-app-installation-token-exchange
+npm run smoke:github-token-management-v01-closeout
 ```
 
 After running a command, Codex or another local verifier may record a bounded

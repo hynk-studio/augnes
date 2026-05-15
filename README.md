@@ -149,6 +149,11 @@ default, supports only explicit injected fake fetch for smoke coverage, and is
 not wired into C5 or the token provider. Live GitHub exchange remains future
 work requiring explicit approval.
 
+GitHub App/token management v0.1 is closed as a bounded foundation line in
+`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md`. The recommended next
+product step is UI polishing / Cockpit MVP polish, with live exchange/provider
+integration deferred to separately approved future work.
+
 ## How Augnes Uses OpenAI APIs
 
 OpenAI APIs are used for interpretation, not direct mutation.
