@@ -24,7 +24,12 @@ state rows, and they do not call GitHub or OpenAI.
 GitHub token management v0.1 adds an internal token provider abstraction for
 C5 actual publish while preserving current env `GITHUB_TOKEN` behavior. It
 does not implement GitHub App installation-token exchange, private key parsing,
-new runtime GitHub App env handling, or live posting.
+new runtime GitHub App env handling, or live posting. The GitHub App
+installation-token config boundary is documented in
+`docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`; it reserves
+future config names and JWT/exchange/permission rules without adding runtime
+config reads, JWT signing, private key parsing, GitHub API calls, or token
+exchange.
 
 ## Purpose
 
@@ -662,7 +667,11 @@ credential authority boundary. C5 uses `resolveGitHubPublishToken()` from
 and same-key sent/acknowledged replay returns before token resolution. Future
 GitHub App installation-token support is design-only in
 `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md` and must be implemented in a
-separately scoped PR.
+separately scoped PR. The future config boundary in
+`docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md` further specifies
+reserved config names, private key handling, RS256 JWT rules, installation
+token expiry, repository allowlist matching, permission minimization, and
+evidence redaction policy. It does not change C5 behavior.
 
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping

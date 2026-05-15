@@ -37,7 +37,10 @@ Evidence Pack and structured evidence records must not include raw GitHub
 tokens, token fingerprints, GitHub App private keys, installation tokens, or
 request-supplied token payloads. GitHub token provider verification belongs in
 bounded command evidence, such as `npm run smoke:github-token-provider`, with
-secret values omitted from output.
+secret values omitted from output. GitHub App installation-token config-boundary
+verification belongs in bounded command evidence, such as
+`npm run smoke:github-app-token-config-boundary`, and must record only
+public-safe design facts.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
@@ -267,6 +270,7 @@ npm --prefix apps/augnes_apps run typecheck
 npm --prefix apps/augnes_apps run smoke
 npm --prefix apps/augnes_apps run invariants
 npm run smoke:github-token-provider
+npm run smoke:github-app-token-config-boundary
 ```
 
 After running a command, Codex or another local verifier may record a bounded

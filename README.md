@@ -122,6 +122,12 @@ The future GitHub App installation-token provider is documented in
 currently implement live GitHub App token exchange, private key parsing, or
 runtime GitHub App env handling.
 
+The future GitHub App installation-token config boundary is documented in
+`docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It reserves
+future config names and defines private key, JWT, installation-token exchange,
+expiry, repository allowlist, permission minimization, Core-gated integration,
+and evidence policies without adding runtime config reads or GitHub calls.
+
 ## How Augnes Uses OpenAI APIs
 
 OpenAI APIs are used for interpretation, not direct mutation.

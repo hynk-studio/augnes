@@ -45,6 +45,14 @@ Future GitHub App work should define:
 - repository allowlist and target matching
 - audit and evidence records without secret exposure
 
+The first follow-up design/config boundary is
+`docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It reserves future
+config names and documents JWT, private key, installation-token exchange,
+expiry, repository allowlist, permission minimization, Core-gated integration,
+and evidence policies. It is design/config boundary only: runtime code does not
+read the future GitHub App config names, sign JWTs, parse private keys, call
+GitHub, or create installation tokens.
+
 ## Token Authority Boundary
 
 Token availability is not approval.
@@ -99,6 +107,7 @@ This v0.1 slice does not:
 - parse private keys
 - add runtime handling for GitHub App app id, client id, private key, or
   installation id env vars
+- read reserved future GitHub App config names
 - call GitHub
 - post to GitHub
 - run a live C5 publish test
