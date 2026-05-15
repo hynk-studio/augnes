@@ -69,6 +69,15 @@ allowlist before any future exchange. It returns public-safe policy metadata
 only and does not call GitHub, create installation tokens, sign JWTs, read
 secret config, integrate with C5, or change env `GITHUB_TOKEN` behavior.
 
+The installation-token exchange boundary helper now lives at
+`lib/github-app-installation-token-exchange.ts` and is covered by
+`smoke:github-app-installation-token-exchange`. It builds a redacted request
+from a valid target policy decision, fake JWT, and numeric installation ID, and
+can validate a fake installation-token response through an injected fake fetch.
+It is network-disabled by default and requires `enabled=true` plus an explicit
+`fetchImpl`. It does not use global fetch directly, call real GitHub, persist
+tokens, integrate with C5, or change env `GITHUB_TOKEN` behavior.
+
 ## Token Authority Boundary
 
 Token availability is not approval.
@@ -120,6 +129,7 @@ OpenAI, call GitHub, add Cockpit write controls, or add ChatGPT App tools.
 This v0.1 slice does not:
 
 - implement live GitHub App installation-token exchange
+- wire the exchange boundary helper into the publish token provider
 - parse runtime private keys
 - add installation-token provider runtime handling for GitHub App app id,
   client id, private key, or installation id env vars

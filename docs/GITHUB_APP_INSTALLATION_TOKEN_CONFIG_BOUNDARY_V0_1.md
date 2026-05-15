@@ -1,9 +1,10 @@
 # GitHub App Installation Token Config Boundary v0.1
 
 This document defines the GitHub App installation-token configuration boundary
-for Augnes. The config reader/validator and offline fake-key RS256 JWT fixture
-are implemented. The target/allowlist policy helper is implemented. The
-installation-token provider remains future work.
+for Augnes. The config reader/validator, offline fake-key RS256 JWT fixture,
+target/allowlist policy helper, and network-disabled installation-token
+exchange boundary helper are implemented. The installation-token provider
+remains future work.
 
 The installation-token provider remains design/config boundary only.
 
@@ -18,6 +19,8 @@ This v0.1 boundary now includes:
 - validation and redaction rules with public-safe metadata
 - offline RS256 JWT signing fixture support with fake key material only
 - target/allowlist policy evaluation before token exchange
+- network-disabled installation-token exchange boundary with injected fake
+  fetch coverage
 - private key handling rules
 - JWT rules
 - installation-token exchange boundaries
@@ -30,7 +33,7 @@ This v0.1 boundary does not add:
 
 - runtime JWT signing from real/private config
 - runtime private key parsing
-- installation access token exchange
+- live installation access token exchange
 - GitHub API calls
 - live GitHub publish
 - C5 token-provider integration
@@ -39,7 +42,7 @@ This v0.1 boundary does not add:
 - Cockpit controls
 - ChatGPT App tools
 
-No JWT signing from runtime config. No private key parsing. No installation access token exchange. No GitHub API call. No live publish.
+No JWT signing from runtime config. No private key parsing. No live installation access token exchange. No GitHub API call. No live publish.
 
 The current implemented token provider remains env `GITHUB_TOKEN` only through
 `resolveGitHubPublishToken()`.
@@ -66,6 +69,15 @@ returns public-safe policy metadata, and must run before any future
 installation-token exchange. It does not sign JWTs, create installation tokens,
 call GitHub, read env or files, alter C5 gates, or integrate with
 `resolveGitHubPublishToken()`.
+
+The installation-token exchange boundary helper lives at
+`lib/github-app-installation-token-exchange.ts`. It can build a redacted
+installation-token request from a valid target policy decision, fake JWT, and
+numeric installation ID. It is network-disabled by default: exchange execution
+requires `enabled=true` and an explicitly injected `fetchImpl`. Smoke coverage
+uses only an in-process fake fetch and fake response. The helper does not use
+global fetch directly, perform live GitHub calls, persist tokens, create
+delivery rows, alter C5 gates, or integrate with `resolveGitHubPublishToken()`.
 
 ## Future Config Names
 
@@ -157,8 +169,8 @@ The offline JWT fixture is not proof of publication.
 
 ## Installation Token Boundary
 
-Future installation-token support must create a GitHub App JWT first, identify
-the target installation ID, then POST to:
+Future live installation-token support must create a GitHub App JWT first,
+identify the target installation ID, then POST to:
 
 ```text
 /app/installations/{installation_id}/access_tokens
@@ -168,6 +180,26 @@ GitHub's docs say installation access tokens expire after 1 hour. The token
 response includes an `expires_at` timestamp; future provider code must track
 that timestamp and treat expired or near-expired tokens as unavailable for new
 publish attempts.
+
+The current boundary helper can construct this request and validate a fake
+response shape, but it does not perform live exchange. Exchange is disabled
+unless both `enabled=true` and an injected `fetchImpl` are supplied. Normal
+runtime code must not use global fetch directly. The fake-fetch smoke verifies
+request shape, redacted metadata, response validation, and bounded failures
+without leaving the process.
+
+The provisional `pr_comment_minimal` permission request body is:
+
+```json
+{
+  "issues": "write",
+  "pull_requests": "read"
+}
+```
+
+This permission profile is deterministic for fake-fetch testing, but it must be
+reviewed again before any live exchange or provider integration. Request code
+must never accept free-form permission JSON from request bodies.
 
 Installation token response handling rules:
 
@@ -180,6 +212,8 @@ Installation token response handling rules:
 - Do not persist token response bodies as raw payloads.
 - Do not use the installation token for anything except the approved outbound
   GitHub adapter operation.
+- Public-safe metadata may report only token presence, expiry timestamp,
+  permission keys, repository count, and provider source.
 
 The provider may cache an installation token in memory later only with explicit
 design. Any cache design must include expiry checks, permission/profile checks,
@@ -273,6 +307,8 @@ Evidence records may record public-safe provider metadata only, such as:
   `installation_token_exchange_failed`
 - bounded target policy result categories, for example `target_ref_invalid`,
   `repository_not_allowlisted`, or `permission_profile_unsupported`
+- bounded exchange result categories, for example `exchange_disabled`,
+  `fetch_impl_required`, `request_failed`, or `invalid_response_shape`
 
 Evidence records must not include:
 
@@ -284,6 +320,7 @@ Evidence records must not include:
 - base64 private key material
 - GitHub App secret-bearing config
 - raw token exchange response body
+- raw JWT authorization header
 
 PR bodies must mention only bounded public-safe metadata. Screenshots must not
 include secret material. Logs must not include raw token/JWT/private-key values
@@ -297,8 +334,8 @@ Recommended future sequence:
 2. Offline JWT signing fixture using a fake key only, no network. Status:
    implemented.
 3. Target/allowlist policy helper before exchange. Status: implemented.
-4. Installation-token exchange behind an explicit opt-in smoke, no live
-   publish.
+4. Installation-token exchange boundary with injected fake fetch only. Status:
+   implemented.
 5. Provider integration with C5 after config, JWT, redaction, and exchange
    boundaries are covered.
 6. Optional in-memory cache with expiry and permission/target guards.
