@@ -263,9 +263,10 @@ The first read-model implementation slice now adds only the
 read-only list/get APIs. The first public/non-Cockpit capture route now adds
 `POST /api/temporal-interpretation/review-artifacts/capture`; it writes only
 bounded review artifacts through the idempotent insert helper. Evidence Pack
-integration, Cockpit rendering/write controls, ChatGPT App create tools,
-approval-gated commit, PerspectiveSnapshot runtime, and RawEpisodeBundle
-runtime remain out of scope.
+read-only awareness now summarizes matching review artifact rows through
+`temporal_review_artifact_trace`. Evidence Pack write behavior, Cockpit
+rendering/write controls, ChatGPT App create tools, approval-gated commit,
+PerspectiveSnapshot runtime, and RawEpisodeBundle runtime remain out of scope.
 
 The forbidden-persistence fixture gate for `TemporalPreviewReviewArtifact` is
 now satisfied by `lib/temporal-review-artifact-fixtures.ts` and
@@ -342,7 +343,8 @@ ChatGPT App tools.
 9. Idempotency storage and duplicate source/hash policy foundation. Complete.
 10. Public create/capture route. Complete for `POST
     /api/temporal-interpretation/review-artifacts/capture`.
-11. Evidence Pack read-only integration.
+11. Evidence Pack read-only integration. Complete as
+    `temporal_review_artifact_trace`.
 12. Cockpit read-only review artifact browser.
 13. PerspectiveSnapshotCandidate proposal design.
 14. Approval-gated commit design.
@@ -352,11 +354,11 @@ ChatGPT App tools.
 
 ## Recommended next step
 
-Next consider read-only review-artifact browsing or Evidence Pack read-only
-awareness. Preserve the non-authoritative review-artifact boundary and leave
-durable `PerspectiveSnapshot` persistence, `RawEpisodeBundle` runtime,
-approval-gated commit, routing policy, Evidence Pack writes, ChatGPT App create
-tools, and Cockpit write controls out of scope.
+Next consider a Cockpit read-only review artifact browser. Preserve the
+non-authoritative review-artifact boundary and leave durable
+`PerspectiveSnapshot` persistence, `RawEpisodeBundle` runtime, approval-gated
+commit, routing policy, Evidence Pack writes, ChatGPT App create tools, and
+Cockpit write controls out of scope.
 
 ## Relation to existing artifacts
 

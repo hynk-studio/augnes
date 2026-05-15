@@ -31,6 +31,11 @@ import {
 import { listSessionRefs, type SessionRef } from "@/lib/session-binding";
 import { buildStateBrief } from "@/lib/state/brief";
 import {
+  TEMPORAL_INTERPRETATION_WORK_ID,
+  countTemporalPreviewReviewArtifacts,
+  listTemporalPreviewReviewArtifacts,
+} from "@/lib/temporal-review-artifacts";
+import {
   getWorkItem,
   listWorkEvents,
   listWorkItems,
@@ -44,6 +49,7 @@ const PACK_VERSION = "v0.1";
 const RECENT_EVENT_LIMIT = 8;
 const LOOKBACK_LIMIT = 200;
 const PREVIEW_EXCERPT_LIMIT = 320;
+const TEMPORAL_REVIEW_ARTIFACT_TRACE_LIMIT = 50;
 
 export type EvidencePackSelectionMode =
   | "latest"
@@ -162,6 +168,24 @@ export type EvidencePack = {
     safe_next_step: string | null;
     non_authority_boundary: string | null;
   };
+  temporal_review_artifact_trace: {
+    available: boolean;
+    work_id: string;
+    artifact_count: number;
+    latest_artifact_id: string | null;
+    latest_reviewer_verdict: string | null;
+    latest_guardrail_passed: boolean | null;
+    latest_capture_mode: string | null;
+    latest_generator: string | null;
+    latest_model: string | null;
+    latest_created_at: string | null;
+    linked_evidence_record_ids: string[];
+    linked_session_id: string | null;
+    linked_pr_url: string | null;
+    manual_review_report_path: string | null;
+    boundaries: string[];
+    gaps: string[];
+  };
   gaps: string[];
   next_suggested_goal: string | null;
 };
@@ -230,6 +254,8 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
     limit: 20,
   });
   const stateBrief = buildStateBrief(normalizedScope);
+  const temporalReviewArtifactTrace =
+    buildTemporalReviewArtifactTrace(normalizedScope);
   const gaps = collectGaps({
     work,
     publication,
@@ -238,6 +264,7 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
     approvalDecision,
     readinessCheck,
     evidenceRecords,
+    temporalReviewArtifactTrace,
   });
 
   return {
@@ -367,10 +394,59 @@ export function buildEvidencePack(filters: EvidencePackFilters = {}): EvidencePa
       non_authority_boundary:
         "Evidence Pack v0.1 does not invoke Temporal Preview or OpenAI. Use /api/temporal-interpretation/preview separately when explicitly requested.",
     },
+    temporal_review_artifact_trace: temporalReviewArtifactTrace,
     gaps,
     next_suggested_goal:
       stateBrief.agent_handoff.next_recommended_action.title ?? null,
   };
+}
+
+function buildTemporalReviewArtifactTrace(scope: string) {
+  const filters = {
+    scope,
+    work_id: TEMPORAL_INTERPRETATION_WORK_ID,
+  };
+  const artifactCount = countTemporalPreviewReviewArtifacts(filters);
+  const artifacts = listTemporalPreviewReviewArtifacts({
+    ...filters,
+    limit: TEMPORAL_REVIEW_ARTIFACT_TRACE_LIMIT,
+  });
+  const latestArtifact = artifacts[0] ?? null;
+  const gaps =
+    artifactCount === 0
+      ? [
+          `No TemporalPreviewReviewArtifact records found for work_id ${TEMPORAL_INTERPRETATION_WORK_ID}.`,
+        ]
+      : [];
+
+  return {
+    available: Boolean(latestArtifact),
+    work_id: TEMPORAL_INTERPRETATION_WORK_ID,
+    artifact_count: artifactCount,
+    latest_artifact_id: latestArtifact?.artifact_id ?? null,
+    latest_reviewer_verdict: latestArtifact?.reviewer_verdict ?? null,
+    latest_guardrail_passed: latestArtifact?.guardrail_passed ?? null,
+    latest_capture_mode: latestArtifact?.capture_mode ?? null,
+    latest_generator: latestArtifact?.generator ?? null,
+    latest_model: latestArtifact?.model ?? null,
+    latest_created_at: latestArtifact?.created_at ?? null,
+    linked_evidence_record_ids: latestArtifact?.linked_evidence_record_ids ?? [],
+    linked_session_id: latestArtifact?.linked_session_id ?? null,
+    linked_pr_url: latestArtifact?.linked_pr_url ?? null,
+    manual_review_report_path: latestArtifact?.manual_review_report_path ?? null,
+    boundaries: temporalReviewArtifactTraceBoundaries(),
+    gaps,
+  };
+}
+
+function temporalReviewArtifactTraceBoundaries() {
+  return [
+    "Evidence Pack reads TemporalPreviewReviewArtifact rows only through read/list/count helpers.",
+    "The temporal_review_artifact_trace is read-only and non-authoritative.",
+    "Evidence Pack does not call the public capture route or POST /api/temporal-interpretation/review-artifacts/capture.",
+    "Evidence Pack does not create, update, or delete TemporalPreviewReviewArtifact rows.",
+    "Artifact presence, guardrail status, and reviewer verdict do not infer approval, readiness, replay status, committed state, memory admission, proof publication, PerspectiveSnapshot authority, or RawEpisodeBundle authority.",
+  ];
 }
 
 function resolveEvidenceContext(
@@ -804,6 +880,7 @@ function collectGaps({
   approvalDecision,
   readinessCheck,
   evidenceRecords,
+  temporalReviewArtifactTrace,
 }: {
   work: WorkItem | null;
   publication: PublicationDraft | null;
@@ -812,8 +889,11 @@ function collectGaps({
   approvalDecision: PublicationApprovalDecision | null;
   readinessCheck: PublicationReadinessCheck | null;
   evidenceRecords: EvidenceRecord[];
+  temporalReviewArtifactTrace: ReturnType<typeof buildTemporalReviewArtifactTrace>;
 }) {
   const gaps: string[] = ["Temporal Preview is not invoked by Evidence Pack v0.1"];
+
+  gaps.push(...temporalReviewArtifactTrace.gaps);
 
   if (!evidenceRecords.some((record) => record.evidence_kind === "command_run")) {
     gaps.push("commands_run are not yet persisted as structured Core records");

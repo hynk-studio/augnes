@@ -55,6 +55,7 @@ TemporalPreviewReviewArtifact read model v0.1 added
 TemporalPreviewReviewArtifact forbidden-persistence fixtures added
 TemporalPreviewReviewArtifact non-public capture helper added
 TemporalPreviewReviewArtifact public capture route added
+Evidence Pack read-only TemporalPreviewReviewArtifact awareness added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -173,6 +174,15 @@ implementation is covered by `smoke:temporal-capture-route`. It adds no
 Cockpit write button, Evidence Pack integration, ChatGPT App create tool,
 OpenAI call, GitHub publication adapter call, replay, publish, approval, or
 state mutation.
+Evidence Pack now exposes read-only
+`temporal_review_artifact_trace` for
+`work_id=AG-TEMPORAL-INTERPRETATION`. The trace summarizes the latest bounded
+review artifact, matching artifact count, reviewer verdict, guardrail status,
+capture metadata, linked evidence/session/PR fields, manual review report path,
+boundaries, and no-artifact gaps. It does not call the capture route, create or
+mutate artifacts, write Evidence Pack rows, call OpenAI/GitHub, infer approval
+or readiness, execute replay/publish/commit, admit memory, or create
+PerspectiveSnapshot/RawEpisodeBundle runtime authority.
 The private non-smoke insert helper
 `insertTemporalPreviewReviewArtifact` now lives in
 `lib/temporal-review-artifacts.ts` and is covered by
@@ -190,7 +200,7 @@ idempotency key, raw payload, or raw request body.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Add read-only review-artifact browsing or Evidence Pack read-only awareness.
+Add a Cockpit read-only review artifact browser.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

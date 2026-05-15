@@ -100,6 +100,19 @@ expand full session traces, execute Codex, call GitHub/OpenAI, or mutate Core
 records. Use `GET /api/sessions/trace?scope=project:augnes` for the full
 bounded session trace view.
 
+Evidence Pack v0.1 now includes a read-only
+`temporal_review_artifact_trace` for
+`work_id=AG-TEMPORAL-INTERPRETATION`. It reads bounded
+`TemporalPreviewReviewArtifact` rows through the review-artifact read/list/count
+helpers and summarizes the latest artifact plus the matching count,
+including reviewer verdict, guardrail status, capture mode, generator/model,
+linked evidence IDs, linked session ID, linked PR URL, and manual review report
+path when present. If no matching artifacts exist, the trace reports
+`available=false`, `artifact_count=0`, and a clear gap. This trace is
+non-authoritative: it does not call the capture route, create/update/delete
+artifacts, call OpenAI/GitHub, publish, replay, approve, commit state, admit
+memory, or create `PerspectiveSnapshot` / `RawEpisodeBundle` runtime authority.
+
 Structured records should use exact labels and summaries:
 
 - Commands: include the exact command in `command`, such as
@@ -174,10 +187,11 @@ It is not implementation and must not be treated as DB schema, API routes,
 runtime persistence, approval authority, durable PerspectiveSnapshot state, or
 RawEpisodeBundle runtime.
 The first read-model slice now adds the
-`temporal_preview_review_artifacts` table and read-only list/get APIs, but
-Evidence Pack integration remains future work. Evidence Pack must not infer
-approval, publish readiness, replay status, committed state, or memory
-admission from review artifact records.
+`temporal_preview_review_artifacts` table and read-only list/get APIs. Evidence
+Pack read-only awareness is implemented as `temporal_review_artifact_trace`;
+Evidence Pack must not infer approval, publish readiness, replay status,
+committed state, memory admission, proof publication, PerspectiveSnapshot
+authority, or RawEpisodeBundle authority from review artifact records.
 The reusable forbidden-persistence fixture corpus for
 `TemporalPreviewReviewArtifact` lives at
 `lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in

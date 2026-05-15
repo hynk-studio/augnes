@@ -387,8 +387,8 @@ It must not record:
 The route does not update Evidence Pack directly. It creates only the bounded
 review artifact row.
 
-Future Evidence Pack read-only awareness may read artifacts by `work_id` and
-display:
+Evidence Pack read-only awareness now reads artifacts by
+`work_id=AG-TEMPORAL-INTERPRETATION` and displays:
 
 - Artifact count.
 - Latest verdict.
@@ -396,9 +396,10 @@ display:
 - Linked evidence IDs.
 - Gaps.
 
-Evidence Pack must not infer approval, publish readiness, replay status,
-committed state, or memory admission from artifact presence or
-`reviewer_verdict`.
+Evidence Pack still does not call this route or write artifact rows. It must
+not infer approval, publish readiness, replay status, committed state, memory
+admission, proof publication, PerspectiveSnapshot authority, or
+RawEpisodeBundle authority from artifact presence or `reviewer_verdict`.
 
 ## Relationship to Cockpit and ChatGPT App
 
@@ -421,7 +422,8 @@ Implementation sequence:
 3. Implement the route. Complete for `POST
    /api/temporal-interpretation/review-artifacts/capture`.
 4. Add route smoke. Complete as `smoke:temporal-capture-route`.
-5. Add Evidence Pack read-only awareness.
+5. Add Evidence Pack read-only awareness. Complete as
+   `temporal_review_artifact_trace`.
 6. Add Cockpit read-only browser.
 7. Only later, consider an optional controlled UI create action.
 
