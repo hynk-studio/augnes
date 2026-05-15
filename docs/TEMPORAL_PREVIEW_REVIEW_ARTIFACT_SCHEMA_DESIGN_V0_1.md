@@ -22,10 +22,11 @@ design. It adds the `temporal_preview_review_artifacts` table, validation/read
 helper, and read-only list/get APIs. The first public/non-Cockpit capture route
 now exists at `POST
 /api/temporal-interpretation/review-artifacts/capture` and writes only bounded
-review artifacts through the idempotent insert helper. It does not add Cockpit
-write controls, Evidence Pack integration, ChatGPT App tools, OpenAI calls,
-GitHub publication adapter calls, replay, publish, approval, state mutation,
-`PerspectiveSnapshot` runtime, or `RawEpisodeBundle` runtime.
+review artifacts through the idempotent insert helper. The route itself does
+not add Cockpit write controls, Evidence Pack write behavior, ChatGPT App
+tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
+approval, state mutation, `PerspectiveSnapshot` runtime, or
+`RawEpisodeBundle` runtime.
 
 Forbidden-persistence fixture status: a reusable fixture corpus now exists at
 `lib/temporal-review-artifact-fixtures.ts`, with a dedicated smoke at
@@ -51,9 +52,17 @@ The implemented route is `POST
 /api/temporal-interpretation/review-artifacts/capture`; it requires an
 idempotency key, rejects client-supplied artifact IDs, rejects
 `reviewer_verdict=not_reviewed`, bounds payloads to 128 KiB, and persists only
-bounded review artifacts. It does not add Cockpit, Evidence Pack, ChatGPT App,
-OpenAI, GitHub publication adapter, replay, publish, approval, or state
-mutation behavior.
+bounded review artifacts. It does not add Cockpit, Evidence Pack write
+behavior, ChatGPT App, OpenAI, GitHub publication adapter, replay, publish,
+approval, or state mutation behavior.
+
+Evidence Pack awareness status: Evidence Pack now includes the read-only
+`temporal_review_artifact_trace` for
+`work_id=AG-TEMPORAL-INTERPRETATION`. It summarizes the bounded latest artifact,
+matching artifact count, reviewer verdict, guardrail status, capture metadata,
+and link refs only. It does not create/capture artifacts, call the capture POST
+route, add write behavior, infer approval/readiness/replay/state/memory
+authority, or create `PerspectiveSnapshot` / `RawEpisodeBundle` runtime.
 
 Private insert helper status: `insertTemporalPreviewReviewArtifact` now exists
 in `lib/temporal-review-artifacts.ts` and shares the same internal validation
@@ -406,7 +415,7 @@ Query use cases:
 
 ## Evidence Pack integration design
 
-Future Evidence Pack should show:
+Evidence Pack now shows:
 
 - Review artifact count.
 - Latest artifact verdict.
@@ -449,7 +458,8 @@ Implementation sequence status:
 9. Idempotency storage and duplicate source/hash policy foundation. Complete.
 10. Public create/capture route. Complete for `POST
     /api/temporal-interpretation/review-artifacts/capture`.
-11. Evidence Pack read-only integration.
+11. Evidence Pack read-only integration. Complete as
+    `temporal_review_artifact_trace`.
 12. Cockpit read-only browser.
 
 Do not combine with:
@@ -571,7 +581,7 @@ Capture-route smoke uses a temporary DB outside the repo and confirms:
   client-supplied `capture.artifact_id` are rejected.
 - Read-only list/get APIs remain GET-only and can read created artifacts.
 - No protected authority rows, fetch, OpenAI call, GitHub publication adapter
-  call, replay, publish, approval, Evidence Pack integration, Cockpit code,
+  call, replay, publish, approval, Evidence Pack write behavior, Cockpit code,
   ChatGPT App tool, `PerspectiveSnapshot` runtime, or `RawEpisodeBundle`
   runtime is added.
 
@@ -601,7 +611,6 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: add read-only review-artifact browsing or Evidence Pack
-read-only awareness, if desired, without adding capture buttons, ChatGPT App
-create tools, approval/publish/replay behavior, or durable
-`PerspectiveSnapshot` / `RawEpisodeBundle` runtime.
+Preferred next PR: add Cockpit read-only review-artifact browsing without
+adding capture buttons, ChatGPT App create tools, approval/publish/replay
+behavior, or durable `PerspectiveSnapshot` / `RawEpisodeBundle` runtime.

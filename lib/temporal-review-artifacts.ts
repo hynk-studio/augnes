@@ -313,6 +313,59 @@ export function listTemporalPreviewReviewArtifacts(
   }
 }
 
+export function countTemporalPreviewReviewArtifacts(
+  filters: Omit<TemporalPreviewReviewArtifactFilters, "limit"> = {},
+) {
+  const normalizedScope = normalizeTemporalReviewArtifactScope(filters.scope);
+  const clauses = ["scope = ?"];
+  const params: Array<string | number> = [normalizedScope];
+
+  addOptionalClause(clauses, params, "work_id", normalizeNullableWorkId(filters.work_id));
+  addOptionalClause(clauses, params, "generator", cleanNullableString(filters.generator));
+  addOptionalClause(
+    clauses,
+    params,
+    "reviewer_verdict",
+    normalizeNullableReviewerVerdict(filters.reviewer_verdict),
+  );
+  addOptionalClause(
+    clauses,
+    params,
+    "guardrail_passed",
+    normalizeNullableGuardrail(filters.guardrail_passed),
+  );
+  addOptionalClause(
+    clauses,
+    params,
+    "linked_session_id",
+    cleanNullableString(filters.linked_session_id),
+  );
+  addOptionalClause(
+    clauses,
+    params,
+    "linked_pr_url",
+    cleanNullableString(filters.linked_pr_url),
+  );
+
+  const db = openDatabase();
+
+  try {
+    const row = db
+      .prepare(
+        `
+          SELECT COUNT(*) AS count
+          FROM temporal_preview_review_artifacts
+          WHERE ${clauses.join(" AND ")}
+        `,
+      )
+      .get(...params) as { count: number };
+
+    return row.count;
+  } finally {
+    db.close();
+  }
+}
+
 export function getTemporalPreviewReviewArtifact(
   artifactId: string,
   scope?: string | null,

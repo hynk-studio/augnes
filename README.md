@@ -163,9 +163,13 @@ read-only list/get APIs at
 public/non-Cockpit capture route is now available at
 `POST /api/temporal-interpretation/review-artifacts/capture`; it writes only
 bounded review artifacts through the idempotent helper. It still does not add
-Cockpit write controls, Evidence Pack integration, ChatGPT App tools, OpenAI
-calls, GitHub publication adapter calls, replay, publish, approval, state
-mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
+Cockpit write controls, Evidence Pack write behavior, ChatGPT App tools,
+OpenAI calls, GitHub publication adapter calls, replay, publish, approval,
+state mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
+Evidence Pack now includes the read-only `temporal_review_artifact_trace` for
+`work_id=AG-TEMPORAL-INTERPRETATION`; it summarizes bounded review artifacts
+and no-artifact gaps without calling capture, creating artifacts, or inferring
+authority.
 The reusable forbidden-persistence fixture corpus lives at
 `lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
 `smoke:temporal-forbidden-persistence-fixtures`. It is a gate before any
@@ -228,6 +232,7 @@ npm run smoke:temporal-create-route-design
 npm run smoke:temporal-private-insert-helper
 npm run smoke:temporal-artifact-idempotency
 npm run smoke:temporal-capture-route
+npm run smoke:temporal-review-artifact-evidence-pack
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

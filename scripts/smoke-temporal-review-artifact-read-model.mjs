@@ -230,9 +230,29 @@ try {
   assert.equal(evidencePackResponse.status, 200, "Evidence Pack should still return 200");
   const evidencePack = await evidencePackResponse.json();
   assert.equal(
-    Object.hasOwn(evidencePack, "temporal_review_artifacts"),
-    false,
-    "Evidence Pack should not render review artifacts yet",
+    evidencePack.temporal_review_artifact_trace.available,
+    true,
+    "Evidence Pack should expose Temporal review artifact awareness",
+  );
+  assert.equal(
+    evidencePack.temporal_review_artifact_trace.artifact_count,
+    1,
+    "Evidence Pack should count matching Temporal review artifacts",
+  );
+  assert.equal(
+    evidencePack.temporal_review_artifact_trace.latest_artifact_id,
+    artifactId,
+    "Evidence Pack should expose latest artifact id",
+  );
+  assert.equal(
+    evidencePack.temporal_review_artifact_trace.latest_reviewer_verdict,
+    "pass_with_notes",
+    "Evidence Pack should expose latest reviewer verdict",
+  );
+  assert.equal(
+    evidencePack.temporal_review_artifact_trace.latest_guardrail_passed,
+    true,
+    "Evidence Pack should expose latest guardrail status",
   );
 
   const dbAfter = openDatabase();
@@ -271,7 +291,7 @@ try {
         api_list_get_ok: true,
         api_get_ok: true,
         missing_get_returns_404: true,
-        evidence_pack_integration_added: false,
+        evidence_pack_integration_added: true,
         protected_authority_rows_mutated: false,
         fetch_calls: fetchCalls,
         openai_calls: 0,
