@@ -131,6 +131,12 @@ and evidence policies. The read-only config reader/validator lives at
 metadata only. It does not parse private keys, sign JWTs, call GitHub, create
 installation tokens, or integrate with C5 token resolution.
 
+An offline RS256 JWT helper and fake-key-only smoke fixture now live at
+`lib/github-app-jwt.ts` and `scripts/smoke-github-app-jwt-fixture.mjs`. This is
+not the GitHub App installation-token provider: it does not read runtime
+private keys from env or files, call GitHub, create installation tokens, or
+change C5 publish behavior.
+
 ## How Augnes Uses OpenAI APIs
 
 OpenAI APIs are used for interpretation, not direct mutation.

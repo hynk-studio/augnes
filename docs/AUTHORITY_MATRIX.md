@@ -78,6 +78,12 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   shape/presence validation and public-safe metadata only. It does not sign
   JWTs, parse private keys, create installation tokens, call GitHub, publish,
   or change C5 gates.
+- The offline GitHub App RS256 JWT fixture may sign explicit fake/test PEM
+  input with Node built-in crypto for local verification only. JWT creation is
+  not approval, readiness, publication, token resolution, proof, or permission
+  to publish. The helper does not read runtime env, read private key files,
+  create installation tokens, call GitHub, integrate with C5, or change the env
+  `GITHUB_TOKEN` provider.
 - A decision document or PR body can describe a future C5 live-test approval
   packet, but it is not approval by itself. Future live posts still require
   explicit user/PM approval for the exact target, exact body, exact

@@ -54,6 +54,13 @@ and evidence policies. The read-only config reader/validator now lives at
 metadata only. It does not sign JWTs, parse private keys, call GitHub, create
 installation tokens, or integrate with C5 token resolution.
 
+The offline RS256 JWT signing fixture now lives at `lib/github-app-jwt.ts` and
+is covered by `smoke:github-app-jwt-fixture` using fake key material only. It
+uses Node built-in `crypto`, verifies JWT header/claim/signature shape offline,
+and returns public-safe metadata that omits the raw JWT and private key. This
+does not implement the GitHub App installation-token provider, runtime private
+key parsing, GitHub API calls, installation-token exchange, or C5 integration.
+
 ## Token Authority Boundary
 
 Token availability is not approval.
@@ -105,7 +112,7 @@ OpenAI, call GitHub, add Cockpit write controls, or add ChatGPT App tools.
 This v0.1 slice does not:
 
 - implement live GitHub App installation-token exchange
-- parse private keys
+- parse runtime private keys
 - add installation-token provider runtime handling for GitHub App app id,
   client id, private key, or installation id env vars
 - use reserved future GitHub App config names in C5 token resolution
