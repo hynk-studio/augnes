@@ -62,6 +62,15 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   `idempotent_replay=true` and `posted=false`; different-key duplicates and
   pending delivery conflicts remain blocked. PR #67 and PR #81 remain
   target-specific historical evidence, not broad posting permission.
+- GitHub token management v0.1 separates credential resolution from Core gate
+  authority. Runtime env `GITHUB_TOKEN` is the only implemented provider.
+  Token availability is not approval, readiness, or publication; GitHub App
+  installation-token support is documented as future/design-only work in
+  `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md`. Token resolution happens after
+  Core gates and before adapter execution for actual publish, while
+  `dry_run=true` and same-key sent/acknowledged replay remain token-free.
+  Resolved raw tokens must not be logged, persisted, returned through API JSON,
+  written to evidence records, included in PR bodies, screenshots, or docs.
 - A decision document or PR body can describe a future C5 live-test approval
   packet, but it is not approval by itself. Future live posts still require
   explicit user/PM approval for the exact target, exact body, exact
