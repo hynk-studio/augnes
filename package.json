@@ -12,6 +12,7 @@
     "demo:seed": "node scripts/demo-seed.mjs",
     "validate:temporal-openai-path": "node scripts/validate-temporal-openai-path.mjs",
     "smoke:cockpit-session-trace": "node scripts/smoke-cockpit-session-trace.mjs",
+    "smoke:cockpit-six-tab-functional-map": "node scripts/smoke-cockpit-six-tab-functional-map.mjs",
     "smoke:cockpit-temporal-admission": "node scripts/smoke-cockpit-temporal-admission.mjs",
     "smoke:cockpit-temporal-review-artifacts": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-cockpit-temporal-review-artifacts.mjs",
     "smoke:temporal-preview": "node scripts/smoke-temporal-preview.mjs",

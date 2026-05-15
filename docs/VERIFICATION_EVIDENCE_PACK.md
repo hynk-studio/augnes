@@ -65,6 +65,11 @@ GitHub App/token management v0.1 closeout verification belongs in bounded
 command evidence, such as `npm run smoke:github-token-management-v01-closeout`.
 It must record only closeout status and docs-smoke facts, not raw token, JWT,
 private key, or exchange payload material.
+Cockpit six-tab functional map verification belongs in bounded command
+evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
+record docs-smoke facts only: the functional map exists, all six tabs and
+low-fi wireframes are present, reference images are non-authority visual
+direction, no runtime files changed, and no dependencies were added.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
