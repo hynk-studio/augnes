@@ -61,6 +61,14 @@ and returns public-safe metadata that omits the raw JWT and private key. This
 does not implement the GitHub App installation-token provider, runtime private
 key parsing, GitHub API calls, installation-token exchange, or C5 integration.
 
+The target/allowlist policy helper now lives at
+`lib/github-app-target-policy.ts` and is covered by
+`smoke:github-app-target-policy`. It evaluates a parsed `github_pr_comment`
+target against a validated `installation_token` config and repository
+allowlist before any future exchange. It returns public-safe policy metadata
+only and does not call GitHub, create installation tokens, sign JWTs, read
+secret config, integrate with C5, or change env `GITHUB_TOKEN` behavior.
+
 ## Token Authority Boundary
 
 Token availability is not approval.
@@ -116,6 +124,7 @@ This v0.1 slice does not:
 - add installation-token provider runtime handling for GitHub App app id,
   client id, private key, or installation id env vars
 - use reserved future GitHub App config names in C5 token resolution
+- integrate target/allowlist policy into C5 token resolution
 - call GitHub
 - post to GitHub
 - run a live C5 publish test

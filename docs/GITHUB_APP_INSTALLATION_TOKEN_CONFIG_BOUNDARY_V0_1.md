@@ -2,7 +2,8 @@
 
 This document defines the GitHub App installation-token configuration boundary
 for Augnes. The config reader/validator and offline fake-key RS256 JWT fixture
-are implemented; the installation-token provider remains future work.
+are implemented. The target/allowlist policy helper is implemented. The
+installation-token provider remains future work.
 
 The installation-token provider remains design/config boundary only.
 
@@ -16,6 +17,7 @@ This v0.1 boundary now includes:
 - read-only config reader/validator support
 - validation and redaction rules with public-safe metadata
 - offline RS256 JWT signing fixture support with fake key material only
+- target/allowlist policy evaluation before token exchange
 - private key handling rules
 - JWT rules
 - installation-token exchange boundaries
@@ -55,6 +57,15 @@ is covered by `smoke:github-app-jwt-fixture` with generated fake RSA key
 material only. It does not read `process.env`, read private key files, parse
 runtime config, call GitHub, create installation tokens, return JWTs through an
 API route, alter C5 gates, or integrate with `resolveGitHubPublishToken()`.
+
+The target/allowlist policy helper lives at
+`lib/github-app-target-policy.ts`. It evaluates a Core-gated
+`github_pr_comment` target against a validated GitHub App config and parsed
+repository allowlist. It uses the existing `owner/repo#pull_number` parser,
+returns public-safe policy metadata, and must run before any future
+installation-token exchange. It does not sign JWTs, create installation tokens,
+call GitHub, read env or files, alter C5 gates, or integrate with
+`resolveGitHubPublishToken()`.
 
 ## Future Config Names
 
@@ -203,6 +214,16 @@ Augnes future rules:
 - Permission profile names must map to deterministic request bodies; request
   bodies must not supply free-form permission JSON.
 
+The current target policy helper implements the local pre-exchange allowlist
+check. It supports only `targetSurface=github_pr_comment`, parses
+`target_ref` with the existing GitHub PR comment target parser, requires a
+valid `installation_token` config, requires `pr_comment_minimal`, and matches
+the parsed target repository against `repository_allowlist` case-insensitively.
+Malformed targets, unavailable/invalid config, `env_github_token` config,
+empty allowlists, unsupported permission profiles, and non-allowlisted
+repositories block with bounded reason codes. Policy evaluation is not token
+resolution, approval, readiness, publication, or proof.
+
 Target matching remains a Core-gated publish responsibility. The token provider
 must not override `target_ref`, target surface, approval decision, readiness
 state, delivery idempotency, or allowlist checks.
@@ -250,6 +271,8 @@ Evidence records may record public-safe provider metadata only, such as:
 - bounded error category, for example `missing_installation_id`,
   `allowlist_mismatch`, `permission_profile_unsupported`, or
   `installation_token_exchange_failed`
+- bounded target policy result categories, for example `target_ref_invalid`,
+  `repository_not_allowlisted`, or `permission_profile_unsupported`
 
 Evidence records must not include:
 
@@ -273,12 +296,13 @@ Recommended future sequence:
 1. Config reader/validator with no GitHub calls. Status: implemented.
 2. Offline JWT signing fixture using a fake key only, no network. Status:
    implemented.
-3. Installation-token exchange behind an explicit opt-in smoke, no live
+3. Target/allowlist policy helper before exchange. Status: implemented.
+4. Installation-token exchange behind an explicit opt-in smoke, no live
    publish.
-4. Provider integration with C5 after config, JWT, redaction, and exchange
+5. Provider integration with C5 after config, JWT, redaction, and exchange
    boundaries are covered.
-5. Optional in-memory cache with expiry and permission/target guards.
-6. Live test only with explicit user/PM target approval.
+6. Optional in-memory cache with expiry and permission/target guards.
+7. Live test only with explicit user/PM target approval.
 
 Each future slice should restate whether it reads secret config, signs JWTs,
 calls GitHub, creates installation tokens, changes C5 gate semantics, or

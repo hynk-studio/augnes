@@ -36,6 +36,11 @@ The offline RS256 JWT helper in `lib/github-app-jwt.ts` signs only explicit
 fake/test PEM input for local fixture coverage. JWT creation is not approval,
 readiness, publication, or proof, and the helper is not integrated with C5
 token resolution.
+The GitHub App target/allowlist policy helper in
+`lib/github-app-target-policy.ts` evaluates future installation-token
+repository/permission scope before exchange. Target policy is not approval,
+readiness, publication, proof, or token resolution, and it is not integrated
+with C5 publish yet.
 
 ## Purpose
 
@@ -683,6 +688,9 @@ The offline RS256 JWT fixture now verifies fake-key signing, required
 `iat`/`exp`/`iss` claims, and the 10-minute expiry ceiling without calling
 GitHub or creating installation tokens. It is not publication proof and does
 not authorize live publish.
+The target/allowlist policy helper now verifies future GitHub App
+repository/permission scope locally before exchange. It does not call GitHub,
+create installation tokens, change C5 gates, or authorize live publish.
 
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping
