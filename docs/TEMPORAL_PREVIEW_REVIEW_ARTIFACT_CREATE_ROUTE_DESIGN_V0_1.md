@@ -36,9 +36,10 @@ public route implementation status: `POST
 /api/temporal-interpretation/review-artifacts/capture` is implemented with
 route-level payload bounds and smoke coverage in
 `smoke:temporal-capture-route`. Cockpit write controls, ChatGPT App create
-tools, Evidence Pack integration, OpenAI calls, GitHub publication adapter
+tools, Evidence Pack write behavior, OpenAI calls, GitHub publication adapter
 calls, replay, publish, approval, state mutation, `PerspectiveSnapshot`
-runtime, and `RawEpisodeBundle` runtime remain absent.
+runtime, and `RawEpisodeBundle` runtime remain absent. Cockpit now has a
+separate read-only browser over existing GET artifact routes only.
 
 ## Route candidates
 
@@ -408,9 +409,9 @@ ChatGPT App create tool should be added. Future UI should remain read-only
 until the route has separate approval and route-level tests prove that capture
 does not mutate authority state.
 
-Cockpit may later browse artifacts read-only, but it must not treat Cockpit DOM
-state as truth and must not become the source of artifact creation without a
-separate reviewed design.
+Cockpit now browses artifacts read-only through existing GET routes, but it
+must not treat Cockpit DOM state as truth and must not become the source of
+artifact creation without a separate reviewed design.
 
 ## Implementation Sequence
 
@@ -424,7 +425,7 @@ Implementation sequence:
 4. Add route smoke. Complete as `smoke:temporal-capture-route`.
 5. Add Evidence Pack read-only awareness. Complete as
    `temporal_review_artifact_trace`.
-6. Add Cockpit read-only browser.
+6. Add Cockpit read-only browser. Complete.
 7. Only later, consider an optional controlled UI create action.
 
 Do not combine these steps with approval, publish, replay, durable

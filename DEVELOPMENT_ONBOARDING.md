@@ -56,6 +56,7 @@ TemporalPreviewReviewArtifact forbidden-persistence fixtures added
 TemporalPreviewReviewArtifact non-public capture helper added
 TemporalPreviewReviewArtifact public capture route added
 Evidence Pack read-only TemporalPreviewReviewArtifact awareness added
+Cockpit read-only TemporalPreviewReviewArtifact browser added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -183,6 +184,13 @@ boundaries, and no-artifact gaps. It does not call the capture route, create or
 mutate artifacts, write Evidence Pack rows, call OpenAI/GitHub, infer approval
 or readiness, execute replay/publish/commit, admit memory, or create
 PerspectiveSnapshot/RawEpisodeBundle runtime authority.
+The Cockpit now includes a read-only `Temporal Review Artifacts` browser near
+Temporal Interpretation Preview and Evidence Pack. Operators can load bounded
+review artifacts through the existing GET list API, inspect local UI selection
+details, review linked evidence/session/PR fields, and see gaps/boundaries
+without adding capture buttons, Cockpit write controls, OpenAI/GitHub calls,
+Evidence Pack writes, approval, publish, replay, state commit,
+PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 The private non-smoke insert helper
 `insertTemporalPreviewReviewArtifact` now lives in
 `lib/temporal-review-artifacts.ts` and is covered by
@@ -200,7 +208,7 @@ idempotency key, raw payload, or raw request body.
 The recommended next Temporal Interpretation productization slice is:
 
 ```text
-Add a Cockpit read-only review artifact browser.
+TemporalPreviewReviewArtifact v0.1 status cleanup.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries

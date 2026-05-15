@@ -34,6 +34,7 @@ The v0.2 slice includes:
   before any public create route.
 - Evidence Pack read-only awareness for bounded
   `TemporalPreviewReviewArtifact` rows.
+- Cockpit read-only Temporal review artifact browser.
 
 It is not:
 
@@ -202,10 +203,11 @@ The read-model implementation now adds the table, validation/read helper, and
 read-only list/get APIs for bounded review artifacts. Evidence Pack now reads
 those artifacts through the helper and exposes
 `temporal_review_artifact_trace` for the canonical Temporal work anchor. This
-does not add artifact create/capture behavior, Cockpit rendering, ChatGPT App
-tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
-approval, state mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle
-runtime.
+now also has a Cockpit read-only browser that loads the GET list API and keeps
+artifact selection local to the UI. These surfaces do not add artifact
+create/capture behavior, Cockpit write controls, ChatGPT App tools, OpenAI
+calls, GitHub publication adapter calls, replay, publish, approval, state
+mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 
 The forbidden-persistence fixture corpus now centralizes cases for top-level
 forbidden fields, nested forbidden fields, summary/evidence separation,
@@ -243,6 +245,7 @@ Current smoke coverage includes:
 - `smoke:temporal-forbidden-persistence-fixtures`
 - `smoke:temporal-review-artifact-capture-helper`
 - `smoke:temporal-review-artifact-evidence-pack`
+- `smoke:cockpit-temporal-review-artifacts`
 
 `validate:temporal-openai-path` is intentionally separate opt-in validation,
 not normal smoke.
@@ -267,6 +270,7 @@ not normal smoke.
 | `smoke:temporal-forbidden-persistence-fixtures` | Confirms the reusable fixture corpus rejects top-level forbidden fields, nested forbidden fields, summary/evidence confusion, authority confusion, missing links, and invalid route/source shape while inserting only one valid artifact. | Complete | `scripts/smoke-temporal-forbidden-persistence-fixtures.mjs` |
 | `smoke:temporal-review-artifact-capture-helper` | Confirms the internal capture helper builds bounded artifact input from a mock preview response, rejects capture-specific forbidden cases, keeps reusable forbidden fixtures rejected through capture output, and preserves no-authority boundaries. | Complete | `scripts/smoke-temporal-review-artifact-capture-helper.mjs` |
 | `smoke:temporal-review-artifact-evidence-pack` | Confirms Evidence Pack reports no-artifact gaps and latest-artifact summaries without calling capture, fetch, OpenAI, GitHub, or mutating protected authority rows. | Complete | `scripts/smoke-temporal-review-artifact-evidence-pack.mjs` |
+| `smoke:cockpit-temporal-review-artifacts` | Confirms the Cockpit read-only Temporal Review Artifacts browser, GET-only list loading, no-artifact gaps, artifact-present detail fields, linked evidence/session/PR visibility, no capture route use, and no protected authority row mutation. | Complete | `scripts/smoke-cockpit-temporal-review-artifacts.mjs` |
 | `validate:temporal-openai-path` | Opt-in live OpenAI-path schema and guardrail validation. | Complete for one fixture pass | `scripts/validate-temporal-openai-path.mjs` and `docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md` |
 | `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md` | Filled manual review of deterministic mock preview output. | Complete | Passing report with preserved counterexample and residual tension refs |
 | `docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md` | Filled manual review of real route output captured in mock mode. | Complete | Passing report with `generator: mock`, zero warnings, preserved counterexample and residual tension refs |
@@ -341,10 +345,10 @@ Temporal Interpretation v0.2 is:
 
 ## Recommended next step
 
-Next should review whether to add a future private insert helper or broaden
-capture fixture coverage. Any create/capture route should follow only after
-redaction, forbidden-field rejection, work/evidence/session validation, and
-no-authority smoke are reviewed.
+Next should perform TemporalPreviewReviewArtifact v0.1 status cleanup so the
+docs, onboarding, README, and smoke matrix consistently distinguish completed
+read-model, capture, Evidence Pack, and Cockpit browser slices from future
+PerspectiveSnapshot / RawEpisodeBundle work.
 
 Reason:
 
