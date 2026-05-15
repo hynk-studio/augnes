@@ -97,6 +97,10 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   network-disabled by default, must not use global fetch directly, and does not
   call real GitHub, create delivery rows, persist tokens, integrate with C5, or
   change the env `GITHUB_TOKEN` provider.
+- `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md` closes GitHub App/token
+  management v0.1 as a bounded foundation line. It does not grant live
+  exchange, live publish, Cockpit write controls, ChatGPT App write tools, or
+  provider integration authority.
 - A decision document or PR body can describe a future C5 live-test approval
   packet, but it is not approval by itself. Future live posts still require
   explicit user/PM approval for the exact target, exact body, exact

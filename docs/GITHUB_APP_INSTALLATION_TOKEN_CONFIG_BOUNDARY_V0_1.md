@@ -7,6 +7,9 @@ exchange boundary helper are implemented. The installation-token provider
 remains future work.
 
 The installation-token provider remains design/config boundary only.
+The v0.1 foundation line is closed in
+`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md`; live exchange and C5
+provider integration remain future work.
 
 ## Status
 
