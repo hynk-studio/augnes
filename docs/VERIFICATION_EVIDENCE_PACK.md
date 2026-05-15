@@ -49,6 +49,11 @@ Offline GitHub App JWT fixture verification belongs in bounded command
 evidence, such as `npm run smoke:github-app-jwt-fixture`; it must record only
 public-safe result categories and must not record raw JWTs, fake or real
 private key material, signatures, or secret-bearing config.
+GitHub App target/allowlist policy verification belongs in bounded command
+evidence, such as `npm run smoke:github-app-target-policy`; it may record
+public-safe result categories such as allowlisted target allowed or
+non-allowlisted target blocked, but must not record installation IDs, private
+key material, raw allowlist config strings, raw JWTs, or token material.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
@@ -281,6 +286,7 @@ npm run smoke:github-token-provider
 npm run smoke:github-app-token-config-boundary
 npm run smoke:github-app-config-validator
 npm run smoke:github-app-jwt-fixture
+npm run smoke:github-app-target-policy
 ```
 
 After running a command, Codex or another local verifier may record a bounded

@@ -137,6 +137,12 @@ not the GitHub App installation-token provider: it does not read runtime
 private keys from env or files, call GitHub, create installation tokens, or
 change C5 publish behavior.
 
+A target/allowlist policy helper now lives at
+`lib/github-app-target-policy.ts`. It evaluates a `github_pr_comment` target
+against validated future GitHub App config before exchange, but it is not wired
+into C5 or the token provider and does not call GitHub or create installation
+tokens.
+
 ## How Augnes Uses OpenAI APIs
 
 OpenAI APIs are used for interpretation, not direct mutation.
