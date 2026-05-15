@@ -37,6 +37,7 @@
     "smoke:c5-delivery-artifacts": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-c5-delivery-artifacts.mjs",
     "smoke:github-token-provider": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-github-token-provider.mjs",
     "smoke:github-app-token-config-boundary": "node scripts/smoke-github-app-token-config-boundary.mjs",
+    "smoke:github-app-config-validator": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-github-app-config-validator.mjs",
     "smoke:evidence-pack": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-evidence-pack.mjs",
     "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",

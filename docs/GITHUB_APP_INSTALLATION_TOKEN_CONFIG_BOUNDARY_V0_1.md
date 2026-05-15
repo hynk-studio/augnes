@@ -1,16 +1,20 @@
 # GitHub App Installation Token Config Boundary v0.1
 
-This document defines the future GitHub App installation-token configuration
-boundary for Augnes. It is design/config boundary only.
+This document defines the GitHub App installation-token configuration boundary
+for Augnes. The config reader/validator is implemented; the installation-token
+provider remains future work.
+
+The installation-token provider remains design/config boundary only.
 
 ## Status
 
 The GitHub App installation-token provider is not implemented.
 
-This v0.1 boundary adds:
+This v0.1 boundary now includes:
 
 - future config names
-- validation and redaction rules
+- read-only config reader/validator support
+- validation and redaction rules with public-safe metadata
 - private key handling rules
 - JWT rules
 - installation-token exchange boundaries
@@ -26,7 +30,7 @@ This v0.1 boundary does not add:
 - installation access token exchange
 - GitHub API calls
 - live GitHub publish
-- runtime reading of future GitHub App config variables
+- C5 token-provider integration
 - DB schema or migrations
 - API routes
 - Cockpit controls
@@ -38,10 +42,19 @@ No GitHub API call. No live publish.
 The current implemented token provider remains env `GITHUB_TOKEN` only through
 `resolveGitHubPublishToken()`.
 
+The implemented config helper lives at `lib/github-app-config.ts`. It can read
+reserved GitHub App config values from an explicit environment object, or from
+`process.env` only through clearly named runtime wrapper functions. It returns
+validation metadata and a `public_safe` block. It does not parse private keys,
+sign JWTs, call GitHub, create installation tokens, alter C5 gates, or expose
+raw secret-bearing config in public-safe metadata.
+
 ## Future Config Names
 
 The following names are reserved for future design and implementation work.
-runtime code does not read these names in this PR:
+The config validator reads these names only to validate shape/presence and
+source categories. C5 token provider runtime code does not read these names in
+this PR:
 
 - `AUGNES_GITHUB_APP_ID`
 - `AUGNES_GITHUB_APP_CLIENT_ID`
@@ -59,8 +72,9 @@ documentation accepts the GitHub App client ID or application ID as the JWT
 `iss` value and recommends the client ID.
 
 Config validation must fail closed. Missing, empty, malformed, or unsupported
-future GitHub App config must make the installation-token provider unavailable;
-it must not fall back to broader credentials or accept request-supplied secrets.
+future GitHub App config must make the future installation-token provider
+unavailable; it must not fall back to broader credentials or accept
+request-supplied secrets.
 
 ## Private Key Boundary
 
@@ -85,6 +99,9 @@ Future code must treat `AUGNES_GITHUB_APP_PRIVATE_KEY_PATH`,
 may report only bounded categories such as `private_key_source=env_base64` or
 `private_key_source=file_path_redacted`; it must not report the raw key or a
 sensitive path.
+
+The current validator detects which private key source is present but does not
+parse or validate actual private key contents.
 
 ## JWT Boundary
 
@@ -242,7 +259,7 @@ or secret-bearing config.
 
 Recommended future sequence:
 
-1. Config reader/validator with no GitHub calls.
+1. Config reader/validator with no GitHub calls. Status: implemented.
 2. Offline JWT signing fixture using a fake key only, no network.
 3. Installation-token exchange behind an explicit opt-in smoke, no live
    publish.

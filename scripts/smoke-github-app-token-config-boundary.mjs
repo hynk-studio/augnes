@@ -14,7 +14,7 @@ const doc = readFileSync(docPath, "utf8");
 
 assertIncludes(doc, "design/config boundary only");
 assertIncludes(doc, "GitHub App installation-token provider is not implemented");
-assertIncludes(doc, "runtime code does not read");
+assertIncludes(doc, "C5 token provider runtime code does not read");
 assertIncludes(doc, "No JWT signing");
 assertIncludes(doc, "No private key parsing");
 assertIncludes(doc, "No installation access token exchange");
@@ -128,7 +128,7 @@ console.log(
       doc_exists: true,
       design_only: true,
       future_config_names_documented: true,
-      runtime_reads_future_config_vars: false,
+      c5_token_provider_reads_future_config_vars: false,
       jwt_signing_implemented: false,
       private_key_parsing_implemented: false,
       installation_token_exchange_implemented: false,

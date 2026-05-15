@@ -60,6 +60,7 @@ Cockpit read-only TemporalPreviewReviewArtifact browser added
 TemporalPreviewReviewArtifact v0.1 closeout complete
 GitHub token management foundation v0.1 complete
 GitHub App installation token config boundary v0.1 complete
+GitHub App config reader/validator complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -248,11 +249,13 @@ GitHub App installation token config boundary v0.1 is documented in
 `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It reserves
 future GitHub App config names and defines private key, RS256 JWT,
 installation-token exchange, expiry, repository allowlist, permission
-minimization, Core-gated integration, and evidence policies. It remains
-design/config boundary only: no runtime reads of future GitHub App config
-variables, JWT signing, private key parsing, installation-token exchange,
-GitHub API call, live publish, DB schema, API route, Cockpit control, or
-ChatGPT App tool has been added.
+minimization, Core-gated integration, and evidence policies. The read-only
+config reader/validator at `lib/github-app-config.ts` is implemented. It reads
+reserved GitHub App config values from supplied env objects or clearly named
+runtime wrappers, validates shape/presence, and returns public-safe metadata.
+It does not parse private keys, sign JWTs, exchange installation tokens, call
+GitHub, run live publish, change C5 token resolution, add DB schema, add API
+routes, add Cockpit controls, or add ChatGPT App tools.
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
 are derived read-only views, not sources of truth. PR #81 does not authorize
