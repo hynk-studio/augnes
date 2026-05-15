@@ -27,9 +27,10 @@ does not implement GitHub App installation-token exchange, private key parsing,
 new runtime GitHub App env handling, or live posting. The GitHub App
 installation-token config boundary is documented in
 `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`; it reserves
-future config names and JWT/exchange/permission rules without adding runtime
-config reads, JWT signing, private key parsing, GitHub API calls, or token
-exchange.
+future config names and JWT/exchange/permission rules. The read-only config
+reader/validator is now implemented in `lib/github-app-config.ts`, but C5 token
+resolution still does not use it. No JWT signing, private key parsing, GitHub
+API calls, token exchange, or live posting has been added.
 
 ## Purpose
 
@@ -671,7 +672,8 @@ separately scoped PR. The future config boundary in
 `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md` further specifies
 reserved config names, private key handling, RS256 JWT rules, installation
 token expiry, repository allowlist matching, permission minimization, and
-evidence redaction policy. It does not change C5 behavior.
+evidence redaction policy. The config reader/validator can validate future
+GitHub App config shape, but it does not change C5 behavior.
 
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping

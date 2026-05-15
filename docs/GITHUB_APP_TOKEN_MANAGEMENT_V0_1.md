@@ -49,9 +49,10 @@ The first follow-up design/config boundary is
 `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It reserves future
 config names and documents JWT, private key, installation-token exchange,
 expiry, repository allowlist, permission minimization, Core-gated integration,
-and evidence policies. It is design/config boundary only: runtime code does not
-read the future GitHub App config names, sign JWTs, parse private keys, call
-GitHub, or create installation tokens.
+and evidence policies. The read-only config reader/validator now lives at
+`lib/github-app-config.ts`. It validates shape/presence and returns public-safe
+metadata only. It does not sign JWTs, parse private keys, call GitHub, create
+installation tokens, or integrate with C5 token resolution.
 
 ## Token Authority Boundary
 
@@ -105,9 +106,9 @@ This v0.1 slice does not:
 
 - implement live GitHub App installation-token exchange
 - parse private keys
-- add runtime handling for GitHub App app id, client id, private key, or
-  installation id env vars
-- read reserved future GitHub App config names
+- add installation-token provider runtime handling for GitHub App app id,
+  client id, private key, or installation id env vars
+- use reserved future GitHub App config names in C5 token resolution
 - call GitHub
 - post to GitHub
 - run a live C5 publish test

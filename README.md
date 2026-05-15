@@ -126,7 +126,10 @@ The future GitHub App installation-token config boundary is documented in
 `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It reserves
 future config names and defines private key, JWT, installation-token exchange,
 expiry, repository allowlist, permission minimization, Core-gated integration,
-and evidence policies without adding runtime config reads or GitHub calls.
+and evidence policies. The read-only config reader/validator lives at
+`lib/github-app-config.ts`; it validates shape/presence and returns public-safe
+metadata only. It does not parse private keys, sign JWTs, call GitHub, create
+installation tokens, or integrate with C5 token resolution.
 
 ## How Augnes Uses OpenAI APIs
 
