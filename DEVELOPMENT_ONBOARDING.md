@@ -59,6 +59,7 @@ Evidence Pack read-only TemporalPreviewReviewArtifact awareness added
 Cockpit read-only TemporalPreviewReviewArtifact browser added
 TemporalPreviewReviewArtifact v0.1 closeout complete
 GitHub token management foundation v0.1 complete
+GitHub App installation token config boundary v0.1 complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -243,6 +244,16 @@ Raw GitHub tokens must not be logged, persisted, returned in API JSON, written
 to evidence records, included in PR bodies, screenshots, or docs. Request
 bodies must not supply `github_token`, `token`, or `GITHUB_TOKEN`.
 
+GitHub App installation token config boundary v0.1 is documented in
+`docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It reserves
+future GitHub App config names and defines private key, RS256 JWT,
+installation-token exchange, expiry, repository allowlist, permission
+minimization, Core-gated integration, and evidence policies. It remains
+design/config boundary only: no runtime reads of future GitHub App config
+variables, JWT signing, private key parsing, installation-token exchange,
+GitHub API call, live publish, DB schema, API route, Cockpit control, or
+ChatGPT App tool has been added.
+
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
 are derived read-only views, not sources of truth. PR #81 does not authorize
 broad posting. Do not repeat live GitHub posting unless the user/PM explicitly
@@ -274,9 +285,11 @@ A new session should read these files in this order:
 20. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` - TemporalPreviewReviewArtifact schema design, read-model implementation status, forbidden-persistence fixture gate, and non-public capture helper status.
 21. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md` - Public bounded create/capture route contract and implementation status.
 22. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md` - completed v0.1 review-artifact chain and future out-of-scope boundary.
-23. `.github/pull_request_template.md` - required PR trace format.
-24. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-25. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+23. `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md` - current env-token provider and future GitHub App token-management boundary.
+24. `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md` - future GitHub App installation-token config/JWT/exchange boundary, design only.
+25. `.github/pull_request_template.md` - required PR trace format.
+26. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+27. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 

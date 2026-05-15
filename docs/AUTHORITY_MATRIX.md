@@ -71,6 +71,12 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   `dry_run=true` and same-key sent/acknowledged replay remain token-free.
   Resolved raw tokens must not be logged, persisted, returned through API JSON,
   written to evidence records, included in PR bodies, screenshots, or docs.
+- GitHub App installation-token config boundary v0.1 reserves future config
+  names and documents private key/JWT/exchange/repository/permission/evidence
+  rules in `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It is
+  design/config boundary only: it does not read future config vars, sign JWTs,
+  parse private keys, create installation tokens, call GitHub, publish, or
+  change C5 gates.
 - A decision document or PR body can describe a future C5 live-test approval
   packet, but it is not approval by itself. Future live posts still require
   explicit user/PM approval for the exact target, exact body, exact
