@@ -8,8 +8,11 @@ const cssPath = "app/globals.css";
 const cockpit = readFileSync(cockpitPath, "utf8");
 const css = readFileSync(cssPath, "utf8");
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-const headPackageJson = JSON.parse(
-  execFileSync("git", ["show", "HEAD:package.json"], { encoding: "utf8" }),
+const comparisonRef = getComparisonRef();
+const basePackageJson = JSON.parse(
+  execFileSync("git", ["show", `${comparisonRef}:package.json`], {
+    encoding: "utf8",
+  }),
 );
 
 for (const snippet of [
@@ -21,6 +24,8 @@ for (const snippet of [
   "Proof",
   "Bridge",
   "Operator",
+  "AUGNES",
+  "Temporal State Runtime",
   "AI work becomes temporal state.",
   "Model proposes. User commits. Runtime records proof.",
   "Conversation",
@@ -46,6 +51,18 @@ for (const snippet of [
 }
 
 assertOrder(cockpit, ["Overview", "Work", "Ledger", "Proof", "Bridge", "Operator"]);
+
+const brandMarkup = extractCockpitBrandMarkup(cockpit);
+assertIncludes(brandMarkup, "<strong>AUGNES</strong>");
+assertIncludes(brandMarkup, "<span>Temporal State Runtime</span>");
+assertNoBrandArtwork(brandMarkup);
+
+const brandCss = extractCssRules(css, [
+  ".cockpit-brand",
+  ".cockpit-brand strong",
+  ".cockpit-brand span",
+]);
+assertNoBrandArtwork(brandCss);
 
 for (const snippet of [
   ".six-tab-cockpit",
@@ -81,7 +98,7 @@ for (const field of [
 ]) {
   assert.deepEqual(
     packageJson[field] ?? {},
-    headPackageJson[field] ?? {},
+    basePackageJson[field] ?? {},
     `${field} should not change`,
   );
 }
@@ -102,6 +119,22 @@ const changedLockfiles = changedFiles.filter((file) =>
   /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?)$/.test(file),
 );
 assert.deepEqual(changedLockfiles, [], "lockfiles should not change");
+
+const logoAssetsChanged = changedFiles.filter((file) =>
+  /(^|\/)logo[^/]*\.(svg|png|jpg|jpeg|webp|avif)$/i.test(file),
+);
+assert.deepEqual(logoAssetsChanged, [], "six-tab shell PR must not add logo assets");
+
+const sourceImportLines = cockpit
+  .split("\n")
+  .filter((line) => line.trim().startsWith("import "));
+for (const line of sourceImportLines) {
+  assert.equal(
+    /logo|\.svg|\.png|\.jpg|\.jpeg|\.webp|\.avif/i.test(line),
+    false,
+    `Cockpit shell must not import or reference logo/image assets: ${line}`,
+  );
+}
 
 const buttonLabels = [...cockpit.matchAll(/<button\b[\s\S]*?<\/button>/g)].map(
   ([button]) =>
@@ -152,6 +185,10 @@ console.log(
       smoke: "cockpit-six-tab-shell",
       active_tab_state_present: true,
       tab_order_verified: true,
+      text_identity_present: true,
+      graphic_logo_mark_recreated: false,
+      new_logo_asset_added_or_imported: false,
+      existing_graphic_logo_mark_kept_in_shell: false,
       overview_copy_present: true,
       work_boundary_present: true,
       ledger_boundary_present: true,
@@ -191,9 +228,67 @@ function assertOrder(value, labels) {
   }
 }
 
+function assertNoBrandArtwork(value) {
+  for (const forbidden of [
+    "<svg",
+    "<img",
+    "background-image",
+    "clip-path",
+    "polygon",
+    "mask-image",
+    "logo",
+  ]) {
+    assert.equal(
+      value.toLowerCase().includes(forbidden),
+      false,
+      `Top-left Cockpit identity must be text-only; found ${forbidden}`,
+    );
+  }
+}
+
+function extractCockpitBrandMarkup(value) {
+  const match = value.match(
+    /<div className="cockpit-brand" aria-label="Augnes">[\s\S]*?<\/div>/,
+  );
+  assert.notEqual(match, null, "Cockpit shell should include cockpit-brand block");
+  return match[0];
+}
+
+function extractCssRules(value, selectors) {
+  return selectors
+    .map((selector) => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return value.match(new RegExp(`${escaped}\\s*\\{[\\s\\S]*?\\}`, "g")) ?? [];
+    })
+    .flat()
+    .join("\n");
+}
+
 function getChangedFiles() {
-  return execFileSync("git", ["status", "--short"], { encoding: "utf8" })
+  const workingTreeFiles = execFileSync("git", ["status", "--short"], {
+    encoding: "utf8",
+  })
     .split("\n")
     .map((line) => line.slice(3).trim())
     .filter(Boolean);
+  const branchFiles = execFileSync(
+    "git",
+    ["diff", "--name-only", `${comparisonRef}...HEAD`],
+    { encoding: "utf8" },
+  )
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...branchFiles, ...workingTreeFiles]));
+}
+
+function getComparisonRef() {
+  try {
+    return execFileSync("git", ["merge-base", "origin/main", "HEAD"], {
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    return "HEAD";
+  }
 }
