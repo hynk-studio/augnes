@@ -57,6 +57,7 @@ TemporalPreviewReviewArtifact non-public capture helper added
 TemporalPreviewReviewArtifact public capture route added
 Evidence Pack read-only TemporalPreviewReviewArtifact awareness added
 Cockpit read-only TemporalPreviewReviewArtifact browser added
+TemporalPreviewReviewArtifact v0.1 closeout complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -143,11 +144,17 @@ The work/evidence binding convention is documented in
 `AG-TEMPORAL-INTERPRETATION` is seeded as demo/runtime work trace data for
 future Temporal Interpretation evidence, and canonical `target_ref` /
 `source_ref` usage remains available for historical rows and unseeded runtimes.
-The `TemporalPreviewReviewArtifact` schema design is documented in
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. The first
-runtime read-model slice adds the `temporal_preview_review_artifacts` table,
-validation/read helper, and read-only list/get APIs. The first public capture
-route now exists at
+`TemporalPreviewReviewArtifact` v0.1 is now complete and closed as a bounded
+review-artifact capture/read/surface chain. The closeout summary at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md` covers the completed
+work anchor, schema/read model, read-only GET APIs, forbidden fixture corpus,
+non-public capture helper, private insert helper, idempotency storage and
+duplicate source/hash policy, public bounded capture route, Evidence Pack
+read-only awareness, and Cockpit read-only browser. The schema design remains
+documented in `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`.
+The runtime read-model slice adds the `temporal_preview_review_artifacts`
+table, validation/read helper, and read-only list/get APIs. The first public
+capture route exists at
 `POST /api/temporal-interpretation/review-artifacts/capture`; it persists only
 bounded review artifacts through the idempotent helper. It intentionally does
 not add Cockpit write controls, Evidence Pack integration, ChatGPT App tools,
@@ -158,21 +165,21 @@ The forbidden-persistence fixture corpus at
 cases for top-level forbidden fields, nested forbidden fields,
 summary/evidence separation, authority confusion, link validation, and
 route/source validation. `smoke:temporal-forbidden-persistence-fixtures` runs
-the corpus through the current smoke-only insert helper before any capture
-helper or create route exists.
+the corpus through the current insert validation path and remains part of the
+capture-helper and public-route regression boundary.
 The non-public capture helper at `lib/temporal-review-artifact-capture.ts`
 converts bounded Temporal Preview responses plus manual review metadata into
 `TemporalPreviewReviewArtifactInput` and is covered by
-`smoke:temporal-review-artifact-capture-helper`. It remains internal-only: no
-public create route, Cockpit code, Evidence Pack rendering, ChatGPT App tools,
-OpenAI calls, GitHub publication adapter calls, replay, publish, approval,
+`smoke:temporal-review-artifact-capture-helper`. It remains internal-only and
+does not add Cockpit code, Evidence Pack writes, ChatGPT App tools, OpenAI
+calls, GitHub publication adapter calls, replay, publish, approval,
 PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
 The public create/capture route contract is documented in
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md` and covered
 by `smoke:temporal-create-route-design`. It recommends
 `POST /api/temporal-interpretation/review-artifacts/capture`; the first route
 implementation is covered by `smoke:temporal-capture-route`. It adds no
-Cockpit write button, Evidence Pack integration, ChatGPT App create tool,
+Cockpit write button, Evidence Pack write integration, ChatGPT App create tool,
 OpenAI call, GitHub publication adapter call, replay, publish, approval, or
 state mutation.
 Evidence Pack now exposes read-only
@@ -197,7 +204,7 @@ The private non-smoke insert helper
 `smoke:temporal-private-insert-helper`. It shares the same internal validation
 and insertion path as `insertTemporalPreviewReviewArtifactForSmoke`; no public
 create route or write surface is exposed.
-The internal idempotency foundation for future review artifact capture lives in
+The internal idempotency foundation for review artifact capture lives in
 `temporal_preview_review_artifact_idempotency` plus helper functions in
 `lib/temporal-review-artifacts.ts`, with smoke coverage in
 `smoke:temporal-artifact-idempotency`. It stores hashed idempotency keys and
@@ -205,10 +212,17 @@ payload hashes only, supports same-key replay/conflict checks and duplicate
 source/hash conflict checks. The public capture route uses that idempotency
 foundation while storing no raw
 idempotency key, raw payload, or raw request body.
-The recommended next Temporal Interpretation productization slice is:
+Stop expanding `TemporalPreviewReviewArtifact` v0.1 after this closeout.
+Review artifacts remain bounded review context only: `reviewer_verdict` is not
+approval, `guardrail_passed` is not readiness or state commit authority,
+Evidence Pack and Cockpit are read-only surfaces, Cockpit DOM is not truth, and
+docs are not authority.
+
+The recommended next productization direction is:
 
 ```text
-TemporalPreviewReviewArtifact v0.1 status cleanup.
+Return to the broader productization roadmap: GitHub App/token management or
+Cockpit product UI / Core-gated write-control design.
 ```
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
@@ -240,10 +254,11 @@ A new session should read these files in this order:
 18. `docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md` - Temporal Interpretation persistence boundary design, not implementation.
 19. `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` - Temporal Interpretation work/evidence binding convention.
 20. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` - TemporalPreviewReviewArtifact schema design, read-model implementation status, forbidden-persistence fixture gate, and non-public capture helper status.
-21. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md` - Future public create/capture route contract design only.
-22. `.github/pull_request_template.md` - required PR trace format.
-23. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-24. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+21. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md` - Public bounded create/capture route contract and implementation status.
+22. `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md` - completed v0.1 review-artifact chain and future out-of-scope boundary.
+23. `.github/pull_request_template.md` - required PR trace format.
+24. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+25. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 

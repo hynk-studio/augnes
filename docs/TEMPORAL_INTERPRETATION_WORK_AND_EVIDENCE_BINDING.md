@@ -169,15 +169,15 @@ Temporal Interpretation artifact. They should not fabricate a `CODEX_WORK_ID`.
   execute replay, attempt duplicate publish, or treat a PR body as proof
   publication authority.
 
-## TemporalPreviewReviewArtifact future linkage
+## TemporalPreviewReviewArtifact linkage
 
-The detailed schema design for this future bounded review artifact lives at
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. That document is
-schema design only and does not implement DB schema, migrations, API routes,
-runtime persistence, Cockpit code, ChatGPT App tools, OpenAI calls, GitHub
-publication adapter calls, replay, publish, approval, or state mutation.
+`TemporalPreviewReviewArtifact` v0.1 is complete and closed as a bounded
+review-artifact capture/read/surface chain. The closeout summary lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md`, and the detailed
+schema/read-model status remains in
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`.
 
-Future `TemporalPreviewReviewArtifact` rows should link to:
+`TemporalPreviewReviewArtifact` rows should link to:
 
 - `work_id=AG-TEMPORAL-INTERPRETATION` when the seeded work item is available.
 - `evidence_record_ids`.
@@ -189,7 +189,7 @@ Future `TemporalPreviewReviewArtifact` rows should link to:
 - Guardrail status.
 - Generator.
 
-Future review artifact rows should not include authority fields. They should
+Review artifact rows should not include authority fields. They should
 not include approval status, commit status, proof publication status, memory
 admission status, or durable `PerspectiveSnapshot` state. If a future design
 needs approval-gated commit fields, those belong to a separate

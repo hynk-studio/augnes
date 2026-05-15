@@ -153,11 +153,16 @@ persistence work lives at
 `AG-TEMPORAL-INTERPRETATION` is seeded as demo/runtime work trace data for
 future Temporal Interpretation evidence, and canonical `target_ref` /
 `source_ref` usage remains available for historical rows and unseeded runtimes.
-The future `TemporalPreviewReviewArtifact` schema design lives at
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`; it is design
-for a bounded review artifact table. The first narrow read-model slice now adds
-the `temporal_preview_review_artifacts` table, validation/read helper, and
-read-only list/get APIs at
+`TemporalPreviewReviewArtifact` v0.1 is now closed as a bounded
+review-artifact capture/read/surface chain. The closeout summary lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md` and records the
+completed work anchor, schema/read model, read-only APIs, forbidden fixtures,
+capture helper, private insert helper, idempotency, public bounded capture
+route, Evidence Pack awareness, and Cockpit browser. The schema design remains
+documented at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. The read-model
+slice adds the `temporal_preview_review_artifacts` table, validation/read
+helper, and read-only list/get APIs at
 `GET /api/temporal-interpretation/review-artifacts` and
 `GET /api/temporal-interpretation/review-artifacts/{artifact_id}`. The first
 public/non-Cockpit capture route is now available at
@@ -176,21 +181,21 @@ operator action, shows artifact list/detail, linked evidence/session/PR fields,
 boundaries, and gaps, and adds no capture button or write authority.
 The reusable forbidden-persistence fixture corpus lives at
 `lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
-`smoke:temporal-forbidden-persistence-fixtures`. It is a gate before any
-future capture helper or create route.
+`smoke:temporal-forbidden-persistence-fixtures`. It is part of the closed v0.1
+review-artifact validation chain.
 The non-public capture helper lives at
 `lib/temporal-review-artifact-capture.ts`, with smoke coverage in
 `smoke:temporal-review-artifact-capture-helper`. It converts bounded preview
 responses plus manual review metadata into artifact input, but still does not
-add a public create route or write surface.
+add Cockpit or ChatGPT App write surfaces.
 The public create/capture route contract lives at
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`, with
 smoke coverage in `smoke:temporal-create-route-design`. It recommends
 `POST /api/temporal-interpretation/review-artifacts/capture`; the first route
 implementation is covered by `smoke:temporal-capture-route` and remains bounded
 to artifact persistence only. No Cockpit write button, Evidence Pack
-integration, ChatGPT App create tool, OpenAI call, GitHub publication adapter
-call, replay, publish, approval, or state mutation is added.
+write integration, ChatGPT App create tool, OpenAI call, GitHub publication
+adapter call, replay, publish, approval, or state mutation is added.
 The private non-smoke insert helper
 `insertTemporalPreviewReviewArtifact` lives in
 `lib/temporal-review-artifacts.ts`, with smoke coverage in
@@ -205,6 +210,11 @@ payload hashes only, supports same-key replay/conflict checks and conservative
 duplicate source/hash detection. The public route uses that idempotency
 foundation while continuing to store no
 raw idempotency key, raw payload, or raw request body.
+Stop expanding `TemporalPreviewReviewArtifact` v0.1 after the closeout. Future
+authority-bearing work remains outside v0.1: PerspectiveSnapshot runtime,
+RawEpisodeBundle runtime, approval-gated interpretation commit, durable memory
+admission, proof publication, Cockpit capture/write controls, and ChatGPT App
+write/create tools.
 
 API check:
 
@@ -238,6 +248,7 @@ npm run smoke:temporal-artifact-idempotency
 npm run smoke:temporal-capture-route
 npm run smoke:temporal-review-artifact-evidence-pack
 npm run smoke:cockpit-temporal-review-artifacts
+npm run smoke:temporal-review-artifact-v01-closeout
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

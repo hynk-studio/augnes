@@ -15,6 +15,12 @@ forbidden-persistence fixture corpus. It must not call OpenAI, and it must not
 approve, publish, replay, commit state, infer readiness, or create durable
 `PerspectiveSnapshot` or `RawEpisodeBundle` runtime records.
 
+TemporalPreviewReviewArtifact v0.1 is complete and closed as a bounded
+review-artifact capture/read/surface chain. The closeout summary lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md`. Evidence Pack
+awareness and the Cockpit read-only browser are complete read-only surfaces;
+they do not make this route an authority-bearing workflow.
+
 The route is a capture contract: it accepts bounded Temporal Preview output
 plus manual review metadata, converts it through
 `buildTemporalPreviewReviewArtifactInputFromRouteCapture`, validates the same
@@ -426,7 +432,8 @@ Implementation sequence:
 5. Add Evidence Pack read-only awareness. Complete as
    `temporal_review_artifact_trace`.
 6. Add Cockpit read-only browser. Complete.
-7. Only later, consider an optional controlled UI create action.
+7. Stop expanding TemporalPreviewReviewArtifact v0.1. Future controlled UI
+   create actions require a separate reviewed design outside this closeout.
 
 Do not combine these steps with approval, publish, replay, durable
 `PerspectiveSnapshot`, `RawEpisodeBundle`, Evidence Pack write integration,

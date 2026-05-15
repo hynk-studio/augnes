@@ -184,30 +184,34 @@ the demo/runtime seed has been applied. Use the canonical Temporal
 Interpretation `target_ref` / `source_ref` strings from that document for
 historical rows and unseeded runtimes, and do not attach future Temporal
 evidence to `AG-004` or another generic Codex work anchor.
-For the future bounded review artifact schema, reference
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. That document
-defines the conceptual `temporal_preview_review_artifacts` table, forbidden
-fields, Evidence Pack integration design, and read-only list/get API boundary.
-It is not implementation and must not be treated as DB schema, API routes,
-runtime persistence, approval authority, durable PerspectiveSnapshot state, or
+For the closed bounded review artifact chain, reference
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md`. It marks
+`TemporalPreviewReviewArtifact` v0.1 complete as a bounded
+review-artifact capture/read/surface chain and keeps future
+PerspectiveSnapshot runtime, RawEpisodeBundle runtime, approval-gated commit,
+Cockpit write controls, and ChatGPT App write tools outside v0.1.
+The schema design remains documented in
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`; it defines the
+`temporal_preview_review_artifacts` table boundary, forbidden fields, Evidence
+Pack integration, and read-only list/get API boundary. Review artifacts must
+not be treated as approval authority, durable PerspectiveSnapshot state, or
 RawEpisodeBundle runtime.
-The first read-model slice now adds the
+The read-model slice adds the
 `temporal_preview_review_artifacts` table and read-only list/get APIs. Evidence
-Pack read-only awareness is implemented as `temporal_review_artifact_trace`;
+Pack read-only awareness is complete as `temporal_review_artifact_trace`;
 Evidence Pack must not infer approval, publish readiness, replay status,
 committed state, memory admission, proof publication, PerspectiveSnapshot
 authority, or RawEpisodeBundle authority from review artifact records.
 The reusable forbidden-persistence fixture corpus for
 `TemporalPreviewReviewArtifact` lives at
 `lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
-`smoke:temporal-forbidden-persistence-fixtures`. It is a validation gate before
-future capture/create work and does not add Evidence Pack rendering or
-artifact-derived authority.
+`smoke:temporal-forbidden-persistence-fixtures`. It is part of the completed
+v0.1 validation chain and does not add artifact-derived authority.
 The non-public capture helper for `TemporalPreviewReviewArtifact` lives at
 `lib/temporal-review-artifact-capture.ts`, with smoke coverage in
 `smoke:temporal-review-artifact-capture-helper`. It builds bounded artifact
 input from preview responses and manual review metadata only; Evidence Pack
-integration remains future read-only work and must not infer authority from
+awareness is complete as a read-only trace and must not infer authority from
 captured review artifact rows.
 The private non-smoke insert helper
 `insertTemporalPreviewReviewArtifact` lives at
@@ -225,7 +229,7 @@ The public capture route now lives at
 `POST /api/temporal-interpretation/review-artifacts/capture`, with smoke
 coverage in `smoke:temporal-capture-route`. It persists only bounded
 TemporalPreviewReviewArtifact rows through the idempotent helper and still does
-not add Evidence Pack rendering, Cockpit write controls, ChatGPT App create
+not add Evidence Pack writes, Cockpit write controls, ChatGPT App create
 tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
 approval, committed state mutation, `PerspectiveSnapshot` runtime,
 `RawEpisodeBundle` runtime, or artifact-derived authority.
