@@ -26,6 +26,8 @@ Outcome:
 
 ## Step 2: Six-Tab Cockpit Shell Implementation From References
 
+This PR.
+
 Implement the Cockpit shell from the six reference images and the functional
 map.
 
