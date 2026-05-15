@@ -154,6 +154,14 @@ GitHub App/token management v0.1 is closed as a bounded foundation line in
 product step is UI polishing / Cockpit MVP polish, with live exchange/provider
 integration deferred to separately approved future work.
 
+Cockpit MVP UI polish now has a docs-only six-tab contract in
+`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, with implementation sequencing in
+`docs/COCKPIT_MVP_UI_POLISH_PLAN.md`. The approved shell is
+`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The contract maps
+existing Cockpit components into future tabs and keeps reference images as
+visual direction only; it does not add runtime UI code, backend routes, schema,
+dependencies, write controls, ChatGPT App tools, or GitHub/OpenAI behavior.
+
 ## How Augnes Uses OpenAI APIs
 
 OpenAI APIs are used for interpretation, not direct mutation.
@@ -365,6 +373,12 @@ Current Work shows:
 - copyable templates for recording external work
 
 Current Work is a user-facing summary surface, not a new state authority. It summarizes committed state, pending proposals, open tensions, and recent actions that already exist in the runtime. It does not create state and does not bypass commit/reject.
+
+The next Cockpit shell refactor should follow
+`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`: Overview for the demo summary,
+Work for Work ID traces, Ledger for committed state truth, Proof for read-only
+evidence, Bridge for read-first tool authority, and Operator for safe local
+runtime actions.
 
 ## Session Trace
 

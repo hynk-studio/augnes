@@ -65,6 +65,7 @@ Offline GitHub App RS256 JWT fake-key fixture complete
 GitHub App target/allowlist policy helper complete
 GitHub App installation-token exchange boundary helper complete
 GitHub App/token management v0.1 closeout complete
+Cockpit six-tab MVP functional map and wireframe spec added
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -293,6 +294,14 @@ line. env `GITHUB_TOKEN` remains the only implemented publish provider.
 GitHub App live exchange, provider integration, C5 provider use, live publish,
 Cockpit write controls, and ChatGPT App write tools remain future work.
 
+Cockpit MVP UI polish now has a docs-only six-tab implementation contract in
+`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, with the sequence summarized in
+`docs/COCKPIT_MVP_UI_POLISH_PLAN.md`. The approved tab order is
+`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. This contract maps
+current Cockpit components into the future shell and keeps visual references as
+layout direction only; it does not add runtime UI code, routes, schema,
+dependencies, write controls, ChatGPT App tools, or GitHub/OpenAI behavior.
+
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
 are derived read-only views, not sources of truth. PR #81 does not authorize
 broad posting. Do not repeat live GitHub posting unless the user/PM explicitly
@@ -327,9 +336,11 @@ A new session should read these files in this order:
 23. `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md` - current env-token provider and future GitHub App token-management boundary.
 24. `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md` - completed GitHub App/token management v0.1 foundation line and future out-of-scope boundary.
 25. `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md` - GitHub App installation-token config/JWT/exchange boundary; config validation, offline fake-key JWT fixture, target policy, and network-disabled exchange boundary are implemented, provider integration remains future.
-26. `.github/pull_request_template.md` - required PR trace format.
-27. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-28. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+26. `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md` - six-tab Cockpit MVP functional split, component mapping, wireframes, and authority boundaries for the next UI implementation PR.
+27. `docs/COCKPIT_MVP_UI_POLISH_PLAN.md` - Cockpit UI polish sequence from docs-only spec through implementation and demo closeout.
+28. `.github/pull_request_template.md` - required PR trace format.
+29. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+30. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 
