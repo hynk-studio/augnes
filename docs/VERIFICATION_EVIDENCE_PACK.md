@@ -425,6 +425,7 @@ Commands:
 - npm --prefix apps/augnes_apps run typecheck: 
 - npm --prefix apps/augnes_apps run smoke: 
 - npm --prefix apps/augnes_apps run invariants: 
+- npm run smoke:cockpit-six-tab-shell:
 
 Browser/Chrome:
 - Surface:

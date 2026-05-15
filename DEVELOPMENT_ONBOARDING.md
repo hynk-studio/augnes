@@ -66,6 +66,7 @@ GitHub App target/allowlist policy helper complete
 GitHub App installation-token exchange boundary helper complete
 GitHub App/token management v0.1 closeout complete
 Cockpit six-tab MVP functional map and wireframe spec added
+Cockpit six-tab MVP shell implemented
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -294,13 +295,14 @@ line. env `GITHUB_TOKEN` remains the only implemented publish provider.
 GitHub App live exchange, provider integration, C5 provider use, live publish,
 Cockpit write controls, and ChatGPT App write tools remain future work.
 
-Cockpit MVP UI polish now has a docs-only six-tab implementation contract in
-`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, with the sequence summarized in
-`docs/COCKPIT_MVP_UI_POLISH_PLAN.md`. The approved tab order is
-`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. This contract maps
-current Cockpit components into the future shell and keeps visual references as
-layout direction only; it does not add runtime UI code, routes, schema,
-dependencies, write controls, ChatGPT App tools, or GitHub/OpenAI behavior.
+Cockpit MVP UI polish now has both the six-tab implementation contract in
+`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md` and a first-pass Cockpit shell
+implementation. The approved tab order is
+`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The shell
+reorganizes existing Cockpit runtime data and safe local controls across
+Overview, Work, Ledger, Proof, Bridge, and Operator. It does not add backend
+routes, schema, dependencies, token behavior, ChatGPT App tools, external
+execution, or publish/merge/retry/live-exchange controls.
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
 are derived read-only views, not sources of truth. PR #81 does not authorize

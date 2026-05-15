@@ -633,6 +633,17 @@ type Notice = {
 
 type CopyTarget = "codex" | "actionTemplate";
 type WorkCopyTarget = "workCodex" | "workEvent";
+type CockpitTab = "overview" | "work" | "ledger" | "proof" | "bridge" | "operator";
+
+// Tab order: Overview -> Work -> Ledger -> Proof -> Bridge -> Operator
+const COCKPIT_TABS: { id: CockpitTab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "work", label: "Work" },
+  { id: "ledger", label: "Ledger" },
+  { id: "proof", label: "Proof" },
+  { id: "bridge", label: "Bridge" },
+  { id: "operator", label: "Operator" },
+];
 
 type GraphNode = StateTransition & {
   eventIndex: number;
@@ -641,6 +652,7 @@ type GraphNode = StateTransition & {
 };
 
 export function AugnesCockpit() {
+  const [activeTab, setActiveTab] = useState<CockpitTab>("overview");
   const [message, setMessage] = useState(CANONICAL_MESSAGE);
   const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
   const [trajectory, setTrajectory] = useState<TrajectoryResponse | null>(null);
@@ -734,6 +746,64 @@ export function AugnesCockpit() {
       null
     );
   }, [selectedTransitionId, trajectory]);
+
+  const selectedWorkItem = useMemo(
+    () =>
+      workBrief?.work ??
+      workItems.find((item) => item.work_id === selectedWorkId) ??
+      null,
+    [selectedWorkId, workBrief, workItems],
+  );
+
+  const workCounts = useMemo(() => {
+    const inProgress = workItems.filter((item) =>
+      ["in_progress", "active", "execution"].includes(item.status),
+    ).length;
+    const needsDecision = workItems.filter(
+      (item) =>
+        item.user_attention_required ||
+        ["needs_decision", "needs_review", "blocked"].includes(item.status),
+    ).length;
+    const completed = workItems.filter((item) =>
+      ["completed", "complete", "done"].includes(item.status),
+    ).length;
+
+    return {
+      total: workItems.length,
+      inProgress,
+      needsDecision,
+      completed,
+    };
+  }, [workItems]);
+
+  const ledgerCounts = useMemo(() => {
+    const stateKeyCount = trajectory
+      ? Object.keys(trajectory.trajectories).length
+      : new Set(
+          [
+            ...(snapshot?.active_state ?? []),
+            ...(snapshot?.future_state ?? []),
+            ...(snapshot?.completed_state ?? []),
+            ...(snapshot?.deprecated_state ?? []),
+          ].map((entry) => entry.state_key),
+        ).size;
+
+    return {
+      transitions: trajectoryCount,
+      stateKeys: stateKeyCount,
+      active: snapshot?.active_state.length ?? 0,
+      future: snapshot?.future_state.length ?? 0,
+      completed: snapshot?.completed_state.length ?? 0,
+      deprecated: snapshot?.deprecated_state.length ?? 0,
+    };
+  }, [snapshot, trajectory, trajectoryCount]);
+
+  const mailboxReviewCount = mailboxSummary
+    ? mailboxSummary.summary.pending_handoffs.length +
+      mailboxSummary.summary.needs_review.length +
+      mailboxSummary.summary.approval_needed.length +
+      mailboxSummary.summary.blocked_or_partial.length
+    : 0;
 
   const selectedCoordinationEvent = useMemo(
     () =>
@@ -1166,353 +1236,1009 @@ export function AugnesCockpit() {
   }
 
   return (
-    <main className="cockpit-shell">
-      <header className="cockpit-header">
-        <div className="hero-copy">
-          <p className="kicker">Augnes</p>
-          <h1>Project State Over Time</h1>
-          <p>
-            A temporal coordination layer for AI-assisted development: review
-            proposals, commit durable project state, and inspect how work
-            changes over time.
-          </p>
+    <main className="cockpit-shell six-tab-cockpit">
+      <header className="cockpit-topbar">
+        <div className="cockpit-brand" aria-label="Augnes">
+          <strong>AUGNES</strong>
+          <span>Temporal State Runtime</span>
         </div>
-        <div className="runtime-strip">
-          <span>{SCOPE}</span>
-          <span>{proposals.length} pending</span>
-          <span>{trajectoryCount} transitions</span>
+        <nav className="cockpit-tab-nav" aria-label="Cockpit tabs">
+          {COCKPIT_TABS.map((tab) => (
+            <button
+              className={`cockpit-tab-button${
+                activeTab === tab.id ? " is-active" : ""
+              }`}
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              aria-current={activeTab === tab.id ? "page" : undefined}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+        <div className="runtime-strip shell-status-strip" aria-label="Runtime status">
+          <span>Runtime: Local / Local SQLite</span>
+          <span>Read-first Bridge</span>
+          <span>
+            Work ID <code>{selectedWorkId ?? "AG-001"}</code>
+          </span>
         </div>
       </header>
 
-      <nav className="demo-flow-strip" aria-label="Demo flow">
-        {[
-          "Observe",
-          "Propose",
-          "Commit",
-          "Timeline",
-          "Act",
-          "State Brief",
-        ].map((step, index) => (
-          <div className="demo-flow-step" key={step}>
-            <span>{index + 1}</span>
-            <strong>{step}</strong>
-          </div>
-        ))}
-      </nav>
+      {activeTab === "overview" ? (
+        <OverviewTab
+          proposals={proposals}
+          selectedWorkItem={selectedWorkItem}
+          nextAction={brief?.agent_handoff?.next_recommended_action ?? null}
+          trajectory={trajectory}
+          selectedTransition={selectedTransition}
+          tensions={snapshot?.open_tensions ?? []}
+          onSelectTransition={setSelectedTransitionId}
+          onReviewProposals={() => setActiveTab("operator")}
+        />
+      ) : null}
 
-      <CurrentWorkCard
-        brief={brief}
-        error={briefError}
+      {activeTab === "work" ? (
+        <WorkTab
+          counts={workCounts}
+          workItems={workItems}
+          selectedWorkId={selectedWorkId}
+          workBrief={workBrief}
+          error={workError}
+          onSelectWork={setSelectedWorkId}
+        />
+      ) : null}
+
+      {activeTab === "ledger" ? (
+        <LedgerTab
+          counts={ledgerCounts}
+          snapshot={snapshot}
+          trajectory={trajectory}
+          selectedTransition={selectedTransition}
+          onSelectTransition={setSelectedTransitionId}
+        />
+      ) : null}
+
+      {activeTab === "proof" ? (
+        <ProofTab
+          evidencePack={evidencePack}
+          evidencePackError={evidencePackError}
+          evidencePackLoading={busy === "evidence-pack"}
+          onLoadEvidencePack={() => void loadEvidencePack()}
+          temporalReviewArtifacts={temporalReviewArtifacts}
+          selectedTemporalReviewArtifact={selectedTemporalReviewArtifact}
+          temporalReviewArtifactsError={temporalReviewArtifactsError}
+          temporalReviewArtifactsBusy={temporalReviewArtifactsBusy}
+          temporalReviewArtifactsRequested={temporalReviewArtifactsRequested}
+          onLoadTemporalReviewArtifacts={() => void loadTemporalReviewArtifacts()}
+          onSelectTemporalReviewArtifact={setSelectedTemporalReviewArtifactId}
+          sessionTrace={sessionTrace}
+          sessionTraceError={sessionTraceError}
+          sessionTraceBusy={sessionTraceBusy}
+          sessionTraceRequested={sessionTraceRequested}
+          onRefreshSessionTrace={() => void refreshSessionTrace()}
+          temporalPreview={temporalPreview}
+          temporalPreviewError={temporalPreviewError}
+          temporalPreviewBusy={temporalPreviewBusy}
+          temporalPreviewRequested={temporalPreviewRequested}
+          onRefreshTemporalPreview={() => void refreshTemporalPreview()}
+        />
+      ) : null}
+
+      {activeTab === "bridge" ? <BridgeTab /> : null}
+
+      {activeTab === "operator" ? (
+        <OperatorTab
+          proposals={proposals}
+          pendingDecisionCount={proposals.length}
+          mailboxReviewCount={mailboxReviewCount}
+          evidencePackLoaded={Boolean(evidencePack)}
+          sessionTraceLoaded={Boolean(sessionTrace)}
+          message={message}
+          notice={notice}
+          busy={busy}
+          sessionTraceBusy={sessionTraceBusy}
+          plan={plan}
+          coordinationEvents={coordinationEvents}
+          selectedCoordinationEvent={selectedCoordinationEvent}
+          eventError={eventError}
+          mailboxSummary={mailboxSummary}
+          mailboxError={mailboxError}
+          publicationSummary={publicationSummary}
+          publicationError={publicationError}
+          approvalGateState={approvalGateState}
+          approvalGateError={approvalGateError}
+          onMessageChange={setMessage}
+          onObserve={(event) => void observe(event)}
+          onConsolidateCandidates={() => void consolidateCandidates()}
+          onDecideProposal={(id, decision) => void decideProposal(id, decision)}
+          onRequestPlan={() => void requestPlan()}
+          onRunTool={(toolName) => void runTool(toolName)}
+          onLoadEvidencePack={() => void loadEvidencePack()}
+          onRefreshSessionTrace={() => void refreshSessionTrace()}
+          onSelectEvent={setSelectedEventId}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function OverviewTab({
+  proposals,
+  selectedWorkItem,
+  nextAction,
+  trajectory,
+  selectedTransition,
+  tensions,
+  onSelectTransition,
+  onReviewProposals,
+}: {
+  proposals: StateDeltaProposal[];
+  selectedWorkItem: WorkItem | null;
+  nextAction: StateBriefAgentHandoff["next_recommended_action"] | null;
+  trajectory: TrajectoryResponse | null;
+  selectedTransition: StateTransition | null;
+  tensions: StateTension[];
+  onSelectTransition: (id: string) => void;
+  onReviewProposals: () => void;
+}) {
+  const selectedWorkStatus = selectedWorkItem
+    ? formatStatusLabel(selectedWorkItem.status)
+    : "No work selected";
+
+  return (
+    <section className="cockpit-tab-panel overview-tab" aria-label="Overview">
+      <PageHeader
+        eyebrow="Overview"
+        title="AI work becomes temporal state."
+        description="Model proposes. User commits. Runtime records proof."
       />
 
+      <ProcessStrip
+        steps={[
+          ["Conversation", "Intent captured"],
+          ["Proposal", "Model suggests state changes"],
+          ["Commit Gate", "User reviews and decides"],
+          ["Ledger", "State committed"],
+          ["Proof", "Runtime records evidence"],
+        ]}
+      />
+
+      <div className="overview-main-grid">
+        <section className="decision-card cockpit-surface-card">
+          <p className="panel-eyebrow">Needs Your Decision</p>
+          <strong className="decision-count">{proposals.length}</strong>
+          <h2>pending proposals</h2>
+          <p>
+            Pending proposals are not ledger entries. Commit or reject them to
+            decide what becomes state.
+          </p>
+          <button type="button" onClick={onReviewProposals}>
+            Review Local Proposals
+          </button>
+          <div className="compact-current-work">
+            <span />
+            <strong>Current Work:</strong>
+            <code>{selectedWorkItem?.work_id ?? "AG-001"}</code>
+            <span>{selectedWorkStatus}</span>
+          </div>
+        </section>
+
+        <section className="cockpit-surface-card overview-graph-card">
+          <div className="graph-summary-heading">
+            <div>
+              <p className="panel-eyebrow">Temporal State Graph</p>
+              <h2>State changes over time</h2>
+            </div>
+            <div className="timeline-badges">
+              <StatusBadge
+                label={`${getOrderedTransitions(trajectory).length} committed`}
+                tone="active"
+              />
+              <StatusBadge label={`${proposals.length} pending`} tone="needs-review" />
+              <StatusBadge label={`${tensions.length} tensions`} />
+            </div>
+          </div>
+          {trajectory ? (
+            <div className="overview-graph-stage">
+              <TemporalStateGraph
+                trajectory={trajectory}
+                proposals={proposals}
+                tensions={tensions}
+                selectedTransitionId={selectedTransition?.id ?? null}
+                onSelectTransition={onSelectTransition}
+              />
+            </div>
+          ) : (
+            <EmptyState label="Loading temporal graph" />
+          )}
+          <p className="boundary-note compact">
+            Selected transitions are committed state. Pending nodes are review
+            candidates, not ledger entries.
+          </p>
+        </section>
+      </div>
+
+      <footer className="overview-bottom-bar">
+        <strong>After review:</strong>
+        <span>{nextAction?.title ?? "Review local proposals and evidence."}</span>
+        <span>Read-first cockpit · Runtime owns writes</span>
+        <span>External systems are not controlled</span>
+      </footer>
+    </section>
+  );
+}
+
+function WorkTab({
+  counts,
+  workItems,
+  selectedWorkId,
+  workBrief,
+  error,
+  onSelectWork,
+}: {
+  counts: {
+    total: number;
+    inProgress: number;
+    needsDecision: number;
+    completed: number;
+  };
+  workItems: WorkItem[];
+  selectedWorkId: string | null;
+  workBrief: WorkBriefResponse | null;
+  error: string | null;
+  onSelectWork: (workId: string) => void;
+}) {
+  return (
+    <section className="cockpit-tab-panel work-tab" aria-label="Work">
+      <PageHeader
+        eyebrow="Work"
+        title="Work"
+        description="Track Augnes work items from intent to completion. Work IDs anchor traces. Ledger owns truth."
+      />
+      <div className="tab-stat-row">
+        <MetricCard label="In Progress" value={counts.inProgress} detail="Active now" />
+        <MetricCard
+          label="Needs Decision"
+          value={counts.needsDecision}
+          detail="Waiting for your review"
+        />
+        <MetricCard label="Completed" value={counts.completed} detail="All time" />
+        <MetricCard label="Total Work Items" value={counts.total} detail="All time" />
+      </div>
       <WorkFocusSection
         workItems={workItems}
         selectedWorkId={selectedWorkId}
         workBrief={workBrief}
-        error={workError}
-        onSelectWork={setSelectedWorkId}
+        error={error}
+        onSelectWork={onSelectWork}
       />
+      <BoundaryNote>
+        Work IDs are trace anchors. Committed state and proof live in the
+        Ledger and Proof tabs.
+      </BoundaryNote>
+    </section>
+  );
+}
 
-      <MailboxSummaryPanel
-        mailboxSummary={mailboxSummary}
-        error={mailboxError}
+function LedgerTab({
+  counts,
+  snapshot,
+  trajectory,
+  selectedTransition,
+  onSelectTransition,
+}: {
+  counts: {
+    transitions: number;
+    stateKeys: number;
+    active: number;
+    future: number;
+    completed: number;
+    deprecated: number;
+  };
+  snapshot: SnapshotResponse | null;
+  trajectory: TrajectoryResponse | null;
+  selectedTransition: StateTransition | null;
+  onSelectTransition: (id: string) => void;
+}) {
+  return (
+    <section className="cockpit-tab-panel ledger-tab" aria-label="Ledger">
+      <PageHeader
+        eyebrow="Ledger"
+        title="Temporal Ledger"
+        description="Committed state changes over time. Ledger is the source of truth. Pending proposals are not ledger entries."
       />
-
-      <PublicationSummaryPanel
-        publicationSummary={publicationSummary}
-        error={publicationError}
-      />
-
-      <ApprovalGateStatePanel
-        approvalGateState={approvalGateState}
-        error={approvalGateError}
-      />
-
-      <SessionTracePanel
-        trace={sessionTrace}
-        error={sessionTraceError}
-        busy={sessionTraceBusy}
-        requested={sessionTraceRequested}
-        onRefresh={() => void refreshSessionTrace()}
-      />
-
-      <TemporalInterpretationPreviewPanel
-        previewResponse={temporalPreview}
-        error={temporalPreviewError}
-        busy={temporalPreviewBusy}
-        requested={temporalPreviewRequested}
-        onRefresh={() => void refreshTemporalPreview()}
-      />
-
-      <TemporalReviewArtifactBrowserPanel
-        artifactsResponse={temporalReviewArtifacts}
-        selectedArtifact={selectedTemporalReviewArtifact}
-        error={temporalReviewArtifactsError}
-        busy={temporalReviewArtifactsBusy}
-        requested={temporalReviewArtifactsRequested}
-        onLoad={() => void loadTemporalReviewArtifacts()}
-        onSelectArtifact={setSelectedTemporalReviewArtifactId}
-      />
-
-      <EvidencePackPanel
-        evidencePack={evidencePack}
-        error={evidencePackError}
-        loading={busy === "evidence-pack"}
-        onLoad={() => void loadEvidencePack()}
-      />
-
-      <CoordinationEventTimeline
-        events={coordinationEvents}
-        selectedEvent={selectedCoordinationEvent}
-        error={eventError}
-        onSelectEvent={setSelectedEventId}
-      />
-
-      <section className="cockpit-guidance" aria-label="Cockpit guidance">
-        <p>
-          Review proposals. Commit only what should become durable project
-          state. Use the graph to see what changed over time.
-        </p>
-        <ol>
-          <li>Turn conversation into state proposals.</li>
-          <li>Review scores, tensions, and lifecycle status.</li>
-          <li>Commit or reject; only the user confirms durable state.</li>
-          <li>Act with tools or external clients.</li>
-          <li>Track accepted changes and action records on the timeline.</li>
-        </ol>
-      </section>
-
-      <section
-        className="cockpit-panel graph-panel"
-        aria-label="Temporal state graph"
-      >
-        <PanelHeader
-          eyebrow="Temporal State Graph"
-          title="Project State Over Time"
-          description="Each lane is one project state key. Each node is a committed state transition or external action record."
+      <div className="tab-stat-row ledger-stat-row">
+        <MetricCard
+          label="Committed transitions"
+          value={counts.transitions}
+          detail="ledger entries"
         />
-        <p className="bridge-proof">
-          Bridge proof: external client read state -&gt; recorded action -&gt;
-          graph updated.
-        </p>
-        {trajectory ? (
-          <div className="graph-stage">
-            <TemporalStateGraph
-              trajectory={trajectory}
-              proposals={proposals}
-              tensions={snapshot?.open_tensions ?? []}
-              selectedTransitionId={selectedTransition?.id ?? null}
-              onSelectTransition={setSelectedTransitionId}
-            />
-            <TransitionInspector event={selectedTransition} />
-          </div>
-        ) : (
-          <EmptyState label="Loading temporal graph" />
-        )}
-      </section>
-
-      <section className="cockpit-layout" aria-label="Augnes runtime cockpit">
-        <section className="cockpit-panel chat-panel">
-          <PanelHeader eyebrow="Observe" title="Conversation Input" />
-          <form onSubmit={observe} className="observe-form">
-            <textarea
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              rows={8}
-              aria-label="Observation message"
-            />
-            <div className="form-row">
-              <button disabled={busy === "observe" || !message.trim()}>
-                Observe
-              </button>
-              {notice ? (
-                <span className={`notice ${notice.tone}`}>{notice.text}</span>
-              ) : null}
-            </div>
-          </form>
-        </section>
-
-        <section className="cockpit-panel proposals-panel">
-          <PanelHeader eyebrow="Propose" title="Pending State Deltas" />
-          <div className="panel-control-row">
-            <p>Advisory runtime scoring; commit and reject stay manual.</p>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void consolidateCandidates()}
-              disabled={busy === "consolidate"}
-            >
-              Consolidate Candidates
-            </button>
-          </div>
-          <div className="proposal-list">
-            {proposals.length === 0 ? (
-              <EmptyState
-                label="No pending proposals."
-                description="Add a project update in Observe to generate state candidates."
-              />
-            ) : (
-              proposals.map((proposal) => (
-                <article className="proposal-card" key={proposal.id}>
-                  <div className="card-topline">
-                    <div className="state-key-heading">
-                      <h3>{formatStateKeyLabel(proposal.state_key)}</h3>
-                      <code>{proposal.state_key}</code>
-                    </div>
-                    <StatusBadge
-                      label={formatStatusLabel(proposal.consolidation_status)}
-                      tone={getConsolidationTone(proposal.consolidation_status)}
-                    />
-                  </div>
-                  <p className="consolidation-copy">
-                    {getConsolidationExplanation(
-                      proposal.consolidation_status,
-                    )}
-                  </p>
-                  <ValueDiff
-                    beforeValue={proposal.before_value}
-                    afterValue={proposal.after_value}
-                  />
-                  <ProposalScoring proposal={proposal} />
-                  <div className="meta-row">
-                    <span>{formatStatusLabel(proposal.operation)}</span>
-                    <span>{formatStatusLabel(proposal.temporal_scope)}</span>
-                    <span>{formatStatusLabel(proposal.stability)}</span>
-                    <span>{formatStatusLabel(proposal.change_type)}</span>
-                  </div>
-                  {proposal.reason ? <p>{proposal.reason}</p> : null}
-                  <div className="button-row">
-                    <button
-                      type="button"
-                      onClick={() => void decideProposal(proposal.id, "commit")}
-                      disabled={
-                        busy === proposal.id ||
-                        proposal.consolidation_status === "expired"
-                      }
-                    >
-                      Commit
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => void decideProposal(proposal.id, "reject")}
-                      disabled={busy === proposal.id}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="cockpit-panel snapshot-panel">
-          <PanelHeader eyebrow="Committed" title="State Snapshot" />
+        <MetricCard label="State keys" value={counts.stateKeys} detail="tracked lanes" />
+        <MetricCard
+          label="State groups"
+          value={`${counts.active}/${counts.future}/${counts.completed}/${counts.deprecated}`}
+          detail="active / future / completed / deprecated"
+        />
+        <BoundaryNote tone="green">
+          Ledger is the source of truth. Pending proposals are not ledger
+          entries.
+        </BoundaryNote>
+      </div>
+      <div className="ledger-grid">
+        <aside className="cockpit-surface-card ledger-state-groups">
+          <PanelHeader eyebrow="State Keys" title="Committed Snapshot" />
           {snapshot ? (
             <div className="snapshot-grid">
               <StateGroup title="Active" entries={snapshot.active_state} />
               <StateGroup title="Future" entries={snapshot.future_state} />
               <StateGroup title="Completed" entries={snapshot.completed_state} />
-              <StateGroup
-                title="Deprecated"
-                entries={snapshot.deprecated_state}
-              />
+              <StateGroup title="Deprecated" entries={snapshot.deprecated_state} />
             </div>
           ) : (
             <EmptyState label="Loading snapshot" />
           )}
-        </section>
-
-        <section className="cockpit-panel tensions-panel">
-          <PanelHeader eyebrow="Review" title="Tensions" />
-          {snapshot?.open_tensions.length ? (
-            <div className="tension-list">
-              {snapshot.open_tensions.map((tension) => (
-                <article className="tension-item" key={tension.id}>
-                  <div className="card-topline">
-                    <h3>{tension.title}</h3>
-                    <StatusBadge label={tension.severity} />
-                  </div>
-                  <p>{tension.description}</p>
-                  {tension.state_key ? (
-                    <div className="state-key-reference">
-                      <strong>{formatStateKeyLabel(tension.state_key)}</strong>
-                      <code>{tension.state_key}</code>
-                    </div>
-                  ) : null}
-                </article>
-              ))}
+        </aside>
+        <section className="cockpit-surface-card ledger-graph-card">
+          <PanelHeader
+            eyebrow="Committed Ledger Timeline"
+            title="Committed entries only"
+            description="Pending proposals are not shown as committed state here."
+          />
+          {trajectory ? (
+            <div className="ledger-graph-stage">
+              <TemporalStateGraph
+                trajectory={trajectory}
+                proposals={[]}
+                tensions={snapshot?.open_tensions ?? []}
+                selectedTransitionId={selectedTransition?.id ?? null}
+                onSelectTransition={onSelectTransition}
+              />
             </div>
           ) : (
-            <EmptyState label="No open tensions" />
+            <EmptyState label="Loading temporal ledger" />
           )}
         </section>
-
-        <section className="cockpit-panel actions-panel">
-          <PanelHeader eyebrow="Act" title="State-Grounded Actions" />
-          <div className="action-controls">
-            <button
-              type="button"
-              onClick={() => void requestPlan()}
-              disabled={busy === "plan"}
-            >
-              Plan Next
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void runTool("create_readme_checklist")}
-              disabled={busy === "create_readme_checklist"}
-            >
-              README Checklist
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void runTool("create_security_checklist")}
-              disabled={busy === "create_security_checklist"}
-            >
-              Security Checklist
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void runTool("create_demo_script")}
-              disabled={busy === "create_demo_script"}
-            >
-              Demo Script
-            </button>
-          </div>
-          {plan ? (
-            <div className="plan-list">
-              {plan.recommendations.map((recommendation) => (
-                <article className="plan-item" key={recommendation.title}>
-                  <div className="card-topline">
-                    <h3>{recommendation.title}</h3>
-                    <StatusBadge label={recommendation.priority} />
-                  </div>
-                  <p>{recommendation.rationale}</p>
-                  <div className="meta-row">
-                    {recommendation.tool_name ? (
-                      <span>{formatStateKeyLabel(recommendation.tool_name)}</span>
-                    ) : null}
-                    {recommendation.grounded_state_keys.map((key) => (
-                      <span key={key}>
-                        {formatStateKeyLabel(key)} <code>{key}</code>
-                      </span>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <EmptyState label="No plan requested" />
-          )}
-        </section>
-      </section>
-    </main>
+        <TransitionInspector event={selectedTransition} />
+      </div>
+    </section>
   );
+}
+
+function ProofTab({
+  evidencePack,
+  evidencePackError,
+  evidencePackLoading,
+  onLoadEvidencePack,
+  temporalReviewArtifacts,
+  selectedTemporalReviewArtifact,
+  temporalReviewArtifactsError,
+  temporalReviewArtifactsBusy,
+  temporalReviewArtifactsRequested,
+  onLoadTemporalReviewArtifacts,
+  onSelectTemporalReviewArtifact,
+  sessionTrace,
+  sessionTraceError,
+  sessionTraceBusy,
+  sessionTraceRequested,
+  onRefreshSessionTrace,
+  temporalPreview,
+  temporalPreviewError,
+  temporalPreviewBusy,
+  temporalPreviewRequested,
+  onRefreshTemporalPreview,
+}: {
+  evidencePack: EvidencePackResponse | null;
+  evidencePackError: string | null;
+  evidencePackLoading: boolean;
+  onLoadEvidencePack: () => void;
+  temporalReviewArtifacts: TemporalReviewArtifactsResponse | null;
+  selectedTemporalReviewArtifact: TemporalReviewArtifact | null;
+  temporalReviewArtifactsError: string | null;
+  temporalReviewArtifactsBusy: boolean;
+  temporalReviewArtifactsRequested: boolean;
+  onLoadTemporalReviewArtifacts: () => void;
+  onSelectTemporalReviewArtifact: (artifactId: string) => void;
+  sessionTrace: SessionTraceResponse | null;
+  sessionTraceError: string | null;
+  sessionTraceBusy: boolean;
+  sessionTraceRequested: boolean;
+  onRefreshSessionTrace: () => void;
+  temporalPreview: CockpitTemporalPreviewResponse | null;
+  temporalPreviewError: string | null;
+  temporalPreviewBusy: boolean;
+  temporalPreviewRequested: boolean;
+  onRefreshTemporalPreview: () => void;
+}) {
+  const evidenceRecordCount =
+    (evidencePack?.verification_trace.commands_run.length ?? 0) +
+    (evidencePack?.verification_trace.checks_passed.length ?? 0) +
+    (evidencePack?.verification_trace.skipped_checks.length ?? 0);
+
+  return (
+    <section className="cockpit-tab-panel proof-tab" aria-label="Proof">
+      <PageHeader
+        eyebrow="Proof"
+        title="Proof / Evidence"
+        description="Proof records evidence only. It does not commit, approve, publish, replay, or execute anything."
+      />
+      <div className="tab-stat-row">
+        <MetricCard
+          label="Evidence records"
+          value={evidenceRecordCount}
+          detail={evidencePack ? "loaded from Evidence Pack" : "load pack to inspect"}
+        />
+        <MetricCard
+          label="Evidence Pack"
+          value={evidencePack ? "Available" : "Not loaded"}
+          detail="read-only proof bundle"
+        />
+        <MetricCard
+          label="Temporal review artifacts"
+          value={temporalReviewArtifacts?.count ?? 0}
+          detail="bounded review records"
+        />
+        <MetricCard
+          label="Session Trace"
+          value={sessionTrace ? sessionTrace.sessions.length : "Not loaded"}
+          detail="read-only continuity"
+        />
+        <MetricCard
+          label="Gaps / needs review"
+          value={evidencePack?.gaps.length ?? 0}
+          detail="derived review gaps"
+        />
+      </div>
+      <BoundaryNote tone="green">
+        Proof records evidence only. It does not commit, approve, publish,
+        replay, or execute anything.
+      </BoundaryNote>
+      <div className="proof-grid">
+        <EvidencePackPanel
+          evidencePack={evidencePack}
+          error={evidencePackError}
+          loading={evidencePackLoading}
+          onLoad={onLoadEvidencePack}
+        />
+        <TemporalReviewArtifactBrowserPanel
+          artifactsResponse={temporalReviewArtifacts}
+          selectedArtifact={selectedTemporalReviewArtifact}
+          error={temporalReviewArtifactsError}
+          busy={temporalReviewArtifactsBusy}
+          requested={temporalReviewArtifactsRequested}
+          onLoad={onLoadTemporalReviewArtifacts}
+          onSelectArtifact={onSelectTemporalReviewArtifact}
+        />
+        <SessionTracePanel
+          trace={sessionTrace}
+          error={sessionTraceError}
+          busy={sessionTraceBusy}
+          requested={sessionTraceRequested}
+          onRefresh={onRefreshSessionTrace}
+        />
+      </div>
+      <details className="advanced-proof-panel">
+        <summary>Advanced read-only temporal interpretation preview</summary>
+        <TemporalInterpretationPreviewPanel
+          previewResponse={temporalPreview}
+          error={temporalPreviewError}
+          busy={temporalPreviewBusy}
+          requested={temporalPreviewRequested}
+          onRefresh={onRefreshTemporalPreview}
+        />
+      </details>
+    </section>
+  );
+}
+
+function BridgeTab() {
+  const capabilityRows = [
+    ["public app tools", "read allowed", "blocked", "blocked", "blocked", "blocked", "blocked"],
+    ["bridge-gated tools", "read allowed", "draft gated", "record proof/trace gated", "blocked", "blocked", "blocked"],
+    ["work read tools", "read allowed", "blocked", "blocked", "blocked", "blocked", "blocked"],
+    ["draft tools", "read allowed", "draft gated", "blocked", "blocked", "blocked", "blocked"],
+    ["record tools", "read allowed", "draft gated", "record proof/trace gated", "blocked", "blocked", "blocked"],
+  ];
+  const endpoints = [
+    "GET /api/state/brief",
+    "GET /api/evidence-pack",
+    "GET /api/sessions/trace",
+    "GET /api/evidence/records",
+    "GET /api/work",
+    "GET /api/proposals",
+    "POST /api/observe",
+    "POST /api/handoffs/review",
+    "POST /api/actions/record",
+    "POST /api/work/{work_id}/events",
+  ];
+
+  return (
+    <section className="cockpit-tab-panel bridge-tab" aria-label="Bridge">
+      <PageHeader
+        eyebrow="Bridge"
+        title="Read-first Bridge"
+        description="Configured tool surface, not an external system control panel."
+      />
+      <div className="tab-stat-row">
+        <MetricCard label="Read context" value="Allowed" detail="state and work reads" />
+        <MetricCard label="Draft packets" value="Gated" detail="bounded bridge tools" />
+        <MetricCard label="Record proof/trace" value="Gated" detail="runtime validated" />
+        <MetricCard label="Commit state" value="Blocked" detail="user/Core gate only" />
+        <MetricCard label="Execute Codex" value="Blocked" detail="not a bridge action" />
+      </div>
+      <div className="bridge-grid">
+        <aside className="cockpit-surface-card bridge-authority-card">
+          <PanelHeader eyebrow="Authority" title="Surface Groups" />
+          <ul className="boundary-list">
+            <li>read allowed</li>
+            <li>draft gated</li>
+            <li>record proof/trace gated</li>
+            <li>commit state blocked</li>
+            <li>execute Codex blocked</li>
+            <li>publish/mutate GitHub blocked</li>
+          </ul>
+          <BoundaryNote>
+            Bridge is a configured tool surface, not direct external control.
+          </BoundaryNote>
+        </aside>
+        <section className="cockpit-surface-card bridge-matrix-card">
+          <PanelHeader
+            eyebrow="Capability Matrix"
+            title="Read-first tool authority"
+            description="Static matrix over existing bridge/read behavior. No new APIs are required."
+          />
+          <div className="capability-matrix" role="table">
+            <div role="row" className="capability-row capability-head">
+              <span>tool surface</span>
+              <span>read</span>
+              <span>draft</span>
+              <span>record</span>
+              <span>commit state</span>
+              <span>execute Codex</span>
+              <span>publish/mutate GitHub</span>
+            </div>
+            {capabilityRows.map((row) => (
+              <div role="row" className="capability-row" key={row[0]}>
+                {row.map((cell, index) => (
+                  <span
+                    className={
+                      index === 0
+                        ? "matrix-label"
+                        : cell.includes("blocked")
+                          ? "matrix-blocked"
+                          : cell.includes("gated")
+                            ? "matrix-gated"
+                            : "matrix-allowed"
+                    }
+                    key={`${row[0]}-${cell}-${index}`}
+                  >
+                    {cell}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="endpoint-grid" aria-label="Endpoint contract examples">
+            {endpoints.map((endpoint) => (
+              <code key={endpoint}>{endpoint}</code>
+            ))}
+          </div>
+        </section>
+      </div>
+      <BoundaryNote tone="green">
+        Configured tool surface, not an external system control panel. Bridge
+        reads context and may record bounded proof/trace only through existing
+        gated behavior.
+      </BoundaryNote>
+    </section>
+  );
+}
+
+function OperatorTab({
+  proposals,
+  pendingDecisionCount,
+  mailboxReviewCount,
+  evidencePackLoaded,
+  sessionTraceLoaded,
+  message,
+  notice,
+  busy,
+  sessionTraceBusy,
+  plan,
+  coordinationEvents,
+  selectedCoordinationEvent,
+  eventError,
+  mailboxSummary,
+  mailboxError,
+  publicationSummary,
+  publicationError,
+  approvalGateState,
+  approvalGateError,
+  onMessageChange,
+  onObserve,
+  onConsolidateCandidates,
+  onDecideProposal,
+  onRequestPlan,
+  onRunTool,
+  onLoadEvidencePack,
+  onRefreshSessionTrace,
+  onSelectEvent,
+}: {
+  proposals: StateDeltaProposal[];
+  pendingDecisionCount: number;
+  mailboxReviewCount: number;
+  evidencePackLoaded: boolean;
+  sessionTraceLoaded: boolean;
+  message: string;
+  notice: Notice | null;
+  busy: string | null;
+  sessionTraceBusy: boolean;
+  plan: PlanResponse | null;
+  coordinationEvents: CoordinationEvent[];
+  selectedCoordinationEvent: CoordinationEvent | null;
+  eventError: string | null;
+  mailboxSummary: MailboxSummaryResponse | null;
+  mailboxError: string | null;
+  publicationSummary: PublicationSummaryResponse | null;
+  publicationError: string | null;
+  approvalGateState: ApprovalGateStateSummaryResponse | null;
+  approvalGateError: string | null;
+  onMessageChange: (value: string) => void;
+  onObserve: (event: FormEvent<HTMLFormElement>) => void;
+  onConsolidateCandidates: () => void;
+  onDecideProposal: (id: string, decision: "commit" | "reject") => void;
+  onRequestPlan: () => void;
+  onRunTool: (toolName: string) => void;
+  onLoadEvidencePack: () => void;
+  onRefreshSessionTrace: () => void;
+  onSelectEvent: (eventId: string) => void;
+}) {
+  return (
+    <section className="cockpit-tab-panel operator-tab" aria-label="Operator">
+      <PageHeader
+        eyebrow="Operator"
+        title="Operator"
+        description="Operator actions affect the local Augnes runtime only. No publish, merge, retry, backup, live exchange, or external execution controls live here."
+      />
+      <div className="tab-stat-row">
+        <MetricCard label="Local Runtime" value="Available" detail="demo metadata" />
+        <MetricCard label="State Authority" value="Local Runtime" detail="owns and commits state" />
+        <MetricCard
+          label="Pending Decisions"
+          value={pendingDecisionCount}
+          detail="commit/reject needed"
+        />
+        <MetricCard
+          label="Mailbox Review Items"
+          value={mailboxReviewCount}
+          detail="read-only buckets"
+        />
+        <MetricCard
+          label="Evidence Pack"
+          value={evidencePackLoaded ? "Available" : "Not loaded"}
+          detail="read-only proof bundle"
+        />
+        <MetricCard label="Package Version" value="v0.1.0" detail="package.json" />
+      </div>
+      <div className="operator-layout-grid">
+        <aside className="operator-side-stack">
+          <BoundaryNote tone="green">
+            Operator actions are recorded with actor, timestamp, result, linked
+            state keys, and work context. External systems are never directly
+            controlled.
+          </BoundaryNote>
+          <details className="operator-advanced-observe">
+            <summary>Observe advanced local proposal input</summary>
+            <form onSubmit={onObserve} className="observe-form">
+              <textarea
+                value={message}
+                onChange={(event) => onMessageChange(event.target.value)}
+                rows={6}
+                aria-label="Observation message"
+              />
+              <div className="form-row">
+                <button disabled={busy === "observe" || !message.trim()}>
+                  Observe local proposal
+                </button>
+                {notice ? (
+                  <span className={`notice ${notice.tone}`}>{notice.text}</span>
+                ) : null}
+              </div>
+            </form>
+          </details>
+          <SafeLocalActions
+            busy={busy}
+            evidencePackLoaded={evidencePackLoaded}
+            sessionTraceLoaded={sessionTraceLoaded}
+            sessionTraceBusy={sessionTraceBusy}
+            plan={plan}
+            onRequestPlan={onRequestPlan}
+            onRunTool={onRunTool}
+            onLoadEvidencePack={onLoadEvidencePack}
+            onRefreshSessionTrace={onRefreshSessionTrace}
+          />
+        </aside>
+        <section className="operator-main-stack">
+          <CoordinationEventTimeline
+            events={coordinationEvents}
+            selectedEvent={selectedCoordinationEvent}
+            error={eventError}
+            onSelectEvent={onSelectEvent}
+          />
+          <PendingProposalQueue
+            proposals={proposals}
+            busy={busy}
+            onConsolidateCandidates={onConsolidateCandidates}
+            onDecideProposal={onDecideProposal}
+          />
+        </section>
+        <aside className="operator-summary-stack">
+          <MailboxSummaryPanel mailboxSummary={mailboxSummary} error={mailboxError} />
+          <PublicationSummaryPanel
+            publicationSummary={publicationSummary}
+            error={publicationError}
+          />
+          <ApprovalGateStatePanel
+            approvalGateState={approvalGateState}
+            error={approvalGateError}
+          />
+        </aside>
+      </div>
+      <BoundaryNote>
+        Local runtime only. No external execution, publish, merge, retry, token,
+        backup, or live exchange controls.
+      </BoundaryNote>
+    </section>
+  );
+}
+
+function PendingProposalQueue({
+  proposals,
+  busy,
+  onConsolidateCandidates,
+  onDecideProposal,
+}: {
+  proposals: StateDeltaProposal[];
+  busy: string | null;
+  onConsolidateCandidates: () => void;
+  onDecideProposal: (id: string, decision: "commit" | "reject") => void;
+}) {
+  return (
+    <section className="cockpit-surface-card proposals-panel">
+      <PanelHeader eyebrow="Operator" title="Pending local state proposal queue" />
+      <div className="panel-control-row">
+        <p>
+          Local runtime proposals only. Commit/Reject writes only local Augnes
+          state through the existing proposal gate.
+        </p>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onConsolidateCandidates}
+          disabled={busy === "consolidate"}
+        >
+          Consolidate Candidates
+        </button>
+      </div>
+      <div className="proposal-list">
+        {proposals.length === 0 ? (
+          <EmptyState
+            label="No pending proposals."
+            description="Use Observe advanced input to generate local state candidates."
+          />
+        ) : (
+          proposals.map((proposal) => (
+            <article className="proposal-card" key={proposal.id}>
+              <div className="card-topline">
+                <div className="state-key-heading">
+                  <h3>{formatStateKeyLabel(proposal.state_key)}</h3>
+                  <code>{proposal.state_key}</code>
+                </div>
+                <StatusBadge
+                  label={formatStatusLabel(proposal.consolidation_status)}
+                  tone={getConsolidationTone(proposal.consolidation_status)}
+                />
+              </div>
+              <p className="consolidation-copy">
+                {getConsolidationExplanation(proposal.consolidation_status)}
+              </p>
+              <ValueDiff
+                beforeValue={proposal.before_value}
+                afterValue={proposal.after_value}
+              />
+              <ProposalScoring proposal={proposal} />
+              <div className="meta-row">
+                <span>{formatStatusLabel(proposal.operation)}</span>
+                <span>{formatStatusLabel(proposal.temporal_scope)}</span>
+                <span>{formatStatusLabel(proposal.stability)}</span>
+                <span>{formatStatusLabel(proposal.change_type)}</span>
+              </div>
+              {proposal.reason ? <p>{proposal.reason}</p> : null}
+              <div className="button-row">
+                <button
+                  type="button"
+                  onClick={() => onDecideProposal(proposal.id, "commit")}
+                  disabled={
+                    busy === proposal.id ||
+                    proposal.consolidation_status === "expired"
+                  }
+                >
+                  Commit local state proposal
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button danger-outline-button"
+                  onClick={() => onDecideProposal(proposal.id, "reject")}
+                  disabled={busy === proposal.id}
+                >
+                  Reject local state proposal
+                </button>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SafeLocalActions({
+  busy,
+  evidencePackLoaded,
+  sessionTraceLoaded,
+  sessionTraceBusy,
+  plan,
+  onRequestPlan,
+  onRunTool,
+  onLoadEvidencePack,
+  onRefreshSessionTrace,
+}: {
+  busy: string | null;
+  evidencePackLoaded: boolean;
+  sessionTraceLoaded: boolean;
+  sessionTraceBusy: boolean;
+  plan: PlanResponse | null;
+  onRequestPlan: () => void;
+  onRunTool: (toolName: string) => void;
+  onLoadEvidencePack: () => void;
+  onRefreshSessionTrace: () => void;
+}) {
+  return (
+    <section className="cockpit-surface-card actions-panel">
+      <PanelHeader eyebrow="Operator actions (safe)" title="Safe local actions" />
+      <div className="action-controls">
+        <button type="button" onClick={onRequestPlan} disabled={busy === "plan"}>
+          Plan Next
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onLoadEvidencePack}
+          disabled={busy === "evidence-pack"}
+        >
+          {evidencePackLoaded ? "Reload Evidence Pack" : "Load Evidence Pack"}
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onRefreshSessionTrace}
+          disabled={sessionTraceBusy}
+        >
+          {sessionTraceLoaded ? "Refresh Session Trace" : "Load Session Trace"}
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => onRunTool("create_readme_checklist")}
+          disabled={busy === "create_readme_checklist"}
+        >
+          README Checklist
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => onRunTool("create_security_checklist")}
+          disabled={busy === "create_security_checklist"}
+        >
+          Security Checklist
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => onRunTool("create_demo_script")}
+          disabled={busy === "create_demo_script"}
+        >
+          Demo Script
+        </button>
+      </div>
+      {plan ? (
+        <div className="plan-list">
+          {plan.recommendations.map((recommendation) => (
+            <article className="plan-item" key={recommendation.title}>
+              <div className="card-topline">
+                <h3>{recommendation.title}</h3>
+                <StatusBadge label={recommendation.priority} />
+              </div>
+              <p>{recommendation.rationale}</p>
+              <div className="meta-row">
+                {recommendation.tool_name ? (
+                  <span>{formatStateKeyLabel(recommendation.tool_name)}</span>
+                ) : null}
+                {recommendation.grounded_state_keys.map((key) => (
+                  <span key={key}>
+                    {formatStateKeyLabel(key)} <code>{key}</code>
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState label="No plan requested" />
+      )}
+    </section>
+  );
+}
+
+function PageHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <header className="tab-page-header">
+      <p className="kicker">{eyebrow}</p>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </header>
+  );
+}
+
+function ProcessStrip({ steps }: { steps: [string, string][] }) {
+  return (
+    <section className="six-tab-process-strip" aria-label="Temporal state process">
+      {steps.map(([label, detail], index) => (
+        <article className="process-step-card" key={label}>
+          <span>{index + 1}</span>
+          <strong>{label}</strong>
+          <small>{detail}</small>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: ReactNode;
+  detail: string;
+}) {
+  return (
+    <article className="metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </article>
+  );
+}
+
+function BoundaryNote({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone?: "green";
+}) {
+  return <aside className={`boundary-note${tone ? ` is-${tone}` : ""}`}>{children}</aside>;
 }
 
 function CurrentWorkCard({
@@ -1872,98 +2598,42 @@ function WorkFocusSection({
                   <strong>{workBrief.next_action || "No next action recorded"}</strong>
                 </div>
 
-                <div className="work-copy-row">
-                  <div className="copy-control">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void copyToClipboard(
-                          "workCodex",
-                          "Work Codex handoff",
-                          () => buildWorkCodexHandoffText(workBrief),
-                        )
-                      }
-                    >
-                      Copy Codex handoff
-                    </button>
-                    <CopyFeedback notice={copyFeedback.workCodex} />
-                  </div>
-                  <div className="copy-control">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() =>
-                        void copyToClipboard(
-                          "workEvent",
-                          "Work event template",
-                          () =>
-                            formatWorkEventTemplate(
-                              workBrief.codex_handoff.work_event_template,
-                            ),
-                        )
-                      }
-                    >
-                      Copy work event template
-                    </button>
-                    <CopyFeedback notice={copyFeedback.workEvent} />
-                  </div>
-                </div>
-
-                <div className="work-proof-grid">
-                  <section className="work-proof-block">
-                    <h4>Related proof and links</h4>
-                    <ProofList brief={workBrief} />
-                  </section>
-                  <section className="work-proof-block">
-                    <h4>Recent events</h4>
-                    {workBrief.recent_events.length ? (
-                      <div className="work-event-list">
-                        {workBrief.recent_events.map((event) => (
-                          <article className="work-event-item" key={event.id}>
-                            <div className="card-topline">
-                              <strong>{formatStatusLabel(event.event_type)}</strong>
-                              <time dateTime={event.created_at}>
-                                {formatDate(event.created_at)}
-                              </time>
-                            </div>
-                            <p>{event.summary}</p>
-                            <div className="meta-row">
-                              <span>{formatStatusLabel(event.actor)}</span>
-                              {event.result_status ? (
-                                <span>{formatStatusLabel(event.result_status)}</span>
-                              ) : null}
-                              {event.related_action_id ? (
-                                <span>
-                                  action <code>{event.related_action_id}</code>
-                                </span>
-                              ) : null}
-                              {event.related_pr ? (
-                                <span>
-                                  PR <code>{event.related_pr}</code>
-                                </span>
-                              ) : null}
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState label="No recent events" />
-                    )}
-                  </section>
-                </div>
-
-                {workBrief.related_state_keys.length ? (
-                  <details className="work-related-keys">
-                    <summary>Related state keys</summary>
-                    <div className="meta-row">
-                      {workBrief.related_state_keys.map((stateKey) => (
-                        <span key={stateKey}>
-                          {formatStateKeyLabel(stateKey)} <code>{stateKey}</code>
-                        </span>
+                <section className="work-proof-block">
+                  <h4>Recent events</h4>
+                  {workBrief.recent_events.length ? (
+                    <div className="work-event-list">
+                      {workBrief.recent_events.map((event) => (
+                        <article className="work-event-item" key={event.id}>
+                          <div className="card-topline">
+                            <strong>{formatStatusLabel(event.event_type)}</strong>
+                            <time dateTime={event.created_at}>
+                              {formatDate(event.created_at)}
+                            </time>
+                          </div>
+                          <p>{event.summary}</p>
+                          <div className="meta-row">
+                            <span>{formatStatusLabel(event.actor)}</span>
+                            {event.result_status ? (
+                              <span>{formatStatusLabel(event.result_status)}</span>
+                            ) : null}
+                            {event.related_action_id ? (
+                              <span>
+                                action <code>{event.related_action_id}</code>
+                              </span>
+                            ) : null}
+                            {event.related_pr ? (
+                              <span>
+                                PR <code>{event.related_pr}</code>
+                              </span>
+                            ) : null}
+                          </div>
+                        </article>
                       ))}
                     </div>
-                  </details>
-                ) : null}
+                  ) : (
+                    <EmptyState label="No recent events" />
+                  )}
+                </section>
               </>
             ) : selectedItem ? (
               <LoadingBlock
@@ -1974,6 +2644,104 @@ function WorkFocusSection({
               <EmptyState label="Select a work item" />
             )}
           </div>
+
+          <aside className="work-context-card">
+            {selectedItem && workBrief ? (
+              <>
+                <PanelHeader
+                  eyebrow="Context / Proof"
+                  title="Work Summary"
+                  description="Work IDs anchor traces. Ledger owns truth."
+                />
+                <dl className="work-context-fields">
+                  <div>
+                    <dt>Work ID</dt>
+                    <dd>{selectedItem.work_id}</dd>
+                  </div>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>{formatStatusLabel(selectedItem.status)}</dd>
+                  </div>
+                  <div>
+                    <dt>Priority</dt>
+                    <dd>{formatStatusLabel(selectedItem.priority)}</dd>
+                  </div>
+                  <div>
+                    <dt>Scope</dt>
+                    <dd>{selectedItem.scope}</dd>
+                  </div>
+                </dl>
+
+                <section className="work-context-section">
+                  <h4>Related state keys</h4>
+                  {workBrief.related_state_keys.length ? (
+                    <div className="meta-row">
+                      {workBrief.related_state_keys.map((stateKey) => (
+                        <span key={stateKey}>
+                          {formatStateKeyLabel(stateKey)} <code>{stateKey}</code>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState label="No related state keys" />
+                  )}
+                </section>
+
+                <section className="work-context-section">
+                  <h4>Related proof / context</h4>
+                  <ProofList brief={workBrief} />
+                </section>
+
+                <section className="work-context-section">
+                  <h4>Codex handoff draft</h4>
+                  <p>{workBrief.codex_handoff.task_brief}</p>
+                  <div className="work-copy-row">
+                    <div className="copy-control">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void copyToClipboard(
+                            "workCodex",
+                            "Work Codex handoff",
+                            () => buildWorkCodexHandoffText(workBrief),
+                          )
+                        }
+                      >
+                        Copy Codex handoff
+                      </button>
+                      <CopyFeedback notice={copyFeedback.workCodex} />
+                    </div>
+                    <div className="copy-control">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          void copyToClipboard(
+                            "workEvent",
+                            "Work event template",
+                            () =>
+                              formatWorkEventTemplate(
+                                workBrief.codex_handoff.work_event_template,
+                              ),
+                          )
+                        }
+                      >
+                        Copy work event template
+                      </button>
+                      <CopyFeedback notice={copyFeedback.workEvent} />
+                    </div>
+                  </div>
+                </section>
+              </>
+            ) : selectedItem ? (
+              <LoadingBlock
+                title={`Loading ${selectedItem.work_id} context`}
+                lines={["Fetching state keys", "Preparing handoff draft"]}
+              />
+            ) : (
+              <EmptyState label="Select a work item" />
+            )}
+          </aside>
         </div>
       )}
     </section>

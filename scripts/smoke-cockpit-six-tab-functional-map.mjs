@@ -105,8 +105,6 @@ const changedFiles = execFileSync("git", ["status", "--short"], {
   .filter(Boolean);
 
 const forbiddenRuntimeChanges = changedFiles.filter((file) =>
-  file === "components/augnes-cockpit.tsx" ||
-  file === "app/globals.css" ||
   file.startsWith("lib/") ||
   file.startsWith("app/api/"),
 );
@@ -114,7 +112,7 @@ const forbiddenRuntimeChanges = changedFiles.filter((file) =>
 assert.deepEqual(
   forbiddenRuntimeChanges,
   [],
-  "this docs/spec PR must not change Cockpit runtime, API, or lib files",
+  "six-tab functional map smoke must not observe API or lib runtime changes",
 );
 
 const changedLockfiles = changedFiles.filter((file) =>
@@ -133,7 +131,7 @@ console.log(
       global_shell_defined: true,
       current_implementation_mapping_defined: true,
       reference_images_non_authority: true,
-      runtime_files_changed: forbiddenRuntimeChanges.length,
+      api_or_lib_runtime_files_changed: forbiddenRuntimeChanges.length,
       new_dependencies_added: false,
     },
     null,

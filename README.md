@@ -77,6 +77,9 @@ The current challenge build includes:
 - Work Trace Spine and Work Focus for `AG-xxx` task context.
 - Work APIs for listing work items, reading work briefs, and recording work events.
 - Read-only Cockpit Session Trace continuity panel for already-bound sessions.
+- Six-tab Cockpit MVP shell: Overview, Work, Ledger, Proof, Bridge, and
+  Operator reorganize existing runtime panels without adding backend behavior
+  or new authority.
 - ChatGPT App read tools for state/work briefs and bridge-gated cross-session continuity reads, with bridge-gated write tools for action and work-event proof.
 - `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
 - `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
@@ -374,11 +377,12 @@ Current Work shows:
 
 Current Work is a user-facing summary surface, not a new state authority. It summarizes committed state, pending proposals, open tensions, and recent actions that already exist in the runtime. It does not create state and does not bypass commit/reject.
 
-The next Cockpit shell refactor should follow
+The Cockpit shell now follows
 `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`: Overview for the demo summary,
 Work for Work ID traces, Ledger for committed state truth, Proof for read-only
 evidence, Bridge for read-first tool authority, and Operator for safe local
-runtime actions.
+runtime actions. This is UI composition only; it does not add backend routes,
+external controls, token behavior, or new authority.
 
 ## Session Trace
 

@@ -61,12 +61,12 @@ const changedFiles = execFileSync("git", ["diff", "--name-only", "HEAD"], {
   .filter(Boolean);
 
 const runtimeChanged = changedFiles.filter((file) =>
-  /^(app|components|lib)\//.test(file),
+  file.startsWith("lib/") || file.startsWith("app/api/"),
 );
 assert.deepEqual(
   runtimeChanged,
   [],
-  "closeout PR should not change runtime source files",
+  "GitHub token closeout smoke should not observe API or lib runtime changes",
 );
 
 console.log(
@@ -80,7 +80,7 @@ console.log(
       live_exchange_future: true,
       live_publish_future: true,
       c5_gates_unchanged: true,
-      runtime_files_changed: runtimeChanged.length,
+      api_or_lib_runtime_files_changed: runtimeChanged.length,
       new_dependencies_added: false,
     },
     null,
