@@ -1,8 +1,8 @@
 # GitHub App Installation Token Config Boundary v0.1
 
 This document defines the GitHub App installation-token configuration boundary
-for Augnes. The config reader/validator is implemented; the installation-token
-provider remains future work.
+for Augnes. The config reader/validator and offline fake-key RS256 JWT fixture
+are implemented; the installation-token provider remains future work.
 
 The installation-token provider remains design/config boundary only.
 
@@ -15,6 +15,7 @@ This v0.1 boundary now includes:
 - future config names
 - read-only config reader/validator support
 - validation and redaction rules with public-safe metadata
+- offline RS256 JWT signing fixture support with fake key material only
 - private key handling rules
 - JWT rules
 - installation-token exchange boundaries
@@ -25,8 +26,8 @@ This v0.1 boundary now includes:
 
 This v0.1 boundary does not add:
 
-- JWT signing
-- private key parsing
+- runtime JWT signing from real/private config
+- runtime private key parsing
 - installation access token exchange
 - GitHub API calls
 - live GitHub publish
@@ -36,8 +37,7 @@ This v0.1 boundary does not add:
 - Cockpit controls
 - ChatGPT App tools
 
-No JWT signing. No private key parsing. No installation access token exchange.
-No GitHub API call. No live publish.
+No JWT signing from runtime config. No private key parsing. No installation access token exchange. No GitHub API call. No live publish.
 
 The current implemented token provider remains env `GITHUB_TOKEN` only through
 `resolveGitHubPublishToken()`.
@@ -48,6 +48,13 @@ reserved GitHub App config values from an explicit environment object, or from
 validation metadata and a `public_safe` block. It does not parse private keys,
 sign JWTs, call GitHub, create installation tokens, alter C5 gates, or expose
 raw secret-bearing config in public-safe metadata.
+
+The offline JWT helper lives at `lib/github-app-jwt.ts`. It signs only an
+explicit PEM string supplied by a local caller, uses Node built-in `crypto`, and
+is covered by `smoke:github-app-jwt-fixture` with generated fake RSA key
+material only. It does not read `process.env`, read private key files, parse
+runtime config, call GitHub, create installation tokens, return JWTs through an
+API route, alter C5 gates, or integrate with `resolveGitHubPublishToken()`.
 
 ## Future Config Names
 
@@ -105,10 +112,13 @@ parse or validate actual private key contents.
 
 ## JWT Boundary
 
-GitHub App JWT creation is future work only. This PR does not sign, parse,
-return, store, or log JWTs.
+Offline GitHub App JWT creation with fake key material is implemented only as a
+local fixture/helper boundary. Runtime JWT signing from configured secrets is
+future work. This boundary does not parse configured private keys, read private
+keys from env/files, call GitHub, exchange installation tokens, return JWTs
+through API responses, store JWTs, or log JWTs.
 
-Future JWT signing must use RS256. Required claims must include:
+JWT signing must use RS256. Required claims must include:
 
 - `iat`
 - `exp`
@@ -132,6 +142,7 @@ JWTs must not be:
 - included in docs
 
 JWT creation is not approval, readiness, publication, or proof.
+The offline JWT fixture is not proof of publication.
 
 ## Installation Token Boundary
 
@@ -260,7 +271,8 @@ or secret-bearing config.
 Recommended future sequence:
 
 1. Config reader/validator with no GitHub calls. Status: implemented.
-2. Offline JWT signing fixture using a fake key only, no network.
+2. Offline JWT signing fixture using a fake key only, no network. Status:
+   implemented.
 3. Installation-token exchange behind an explicit opt-in smoke, no live
    publish.
 4. Provider integration with C5 after config, JWT, redaction, and exchange

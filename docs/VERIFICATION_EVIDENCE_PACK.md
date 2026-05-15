@@ -45,6 +45,10 @@ belongs in bounded command evidence, such as
 `npm run smoke:github-app-config-validator`; it must not record raw private key
 contents, private key paths, base64 private keys, installation IDs, JWTs, or
 raw token material.
+Offline GitHub App JWT fixture verification belongs in bounded command
+evidence, such as `npm run smoke:github-app-jwt-fixture`; it must record only
+public-safe result categories and must not record raw JWTs, fake or real
+private key material, signatures, or secret-bearing config.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
@@ -276,6 +280,7 @@ npm --prefix apps/augnes_apps run invariants
 npm run smoke:github-token-provider
 npm run smoke:github-app-token-config-boundary
 npm run smoke:github-app-config-validator
+npm run smoke:github-app-jwt-fixture
 ```
 
 After running a command, Codex or another local verifier may record a bounded

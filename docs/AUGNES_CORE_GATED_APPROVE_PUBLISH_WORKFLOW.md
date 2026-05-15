@@ -29,8 +29,13 @@ installation-token config boundary is documented in
 `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`; it reserves
 future config names and JWT/exchange/permission rules. The read-only config
 reader/validator is now implemented in `lib/github-app-config.ts`, but C5 token
-resolution still does not use it. No JWT signing, private key parsing, GitHub
-API calls, token exchange, or live posting has been added.
+resolution still does not use it. No runtime JWT signing from configured
+secrets, private key parsing, GitHub API calls, token exchange, or live posting
+has been added.
+The offline RS256 JWT helper in `lib/github-app-jwt.ts` signs only explicit
+fake/test PEM input for local fixture coverage. JWT creation is not approval,
+readiness, publication, or proof, and the helper is not integrated with C5
+token resolution.
 
 ## Purpose
 
@@ -674,6 +679,10 @@ reserved config names, private key handling, RS256 JWT rules, installation
 token expiry, repository allowlist matching, permission minimization, and
 evidence redaction policy. The config reader/validator can validate future
 GitHub App config shape, but it does not change C5 behavior.
+The offline RS256 JWT fixture now verifies fake-key signing, required
+`iat`/`exp`/`iss` claims, and the 10-minute expiry ceiling without calling
+GitHub or creating installation tokens. It is not publication proof and does
+not authorize live publish.
 
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping
