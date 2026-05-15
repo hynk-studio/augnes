@@ -18,8 +18,10 @@ assertIncludes(doc, "C5 token provider runtime code does not read");
 assertIncludes(doc, "No JWT signing from runtime config");
 assertIncludes(doc, "offline RS256 JWT signing fixture");
 assertIncludes(doc, "target/allowlist policy helper");
+assertIncludes(doc, "installation-token exchange boundary helper");
+assertIncludes(doc, "network-disabled by default");
 assertIncludes(doc, "No private key parsing");
-assertIncludes(doc, "No installation access token exchange");
+assertIncludes(doc, "No live installation access token exchange");
 assertIncludes(doc, "No GitHub API call");
 assertIncludes(doc, "No live publish");
 
@@ -134,8 +136,9 @@ console.log(
       runtime_jwt_signing_from_config_implemented: false,
       offline_fake_key_jwt_fixture_documented: true,
       target_allowlist_policy_helper_documented: true,
+      exchange_boundary_helper_documented: true,
+      live_installation_token_exchange_implemented: false,
       private_key_parsing_implemented: false,
-      installation_token_exchange_implemented: false,
       new_jwt_dependencies_added: false,
       fetch_calls: fetchCalls,
     },

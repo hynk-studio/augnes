@@ -143,6 +143,12 @@ against validated future GitHub App config before exchange, but it is not wired
 into C5 or the token provider and does not call GitHub or create installation
 tokens.
 
+An installation-token exchange boundary helper now lives at
+`lib/github-app-installation-token-exchange.ts`. It is network-disabled by
+default, supports only explicit injected fake fetch for smoke coverage, and is
+not wired into C5 or the token provider. Live GitHub exchange remains future
+work requiring explicit approval.
+
 ## How Augnes Uses OpenAI APIs
 
 OpenAI APIs are used for interpretation, not direct mutation.

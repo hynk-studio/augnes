@@ -41,6 +41,11 @@ The GitHub App target/allowlist policy helper in
 repository/permission scope before exchange. Target policy is not approval,
 readiness, publication, proof, or token resolution, and it is not integrated
 with C5 publish yet.
+The installation-token exchange boundary helper in
+`lib/github-app-installation-token-exchange.ts` is network-disabled by default
+and accepts only an injected fetch when explicitly enabled. Exchange boundary
+work is not approval, readiness, publication, proof, or C5 integration; it does
+not change C5 gates or env `GITHUB_TOKEN` behavior.
 
 ## Purpose
 
@@ -691,6 +696,9 @@ not authorize live publish.
 The target/allowlist policy helper now verifies future GitHub App
 repository/permission scope locally before exchange. It does not call GitHub,
 create installation tokens, change C5 gates, or authorize live publish.
+The exchange boundary helper now verifies request/response shape with injected
+fake fetch only. It does not perform live GitHub exchange, integrate with C5,
+create delivery rows, or authorize live publish.
 
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping

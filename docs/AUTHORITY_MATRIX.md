@@ -90,6 +90,13 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   publication, proof, token resolution, or permission to publish. It does not
   sign JWTs, create installation tokens, call GitHub, integrate with C5, or
   change the env `GITHUB_TOKEN` provider.
+- The GitHub App installation-token exchange boundary helper may build a
+  redacted request and validate an injected fake-fetch response for future
+  provider work. Exchange boundary code is not approval, readiness,
+  publication, proof, C5 integration, or permission to publish. It is
+  network-disabled by default, must not use global fetch directly, and does not
+  call real GitHub, create delivery rows, persist tokens, integrate with C5, or
+  change the env `GITHUB_TOKEN` provider.
 - A decision document or PR body can describe a future C5 live-test approval
   packet, but it is not approval by itself. Future live posts still require
   explicit user/PM approval for the exact target, exact body, exact

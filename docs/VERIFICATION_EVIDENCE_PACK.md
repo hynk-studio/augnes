@@ -54,6 +54,13 @@ evidence, such as `npm run smoke:github-app-target-policy`; it may record
 public-safe result categories such as allowlisted target allowed or
 non-allowlisted target blocked, but must not record installation IDs, private
 key material, raw allowlist config strings, raw JWTs, or token material.
+GitHub App installation-token exchange boundary verification belongs in
+bounded command evidence, such as
+`npm run smoke:github-app-installation-token-exchange`; it may record
+public-safe result categories such as request shape, fake-fetch count, disabled
+network behavior, and redaction checks, but must not record raw JWTs, raw
+installation tokens, authorization headers, raw exchange payloads, private key
+material, or secret-bearing config.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
@@ -287,6 +294,7 @@ npm run smoke:github-app-token-config-boundary
 npm run smoke:github-app-config-validator
 npm run smoke:github-app-jwt-fixture
 npm run smoke:github-app-target-policy
+npm run smoke:github-app-installation-token-exchange
 ```
 
 After running a command, Codex or another local verifier may record a bounded
