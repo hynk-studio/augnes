@@ -72,7 +72,7 @@ console.log(
       target_and_source_refs_present: true,
       no_invented_work_id_boundary_present: true,
       ag_004_misuse_warning_present: true,
-      future_artifact_linkage_present: true,
+      artifact_linkage_present: true,
       session_binding_boundary_present: true,
       github_publication_adapter_forbidden: true,
       raw_openai_response_forbidden: true,

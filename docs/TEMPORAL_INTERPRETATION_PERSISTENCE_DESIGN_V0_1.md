@@ -22,8 +22,8 @@ summary refs from evidence-bearing raw or near-raw episode refs.
 
 ### A. TemporalPreviewReviewArtifact
 
-`TemporalPreviewReviewArtifact` is a possible future persisted review artifact
-for captured Temporal Preview output. It can preserve:
+`TemporalPreviewReviewArtifact` v0.1 is now complete and closed as a bounded
+review artifact for captured Temporal Preview output. It preserves:
 
 - Captured preview output.
 - Guardrail result.
@@ -33,11 +33,10 @@ for captured Temporal Preview output. It can preserve:
 - Non-authority boundary.
 
 This artifact is safe as a review artifact, not state authority. It can help
-future reviewers compare route output, generator behavior, guardrail warnings,
-manual verdicts, and evidence separation over time. It must remain
-non-authoritative: storing the artifact must not admit memory, commit state,
-approve work, publish proof, replay delivery, or create a durable
-PerspectiveSnapshot.
+reviewers compare route output, generator behavior, guardrail warnings, manual
+verdicts, and evidence separation over time. It must remain non-authoritative:
+storing the artifact must not admit memory, commit state, approve work, publish
+proof, replay delivery, or create a durable PerspectiveSnapshot.
 
 ### B. PerspectiveSnapshotCandidate
 
@@ -223,6 +222,12 @@ used as durable truth, approval, commit instruction, or proof.
 
 ## Future migration/API design needs
 
+`TemporalPreviewReviewArtifact` v0.1 migration/API work is complete and closed
+as a bounded review-artifact chain. The closeout summary lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md`. Future
+authority-bearing persistence still needs separate design before any
+implementation.
+
 Any later implementation PR must include a separate migration/API design that
 answers:
 
@@ -240,11 +245,11 @@ answers:
 - How an approval-gated commit flow is separated from preview capture.
 - How RawEpisodeBundleRef ingestion preserves source identity and redaction.
 
-The first migration/API implementation should target
-`TemporalPreviewReviewArtifact` only after a dedicated Temporal Interpretation
-work item/evidence binding exists. It should not implement
-`PerspectiveSnapshotCandidate` commit or RawEpisodeBundle ingestion in the same
-slice.
+Any future migration/API implementation after this closeout should not extend
+`TemporalPreviewReviewArtifact` v0.1 by default. It should target a separate
+future design, such as `PerspectiveSnapshotCandidate` proposal boundaries,
+approval-gated commit, or RawEpisodeBundle refs, and it must not combine those
+authority-bearing concerns with the closed review artifact slice.
 
 `docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md` defines the
 required work/evidence/session/PR binding convention for that future
@@ -252,11 +257,12 @@ implementation path. `AG-TEMPORAL-INTERPRETATION` is now seeded as the
 demo/runtime work anchor for future Temporal Interpretation evidence when the
 seed has been applied.
 
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` narrows the next
-schema step to a future `temporal_preview_review_artifacts` review artifact
-table. That design remains conceptual only and does not add migrations, API
-routes, runtime persistence, Cockpit code, ChatGPT App tools, OpenAI calls,
-GitHub publication adapter calls, replay, publish, approval, or state mutation.
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md` records the
+schema design and implementation status for the
+`temporal_preview_review_artifacts` review artifact table. The v0.1 closeout
+marks that table/read/capture/surface chain complete without granting approval,
+publish, replay, readiness, committed state, memory admission, or
+PerspectiveSnapshot/RawEpisodeBundle authority.
 
 The first read-model implementation slice now adds only the
 `temporal_preview_review_artifacts` table, validation/read helper, and
@@ -271,11 +277,11 @@ Cockpit read-only browsing now loads existing review artifact GET APIs and
 keeps selected-artifact inspection as local UI state only.
 
 The forbidden-persistence fixture gate for `TemporalPreviewReviewArtifact` is
-now satisfied by `lib/temporal-review-artifact-fixtures.ts` and
+satisfied by `lib/temporal-review-artifact-fixtures.ts` and
 `scripts/smoke-temporal-forbidden-persistence-fixtures.mjs`. The fixture corpus
 keeps top-level forbidden fields, nested forbidden fields, summary/evidence
 separation, authority confusion, link validation, and route/source validation
-in one reusable place before any future capture helper or create route.
+in one reusable place for the closed v0.1 chain and future regression checks.
 
 The non-public capture helper prep step is now satisfied by
 `lib/temporal-review-artifact-capture.ts` and
@@ -297,12 +303,12 @@ without Cockpit write buttons, ChatGPT App create tools, Evidence Pack write
 integration, OpenAI calls, GitHub publication adapter calls, replay, publish,
 approval, or state mutation.
 
-The internal idempotency foundation for that future route is now implemented
+The internal idempotency foundation for the public bounded capture route is implemented
 with a separate `temporal_preview_review_artifact_idempotency` table and helper
 logic. It stores hashed idempotency keys and payload hashes only, supports
 same-key replay and conflict detection, and checks duplicate `source_ref` plus
-`preview_hash` plus `work_id` in helper logic. It does not add the public route
-by itself or any UI/write integration.
+`preview_hash` plus `work_id` in helper logic. It does not add any UI/write
+integration.
 
 ## Required gates before implementation
 
@@ -356,11 +362,13 @@ ChatGPT App tools.
 
 ## Recommended next step
 
-Next consider TemporalPreviewReviewArtifact v0.1 status cleanup. Preserve the
+Stop expanding `TemporalPreviewReviewArtifact` v0.1 after the closeout. Return
+to the broader productization roadmap, preferably GitHub App/token management
+or Cockpit product UI / Core-gated write-control design. Preserve the
 non-authoritative review-artifact boundary and leave durable
 `PerspectiveSnapshot` persistence, `RawEpisodeBundle` runtime, approval-gated
 commit, routing policy, Evidence Pack writes, ChatGPT App create tools, and
-Cockpit write controls out of scope.
+Cockpit write controls out of scope for this closed v0.1 slice.
 
 ## Relation to existing artifacts
 

@@ -2,20 +2,20 @@
 
 ## Executive summary
 
-`TemporalPreviewReviewArtifact` is a future bounded review artifact for
-captured Temporal Preview outputs. It is not committed state, not
+`TemporalPreviewReviewArtifact` v0.1 is complete and closed as a bounded
+review artifact for captured Temporal Preview outputs. It is not committed
+state, not
 `PerspectiveSnapshot` persistence, not `RawEpisodeBundle` runtime, and not
 approval, publish, replay, or state-commit authority.
 
-When implemented, review artifacts must bind to
+Review artifacts bind to
 `work_id=AG-TEMPORAL-INTERPRETATION` when that seeded demo/runtime work item is
 available, or to a reviewed future Temporal work anchor if the project
 explicitly creates one later.
 
-This document is schema design only. It is no implementation: no DB schema,
-migrations, API routes, runtime persistence, Cockpit code, ChatGPT App tools,
-OpenAI calls, GitHub publication adapter calls, replay, publish, approval, or
-state mutation are added here.
+The design started as schema design; the v0.1 implementation is now complete
+and closed. The closeout summary lives at
+`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md`.
 
 Implementation status: the first narrow read-model slice now exists after this
 design. It adds the `temporal_preview_review_artifacts` table, validation/read
@@ -28,23 +28,27 @@ tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
 approval, state mutation, `PerspectiveSnapshot` runtime, or
 `RawEpisodeBundle` runtime.
 
-Forbidden-persistence fixture status: a reusable fixture corpus now exists at
+Closeout status: v0.1 is complete as a bounded review-artifact
+capture/read/surface chain: seeded work anchor, schema/read model, read-only
+GET APIs, forbidden fixtures, non-public capture helper, private insert helper,
+idempotency, public bounded capture route, Evidence Pack awareness, and
+Cockpit read-only browser.
+
+Forbidden-persistence fixture status: a reusable fixture corpus exists at
 `lib/temporal-review-artifact-fixtures.ts`, with a dedicated smoke at
-`scripts/smoke-temporal-forbidden-persistence-fixtures.mjs`. This is a gate
-before any future capture helper or create route. It exercises the current
-smoke-only insert helper and does not add create/capture routes, Cockpit code,
-Evidence Pack integration, ChatGPT App tools, OpenAI calls, GitHub publication
+`scripts/smoke-temporal-forbidden-persistence-fixtures.mjs`. It exercises the
+current insert validation path and does not add Cockpit write controls,
+Evidence Pack writes, ChatGPT App tools, OpenAI calls, GitHub publication
 adapter calls, replay, publish, approval, or state mutation.
 
-Internal capture helper status: a non-public helper now exists at
+Internal capture helper status: a non-public helper exists at
 `lib/temporal-review-artifact-capture.ts`, with smoke coverage at
 `scripts/smoke-temporal-review-artifact-capture-helper.mjs`. It converts a
 bounded Temporal Preview response plus manual review metadata into a
-`TemporalPreviewReviewArtifactInput` for existing validation. It does not add a
-public create/capture route, Cockpit code, Evidence Pack integration, ChatGPT
-App tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
-approval, state mutation, `PerspectiveSnapshot` runtime, or
-`RawEpisodeBundle` runtime.
+`TemporalPreviewReviewArtifactInput` for existing validation. It does not add
+Cockpit write controls, Evidence Pack writes, ChatGPT App tools, OpenAI calls,
+GitHub publication adapter calls, replay, publish, approval, state mutation,
+`PerspectiveSnapshot` runtime, or `RawEpisodeBundle` runtime.
 
 Create/capture route status: route design and first implementation notes now
 live at `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`.
@@ -81,8 +85,8 @@ approval, state mutation, `PerspectiveSnapshot` runtime, or `RawEpisodeBundle`
 runtime.
 
 Idempotency foundation status: the internal
-`temporal_preview_review_artifact_idempotency` table now stores hashed
-idempotency keys and payload hashes for future route use. Helper logic supports
+`temporal_preview_review_artifact_idempotency` table stores hashed
+idempotency keys and payload hashes for public bounded route use. Helper logic supports
 same-key same-payload replay, same-key different-payload conflict, and
 duplicate `source_ref` plus `preview_hash` plus `work_id` conflict detection.
 It does not store raw idempotency keys, raw payloads, or raw request bodies,
@@ -118,7 +122,7 @@ replay, routing authority, or proof authority.
 
 ## Non-authority boundary
 
-Persisting a future `TemporalPreviewReviewArtifact` must not:
+Persisting a `TemporalPreviewReviewArtifact` must not:
 
 - Commit or reject Augnes state.
 - Approve a `PerspectiveSnapshot`.
@@ -354,15 +358,13 @@ Read APIs must:
 - Not approve, publish, replay, commit, or mutate state.
 - Not treat an artifact as `PerspectiveSnapshot` runtime.
 
-## Future create/capture workflow
+## Create/capture workflow
 
-Future create/capture API, conceptual only:
+Implemented public bounded capture API:
 
 ```text
 POST /api/temporal-interpretation/review-artifacts/capture
 ```
-
-Do not implement now.
 
 The dedicated route contract is designed in
 `docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`. It
@@ -377,12 +379,12 @@ as the private non-smoke `insertTemporalPreviewReviewArtifact` helper or the
 existing smoke-only insert helper. It is not a route and does not grant write
 authority to any external surface.
 
-Future create/capture must:
+Create/capture must:
 
 - Persist only a bounded review artifact after validation.
 - Reuse `buildTemporalPreviewReviewArtifactInputFromRouteCapture`.
-- Use the private non-smoke `insertTemporalPreviewReviewArtifact` helper.
-- Use the internal idempotency foundation before exposing a public route.
+- Use the private idempotent insert helper for public route persistence.
+- Preserve the internal idempotency foundation for replay/conflict behavior.
 - Require a public-route idempotency key.
 - Require explicit `capture_mode`.
 - Require explicit `redaction_status`.
@@ -392,7 +394,7 @@ Future create/capture must:
 - Validate work/evidence/session refs.
 - Preserve manual review verdict without turning it into approval.
 
-Future create/capture must not:
+Create/capture must not:
 
 - Call OpenAI by itself unless separately approved.
 - Approve, publish, replay, or commit state.
@@ -535,7 +537,7 @@ Capture-helper smoke uses a temporary DB outside the repo and confirms:
   OpenAI call, GitHub publication adapter call, replay, publish, or approval
   behavior is added.
 
-Create-route design smoke confirms the future route contract document exists
+Create-route design smoke confirms the route contract document exists
 and includes the recommended `/capture` route, idempotency behavior, duplicate
 `source_ref` plus `preview_hash` policy, forbidden fields, private non-smoke
 insert helper prerequisite, forbidden fixture corpus requirement, and no
@@ -618,6 +620,9 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: TemporalPreviewReviewArtifact v0.1 status cleanup without
-adding capture buttons, ChatGPT App create tools, approval/publish/replay
-behavior, or durable `PerspectiveSnapshot` / `RawEpisodeBundle` runtime.
+Preferred next step: stop expanding `TemporalPreviewReviewArtifact` v0.1 after
+the closeout. Return to the broader productization roadmap, preferably GitHub
+App/token management or Cockpit product UI / Core-gated write-control design,
+without adding capture buttons, ChatGPT App create tools,
+approval/publish/replay behavior, or durable `PerspectiveSnapshot` /
+`RawEpisodeBundle` runtime to this closed v0.1 slice.
