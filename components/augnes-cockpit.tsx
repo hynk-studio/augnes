@@ -500,6 +500,59 @@ type EvidencePackResponse = {
   next_suggested_goal: string | null;
 };
 
+type TemporalReviewArtifact = {
+  artifact_id: string;
+  scope: string;
+  work_id: string;
+  source_route: string;
+  source_surface: string;
+  source_ref: string | null;
+  generator: string;
+  model: string | null;
+  as_of: string;
+  capture_mode: string;
+  preview_excerpt: string;
+  bounded_preview_json: unknown;
+  preview_hash: string | null;
+  source_refs: string[];
+  evidence_anchor_refs: string[];
+  summary_refs: string[];
+  counterexample_refs: string[];
+  residual_tension_refs: string[];
+  admission_decisions_json: unknown[];
+  guardrail_passed: boolean;
+  guardrail_warnings_json: unknown[];
+  reviewer_verdict: string;
+  reviewer_notes: string | null;
+  manual_review_report_path: string | null;
+  linked_evidence_record_ids: string[];
+  linked_session_id: string | null;
+  linked_pr_url: string | null;
+  redaction_status: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type TemporalReviewArtifactsResponse = {
+  runtime: "augnes";
+  scope: string;
+  generated_at: string;
+  filters: {
+    work_id: string;
+    generator: string | null;
+    reviewer_verdict: string | null;
+    guardrail_passed: string | null;
+    linked_session_id: string | null;
+    linked_pr_url: string | null;
+    limit: string | null;
+  };
+  count: number;
+  artifacts: TemporalReviewArtifact[];
+  gaps: string[];
+  boundaries: string[];
+};
+
 type SessionTraceLatestMessage = {
   id: string;
   role: string;
@@ -625,6 +678,18 @@ export function AugnesCockpit() {
   );
   const [temporalPreviewBusy, setTemporalPreviewBusy] = useState(false);
   const [temporalPreviewRequested, setTemporalPreviewRequested] = useState(false);
+  const [temporalReviewArtifacts, setTemporalReviewArtifacts] =
+    useState<TemporalReviewArtifactsResponse | null>(null);
+  const [temporalReviewArtifactsError, setTemporalReviewArtifactsError] =
+    useState<string | null>(null);
+  const [temporalReviewArtifactsBusy, setTemporalReviewArtifactsBusy] =
+    useState(false);
+  const [temporalReviewArtifactsRequested, setTemporalReviewArtifactsRequested] =
+    useState(false);
+  const [
+    selectedTemporalReviewArtifactId,
+    setSelectedTemporalReviewArtifactId,
+  ] = useState<string | null>(null);
   const [evidencePack, setEvidencePack] = useState<EvidencePackResponse | null>(
     null,
   );
@@ -678,6 +743,16 @@ export function AugnesCockpit() {
     [coordinationEvents, selectedEventId],
   );
 
+  const selectedTemporalReviewArtifact = useMemo(
+    () =>
+      temporalReviewArtifacts?.artifacts.find(
+        (artifact) => artifact.artifact_id === selectedTemporalReviewArtifactId,
+      ) ??
+      temporalReviewArtifacts?.artifacts[0] ??
+      null,
+    [selectedTemporalReviewArtifactId, temporalReviewArtifacts],
+  );
+
   async function refreshRuntime() {
     setBriefError(null);
     setWorkError(null);
@@ -686,6 +761,7 @@ export function AugnesCockpit() {
     setPublicationError(null);
     setApprovalGateError(null);
     setEvidencePackError(null);
+    setTemporalReviewArtifactsError(null);
 
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
@@ -900,6 +976,41 @@ export function AugnesCockpit() {
       );
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function loadTemporalReviewArtifacts() {
+    setTemporalReviewArtifactsRequested(true);
+    setTemporalReviewArtifactsBusy(true);
+    setTemporalReviewArtifactsError(null);
+
+    try {
+      const response = await fetchJson<TemporalReviewArtifactsResponse>(
+        `/api/temporal-interpretation/review-artifacts?scope=${SCOPE}&work_id=AG-TEMPORAL-INTERPRETATION&limit=20`,
+        { method: "GET" },
+      );
+
+      setTemporalReviewArtifacts(response);
+      setSelectedTemporalReviewArtifactId((current) => {
+        if (
+          current &&
+          response.artifacts.some((artifact) => artifact.artifact_id === current)
+        ) {
+          return current;
+        }
+
+        return response.artifacts[0]?.artifact_id ?? null;
+      });
+    } catch (error) {
+      setTemporalReviewArtifacts(null);
+      setSelectedTemporalReviewArtifactId(null);
+      setTemporalReviewArtifactsError(
+        error instanceof Error
+          ? error.message
+          : "Temporal review artifacts request failed",
+      );
+    } finally {
+      setTemporalReviewArtifactsBusy(false);
     }
   }
 
@@ -1131,6 +1242,16 @@ export function AugnesCockpit() {
         busy={temporalPreviewBusy}
         requested={temporalPreviewRequested}
         onRefresh={() => void refreshTemporalPreview()}
+      />
+
+      <TemporalReviewArtifactBrowserPanel
+        artifactsResponse={temporalReviewArtifacts}
+        selectedArtifact={selectedTemporalReviewArtifact}
+        error={temporalReviewArtifactsError}
+        busy={temporalReviewArtifactsBusy}
+        requested={temporalReviewArtifactsRequested}
+        onLoad={() => void loadTemporalReviewArtifacts()}
+        onSelectArtifact={setSelectedTemporalReviewArtifactId}
       />
 
       <EvidencePackPanel
@@ -3311,6 +3432,384 @@ function EvidencePackPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function TemporalReviewArtifactBrowserPanel({
+  artifactsResponse,
+  selectedArtifact,
+  error,
+  busy,
+  requested,
+  onLoad,
+  onSelectArtifact,
+}: {
+  artifactsResponse: TemporalReviewArtifactsResponse | null;
+  selectedArtifact: TemporalReviewArtifact | null;
+  error: string | null;
+  busy: boolean;
+  requested: boolean;
+  onLoad: () => void;
+  onSelectArtifact: (artifactId: string) => void;
+}) {
+  const gaps = artifactsResponse?.gaps ?? [];
+
+  return (
+    <section
+      className="temporal-review-artifacts-shell"
+      aria-label="Temporal Review Artifacts"
+    >
+      <div className="temporal-review-artifacts-heading">
+        <PanelHeader
+          eyebrow="Temporal Review Artifacts"
+          title="Read-Only Browser"
+          description="Bounded TemporalPreviewReviewArtifact records loaded through GET list APIs only. Selection is local Cockpit UI state; Cockpit DOM is not truth."
+        />
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onLoad}
+          disabled={busy}
+        >
+          {artifactsResponse
+            ? "Refresh Temporal Review Artifacts"
+            : "Load Temporal Review Artifacts"}
+        </button>
+      </div>
+
+      <div className="temporal-review-authority-note">
+        <strong>Read-only, non-authoritative review metadata.</strong>
+        <span>
+          reviewer_verdict is review metadata, not approval. guardrail_passed is
+          guardrail output, not readiness, state commit, approval, publish,
+          replay, or memory admission.
+        </span>
+        <span>
+          TemporalPreviewReviewArtifact is a bounded review artifact, not
+          PerspectiveSnapshot runtime, RawEpisodeBundle runtime, proof
+          publication, committed state, or memory authority.
+        </span>
+      </div>
+
+      {error ? (
+        <EmptyState
+          label="Temporal review artifacts unavailable"
+          description={error}
+        />
+      ) : busy || (requested && !artifactsResponse) ? (
+        <LoadingBlock
+          title="Loading Temporal review artifacts"
+          lines={[
+            "GET /api/temporal-interpretation/review-artifacts",
+            "Reading bounded review artifacts",
+          ]}
+        />
+      ) : !artifactsResponse ? (
+        <EmptyState
+          label="Temporal Review Artifacts not loaded"
+          description="Use Load Temporal Review Artifacts to inspect bounded review artifacts for AG-TEMPORAL-INTERPRETATION."
+        />
+      ) : artifactsResponse.artifacts.length === 0 ? (
+        <div className="temporal-review-empty">
+          <TemporalReviewArtifactSummary response={artifactsResponse} />
+          <TemporalReviewArtifactGaps gaps={gaps} />
+          <TemporalReviewArtifactBoundaries
+            boundaries={artifactsResponse.boundaries}
+          />
+        </div>
+      ) : (
+        <>
+          <TemporalReviewArtifactSummary response={artifactsResponse} />
+          <div className="temporal-review-artifacts-grid">
+            <div
+              className="temporal-review-artifact-list"
+              aria-label="Temporal review artifact list"
+            >
+              {artifactsResponse.artifacts.map((artifact) => (
+                <TemporalReviewArtifactCard
+                  artifact={artifact}
+                  selected={
+                    artifact.artifact_id === selectedArtifact?.artifact_id
+                  }
+                  onSelectArtifact={onSelectArtifact}
+                  key={artifact.artifact_id}
+                />
+              ))}
+            </div>
+            <TemporalReviewArtifactDetail artifact={selectedArtifact} />
+          </div>
+          <TemporalReviewArtifactGaps gaps={gaps} />
+          <TemporalReviewArtifactBoundaries
+            boundaries={artifactsResponse.boundaries}
+          />
+        </>
+      )}
+    </section>
+  );
+}
+
+function TemporalReviewArtifactSummary({
+  response,
+}: {
+  response: TemporalReviewArtifactsResponse;
+}) {
+  return (
+    <div
+      className="temporal-review-artifacts-status"
+      aria-label="Temporal review artifact response summary"
+    >
+      <strong>{response.count} artifacts</strong>
+      <span>
+        work_id <code>{response.filters.work_id}</code>
+      </span>
+      <span>
+        generated{" "}
+        <time dateTime={response.generated_at}>
+          {formatDate(response.generated_at)}
+        </time>
+      </span>
+      <span>
+        limit <code>{response.filters.limit ?? "default"}</code>
+      </span>
+    </div>
+  );
+}
+
+function TemporalReviewArtifactCard({
+  artifact,
+  selected,
+  onSelectArtifact,
+}: {
+  artifact: TemporalReviewArtifact;
+  selected: boolean;
+  onSelectArtifact: (artifactId: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`temporal-review-artifact-card${
+        selected ? " is-selected" : ""
+      }`}
+      onClick={() => onSelectArtifact(artifact.artifact_id)}
+    >
+      <span className="temporal-review-artifact-card-main">
+        <strong>{artifact.artifact_id}</strong>
+        <span>{artifact.preview_excerpt}</span>
+      </span>
+      <span className="temporal-review-artifact-card-meta">
+        <StatusBadge label={formatStatusLabel(artifact.reviewer_verdict)} />
+        <StatusBadge
+          label={
+            artifact.guardrail_passed
+              ? "guardrail_passed true"
+              : "guardrail_passed false"
+          }
+          tone={artifact.guardrail_passed ? "ready" : "needs-review"}
+        />
+        <span>{formatStatusLabel(artifact.capture_mode)}</span>
+        <time dateTime={artifact.created_at}>{formatDate(artifact.created_at)}</time>
+      </span>
+    </button>
+  );
+}
+
+function TemporalReviewArtifactDetail({
+  artifact,
+}: {
+  artifact: TemporalReviewArtifact | null;
+}) {
+  if (!artifact) {
+    return (
+      <section className="temporal-review-artifact-detail">
+        <EmptyState
+          label="No artifact selected"
+          description="Select an artifact from the list to inspect bounded details."
+        />
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className="temporal-review-artifact-detail"
+      aria-label="Selected Temporal review artifact summary"
+    >
+      <div className="card-topline">
+        <div className="state-key-heading">
+          <h3>Selected artifact</h3>
+          <code>{artifact.artifact_id}</code>
+        </div>
+        <div className="timeline-badges">
+          <StatusBadge label={formatStatusLabel(artifact.reviewer_verdict)} />
+          <StatusBadge
+            label={
+              artifact.guardrail_passed
+                ? "guardrail_passed true"
+                : "guardrail_passed false"
+            }
+            tone={artifact.guardrail_passed ? "ready" : "needs-review"}
+          />
+        </div>
+      </div>
+
+      <p className="temporal-review-preview-excerpt">
+        {artifact.preview_excerpt}
+      </p>
+
+      <dl className="temporal-review-artifact-fields">
+        <TemporalReviewArtifactField
+          label="artifact_id"
+          value={artifact.artifact_id}
+        />
+        <TemporalReviewArtifactField
+          label="reviewer_verdict"
+          value={artifact.reviewer_verdict}
+        />
+        <TemporalReviewArtifactField
+          label="guardrail_passed"
+          value={String(artifact.guardrail_passed)}
+        />
+        <TemporalReviewArtifactField
+          label="capture_mode"
+          value={artifact.capture_mode}
+        />
+        <TemporalReviewArtifactField label="generator" value={artifact.generator} />
+        <TemporalReviewArtifactField label="model" value={artifact.model} />
+        <TemporalReviewArtifactField
+          label="source_surface"
+          value={artifact.source_surface}
+        />
+        <TemporalReviewArtifactField
+          label="source_ref"
+          value={artifact.source_ref}
+        />
+        <TemporalReviewArtifactField
+          label="manual_review_report_path"
+          value={artifact.manual_review_report_path}
+        />
+        <TemporalReviewArtifactField
+          label="linked_session_id"
+          value={artifact.linked_session_id}
+        />
+        <TemporalReviewArtifactField
+          label="linked_pr_url"
+          value={artifact.linked_pr_url}
+        />
+        <TemporalReviewArtifactField
+          label="created_by"
+          value={artifact.created_by}
+        />
+        <TemporalReviewArtifactField
+          label="created_at"
+          value={artifact.created_at}
+        />
+        <TemporalReviewArtifactField
+          label="updated_at"
+          value={artifact.updated_at}
+        />
+      </dl>
+
+      <div className="temporal-review-ref-grid">
+        <TemporalReviewArtifactRefs
+          label="linked_evidence_record_ids"
+          refs={artifact.linked_evidence_record_ids}
+        />
+        <TemporalReviewArtifactRefs
+          label="evidence_anchor_refs"
+          refs={artifact.evidence_anchor_refs}
+        />
+        <TemporalReviewArtifactRefs
+          label="summary_refs"
+          refs={artifact.summary_refs}
+        />
+        <TemporalReviewArtifactRefs
+          label="counterexample_refs"
+          refs={artifact.counterexample_refs}
+        />
+        <TemporalReviewArtifactRefs
+          label="residual_tension_refs"
+          refs={artifact.residual_tension_refs}
+        />
+      </div>
+    </section>
+  );
+}
+
+function TemporalReviewArtifactField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value ? <code>{value}</code> : <span>None</span>}</dd>
+    </div>
+  );
+}
+
+function TemporalReviewArtifactRefs({
+  label,
+  refs,
+}: {
+  label: string;
+  refs: string[];
+}) {
+  return (
+    <section className="temporal-review-artifact-refs">
+      <h4>{label}</h4>
+      {refs.length ? (
+        <ul>
+          {refs.map((ref) => (
+            <li key={ref}>
+              <code>{ref}</code>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState label={`No ${label}`} />
+      )}
+    </section>
+  );
+}
+
+function TemporalReviewArtifactGaps({ gaps }: { gaps: string[] }) {
+  if (gaps.length === 0) {
+    return (
+      <div className="temporal-review-artifact-gaps is-clear">
+        <strong>gaps: none</strong>
+      </div>
+    );
+  }
+
+  return (
+    <section className="temporal-review-artifact-gaps">
+      <h3>gaps</h3>
+      <ul>
+        {gaps.map((gap) => (
+          <li key={gap}>{gap}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function TemporalReviewArtifactBoundaries({
+  boundaries,
+}: {
+  boundaries: string[];
+}) {
+  return (
+    <details className="temporal-review-artifact-boundaries">
+      <summary>boundaries</summary>
+      <ul>
+        {boundaries.map((boundary) => (
+          <li key={boundary}>{boundary}</li>
+        ))}
+      </ul>
+    </details>
   );
 }
 function TemporalPreviewSection({

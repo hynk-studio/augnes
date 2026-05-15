@@ -112,6 +112,11 @@ path when present. If no matching artifacts exist, the trace reports
 non-authoritative: it does not call the capture route, create/update/delete
 artifacts, call OpenAI/GitHub, publish, replay, approve, commit state, admit
 memory, or create `PerspectiveSnapshot` / `RawEpisodeBundle` runtime authority.
+The Cockpit `Temporal Review Artifacts` browser is a separate read-only review
+surface over the same bounded review artifact records. It loads artifacts
+through GET routes only, keeps selection as local UI state, surfaces gaps and
+boundaries, and must not create/capture/update/delete artifacts or treat
+reviewer verdicts, guardrail output, or DOM state as authority.
 
 Structured records should use exact labels and summaries:
 
@@ -224,6 +229,12 @@ not add Evidence Pack rendering, Cockpit write controls, ChatGPT App create
 tools, OpenAI calls, GitHub publication adapter calls, replay, publish,
 approval, committed state mutation, `PerspectiveSnapshot` runtime,
 `RawEpisodeBundle` runtime, or artifact-derived authority.
+The Cockpit read-only review artifact browser lives in
+`components/augnes-cockpit.tsx`, with smoke coverage in
+`smoke:cockpit-temporal-review-artifacts`. It verifies the panel, GET-only list
+loading, visible artifact fields, no-artifact gaps, artifact-present behavior,
+linked evidence/session/PR visibility, no capture route usage, and no protected
+authority row mutation.
 
 ## Evidence Categories
 

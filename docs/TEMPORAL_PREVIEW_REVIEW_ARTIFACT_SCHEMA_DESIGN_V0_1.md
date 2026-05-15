@@ -64,6 +64,13 @@ and link refs only. It does not create/capture artifacts, call the capture POST
 route, add write behavior, infer approval/readiness/replay/state/memory
 authority, or create `PerspectiveSnapshot` / `RawEpisodeBundle` runtime.
 
+Cockpit browser status: the Runtime Cockpit now includes a read-only
+`Temporal Review Artifacts` browser. It loads the existing GET list API for
+`work_id=AG-TEMPORAL-INTERPRETATION`, shows artifact list/detail fields,
+linked evidence/session/PR refs, boundaries, and gaps, and keeps selection as
+local UI state only. It does not call the capture route, create/update/delete
+artifacts, add write controls, or treat Cockpit DOM as truth.
+
 Private insert helper status: `insertTemporalPreviewReviewArtifact` now exists
 in `lib/temporal-review-artifacts.ts` and shares the same internal validation
 and insertion path as `insertTemporalPreviewReviewArtifactForSmoke`. It is an
@@ -432,7 +439,7 @@ admission from artifact presence.
 
 ## Cockpit design
 
-Future Cockpit should eventually:
+Cockpit now:
 
 - List review artifacts read-only.
 - Show latest artifact summary.
@@ -460,7 +467,7 @@ Implementation sequence status:
     /api/temporal-interpretation/review-artifacts/capture`.
 11. Evidence Pack read-only integration. Complete as
     `temporal_review_artifact_trace`.
-12. Cockpit read-only browser.
+12. Cockpit read-only browser. Complete.
 
 Do not combine with:
 
@@ -611,6 +618,6 @@ Required gates:
 
 ## Recommended next step
 
-Preferred next PR: add Cockpit read-only review-artifact browsing without
+Preferred next PR: TemporalPreviewReviewArtifact v0.1 status cleanup without
 adding capture buttons, ChatGPT App create tools, approval/publish/replay
 behavior, or durable `PerspectiveSnapshot` / `RawEpisodeBundle` runtime.

@@ -170,6 +170,10 @@ Evidence Pack now includes the read-only `temporal_review_artifact_trace` for
 `work_id=AG-TEMPORAL-INTERPRETATION`; it summarizes bounded review artifacts
 and no-artifact gaps without calling capture, creating artifacts, or inferring
 authority.
+The Cockpit now includes a read-only `Temporal Review Artifacts` browser next
+to Temporal Preview and Evidence Pack. It loads the existing GET list API on
+operator action, shows artifact list/detail, linked evidence/session/PR fields,
+boundaries, and gaps, and adds no capture button or write authority.
 The reusable forbidden-persistence fixture corpus lives at
 `lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
 `smoke:temporal-forbidden-persistence-fixtures`. It is a gate before any
@@ -233,6 +237,7 @@ npm run smoke:temporal-private-insert-helper
 npm run smoke:temporal-artifact-idempotency
 npm run smoke:temporal-capture-route
 npm run smoke:temporal-review-artifact-evidence-pack
+npm run smoke:cockpit-temporal-review-artifacts
 ```
 
 Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the

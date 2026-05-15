@@ -265,8 +265,10 @@ read-only list/get APIs. The first public/non-Cockpit capture route now adds
 bounded review artifacts through the idempotent insert helper. Evidence Pack
 read-only awareness now summarizes matching review artifact rows through
 `temporal_review_artifact_trace`. Evidence Pack write behavior, Cockpit
-rendering/write controls, ChatGPT App create tools, approval-gated commit,
+write controls, ChatGPT App create tools, approval-gated commit,
 PerspectiveSnapshot runtime, and RawEpisodeBundle runtime remain out of scope.
+Cockpit read-only browsing now loads existing review artifact GET APIs and
+keeps selected-artifact inspection as local UI state only.
 
 The forbidden-persistence fixture gate for `TemporalPreviewReviewArtifact` is
 now satisfied by `lib/temporal-review-artifact-fixtures.ts` and
@@ -345,7 +347,7 @@ ChatGPT App tools.
     /api/temporal-interpretation/review-artifacts/capture`.
 11. Evidence Pack read-only integration. Complete as
     `temporal_review_artifact_trace`.
-12. Cockpit read-only review artifact browser.
+12. Cockpit read-only review artifact browser. Complete.
 13. PerspectiveSnapshotCandidate proposal design.
 14. Approval-gated commit design.
 15. RawEpisodeBundleRef design.
@@ -354,7 +356,7 @@ ChatGPT App tools.
 
 ## Recommended next step
 
-Next consider a Cockpit read-only review artifact browser. Preserve the
+Next consider TemporalPreviewReviewArtifact v0.1 status cleanup. Preserve the
 non-authoritative review-artifact boundary and leave durable
 `PerspectiveSnapshot` persistence, `RawEpisodeBundle` runtime, approval-gated
 commit, routing policy, Evidence Pack writes, ChatGPT App create tools, and
