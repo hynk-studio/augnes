@@ -33,6 +33,12 @@ when those fields are stored. Missing command/skipped-check structure is shown
 as `gaps`; the endpoint must not fabricate verification results to make a pack
 look complete.
 
+Evidence Pack and structured evidence records must not include raw GitHub
+tokens, token fingerprints, GitHub App private keys, installation tokens, or
+request-supplied token payloads. GitHub token provider verification belongs in
+bounded command evidence, such as `npm run smoke:github-token-provider`, with
+secret values omitted from output.
+
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
 The local runtime exposes:
@@ -260,6 +266,7 @@ npm run typecheck
 npm --prefix apps/augnes_apps run typecheck
 npm --prefix apps/augnes_apps run smoke
 npm --prefix apps/augnes_apps run invariants
+npm run smoke:github-token-provider
 ```
 
 After running a command, Codex or another local verifier may record a bounded

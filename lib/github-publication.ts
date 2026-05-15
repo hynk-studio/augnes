@@ -171,12 +171,10 @@ export async function publishGitHubPrComment(
     });
   }
 
-  const githubToken = cleanNullableString(
-    input.githubToken ?? process.env.GITHUB_TOKEN,
-  );
+  const githubToken = cleanNullableString(input.githubToken);
   if (!githubToken) {
     const errorMessage =
-      "GitHub publish failed: GITHUB_TOKEN is not configured for this runtime.";
+      "GitHub publish failed: GitHub token was not provided by the caller.";
     delivery = updateDeliveryStatus({
       deliveryId: delivery.delivery_id,
       scope: delivery.scope,

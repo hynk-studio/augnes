@@ -58,6 +58,7 @@ TemporalPreviewReviewArtifact public capture route added
 Evidence Pack read-only TemporalPreviewReviewArtifact awareness added
 Cockpit read-only TemporalPreviewReviewArtifact browser added
 TemporalPreviewReviewArtifact v0.1 closeout complete
+GitHub token management foundation v0.1 complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -224,6 +225,23 @@ The recommended next productization direction is:
 Return to the broader productization roadmap: GitHub App/token management or
 Cockpit product UI / Core-gated write-control design.
 ```
+
+GitHub token management foundation v0.1 is now the first narrow slice of that
+direction. C5 Core-gated publish resolves outbound GitHub credentials through
+`lib/github-token-provider.ts` instead of reading `process.env.GITHUB_TOKEN`
+inside `lib/core-gated-publish.ts`. Behavior remains equivalent for now:
+runtime env `GITHUB_TOKEN` is the only implemented provider, `dry_run=true`
+does not require or use a token, `dry_run=false` requires token availability
+before delivery rows or adapter execution, and same-key sent/acknowledged replay
+returns the stored artifact before token resolution. The design and handling
+policy live in `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md`; GitHub App
+installation-token exchange, private key parsing, installation id storage,
+expiry/refresh, and permission minimization remain future/design-only work for a
+separate PR.
+
+Raw GitHub tokens must not be logged, persisted, returned in API JSON, written
+to evidence records, included in PR bodies, screenshots, or docs. Request
+bodies must not supply `github_token`, `token`, or `GITHUB_TOKEN`.
 
 Do not restart Phase 4 / PR 4.1. Mailbox summaries and publication summaries
 are derived read-only views, not sources of truth. PR #81 does not authorize
@@ -768,12 +786,13 @@ A fresh ChatGPT session should do this:
 5. Confirm that C3 Core-gated approve action routing grants approval only for the stored target and does not dry-run, publish, retry, create delivery rows, record proof, update mailbox status, commit/reject state, execute Codex, invoke GitHub, use `GITHUB_TOKEN`, or post externally.
 6. Confirm that C4 Core-gated dry-run publish readiness records readiness evidence only and does not publish, retry, create delivery rows, record proof, update mailbox status, commit/reject state, execute Codex, invoke GitHub, use `GITHUB_TOKEN`, post externally, add ChatGPT App tools, or add Cockpit write controls.
 7. Confirm that C5 Core-gated publish routing exists, PR #78 did not execute live posting, PR #81 separately executed one approved live post to `Aurna-code/augnes#81`, and PR #82 fixed same-key replay semantics without live posting.
-8. Read `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` before preparing any future live C5 publish test prompt; it is a historical pattern and template, not standing approval.
-9. Ask the user which next productization slice to prioritize after C5 live evidence and delivery external artifact persistence: session model, temporal interpretation, ChatGPT Apps cross-session tools, Codex session adapter, Cockpit write-control design, GitHub App/token model, or retry design if needed.
-10. Prepare a Codex prompt for that productization slice, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
-11. Let Codex implement and open or update a draft PR.
-12. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
-13. Let the user decide whether to merge.
+8. Confirm that GitHub token management foundation v0.1 exists, env `GITHUB_TOKEN` remains the only implemented provider, and GitHub App installation-token support is documented only in `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md`.
+9. Read `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` before preparing any future live C5 publish test prompt; it is a historical pattern and template, not standing approval.
+10. Ask the user which next productization slice to prioritize after C5 live evidence, delivery external artifact persistence, and token management foundation: GitHub App installation-token design/implementation, Cockpit product UI / Core-gated write-control design, or retry design if needed.
+11. Prepare a Codex prompt for that productization slice, including working-directory rules, scope boundaries, tests, browser checks, bridge checks, and a Handoff / Reality Feedback Report requirement.
+12. Let Codex implement and open or update a draft PR.
+13. Review the PR for scope, authority boundaries, test evidence, and repo/task mismatches.
+14. Let the user decide whether to merge.
 
 ChatGPT should not merge on its own unless the user explicitly directs it through available GitHub tooling.
 

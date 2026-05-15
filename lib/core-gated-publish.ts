@@ -3,6 +3,7 @@ import {
   parseGitHubPrCommentTargetRef,
 } from "@/lib/github-pr-comment-target";
 import { publishGitHubPrComment } from "@/lib/github-publication";
+import { resolveGitHubPublishToken } from "@/lib/github-token-provider";
 import {
   getPublicationApprovalDecision,
   type PublicationApprovalDecision,
@@ -339,10 +340,10 @@ export async function executeGitHubPrCommentPublish(
     };
   }
 
-  const githubToken = readRuntimeGitHubToken();
-  if (!githubToken) {
+  const tokenResolution = resolveGitHubPublishToken();
+  if (!tokenResolution.available || !tokenResolution.token) {
     throw new PublishTokenUnavailableError(
-      "dry_run=false requires GITHUB_TOKEN availability before creating delivery rows or invoking the GitHub adapter.",
+      "dry_run=false requires GitHub publish token availability before creating delivery rows or invoking the GitHub adapter.",
     );
   }
 
@@ -353,7 +354,7 @@ export async function executeGitHubPrCommentPublish(
     idempotencyKey: request.idempotencyKey,
     expectedTargetSurface: GITHUB_PR_COMMENT_TARGET_SURFACE,
     requestedBy: request.requestedBy,
-    githubToken,
+    githubToken: tokenResolution.token,
   });
 
   return {
@@ -751,12 +752,6 @@ function buildPreviewExcerpt(value: string) {
     : normalized;
 }
 
-function readRuntimeGitHubToken() {
-  const value = process.env.GITHUB_TOKEN;
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
-}
 
 function parsePersistedGitHubCommentId(value: string | null) {
   if (!value || !/^\d+$/.test(value)) {

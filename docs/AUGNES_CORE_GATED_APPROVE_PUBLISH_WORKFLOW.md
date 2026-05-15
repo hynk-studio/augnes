@@ -21,6 +21,10 @@ narrow observation layer for command/check, replay, and duplicate-block facts.
 These records are proof traces only: they do not approve, publish, replay,
 retry, change publication, approval, readiness, delivery, mailbox, or committed
 state rows, and they do not call GitHub or OpenAI.
+GitHub token management v0.1 adds an internal token provider abstraction for
+C5 actual publish while preserving current env `GITHUB_TOKEN` behavior. It
+does not implement GitHub App installation-token exchange, private key parsing,
+new runtime GitHub App env handling, or live posting.
 
 ## Purpose
 
@@ -184,6 +188,9 @@ required gates for the requested target and adapter:
 - No duplicate delivery exists for the same publication, target, and
   `idempotency_key`.
 - Token availability is checked at execution time.
+- Credential resolution is separated from gate validation: Core decides whether
+  a publish attempt is allowed, then the token provider resolves the outbound
+  credential before adapter execution.
 - `preview_body` is non-empty and sanitized before publish.
 - `target_ref` format is valid for the target surface.
 - Publication is not cancelled.
@@ -608,14 +615,16 @@ The C5 slice implements an explicit Core-gated GitHub PR comment publish route:
   preview with `would_publish=true`, target evidence, `idempotency_key`,
   gate checks, blocked reasons, boundaries, and readiness freshness.
 - `dry_run=true` never calls the GitHub adapter, never requires or uses
-  `GITHUB_TOKEN`, never creates delivery rows, never updates publication status,
+  `GITHUB_TOKEN` or any GitHub publish token, never creates delivery rows,
+  never updates publication status,
   never creates `publication_sent` or `publication_failed` events, never records
   proof, never updates mailbox status, never commits/rejects state, and never
   posts externally.
 - `dry_run=false` requires a fresh ready readiness check, approved decision,
   requested approval request, approved publication, exact target match, explicit
-  target approval fields, required `idempotency_key`, token availability before
-  adapter execution, and replay/no-duplicate gates.
+  target approval fields, required `idempotency_key`, token availability from
+  the internal GitHub token provider before delivery rows or adapter execution,
+  and replay/no-duplicate gates.
 - Actual publish posts one GitHub PR comment only. It does not merge PRs,
   submit PR reviews, request reviewers, mutate labels/titles/bodies, post to
   Discord or webhooks, record proof, update mailbox status, commit/reject
@@ -646,6 +655,15 @@ artifact on the sent delivery row as `external_artifact_id`,
 Same-key sent/acknowledged replay returns the persisted comment id/URL when
 available and preserves nulls for older delivery rows.
 
+GitHub token management v0.1 now documents and implements the current
+credential authority boundary. C5 uses `resolveGitHubPublishToken()` from
+`lib/github-token-provider.ts`; the only implemented provider is env
+`GITHUB_TOKEN`. Token availability remains separate from approval/readiness,
+and same-key sent/acknowledged replay returns before token resolution. Future
+GitHub App installation-token support is design-only in
+`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md` and must be implemented in a
+separately scoped PR.
+
 `docs/AUGNES_C5_LIVE_GITHUB_PUBLISH_TEST_DECISION.md` preserves the first
 live-test decision pattern and historical PR #81 decision packet while keeping
 the approval template for future live tests. It does not approve a future
@@ -669,7 +687,8 @@ workflow design PR because it changed no app tool, bridge behavior, widget
 behavior, or MCP contract.
 
 Additional live GitHub posting remains prohibited for approval workflow slices
-unless a future user/PM explicitly approves one specific target. `GITHUB_TOKEN`
-is not required for C1, C2, C3, C4, or C5 dry-run preview verification. The legacy
+unless a future user/PM explicitly approves one specific target. A GitHub
+publish token is not required for C1, C2, C3, C4, C5 dry-run preview
+verification, or same-key sent/acknowledged replay. The legacy
 `POST /api/publications/{publication_id}/publish/github-pr-comment` route is
 disabled and must not be used as a publish bypass.

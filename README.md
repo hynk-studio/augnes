@@ -82,6 +82,10 @@ The current challenge build includes:
 - `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
 - `npm run codex:bind-session` for binding a pre-existing session row to Codex/work/PR continuity metadata.
 - Codex Session Adapter v0.2 workflow documentation that standardizes `codex:read-brief`, `codex:bind-session`, `codex:record-evidence`, `codex:record-completion`, Evidence Pack review, and Session Trace review without adding new runtime authority.
+- GitHub token management v0.1 foundation: C5 Core-gated publish now resolves
+  outbound GitHub credentials through an internal token provider abstraction,
+  while preserving current env `GITHUB_TOKEN` behavior. GitHub App
+  installation-token support is documented as future/design-only work.
 - MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
 
 ## Single-Repo Layout
@@ -103,6 +107,20 @@ Augnes now has four visible coordination layers:
 4. Session Binding v0.1 answers "Which human/tool session carried this work/PR/evidence context?"
 
 These layers do not replace the commit/reject gate. Committed Augnes state remains the source of truth. A `work_id` is only a trace anchor. `action_records` are official execution proof. `work_events` are human-readable trace notes.
+
+## GitHub Token Authority
+
+GitHub PR comment publication remains Core-gated. Token availability is not
+approval, readiness, or publication. The current implemented credential source
+is only runtime env `GITHUB_TOKEN`, resolved internally after Core gates and
+before adapter execution for `dry_run=false`. `dry_run=true` never requires or
+uses a token, and same-key sent/acknowledged replay returns the stored artifact
+without resolving a token or invoking the adapter.
+
+The future GitHub App installation-token provider is documented in
+`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md` as design only. This repo does not
+currently implement live GitHub App token exchange, private key parsing, or
+runtime GitHub App env handling.
 
 ## How Augnes Uses OpenAI APIs
 
