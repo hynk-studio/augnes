@@ -106,14 +106,17 @@ action result back into the runtime without gaining commit/reject authority.
 
 ## Screenshots
 
-Key proof screenshots:
+### Cockpit
 
-- [Overview Temporal State Graph](screenshots/01-overview-temporal-state-graph.png)
-- [State brief JSON with agent_handoff](screenshots/06-state-brief-json.png)
-- [MCP Inspector state brief success](screenshots/09-bridge-state-brief-success.png)
-- [MCP Inspector action record success](screenshots/10-bridge-action-record-success.png)
-- [Bridge-recorded action in the graph](screenshots/11-bridge-action-node-in-graph.png)
-- [Full screenshot index](screenshots/README.md)
+![Cockpit Overview](screenshots/12-final-cockpit-overview.png)
+
+### AI surfaces using Augnes
+
+| ChatGPT state brief | ChatGPT work brief | Codex completion proof |
+|---|---|---|
+| <img src="screenshots/13-final-chatgpt-state-brief.png" width="320"> | <img src="screenshots/14-final-chatgpt-work-brief.png" width="320"> | <img src="screenshots/15-final-codex-terminal-completion-proof.png" width="320"> |
+
+More screenshots and supporting proof captures are listed in [screenshots/README.md](screenshots/README.md).
 
 ## Demo flow
 
