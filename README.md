@@ -1,5 +1,62 @@
 # Augnes
 
+## Judge Quick Summary
+
+Augnes is a local-first temporal state runtime for AI-assisted work. It turns
+conversation into typed, time-aware state proposals, keeps commit/reject behind
+a user/runtime gate, records accepted transitions in SQLite, anchors work with
+`AG-xxx` trace IDs, and shows proof of change in a temporal graph.
+
+It is not a prompt wrapper: model output is never treated as durable context by
+itself. OpenAI interprets and proposes; the Augnes runtime validates, stores
+pending proposals, owns committed state, and records proof.
+
+OpenAI API usage is explicit and bounded:
+
+- `POST /api/observe` uses the OpenAI Responses API to compile natural language
+  into typed temporal state delta proposals when `OPENAI_API_KEY` is set.
+- `POST /api/plan` uses committed Augnes state to generate grounded next-action
+  recommendations when `OPENAI_API_KEY` is set.
+- `POST /api/temporal-interpretation/preview` uses OpenAI to generate a
+  read-only temporal interpretation preview when `OPENAI_API_KEY` is set.
+- Deterministic mock fallbacks keep the local demo runnable when
+  `OPENAI_API_KEY` is unset.
+
+Run it locally:
+
+```bash
+npm install
+npm run db:reset
+npm run db:migrate
+npm run demo:seed
+env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000
+```
+
+Start the MCP bridge proof server separately:
+
+```bash
+npm --prefix apps/augnes_apps install
+AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
+```
+
+Final proof screenshots:
+
+- [Overview Temporal State Graph](screenshots/01-overview-temporal-state-graph.png)
+- [State brief JSON with agent_handoff](screenshots/06-state-brief-json.png)
+- [MCP Inspector state brief success](screenshots/09-bridge-state-brief-success.png)
+- [MCP Inspector action record success](screenshots/10-bridge-action-record-success.png)
+- [Bridge-recorded action in the graph](screenshots/11-bridge-action-node-in-graph.png)
+
+AI is necessary here because the hard part is interpretive: translating messy
+work conversation into structured temporal proposals, grounded next actions,
+and reviewable context while preserving explicit authority boundaries.
+
+Authority boundaries: the model does not directly mutate durable state;
+commit/reject stays user/runtime gated; the bridge remains read-first plus
+gated proof recording; Work IDs are trace anchors, not state authority; action
+records are execution proof; this is local-first, not hosted production; no API
+keys are committed.
+
 ## Temporal State Trajectories for AI Work
 
 Augnes is a temporal state runtime for AI-assisted work. It is not a chatbot with memory, a prompt wrapper, a generic task tracker, or an autonomous agent swarm. It turns conversation into typed, time-aware state delta proposals, lets the user commit or reject those proposals, records accepted transitions in a local SQLite ledger, anchors task traces with work IDs, and shows how project state changes over time.
@@ -94,10 +151,12 @@ The current challenge build includes:
 ## Screenshots
 
 Final challenge screenshots are committed under `screenshots/`, including the
-Overview Temporal State Graph, Work Trace Spine, Ledger, Proof, Bridge,
-state brief JSON, Temporal Interpretation Preview, Operator views, and final
-MCP Inspector bridge proof screenshots. See
-`screenshots/README.md` for the file list and what each screenshot proves.
+[Overview Temporal State Graph](screenshots/01-overview-temporal-state-graph.png),
+Work Trace Spine, Ledger, Proof, Bridge,
+[state brief JSON](screenshots/06-state-brief-json.png), Temporal
+Interpretation Preview, Operator views, and final MCP Inspector bridge proof
+screenshots. See `screenshots/README.md` for the file list and what each
+screenshot proves.
 
 ## Single-Repo Layout
 
@@ -180,11 +239,11 @@ it does not add logo artwork, font files, remote fonts, or new controls.
 
 OpenAI APIs are used for interpretation, not direct mutation.
 
-`POST /api/observe` asks the model to compile natural language into typed temporal state delta proposals. The output is validated against runtime enums before it is saved as pending state.
+`POST /api/observe` uses the OpenAI Responses API to compile natural language into typed temporal state delta proposals when `OPENAI_API_KEY` is set. The output is validated against runtime enums before it is saved as pending state.
 
-`POST /api/plan` asks the model to recommend actions grounded in committed state. The planner receives active, future, completed, deprecated, and tension state so it can avoid treating future work as current work.
+`POST /api/plan` asks the model to recommend actions grounded in committed state when `OPENAI_API_KEY` is set. The planner receives active, future, completed, deprecated, and tension state so it can avoid treating future work as current work.
 
-`POST /api/temporal-interpretation/preview` asks the model to generate a read-only PerspectiveSnapshot-like Temporal Interpretation Preview from current project/demo context. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, active context admission rationale, active context admission decisions, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, a safe next step, and a non-authority boundary. The route then runs deterministic local guardrails before returning the preview.
+`POST /api/temporal-interpretation/preview` asks the model to generate a read-only PerspectiveSnapshot-like Temporal Interpretation Preview from current project/demo context when `OPENAI_API_KEY` is set. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, active context admission rationale, active context admission decisions, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, a safe next step, and a non-authority boundary. The route then runs deterministic local guardrails before returning the preview.
 
 Local demos do not require an API key. If `OPENAI_API_KEY` is missing, Augnes uses deterministic mock behavior for observe and planner flows so the full demo remains runnable from a clean checkout.
 

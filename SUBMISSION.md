@@ -4,37 +4,42 @@ Submission: Augnes - Temporal State Trajectories for AI Work
 
 GitHub: https://github.com/Aurna-code/augnes
 
-Augnes started from a practical annoyance: I was tired of being the human message bus between ChatGPT, Codex, GitHub, and local project state.
+Augnes turns AI-assisted work into temporal state trajectories: the model interprets, the runtime owns state, user gates commit/reject, Work IDs anchor traces, and the graph shows proof of change.
 
-ChatGPT could plan and review. Codex could implement and test. GitHub could store the code. But the actual project state, next action, blockers, and proof trail still lived in my head.
+What I built:
 
-Augnes makes that coordination explicit. It turns AI work into temporal state trajectories: the model interprets, the runtime owns state, the bridge lets agents act, work IDs anchor task traces, and the graph shows what changed.
+- A local-first Next.js + SQLite runtime cockpit for project/work state.
+- Typed temporal state delta proposals with commit/reject gates.
+- A Temporal State Graph showing committed transitions and recorded proof.
+- Work Focus / Trace Spine views for AG-xxx work context.
+- MCP / ChatGPT App bridge proof that reads state and records gated proof without commit/reject authority.
 
-It is not chatbot memory, a prompt wrapper, a generic task tracker, or an autonomous agent swarm.
+How it uses OpenAI APIs:
 
-It is a temporal state runtime, a project/work coordination layer, a bridge between ChatGPT, Codex, GitHub work, and user decisions, and a proof trail for what changed and why.
+- `POST /api/observe` uses the OpenAI Responses API to compile natural language into typed temporal state delta proposals when `OPENAI_API_KEY` is set.
+- `POST /api/plan` uses committed state to generate grounded next-action recommendations when `OPENAI_API_KEY` is set.
+- `POST /api/temporal-interpretation/preview` uses OpenAI to generate a read-only temporal interpretation preview when `OPENAI_API_KEY` is set.
+- If `OPENAI_API_KEY` is unset, deterministic mock fallbacks keep the local demo runnable.
 
-Current product shape:
+How to run locally:
 
-1. Current Work card: project-level status, next action, blockers/tensions, and Codex handoff from `/api/state/brief` and `agent_handoff`.
-2. Work Focus / Trace Spine: AG-xxx task-level context, recent events, related proof, related state keys, and work-specific Codex handoff.
-3. ChatGPT App bridge tools: state brief and work brief access through Developer Mode, with write tools gated behind local bridge mode.
-4. Codex completion protocol: `npm run codex:record-completion` records both official action proof and human-readable work trace notes.
-5. Temporal State Graph: the time-oriented view of committed state transitions and recorded proof.
+```bash
+npm install
+npm run db:reset
+npm run db:migrate
+npm run demo:seed
+env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000
+```
 
-Authority stays explicit:
+Bridge proof:
 
-- committed Augnes state is the source of truth
-- `work_id` is only a trace anchor
-- `action_records` are official execution proof
-- `work_events` are human-readable trace notes
-- the ChatGPT App does not get commit/reject authority
+```bash
+npm --prefix apps/augnes_apps install
+AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
+```
 
-Live validation completed:
+Screenshots and proof are committed under `screenshots/`, including the Temporal State Graph, `/api/state/brief` JSON with `agent_handoff`, MCP Inspector state brief success, MCP Inspector action record success, and the bridge-recorded proof node in the graph.
 
-- ChatGPT Developer Mode state brief validation through the local bridge/tunnel flow.
-- ChatGPT Developer Mode Work tools validation through the local bridge/tunnel flow.
-- Codex completion recording validated against the local runtime.
-- Final MCP Inspector bridge proof: a local MCP-compatible client connected to `http://localhost:8787/mcp`, read the Augnes state brief with `agent_handoff`, recorded the safe `final_bridge_proof_check` action result, and the runtime graph showed `external.final_bridge_proof_check_recorded`.
+Why AI was necessary: Augnes uses the model for the interpretive work of turning messy project conversation into structured proposals, grounded next actions, and reviewable temporal interpretation while keeping durable state under runtime/user authority.
 
-This is still local-first, not a hosted production deployment.
+Boundaries: no API keys are committed. The model does not directly mutate durable state. The bridge remains read-first plus gated proof recording. This is local-first, not hosted production, not autonomous execution, and not ChatGPT App commit/reject authority.
