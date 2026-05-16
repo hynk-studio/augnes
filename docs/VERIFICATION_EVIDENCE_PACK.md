@@ -70,6 +70,11 @@ evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and
 low-fi wireframes are present, reference images are non-authority visual
 direction, no runtime files changed, and no dependencies were added.
+Cockpit demo readiness verification belongs in bounded command and browser
+evidence, such as `npm run smoke:cockpit-demo-readiness` plus screenshot review
+of Overview, Work, Ledger, Proof, Bridge, and Operator. It must record visual
+readability, horizontal overflow, console errors, text-only identity, and
+forbidden-control absence without adding backend behavior or new authority.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
@@ -426,11 +431,16 @@ Commands:
 - npm --prefix apps/augnes_apps run smoke: 
 - npm --prefix apps/augnes_apps run invariants: 
 - npm run smoke:cockpit-six-tab-shell:
+- npm run smoke:cockpit-demo-readiness:
 
 Browser/Chrome:
 - Surface:
 - Expected:
 - Actual:
+- Screenshots:
+- Horizontal overflow:
+- Console errors:
+- Forbidden controls visible:
 - Skipped reason, if any:
 
 ChatGPT Developer Mode:

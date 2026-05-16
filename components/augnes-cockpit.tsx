@@ -1919,7 +1919,7 @@ function OperatorTab({
           value={evidencePackLoaded ? "Available" : "Not loaded"}
           detail="read-only proof bundle"
         />
-        <MetricCard label="Package Version" value="v0.1.0" detail="package.json" />
+        <MetricCard label="Shell Status" value="MVP shell" detail="demo readiness" />
       </div>
       <div className="operator-layout-grid">
         <aside className="operator-side-stack">
@@ -2692,8 +2692,11 @@ function WorkFocusSection({
                   <ProofList brief={workBrief} />
                 </section>
 
-                <section className="work-context-section">
-                  <h4>Codex handoff draft</h4>
+                <details className="work-context-section work-handoff-details">
+                  <summary>
+                    <span>Codex handoff draft</span>
+                    <small>Draft/copy only</small>
+                  </summary>
                   <p>{workBrief.codex_handoff.task_brief}</p>
                   <div className="work-copy-row">
                     <div className="copy-control">
@@ -2731,7 +2734,7 @@ function WorkFocusSection({
                       <CopyFeedback notice={copyFeedback.workEvent} />
                     </div>
                   </div>
-                </section>
+                </details>
               </>
             ) : selectedItem ? (
               <LoadingBlock

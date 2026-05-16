@@ -6,7 +6,7 @@ authority-expanding work.
 
 ## Step 1: Six-Tab Functional Map And Wireframe Spec
 
-This PR.
+Status: complete in PR #142. Original scope label: This PR.
 
 Deliverable:
 
@@ -26,7 +26,7 @@ Outcome:
 
 ## Step 2: Six-Tab Cockpit Shell Implementation From References
 
-This PR.
+Status: complete in PR #143. Original scope label: This PR.
 
 Implement the Cockpit shell from the six reference images and the functional
 map.
@@ -51,15 +51,29 @@ Out of scope:
 
 ## Step 3: Fine Visual Polish / Screenshot / Demo Readiness Closeout
 
-Tighten the implemented shell for demo readability.
+Status: complete in PR #144.
 
-Expected scope:
+Tighten the implemented shell for demo readability and close the Cockpit MVP UI
+polish line.
+
+Completed scope:
 
 - spacing, density, typography, and responsive polish
 - screenshot verification for desktop and narrow widths
 - demo script alignment
 - review checklist closeout against the functional map
 - evidence notes for any deferred visual reference details
+- text-only `AUGNES` identity preserved
+- no backend routes, DB schema, migrations, dependencies, C5 semantics,
+  GitHub App/token behavior, ChatGPT App tools, or external control buttons
+  added
+
+Outcome:
+
+- Cockpit MVP has a demo-ready six-tab shell:
+  Overview -> Work -> Ledger -> Proof -> Bridge -> Operator.
+- Future Cockpit work is now a separate productization phase, not a continuation
+  of this visual polish line.
 
 ## Step 4 Future: Core-Gated Write-Control Design
 
@@ -72,10 +86,12 @@ shell implementation.
 Possible future topics:
 
 - approve/publish/retry control design
+- live publish controls
 - exact Core route ownership
 - explicit target approval packets
 - idempotency and replay UX
 - audit and evidence presentation
+- GitHub App provider integration
 
 ## Step 5 Future: RawEpisodeBundle Runtime
 
@@ -84,3 +100,16 @@ Separate research/runtime phase.
 This phase must remain separate from Cockpit UI polish. It may explore future
 runtime capture, persistence, and interpretation foundations only after a
 dedicated scope decision.
+
+## Future Work Not Included In The MVP Polish Line
+
+The following remain explicitly out of scope for the completed Cockpit MVP UI
+polish line:
+
+- Core-gated write-control design
+- live publish controls
+- GitHub App provider integration
+- RawEpisodeBundle runtime
+- PerspectiveSnapshot runtime
+
+None of these are included in the final visual polish/demo readiness closeout.
