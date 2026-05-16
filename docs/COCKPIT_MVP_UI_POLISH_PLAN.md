@@ -75,6 +75,31 @@ Outcome:
 - Future Cockpit work is now a separate productization phase, not a continuation
   of this visual polish line.
 
+## Step 3.5: Visual Tone Refresh
+
+Status: complete in PR #145.
+
+Soften the completed six-tab shell without changing layout, authority, runtime
+behavior, or controls.
+
+Completed scope:
+
+- subtle pale green page background
+- white or near-white card surfaces with green-gray borders
+- system font stack only, with no remote fonts or font files
+- lighter typography where labels and helper text were visually loud
+- before/after browser screenshot review across all six tabs
+- smoke coverage for the visual tone contract
+
+Out of scope:
+
+- backend routes, DB schema, migrations, dependencies, and runtime behavior
+- graphic logo artwork, SVG/image logo assets, or imported logo files
+- publish, merge, retry, GitHub-token, live-exchange, backup, or Execute Codex
+  controls
+- C5 gate semantics, GitHub App/token behavior, ChatGPT App tools,
+  RawEpisodeBundle runtime, or PerspectiveSnapshot runtime
+
 ## Step 4 Future: Core-Gated Write-Control Design
 
 Separate productization phase.

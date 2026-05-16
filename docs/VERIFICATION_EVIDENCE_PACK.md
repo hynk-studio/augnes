@@ -75,6 +75,12 @@ evidence, such as `npm run smoke:cockpit-demo-readiness` plus screenshot review
 of Overview, Work, Ledger, Proof, Bridge, and Operator. It must record visual
 readability, horizontal overflow, console errors, text-only identity, and
 forbidden-control absence without adding backend behavior or new authority.
+Cockpit visual tone refresh verification belongs in bounded command and browser
+evidence, such as `npm run smoke:cockpit-visual-tone-refresh` plus before/after
+screenshot review. It must record that the pale green background, white or
+near-white cards, green-gray borders, and system font stack are present while no
+remote fonts, font files, logo artwork, backend behavior, or new controls were
+added.
 
 Structured verification evidence records are now stored separately from
 approval, publication, readiness, delivery, mailbox, and committed state rows.
@@ -432,6 +438,7 @@ Commands:
 - npm --prefix apps/augnes_apps run invariants: 
 - npm run smoke:cockpit-six-tab-shell:
 - npm run smoke:cockpit-demo-readiness:
+- npm run smoke:cockpit-visual-tone-refresh:
 
 Browser/Chrome:
 - Surface:
