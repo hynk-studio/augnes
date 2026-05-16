@@ -1595,9 +1595,6 @@ function LedgerTab({
                 selectedTransitionId={selectedTransition?.id ?? null}
                 onSelectTransition={onSelectTransition}
               />
-              <p className="graph-scroll-hint">
-                Scroll horizontally to inspect full timeline.
-              </p>
             </div>
           ) : (
             <EmptyState label="Loading temporal ledger" />

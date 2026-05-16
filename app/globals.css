@@ -155,10 +155,6 @@ code {
   color: var(--accent-strong);
   background: rgba(13, 79, 62, 0.045);
   border-bottom-color: rgba(13, 79, 62, 0.62);
-  text-decoration: underline;
-  text-decoration-color: rgba(13, 79, 62, 0.36);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 9px;
 }
 
 .cockpit-tab-button:hover:not(:disabled) {
@@ -174,6 +170,11 @@ code {
 
 .cockpit-tab-button.is-active:hover:not(:disabled) {
   background: rgba(13, 79, 62, 0.035);
+}
+
+.cockpit-tab-button.is-active:focus-visible {
+  background: transparent;
+  border-bottom-color: var(--accent-strong);
 }
 
 .shell-status-strip {
@@ -383,16 +384,13 @@ code {
 }
 
 .ledger-graph-stage .graph-scroll {
-  padding-right: 22px;
-  scrollbar-gutter: stable both-edges;
+  overflow: hidden;
 }
 
-.graph-scroll-hint {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 560;
-  line-height: 1.35;
+.ledger-graph-stage .temporal-graph {
+  width: 100%;
+  min-width: 0;
+  height: auto;
 }
 
 .boundary-note {

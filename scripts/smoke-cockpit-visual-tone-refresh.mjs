@@ -64,9 +64,18 @@ for (const snippet of [
   "Operator",
   "AUGNES",
   "Temporal State Runtime",
-  "Scroll horizontally to inspect full timeline.",
 ]) {
   assertIncludes(cockpit, snippet);
+}
+
+for (const snippet of [
+  ".ledger-graph-stage .graph-scroll",
+  "overflow: hidden",
+  ".ledger-graph-stage .temporal-graph",
+  "width: 100%",
+  "min-width: 0",
+]) {
+  assertIncludes(css, snippet);
 }
 
 assertOrder(cockpit, ["Overview", "Work", "Ledger", "Proof", "Bridge", "Operator"]);
