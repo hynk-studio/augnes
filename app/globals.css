@@ -133,8 +133,9 @@ code {
 }
 
 .cockpit-tab-button {
+  appearance: none;
   min-height: 40px;
-  padding: 0 12px;
+  padding: 0 12px 3px;
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
@@ -150,19 +151,24 @@ code {
 }
 
 .cockpit-tab-button:focus-visible {
-  border-radius: 6px;
-  outline: 2px solid rgba(13, 79, 62, 0.28);
-  outline-offset: 2px;
+  border-radius: 3px;
+  outline: 1px solid rgba(13, 79, 62, 0.36);
+  outline-offset: 1px;
 }
 
-.cockpit-tab-button:hover:not(:disabled),
+.cockpit-tab-button:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: rgba(13, 79, 62, 0.045);
+}
+
 .cockpit-tab-button.is-active {
   color: var(--accent-strong);
-  background: #f3fbf7;
+  background: transparent;
+  border-bottom-color: var(--accent-strong);
 }
 
-.cockpit-tab-button.is-active {
-  border-bottom-color: var(--accent-strong);
+.cockpit-tab-button.is-active:hover:not(:disabled) {
+  background: rgba(13, 79, 62, 0.035);
 }
 
 .shell-status-strip {
