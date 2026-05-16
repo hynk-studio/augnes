@@ -104,6 +104,28 @@ With MCP Inspector, run `augnes_get_state_brief` for `project:augnes`, then run
 shows that an external MCP-compatible client read Augnes state and recorded an
 action result back into the runtime without gaining commit/reject authority.
 
+### ChatGPT App / Developer Mode use
+
+After the bridge is running, connect ChatGPT Developer Mode or any
+MCP-compatible client to:
+
+```text
+http://localhost:8787/mcp
+```
+
+Useful calls:
+
+- `augnes_get_state_brief` with args `{ "scope": "project:augnes" }`
+- `augnes_get_work_brief` with args `{ "scope": "project:augnes", "work_id": "AG-001" }`
+
+These calls let ChatGPT read committed Augnes project state, `agent_handoff`,
+work status, proof links, and Codex handoff context without receiving
+commit/reject authority.
+
+For Codex-side usage, see the [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md),
+which covers `codex:read-brief`, `codex:record-evidence`, and
+`codex:record-completion`.
+
 ## Screenshots
 
 ### Cockpit
