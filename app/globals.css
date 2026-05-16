@@ -1052,9 +1052,9 @@ h1 {
 
 .work-context-card {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid #dfe6ef;
   border-radius: 8px;
   background: #ffffff;
@@ -1135,9 +1135,9 @@ h1 {
 
 .work-context-section {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
-  padding: 9px;
+  padding: 8px;
   border: 1px solid #e1e7ef;
   border-radius: 6px;
   background: #fbfcfe;
@@ -1150,6 +1150,34 @@ h1 {
   font-weight: 900;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.work-handoff-details {
+  display: block;
+}
+
+.work-handoff-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.work-handoff-details summary small {
+  color: #456052;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: none;
+}
+
+.work-handoff-details[open] {
+  display: grid;
 }
 
 .work-context-section p {
@@ -1193,6 +1221,18 @@ h1 {
 
 .proof-list {
   margin-top: 8px;
+}
+
+.work-context-section .meta-row,
+.work-context-section .proof-list {
+  align-items: flex-start;
+  max-height: 132px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.work-context-section .proof-list {
+  max-height: 178px;
 }
 
 .proof-list span {
