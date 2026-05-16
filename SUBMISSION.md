@@ -35,5 +35,6 @@ Live validation completed:
 - ChatGPT Developer Mode state brief validation through the local bridge/tunnel flow.
 - ChatGPT Developer Mode Work tools validation through the local bridge/tunnel flow.
 - Codex completion recording validated against the local runtime.
+- Final MCP Inspector bridge proof: a local MCP-compatible client connected to `http://localhost:8787/mcp`, read the Augnes state brief with `agent_handoff`, recorded the safe `final_bridge_proof_check` action result, and the runtime graph showed `external.final_bridge_proof_check_recorded`.
 
 This is still local-first, not a hosted production deployment.

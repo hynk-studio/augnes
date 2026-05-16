@@ -95,7 +95,8 @@ The current challenge build includes:
 
 Final challenge screenshots are committed under `screenshots/`, including the
 Overview Temporal State Graph, Work Trace Spine, Ledger, Proof, Bridge,
-state brief JSON, Temporal Interpretation Preview, and Operator views. See
+state brief JSON, Temporal Interpretation Preview, Operator views, and final
+MCP Inspector bridge proof screenshots. See
 `screenshots/README.md` for the file list and what each screenshot proves.
 
 ## Single-Repo Layout
@@ -667,6 +668,14 @@ MCP Inspector successfully read Augnes state brief through the Augnes Agent Brid
 ```
 
 This proves the first practical version of the intended coordination layer: an external MCP client can read Augnes state and write an action result back into the temporal graph. In other words, Augnes replaces the human message bus between ChatGPT, Codex, GitHub, and local project state with explicit state handoff, task trace, and proof layers.
+
+Final local bridge proof screenshots also show MCP Inspector connected to
+`http://localhost:8787/mcp`, `augnes_get_state_brief` returning a state brief
+with `agent_handoff`, `augnes_record_action_result` recording
+`final_bridge_proof_check`, and the resulting
+`external.final_bridge_proof_check_recorded` node in the Runtime Cockpit graph.
+This remains local-first bridge proof, not hosted production or autonomous
+execution.
 
 ## How to Run
 
