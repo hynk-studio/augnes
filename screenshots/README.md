@@ -13,6 +13,11 @@ These screenshots were captured from the local Augnes demo runtime for the OpenA
 - `09-bridge-state-brief-success.png`: MCP Inspector connected to `http://localhost:8787/mcp` and successfully ran `augnes_get_state_brief` for `project:augnes`, showing the state brief and `agent_handoff`.
 - `10-bridge-action-record-success.png`: MCP Inspector successfully ran `augnes_record_action_result` with the safe `final_bridge_proof_check` action and received the no-commit/no-reject proof response.
 - `11-bridge-action-node-in-graph.png`: Runtime Cockpit Overview showing the bridge-recorded `external.final_bridge_proof_check_recorded` completion node in the Temporal State Graph.
+- `12-final-cockpit-overview.png`: Actual Cockpit Overview showing the product flow and Temporal State Graph.
+- `13-final-chatgpt-state-brief.png`: Actual ChatGPT Developer Mode call to `augnes_get_state_brief`, showing `agent_handoff` from Augnes.
+- `14-final-chatgpt-work-brief.png`: Actual ChatGPT Developer Mode call to `augnes_get_work_brief` for AG-001, showing completed status, PR proof, recent events, and Codex handoff.
+- `15-final-codex-terminal-completion-proof.png`: Actual terminal screenshot showing `codex:record-completion` recording completion proof into Augnes.
+- `16-final-mcp-bridge-proof-summary.png`: Supporting bridge proof summary showing MCP-compatible state brief access and exposed Augnes bridge tools.
 
 Capture environment:
 
