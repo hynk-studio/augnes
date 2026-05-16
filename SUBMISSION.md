@@ -4,15 +4,19 @@ Submission: Augnes - Temporal State Trajectories for AI Work
 
 GitHub: https://github.com/Aurna-code/augnes
 
-Augnes turns AI-assisted work into temporal state trajectories: the model interprets, the runtime owns state, user gates commit/reject, Work IDs anchor traces, and the graph shows proof of change.
+Augnes is a local temporal state backend for AI-assisted work. It lets ChatGPT,
+Codex, and local tools coordinate through committed state instead of scattered
+chat memory: the model interprets, the runtime stores, the user gates changes,
+Work IDs anchor traces, and the graph shows proof over time.
 
 What I built:
 
 - A local-first Next.js + SQLite runtime cockpit for project/work state.
 - Typed temporal state delta proposals with commit/reject gates.
 - A Temporal State Graph showing committed transitions and recorded proof.
-- Work Focus / Trace Spine views for AG-xxx work context.
+- Cockpit operator/audit/proof views for temporal state, work traces, ledger, proof, bridge, and local controls.
 - MCP / ChatGPT App bridge proof that reads state and records gated proof without commit/reject authority.
+- Codex handoff/completion paths for action records, evidence records, and work trace notes.
 
 How it uses OpenAI APIs:
 
@@ -40,6 +44,6 @@ AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --
 
 Screenshots and proof are committed under `screenshots/`, including the Temporal State Graph, `/api/state/brief` JSON with `agent_handoff`, MCP Inspector state brief success, MCP Inspector action record success, and the bridge-recorded proof node in the graph.
 
-Why AI was necessary: Augnes uses the model for the interpretive work of turning messy project conversation into structured proposals, grounded next actions, and reviewable temporal interpretation while keeping durable state under runtime/user authority.
+Why AI was necessary: Augnes uses the model for the interpretive work of turning messy project conversation into structured proposals, grounded next actions, and reviewable temporal context while keeping durable state under runtime/user authority.
 
 Boundaries: no API keys are committed. The model does not directly mutate durable state. The bridge remains read-first plus gated proof recording. This is local-first, not hosted production, not autonomous execution, and not ChatGPT App commit/reject authority.

@@ -2,14 +2,15 @@
 
 ## Judge Quick Summary
 
-Augnes is a local-first temporal state runtime for AI-assisted work. It turns
+Augnes gives AI-assisted work a shared temporal state backend. ChatGPT Apps and
+MCP clients can read the same committed project state, Codex can record
+implementation proof, and the Cockpit shows what changed over time.
+
+The model interprets; the runtime stores; the user gates; the graph proves.
+OpenAI output is never treated as durable context by itself. Augnes turns
 conversation into typed, time-aware state proposals, keeps commit/reject behind
 a user/runtime gate, records accepted transitions in SQLite, anchors work with
-`AG-xxx` trace IDs, and shows proof of change in a temporal graph.
-
-It is not a prompt wrapper: model output is never treated as durable context by
-itself. OpenAI interprets and proposes; the Augnes runtime validates, stores
-pending proposals, owns committed state, and records proof.
+`AG-xxx` trace IDs, and surfaces state trajectories over time.
 
 OpenAI API usage is explicit and bounded:
 
@@ -49,7 +50,7 @@ Final proof screenshots:
 
 AI is necessary here because the hard part is interpretive: translating messy
 work conversation into structured temporal proposals, grounded next actions,
-and reviewable context while preserving explicit authority boundaries.
+and reviewable temporal context while preserving explicit authority boundaries.
 
 Authority boundaries: the model does not directly mutate durable state;
 commit/reject stays user/runtime gated; the bridge remains read-first plus
@@ -59,11 +60,11 @@ keys are committed.
 
 ## Temporal State Trajectories for AI Work
 
-Augnes is a temporal state runtime for AI-assisted work. It is not a chatbot with memory, a prompt wrapper, a generic task tracker, or an autonomous agent swarm. It turns conversation into typed, time-aware state delta proposals, lets the user commit or reject those proposals, records accepted transitions in a local SQLite ledger, anchors task traces with work IDs, and shows how project state changes over time.
+Augnes is a temporal state runtime for AI-assisted work. It turns conversation into typed, time-aware state delta proposals, lets the user commit or reject those proposals, records accepted transitions in a local SQLite ledger, anchors task traces with work IDs, and shows how project state changes over time.
 
 > The model interprets. The runtime owns state. The bridge lets agents act. Work IDs anchor task traces. The graph shows what changed.
 
-Augnes started from a practical annoyance: I was tired of being the human message bus between ChatGPT, Codex, GitHub, and local project state. ChatGPT could plan and review. Codex could implement and test. GitHub could store the code. But the project state still lived in my head. Augnes replaces that human message bus with explicit temporal state, work trace anchors, and recorded proof.
+Augnes started from a practical annoyance: ChatGPT could plan and review, Codex could implement and test, and GitHub could store the code, but the project state still lived in scattered chat memory and human handoffs. Augnes replaces that message-bus work with explicit temporal state, work trace anchors, and recorded proof.
 
 ## What Augnes Is
 
