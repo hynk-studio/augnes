@@ -68,8 +68,9 @@ code {
   font-size: 0.8rem;
 }
 
+/* Cockpit demo readiness polish: keep the MVP shell readable without adding authority. */
 .cockpit-shell {
-  width: min(1480px, calc(100% - 32px));
+  width: min(1500px, calc(100% - 28px));
   margin: 0 auto;
   padding: 24px 0;
 }
@@ -84,10 +85,10 @@ code {
   top: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 18px;
+  grid-template-columns: minmax(164px, auto) minmax(0, 1fr) auto;
+  gap: 14px;
   align-items: center;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
@@ -98,7 +99,7 @@ code {
 .cockpit-brand {
   display: grid;
   gap: 2px;
-  min-width: 190px;
+  min-width: 164px;
 }
 
 .cockpit-brand strong {
@@ -117,21 +118,32 @@ code {
 .cockpit-tab-nav {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   overflow-x: auto;
 }
 
 .cockpit-tab-button {
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 0 12px;
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
   color: #162238;
   background: transparent;
   box-shadow: none;
+  font-size: 0.92rem;
   white-space: nowrap;
+}
+
+.cockpit-tab-button:focus {
+  outline: none;
+}
+
+.cockpit-tab-button:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid rgba(13, 79, 62, 0.28);
+  outline-offset: 2px;
 }
 
 .cockpit-tab-button:hover:not(:disabled),
@@ -147,6 +159,11 @@ code {
 .shell-status-strip {
   flex-wrap: nowrap;
   white-space: nowrap;
+}
+
+.shell-status-strip span {
+  min-height: 30px;
+  font-size: 0.76rem;
 }
 
 .cockpit-tab-panel {
@@ -324,11 +341,20 @@ code {
 
 .overview-graph-stage .graph-scroll,
 .ledger-graph-stage .graph-scroll {
-  min-height: 420px;
+  min-height: 390px;
 }
 
 .overview-graph-stage {
   min-width: 0;
+}
+
+.overview-graph-stage .graph-scroll {
+  overflow: hidden;
+}
+
+.overview-graph-stage .temporal-graph {
+  width: 100%;
+  height: auto;
 }
 
 .ledger-graph-stage {
@@ -425,7 +451,7 @@ code {
 
 .ledger-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr) minmax(300px, 0.48fr);
+  grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1.12fr) minmax(280px, 0.4fr);
   gap: 16px;
   align-items: start;
 }
@@ -500,25 +526,28 @@ code {
   gap: 6px;
   min-width: 0;
   overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .capability-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.15fr) repeat(6, minmax(120px, 0.7fr));
-  gap: 6px;
-  min-width: 920px;
+  grid-template-columns: minmax(160px, 1.05fr) repeat(6, minmax(88px, 0.64fr));
+  gap: 5px;
+  min-width: 780px;
   align-items: center;
 }
 
 .capability-row span {
-  min-height: 32px;
-  padding: 8px 9px;
+  min-height: 30px;
+  padding: 7px 8px;
   border: 1px solid #e0e7ef;
   border-radius: 8px;
   background: #fbfcfe;
   color: #263850;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 850;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .capability-head span {
@@ -561,7 +590,7 @@ code {
 
 .operator-layout-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 0.3fr) minmax(0, 1fr) minmax(320px, 0.45fr);
+  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1.18fr) minmax(280px, 0.38fr);
   gap: 16px;
   align-items: start;
 }
@@ -572,6 +601,21 @@ code {
   display: grid;
   gap: 14px;
   min-width: 0;
+}
+
+.operator-tab .proposals-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.operator-tab .panel-control-row {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.operator-tab .panel-control-row button {
+  justify-self: start;
+  max-width: 100%;
 }
 
 .operator-advanced-observe {
@@ -1062,6 +1106,17 @@ h1 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 10px;
+}
+
+.work-context-card .work-copy-row {
+  grid-template-columns: 1fr;
+}
+
+.work-context-card .copy-control button {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  font-size: 0.82rem;
 }
 
 .work-proof-grid {
@@ -3294,6 +3349,30 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.operator-tab .action-controls {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.operator-tab .action-controls button {
+  min-height: 34px;
+  padding: 6px 8px;
+  border-color: #d4dde7;
+  color: #263142;
+  background: #ffffff;
+  font-size: 0.8rem;
+}
+
+.operator-tab .action-controls button:first-child {
+  border-color: rgba(13, 79, 62, 0.28);
+  color: var(--accent-strong);
+  background: #f3fbf7;
+}
+
+.operator-tab .action-controls button:hover:not(:disabled) {
+  background: #eef7f2;
 }
 
 @media (max-width: 1180px) {

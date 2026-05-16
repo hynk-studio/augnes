@@ -77,9 +77,9 @@ The current challenge build includes:
 - Work Trace Spine and Work Focus for `AG-xxx` task context.
 - Work APIs for listing work items, reading work briefs, and recording work events.
 - Read-only Cockpit Session Trace continuity panel for already-bound sessions.
-- Six-tab Cockpit MVP shell: Overview, Work, Ledger, Proof, Bridge, and
-  Operator reorganize existing runtime panels without adding backend behavior
-  or new authority.
+- Demo-ready six-tab Cockpit MVP shell: Overview, Work, Ledger, Proof, Bridge,
+  and Operator reorganize existing runtime panels without adding backend
+  behavior or new authority.
 - ChatGPT App read tools for state/work briefs and bridge-gated cross-session continuity reads, with bridge-gated write tools for action and work-event proof.
 - `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
 - `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
@@ -153,17 +153,18 @@ not wired into C5 or the token provider. Live GitHub exchange remains future
 work requiring explicit approval.
 
 GitHub App/token management v0.1 is closed as a bounded foundation line in
-`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md`. The recommended next
-product step is UI polishing / Cockpit MVP polish, with live exchange/provider
-integration deferred to separately approved future work.
+`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md`. Cockpit MVP UI polish is
+now closed; live exchange/provider integration remains deferred to separately
+approved future work.
 
-Cockpit MVP UI polish now has a docs-only six-tab contract in
-`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, with implementation sequencing in
-`docs/COCKPIT_MVP_UI_POLISH_PLAN.md`. The approved shell is
-`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The contract maps
-existing Cockpit components into future tabs and keeps reference images as
-visual direction only; it does not add runtime UI code, backend routes, schema,
-dependencies, write controls, ChatGPT App tools, or GitHub/OpenAI behavior.
+Cockpit MVP UI polish is closed as a six-tab demo shell:
+`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The binding
+contract lives in `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, with closeout
+sequencing in `docs/COCKPIT_MVP_UI_POLISH_PLAN.md`. The shell reorganizes
+existing Cockpit data and safe local controls for demo readability while
+remaining local-runtime/read-first where appropriate. It does not add backend
+routes, schema, dependencies, external publish/merge/retry/token controls,
+ChatGPT App tools, or GitHub/OpenAI behavior.
 
 ## How Augnes Uses OpenAI APIs
 
@@ -383,6 +384,17 @@ Work for Work ID traces, Ledger for committed state truth, Proof for read-only
 evidence, Bridge for read-first tool authority, and Operator for safe local
 runtime actions. This is UI composition only; it does not add backend routes,
 external controls, token behavior, or new authority.
+
+For a safe local Cockpit demo route, run:
+
+```bash
+env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-cockpit-demo.db npm run dev -- --port 3000
+```
+
+Then review the tabs in order:
+Overview -> Work -> Ledger -> Proof -> Bridge -> Operator. The Cockpit remains
+local-runtime/read-first where appropriate and does not add external
+publish/merge/token controls.
 
 ## Session Trace
 

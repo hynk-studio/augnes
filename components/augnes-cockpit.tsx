@@ -1919,7 +1919,7 @@ function OperatorTab({
           value={evidencePackLoaded ? "Available" : "Not loaded"}
           detail="read-only proof bundle"
         />
-        <MetricCard label="Package Version" value="v0.1.0" detail="package.json" />
+        <MetricCard label="Shell Status" value="MVP shell" detail="demo readiness" />
       </div>
       <div className="operator-layout-grid">
         <aside className="operator-side-stack">
