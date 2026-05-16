@@ -164,7 +164,9 @@ sequencing in `docs/COCKPIT_MVP_UI_POLISH_PLAN.md`. The shell reorganizes
 existing Cockpit data and safe local controls for demo readability while
 remaining local-runtime/read-first where appropriate. It does not add backend
 routes, schema, dependencies, external publish/merge/retry/token controls,
-ChatGPT App tools, or GitHub/OpenAI behavior.
+ChatGPT App tools, or GitHub/OpenAI behavior. The Cockpit visual tone uses a
+subtle pale green page wash with white/near-white cards and system fonts only;
+it does not add logo artwork, font files, remote fonts, or new controls.
 
 ## How Augnes Uses OpenAI APIs
 
@@ -394,7 +396,9 @@ env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-cockpit-demo.db npm run dev -- 
 Then review the tabs in order:
 Overview -> Work -> Ledger -> Proof -> Bridge -> Operator. The Cockpit remains
 local-runtime/read-first where appropriate and does not add external
-publish/merge/token controls.
+publish/merge/token controls. Its current demo styling keeps a text-only
+`AUGNES` identity, pale green page background, and white/near-white card
+surfaces for readability.
 
 ## Session Trace
 

@@ -68,6 +68,7 @@ GitHub App/token management v0.1 closeout complete
 Cockpit six-tab MVP functional map and wireframe spec added
 Cockpit six-tab MVP shell implemented
 Cockpit final visual polish/demo readiness closeout complete
+Cockpit visual tone refresh complete
 ```
 
 The cross-surface control packet / surface role design and the first read-only
@@ -298,12 +299,14 @@ Cockpit write controls, and ChatGPT App write tools remain future work.
 
 Cockpit MVP UI polish now has the six-tab implementation contract in
 `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, a six-tab shell implementation,
-and a final browser-checked demo readiness polish pass. The approved tab order is
-`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The shell
-reorganizes existing Cockpit runtime data and safe local controls across
-Overview, Work, Ledger, Proof, Bridge, and Operator. It does not add backend
-routes, schema, dependencies, token behavior, ChatGPT App tools, external
-execution, or publish/merge/retry/live-exchange controls.
+and browser-checked demo readiness and visual tone polish passes. The approved
+tab order is `Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The
+shell reorganizes existing Cockpit runtime data and safe local controls across
+Overview, Work, Ledger, Proof, Bridge, and Operator. The current visual tone uses
+a pale green page wash, white/near-white cards, green-gray borders, and system
+fonts only. It does not add backend routes, schema, dependencies, token
+behavior, ChatGPT App tools, external execution, logo artwork, font files,
+remote fonts, or publish/merge/retry/live-exchange controls.
 
 Safe local Cockpit demo command:
 
