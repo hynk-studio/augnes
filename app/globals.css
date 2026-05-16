@@ -151,9 +151,14 @@ code {
 }
 
 .cockpit-tab-button:focus-visible {
-  border-radius: 3px;
-  outline: 1px solid rgba(13, 79, 62, 0.36);
-  outline-offset: 1px;
+  outline: none;
+  color: var(--accent-strong);
+  background: rgba(13, 79, 62, 0.045);
+  border-bottom-color: rgba(13, 79, 62, 0.62);
+  text-decoration: underline;
+  text-decoration-color: rgba(13, 79, 62, 0.36);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 9px;
 }
 
 .cockpit-tab-button:hover:not(:disabled) {
