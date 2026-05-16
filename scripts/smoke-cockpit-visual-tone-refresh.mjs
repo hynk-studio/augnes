@@ -24,9 +24,11 @@ assert.equal(
 for (const snippet of [
   "Cockpit visual tone refresh",
   "#f4fbf6",
-  "radial-gradient(circle at top left, rgba(12, 120, 68, 0.07), transparent 34rem)",
+  "radial-gradient(circle at top left, rgba(12, 120, 68, 0.045), transparent 34rem)",
   "rgba(255, 255, 255, 0.94)",
-  "--panel-border: #d5e7dc",
+  "--panel-border: #dbe3ea",
+  "--info-bg: #f5f9ff",
+  "--info-border: #dbe7f6",
   "ui-sans-serif",
   "system-ui",
   "-apple-system",
@@ -62,6 +64,7 @@ for (const snippet of [
   "Operator",
   "AUGNES",
   "Temporal State Runtime",
+  "Scroll horizontally to inspect full timeline.",
 ]) {
   assertIncludes(cockpit, snippet);
 }

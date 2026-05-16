@@ -1595,6 +1595,9 @@ function LedgerTab({
                 selectedTransitionId={selectedTransition?.id ?? null}
                 onSelectTransition={onSelectTransition}
               />
+              <p className="graph-scroll-hint">
+                Scroll horizontally to inspect full timeline.
+              </p>
             </div>
           ) : (
             <EmptyState label="Loading temporal ledger" />
@@ -1690,7 +1693,7 @@ function ProofTab({
           detail="derived review gaps"
         />
       </div>
-      <BoundaryNote tone="green">
+      <BoundaryNote>
         Proof records evidence only. It does not commit, approve, publish,
         replay, or execute anything.
       </BoundaryNote>
@@ -1826,7 +1829,7 @@ function BridgeTab() {
           </div>
         </section>
       </div>
-      <BoundaryNote tone="green">
+      <BoundaryNote>
         Configured tool surface, not an external system control panel. Bridge
         reads context and may record bounded proof/trace only through existing
         gated behavior.
