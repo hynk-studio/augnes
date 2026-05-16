@@ -1,27 +1,18 @@
-# Screenshot Capture Guide
+# Final Submission Screenshots
 
-Real screenshots were not generated in this branch because browser automation was not available in the current coding session. Do not add fake screenshots.
+These screenshots were captured from the local Augnes demo runtime for the OpenAI Dev Challenge submission.
 
-To capture final demo screenshots:
+- `01-overview-temporal-state-graph.png`: Overview tab with the Temporal State Graph and committed state lanes visible.
+- `02-work-trace-spine.png`: Work tab showing Work Focus and AG-xxx trace context.
+- `03-ledger-committed-state.png`: Ledger tab showing committed state, grouped snapshot, and ledger graph.
+- `04-proof-evidence-boundary.png`: Proof tab showing the evidence-only boundary and read-only proof panels.
+- `05-bridge-read-first-boundary.png`: Bridge tab showing read-first authority and blocked external-control boundaries.
+- `06-state-brief-json.png`: Live `/api/state/brief?scope=project:augnes` response rendered from `curl`, showing `runtime`, `scope`, `agent_handoff`, and state groups.
+- `07-temporal-interpretation-preview.png`: Proof tab with the advanced Temporal Interpretation Preview generated via the explicit preview button.
+- `08-operator-pending-proposals.png`: Operator tab showing safe local runtime controls and the pending local proposal queue.
 
-1. Run the app:
+Capture environment:
 
-   ```bash
-   npm install
-   cp .env.example .env.local
-   npm run db:reset
-   npm run demo:seed
-   npm run dev -- --port 3000
-   ```
-
-2. Open `http://localhost:3000`.
-3. Capture these views:
-
-   - `01-chat-cockpit.png`: Chat Cockpit with the canonical demo message.
-   - `02-pending-proposals.png`: multiple pending Temporal Delta Proposal cards.
-   - `03-snapshot-trajectory.png`: State Snapshot and State Trajectory View after commits.
-   - `04-tensions.png`: Tensions panel showing open temporal/runtime concerns.
-   - `05-state-grounded-actions.png`: planner recommendations and README Checklist tool run.
-   - `06-state-brief-json.png`: `/api/state/brief?scope=project:augnes` response showing `runtime`, `as_of`, state groups, tensions, and agent instructions.
-
-4. Keep generated screenshots under `screenshots/`.
+```bash
+env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-final-submission.db npm run dev -- --port 3000
+```

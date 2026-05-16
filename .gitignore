@@ -31,3 +31,4 @@ outputs/*
 screenshots/*
 !screenshots/.gitkeep
 !screenshots/README.md
+!screenshots/*.png

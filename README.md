@@ -91,6 +91,13 @@ The current challenge build includes:
   installation-token support is documented as future/design-only work.
 - MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
 
+## Screenshots
+
+Final challenge screenshots are committed under `screenshots/`, including the
+Overview Temporal State Graph, Work Trace Spine, Ledger, Proof, Bridge,
+state brief JSON, Temporal Interpretation Preview, and Operator views. See
+`screenshots/README.md` for the file list and what each screenshot proves.
+
 ## Single-Repo Layout
 
 The challenge submission is now a single GitHub repository:
