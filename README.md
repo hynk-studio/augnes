@@ -1,6 +1,6 @@
 # Augnes
 
-## Judge Quick Summary
+## What it is
 
 Augnes gives AI-assisted work a shared temporal state backend. ChatGPT Apps and
 MCP clients can read the same committed project state, Codex can record
@@ -12,18 +12,58 @@ conversation into typed, time-aware state proposals, keeps commit/reject behind
 a user/runtime gate, records accepted transitions in SQLite, anchors work with
 `AG-xxx` trace IDs, and surfaces state trajectories over time.
 
-OpenAI API usage is explicit and bounded:
+Cockpit is the local operator, audit, and proof UI. ChatGPT App / MCP tools are
+bridge surfaces. Codex records implementation results, evidence, and work trace
+notes. All of those surfaces point at the same runtime-owned state.
+
+## Why it exists
+
+AI-assisted project work often gets split across chat memory, local code
+changes, GitHub history, screenshots, and human handoffs. ChatGPT can plan and
+review, Codex can implement and test, and GitHub can store the code, but the
+current project state can still live in the operator's head.
+
+Augnes replaces that message-bus work with explicit temporal state, work trace
+anchors, and recorded proof. It keeps useful interpretation from the model while
+leaving durable project authority with the runtime and the user.
+
+## What it does
+
+- Compiles natural language into typed temporal state delta proposals.
+- Keeps committed state behind an explicit commit/reject gate.
+- Stores accepted transitions in a local SQLite ledger and renders them in a
+  Temporal State Graph.
+- Shows State Snapshot, Current Work, and `/api/state/brief` / `agent_handoff`
+  views for external-agent continuity.
+- Uses Work IDs and Work Trace Spine views to anchor AG-xxx task context.
+- Provides a six-tab Cockpit operator UI: Overview, Work, Ledger, Proof,
+  Bridge, and Operator.
+- Exposes MCP / ChatGPT App bridge tools for read-first state access and gated
+  proof recording.
+- Includes Codex handoff, completion, evidence, and session helper scripts.
+- Provides a read-only Temporal Interpretation Preview for structured
+  project-context interpretation.
+
+## How it uses OpenAI APIs
+
+OpenAI APIs are used for interpretation, planning, and preview generation, not
+direct mutation of durable state.
 
 - `POST /api/observe` uses the OpenAI Responses API to compile natural language
   into typed temporal state delta proposals when `OPENAI_API_KEY` is set.
-- `POST /api/plan` uses committed Augnes state to generate grounded next-action
-  recommendations when `OPENAI_API_KEY` is set.
+- `POST /api/plan` uses committed Augnes state to generate grounded
+  next-action recommendations when `OPENAI_API_KEY` is set.
 - `POST /api/temporal-interpretation/preview` uses OpenAI to generate a
   read-only temporal interpretation preview when `OPENAI_API_KEY` is set.
 - Deterministic mock fallbacks keep the local demo runnable when
   `OPENAI_API_KEY` is unset.
 
-Run it locally:
+The runtime validates model output before saving proposals. Only accepted
+transitions become committed state.
+
+## Quick start
+
+Run the local runtime:
 
 ```bash
 npm install
@@ -33,903 +73,100 @@ npm run demo:seed
 env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000
 ```
 
-Start the MCP bridge proof server separately:
+Then open:
+
+```text
+http://localhost:3000
+```
+
+`OPENAI_API_KEY` is optional for the local demo because deterministic mock
+fallbacks are included. To test OpenAI-backed observe, plan, and preview flows,
+set `OPENAI_API_KEY` in your local environment. Do not commit `.env` or
+`.env.local`.
+
+## Bridge proof
+
+Start the MCP / ChatGPT App bridge in a second terminal:
 
 ```bash
 npm --prefix apps/augnes_apps install
 AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
 ```
 
-Final proof screenshots:
+The bridge listens at:
+
+```text
+http://localhost:8787/mcp
+```
+
+With MCP Inspector, run `augnes_get_state_brief` for `project:augnes`, then run
+`augnes_record_action_result` with a safe proof action. The committed graph node
+shows that an external MCP-compatible client read Augnes state and recorded an
+action result back into the runtime without gaining commit/reject authority.
+
+## Screenshots
+
+Key proof screenshots:
 
 - [Overview Temporal State Graph](screenshots/01-overview-temporal-state-graph.png)
 - [State brief JSON with agent_handoff](screenshots/06-state-brief-json.png)
 - [MCP Inspector state brief success](screenshots/09-bridge-state-brief-success.png)
 - [MCP Inspector action record success](screenshots/10-bridge-action-record-success.png)
 - [Bridge-recorded action in the graph](screenshots/11-bridge-action-node-in-graph.png)
-
-AI is necessary here because the hard part is interpretive: translating messy
-work conversation into structured temporal proposals, grounded next actions,
-and reviewable temporal context while preserving explicit authority boundaries.
-
-Authority boundaries: the model does not directly mutate durable state;
-commit/reject stays user/runtime gated; the bridge remains read-first plus
-gated proof recording; Work IDs are trace anchors, not state authority; action
-records are execution proof; this is local-first, not hosted production; no API
-keys are committed.
-
-## Temporal State Trajectories for AI Work
-
-Augnes is a temporal state runtime for AI-assisted work. It turns conversation into typed, time-aware state delta proposals, lets the user commit or reject those proposals, records accepted transitions in a local SQLite ledger, anchors task traces with work IDs, and shows how project state changes over time.
-
-> The model interprets. The runtime owns state. The bridge lets agents act. Work IDs anchor task traces. The graph shows what changed.
-
-Augnes started from a practical annoyance: ChatGPT could plan and review, Codex could implement and test, and GitHub could store the code, but the project state still lived in scattered chat memory and human handoffs. Augnes replaces that message-bus work with explicit temporal state, work trace anchors, and recorded proof.
-
-## What Augnes Is
-
-Augnes treats working context as governed state, not passive memory. A user can describe goals, constraints, future plans, security rules, and completion signals in natural language. Augnes converts that input into structured temporal state changes such as:
-
-```json
-{
-  "scope": "project:augnes",
-  "state_key": "submission.requires_screenshots",
-  "operation": "set",
-  "before_value": "unknown",
-  "after_value": true,
-  "temporal_scope": "current_project",
-  "stability": "tentative",
-  "change_type": "new_state",
-  "status": "pending"
-}
-```
-
-Those proposals are not committed automatically. The runtime validates them, shows them as pending changes, and only records them in committed state after the user accepts them.
-
-## Why This Is Not a Prompt Wrapper
-
-A prompt wrapper usually follows this flow:
-
-```text
-User input -> Model response -> UI output
-```
-
-Augnes follows a runtime flow:
-
-```text
-Conversation
-  -> Temporal State Delta Proposals
-  -> Runtime Validation
-  -> Commit / Reject Gate
-  -> Temporal State Ledger
-  -> State Snapshot
-  -> Temporal State Graph
-  -> State-Grounded Actions
-  -> Current Work Brief
-  -> Work Trace Spine
-  -> MCP / ChatGPT App Bridge Proof
-  -> Codex Completion Proof
-```
-
-The prompt does not define durable context. Committed state does.
-
-## Implemented MVP
-
-The current challenge build includes:
-
-- A Next.js cockpit UI.
-- A local SQLite temporal state runtime.
-- `POST /api/observe` for temporal delta proposal generation.
-- OpenAI Responses API support when `OPENAI_API_KEY` is set.
-- Deterministic mock fallbacks when `OPENAI_API_KEY` is unset.
-- Pending Temporal Delta Proposal cards.
-- Commit and reject routes for proposals.
-- A central Temporal State Graph with state-key lanes, transition nodes, and an inspector.
-- A State Snapshot panel grouped by active, future, deprecated, completed, and open tensions.
-- Minimal tension handling that distinguishes contradictions from future-phase temporal layering.
-- A state-grounded planner with OpenAI support and mock fallback.
-- Local tools that create files under `outputs/`.
-- Action records and after-action state transitions.
-- `GET /api/state/brief` for Codex or other external agents.
-- Project-level Current Work through `agent_handoff`.
-- Work Trace Spine and Work Focus for `AG-xxx` task context.
-- Work APIs for listing work items, reading work briefs, and recording work events.
-- Read-only Cockpit Session Trace continuity panel for already-bound sessions.
-- Demo-ready six-tab Cockpit MVP shell: Overview, Work, Ledger, Proof, Bridge,
-  and Operator reorganize existing runtime panels without adding backend
-  behavior or new authority.
-- ChatGPT App read tools for state/work briefs and bridge-gated cross-session continuity reads, with bridge-gated write tools for action and work-event proof.
-- `npm run codex:record-completion` for recording Codex completion into action proof and work trace notes.
-- `npm run codex:record-evidence` for recording Codex verification evidence observations into `verification_evidence_records`.
-- `npm run codex:bind-session` for binding a pre-existing session row to Codex/work/PR continuity metadata.
-- Codex Session Adapter v0.2 workflow documentation that standardizes `codex:read-brief`, `codex:bind-session`, `codex:record-evidence`, `codex:record-completion`, Evidence Pack review, and Session Trace review without adding new runtime authority.
-- GitHub token management v0.1 foundation: C5 Core-gated publish now resolves
-  outbound GitHub credentials through an internal token provider abstraction,
-  while preserving current env `GITHUB_TOKEN` behavior. GitHub App
-  installation-token support is documented as future/design-only work.
-- MCP bridge proof through `apps/augnes_apps`, exposing Augnes state to MCP-compatible clients.
-
-## Screenshots
-
-Final challenge screenshots are committed under `screenshots/`, including the
-[Overview Temporal State Graph](screenshots/01-overview-temporal-state-graph.png),
-Work Trace Spine, Ledger, Proof, Bridge,
-[state brief JSON](screenshots/06-state-brief-json.png), Temporal
-Interpretation Preview, Operator views, and final MCP Inspector bridge proof
-screenshots. See `screenshots/README.md` for the file list and what each
-screenshot proves.
-
-## Single-Repo Layout
-
-The challenge submission is now a single GitHub repository:
-
-- Root package: Augnes runtime, temporal state ledger, Runtime Cockpit, `/api/state/brief`, and `/api/actions/record`.
-- `apps/augnes_apps`: ChatGPT App / MCP bridge, bridge tools, and Codex handoff scripts.
-
-`apps/augnes_apps` remains its own nested package with its own `package.json`. The root Augnes runtime package is unchanged.
-
-## Coordination Layers
-
-Augnes now has four visible coordination layers:
-
-1. Project-level Current Work answers "Where are we?" for the whole project.
-2. Work-level Trace Spine / Work Focus answers "Where is AG-001?" for a specific work item.
-3. Completion / Proof records what changed, why, and which agent or tool produced the result.
-4. Session Binding v0.1 answers "Which human/tool session carried this work/PR/evidence context?"
-
-These layers do not replace the commit/reject gate. Committed Augnes state remains the source of truth. A `work_id` is only a trace anchor. `action_records` are official execution proof. `work_events` are human-readable trace notes.
-
-## GitHub Token Authority
-
-GitHub PR comment publication remains Core-gated. Token availability is not
-approval, readiness, or publication. The current implemented credential source
-is only runtime env `GITHUB_TOKEN`, resolved internally after Core gates and
-before adapter execution for `dry_run=false`. `dry_run=true` never requires or
-uses a token, and same-key sent/acknowledged replay returns the stored artifact
-without resolving a token or invoking the adapter.
-
-The future GitHub App installation-token provider is documented in
-`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md` as design only. This repo does not
-currently implement live GitHub App token exchange, private key parsing, or
-runtime GitHub App env handling.
-
-The future GitHub App installation-token config boundary is documented in
-`docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md`. It reserves
-future config names and defines private key, JWT, installation-token exchange,
-expiry, repository allowlist, permission minimization, Core-gated integration,
-and evidence policies. The read-only config reader/validator lives at
-`lib/github-app-config.ts`; it validates shape/presence and returns public-safe
-metadata only. It does not parse private keys, sign JWTs, call GitHub, create
-installation tokens, or integrate with C5 token resolution.
-
-An offline RS256 JWT helper and fake-key-only smoke fixture now live at
-`lib/github-app-jwt.ts` and `scripts/smoke-github-app-jwt-fixture.mjs`. This is
-not the GitHub App installation-token provider: it does not read runtime
-private keys from env or files, call GitHub, create installation tokens, or
-change C5 publish behavior.
-
-A target/allowlist policy helper now lives at
-`lib/github-app-target-policy.ts`. It evaluates a `github_pr_comment` target
-against validated future GitHub App config before exchange, but it is not wired
-into C5 or the token provider and does not call GitHub or create installation
-tokens.
-
-An installation-token exchange boundary helper now lives at
-`lib/github-app-installation-token-exchange.ts`. It is network-disabled by
-default, supports only explicit injected fake fetch for smoke coverage, and is
-not wired into C5 or the token provider. Live GitHub exchange remains future
-work requiring explicit approval.
-
-GitHub App/token management v0.1 is closed as a bounded foundation line in
-`docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md`. Cockpit MVP UI polish is
-now closed; live exchange/provider integration remains deferred to separately
-approved future work.
-
-Cockpit MVP UI polish is closed as a six-tab demo shell:
-`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The binding
-contract lives in `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, with closeout
-sequencing in `docs/COCKPIT_MVP_UI_POLISH_PLAN.md`. The shell reorganizes
-existing Cockpit data and safe local controls for demo readability while
-remaining local-runtime/read-first where appropriate. It does not add backend
-routes, schema, dependencies, external publish/merge/retry/token controls,
-ChatGPT App tools, or GitHub/OpenAI behavior. The Cockpit visual tone uses a
-subtle pale green page wash with white/near-white cards and system fonts only;
-it does not add logo artwork, font files, remote fonts, or new controls.
-
-## How Augnes Uses OpenAI APIs
-
-OpenAI APIs are used for interpretation, not direct mutation.
-
-`POST /api/observe` uses the OpenAI Responses API to compile natural language into typed temporal state delta proposals when `OPENAI_API_KEY` is set. The output is validated against runtime enums before it is saved as pending state.
-
-`POST /api/plan` asks the model to recommend actions grounded in committed state when `OPENAI_API_KEY` is set. The planner receives active, future, completed, deprecated, and tension state so it can avoid treating future work as current work.
-
-`POST /api/temporal-interpretation/preview` asks the model to generate a read-only PerspectiveSnapshot-like Temporal Interpretation Preview from current project/demo context when `OPENAI_API_KEY` is set. It preserves evidence anchors, summary refs, source authority profile, counterexamples, residual tensions, transition relation, active context admission rationale, active context admission decisions, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, a safe next step, and a non-authority boundary. The route then runs deterministic local guardrails before returning the preview.
-
-Local demos do not require an API key. If `OPENAI_API_KEY` is missing, Augnes uses deterministic mock behavior for observe and planner flows so the full demo remains runnable from a clean checkout.
-
-The Temporal Interpretation Preview also has deterministic mock fallback. If `OPENAI_API_KEY` is unset, `generator` is `mock`; if OpenAI fails, the route returns `mock_fallback` with a warning. Cockpit OpenAI usage is explicit and button-triggered: the panel does not call the preview route on page load. This preview is intentionally read-only: it does not commit state, approve work, publish proof, mutate mailbox state, promote rules, or claim full P4 PerspectiveSnapshot readiness.
-
-## Temporal Interpretation Preview
-
-The Runtime Cockpit includes a read-only `Temporal Interpretation Preview` panel. It starts in a not-generated state and calls the preview route only after the user clicks `Generate Preview` or `Refresh Preview`. It demonstrates Augnes applying the temporal interpretation model to current project/demo context without adding durable snapshot authority. The panel renders active context admission rationale plus structured admission decisions when the preview returns `active_context_admission`.
-
-Preview v0.1.1 adds qualitative research-model fields for reviewer-visible structure: active context admission rationale, suppressed alternatives, temporal hierarchy, memory lifecycle, interpretive drivers, and qualitative axis pressures. These fields are not DB schema, numeric scoring, rule-vector formula runtime, automatic memory admission, or runtime authority.
-
-Preview hardening v0.2 adds a deterministic active-context admission rubric,
-semantic fidelity fixtures, stronger guardrails for summary/evidence drift,
-counterexample and residual tension preservation, unsafe safe-next-step
-language, and a manual review report template at
-`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT.md`. A filled deterministic
-mock review example lives at
-`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_MOCK_PREVIEW_V0_1.md`. A
-filled mock-mode route-captured review lives at
-`docs/TEMPORAL_INTERPRETATION_MANUAL_REVIEW_REPORT_ROUTE_CAPTURE_V0_1.md`. The
-opt-in OpenAI-path validation harness and report live at
-`scripts/validate-temporal-openai-path.mjs` and
-`docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md`. Browser/Cockpit
-screenshot validation for the read-only panel lives at
-`docs/TEMPORAL_INTERPRETATION_COCKPIT_SCREENSHOT_VALIDATION.md`. This remains
-read-only and non-authoritative.
-
-The v0.2 status, validation matrix, guarded failure modes, known limitations,
-and productization options are summarized in
-`docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md`.
-Future persistence boundaries for Temporal Interpretation are documented in
-`docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md`; that design is not
-implementation and does not add schema, routes, runtime persistence, Cockpit
-write controls, or durable PerspectiveSnapshot/RawEpisodeBundle state.
-The work/evidence binding convention for future Temporal Interpretation
-persistence work lives at
-`docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md`;
-`AG-TEMPORAL-INTERPRETATION` is seeded as demo/runtime work trace data for
-future Temporal Interpretation evidence, and canonical `target_ref` /
-`source_ref` usage remains available for historical rows and unseeded runtimes.
-`TemporalPreviewReviewArtifact` v0.1 is now closed as a bounded
-review-artifact capture/read/surface chain. The closeout summary lives at
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_V0_1_CLOSEOUT.md` and records the
-completed work anchor, schema/read model, read-only APIs, forbidden fixtures,
-capture helper, private insert helper, idempotency, public bounded capture
-route, Evidence Pack awareness, and Cockpit browser. The schema design remains
-documented at
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_SCHEMA_DESIGN_V0_1.md`. The read-model
-slice adds the `temporal_preview_review_artifacts` table, validation/read
-helper, and read-only list/get APIs at
-`GET /api/temporal-interpretation/review-artifacts` and
-`GET /api/temporal-interpretation/review-artifacts/{artifact_id}`. The first
-public/non-Cockpit capture route is now available at
-`POST /api/temporal-interpretation/review-artifacts/capture`; it writes only
-bounded review artifacts through the idempotent helper. It still does not add
-Cockpit write controls, Evidence Pack write behavior, ChatGPT App tools,
-OpenAI calls, GitHub publication adapter calls, replay, publish, approval,
-state mutation, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.
-Evidence Pack now includes the read-only `temporal_review_artifact_trace` for
-`work_id=AG-TEMPORAL-INTERPRETATION`; it summarizes bounded review artifacts
-and no-artifact gaps without calling capture, creating artifacts, or inferring
-authority.
-The Cockpit now includes a read-only `Temporal Review Artifacts` browser next
-to Temporal Preview and Evidence Pack. It loads the existing GET list API on
-operator action, shows artifact list/detail, linked evidence/session/PR fields,
-boundaries, and gaps, and adds no capture button or write authority.
-The reusable forbidden-persistence fixture corpus lives at
-`lib/temporal-review-artifact-fixtures.ts`, with smoke coverage in
-`smoke:temporal-forbidden-persistence-fixtures`. It is part of the closed v0.1
-review-artifact validation chain.
-The non-public capture helper lives at
-`lib/temporal-review-artifact-capture.ts`, with smoke coverage in
-`smoke:temporal-review-artifact-capture-helper`. It converts bounded preview
-responses plus manual review metadata into artifact input, but still does not
-add Cockpit or ChatGPT App write surfaces.
-The public create/capture route contract lives at
-`docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md`, with
-smoke coverage in `smoke:temporal-create-route-design`. It recommends
-`POST /api/temporal-interpretation/review-artifacts/capture`; the first route
-implementation is covered by `smoke:temporal-capture-route` and remains bounded
-to artifact persistence only. No Cockpit write button, Evidence Pack
-write integration, ChatGPT App create tool, OpenAI call, GitHub publication
-adapter call, replay, publish, approval, or state mutation is added.
-The private non-smoke insert helper
-`insertTemporalPreviewReviewArtifact` lives in
-`lib/temporal-review-artifacts.ts`, with smoke coverage in
-`smoke:temporal-private-insert-helper`. It shares the smoke insert helper's
-validation path and remains internal-only; it does not add a public create
-route or write surface.
-The internal idempotency foundation lives in
-`temporal_preview_review_artifact_idempotency` plus helper functions in
-`lib/temporal-review-artifacts.ts`, with smoke coverage in
-`smoke:temporal-artifact-idempotency`. It stores hashed idempotency keys and
-payload hashes only, supports same-key replay/conflict checks and conservative
-duplicate source/hash detection. The public route uses that idempotency
-foundation while continuing to store no
-raw idempotency key, raw payload, or raw request body.
-Stop expanding `TemporalPreviewReviewArtifact` v0.1 after the closeout. Future
-authority-bearing work remains outside v0.1: PerspectiveSnapshot runtime,
-RawEpisodeBundle runtime, approval-gated interpretation commit, durable memory
-admission, proof publication, Cockpit capture/write controls, and ChatGPT App
-write/create tools.
-
-API check:
-
-```bash
-curl -s -X POST "http://localhost:3000/api/temporal-interpretation/preview" \
-  -H "Content-Type: application/json" \
-  -d '{"scope":"project:augnes"}' | jq .
-```
-
-Smoke check while the Next server is running:
-
-```bash
-npm run smoke:temporal-preview
-npm run smoke:temporal-hardening
-npm run smoke:temporal-manual-review-report
-npm run smoke:temporal-route-review-report
-npm run smoke:cockpit-temporal-admission
-npm run smoke:temporal-cockpit-screenshot-validation
-npm run smoke:temporal-openai-validation-docs
-npm run smoke:temporal-v02-status-roadmap
-npm run smoke:temporal-persistence-design
-npm run smoke:temporal-work-binding
-npm run smoke:temporal-work-seed
-npm run smoke:temporal-review-artifact-schema-design
-npm run smoke:temporal-review-artifact-read-model
-npm run smoke:temporal-forbidden-persistence-fixtures
-npm run smoke:temporal-review-artifact-capture-helper
-npm run smoke:temporal-create-route-design
-npm run smoke:temporal-private-insert-helper
-npm run smoke:temporal-artifact-idempotency
-npm run smoke:temporal-capture-route
-npm run smoke:temporal-review-artifact-evidence-pack
-npm run smoke:cockpit-temporal-review-artifacts
-npm run smoke:temporal-review-artifact-v01-closeout
-```
-
-Opt-in OpenAI validation, only when `OPENAI_API_KEY` is provided by the
-environment:
-
-```bash
-npm run validate:temporal-openai-path
-```
-
-OpenAI is useful here because the preview is interpretive rather than a direct state read: it relates current context, prior interpretation, counterexamples, residual tensions, and authority boundaries while preserving structured anchors. The local guardrails remain deterministic and run for both OpenAI and mock output. In the Cockpit, OpenAI is used only after an explicit button click when `OPENAI_API_KEY` is present.
-
-See `docs/TEMPORAL_INTERPRETATION_PREVIEW_RUNBOOK.md` for run instructions, guardrails, boundaries, and intentionally omitted P4 work.
-
-## Temporal State Delta Proposals
-
-Each proposal includes:
-
-- `scope`
-- `state_key`
-- `before_value`
-- `after_value`
-- `operation`
-- `temporal_scope`
-- `valid_from`
-- `valid_until`
-- `stability`
-- `change_type`
-- `reason`
-- `status`
-
-Recommended temporal values include `current_project`, `future_phase`, `historical_note`, and `global_preference`. Stability values include `tentative`, `active`, `stable`, `deprecated`, and `completed`.
-
-## Commit / Reject Gate
-
-The model proposes. The runtime validates. The user decides.
-
-- Commit writes to `state_entries` and `state_transitions`.
-- Reject only updates the proposal status.
-- Rejected proposals do not create committed transitions.
-- Future-phase proposals can coexist with active current state without creating contradiction tensions.
-
-## State Snapshot
-
-`GET /api/state/snapshot?scope=project:augnes` returns committed state grouped as:
-
-- `active_state`
-- `future_state`
-- `deprecated_state`
-- `completed_state`
-- `open_tensions`
-
-The UI renders these groups in the State Snapshot and Tensions panels.
-
-## Current Work
-
-Current Work is the project-level "Where are we?" surface in the Runtime Cockpit. It is backed by `GET /api/state/brief?scope=project:augnes` and the deterministic `agent_handoff` packet inside that brief.
-
-Current Work shows:
-
-- current project status
-- next recommended action
-- blockers or open tensions
-- Codex handoff details
-- copyable templates for recording external work
-
-Current Work is a user-facing summary surface, not a new state authority. It summarizes committed state, pending proposals, open tensions, and recent actions that already exist in the runtime. It does not create state and does not bypass commit/reject.
-
-The Cockpit shell now follows
-`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`: Overview for the demo summary,
-Work for Work ID traces, Ledger for committed state truth, Proof for read-only
-evidence, Bridge for read-first tool authority, and Operator for safe local
-runtime actions. This is UI composition only; it does not add backend routes,
-external controls, token behavior, or new authority.
-
-For a safe local Cockpit demo route, run:
-
-```bash
-env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-cockpit-demo.db npm run dev -- --port 3000
-```
-
-Then review the tabs in order:
-Overview -> Work -> Ledger -> Proof -> Bridge -> Operator. The Cockpit remains
-local-runtime/read-first where appropriate and does not add external
-publish/merge/token controls. Its current demo styling keeps a text-only
-`AUGNES` identity, pale green page background, and white/near-white card
-surfaces for readability.
-
-## Session Trace
-
-The Runtime Cockpit includes a read-only `Session Trace` panel for Session Binding v0.1 continuity. It is button-triggered and calls `GET /api/sessions/trace?scope=project:augnes` only after the operator clicks `Load Session Trace` or `Refresh Session Trace`.
-
-The panel displays bound session metadata, message/work/action/evidence counts, latest continuity records, gaps, and trace boundaries. It does not create sessions, bind sessions, add write controls, mutate evidence packs, or expand evidence packs with full nested session trace bodies.
-
-Codex Session Adapter v0.2 is documented in
-`docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`. It packages the existing brief,
-binding, evidence, completion, Evidence Pack, Session Trace, and ChatGPT App
-read-only continuity surfaces into a standard Codex start/closeout workflow. It
-does not create sessions automatically, execute Codex from ChatGPT, add
-ChatGPT App write tools, approve, publish, retry, replay, or mutate state.
-
-## Temporal State Graph
-
-`GET /api/state/trajectory?scope=project:augnes` returns committed transitions grouped by `state_key`.
-
-The UI renders those transitions as a time-oriented graph: each `state_key` is a lane, committed transitions are nodes, and repeated transitions for the same state are connected across time. Selecting a node opens an inspector with previous value, new value, temporal scope, stability, change type, reason, and commit time. Pending proposals remain visible as reviewable deltas and can appear as ghost nodes before commit.
-
-Example seeded trajectories:
-
-```text
-product.name
-unknown -> Augnes
-
-integration.chatgpt_app
-unknown -> planned_after_challenge
-
-submission.readme_checklist_created
-false -> true
-```
-
-## Tension vs Temporal Layering
-
-Augnes treats active contradictions differently from future plans.
-
-This is temporal layering, not a contradiction:
-
-```text
-current_project: integration.chatgpt_app = not_now
-future_phase:   integration.chatgpt_app = planned_after_challenge
-```
-
-This can create a tension:
-
-```text
-current_project: security.no_api_keys_in_repo = true
-incoming active proposal: security.no_api_keys_in_repo = false
-```
-
-Tensions are recorded for review. They do not block commits in the MVP.
-
-## Work Trace Spine / Work Focus
-
-The Work Trace Spine adds task-level continuity without turning tasks into state authority. A `work_id` such as `AG-001` is a trace anchor only. Durable project truth still lives in committed Augnes state, and official execution proof still lives in `action_records`.
-
-Work Focus answers questions like "Where is AG-001?" It shows the selected work item beside the project-level Current Work card and keeps the task-specific trace close to the state it depends on.
-
-A work brief includes:
-
-- work status and priority
-- next action
-- recent work events
-- related proof from action records
-- related state keys
-- work-specific Codex handoff
-
-Work APIs:
-
-- `GET /api/work`
-- `GET /api/work/{work_id}`
-- `GET /api/work/{work_id}/brief`
-- `POST /api/work/{work_id}/events`
-
-Recording a work event appends a human-readable trace note to the work item. It does not commit, reject, or infer runtime state.
-
-## Planner
-
-`POST /api/plan` returns state-grounded recommendations. It uses committed state and open tensions to recommend next actions and identify local tools that can help.
-
-Example:
-
-```bash
-curl -s -X POST "http://localhost:3000/api/plan" \
-  -H "Content-Type: application/json" \
-  -d '{"scope":"project:augnes","message":"What should I do next?"}'
-```
-
-## Local Tools
-
-`POST /api/actions/run` can run small local tools:
-
-- `create_readme_checklist`
-- `create_security_checklist`
-- `create_demo_script`
-
-Tool outputs are generated under `outputs/`, which is intentionally ignored by git. Successful tool runs create action records and after-action state transitions.
-
-Example:
-
-```bash
-curl -s -X POST "http://localhost:3000/api/actions/run" \
-  -H "Content-Type: application/json" \
-  -d '{"scope":"project:augnes","tool_name":"create_readme_checklist"}'
-```
-
-External agents can record official execution proof through `POST /api/actions/record`. Existing callers only need `scope`, `source_agent_id`, `action_name`, `result_summary`, and `files_changed`; omitted `result_status` values default to `completed`, and omitted `result_kind` values default to `other`.
-
-Optional `result_status` values are `completed`, `failed`, `blocked`, `partial`, and `needs_review`. Optional `result_kind` values are `implementation`, `verification`, `documentation`, `screenshot`, `handoff`, `review`, and `other`. Only `completed` creates a completed boolean transition; non-completed outcomes are recorded with their semantic status instead.
-
-## Completion / Proof Layer
-
-Augnes separates official execution proof from human-readable task notes:
-
-- `action_records` are official execution proof. They feed recent actions and the Temporal State Graph.
-- `work_events` are human-readable trace notes attached to a `work_id`.
-- Temporal State Graph is the time-oriented proof surface for committed state transitions and recorded actions.
-
-The Codex completion protocol records both layers with:
-
-```bash
-npm run codex:record-completion
-```
-
-The helper lives in `apps/augnes_apps` and is exposed from the root package for convenience. It records:
-
-- `/api/actions/record` for official execution proof
-- `/api/work/{work_id}/events` for the work trace note
-
-Before writing an action record, the helper preflights `CODEX_WORK_ID` with `GET /api/work/{work_id}?scope=<scope>`. Unknown work IDs fail before `/api/actions/record`, which avoids orphan action records caused by mistyped trace anchors.
-
-The protocol preserves real `result_status` and `result_kind` values, including `failed`, `blocked`, `partial`, and `needs_review`. It never calls commit/reject routes and does not add autonomous Codex execution, GitHub sync, Discord sync, or automatic work status inference.
-
-Codex verification evidence can be recorded with:
-
-```bash
-npm run codex:record-evidence
-```
-
-The evidence helper reads env vars such as `CODEX_EVIDENCE_KIND`,
-`CODEX_EVIDENCE_STATUS`, `CODEX_EVIDENCE_LABEL`, `CODEX_COMMAND`,
-`CODEX_RESULT_SUMMARY`, and `CODEX_SKIPPED_REASON`, then calls only
-`POST /api/evidence/records`. It records observation traces for Evidence Pack;
-it does not approve, publish, replay, call GitHub/OpenAI, or mutate authority
-rows directly.
-
-Codex PR closeout should report the returned evidence IDs in the PR template.
-When the local runtime or evidence API is unavailable, the PR should state the
-exact reason structured evidence rows were skipped.
-
-Codex sessions can be bound to an existing Augnes session row with:
-
-```bash
-npm run codex:bind-session
-```
-
-The helper calls only `POST /api/sessions/bind`, fails when
-`CODEX_SESSION_ID` is missing or unknown, and records metadata such as
-`CODEX_SESSION_SURFACE`, `CODEX_WORK_ID`, `CODEX_RELATED_PR`,
-`CODEX_SESSION_SUMMARY`, `CODEX_HANDOFF_REF`, and `CODEX_EVIDENCE_PACK_REF`.
-Trace can be read with `GET /api/sessions/trace` or
-`GET /api/sessions/{session_id}/trace`. Session binding does not execute Codex,
-call GitHub/OpenAI, record evidence, approve, publish, replay, or mutate
-publication/approval/readiness/delivery/mailbox/state rows.
-
-## External State Brief
-
-`GET /api/state/brief?scope=project:augnes` returns compact continuity context for Codex or another external agent.
-
-The brief includes:
-
-- `runtime: "augnes"`
-- `scope`
-- `as_of`
-- `active_state`
-- `future_state`
-- `deprecated_state`
-- `completed_state`
-- `open_tensions`
-- `pending_proposals`
-- `recent_actions`
-- `agent_instructions`
-- `agent_handoff`
-
-`agent_handoff` is a deterministic coordination packet generated from the same committed state, pending proposals, open tensions, and recent actions already in the brief. It summarizes current status, recommends the next action, lists blockers or tensions, and gives Codex a compact task brief with constraints, verification commands, expected report fields, and a `POST /api/actions/record`-compatible template.
-
-Agent instructions include:
-
-- Treat committed state as the source of truth.
-- Use pending proposals as suggestions only.
-- Respect future-phase work as deferred unless the user changes priority.
-- Surface open tensions before depending on contested state.
-- Record external work through `POST /api/actions/record`.
-- Do not commit API keys or local secrets.
-
-## ChatGPT App Bridge Tools
-
-Augnes also has a bridge proof through the nested package `apps/augnes_apps`.
-
-The bridge exposes the Augnes runtime to MCP-compatible clients and ChatGPT Developer Mode through tools such as:
-
-- `augnes_get_state_brief`
-- `augnes_get_evidence_pack`
-- `augnes_get_session_trace`
-- `augnes_get_verification_evidence_records`
-- `augnes_observe`
-- `augnes_plan`
-- `augnes_record_action_result`
-- `augnes_list_pending_proposals`
-- `augnes_list_work_items`
-- `augnes_get_work_brief`
-
-The work-specific ChatGPT App tools are:
-
-- `augnes_list_work_items`: read tool for available work trace anchors.
-- `augnes_get_work_brief`: read tool for Work Focus context.
-- `augnes_record_work_event`: bridge-gated write tool for recording human-readable work trace notes.
-
-`augnes_record_work_event` is only available when the bridge is explicitly enabled with `AUGNES_ENABLE_AGENT_BRIDGE=true`. Recording a work event does not commit or reject state proposals. ChatGPT App bridge tools do not get commit/reject authority.
-
-When the runtime exposes the cross-session continuity routes, bridge-enabled
-mode also provides read-only access to the derived Evidence Pack, Session
-Trace, and Verification Evidence Records views. These tools do not bind or
-create sessions, create evidence rows, approve/publish/replay publications,
-call GitHub or OpenAI, execute Codex, or mutate Augnes state.
-
-Local bridge and Developer Mode validation covered two flows:
-
-- state brief validation through `/api/state/brief` and `structuredContent.brief.agent_handoff`
-- work tools validation through `augnes_list_work_items`, `augnes_get_work_brief`, and bridge-gated `augnes_record_work_event`
-
-This is local-first validation through a local bridge and HTTPS tunnel, not hosted production deployment.
-
-Earlier MCP Inspector validation verified the action proof loop:
-
-```text
-MCP Inspector
-  -> augnes_apps /mcp
-  -> augnes_get_state_brief
-  -> Augnes runtime /api/state/brief
-  -> augnes_record_action_result
-  -> Augnes runtime /api/actions/record
-  -> Temporal State Graph external action node
-```
-
-The recorded proof appears in the graph as:
-
-```text
-external.mcp_inspector_bridge_check_recorded
-false -> true
-current_project · completed · completion
-```
-
-The selected transition inspector shows:
-
-```text
-MCP Inspector successfully read Augnes state brief through the Augnes Agent Bridge.
-```
-
-This proves the first practical version of the intended coordination layer: an external MCP client can read Augnes state and write an action result back into the temporal graph. In other words, Augnes replaces the human message bus between ChatGPT, Codex, GitHub, and local project state with explicit state handoff, task trace, and proof layers.
-
-Final local bridge proof screenshots also show MCP Inspector connected to
-`http://localhost:8787/mcp`, `augnes_get_state_brief` returning a state brief
-with `agent_handoff`, `augnes_record_action_result` recording
-`final_bridge_proof_check`, and the resulting
-`external.final_bridge_proof_check_recorded` node in the Runtime Cockpit graph.
-This remains local-first bridge proof, not hosted production or autonomous
-execution.
-
-## How to Run
-
-Terminal 1: Augnes runtime.
-
-```bash
-cd /path/to/augnes
-npm install
-cp .env.example .env.local
-npm run db:reset
-npm run demo:seed
-npm run dev -- --port 3000
-```
-
-Then open `http://localhost:3000`.
-
-`OPENAI_API_KEY` is optional for local demo because mock fallbacks exist. To use OpenAI-backed observe and planner calls, set:
-
-```bash
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-4.1-mini
-```
-
-Never commit `.env.local`, API keys, local secrets, or generated SQLite files.
-
-Terminal 2: ChatGPT App / MCP bridge.
-
-```bash
-cd /path/to/augnes/apps/augnes_apps
-npm install
-AUGNES_ENABLE_AGENT_BRIDGE=true \
-AUGNES_API_BASE_URL=http://localhost:3000 \
-npm run dev
-```
-
-Verification:
-
-```bash
-cd /path/to/augnes
-npm run db:reset
-npm run db:migrate
-npm run demo:seed
-npm run typecheck
-npm run build
-
-cd /path/to/augnes/apps/augnes_apps
-npm run typecheck
-npm run smoke
-```
-
-## MCP Bridge Local Check
-
-To reproduce the MCP bridge proof locally, run both packages from this repo.
-
-Terminal 1:
-
-```bash
-cd /path/to/augnes
-npm install
-npm run db:reset
-npm run demo:seed
-npm run dev -- --port 3000
-```
-
-Terminal 2:
-
-```bash
-cd /path/to/augnes/apps/augnes_apps
-npm install
-AUGNES_ENABLE_AGENT_BRIDGE=true \
-AUGNES_API_BASE_URL=http://localhost:3000 \
-npm run dev
-```
-
-Then open MCP Inspector and connect to:
-
-```text
-http://localhost:8787/mcp
-```
-
-Run:
-
-```text
-augnes_get_state_brief
-```
-
-with:
-
-```json
-{ "scope": "project:augnes" }
-```
-
-Then run:
-
-```text
-augnes_record_action_result
-```
-
-with an action name such as:
-
-```json
-{
-  "scope": "project:augnes",
-  "sourceAgentId": "agent:codex",
-  "actionName": "mcp_inspector_bridge_check",
-  "resultSummary": "MCP Inspector successfully read Augnes state brief through the Augnes Agent Bridge.",
-  "filesChanged": []
-}
-```
-
-Refresh `http://localhost:3000`. The Temporal State Graph should show an `external.mcp_inspector_bridge_check_recorded` completion transition.
-
-For Work Trace Spine validation, run:
-
-```text
-augnes_list_work_items
-augnes_get_work_brief
-```
-
-Use a work ID such as `AG-001` for `augnes_get_work_brief`. If bridge mode is enabled with `AUGNES_ENABLE_AGENT_BRIDGE=true`, `augnes_record_work_event` can append a work trace note without committing or rejecting state.
-
-## Final Demo Flow
-
-1. Open `http://localhost:3000`.
-2. Confirm seeded State Snapshot and Temporal State Graph load.
-3. Submit the canonical demo message in Conversation Input.
-4. Confirm multiple pending Temporal Delta Proposals appear.
-5. Commit at least two proposals.
-6. Reject at least one proposal.
-7. Confirm the rejected proposal creates no transition.
-8. Confirm State Snapshot updates.
-9. Confirm Temporal State Graph shows committed transitions.
-10. Click Plan Next in State-Grounded Actions.
-11. Run README Checklist.
-12. Confirm `outputs/readme_checklist.md` exists locally.
-13. Confirm the checklist run creates an action record and completion transition.
-14. Fetch `/api/state/brief?scope=project:augnes` for external-agent continuity.
-15. Confirm the Current Work card summarizes `agent_handoff`.
-16. Open Work Focus for `AG-001` and confirm recent events, related proof, and Codex handoff render.
-17. Optionally run the MCP bridge proof and confirm the external action appears in the graph.
-
-Canonical demo message:
-
-```text
-이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야.
-```
-
-## Useful API Checks
-
-```bash
-curl -s "http://localhost:3000/api/state/snapshot?scope=project:augnes"
-
-curl -s "http://localhost:3000/api/state/trajectory?scope=project:augnes"
-
-curl -s -X POST "http://localhost:3000/api/observe" \
-  -H "Content-Type: application/json" \
-  -d '{"scope":"project:augnes","message":"이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야."}'
-
-curl -s -X POST "http://localhost:3000/api/plan" \
-  -H "Content-Type: application/json" \
-  -d '{"scope":"project:augnes","message":"What should I do next?"}'
-
-curl -s -X POST "http://localhost:3000/api/actions/run" \
-  -H "Content-Type: application/json" \
-  -d '{"scope":"project:augnes","tool_name":"create_readme_checklist"}'
-
-curl -s "http://localhost:3000/api/state/brief?scope=project:augnes"
-
-curl -s "http://localhost:3000/api/work?scope=project:augnes"
-
-curl -s "http://localhost:3000/api/work/AG-001?scope=project:augnes"
-
-curl -s "http://localhost:3000/api/work/AG-001/brief?scope=project:augnes"
-```
-
-## Security Notes
-
-- `.env.local` is ignored.
-- `data/*.db` and `data/*.db-*` are ignored.
-- `outputs/*` is ignored.
-- `OPENAI_API_KEY` is optional for local demo.
-- Do not commit API keys or local secrets.
-- The MVP has no auth and should be run locally for the challenge demo.
-- The MCP bridge proof is local-first. Public deployment requires a secure HTTPS endpoint and careful write-action review.
+- [Full screenshot index](screenshots/README.md)
+
+## Demo flow
+
+1. Run the quick-start commands and open the Cockpit.
+2. Review the Overview tab and Temporal State Graph.
+3. Open Work to see AG-xxx Work Focus / Trace Spine context.
+4. Open Ledger to inspect committed state and transitions.
+5. Open Proof for evidence-only views and Temporal Interpretation Preview.
+6. Open Bridge to review read-first / no direct external-control boundaries.
+7. Open Operator to see safe local runtime controls.
+8. Fetch `/api/state/brief?scope=project:augnes` and inspect `agent_handoff`.
+9. Start the MCP bridge and verify state brief + action record proof through
+   MCP Inspector.
+
+## Security and boundaries
+
+- No API keys are committed. `.env` and `.env*.local` are ignored.
+- Augnes is local-first and is not a hosted production deployment.
+- Production auth, OAuth, and multi-user support are intentionally out of
+  scope for this challenge build.
+- The model does not directly mutate durable state.
+- Commit/reject authority remains user/runtime gated.
+- The bridge remains read-first plus gated proof recording.
+- Work IDs are trace anchors, not state authority.
+- Action records are execution proof.
+- GitHub App installation-token exchange remains future/design-boundary work;
+  this repo does not implement a live GitHub App token provider.
 
 ## Limitations
 
-- The runtime is local SQLite only.
-- Tension detection is intentionally minimal.
-- The planner can recommend local tools, but it is not a full autonomous agent.
-- The Augnes runtime itself does not host MCP; the MCP bridge lives in `apps/augnes_apps`.
-- There is no auth, vector database, or charting library.
-- The Temporal State Graph is a lightweight UI, not a full analytics timeline.
+- The app is a local challenge build, not a hosted service.
+- The bridge proof uses local MCP / Inspector workflows.
+- OpenAI-backed flows require a locally supplied `OPENAI_API_KEY`.
+- Mock fallbacks are deterministic and useful for demos, but they are not a
+  replacement for evaluating OpenAI-backed behavior.
+- The runtime is single-operator/local-first and does not implement production
+  auth or multi-user collaboration.
 
-## Submission Tagline
+## Deep docs
 
-> Augnes turns AI work into temporal state trajectories.
+- [Temporal Interpretation Preview runbook](docs/TEMPORAL_INTERPRETATION_PREVIEW_RUNBOOK.md)
+- [Temporal Interpretation v0.2 status and roadmap](docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md)
+- [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md)
+- [Evidence Pack / verification evidence](docs/VERIFICATION_EVIDENCE_PACK.md)
+- [Cockpit six-tab functional map](docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md)
+- [GitHub token management boundary](docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md)
+- [GitHub App installation-token config boundary](docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md)
+- [Authority matrix](docs/AUTHORITY_MATRIX.md)
+- [Development onboarding](DEVELOPMENT_ONBOARDING.md)
+- [Latest docs index](docs/00_INDEX_LATEST.md)
+
+## Submission tagline
+
+Augnes turns AI-assisted work into temporal state trajectories: the model
+interprets, the runtime owns state, the user gates changes, Work IDs anchor
+traces, and the graph shows proof over time.
