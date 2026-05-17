@@ -3755,6 +3755,22 @@ h1 {
 
   .cockpit-topbar {
     position: static;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .cockpit-tab-nav {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 2px 8px;
+    overflow-x: visible;
+  }
+
+  .cockpit-tab-button {
+    min-height: 34px;
+    padding: 0 6px 3px;
+    font-size: 0.88rem;
   }
 
   .perspective-section {
