@@ -235,7 +235,7 @@ approval.
   scopes otherwise.
 - Do not touch schema/runtime/API/UI/App files.
 - Do not create JSON fixtures or executable tests unless explicitly approved.
-- Do not change `DEVELOPMENT_ONBOARDING.md` unless explicitly requested.
+- Do not change `docs/DEVELOPMENT_ONBOARDING.md` unless explicitly requested.
 - Do not change the current repo-level next goal unless explicitly requested.
 - Report local dirty files and keep unrelated files unstaged.
 - Do not append repeated review results to the accepted baseline fixture file.

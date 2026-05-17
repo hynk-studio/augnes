@@ -169,7 +169,7 @@ Until separately approved, do not:
 - add executable tests
 - add automatic scoring thresholds
 - implement rule promotion
-- change `DEVELOPMENT_ONBOARDING.md`
+- change `docs/DEVELOPMENT_ONBOARDING.md`
 - change the current repo-level next goal
 
 ## Recommended next step after this index

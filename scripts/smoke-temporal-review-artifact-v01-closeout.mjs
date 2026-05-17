@@ -11,7 +11,7 @@ const schemaPath =
 const routePath =
   "docs/TEMPORAL_PREVIEW_REVIEW_ARTIFACT_CREATE_ROUTE_DESIGN_V0_1.md";
 const evidencePackPath = "docs/VERIFICATION_EVIDENCE_PACK.md";
-const onboardingPath = "DEVELOPMENT_ONBOARDING.md";
+const onboardingPath = "docs/DEVELOPMENT_ONBOARDING.md";
 const readmePath = "README.md";
 const packagePath = "package.json";
 
@@ -81,7 +81,7 @@ const requiredJoinedText = [
   "Cockpit read-only browser",
   "PerspectiveSnapshot runtime",
   "RawEpisodeBundle runtime",
-  "approval-gated interpretation commit",
+  "Approval-gated interpretation commit",
   "reviewer_verdict",
   "guardrail_passed",
   "Cockpit DOM is not",

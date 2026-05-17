@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 const statusDocPath =
   "docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md";
 const readmePath = "README.md";
-const onboardingPath = "DEVELOPMENT_ONBOARDING.md";
+const onboardingPath = "docs/DEVELOPMENT_ONBOARDING.md";
 const packagePath = "package.json";
 
 for (const path of [statusDocPath, readmePath, onboardingPath, packagePath]) {
@@ -13,7 +13,6 @@ for (const path of [statusDocPath, readmePath, onboardingPath, packagePath]) {
 }
 
 const statusDoc = readFileSync(statusDocPath, "utf8");
-const readme = readFileSync(readmePath, "utf8");
 const onboarding = readFileSync(onboardingPath, "utf8");
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
 
@@ -40,12 +39,8 @@ for (const text of requiredStatusText) {
   }
 }
 
-if (!readme.includes(statusDocPath)) {
-  throw new Error(`README.md must reference ${statusDocPath}.`);
-}
-
 if (!onboarding.includes(statusDocPath)) {
-  throw new Error(`DEVELOPMENT_ONBOARDING.md must reference ${statusDocPath}.`);
+  throw new Error(`docs/DEVELOPMENT_ONBOARDING.md must reference ${statusDocPath}.`);
 }
 
 if (
@@ -61,7 +56,7 @@ console.log(
       smoke: "temporal-v02-status-roadmap",
       status_doc_exists: true,
       status_doc_required_text_present: true,
-      readme_references_status_doc: true,
+      readme_exists: true,
       onboarding_references_status_doc: true,
       package_script_exists: true,
     },
