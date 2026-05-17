@@ -215,7 +215,7 @@ This PR must not:
 - add executable tests
 - add automatic scoring thresholds
 - implement rule promotion
-- change `DEVELOPMENT_ONBOARDING.md`
+- change `docs/DEVELOPMENT_ONBOARDING.md`
 - change the current repo-level next goal
 
 ## Go / conditional-go / no-go criteria

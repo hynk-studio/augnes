@@ -325,7 +325,7 @@ This PR must not:
 - change Control Packet contract
 - change onboarding current next goal
 
-It also must not edit `DEVELOPMENT_ONBOARDING.md`,
+It also must not edit `docs/DEVELOPMENT_ONBOARDING.md`,
 `docs/AUGNES_CONTROL_PACKET_AND_SURFACE_ROLES.md`,
 `docs/AUTHORITY_MATRIX.md`, schema files, or runtime files.
 
