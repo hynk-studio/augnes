@@ -3792,6 +3792,10 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .six-tab-process-strip {
+    gap: 22px;
+  }
+
   .runtime-strip,
   .shell-status-strip {
     justify-content: flex-start;
@@ -3828,8 +3832,20 @@ h1 {
     content: "";
   }
 
-  .process-step-card::after {
-    content: "";
+  .process-step-card:not(:last-child)::after {
+    right: auto;
+    bottom: -23px;
+    left: 50%;
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    border: 1px solid rgba(13, 79, 62, 0.18);
+    border-radius: 999px;
+    background: #f6fbf8;
+    box-shadow: 0 2px 6px rgba(39, 52, 66, 0.06);
+    content: "↓";
+    transform: translateX(-50%);
   }
 
   .graph-scroll {
