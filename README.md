@@ -36,8 +36,9 @@ leaving durable project authority with the runtime and the user.
 - Shows State Snapshot, Current Work, and `/api/state/brief` / `agent_handoff`
   views for external-agent continuity.
 - Uses Work IDs and Work Trace Spine views to anchor AG-xxx task context.
-- Provides a six-tab Cockpit operator UI: Overview, Work, Ledger, Proof,
-  Bridge, and Operator.
+- Provides a five-tab Cockpit operator UI: Overview, Work, Perspective,
+  Bridge, and Operator. Perspective contains Ledger Basis, Evidence, Tensions,
+  and Boundary / Next sections.
 - Exposes MCP / ChatGPT App bridge tools for read-first state access and gated
   proof recording.
 - Includes Codex handoff, completion, evidence, and session helper scripts.
@@ -130,7 +131,9 @@ which covers `codex:read-brief`, `codex:record-evidence`, and
 
 ### Cockpit
 
-![Cockpit Overview](screenshots/12-final-cockpit-overview.png)
+| Cockpit Overview | Perspective-centered IA |
+|---|---|
+| <img src="screenshots/12-final-cockpit-overview.png" width="520" alt="Cockpit Overview with five top-level tabs"> | <img src="screenshots/17-final-perspective-current-frame.png" width="520" alt="Perspective tab showing current frame, Ledger Basis, Evidence, Tensions, and Boundary / Next"> |
 
 ### AI surfaces using Augnes
 
@@ -183,7 +186,8 @@ More screenshots and supporting proof captures are listed in [screenshots/README
 - [Temporal Interpretation v0.2 status and roadmap](docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md)
 - [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md)
 - [Evidence Pack / verification evidence](docs/VERIFICATION_EVIDENCE_PACK.md)
-- [Cockpit six-tab functional map](docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md)
+- [Cockpit Perspective IA](docs/COCKPIT_PERSPECTIVE_IA_V0_1.md)
+- [Superseded Cockpit six-tab functional map](docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md)
 - [GitHub token management boundary](docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md)
 - [GitHub App installation-token config boundary](docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md)
 - [Authority matrix](docs/AUTHORITY_MATRIX.md)

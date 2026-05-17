@@ -14,7 +14,7 @@ What I built:
 - A local-first Next.js + SQLite runtime cockpit for project/work state.
 - Typed temporal state delta proposals with commit/reject gates.
 - A Temporal State Graph showing committed transitions and recorded proof.
-- Cockpit operator/audit/proof views for temporal state, work traces, ledger, proof, bridge, and local controls.
+- Cockpit operator/audit/proof views for Overview, Work, Perspective, Bridge, and local Operator controls, with Ledger Basis and Evidence inside Perspective.
 - MCP / ChatGPT App bridge proof that reads state and records gated proof without commit/reject authority.
 - Codex handoff/completion paths for action records, evidence records, and work trace notes.
 
@@ -42,7 +42,7 @@ npm --prefix apps/augnes_apps install
 AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
 ```
 
-Screenshots and proof are committed under `screenshots/`, including the Temporal State Graph, `/api/state/brief` JSON with `agent_handoff`, MCP Inspector state brief success, MCP Inspector action record success, and the bridge-recorded proof node in the graph.
+Screenshots and proof are committed under `screenshots/`, including the five-tab Cockpit Overview, Perspective Ledger Basis / Evidence / Tensions / Boundary views, `/api/state/brief` JSON with `agent_handoff`, MCP Inspector state brief success, MCP Inspector action record success, and the bridge-recorded proof node in the graph.
 
 Why AI was necessary: Augnes uses the model for the interpretive work of turning messy project conversation into structured proposals, grounded next actions, and reviewable temporal context while keeping durable state under runtime/user authority.
 
