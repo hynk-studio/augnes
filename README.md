@@ -145,12 +145,12 @@ More screenshots and supporting proof captures are listed in [screenshots/README
 1. Run the quick-start commands and open the Cockpit.
 2. Review the Overview tab and Temporal State Graph.
 3. Open Work to see AG-xxx Work Focus / Trace Spine context.
-4. Open Ledger to inspect committed state and transitions.
-5. Open Proof for evidence-only views and Temporal Interpretation Preview.
-6. Open Bridge to review read-first / no direct external-control boundaries.
-7. Open Operator to see safe local runtime controls.
-8. Fetch `/api/state/brief?scope=project:augnes` and inspect `agent_handoff`.
-9. Start the MCP bridge and verify state brief + action record proof through
+4. Open Perspective to inspect the current frame, Ledger Basis, Evidence,
+   Tensions, and Boundary / Next.
+5. Open Bridge to review read-first / no direct external-control boundaries.
+6. Open Operator to see safe local runtime controls.
+7. Fetch `/api/state/brief?scope=project:augnes` and inspect `agent_handoff`.
+8. Start the MCP bridge and verify state brief + action record proof through
    MCP Inspector.
 
 ## Security and boundaries

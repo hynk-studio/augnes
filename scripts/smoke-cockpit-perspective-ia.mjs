@@ -1,3 +1,3 @@
 import { runPerspectiveIaSmoke } from "./smoke-cockpit-perspective-ia-core.mjs";
 
-runPerspectiveIaSmoke("cockpit-six-tab-shell-compat-perspective-ia");
+runPerspectiveIaSmoke("cockpit-perspective-ia");
