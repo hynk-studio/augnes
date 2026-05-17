@@ -226,7 +226,7 @@ Refinements should not:
 - add Cockpit UI
 - add ChatGPT App tools
 - change the Control Packet
-- change `DEVELOPMENT_ONBOARDING.md`
+- change `docs/DEVELOPMENT_ONBOARDING.md`
 - claim P4 implementation readiness
 - approve runtime/schema/API/UI/App work
 - approve P5 `RuleCandidate` or `PromotedRule` work

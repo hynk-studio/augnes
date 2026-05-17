@@ -327,7 +327,7 @@ approves one specific target.
 
 A new session should read these files in this order:
 
-1. `DEVELOPMENT_ONBOARDING.md` - this file.
+1. `docs/DEVELOPMENT_ONBOARDING.md` - this file.
 2. `docs/AUGNES_COORDINATION_SPINE_ROADMAP.md` - full roadmap and phase order.
 3. `docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md` - completed Phase 2 flow.
 4. `docs/AUTHORITY_MATRIX.md` - actor/surface authority boundaries.

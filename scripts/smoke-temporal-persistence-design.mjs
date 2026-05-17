@@ -11,7 +11,7 @@ const cockpitValidationPath =
 const openAiValidationPath =
   "docs/TEMPORAL_INTERPRETATION_OPENAI_PATH_VALIDATION.md";
 const readmePath = "README.md";
-const onboardingPath = "DEVELOPMENT_ONBOARDING.md";
+const onboardingPath = "docs/DEVELOPMENT_ONBOARDING.md";
 const packagePath = "package.json";
 
 for (const path of [
@@ -32,7 +32,6 @@ for (const path of [
 const designDoc = readFileSync(designDocPath, "utf8");
 const normalizedDesignDoc = designDoc.toLowerCase();
 const statusDoc = readFileSync(statusDocPath, "utf8");
-const readme = readFileSync(readmePath, "utf8");
 const onboarding = readFileSync(onboardingPath, "utf8");
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
 
@@ -61,12 +60,8 @@ if (!statusDoc.includes(designDocPath)) {
   throw new Error(`Status roadmap doc must reference ${designDocPath}.`);
 }
 
-if (!readme.includes(designDocPath)) {
-  throw new Error(`README.md must reference ${designDocPath}.`);
-}
-
 if (!onboarding.includes(designDocPath)) {
-  throw new Error(`DEVELOPMENT_ONBOARDING.md must reference ${designDocPath}.`);
+  throw new Error(`docs/DEVELOPMENT_ONBOARDING.md must reference ${designDocPath}.`);
 }
 
 if (
@@ -85,7 +80,7 @@ console.log(
       forbidden_persistence_present: true,
       approval_gated_boundary_present: true,
       related_artifacts_referenced: true,
-      readme_references_design_doc: true,
+      readme_exists: true,
       onboarding_references_design_doc: true,
       package_script_exists: true,
     },

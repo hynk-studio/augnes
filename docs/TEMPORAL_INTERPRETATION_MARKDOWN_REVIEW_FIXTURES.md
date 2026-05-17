@@ -176,7 +176,7 @@ This fixture set does not:
 - create automatic scoring thresholds
 - implement rule promotion
 - change the Control Packet
-- change `DEVELOPMENT_ONBOARDING.md`
+- change `docs/DEVELOPMENT_ONBOARDING.md`
 - change the current repo-level next goal
 
 ## Fixture coverage table

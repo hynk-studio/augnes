@@ -99,7 +99,7 @@ This decision does not allow:
 - Control Packet changes
 - ChatGPT App tools
 - Cockpit UI
-- changes to `DEVELOPMENT_ONBOARDING.md`
+- changes to `docs/DEVELOPMENT_ONBOARDING.md`
 - treating fixture-definition pass as runtime behavior pass
 
 ## Current baseline fixture IDs
@@ -195,7 +195,7 @@ This decision does not:
 - claim P4 implementation readiness
 - claim runtime/schema/API/UI/App approval
 - claim actual `PerspectiveSnapshot` behavior passed
-- change `DEVELOPMENT_ONBOARDING.md`
+- change `docs/DEVELOPMENT_ONBOARDING.md`
 - change the current repo-level next goal
 
 Use "manual review baseline," not "implementation baseline." Use "accepted for
