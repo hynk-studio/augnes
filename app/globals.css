@@ -654,6 +654,11 @@ code {
   background: rgba(255, 255, 255, 0.68);
 }
 
+.perspective-frame-summary article:first-child {
+  border-color: rgba(13, 79, 62, 0.24);
+  background: #f7fbf8;
+}
+
 .perspective-frame-summary h3,
 .perspective-next-grid h3,
 .perspective-evidence-refs h3,

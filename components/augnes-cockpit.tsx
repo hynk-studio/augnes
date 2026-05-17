@@ -1683,33 +1683,6 @@ function PerspectiveTab({
               </article>
             ))}
           </div>
-          <div className="tab-stat-row perspective-stat-row">
-            <MetricCard
-              label="Committed transitions"
-              value={counts.transitions}
-              detail="ledger basis entries"
-            />
-            <MetricCard
-              label="State keys"
-              value={counts.stateKeys}
-              detail="derivable committed lanes"
-            />
-            <MetricCard
-              label="Evidence Pack"
-              value={evidencePack ? "Loaded" : "Not loaded"}
-              detail={`${evidenceRecordCount} evidence records`}
-            />
-            <MetricCard
-              label="Review artifacts"
-              value={temporalReviewArtifacts?.count ?? 0}
-              detail="read-only temporal artifacts"
-            />
-            <MetricCard
-              label="Frame limits"
-              value={openTensions.length + previewTensionCount + gapCount}
-              detail="tensions, counterexamples, alternatives"
-            />
-          </div>
           {temporalPreviewError ? (
             <EmptyState
               label="Temporal interpretation preview unavailable"
@@ -1772,6 +1745,33 @@ function PerspectiveTab({
               </button>
             </div>
           )}
+          <div className="tab-stat-row perspective-stat-row">
+            <MetricCard
+              label="Committed transitions"
+              value={counts.transitions}
+              detail="ledger basis entries"
+            />
+            <MetricCard
+              label="State keys"
+              value={counts.stateKeys}
+              detail="derivable committed lanes"
+            />
+            <MetricCard
+              label="Evidence Pack"
+              value={evidencePack ? "Loaded" : "Not loaded"}
+              detail={`${evidenceRecordCount} evidence records`}
+            />
+            <MetricCard
+              label="Review artifacts"
+              value={temporalReviewArtifacts?.count ?? 0}
+              detail="read-only temporal artifacts"
+            />
+            <MetricCard
+              label="Frame limits"
+              value={openTensions.length + previewTensionCount + gapCount}
+              detail="tensions, counterexamples, alternatives"
+            />
+          </div>
         </section>
 
         <section
