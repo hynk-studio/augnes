@@ -729,10 +729,12 @@ code {
 }
 
 .perspective-tension-grid {
+  align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
 }
 
 .perspective-tension-list {
+  align-self: start;
   align-content: start;
   border-color: rgba(13, 79, 62, 0.14);
   background:
