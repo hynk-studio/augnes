@@ -3761,9 +3761,10 @@ h1 {
   }
 
   .cockpit-tab-nav {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 2px 8px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, max-content));
+    justify-content: start;
+    gap: 2px 10px;
     overflow-x: visible;
   }
 
