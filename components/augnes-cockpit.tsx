@@ -1628,41 +1628,32 @@ function PerspectiveTab({
         agents, execute Codex, or mutate external systems.
       </BoundaryNote>
 
-      <div className="tab-stat-row perspective-stat-row">
-        <MetricCard
-          label="Committed transitions"
-          value={counts.transitions}
-          detail="ledger basis entries"
-        />
-        <MetricCard
-          label="State keys"
-          value={counts.stateKeys}
-          detail="derivable committed lanes"
-        />
-        <MetricCard
-          label="Evidence Pack"
-          value={evidencePack ? "Loaded" : "Not loaded"}
-          detail={`${evidenceRecordCount} evidence records`}
-        />
-        <MetricCard
-          label="Review artifacts"
-          value={temporalReviewArtifacts?.count ?? 0}
-          detail="read-only temporal artifacts"
-        />
-        <MetricCard
-          label="Tensions / gaps"
-          value={openTensions.length + previewTensionCount + gapCount}
-          detail="limits on the frame"
-        />
-      </div>
-
       <div className="perspective-grid">
-        <section className="cockpit-surface-card perspective-section perspective-frame-section">
-          <PanelHeader
-            eyebrow="Frame"
-            title="Current Perspective Frame"
-            description="How this frame was formed"
-          />
+        <section
+          className="cockpit-surface-card perspective-section perspective-frame-section perspective-frame-hero"
+          id="perspective-frame"
+        >
+          <div className="perspective-hero-heading">
+            <div>
+              <p className="panel-eyebrow">Frame</p>
+              <h2>Current Perspective Frame</h2>
+              <p>How this frame was formed</p>
+            </div>
+            <div className="timeline-badges">
+              {preview ? (
+                <>
+                  <StatusBadge
+                    label={formatStatusLabel(temporalPreview?.generator ?? "unknown")}
+                  />
+                  <StatusBadge
+                    label={formatStatusLabel(preview.transition_relation)}
+                  />
+                </>
+              ) : (
+                <StatusBadge label="Preview not loaded" />
+              )}
+            </div>
+          </div>
           <div className="perspective-trace-strip" aria-label="Frame formation trace">
             {["Scan", "Bind", "Resolve", "Anchor", "Next"].map((step, index) => (
               <article key={step}>
@@ -1670,6 +1661,33 @@ function PerspectiveTab({
                 <strong>{step}</strong>
               </article>
             ))}
+          </div>
+          <div className="tab-stat-row perspective-stat-row">
+            <MetricCard
+              label="Committed transitions"
+              value={counts.transitions}
+              detail="ledger basis entries"
+            />
+            <MetricCard
+              label="State keys"
+              value={counts.stateKeys}
+              detail="derivable committed lanes"
+            />
+            <MetricCard
+              label="Evidence Pack"
+              value={evidencePack ? "Loaded" : "Not loaded"}
+              detail={`${evidenceRecordCount} evidence records`}
+            />
+            <MetricCard
+              label="Review artifacts"
+              value={temporalReviewArtifacts?.count ?? 0}
+              detail="read-only temporal artifacts"
+            />
+            <MetricCard
+              label="Tensions / gaps"
+              value={openTensions.length + previewTensionCount + gapCount}
+              detail="limits on the frame"
+            />
           </div>
           {temporalPreviewError ? (
             <EmptyState
@@ -1706,6 +1724,16 @@ function PerspectiveTab({
                 <span>{preview.evidence_anchors.length} evidence anchors</span>
                 <span>{preview.summary_refs.length} summary refs</span>
               </div>
+              <div className="perspective-hero-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={onRefreshTemporalPreview}
+                  disabled={temporalPreviewBusy}
+                >
+                  Refresh Temporal Interpretation Preview
+                </button>
+              </div>
             </div>
           ) : (
             <div className="panel-control-row">
@@ -1725,7 +1753,18 @@ function PerspectiveTab({
           )}
         </section>
 
-        <section className="cockpit-surface-card perspective-section perspective-ledger-section">
+        <nav className="perspective-anchor-nav" aria-label="Perspective sections">
+          <a href="#perspective-frame">Frame</a>
+          <a href="#perspective-ledger-basis">Ledger Basis</a>
+          <a href="#perspective-evidence">Evidence</a>
+          <a href="#perspective-tensions">Tensions</a>
+          <a href="#perspective-boundary-next">Boundary / Next</a>
+        </nav>
+
+        <section
+          className="cockpit-surface-card perspective-section perspective-ledger-section"
+          id="perspective-ledger-basis"
+        >
           <PanelHeader
             eyebrow="Ledger Basis"
             title="Committed runtime state basis"
@@ -1764,7 +1803,10 @@ function PerspectiveTab({
           <TransitionInspector event={selectedTransition} />
         </section>
 
-        <section className="cockpit-surface-card perspective-section perspective-evidence-section">
+        <section
+          className="cockpit-surface-card perspective-section perspective-evidence-section"
+          id="perspective-evidence"
+        >
           <PanelHeader
             eyebrow="Evidence"
             title="Evidence support and challenge"
@@ -1821,43 +1863,55 @@ function PerspectiveTab({
               />
             </section>
           </div>
-          <div className="proof-grid">
-            <EvidencePackPanel
-              evidencePack={evidencePack}
-              error={evidencePackError}
-              loading={evidencePackLoading}
-              onLoad={onLoadEvidencePack}
-            />
-            <TemporalReviewArtifactBrowserPanel
-              artifactsResponse={temporalReviewArtifacts}
-              selectedArtifact={selectedTemporalReviewArtifact}
-              error={temporalReviewArtifactsError}
-              busy={temporalReviewArtifactsBusy}
-              requested={temporalReviewArtifactsRequested}
-              onLoad={onLoadTemporalReviewArtifacts}
-              onSelectArtifact={onSelectTemporalReviewArtifact}
-            />
-            <SessionTracePanel
-              trace={sessionTrace}
-              error={sessionTraceError}
-              busy={sessionTraceBusy}
-              requested={sessionTraceRequested}
-              onRefresh={onRefreshSessionTrace}
-            />
+          <div className="perspective-detail-stack">
+            <details className="perspective-detail-panel">
+              <summary>Evidence Pack details</summary>
+              <EvidencePackPanel
+                evidencePack={evidencePack}
+                error={evidencePackError}
+                loading={evidencePackLoading}
+                onLoad={onLoadEvidencePack}
+              />
+            </details>
+            <details className="perspective-detail-panel">
+              <summary>Temporal Review Artifact details</summary>
+              <TemporalReviewArtifactBrowserPanel
+                artifactsResponse={temporalReviewArtifacts}
+                selectedArtifact={selectedTemporalReviewArtifact}
+                error={temporalReviewArtifactsError}
+                busy={temporalReviewArtifactsBusy}
+                requested={temporalReviewArtifactsRequested}
+                onLoad={onLoadTemporalReviewArtifacts}
+                onSelectArtifact={onSelectTemporalReviewArtifact}
+              />
+            </details>
+            <details className="perspective-detail-panel">
+              <summary>Session Trace details</summary>
+              <SessionTracePanel
+                trace={sessionTrace}
+                error={sessionTraceError}
+                busy={sessionTraceBusy}
+                requested={sessionTraceRequested}
+                onRefresh={onRefreshSessionTrace}
+              />
+            </details>
+            <details className="perspective-detail-panel">
+              <summary>Temporal Interpretation Preview details</summary>
+              <TemporalInterpretationPreviewPanel
+                previewResponse={temporalPreview}
+                error={temporalPreviewError}
+                busy={temporalPreviewBusy}
+                requested={temporalPreviewRequested}
+                onRefresh={onRefreshTemporalPreview}
+              />
+            </details>
           </div>
-          <details className="advanced-proof-panel">
-            <summary>Read-only Temporal Interpretation Preview details</summary>
-            <TemporalInterpretationPreviewPanel
-              previewResponse={temporalPreview}
-              error={temporalPreviewError}
-              busy={temporalPreviewBusy}
-              requested={temporalPreviewRequested}
-              onRefresh={onRefreshTemporalPreview}
-            />
-          </details>
         </section>
 
-        <section className="cockpit-surface-card perspective-section perspective-tensions-section">
+        <section
+          className="cockpit-surface-card perspective-section perspective-tensions-section"
+          id="perspective-tensions"
+        >
           <PanelHeader
             eyebrow="Tensions"
             title="Uncertainty and counter-pressure"
@@ -1926,7 +1980,10 @@ function PerspectiveTab({
           </div>
         </section>
 
-        <section className="cockpit-surface-card perspective-section perspective-boundary-card">
+        <section
+          className="cockpit-surface-card perspective-section perspective-boundary-card"
+          id="perspective-boundary-next"
+        >
           <PanelHeader
             eyebrow="Boundary / Next"
             title="Next step and authority boundary"
@@ -1972,8 +2029,9 @@ function PerspectiveTab({
           </div>
           <div className="panel-control-row">
             <BoundaryNote tone="green">
-              Operator actions affect the local Augnes runtime only. Perspective
-              remains read-only and non-authoritative.
+              Operator owns local proposal decisions. Operator actions affect
+              the local Augnes runtime only. Perspective remains read-only and
+              non-authoritative.
             </BoundaryNote>
             <button
               type="button"
@@ -4288,7 +4346,9 @@ function TemporalInterpretationPreviewPanel({
           onClick={onRefresh}
           disabled={busy}
         >
-          {previewResponse ? "Refresh Preview" : "Generate Preview"}
+          {previewResponse
+            ? "Refresh Temporal Interpretation Preview"
+            : "Load Temporal Interpretation Preview"}
         </button>
       </div>
 
@@ -4308,7 +4368,7 @@ function TemporalInterpretationPreviewPanel({
       ) : !previewResponse || !preview ? (
         <EmptyState
           label="Preview not generated"
-          description="Click Generate Preview to request the read-only temporal interpretation preview."
+          description="Click Load Temporal Interpretation Preview to request the read-only temporal interpretation preview."
         />
       ) : (
         <>
@@ -4500,7 +4560,11 @@ function EvidencePackPanel({
           onClick={onLoad}
           disabled={loading}
         >
-          {loading ? "Loading" : "Load Evidence Pack"}
+          {loading
+            ? "Loading"
+            : evidencePack
+              ? "Refresh Evidence Pack"
+              : "Load Evidence Pack"}
         </button>
       </div>
 

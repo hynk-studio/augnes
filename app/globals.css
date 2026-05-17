@@ -515,10 +515,67 @@ code {
 .perspective-section {
   display: grid;
   gap: 14px;
+  scroll-margin-top: 92px;
 }
 
 .perspective-frame-section {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.perspective-frame-hero {
+  padding: 22px;
+  border-color: rgba(13, 79, 62, 0.22);
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
+}
+
+.perspective-hero-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+}
+
+.perspective-hero-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  line-height: 1.04;
+}
+
+.perspective-hero-heading p:not(.panel-eyebrow) {
+  margin: 8px 0 0;
+  color: #46556b;
+  font-size: 1.02rem;
+  font-weight: 650;
+}
+
+.perspective-anchor-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 8px 20px rgba(39, 52, 66, 0.04);
+}
+
+.perspective-anchor-nav a {
+  padding: 8px 11px;
+  border: 1px solid rgba(13, 79, 62, 0.18);
+  border-radius: 8px;
+  color: #174434;
+  background: #f6fbf8;
+  font-size: 0.86rem;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.perspective-anchor-nav a:hover {
+  border-color: rgba(13, 79, 62, 0.32);
+  background: #eef8f4;
 }
 
 .perspective-trace-strip {
@@ -595,6 +652,16 @@ code {
   grid-column: 1 / -1;
 }
 
+.perspective-hero-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.perspective-hero-actions button {
+  width: fit-content;
+}
+
 .compact-stat-row {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
@@ -621,6 +688,34 @@ code {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.perspective-detail-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.perspective-detail-panel {
+  min-width: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.perspective-detail-panel > summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  color: #263142;
+  font-size: 0.9rem;
+  font-weight: 760;
+}
+
+.perspective-detail-panel[open] > summary {
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.perspective-detail-panel > section {
+  padding: 14px;
 }
 
 .perspective-boundary-card .panel-control-row {

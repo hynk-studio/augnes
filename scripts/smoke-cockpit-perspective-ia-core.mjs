@@ -55,6 +55,11 @@ export function runPerspectiveIaSmoke(smokeName) {
     "Resolve",
     "Anchor",
     "Next",
+    "href=\"#perspective-frame\"",
+    "href=\"#perspective-ledger-basis\"",
+    "href=\"#perspective-evidence\"",
+    "href=\"#perspective-tensions\"",
+    "href=\"#perspective-boundary-next\"",
     "Ledger Basis is committed runtime state",
     "Perspective interprets it, but does not own it",
     "Pending proposals are not ledger entries",
@@ -70,6 +75,12 @@ export function runPerspectiveIaSmoke(smokeName) {
     "publish/mutate GitHub blocked",
     "proof/trace recording gated",
     "Operator actions affect the local Augnes runtime only",
+    "Evidence Pack details",
+    "Temporal Review Artifact details",
+    "Session Trace details",
+    "Temporal Interpretation Preview details",
+    "Refresh Evidence Pack",
+    "Refresh Temporal Interpretation Preview",
     "Commit local state proposal",
     "Reject local state proposal",
   ]) {
@@ -94,6 +105,51 @@ export function runPerspectiveIaSmoke(smokeName) {
     );
   }
 
+  const perspectiveSource = extractFunctionSource(
+    cockpit,
+    "function PerspectiveTab",
+    "function LedgerTab",
+  );
+  for (const label of [
+    "Frame",
+    "Ledger Basis",
+    "Evidence",
+    "Tensions",
+    "Boundary / Next",
+  ]) {
+    assertIncludes(perspectiveSource, label);
+  }
+
+  const perspectiveButtonLabels = [
+    ...perspectiveSource.matchAll(/<button\b[\s\S]*?<\/button>/g),
+  ].map(([button]) =>
+    button
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\{[\s\S]*?\}/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase(),
+  );
+  for (const forbiddenPerspectiveControl of [
+    "commit local state proposal",
+    "reject local state proposal",
+    "plan next",
+    "approve",
+    "publish",
+    "replay",
+    "execute codex",
+    "merge",
+    "token",
+  ]) {
+    assert.equal(
+      perspectiveButtonLabels.some((label) =>
+        label.includes(forbiddenPerspectiveControl),
+      ),
+      false,
+      `mutation control found inside Perspective: ${forbiddenPerspectiveControl}`,
+    );
+  }
+
   const brandMarkup = extractCockpitBrandMarkup(cockpit);
   assertIncludes(brandMarkup, "<strong>AUGNES</strong>");
   assertIncludes(brandMarkup, "<span>Temporal State Runtime</span>");
@@ -114,9 +170,11 @@ export function runPerspectiveIaSmoke(smokeName) {
     ".cockpit-tab-panel",
     ".perspective-grid",
     ".perspective-section",
+    ".perspective-anchor-nav",
     ".perspective-trace-strip",
     ".perspective-boundary-card",
     ".perspective-evidence-grid",
+    ".perspective-detail-panel",
     ".bridge-grid",
     ".capability-matrix",
     ".operator-layout-grid",
@@ -294,6 +352,16 @@ function extractCockpitBrandMarkup(value) {
   );
   assert.notEqual(match, null, "Cockpit shell should include cockpit-brand block");
   return match[0];
+}
+
+function extractFunctionSource(value, startMarker, endMarker) {
+  const start = value.indexOf(startMarker);
+  const end = value.indexOf(endMarker, start + startMarker.length);
+
+  assert.notEqual(start, -1, `Expected function start marker: ${startMarker}`);
+  assert.notEqual(end, -1, `Expected function end marker: ${endMarker}`);
+
+  return value.slice(start, end);
 }
 
 function extractCssRules(value, selectors) {
