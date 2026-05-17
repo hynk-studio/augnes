@@ -518,6 +518,14 @@ code {
   scroll-margin-top: 152px;
 }
 
+.perspective-section .panel-eyebrow {
+  width: fit-content;
+  padding: 3px 7px;
+  border: 1px solid rgba(13, 79, 62, 0.14);
+  border-radius: 999px;
+  background: rgba(238, 248, 244, 0.72);
+}
+
 .perspective-frame-section {
   grid-template-columns: minmax(0, 1fr);
   scroll-margin-top: 188px;
@@ -525,8 +533,13 @@ code {
 
 .perspective-frame-hero {
   padding: 22px;
-  border-color: rgba(13, 79, 62, 0.22);
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
+  border-color: rgba(13, 79, 62, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 251, 247, 0.95) 100%),
+    linear-gradient(90deg, rgba(13, 79, 62, 0.11), transparent 34%);
+  box-shadow:
+    inset 0 3px 0 rgba(13, 79, 62, 0.34),
+    var(--shadow);
 }
 
 .perspective-hero-heading {
@@ -660,6 +673,104 @@ code {
 .perspective-frame-summary article:first-child {
   border-color: rgba(13, 79, 62, 0.24);
   background: #f7fbf8;
+}
+
+.perspective-ledger-section {
+  border-color: rgba(40, 93, 159, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 252, 0.88));
+  box-shadow:
+    inset 0 3px 0 rgba(40, 93, 159, 0.24),
+    var(--shadow);
+}
+
+.perspective-ledger-section .panel-eyebrow,
+.perspective-ledger-section .metric-card span {
+  color: var(--blue);
+}
+
+.perspective-ledger-section .panel-eyebrow {
+  border-color: rgba(40, 93, 159, 0.18);
+  background: #eef5ff;
+}
+
+.perspective-ledger-section .metric-card {
+  border-color: rgba(40, 93, 159, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.perspective-evidence-section {
+  border-color: rgba(40, 93, 159, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 249, 255, 0.9));
+  box-shadow:
+    inset 0 3px 0 rgba(40, 93, 159, 0.22),
+    var(--shadow);
+}
+
+.perspective-evidence-section .panel-eyebrow,
+.perspective-evidence-section .metric-card span,
+.perspective-evidence-section .perspective-evidence-refs h3 {
+  color: var(--blue);
+}
+
+.perspective-evidence-section .panel-eyebrow {
+  border-color: rgba(40, 93, 159, 0.18);
+  background: #eef5ff;
+}
+
+.perspective-evidence-section .metric-card,
+.perspective-evidence-refs section,
+.perspective-detail-panel {
+  border-color: rgba(40, 93, 159, 0.14);
+}
+
+.perspective-evidence-section .metric-card,
+.perspective-evidence-refs section {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.perspective-tensions-section {
+  border-color: rgba(165, 102, 24, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 249, 239, 0.78));
+  box-shadow:
+    inset 0 3px 0 rgba(165, 102, 24, 0.26),
+    var(--shadow);
+}
+
+.perspective-tensions-section .panel-eyebrow,
+.perspective-tensions-section .perspective-tension-list h3 {
+  color: var(--amber);
+}
+
+.perspective-tensions-section .panel-eyebrow {
+  border-color: rgba(165, 102, 24, 0.2);
+  background: #fff7e8;
+}
+
+.perspective-boundary-card {
+  border-color: rgba(13, 79, 62, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 251, 247, 0.9));
+  box-shadow:
+    inset 0 3px 0 rgba(13, 79, 62, 0.28),
+    var(--shadow);
+}
+
+.perspective-boundary-card .panel-eyebrow,
+.perspective-boundary-card .perspective-next-grid h3 {
+  color: var(--accent-strong);
+}
+
+.perspective-boundary-card .panel-eyebrow {
+  border-color: rgba(13, 79, 62, 0.18);
+  background: #eef8f4;
+}
+
+.perspective-boundary-card .perspective-next-grid article {
+  border-color: rgba(13, 79, 62, 0.16);
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .perspective-frame-summary h3,
