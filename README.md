@@ -2,19 +2,20 @@
 
 ## What it is
 
-Augnes gives AI-assisted work a shared temporal state backend. ChatGPT Apps and
-MCP clients can read the same committed project state, Codex can record
-implementation proof, and the Cockpit shows what changed over time.
+Augnes is a local runtime for AI-assisted project work. It keeps proposed
+changes, accepted state, work traces, and proof records in one place so ChatGPT
+Apps, MCP clients, Codex, and the Cockpit can work from the same committed
+state.
 
-The model interprets; the runtime stores; the user gates; the graph proves.
-OpenAI output is never treated as durable context by itself. Augnes turns
-conversation into typed, time-aware state proposals, keeps commit/reject behind
-a user/runtime gate, records accepted transitions in SQLite, anchors work with
-`AG-xxx` trace IDs, and surfaces state trajectories over time.
+OpenAI output is used to draft interpretations and proposals, but it is not
+stored as durable project state on its own. Augnes records accepted transitions
+in SQLite, keeps commit/reject decisions behind a user/runtime gate, and links
+work to `AG-xxx` trace IDs.
 
-Cockpit is the local operator, audit, and proof UI. ChatGPT App / MCP tools are
-bridge surfaces. Codex records implementation results, evidence, and work trace
-notes. All of those surfaces point at the same runtime-owned state.
+Cockpit is the local UI for reviewing state, work, bridge activity, and local
+proposal decisions. ChatGPT App / MCP tools provide read-first bridge access.
+Codex can record implementation results, evidence, and work trace notes. Each
+surface reads from or records back to the same runtime-owned state.
 
 ## Why it exists
 
@@ -23,9 +24,9 @@ changes, GitHub history, screenshots, and human handoffs. ChatGPT can plan and
 review, Codex can implement and test, and GitHub can store the code, but the
 current project state can still live in the operator's head.
 
-Augnes replaces that message-bus work with explicit temporal state, work trace
-anchors, and recorded proof. It keeps useful interpretation from the model while
-leaving durable project authority with the runtime and the user.
+Augnes gives that work a shared local record: committed state, work trace
+anchors, and proof records. Models can help interpret and propose changes, while
+the runtime and the user keep control over what becomes durable state.
 
 ## What it does
 
@@ -182,20 +183,8 @@ More screenshots and supporting proof captures are listed in [screenshots/README
 
 ## Deep docs
 
-- [Temporal Interpretation Preview runbook](docs/TEMPORAL_INTERPRETATION_PREVIEW_RUNBOOK.md)
-- [Temporal Interpretation v0.2 status and roadmap](docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md)
+- [Cockpit Perspective IA](docs/COCKPIT_PERSPECTIVE_IA_V0_1.md)
 - [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md)
 - [Evidence Pack / verification evidence](docs/VERIFICATION_EVIDENCE_PACK.md)
-- [Cockpit Perspective IA](docs/COCKPIT_PERSPECTIVE_IA_V0_1.md)
-- [Superseded Cockpit six-tab functional map](docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md)
-- [GitHub token management boundary](docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md)
-- [GitHub App installation-token config boundary](docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md)
 - [Authority matrix](docs/AUTHORITY_MATRIX.md)
-- [Development onboarding](DEVELOPMENT_ONBOARDING.md)
 - [Latest docs index](docs/00_INDEX_LATEST.md)
-
-## Submission tagline
-
-Augnes turns AI-assisted work into temporal state trajectories: the model
-interprets, the runtime owns state, the user gates changes, Work IDs anchor
-traces, and the graph shows proof over time.
