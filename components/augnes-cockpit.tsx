@@ -1514,8 +1514,9 @@ function WorkTab({
         onSelectWork={onSelectWork}
       />
       <BoundaryNote>
-        Work IDs are trace anchors. Committed state and proof live in the
-        Ledger and Proof tabs.
+        Work IDs are trace anchors. Perspective shows the Ledger Basis and
+        Evidence behind the current frame. Operator owns local proposal
+        decisions.
       </BoundaryNote>
     </section>
   );

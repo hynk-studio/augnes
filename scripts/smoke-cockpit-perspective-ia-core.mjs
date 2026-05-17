@@ -75,9 +75,15 @@ export function runPerspectiveIaSmoke(smokeName) {
   ]) {
     assertIncludes(cockpit, snippet);
   }
+  assertCopyIncludes(
+    cockpit,
+    "Perspective shows the Ledger Basis and Evidence behind the current frame",
+  );
+  assertCopyIncludes(cockpit, "Operator owns local proposal decisions");
 
   for (const forbidden of [
     "Overview -> Work -> Ledger -> Proof -> Bridge -> Operator",
+    "Ledger and Proof tabs",
     'label: "Ledger"',
     'label: "Proof"',
   ]) {
@@ -239,6 +245,18 @@ function assertIncludes(value, expected) {
     true,
     `Expected content to include: ${expected}`,
   );
+}
+
+function assertCopyIncludes(value, expected) {
+  assert.equal(
+    normalizeCopy(value).includes(normalizeCopy(expected)),
+    true,
+    `Expected user-facing copy to include: ${expected}`,
+  );
+}
+
+function normalizeCopy(value) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function assertOrder(value, labels) {
