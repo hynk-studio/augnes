@@ -841,12 +841,15 @@ code {
 
 .perspective-tension-grid {
   align-items: start;
+  grid-auto-rows: max-content;
   grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
 }
 
 .perspective-tension-list {
   align-self: start;
   align-content: start;
+  min-height: 0;
+  height: fit-content;
   border-color: rgba(13, 79, 62, 0.14);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 252, 250, 0.78));
