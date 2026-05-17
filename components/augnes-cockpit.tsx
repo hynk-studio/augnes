@@ -1628,6 +1628,14 @@ function PerspectiveTab({
         agents, execute Codex, or mutate external systems.
       </BoundaryNote>
 
+      <nav className="perspective-anchor-nav" aria-label="Perspective sections">
+        <a href="#perspective-frame">Frame</a>
+        <a href="#perspective-ledger-basis">Ledger Basis</a>
+        <a href="#perspective-evidence">Evidence</a>
+        <a href="#perspective-tensions">Tensions</a>
+        <a href="#perspective-boundary-next">Boundary / Next</a>
+      </nav>
+
       <div className="perspective-grid">
         <section
           className="cockpit-surface-card perspective-section perspective-frame-section perspective-frame-hero"
@@ -1655,10 +1663,23 @@ function PerspectiveTab({
             </div>
           </div>
           <div className="perspective-trace-strip" aria-label="Frame formation trace">
-            {["Scan", "Bind", "Resolve", "Anchor", "Next"].map((step, index) => (
-              <article key={step}>
-                <span>{index + 1}</span>
-                <strong>{step}</strong>
+            {[
+              { display: "◇ Scan", label: "Scan" },
+              { display: "◇ Bind", label: "Bind" },
+              { display: "◉ Resolve", label: "Resolve", current: true },
+              { display: "◇ Anchor", label: "Anchor" },
+              { display: "◇ Next", label: "Next" },
+            ].map((step) => (
+              <article
+                key={step.label}
+                className={step.current ? "is-current" : undefined}
+                aria-label={
+                  step.current
+                    ? `${step.label}, current perspective focus`
+                    : `${step.label}, temporal frame point`
+                }
+              >
+                <strong>{step.display}</strong>
               </article>
             ))}
           </div>
@@ -1684,9 +1705,9 @@ function PerspectiveTab({
               detail="read-only temporal artifacts"
             />
             <MetricCard
-              label="Tensions / gaps"
+              label="Frame limits"
               value={openTensions.length + previewTensionCount + gapCount}
-              detail="limits on the frame"
+              detail="tensions, counterexamples, alternatives"
             />
           </div>
           {temporalPreviewError ? (
@@ -1752,14 +1773,6 @@ function PerspectiveTab({
             </div>
           )}
         </section>
-
-        <nav className="perspective-anchor-nav" aria-label="Perspective sections">
-          <a href="#perspective-frame">Frame</a>
-          <a href="#perspective-ledger-basis">Ledger Basis</a>
-          <a href="#perspective-evidence">Evidence</a>
-          <a href="#perspective-tensions">Tensions</a>
-          <a href="#perspective-boundary-next">Boundary / Next</a>
-        </nav>
 
         <section
           className="cockpit-surface-card perspective-section perspective-ledger-section"
@@ -1829,9 +1842,9 @@ function PerspectiveTab({
               detail="read-only continuity"
             />
             <MetricCard
-              label="Gaps / needs review"
+              label="Loaded evidence gaps"
               value={gapCount}
-              detail="derivable gaps"
+              detail="from evidence/session/artifacts"
             />
           </div>
           <div className="perspective-evidence-refs">
