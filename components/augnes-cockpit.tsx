@@ -1937,9 +1937,10 @@ function PerspectiveTab({
                 key: tension.id,
                 label: tension.title,
                 detail: tension.description,
-                meta: `${formatStatusLabel(tension.severity)} / ${formatStatusLabel(
-                  tension.status,
-                )}`,
+                metaChips: [
+                  formatStatusLabel(tension.severity),
+                  formatStatusLabel(tension.status),
+                ],
               }))}
               emptyLabel="No snapshot open tensions"
             />
@@ -1971,8 +1972,10 @@ function PerspectiveTab({
                 preview?.suppressed_alternatives.map((item) => ({
                   key: item.alternative,
                   label: item.alternative,
-                  detail: item.why_deferred,
-                  meta: item.what_would_change_status,
+                  fields: [
+                    { label: "Why deferred", value: item.why_deferred },
+                    { label: "Would change", value: item.what_would_change_status },
+                  ],
                 })) ?? []
               }
               emptyLabel="No suppressed alternatives loaded"
@@ -2752,8 +2755,9 @@ function TensionList({
   items: {
     key: string;
     label: string;
-    detail: string;
-    meta?: string;
+    detail?: string;
+    metaChips?: string[];
+    fields?: { label: string; value: string }[];
   }[];
   emptyLabel: string;
 }) {
@@ -2765,12 +2769,31 @@ function TensionList({
       ) : (
         <div className="compact-list">
           {items.slice(0, 8).map((item) => (
-            <article className="compact-item" key={item.key}>
-              <div className="card-topline">
-                <strong>{item.label}</strong>
-                {item.meta ? <span>{item.meta}</span> : null}
+            <article className="tension-diagnostic-card" key={item.key}>
+              <header className="tension-card-header">
+                <strong className="tension-card-title">{item.label}</strong>
+                {item.metaChips?.length ? (
+                  <div className="tension-chip-row" aria-label="Tension metadata">
+                    {item.metaChips.map((chip) => (
+                      <span className="tension-chip" key={chip}>
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </header>
+              <div className="tension-card-body">
+                {item.fields?.length ? (
+                  item.fields.map((field) => (
+                    <div className="tension-card-field" key={field.label}>
+                      <span className="tension-field-label">{field.label}</span>
+                      <p>{field.value}</p>
+                    </div>
+                  ))
+                ) : item.detail ? (
+                  <p>{item.detail}</p>
+                ) : null}
               </div>
-              <p>{item.detail}</p>
             </article>
           ))}
         </div>

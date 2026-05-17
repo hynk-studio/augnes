@@ -732,6 +732,23 @@ code {
   grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
 }
 
+.perspective-evidence-refs .meta-row {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.perspective-evidence-refs .meta-row span {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.perspective-evidence-refs .meta-row code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .perspective-detail-stack {
   display: grid;
   gap: 10px;
@@ -1233,6 +1250,75 @@ h1 {
   margin-top: 6px;
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.tension-diagnostic-card {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  background: #fbfcfe;
+}
+
+.tension-card-header,
+.tension-card-body,
+.tension-card-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tension-card-title {
+  color: #203047;
+  font-size: 0.84rem;
+  font-weight: 850;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.tension-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tension-chip {
+  min-width: 0;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid rgba(13, 79, 62, 0.18);
+  border-radius: 999px;
+  color: #174434;
+  background: #f6fbf8;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.tension-card-body p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 680;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.tension-card-field + .tension-card-field {
+  padding-top: 7px;
+  border-top: 1px solid rgba(218, 226, 235, 0.85);
+}
+
+.tension-field-label {
+  color: #5d6b7c;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .command-list {
@@ -2480,13 +2566,14 @@ h1 {
 }
 
 .temporal-authority-bucket {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: flex-start;
   min-width: 0;
   max-width: 100%;
 }
 
 .temporal-authority-bucket strong {
-  flex: 0 0 130px;
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 900;
@@ -2495,12 +2582,14 @@ h1 {
 }
 
 .temporal-authority-bucket .meta-row {
-  flex: 1 1 220px;
   flex-wrap: wrap;
   min-width: 0;
+  width: 100%;
+  margin-top: 0;
 }
 
 .temporal-authority-bucket .meta-row span {
+  box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
