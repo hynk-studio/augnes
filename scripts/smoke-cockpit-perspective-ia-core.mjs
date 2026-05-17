@@ -5,10 +5,12 @@ import { readFileSync } from "node:fs";
 const cockpitPath = "components/augnes-cockpit.tsx";
 const cssPath = "app/globals.css";
 const packagePath = "package.json";
+const readmePath = "README.md";
 
 export function runPerspectiveIaSmoke(smokeName) {
   const cockpit = readFileSync(cockpitPath, "utf8");
   const css = readFileSync(cssPath, "utf8");
+  const readme = readFileSync(readmePath, "utf8");
   const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
   const comparisonRef = getComparisonRef();
   const basePackageJson = JSON.parse(
@@ -118,6 +120,30 @@ export function runPerspectiveIaSmoke(smokeName) {
   );
   assertCopyIncludes(cockpit, "Operator owns local proposal decisions");
 
+  const demoFlow = extractReadmeDemoFlow(readme);
+  assertCopyIncludes(
+    demoFlow,
+    "Open Perspective to inspect the current frame, Ledger Basis, Evidence",
+  );
+  assertCopyIncludes(demoFlow, "Tensions, and Boundary / Next");
+  assertCopyIncludes(
+    demoFlow,
+    "Open Bridge to review read-first / no direct external-control boundaries",
+  );
+  assertCopyIncludes(demoFlow, "Open Operator to see safe local runtime controls");
+  for (const forbiddenReadmeDemoStep of [
+    "Open Ledger",
+    "Open Proof",
+    "Ledger tab",
+    "Proof tab",
+  ]) {
+    assert.equal(
+      demoFlow.includes(forbiddenReadmeDemoStep),
+      false,
+      `README demo flow must not present old top-level IA step: ${forbiddenReadmeDemoStep}`,
+    );
+  }
+
   for (const forbidden of [
     "Overview -> Work -> Ledger -> Proof -> Bridge -> Operator",
     "Ledger and Proof tabs",
@@ -187,6 +213,27 @@ export function runPerspectiveIaSmoke(smokeName) {
     ".cockpit-brand span",
   ]);
   assertNoBrandArtwork(brandCss);
+
+  const perspectiveTraceCss = extractCssRules(css, [
+    ".perspective-trace-strip",
+    ".perspective-trace-strip article",
+    ".perspective-trace-strip article:not(:last-child)::after",
+    ".perspective-trace-strip strong",
+  ]);
+  assertIncludes(perspectiveTraceCss, "min-width: 0");
+  assertIncludes(perspectiveTraceCss, "max-width: 100%");
+  assertIncludes(perspectiveTraceCss, "grid-template-columns: 1fr");
+  assertIncludes(perspectiveTraceCss, "overflow-x: visible");
+  assert.equal(
+    perspectiveTraceCss.includes("minmax(112px"),
+    false,
+    "Perspective trace strip must not force horizontally scrolling mobile steps",
+  );
+  assert.equal(
+    perspectiveTraceCss.includes("overflow-x: auto"),
+    false,
+    "Perspective trace strip must not use internal horizontal scrolling",
+  );
 
   for (const snippet of [
     "Cockpit demo readiness polish",
@@ -318,6 +365,8 @@ export function runPerspectiveIaSmoke(smokeName) {
         evidence_boundary_present: true,
         bridge_boundary_present: true,
         operator_controls_preserved: true,
+        readme_demo_flow_current: true,
+        mobile_trace_strip_non_scrolling: true,
         app_api_files_changed: false,
         lib_files_changed: false,
         lockfiles_changed: false,
@@ -394,6 +443,16 @@ function extractFunctionSource(value, startMarker, endMarker) {
 
   assert.notEqual(start, -1, `Expected function start marker: ${startMarker}`);
   assert.notEqual(end, -1, `Expected function end marker: ${endMarker}`);
+
+  return value.slice(start, end);
+}
+
+function extractReadmeDemoFlow(value) {
+  const start = value.indexOf("## Demo flow");
+  const end = value.indexOf("\n## ", start + "## Demo flow".length);
+
+  assert.notEqual(start, -1, "README should include Demo flow section");
+  assert.notEqual(end, -1, "README Demo flow section should end before next section");
 
   return value.slice(start, end);
 }

@@ -4010,8 +4010,7 @@ h1 {
   }
 
   .perspective-trace-strip {
-    grid-template-columns: repeat(5, minmax(112px, 1fr));
-    overflow-x: auto;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .temporal-preview-card.is-wide,
@@ -4063,6 +4062,36 @@ h1 {
 
   .perspective-anchor-nav {
     top: 8px;
+  }
+
+  .perspective-trace-strip {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    overflow-x: visible;
+  }
+
+  .perspective-trace-strip article {
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  .perspective-trace-strip article:not(:last-child)::after {
+    right: auto;
+    top: calc(100% - 1px);
+    left: 50%;
+    width: 1px;
+    height: 12px;
+    background: linear-gradient(
+      180deg,
+      rgba(13, 79, 62, 0.38),
+      rgba(13, 79, 62, 0.12)
+    );
+  }
+
+  .perspective-trace-strip strong {
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
   }
 
   .cockpit-header,
