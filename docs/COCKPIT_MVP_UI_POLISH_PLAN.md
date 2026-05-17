@@ -4,6 +4,10 @@ This plan sequences the Cockpit MVP polish work after GitHub App/token
 management v0.1 closeout. It keeps product UI polish separate from future
 authority-expanding work.
 
+Current successor note: `COCKPIT_PERSPECTIVE_IA_V0_1.md` supersedes the old
+six-tab top-level IA for current Cockpit work. Ledger and Proof are now
+represented inside Perspective as basis/evidence sections.
+
 ## Step 1: Six-Tab Functional Map And Wireframe Spec
 
 Status: complete in PR #142. Original scope label: This PR.

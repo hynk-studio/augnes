@@ -633,14 +633,13 @@ type Notice = {
 
 type CopyTarget = "codex" | "actionTemplate";
 type WorkCopyTarget = "workCodex" | "workEvent";
-type CockpitTab = "overview" | "work" | "ledger" | "proof" | "bridge" | "operator";
+type CockpitTab = "overview" | "work" | "perspective" | "bridge" | "operator";
 
-// Tab order: Overview -> Work -> Ledger -> Proof -> Bridge -> Operator
+// Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
 const COCKPIT_TABS: { id: CockpitTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "work", label: "Work" },
-  { id: "ledger", label: "Ledger" },
-  { id: "proof", label: "Proof" },
+  { id: "perspective", label: "Perspective" },
   { id: "bridge", label: "Bridge" },
   { id: "operator", label: "Operator" },
 ];
@@ -1290,18 +1289,16 @@ export function AugnesCockpit() {
         />
       ) : null}
 
-      {activeTab === "ledger" ? (
-        <LedgerTab
+      {activeTab === "perspective" ? (
+        <PerspectiveTab
           counts={ledgerCounts}
           snapshot={snapshot}
           trajectory={trajectory}
+          proposals={proposals}
           selectedTransition={selectedTransition}
-          onSelectTransition={setSelectedTransitionId}
-        />
-      ) : null}
-
-      {activeTab === "proof" ? (
-        <ProofTab
+          selectedWorkItem={selectedWorkItem}
+          workBrief={workBrief}
+          nextAction={brief?.agent_handoff?.next_recommended_action ?? null}
           evidencePack={evidencePack}
           evidencePackError={evidencePackError}
           evidencePackLoading={busy === "evidence-pack"}
@@ -1323,6 +1320,8 @@ export function AugnesCockpit() {
           temporalPreviewBusy={temporalPreviewBusy}
           temporalPreviewRequested={temporalPreviewRequested}
           onRefreshTemporalPreview={() => void refreshTemporalPreview()}
+          onSelectTransition={setSelectedTransitionId}
+          onOpenOperator={() => setActiveTab("operator")}
         />
       ) : null}
 
@@ -1518,6 +1517,473 @@ function WorkTab({
         Work IDs are trace anchors. Committed state and proof live in the
         Ledger and Proof tabs.
       </BoundaryNote>
+    </section>
+  );
+}
+
+function PerspectiveTab({
+  counts,
+  snapshot,
+  trajectory,
+  proposals,
+  selectedTransition,
+  selectedWorkItem,
+  workBrief,
+  nextAction,
+  evidencePack,
+  evidencePackError,
+  evidencePackLoading,
+  onLoadEvidencePack,
+  temporalReviewArtifacts,
+  selectedTemporalReviewArtifact,
+  temporalReviewArtifactsError,
+  temporalReviewArtifactsBusy,
+  temporalReviewArtifactsRequested,
+  onLoadTemporalReviewArtifacts,
+  onSelectTemporalReviewArtifact,
+  sessionTrace,
+  sessionTraceError,
+  sessionTraceBusy,
+  sessionTraceRequested,
+  onRefreshSessionTrace,
+  temporalPreview,
+  temporalPreviewError,
+  temporalPreviewBusy,
+  temporalPreviewRequested,
+  onRefreshTemporalPreview,
+  onSelectTransition,
+  onOpenOperator,
+}: {
+  counts: {
+    transitions: number;
+    stateKeys: number;
+    active: number;
+    future: number;
+    completed: number;
+    deprecated: number;
+  };
+  snapshot: SnapshotResponse | null;
+  trajectory: TrajectoryResponse | null;
+  proposals: StateDeltaProposal[];
+  selectedTransition: StateTransition | null;
+  selectedWorkItem: WorkItem | null;
+  workBrief: WorkBriefResponse | null;
+  nextAction: StateBriefAgentHandoff["next_recommended_action"] | null;
+  evidencePack: EvidencePackResponse | null;
+  evidencePackError: string | null;
+  evidencePackLoading: boolean;
+  onLoadEvidencePack: () => void;
+  temporalReviewArtifacts: TemporalReviewArtifactsResponse | null;
+  selectedTemporalReviewArtifact: TemporalReviewArtifact | null;
+  temporalReviewArtifactsError: string | null;
+  temporalReviewArtifactsBusy: boolean;
+  temporalReviewArtifactsRequested: boolean;
+  onLoadTemporalReviewArtifacts: () => void;
+  onSelectTemporalReviewArtifact: (artifactId: string) => void;
+  sessionTrace: SessionTraceResponse | null;
+  sessionTraceError: string | null;
+  sessionTraceBusy: boolean;
+  sessionTraceRequested: boolean;
+  onRefreshSessionTrace: () => void;
+  temporalPreview: CockpitTemporalPreviewResponse | null;
+  temporalPreviewError: string | null;
+  temporalPreviewBusy: boolean;
+  temporalPreviewRequested: boolean;
+  onRefreshTemporalPreview: () => void;
+  onSelectTransition: (id: string) => void;
+  onOpenOperator: () => void;
+}) {
+  const preview = temporalPreview?.preview ?? null;
+  const evidenceRecordCount =
+    (evidencePack?.verification_trace.commands_run.length ?? 0) +
+    (evidencePack?.verification_trace.checks_passed.length ?? 0) +
+    (evidencePack?.verification_trace.skipped_checks.length ?? 0);
+  const openTensions = snapshot?.open_tensions ?? [];
+  const previewTensionCount =
+    (preview?.counterexamples.length ?? 0) +
+    (preview?.residual_tensions.length ?? 0) +
+    (preview?.suppressed_alternatives.length ?? 0);
+  const gapCount =
+    (evidencePack?.gaps.length ?? 0) +
+    (temporalReviewArtifacts?.gaps.length ?? 0) +
+    (sessionTrace?.gaps.length ?? 0);
+  const selectedWorkNextAction =
+    workBrief?.next_action || selectedWorkItem?.next_action || null;
+
+  return (
+    <section
+      className="cockpit-tab-panel perspective-tab"
+      aria-label="Perspective"
+    >
+      <PageHeader
+        eyebrow="Perspective"
+        title="Temporal Perspective"
+        description="How the current interpretive frame was formed from temporal context, work traces, committed state, evidence, tensions, and authority boundaries."
+      />
+
+      <BoundaryNote>
+        Perspective is a read-only interpretation surface. It does not commit
+        state, approve work, publish proof, admit memory, replay delivery, route
+        agents, execute Codex, or mutate external systems.
+      </BoundaryNote>
+
+      <div className="tab-stat-row perspective-stat-row">
+        <MetricCard
+          label="Committed transitions"
+          value={counts.transitions}
+          detail="ledger basis entries"
+        />
+        <MetricCard
+          label="State keys"
+          value={counts.stateKeys}
+          detail="derivable committed lanes"
+        />
+        <MetricCard
+          label="Evidence Pack"
+          value={evidencePack ? "Loaded" : "Not loaded"}
+          detail={`${evidenceRecordCount} evidence records`}
+        />
+        <MetricCard
+          label="Review artifacts"
+          value={temporalReviewArtifacts?.count ?? 0}
+          detail="read-only temporal artifacts"
+        />
+        <MetricCard
+          label="Tensions / gaps"
+          value={openTensions.length + previewTensionCount + gapCount}
+          detail="limits on the frame"
+        />
+      </div>
+
+      <div className="perspective-grid">
+        <section className="cockpit-surface-card perspective-section perspective-frame-section">
+          <PanelHeader
+            eyebrow="Frame"
+            title="Current Perspective Frame"
+            description="How this frame was formed"
+          />
+          <div className="perspective-trace-strip" aria-label="Frame formation trace">
+            {["Scan", "Bind", "Resolve", "Anchor", "Next"].map((step, index) => (
+              <article key={step}>
+                <span>{index + 1}</span>
+                <strong>{step}</strong>
+              </article>
+            ))}
+          </div>
+          {temporalPreviewError ? (
+            <EmptyState
+              label="Temporal interpretation preview unavailable"
+              description={temporalPreviewError}
+            />
+          ) : temporalPreviewBusy || (temporalPreviewRequested && !preview) ? (
+            <LoadingBlock
+              title="Loading Temporal Interpretation Preview"
+              lines={[
+                "Reading current temporal context",
+                "Preparing read-only interpretation",
+              ]}
+            />
+          ) : preview ? (
+            <div className="perspective-frame-summary">
+              <article>
+                <h3>Current interpretation</h3>
+                <p>{preview.current_interpretation}</p>
+              </article>
+              <article>
+                <h3>Active prior context</h3>
+                <p>{preview.active_prior_context}</p>
+              </article>
+              <article>
+                <h3>Transition relation</h3>
+                <p>{preview.revision_explanation}</p>
+              </article>
+              <div className="meta-row">
+                <StatusBadge
+                  label={formatStatusLabel(temporalPreview?.generator ?? "unknown")}
+                />
+                <StatusBadge label={formatStatusLabel(preview.transition_relation)} />
+                <span>{preview.evidence_anchors.length} evidence anchors</span>
+                <span>{preview.summary_refs.length} summary refs</span>
+              </div>
+            </div>
+          ) : (
+            <div className="panel-control-row">
+              <EmptyState
+                label="No Temporal Interpretation Preview loaded"
+                description="Load the existing read-only preview to inspect the current frame."
+              />
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={onRefreshTemporalPreview}
+                disabled={temporalPreviewBusy}
+              >
+                Load Temporal Interpretation Preview
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="cockpit-surface-card perspective-section perspective-ledger-section">
+          <PanelHeader
+            eyebrow="Ledger Basis"
+            title="Committed runtime state basis"
+            description="Ledger Basis is committed runtime state. Perspective interprets it, but does not own it. Pending proposals are not ledger entries."
+          />
+          <div className="tab-stat-row compact-stat-row">
+            <MetricCard
+              label="Committed transition count"
+              value={counts.transitions}
+              detail="from trajectory"
+            />
+            <MetricCard
+              label="State key count"
+              value={counts.stateKeys}
+              detail="committed or snapshot-derived"
+            />
+            <MetricCard
+              label="Pending proposals"
+              value={proposals.length}
+              detail="shown as not ledger entries"
+            />
+          </div>
+          {trajectory ? (
+            <div className="ledger-graph-stage compact-ledger-graph">
+              <TemporalStateGraph
+                trajectory={trajectory}
+                proposals={[]}
+                tensions={snapshot?.open_tensions ?? []}
+                selectedTransitionId={selectedTransition?.id ?? null}
+                onSelectTransition={onSelectTransition}
+              />
+            </div>
+          ) : (
+            <EmptyState label="Loading committed ledger basis" />
+          )}
+          <TransitionInspector event={selectedTransition} />
+        </section>
+
+        <section className="cockpit-surface-card perspective-section perspective-evidence-section">
+          <PanelHeader
+            eyebrow="Evidence"
+            title="Evidence support and challenge"
+            description="Evidence supports or challenges the frame. It does not commit, approve, publish, replay, or execute."
+          />
+          <div className="perspective-evidence-grid">
+            <MetricCard
+              label="Evidence Pack"
+              value={evidencePack ? "Loaded" : "Not loaded"}
+              detail={`${evidenceRecordCount} records`}
+            />
+            <MetricCard
+              label="Temporal review artifacts"
+              value={temporalReviewArtifacts?.count ?? 0}
+              detail={temporalReviewArtifacts ? "loaded" : "not loaded"}
+            />
+            <MetricCard
+              label="Session Trace"
+              value={sessionTrace ? `${sessionTrace.sessions.length}` : "Not loaded"}
+              detail="read-only continuity"
+            />
+            <MetricCard
+              label="Gaps / needs review"
+              value={gapCount}
+              detail="derivable gaps"
+            />
+          </div>
+          <div className="perspective-evidence-refs">
+            <section>
+              <h3>Evidence anchor refs</h3>
+              <RefChipList
+                refs={[
+                  ...(preview?.evidence_anchors.map((anchor) => anchor.ref) ?? []),
+                  ...(selectedTemporalReviewArtifact?.evidence_anchor_refs ?? []),
+                ]}
+                emptyLabel="No evidence anchor refs loaded"
+              />
+            </section>
+            <section>
+              <h3>Summary refs</h3>
+              <RefChipList
+                refs={[
+                  ...(preview?.summary_refs.map((ref) => ref.ref) ?? []),
+                  ...(selectedTemporalReviewArtifact?.summary_refs ?? []),
+                ]}
+                emptyLabel="No summary refs loaded"
+              />
+            </section>
+            <section>
+              <h3>Preview refs</h3>
+              <RefChipList
+                refs={selectedTemporalReviewArtifact?.source_refs ?? []}
+                emptyLabel="No read-only preview refs loaded"
+              />
+            </section>
+          </div>
+          <div className="proof-grid">
+            <EvidencePackPanel
+              evidencePack={evidencePack}
+              error={evidencePackError}
+              loading={evidencePackLoading}
+              onLoad={onLoadEvidencePack}
+            />
+            <TemporalReviewArtifactBrowserPanel
+              artifactsResponse={temporalReviewArtifacts}
+              selectedArtifact={selectedTemporalReviewArtifact}
+              error={temporalReviewArtifactsError}
+              busy={temporalReviewArtifactsBusy}
+              requested={temporalReviewArtifactsRequested}
+              onLoad={onLoadTemporalReviewArtifacts}
+              onSelectArtifact={onSelectTemporalReviewArtifact}
+            />
+            <SessionTracePanel
+              trace={sessionTrace}
+              error={sessionTraceError}
+              busy={sessionTraceBusy}
+              requested={sessionTraceRequested}
+              onRefresh={onRefreshSessionTrace}
+            />
+          </div>
+          <details className="advanced-proof-panel">
+            <summary>Read-only Temporal Interpretation Preview details</summary>
+            <TemporalInterpretationPreviewPanel
+              previewResponse={temporalPreview}
+              error={temporalPreviewError}
+              busy={temporalPreviewBusy}
+              requested={temporalPreviewRequested}
+              onRefresh={onRefreshTemporalPreview}
+            />
+          </details>
+        </section>
+
+        <section className="cockpit-surface-card perspective-section perspective-tensions-section">
+          <PanelHeader
+            eyebrow="Tensions"
+            title="Uncertainty and counter-pressure"
+            description="Perspective must not become a self-confirming summary. It must show what weakens, limits, or challenges the frame."
+          />
+          <div className="perspective-tension-grid">
+            <TensionList
+              title="Snapshot open tensions"
+              items={openTensions.map((tension) => ({
+                key: tension.id,
+                label: tension.title,
+                detail: tension.description,
+                meta: `${formatStatusLabel(tension.severity)} / ${formatStatusLabel(
+                  tension.status,
+                )}`,
+              }))}
+              emptyLabel="No snapshot open tensions"
+            />
+            <TensionList
+              title="Counterexamples"
+              items={
+                preview?.counterexamples.map((item) => ({
+                  key: item.ref,
+                  label: item.ref,
+                  detail: item.description,
+                })) ?? []
+              }
+              emptyLabel="No counterexamples loaded"
+            />
+            <TensionList
+              title="Residual tensions"
+              items={
+                preview?.residual_tensions.map((item) => ({
+                  key: item.ref,
+                  label: item.ref,
+                  detail: item.description,
+                })) ?? []
+              }
+              emptyLabel="No residual tensions loaded"
+            />
+            <TensionList
+              title="Suppressed alternatives"
+              items={
+                preview?.suppressed_alternatives.map((item) => ({
+                  key: item.alternative,
+                  label: item.alternative,
+                  detail: item.why_deferred,
+                  meta: item.what_would_change_status,
+                })) ?? []
+              }
+              emptyLabel="No suppressed alternatives loaded"
+            />
+            <TensionList
+              title="Evidence gaps"
+              items={[
+                ...(evidencePack?.gaps ?? []),
+                ...(temporalReviewArtifacts?.gaps ?? []),
+                ...(sessionTrace?.gaps ?? []),
+              ].map((gap) => ({
+                key: gap,
+                label: "Gap",
+                detail: gap,
+              }))}
+              emptyLabel="No evidence gaps loaded"
+            />
+          </div>
+        </section>
+
+        <section className="cockpit-surface-card perspective-section perspective-boundary-card">
+          <PanelHeader
+            eyebrow="Boundary / Next"
+            title="Next step and authority boundary"
+            description="Perspective can point to review surfaces, but it does not perform local state decisions."
+          />
+          <div className="perspective-next-grid">
+            <article>
+              <h3>Brief next recommended action</h3>
+              {nextAction ? (
+                <>
+                  <strong>{nextAction.title}</strong>
+                  <p>{nextAction.rationale}</p>
+                  <div className="meta-row">
+                    <StatusBadge label={formatStatusLabel(nextAction.priority)} />
+                    <span>{formatStatusLabel(nextAction.suggested_actor)}</span>
+                  </div>
+                </>
+              ) : (
+                <EmptyState label="No brief next action loaded" />
+              )}
+            </article>
+            <article>
+              <h3>Selected work next_action</h3>
+              {selectedWorkNextAction ? (
+                <>
+                  <strong>{selectedWorkItem?.work_id ?? workBrief?.work_id}</strong>
+                  <p>{selectedWorkNextAction}</p>
+                </>
+              ) : (
+                <EmptyState label="No selected work next action loaded" />
+              )}
+            </article>
+            <article>
+              <h3>Authority summary</h3>
+              <ul className="boundary-list">
+                <li>read-first</li>
+                <li>commit state blocked outside local runtime gate</li>
+                <li>execute Codex blocked</li>
+                <li>publish/mutate GitHub blocked</li>
+                <li>proof/trace recording gated</li>
+              </ul>
+            </article>
+          </div>
+          <div className="panel-control-row">
+            <BoundaryNote tone="green">
+              Operator actions affect the local Augnes runtime only. Perspective
+              remains read-only and non-authoritative.
+            </BoundaryNote>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onOpenOperator}
+            >
+              Open Operator
+            </button>
+          </div>
+        </section>
+      </div>
     </section>
   );
 }
@@ -2176,6 +2642,66 @@ function SafeLocalActions({
         </div>
       ) : (
         <EmptyState label="No plan requested" />
+      )}
+    </section>
+  );
+}
+
+function RefChipList({
+  refs,
+  emptyLabel,
+}: {
+  refs: string[];
+  emptyLabel: string;
+}) {
+  const uniqueRefs = Array.from(new Set(refs.filter(Boolean))).slice(0, 18);
+
+  if (uniqueRefs.length === 0) {
+    return <EmptyState label={emptyLabel} />;
+  }
+
+  return (
+    <div className="meta-row">
+      {uniqueRefs.map((ref) => (
+        <span key={ref}>
+          <code>{ref}</code>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TensionList({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: {
+    key: string;
+    label: string;
+    detail: string;
+    meta?: string;
+  }[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="perspective-tension-list">
+      <h3>{title}</h3>
+      {items.length === 0 ? (
+        <EmptyState label={emptyLabel} />
+      ) : (
+        <div className="compact-list">
+          {items.slice(0, 8).map((item) => (
+            <article className="compact-item" key={item.key}>
+              <div className="card-topline">
+                <strong>{item.label}</strong>
+                {item.meta ? <span>{item.meta}</span> : null}
+              </div>
+              <p>{item.detail}</p>
+            </article>
+          ))}
+        </div>
       )}
     </section>
   );

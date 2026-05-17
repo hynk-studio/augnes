@@ -1,5 +1,10 @@
 # Cockpit Six-Tab MVP Functional Map
 
+Status: superseded. Superseded by `COCKPIT_PERSPECTIVE_IA_V0_1.md` for the
+current Cockpit target IA: `Overview / Work / Perspective / Bridge / Operator`.
+This document remains as historical context for the earlier six-tab shell and
+must not be treated as the current top-level IA contract.
+
 This document defines the functional split, composition plan, authority
 boundaries, and low-fidelity wireframes for the next Cockpit MVP UI refactor.
 It is a repo-tracked implementation contract for a future PR. It does not
