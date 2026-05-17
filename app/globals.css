@@ -520,6 +520,7 @@ code {
 
 .perspective-frame-section {
   grid-template-columns: minmax(0, 1fr);
+  scroll-margin-top: 188px;
 }
 
 .perspective-frame-hero {
@@ -3758,6 +3759,10 @@ h1 {
 
   .perspective-section {
     scroll-margin-top: 94px;
+  }
+
+  .perspective-frame-section {
+    scroll-margin-top: 120px;
   }
 
   .perspective-anchor-nav {
