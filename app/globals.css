@@ -588,6 +588,8 @@ code {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   padding: 12px;
   border: 1px solid rgba(13, 79, 62, 0.16);
   border-radius: 8px;
@@ -648,6 +650,7 @@ code {
 .perspective-evidence-refs section,
 .perspective-tension-list {
   min-width: 0;
+  width: 100%;
   padding: 12px;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
@@ -716,17 +719,28 @@ code {
 .perspective-evidence-refs,
 .perspective-tension-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+.perspective-evidence-refs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.perspective-tension-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
 }
 
 .perspective-detail-stack {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .perspective-detail-panel {
   min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
@@ -1196,10 +1210,22 @@ h1 {
   background: #fbfcfe;
 }
 
+.compact-item .card-topline {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
 .compact-item strong {
+  min-width: 0;
   color: #203047;
   font-size: 0.84rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.compact-item .card-topline span {
+  min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
 }
 
@@ -2383,12 +2409,15 @@ h1 {
 .temporal-detail-list {
   display: grid;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .temporal-ref-item {
   display: grid;
   gap: 5px;
   min-width: 0;
+  max-width: 100%;
   padding: 8px;
   border: 1px solid #e1e7ef;
   border-radius: 6px;
@@ -2396,6 +2425,7 @@ h1 {
 }
 
 .temporal-ref-item code {
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 
@@ -2446,10 +2476,13 @@ h1 {
   display: grid;
   gap: 3px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .temporal-authority-bucket {
   align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .temporal-authority-bucket strong {
@@ -2464,6 +2497,19 @@ h1 {
 .temporal-authority-bucket .meta-row {
   flex: 1 1 220px;
   flex-wrap: wrap;
+  min-width: 0;
+}
+
+.temporal-authority-bucket .meta-row span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.temporal-authority-bucket .meta-row code,
+.temporal-detail code {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .temporal-preview-warnings {
@@ -3713,7 +3759,6 @@ h1 {
   .perspective-frame-summary,
   .perspective-evidence-grid,
   .perspective-evidence-refs,
-  .perspective-tension-grid,
   .perspective-next-grid,
   .operator-layout-grid,
   .endpoint-grid,
