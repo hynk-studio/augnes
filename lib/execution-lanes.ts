@@ -16,7 +16,9 @@ export const EXECUTION_LANE_AUTHORITY_FLAGS = [
   "can_record_trace_or_proof",
   "can_commit_or_reject_state",
   "can_publish_external",
-  "can_merge_or_mutate_repo",
+  "can_modify_worktree",
+  "can_open_pull_request",
+  "can_merge_pull_request",
   "creates_durable_core_records",
   "derived_view_only",
 ] as const;
@@ -57,7 +59,9 @@ const NO_AUTHORITY: ExecutionLaneAuthority = Object.freeze({
   can_record_trace_or_proof: false,
   can_commit_or_reject_state: false,
   can_publish_external: false,
-  can_merge_or_mutate_repo: false,
+  can_modify_worktree: false,
+  can_open_pull_request: false,
+  can_merge_pull_request: false,
   creates_durable_core_records: false,
   derived_view_only: false,
 });
@@ -116,7 +120,7 @@ export const EXECUTION_LANE_REGISTRY: Readonly<
     authority: authority({}),
     authority_notes: Object.freeze([
       "Receives explicitly supplied request context for observe/plan/preview behavior.",
-      "Does not read Augnes state directly, create durable records, publish, or commit/reject state.",
+      "Does not read Augnes state directly, create durable records, publish, commit/reject state, or mutate repo history.",
     ]),
     core_gate_required_for_external_publish: false,
   }),
@@ -128,11 +132,13 @@ export const EXECUTION_LANE_REGISTRY: Readonly<
     authority: authority({
       can_read_state: true,
       can_record_trace_or_proof: true,
-      can_merge_or_mutate_repo: true,
+      can_modify_worktree: true,
+      can_open_pull_request: true,
     }),
     authority_notes: Object.freeze([
-      "May implement repo changes and record verification trace/proof through Core-gated helpers.",
-      "Does not own durable Augnes state, commit/reject decisions, or external publication.",
+      "May implement repo/workspace file changes and open PRs through workflow.",
+      "May record verification trace/proof through Core-gated helpers.",
+      "Does not own durable Augnes state, commit/reject decisions, external publication, or PR merge authority.",
     ]),
     core_gate_required_for_external_publish: false,
   }),
@@ -141,12 +147,10 @@ export const EXECUTION_LANE_REGISTRY: Readonly<
     role: "code_history_surface",
     label: "GitHub code history",
     provider_examples: ["GitHub repository", "GitHub pull request"],
-    authority: authority({
-      can_merge_or_mutate_repo: true,
-    }),
+    authority: authority({}),
     authority_notes: Object.freeze([
       "Stores repo and PR history that Augnes may reference as evidence.",
-      "GitHub history is not Augnes committed state authority.",
+      "GitHub history is not Augnes committed state authority and is not an active mutation authority.",
     ]),
     core_gate_required_for_external_publish: false,
   }),
@@ -190,7 +194,7 @@ export const EXECUTION_LANE_REGISTRY: Readonly<
     }),
     authority_notes: Object.freeze([
       "Observes rendered surfaces or MCP tool outputs for verification.",
-      "Does not approve, publish, record durable state, commit/reject, or mutate repo history.",
+      "Does not approve, publish, record durable state, commit/reject, edit files, open PRs, merge, or mutate repo history.",
     ]),
     core_gate_required_for_external_publish: false,
   }),
@@ -225,7 +229,9 @@ export function assertDerivedViewOnly(id: string): ExecutionLane {
     "can_record_trace_or_proof",
     "can_commit_or_reject_state",
     "can_publish_external",
-    "can_merge_or_mutate_repo",
+    "can_modify_worktree",
+    "can_open_pull_request",
+    "can_merge_pull_request",
     "creates_durable_core_records",
   ];
   const enabledMutatingFlags = mutatingFlags.filter(

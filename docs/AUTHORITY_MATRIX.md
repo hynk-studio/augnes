@@ -127,13 +127,13 @@ canonical state keys.
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |
-| `chatgpt_mcp_bridge` | `surface_host` | ChatGPT App, MCP bridge | May read state, request pending proposals, and record bridge-gated trace/proof; it cannot commit/reject, publish, or mutate repo history. |
-| `openai_responses_api` | `reasoning_backend` | OpenAI Responses API | Receives explicitly supplied observe/plan/preview context only; it cannot read state directly, record durable Core records, commit/reject, publish, or mutate repo history. |
-| `codex_worker` | `specialist_worker` | Codex | May read state, edit repo/workspace files, and record verification trace/proof through Core-gated helpers; it cannot commit/reject Augnes state or publish externally. |
-| `github_code_history` | `code_history_surface` | GitHub repository and PRs | Stores code and PR history that can be referenced as evidence; it is not Augnes state authority. |
-| `github_publication_actuator` | `actuator` | GitHub PR comment adapter | Can perform the external PR-comment side effect only after existing Core-gated publish semantics pass; it cannot approve, commit/reject, record proof, merge, or mutate repo history. |
+| `chatgpt_mcp_bridge` | `surface_host` | ChatGPT App, MCP bridge | May read state, request pending proposals, and record bridge-gated trace/proof; it cannot commit/reject, publish, edit worktree files, open PRs, merge, or mutate repo history. |
+| `openai_responses_api` | `reasoning_backend` | OpenAI Responses API | Receives explicitly supplied observe/plan/preview context only; it cannot read state directly, record durable Core records, commit/reject, publish, edit worktree files, open PRs, merge, or mutate repo history. |
+| `codex_worker` | `specialist_worker` | Codex | May read state, edit repo/workspace files, open PRs, and record verification trace/proof through Core-gated helpers; it cannot commit/reject Augnes state, publish externally, merge PRs, or mutate repo history outside the PR workflow. |
+| `github_code_history` | `code_history_surface` | GitHub repository and PRs | Stores repo and PR history that can be referenced as evidence; it is not Augnes state authority and is not active mutation authority. |
+| `github_publication_actuator` | `actuator` | GitHub PR comment adapter | Can perform approved external PR-comment side effects only after existing Core-gated publish semantics pass; it cannot approve, commit/reject, record proof, edit worktree files, open PRs, merge, or mutate repo history. |
 | `cockpit` | `observability_surface` | Augnes Cockpit | Derived read-only view over Core records; it does not gain hidden authority. |
-| `browser_or_mcp_inspector` | `observability_surface` | Browser, Chrome, MCP Inspector | Derived verification surface only; it does not approve, publish, commit/reject, record durable state, or mutate repo history. |
+| `browser_or_mcp_inspector` | `observability_surface` | Browser, Chrome, MCP Inspector | Derived verification surface only; it does not approve, publish, commit/reject, record durable state, edit worktree files, open PRs, merge, or mutate repo history. |
 
 ## Capability Matrix
 
