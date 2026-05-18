@@ -16,6 +16,7 @@ globalThis.fetch = async () => {
 
 const SCOPE = "project:perspective-snapshot";
 const WORK_ID = "AG-PERSPECTIVE-SNAPSHOT";
+const COMPLETED_WORK_ID = "AG-PERSPECTIVE-SNAPSHOT-DONE";
 
 const AUTHORITY_TABLES = [
   "agents",
@@ -156,9 +157,26 @@ function assertSnapshotShape(snapshot) {
   assert(Array.isArray(snapshot.source_refs.tension_ids));
   assert(Array.isArray(snapshot.source_refs.execution_lane_ids));
   assert.equal(snapshot.committed_state_basis.active.length, 1);
+  assert.equal(snapshot.committed_state_basis.future.length, 1);
+  assert.equal(snapshot.committed_state_basis.completed.length, 1);
+  assert.equal(snapshot.committed_state_basis.deprecated.length, 1);
+  assertStateBucket(snapshot, "active", ["product.name"]);
+  assertStateBucket(snapshot, "future", ["perspective.future"]);
+  assertStateBucket(snapshot, "completed", ["perspective.completed"]);
+  assertStateBucket(snapshot, "deprecated", ["perspective.deprecated"]);
+  assertStateNotInActive(snapshot, "perspective.future");
+  assertStateNotInActive(snapshot, "perspective.completed");
+  assertStateNotInActive(snapshot, "perspective.deprecated");
   assert.equal(snapshot.pending_proposal_pressure.count, 1);
   assert.equal(snapshot.evidence_basis.count, 1);
-  assert.equal(snapshot.work_trace_basis.count, 1);
+  assert.equal(snapshot.source_refs.work_ids.includes(WORK_ID), true);
+  assert.equal(snapshot.source_refs.work_ids.includes(COMPLETED_WORK_ID), true);
+  assert.equal(snapshot.work_trace_basis.count, 2);
+  assert.deepEqual(
+    snapshot.work_trace_basis.active.map((work) => work.work_id),
+    [WORK_ID],
+    "completed work should be excluded from work_trace_basis.active",
+  );
   assert.equal(snapshot.action_trace_basis.count, 1);
   assert.equal(snapshot.open_tensions.count, 1);
   assert(snapshot.recent_agent_activity.length >= 1);
@@ -186,6 +204,22 @@ function assertSnapshotShape(snapshot) {
       note.includes("not authority"),
     ),
     "research diagnostics should state non-authority boundary",
+  );
+}
+
+function assertStateBucket(snapshot, bucket, expectedStateKeys) {
+  assert.deepEqual(
+    snapshot.committed_state_basis[bucket].map((entry) => entry.state_key),
+    expectedStateKeys,
+    `${bucket} state bucket should match Augnes snapshot grouping`,
+  );
+}
+
+function assertStateNotInActive(snapshot, stateKey) {
+  assert.equal(
+    snapshot.committed_state_basis.active.some((entry) => entry.state_key === stateKey),
+    false,
+    `${stateKey} must not duplicate into active state`,
   );
 }
 
@@ -227,6 +261,117 @@ function seedPerspectiveFixture(db) {
         NULL,
         'active',
         'new_state',
+        NULL,
+        NULL,
+        NULL,
+        @now,
+        @now
+      )
+    `,
+  ).run({ scope: SCOPE, now });
+
+  db.prepare(
+    `
+      INSERT INTO state_entries (
+        id,
+        scope,
+        state_key,
+        value,
+        temporal_scope,
+        valid_from,
+        valid_until,
+        stability,
+        change_type,
+        source_agent_id,
+        source_session_id,
+        source_transition_id,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        'state:perspective:future',
+        @scope,
+        'perspective.future',
+        '"Cockpit Perspective wiring"',
+        'future_phase',
+        NULL,
+        NULL,
+        'active',
+        'future_intent',
+        NULL,
+        NULL,
+        NULL,
+        @now,
+        @now
+      )
+    `,
+  ).run({ scope: SCOPE, now });
+
+  db.prepare(
+    `
+      INSERT INTO state_entries (
+        id,
+        scope,
+        state_key,
+        value,
+        temporal_scope,
+        valid_from,
+        valid_until,
+        stability,
+        change_type,
+        source_agent_id,
+        source_session_id,
+        source_transition_id,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        'state:perspective:completed',
+        @scope,
+        'perspective.completed',
+        'true',
+        'current_project',
+        NULL,
+        NULL,
+        'active',
+        'completion',
+        NULL,
+        NULL,
+        NULL,
+        @now,
+        @now
+      )
+    `,
+  ).run({ scope: SCOPE, now });
+
+  db.prepare(
+    `
+      INSERT INTO state_entries (
+        id,
+        scope,
+        state_key,
+        value,
+        temporal_scope,
+        valid_from,
+        valid_until,
+        stability,
+        change_type,
+        source_agent_id,
+        source_session_id,
+        source_transition_id,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        'state:perspective:deprecated',
+        @scope,
+        'perspective.deprecated',
+        'false',
+        'current_project',
+        NULL,
+        NULL,
+        'stable',
+        'deprecation',
         NULL,
         NULL,
         NULL,
@@ -393,6 +538,39 @@ function seedPerspectiveFixture(db) {
       )
     `,
   ).run({ work_id: WORK_ID, scope: SCOPE, now });
+
+  db.prepare(
+    `
+      INSERT INTO work_items (
+        work_id,
+        scope,
+        title,
+        status,
+        priority,
+        summary,
+        next_action,
+        user_attention_required,
+        related_state_keys,
+        links,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        @work_id,
+        @scope,
+        'Completed PerspectiveSnapshot seed work',
+        'completed',
+        'now',
+        'Completed work must remain visible in source refs but not active work trace.',
+        '',
+        0,
+        '["perspective.completed"]',
+        '{}',
+        @now,
+        @now
+      )
+    `,
+  ).run({ work_id: COMPLETED_WORK_ID, scope: SCOPE, now });
 
   db.prepare(
     `

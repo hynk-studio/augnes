@@ -1,4 +1,5 @@
 import {
+  groupEntriesForSnapshot,
   listActionRecords,
   listOpenTensions,
   listStateDeltaProposals,
@@ -271,9 +272,10 @@ export function buildPerspectiveSnapshot({
   const actionRecords = listActionRecords(normalizedScope).slice(0, ACTION_LIMIT);
   const openTensions = listOpenTensions(normalizedScope).slice(0, TENSION_LIMIT);
   const lanes = listExecutionLanes();
-  const groupedState = groupStateEntries(stateEntries);
+  const groupedState = groupEntriesForSnapshot(stateEntries);
   const pressureLevel = getPressureLevel(pendingProposals.length);
-  const workTraceItems = workItems.map((work) =>
+  const activeWorkItems = workItems.filter(isActiveWorkItem);
+  const workTraceItems = activeWorkItems.map((work) =>
     mapWorkTraceItem(work, workEventsByWorkId.get(work.work_id) ?? []),
   );
   const allWorkEvents = Array.from(workEventsByWorkId.values()).flat();
@@ -299,12 +301,16 @@ export function buildPerspectiveSnapshot({
     },
     committed_state_basis: {
       summary: stateBrief.agent_handoff.current_status.summary,
-      active: groupedState.active.slice(0, STATE_ENTRY_LIMIT).map(mapStateBasisItem),
-      future: groupedState.future.slice(0, STATE_ENTRY_LIMIT).map(mapStateBasisItem),
-      completed: groupedState.completed
+      active: groupedState.active_state
         .slice(0, STATE_ENTRY_LIMIT)
         .map(mapStateBasisItem),
-      deprecated: groupedState.deprecated
+      future: groupedState.future_state
+        .slice(0, STATE_ENTRY_LIMIT)
+        .map(mapStateBasisItem),
+      completed: groupedState.completed_state
+        .slice(0, STATE_ENTRY_LIMIT)
+        .map(mapStateBasisItem),
+      deprecated: groupedState.deprecated_state
         .slice(0, STATE_ENTRY_LIMIT)
         .map(mapStateBasisItem),
     },
@@ -363,7 +369,7 @@ export function buildPerspectiveSnapshot({
         openTensions,
       }),
       active_work_ids: workItems
-        .filter((work) => !["completed", "archived"].includes(work.status))
+        .filter(isActiveWorkItem)
         .map((work) => work.work_id),
       pressure_level: pressureLevel,
     },
@@ -410,19 +416,6 @@ export function buildPerspectiveSnapshot({
   };
 }
 
-function groupStateEntries(entries: StateEntry[]) {
-  return {
-    active: entries.filter((entry) => entry.stability === "active" || entry.stability === "stable"),
-    future: entries.filter(
-      (entry) =>
-        entry.temporal_scope === "future_phase" ||
-        entry.change_type === "future_intent",
-    ),
-    completed: entries.filter((entry) => entry.stability === "completed"),
-    deprecated: entries.filter((entry) => entry.stability === "deprecated"),
-  };
-}
-
 function mapStateBasisItem(entry: StateEntry): StateBasisItem {
   return {
     id: entry.id,
@@ -435,6 +428,10 @@ function mapStateBasisItem(entry: StateEntry): StateBasisItem {
     source_session_id: entry.source_session_id,
     updated_at: entry.updated_at,
   };
+}
+
+function isActiveWorkItem(work: WorkItem) {
+  return !["completed", "archived"].includes(work.status);
 }
 
 function mapProposalPressureItem(
