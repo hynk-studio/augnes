@@ -132,6 +132,10 @@ validation, state briefs, and control packets do not grant non-core lanes
 commit/reject authority. Full HTTP route-level enforcement remains future
 integration-test work.
 
+`docs/PERSPECTIVE_SNAPSHOT_V0_1.md` defines the first Perspective-specific read
+model over these same boundaries. PerspectiveSnapshot is derived-view-only and
+its research diagnostic slots are `log_only` placeholders, not authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |
