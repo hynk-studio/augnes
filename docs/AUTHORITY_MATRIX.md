@@ -124,6 +124,14 @@ semantics. Provider, session, workspace, thread, and run ids remain local/raw
 trace context; they are not committed Augnes state and must not be promoted to
 canonical state keys.
 
+`scripts/smoke-authority-invariants.mjs` is the first route/helper regression
+layer over this registry. It uses temp DB fixtures, direct helper calls, and
+selected direct route-handler calls to verify that observe, plan, temporal
+preview, bridge/action recording, Codex trace recording, Core-gated publish
+validation, state briefs, and control packets do not grant non-core lanes
+commit/reject authority. Full HTTP route-level enforcement remains future
+integration-test work.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |
