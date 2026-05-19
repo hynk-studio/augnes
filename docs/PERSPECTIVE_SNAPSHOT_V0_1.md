@@ -22,6 +22,13 @@ changing existing route behavior.
 are not authority, proof, readiness, or source of truth until separately scoped
 and gated by later PRs.
 
+## Quality smoke
+
+`npm run smoke:perspective-quality` statically checks the v0.1 read model,
+route, Cockpit rendering, and authority docs for bounded, derived-view-only,
+source-ref-oriented behavior. It does not compute Sidecar, Meta-WM, BSL,
+loopness, or CompIndex values.
+
 Provider names such as ChatGPT, Codex, GitHub, Browser, MCP, and OpenAI are
 examples of lane occupants only. The canonical semantics come from the
 provider-neutral execution lane registry.

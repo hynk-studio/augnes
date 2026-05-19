@@ -57,6 +57,7 @@
     "smoke:authority-invariants": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-authority-invariants.mjs",
     "smoke:perspective-snapshot": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-snapshot.mjs",
     "smoke:cockpit-perspective-snapshot": "node scripts/smoke-cockpit-perspective-snapshot.mjs",
+    "smoke:perspective-quality": "node scripts/smoke-perspective-quality.mjs",
     "codex:record-completion": "npm --prefix apps/augnes_apps run codex:record-completion",
     "codex:read-brief": "npm --prefix apps/augnes_apps run codex:read-brief",
     "codex:record-evidence": "npm --prefix apps/augnes_apps run codex:record-evidence",
