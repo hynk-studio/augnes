@@ -252,8 +252,28 @@ assertIncludes(
 );
 assertIncludes(
   authorityDoc,
-  "research diagnostic slots are `log_only` placeholders",
-  "Authority matrix should preserve research diagnostic placeholder boundary.",
+  "`research_diagnostics` remains log_only",
+  "Authority matrix should preserve research_diagnostics log-only boundary.",
+);
+assertIncludes(
+  authorityDoc,
+  "`loopness_hint` is a bounded log_only diagnostic object",
+  "Authority matrix should distinguish loopness_hint as a bounded log-only diagnostic object.",
+);
+assertIncludes(
+  authorityDoc,
+  "`meta_wm_hint` is a structured",
+  "Authority matrix should distinguish meta_wm_hint as a structured placeholder.",
+);
+assertIncludes(
+  authorityDoc,
+  "`sidecar_e_t`, `bsl_hint`, and `comp_index_hint` remain",
+  "Authority matrix should preserve remaining diagnostic placeholder boundary.",
+);
+assertIncludes(
+  authorityDoc,
+  "None of these are authority",
+  "Authority matrix should preserve research diagnostic non-authority boundary.",
 );
 
 console.log(
