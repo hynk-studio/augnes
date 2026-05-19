@@ -139,12 +139,19 @@ try {
         action_count: snapshot.action_trace_basis.count,
         open_tension_count: snapshot.open_tensions.count,
         research_diagnostics_mode: snapshot.research_diagnostics.mode,
+        meta_wm_hint_version:
+          snapshot.research_diagnostics.meta_wm_hint.version,
+        meta_wm_hint_status:
+          snapshot.research_diagnostics.meta_wm_hint.status,
+        meta_wm_hint_computed:
+          snapshot.research_diagnostics.meta_wm_hint.computed,
         loopness_hint_version:
           snapshot.research_diagnostics.loopness_hint.version,
         loopness_hint_mode: snapshot.research_diagnostics.loopness_hint.mode,
         loopness_hint_level: snapshot.research_diagnostics.loopness_hint.level,
         derived_view_only: snapshot.authority_boundaries.derived_view_only,
         authority_tables_mutated: false,
+        authority_table_hashes_preserved: true,
         action_proof_state_transition_invoked: false,
         state_brief_control_packet_mutated: false,
         fetch_calls: fetchCalls,
@@ -209,7 +216,7 @@ function assertSnapshotShape(snapshot) {
   );
   assert.equal(snapshot.research_diagnostics.mode, "log_only");
   assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
-  assert.equal(snapshot.research_diagnostics.meta_wm_hint, null);
+  assertMetaWmHintPlaceholder(snapshot.research_diagnostics.meta_wm_hint);
   assert.equal(snapshot.research_diagnostics.bsl_hint, null);
   assert.equal(snapshot.research_diagnostics.comp_index_hint, null);
   assert.equal(snapshot.research_diagnostics.loopness_hint.version, "loopness_hint.v0.1");
@@ -249,6 +256,29 @@ function assertSnapshotShape(snapshot) {
       note.includes("not authority"),
     ),
     "research diagnostics should state non-authority boundary",
+  );
+}
+
+function assertMetaWmHintPlaceholder(metaWmHint) {
+  assert.equal(metaWmHint.version, "meta_wm_hint.placeholder.v0.1");
+  assert.equal(metaWmHint.mode, "log_only");
+  assert.equal(metaWmHint.status, "placeholder");
+  assert.equal(metaWmHint.computed, false);
+  assert.deepEqual(metaWmHint.values, {
+    wm_strength_hat: null,
+    wm_uncertainty_hat: null,
+    history_bias_hat: null,
+    arousal_proxy: null,
+    meta_wm_hat: null,
+  });
+  assert.deepEqual(metaWmHint.source_refs, []);
+  assert(
+    metaWmHint.notes.some((note) => note.includes("not computed")),
+    "Meta-WM placeholder should state that it is not computed",
+  );
+  assert(
+    metaWmHint.notes.some((note) => note.includes("no authority")),
+    "Meta-WM placeholder should state that it has no authority",
   );
 }
 

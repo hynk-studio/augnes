@@ -76,7 +76,16 @@ for (const boundary of [
 for (const diagnostic of [
   'mode: "log_only"',
   "sidecar_e_t: null",
-  "meta_wm_hint: null",
+  "meta_wm_hint: MetaWmHint",
+  'version: "meta_wm_hint.placeholder.v0.1"',
+  'status: "placeholder"',
+  "computed: false",
+  "wm_strength_hat: null",
+  "wm_uncertainty_hat: null",
+  "history_bias_hat: null",
+  "arousal_proxy: null",
+  "meta_wm_hat: null",
+  "source_refs: []",
   "bsl_hint: null",
   "loopness_hint: LoopnessHint",
   'version: "loopness_hint.v0.1"',
@@ -133,6 +142,8 @@ for (const section of [
 }
 
 assertResearchDiagnosticsCopy(researchDiagnosticsPanel);
+assertMetaWmPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
+assertLoopnessHintRemainsBoundedLogOnly(snapshot, researchDiagnosticsPanel);
 
 assert.equal(
   /fetchJson\s*</.test(perspectiveTab) || /\bfetch\s*\(/.test(perspectiveTab),
@@ -255,6 +266,8 @@ console.log(
       snapshot_version: "perspective_snapshot.v0.1",
       authority_boundaries_preserved: true,
       research_diagnostics_log_only: true,
+      meta_wm_placeholder_log_only: true,
+      meta_wm_placeholder_not_computed: true,
       loopness_hint_log_only: true,
       cockpit_copy_derived_view_only: true,
       cockpit_copy_not_source_of_truth: true,
@@ -272,6 +285,8 @@ console.log(
 function assertResearchDiagnosticsCopy(source) {
   for (const required of [
     "research_diagnostics are log_only diagnostic slots only",
+    "Meta-WM",
+    "placeholder that is not computed",
     "weak trace-pressure hint",
     "null",
     "not authority",
@@ -281,6 +296,7 @@ function assertResearchDiagnosticsCopy(source) {
     "score",
     "signals",
     "source_refs",
+    "null values, source_refs, and boundary notes",
     "source refs and non-authority notes",
     "sidecar_e_t",
     "meta_wm_hint",
@@ -314,6 +330,97 @@ function assertResearchDiagnosticsCopy(source) {
       source.toLowerCase().includes(misleading),
       false,
       `Research diagnostics UI copy must not present placeholders as ${misleading}.`,
+    );
+  }
+}
+
+function assertMetaWmPlaceholderBoundaries(snapshotSource, panelSource) {
+  for (const required of [
+    'version: "meta_wm_hint.placeholder.v0.1"',
+    'mode: "log_only"',
+    'status: "placeholder"',
+    "computed: false",
+    "wm_strength_hat: null",
+    "wm_uncertainty_hat: null",
+    "history_bias_hat: null",
+    "arousal_proxy: null",
+    "meta_wm_hat: null",
+    "source_refs: []",
+    "Meta-WM is reserved for future working-memory reliability diagnostics.",
+    "This placeholder is not computed and has no authority.",
+    "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, or Cockpit actions.",
+  ]) {
+    assertIncludes(
+      snapshotSource,
+      required,
+      `Meta-WM placeholder shape should include ${required}.`,
+    );
+  }
+
+  for (const required of [
+    "Meta-WM placeholder is not computed",
+    "control/view only",
+    "not authority, proof, readiness",
+    "Gate input",
+    "source of truth",
+    "Cockpit",
+    "action input",
+    "computed {String(metaWmHint.computed)}",
+  ]) {
+    assertIncludes(
+      panelSource,
+      required,
+      `Meta-WM placeholder UI copy should include ${required}.`,
+    );
+  }
+
+  for (const misleading of [
+    "readiness metric",
+    "proof metric",
+    "authority metric",
+    "readiness signal",
+    "proof signal",
+    "authority signal",
+    "publication readiness signal",
+    "source of truth metric",
+  ]) {
+    assert.equal(
+      panelSource.toLowerCase().includes(misleading),
+      false,
+      `Meta-WM placeholder UI must not present it as ${misleading}.`,
+    );
+  }
+}
+
+function assertLoopnessHintRemainsBoundedLogOnly(snapshotSource, panelSource) {
+  for (const required of [
+    'version: "loopness_hint.v0.1"',
+    'mode: "log_only"',
+    "score,",
+    "level: getLoopnessLevel(score)",
+    "signals:",
+    "source_refs:",
+    "Loopness hint is a weak log-only trace-pressure diagnostic.",
+  ]) {
+    assertIncludes(
+      snapshotSource,
+      required,
+      `loopness_hint should remain unchanged and log-only: ${required}.`,
+    );
+  }
+
+  for (const required of [
+    "weak trace-pressure hint",
+    "loopnessHint.version",
+    "loopnessHint.mode",
+    "loopnessHint.level",
+    "loopnessHint.score",
+    "loopness_hint source refs and non-authority notes",
+  ]) {
+    assertIncludes(
+      panelSource,
+      required,
+      `loopness_hint UI should remain present and log-only: ${required}.`,
     );
   }
 }

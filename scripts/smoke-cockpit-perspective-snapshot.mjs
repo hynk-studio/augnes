@@ -16,6 +16,11 @@ const refreshRuntimeSource = extractFunctionSource(
   "async function refreshRuntime",
   "async function refreshWorkBrief",
 );
+const metaWmHintPanelSource = extractFunctionSource(
+  cockpit,
+  "function MetaWmHintPanel",
+  "function LoopnessHintPanel",
+);
 
 assert.equal(
   packageJson.scripts?.["smoke:cockpit-perspective-snapshot"],
@@ -67,6 +72,11 @@ for (const snippet of [
   "authority_boundaries lane details and source refs",
   "research_diagnostics",
   "research_diagnostics are log_only diagnostic slots only",
+  "Meta-WM placeholder is not computed",
+  "control/view only",
+  "computed {String(metaWmHint.computed)}",
+  "meta_wm_hint null values, source_refs, and boundary notes",
+  "No meta_wm_hint source refs",
   "weak trace-pressure hint",
   "loopness_hint source refs and non-authority notes",
   "loopnessHint.version",
@@ -162,6 +172,12 @@ for (const forbiddenControl of [
   );
 }
 
+assert.equal(
+  /<button\b/.test(metaWmHintPanelSource),
+  false,
+  "Meta-WM placeholder UI must not introduce action buttons.",
+);
+
 console.log(
   JSON.stringify(
     {
@@ -170,6 +186,7 @@ console.log(
       endpoint_method: "GET",
       derived_view_only_copy_present: true,
       research_diagnostics_log_only_present: true,
+      meta_wm_placeholder_boundary_copy_present: true,
       perspective_write_routes_introduced: false,
       perspective_mutation_controls_introduced: false,
     },
