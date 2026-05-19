@@ -41,6 +41,11 @@ route, Cockpit rendering, and authority docs for bounded, derived-view-only,
 source-ref-oriented behavior. It verifies `loopness_hint` remains log-only and
 does not compute Sidecar, Meta-WM, BSL, or CompIndex values.
 
+Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
+diagnostic source-ref details by default to reduce visual density. The collapsed
+UI remains a derived read model and does not change snapshot generation, route
+behavior, diagnostic computation, or authority boundaries.
+
 Provider names such as ChatGPT, Codex, GitHub, Browser, MCP, and OpenAI are
 examples of lane occupants only. The canonical semantics come from the
 provider-neutral execution lane registry.

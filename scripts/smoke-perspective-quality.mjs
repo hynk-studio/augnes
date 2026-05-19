@@ -199,6 +199,25 @@ assertIncludes(
   "onRefreshTemporalPreview",
   "Perspective tab should preserve preview refresh callback.",
 );
+for (const collapsedDetail of [
+  "{title} details",
+  "pending_proposal_pressure details",
+  "evidence_basis details",
+  "action_trace_basis.recent details",
+  "boundary_next allowed and forbidden next steps",
+  "authority_boundaries lane details and source refs",
+]) {
+  assertIncludes(
+    cockpit,
+    collapsedDetail,
+    `Perspective tab should retain collapsed detail label: ${collapsedDetail}.`,
+  );
+}
+assert.equal(
+  cockpit.includes('<details className="perspective-detail-panel" open>'),
+  false,
+  "Perspective read-model detail panels should be collapsed by default.",
+);
 
 assertIncludes(
   perspectiveDoc,
@@ -262,6 +281,7 @@ function assertResearchDiagnosticsCopy(source) {
     "score",
     "signals",
     "source_refs",
+    "source refs and non-authority notes",
     "sidecar_e_t",
     "meta_wm_hint",
     "bsl_hint",
