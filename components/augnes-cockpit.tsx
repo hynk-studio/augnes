@@ -3284,23 +3284,76 @@ function ResearchDiagnosticsPanel({
   return (
     <>
       <p>
-        research_diagnostics are log_only placeholders only; they are null
-        diagnostic slots and not authority.
+        research_diagnostics are log_only diagnostic slots only. Loopness is a
+        weak trace-pressure hint when present; the other slots remain null
+        placeholders. These diagnostics are not authority, proof, readiness, or
+        source of truth.
       </p>
       <div className="meta-row">
         <StatusBadge label={`mode ${diagnostics.mode}`} />
         <span>sidecar_e_t {String(diagnostics.sidecar_e_t)}</span>
         <span>meta_wm_hint {String(diagnostics.meta_wm_hint)}</span>
         <span>bsl_hint {String(diagnostics.bsl_hint)}</span>
-        <span>loopness_hint {String(diagnostics.loopness_hint)}</span>
         <span>comp_index_hint {String(diagnostics.comp_index_hint)}</span>
       </div>
+      <LoopnessHintPanel loopnessHint={diagnostics.loopness_hint} />
       <ul className="boundary-list">
         {diagnostics.notes.map((note) => (
           <li key={note}>{note}</li>
         ))}
       </ul>
     </>
+  );
+}
+
+function LoopnessHintPanel({
+  loopnessHint,
+}: {
+  loopnessHint: PerspectiveSnapshot["research_diagnostics"]["loopness_hint"];
+}) {
+  return (
+    <div className="evidence-pack-card">
+      <h3>loopness_hint</h3>
+      <p>
+        log_only diagnostic hint about repetitive trace pressure. It is not
+        authority, proof, readiness, Gate input, source of truth, or a Cockpit
+        action input.
+      </p>
+      <div className="meta-row">
+        <StatusBadge label={formatStatusLabel(loopnessHint.version)} />
+        <StatusBadge label={`mode ${loopnessHint.mode}`} />
+        <StatusBadge label={`level ${loopnessHint.level}`} />
+        <span>score {loopnessHint.score}</span>
+      </div>
+      <ul className="boundary-list">
+        <li>
+          repeated_action_state_keys{" "}
+          {loopnessHint.signals.repeated_action_state_keys}
+        </li>
+        <li>
+          repeated_work_event_actors{" "}
+          {loopnessHint.signals.repeated_work_event_actors}
+        </li>
+        <li>
+          pending_proposal_count {loopnessHint.signals.pending_proposal_count}
+        </li>
+        <li>open_tension_count {loopnessHint.signals.open_tension_count}</li>
+      </ul>
+      <RefChipList
+        refs={[
+          ...loopnessHint.source_refs.action_record_ids,
+          ...loopnessHint.source_refs.work_event_ids,
+          ...loopnessHint.source_refs.pending_proposal_ids,
+          ...loopnessHint.source_refs.tension_ids,
+        ]}
+        emptyLabel="No loopness_hint source refs"
+      />
+      <ul className="boundary-list">
+        {loopnessHint.notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

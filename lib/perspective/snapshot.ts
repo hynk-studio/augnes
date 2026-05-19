@@ -149,6 +149,26 @@ type SnapshotLaneBoundary = {
   notes: readonly string[];
 };
 
+type LoopnessHint = {
+  version: "loopness_hint.v0.1";
+  mode: "log_only";
+  score: number;
+  level: "none" | "low" | "medium" | "high";
+  signals: {
+    repeated_action_state_keys: number;
+    repeated_work_event_actors: number;
+    pending_proposal_count: number;
+    open_tension_count: number;
+  };
+  source_refs: {
+    action_record_ids: string[];
+    work_event_ids: string[];
+    pending_proposal_ids: string[];
+    tension_ids: string[];
+  };
+  notes: string[];
+};
+
 export type PerspectiveSnapshot = {
   runtime: "augnes";
   snapshot_version: "perspective_snapshot.v0.1";
@@ -235,7 +255,7 @@ export type PerspectiveSnapshot = {
     sidecar_e_t: null;
     meta_wm_hint: null;
     bsl_hint: null;
-    loopness_hint: null;
+    loopness_hint: LoopnessHint;
     comp_index_hint: null;
     notes: string[];
   };
@@ -405,12 +425,17 @@ export function buildPerspectiveSnapshot({
       sidecar_e_t: null,
       meta_wm_hint: null,
       bsl_hint: null,
-      loopness_hint: null,
+      loopness_hint: buildLoopnessHint({
+        actionRecords,
+        workEvents: allWorkEvents,
+        pendingProposals,
+        openTensions,
+      }),
       comp_index_hint: null,
       notes: [
-        "Research diagnostic slots are placeholders for future gated PRs.",
+        "Research diagnostic slots are log-only and control/view only.",
         "These fields are not authority, readiness, proof, or source of truth.",
-        "Snapshot generation does not compute brain-inspired diagnostics or use them to mutate Core state.",
+        "Snapshot generation does not use diagnostics to mutate Core state, affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, or Cockpit actions.",
       ],
     },
   };
@@ -680,6 +705,79 @@ function buildAuthorityBoundaries(lanes: ExecutionLane[]) {
   };
 }
 
+function buildLoopnessHint({
+  actionRecords,
+  workEvents,
+  pendingProposals,
+  openTensions,
+}: {
+  actionRecords: ActionRecord[];
+  workEvents: WorkEvent[];
+  pendingProposals: StateDeltaProposal[];
+  openTensions: StateTension[];
+}): LoopnessHint {
+  const repeatedActionStateKeys = countRepeatedValues(
+    actionRecords
+      .map((action) => action.state_key)
+      .filter((stateKey): stateKey is string => Boolean(stateKey)),
+  );
+  const repeatedWorkEventActors = countRepeatedValues(
+    workEvents.map((event) => event.actor).filter(Boolean),
+  );
+  const score = clamp01(
+    repeatedActionStateKeys * 0.25 +
+      repeatedWorkEventActors * 0.2 +
+      pendingProposals.length * 0.05 +
+      openTensions.length * 0.15,
+  );
+
+  return {
+    version: "loopness_hint.v0.1",
+    mode: "log_only",
+    score,
+    level: getLoopnessLevel(score),
+    signals: {
+      repeated_action_state_keys: repeatedActionStateKeys,
+      repeated_work_event_actors: repeatedWorkEventActors,
+      pending_proposal_count: pendingProposals.length,
+      open_tension_count: openTensions.length,
+    },
+    source_refs: {
+      action_record_ids: actionRecords.map((action) => action.id),
+      work_event_ids: workEvents.map((event) => event.id),
+      pending_proposal_ids: pendingProposals.map((proposal) => proposal.id),
+      tension_ids: openTensions.map((tension) => tension.id),
+    },
+    notes: [
+      "Loopness hint is a weak log-only trace-pressure diagnostic.",
+      "It is derived from already-read action, work event, pending proposal, and tension records only.",
+      "It is not authority, proof, readiness, Gate/SRF input, Claim confidence, Evidence status, publication readiness, commit/reject input, or Cockpit action input.",
+    ],
+  };
+}
+
+function countRepeatedValues(values: string[]) {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+
+  return Array.from(counts.values()).filter((count) => count > 1).length;
+}
+
+function getLoopnessLevel(score: number): LoopnessHint["level"] {
+  if (score === 0) {
+    return "none";
+  }
+  if (score < 0.35) {
+    return "low";
+  }
+  if (score < 0.7) {
+    return "medium";
+  }
+  return "high";
+}
+
 function getPressureLevel(count: number): "none" | "low" | "medium" | "high" {
   if (count === 0) {
     return "none";
@@ -691,6 +789,10 @@ function getPressureLevel(count: number): "none" | "low" | "medium" | "high" {
     return "medium";
   }
   return "high";
+}
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, Number(value.toFixed(2))));
 }
 
 function compareIsoDesc(first: string, second: string) {

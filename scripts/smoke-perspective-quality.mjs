@@ -78,13 +78,16 @@ for (const diagnostic of [
   "sidecar_e_t: null",
   "meta_wm_hint: null",
   "bsl_hint: null",
-  "loopness_hint: null",
+  "loopness_hint: LoopnessHint",
+  'version: "loopness_hint.v0.1"',
+  'mode: "log_only"',
+  "source_refs:",
   "comp_index_hint: null",
 ]) {
   assertIncludes(
     snapshot,
     diagnostic,
-    `research_diagnostics must keep placeholder ${diagnostic}.`,
+    `research_diagnostics must keep log-only shape ${diagnostic}.`,
   );
 }
 
@@ -232,7 +235,8 @@ console.log(
       ),
       snapshot_version: "perspective_snapshot.v0.1",
       authority_boundaries_preserved: true,
-      research_diagnostics_log_only_placeholders: true,
+      research_diagnostics_log_only: true,
+      loopness_hint_log_only: true,
       cockpit_copy_derived_view_only: true,
       cockpit_copy_not_source_of_truth: true,
       source_ref_oriented_sections_present: true,
@@ -248,9 +252,16 @@ console.log(
 
 function assertResearchDiagnosticsCopy(source) {
   for (const required of [
-    "research_diagnostics are log_only placeholders only",
+    "research_diagnostics are log_only diagnostic slots only",
+    "weak trace-pressure hint",
     "null",
     "not authority",
+    "not authority, proof, readiness",
+    "Gate input",
+    "source of truth",
+    "score",
+    "signals",
+    "source_refs",
     "sidecar_e_t",
     "meta_wm_hint",
     "bsl_hint",
@@ -275,7 +286,9 @@ function assertResearchDiagnosticsCopy(source) {
     "computed bsl",
     "computed loopness",
     "computed compindex",
-    "source of truth",
+    "readiness signal",
+    "proof signal",
+    "authority signal",
   ]) {
     assert.equal(
       source.toLowerCase().includes(misleading),

@@ -16,18 +16,30 @@ state, call GitHub/OpenAI, or write temporal preview review artifacts. The
 `/api/perspective/snapshot` route is read-only and returns the model without
 changing existing route behavior.
 
-`research_diagnostics` is placeholder-only in v0.1. Its mode is `log_only`, and
-`sidecar_e_t`, `meta_wm_hint`, `bsl_hint`, `loopness_hint`, and
-`comp_index_hint` are `null`. These fields reserve future diagnostic slots; they
-are not authority, proof, readiness, or source of truth until separately scoped
-and gated by later PRs.
+`research_diagnostics` is log-only in v0.1. `sidecar_e_t`, `meta_wm_hint`,
+`bsl_hint`, and `comp_index_hint` are `null` placeholders. `loopness_hint` is
+the first bounded diagnostic object:
+
+- `version`: `loopness_hint.v0.1`
+- `mode`: `log_only`
+- `score`: bounded number from `0` to `1`
+- `level`: `none`, `low`, `medium`, or `high`
+- `signals`: repeated action state-key count, repeated work-event actor count,
+  pending proposal count, and open tension count
+- `source_refs`: action record, work event, pending proposal, and tension ids
+- `notes`: explicit non-authority boundaries
+
+`loopness_hint` is a weak trace-pressure hint only. It is not authority, proof,
+readiness, Gate/SRF input, Claim confidence, Evidence status, publication
+readiness, commit/reject input, Cockpit action input, or source of truth.
+Snapshot generation does not query external services or write Core records.
 
 ## Quality smoke
 
 `npm run smoke:perspective-quality` statically checks the v0.1 read model,
 route, Cockpit rendering, and authority docs for bounded, derived-view-only,
-source-ref-oriented behavior. It does not compute Sidecar, Meta-WM, BSL,
-loopness, or CompIndex values.
+source-ref-oriented behavior. It verifies `loopness_hint` remains log-only and
+does not compute Sidecar, Meta-WM, BSL, or CompIndex values.
 
 Provider names such as ChatGPT, Codex, GitHub, Browser, MCP, and OpenAI are
 examples of lane occupants only. The canonical semantics come from the

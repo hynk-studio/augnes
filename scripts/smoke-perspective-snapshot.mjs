@@ -84,6 +84,11 @@ try {
     before,
     "buildPerspectiveSnapshot must not mutate authority tables",
   );
+  assert.deepEqual(
+    afterHelperSnapshot.table_hashes,
+    before.table_hashes,
+    "buildPerspectiveSnapshot must preserve authority table hashes",
+  );
 
   const response = await perspectiveSnapshotRoute.GET(
     new Request(
@@ -101,6 +106,11 @@ try {
     afterRouteSnapshot,
     before,
     "PerspectiveSnapshot route must not mutate authority tables",
+  );
+  assert.deepEqual(
+    afterRouteSnapshot.table_hashes,
+    before.table_hashes,
+    "PerspectiveSnapshot route must preserve authority table hashes",
   );
   assert.equal(
     afterRouteSnapshot.counts.state_transitions,
@@ -129,6 +139,10 @@ try {
         action_count: snapshot.action_trace_basis.count,
         open_tension_count: snapshot.open_tensions.count,
         research_diagnostics_mode: snapshot.research_diagnostics.mode,
+        loopness_hint_version:
+          snapshot.research_diagnostics.loopness_hint.version,
+        loopness_hint_mode: snapshot.research_diagnostics.loopness_hint.mode,
+        loopness_hint_level: snapshot.research_diagnostics.loopness_hint.level,
         derived_view_only: snapshot.authority_boundaries.derived_view_only,
         authority_tables_mutated: false,
         action_proof_state_transition_invoked: false,
@@ -177,7 +191,7 @@ function assertSnapshotShape(snapshot) {
     [WORK_ID],
     "completed work should be excluded from work_trace_basis.active",
   );
-  assert.equal(snapshot.action_trace_basis.count, 1);
+  assert.equal(snapshot.action_trace_basis.count, 2);
   assert.equal(snapshot.open_tensions.count, 1);
   assert(snapshot.recent_agent_activity.length >= 1);
   assert.equal(snapshot.authority_boundaries.derived_view_only, true);
@@ -197,8 +211,39 @@ function assertSnapshotShape(snapshot) {
   assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
   assert.equal(snapshot.research_diagnostics.meta_wm_hint, null);
   assert.equal(snapshot.research_diagnostics.bsl_hint, null);
-  assert.equal(snapshot.research_diagnostics.loopness_hint, null);
   assert.equal(snapshot.research_diagnostics.comp_index_hint, null);
+  assert.equal(snapshot.research_diagnostics.loopness_hint.version, "loopness_hint.v0.1");
+  assert.equal(snapshot.research_diagnostics.loopness_hint.mode, "log_only");
+  assert.equal(snapshot.research_diagnostics.loopness_hint.level, "medium");
+  assert.equal(snapshot.research_diagnostics.loopness_hint.score, 0.65);
+  assert.deepEqual(snapshot.research_diagnostics.loopness_hint.signals, {
+    repeated_action_state_keys: 1,
+    repeated_work_event_actors: 1,
+    pending_proposal_count: 1,
+    open_tension_count: 1,
+  });
+  assert.deepEqual(
+    snapshot.research_diagnostics.loopness_hint.source_refs.action_record_ids,
+    ["action:perspective:loop-repeat", "action:perspective:smoke"],
+  );
+  assert.deepEqual(
+    snapshot.research_diagnostics.loopness_hint.source_refs.work_event_ids,
+    ["work-event:perspective:loop-repeat", "work-event:perspective:smoke"],
+  );
+  assert.deepEqual(
+    snapshot.research_diagnostics.loopness_hint.source_refs.pending_proposal_ids,
+    ["proposal:perspective:pending"],
+  );
+  assert.deepEqual(
+    snapshot.research_diagnostics.loopness_hint.source_refs.tension_ids,
+    ["tension:perspective:authority"],
+  );
+  assert(
+    snapshot.research_diagnostics.loopness_hint.notes.some((note) =>
+      note.includes("not authority"),
+    ),
+    "loopness hint should state non-authority boundary",
+  );
   assert(
     snapshot.research_diagnostics.notes.some((note) =>
       note.includes("not authority"),
@@ -263,6 +308,35 @@ function seedPerspectiveFixture(db) {
         'new_state',
         NULL,
         NULL,
+        NULL,
+        @now,
+        @now
+      )
+    `,
+  ).run({ scope: SCOPE, now });
+
+  db.prepare(
+    `
+      INSERT INTO action_records (
+        id,
+        scope,
+        state_key,
+        title,
+        description,
+        status,
+        source_agent_id,
+        source_session_id,
+        created_at,
+        completed_at
+      )
+      VALUES (
+        'action:perspective:loop-repeat',
+        @scope,
+        'perspective.snapshot',
+        'PerspectiveSnapshot repeated trace seed action',
+        'Second action on the same state key to exercise log-only loopness hint.',
+        'completed',
+        'codex-smoke',
         NULL,
         @now,
         @now
@@ -534,6 +608,39 @@ function seedPerspectiveFixture(db) {
         '["perspective.snapshot"]',
         '{}',
         @now,
+        @now
+      )
+    `,
+  ).run({ work_id: WORK_ID, scope: SCOPE, now });
+
+  db.prepare(
+    `
+      INSERT INTO work_events (
+        id,
+        work_id,
+        scope,
+        actor,
+        event_type,
+        summary,
+        result_status,
+        result_kind,
+        related_action_id,
+        related_pr,
+        related_state_keys,
+        created_at
+      )
+      VALUES (
+        'work-event:perspective:loop-repeat',
+        @work_id,
+        @scope,
+        'codex',
+        'verification',
+        'Second work event from the same actor to exercise log-only loopness hint.',
+        'completed',
+        'verification',
+        'action:perspective:loop-repeat',
+        NULL,
+        '["perspective.snapshot"]',
         @now
       )
     `,
