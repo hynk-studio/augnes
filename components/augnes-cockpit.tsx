@@ -1,5 +1,6 @@
 "use client";
 
+import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { TemporalPreviewResponse } from "@/lib/temporal-interpretation/types";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -654,6 +655,10 @@ export function AugnesCockpit() {
   const [activeTab, setActiveTab] = useState<CockpitTab>("overview");
   const [message, setMessage] = useState(CANONICAL_MESSAGE);
   const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
+  const [perspectiveSnapshot, setPerspectiveSnapshot] =
+    useState<PerspectiveSnapshot | null>(null);
+  const [perspectiveSnapshotError, setPerspectiveSnapshotError] =
+    useState<string | null>(null);
   const [trajectory, setTrajectory] = useState<TrajectoryResponse | null>(null);
   const [proposals, setProposals] = useState<StateDeltaProposal[]>([]);
   const [brief, setBrief] = useState<StateBriefResponse | null>(null);
@@ -831,7 +836,19 @@ export function AugnesCockpit() {
     setApprovalGateError(null);
     setEvidencePackError(null);
     setTemporalReviewArtifactsError(null);
+    setPerspectiveSnapshotError(null);
 
+    const perspectiveSnapshotRequest = fetchJson<PerspectiveSnapshot>(
+      `/api/perspective/snapshot?scope=${SCOPE}`,
+      { method: "GET" },
+    )
+      .then((value) => ({ value }))
+      .catch((error: unknown) => ({
+        error:
+          error instanceof Error
+            ? error.message
+            : "PerspectiveSnapshot request failed",
+      }));
     const briefRequest = fetchJson<StateBriefResponse>(
       `/api/state/brief?scope=${SCOPE}`,
     )
@@ -892,6 +909,7 @@ export function AugnesCockpit() {
       mailboxResult,
       publicationResult,
       approvalGateResult,
+      perspectiveSnapshotResult,
     ] =
       await Promise.all([
         fetchJson<SnapshotResponse>(`/api/state/snapshot?scope=${SCOPE}`),
@@ -905,6 +923,7 @@ export function AugnesCockpit() {
         mailboxRequest,
         publicationRequest,
         approvalGateRequest,
+        perspectiveSnapshotRequest,
       ]);
 
     setSnapshot(snapshotResult);
@@ -978,6 +997,13 @@ export function AugnesCockpit() {
     } else {
       setApprovalGateState(null);
       setApprovalGateError(approvalGateResult.error);
+    }
+
+    if ("value" in perspectiveSnapshotResult) {
+      setPerspectiveSnapshot(perspectiveSnapshotResult.value);
+    } else {
+      setPerspectiveSnapshot(null);
+      setPerspectiveSnapshotError(perspectiveSnapshotResult.error);
     }
   }
 
@@ -1293,6 +1319,8 @@ export function AugnesCockpit() {
         <PerspectiveTab
           counts={ledgerCounts}
           snapshot={snapshot}
+          perspectiveSnapshot={perspectiveSnapshot}
+          perspectiveSnapshotError={perspectiveSnapshotError}
           trajectory={trajectory}
           proposals={proposals}
           selectedTransition={selectedTransition}
@@ -1525,6 +1553,8 @@ function WorkTab({
 function PerspectiveTab({
   counts,
   snapshot,
+  perspectiveSnapshot,
+  perspectiveSnapshotError,
   trajectory,
   proposals,
   selectedTransition,
@@ -1564,6 +1594,8 @@ function PerspectiveTab({
     deprecated: number;
   };
   snapshot: SnapshotResponse | null;
+  perspectiveSnapshot: PerspectiveSnapshot | null;
+  perspectiveSnapshotError: string | null;
   trajectory: TrajectoryResponse | null;
   proposals: StateDeltaProposal[];
   selectedTransition: StateTransition | null;
@@ -1610,6 +1642,13 @@ function PerspectiveTab({
     (sessionTrace?.gaps.length ?? 0);
   const selectedWorkNextAction =
     workBrief?.next_action || selectedWorkItem?.next_action || null;
+  const snapshotStateBasisCount = perspectiveSnapshot
+    ? perspectiveSnapshot.committed_state_basis.active.length +
+      perspectiveSnapshot.committed_state_basis.future.length +
+      perspectiveSnapshot.committed_state_basis.completed.length +
+      perspectiveSnapshot.committed_state_basis.deprecated.length
+    : 0;
+  const snapshotResearch = perspectiveSnapshot?.research_diagnostics ?? null;
 
   return (
     <section
@@ -1626,6 +1665,14 @@ function PerspectiveTab({
         Perspective is a read-only interpretation surface. It does not commit
         state, approve work, publish proof, admit memory, replay delivery, route
         agents, execute Codex, or mutate external systems.
+      </BoundaryNote>
+
+      <BoundaryNote tone="green">
+        PerspectiveSnapshot is a derived-view-only read model loaded from{" "}
+        <code>/api/perspective/snapshot</code>. It is not source of truth and
+        has no approve, publish, retry, proof recording, evidence creation, work
+        update, commit/reject, mailbox, publication, GitHub/OpenAI, or temporal
+        review artifact write authority.
       </BoundaryNote>
 
       <nav className="perspective-anchor-nav" aria-label="Perspective sections">
@@ -1683,6 +1730,50 @@ function PerspectiveTab({
               </article>
             ))}
           </div>
+          {perspectiveSnapshot ? (
+            <div className="perspective-frame-summary">
+              <article>
+                <h3>PerspectiveSnapshot current_frame.summary</h3>
+                <p>{perspectiveSnapshot.current_frame.summary}</p>
+              </article>
+              <article>
+                <h3>Primary state keys</h3>
+                <RefChipList
+                  refs={perspectiveSnapshot.current_frame.primary_state_keys}
+                  emptyLabel="No primary state keys in PerspectiveSnapshot"
+                />
+              </article>
+              <article>
+                <h3>Active work ids</h3>
+                <RefChipList
+                  refs={perspectiveSnapshot.current_frame.active_work_ids}
+                  emptyLabel="No active work ids in PerspectiveSnapshot"
+                />
+              </article>
+              <div className="meta-row">
+                <StatusBadge
+                  label={formatStatusLabel(perspectiveSnapshot.snapshot_version)}
+                />
+                <StatusBadge
+                  label={`${formatStatusLabel(
+                    perspectiveSnapshot.current_frame.pressure_level,
+                  )} pressure`}
+                />
+                <span>
+                  as_of{" "}
+                  <time dateTime={perspectiveSnapshot.as_of}>
+                    {formatDate(perspectiveSnapshot.as_of)}
+                  </time>
+                </span>
+                <span>derived read model</span>
+              </div>
+            </div>
+          ) : perspectiveSnapshotError ? (
+            <EmptyState
+              label="PerspectiveSnapshot unavailable"
+              description={perspectiveSnapshotError}
+            />
+          ) : null}
           {temporalPreviewError ? (
             <EmptyState
               label="Temporal interpretation preview unavailable"
@@ -1747,6 +1838,11 @@ function PerspectiveTab({
           )}
           <div className="tab-stat-row perspective-stat-row">
             <MetricCard
+              label="PerspectiveSnapshot"
+              value={perspectiveSnapshot ? "Loaded" : "Not loaded"}
+              detail="derived-view-only read model"
+            />
+            <MetricCard
               label="Committed transitions"
               value={counts.transitions}
               detail="ledger basis entries"
@@ -1796,10 +1892,40 @@ function PerspectiveTab({
             />
             <MetricCard
               label="Pending proposals"
-              value={proposals.length}
-              detail="shown as not ledger entries"
+              value={
+                perspectiveSnapshot?.pending_proposal_pressure.count ??
+                proposals.length
+              }
+              detail={
+                perspectiveSnapshot
+                  ? `${formatStatusLabel(
+                      perspectiveSnapshot.pending_proposal_pressure
+                        .pressure_level,
+                    )} pressure only`
+                  : "shown as not ledger entries"
+              }
+            />
+            <MetricCard
+              label="Snapshot state basis"
+              value={snapshotStateBasisCount}
+              detail="committed_state_basis buckets"
             />
           </div>
+          {perspectiveSnapshot ? (
+            <div className="perspective-detail-stack">
+              <PerspectiveStateBasis
+                title="PerspectiveSnapshot committed_state_basis"
+                summary={perspectiveSnapshot.committed_state_basis.summary}
+                active={perspectiveSnapshot.committed_state_basis.active}
+                future={perspectiveSnapshot.committed_state_basis.future}
+                completed={perspectiveSnapshot.committed_state_basis.completed}
+                deprecated={perspectiveSnapshot.committed_state_basis.deprecated}
+              />
+              <PerspectiveProposalPressure
+                pressure={perspectiveSnapshot.pending_proposal_pressure}
+              />
+            </div>
+          ) : null}
           {trajectory ? (
             <div className="ledger-graph-stage compact-ledger-graph">
               <TemporalStateGraph
@@ -1827,6 +1953,11 @@ function PerspectiveTab({
           />
           <div className="perspective-evidence-grid">
             <MetricCard
+              label="Snapshot evidence_basis"
+              value={perspectiveSnapshot?.evidence_basis.count ?? 0}
+              detail="recent read model evidence"
+            />
+            <MetricCard
               label="Evidence Pack"
               value={evidencePack ? "Loaded" : "Not loaded"}
               detail={`${evidenceRecordCount} records`}
@@ -1847,6 +1978,17 @@ function PerspectiveTab({
               detail="from evidence/session/artifacts"
             />
           </div>
+          {perspectiveSnapshot ? (
+            <div className="perspective-detail-stack">
+              <PerspectiveEvidenceBasis
+                evidenceBasis={perspectiveSnapshot.evidence_basis}
+              />
+              <PerspectiveTraceBasis
+                workTraceBasis={perspectiveSnapshot.work_trace_basis}
+                actionTraceBasis={perspectiveSnapshot.action_trace_basis}
+              />
+            </div>
+          ) : null}
           <div className="perspective-evidence-refs">
             <section>
               <h3>Evidence anchor refs</h3>
@@ -1932,7 +2074,24 @@ function PerspectiveTab({
           />
           <div className="perspective-tension-grid">
             <TensionList
-              title="Snapshot open tensions"
+              title="PerspectiveSnapshot open_tensions"
+              items={(perspectiveSnapshot?.open_tensions.items ?? []).map(
+                (tension) => ({
+                  key: tension.id,
+                  label: tension.title,
+                  detail: tension.description,
+                  metaChips: [
+                    formatStatusLabel(tension.severity),
+                    tension.state_key
+                      ? `state ${formatStateKeyLabel(tension.state_key)}`
+                      : "no state key",
+                  ],
+                }),
+              )}
+              emptyLabel="No PerspectiveSnapshot open_tensions"
+            />
+            <TensionList
+              title="State snapshot open tensions"
               items={openTensions.map((tension) => ({
                 key: tension.id,
                 label: tension.title,
@@ -1942,7 +2101,7 @@ function PerspectiveTab({
                   formatStatusLabel(tension.status),
                 ],
               }))}
-              emptyLabel="No snapshot open tensions"
+              emptyLabel="No state snapshot open tensions"
             />
             <TensionList
               title="Counterexamples"
@@ -2007,6 +2166,38 @@ function PerspectiveTab({
           />
           <div className="perspective-next-grid">
             <article>
+              <h3>PerspectiveSnapshot boundary_next</h3>
+              {perspectiveSnapshot ? (
+                <>
+                  <strong>{perspectiveSnapshot.boundary_next.title}</strong>
+                  <p>{perspectiveSnapshot.boundary_next.rationale}</p>
+                  <div className="meta-row">
+                    <StatusBadge
+                      label={formatStatusLabel(
+                        perspectiveSnapshot.boundary_next.priority,
+                      )}
+                    />
+                    <span>
+                      {formatStatusLabel(
+                        perspectiveSnapshot.boundary_next.suggested_actor,
+                      )}
+                    </span>
+                  </div>
+                </>
+              ) : nextAction ? (
+                <>
+                  <strong>{nextAction.title}</strong>
+                  <p>{nextAction.rationale}</p>
+                  <div className="meta-row">
+                    <StatusBadge label={formatStatusLabel(nextAction.priority)} />
+                    <span>{formatStatusLabel(nextAction.suggested_actor)}</span>
+                  </div>
+                </>
+              ) : (
+                <EmptyState label="No brief next action loaded" />
+              )}
+            </article>
+            <article>
               <h3>Brief next recommended action</h3>
               {nextAction ? (
                 <>
@@ -2033,16 +2224,49 @@ function PerspectiveTab({
               )}
             </article>
             <article>
-              <h3>Authority summary</h3>
-              <ul className="boundary-list">
-                <li>read-first</li>
-                <li>commit state blocked outside local runtime gate</li>
-                <li>execute Codex blocked</li>
-                <li>publish/mutate GitHub blocked</li>
-                <li>proof/trace recording gated</li>
-              </ul>
+              <h3>authority_boundaries</h3>
+              <PerspectiveAuthorityBoundaries
+                boundaries={perspectiveSnapshot?.authority_boundaries ?? null}
+              />
+            </article>
+            <article>
+              <h3>research_diagnostics</h3>
+              {snapshotResearch ? (
+                <ResearchDiagnosticsPanel diagnostics={snapshotResearch} />
+              ) : (
+                <EmptyState label="No research_diagnostics loaded" />
+              )}
             </article>
           </div>
+          {perspectiveSnapshot ? (
+            <div className="perspective-detail-stack">
+              <details className="perspective-detail-panel">
+                <summary>boundary_next allowed and forbidden next steps</summary>
+                <div className="perspective-next-grid">
+                  <article>
+                    <h3>Allowed next steps</h3>
+                    <ul className="boundary-list">
+                      {perspectiveSnapshot.boundary_next.allowed_next_steps.map(
+                        (step) => (
+                          <li key={step}>{step}</li>
+                        ),
+                      )}
+                    </ul>
+                  </article>
+                  <article>
+                    <h3>Forbidden next steps</h3>
+                    <ul className="boundary-list">
+                      {perspectiveSnapshot.boundary_next.forbidden_next_steps.map(
+                        (step) => (
+                          <li key={step}>{step}</li>
+                        ),
+                      )}
+                    </ul>
+                  </article>
+                </div>
+              </details>
+            </div>
+          ) : null}
           <div className="panel-control-row">
             <BoundaryNote tone="green">
               Operator owns local proposal decisions. Operator actions affect
@@ -2799,6 +3023,284 @@ function TensionList({
         </div>
       )}
     </section>
+  );
+}
+
+function PerspectiveStateBasis({
+  title,
+  summary,
+  active,
+  future,
+  completed,
+  deprecated,
+}: {
+  title: string;
+  summary: string;
+  active: PerspectiveSnapshot["committed_state_basis"]["active"];
+  future: PerspectiveSnapshot["committed_state_basis"]["future"];
+  completed: PerspectiveSnapshot["committed_state_basis"]["completed"];
+  deprecated: PerspectiveSnapshot["committed_state_basis"]["deprecated"];
+}) {
+  return (
+    <details className="perspective-detail-panel" open>
+      <summary>{title}</summary>
+      <div className="evidence-pack-grid">
+        <article className="evidence-pack-card evidence-pack-card-wide">
+          <h3>Summary</h3>
+          <p>{summary}</p>
+        </article>
+        <PerspectiveStateBasisBucket title="active" entries={active} />
+        <PerspectiveStateBasisBucket title="future" entries={future} />
+        <PerspectiveStateBasisBucket title="completed" entries={completed} />
+        <PerspectiveStateBasisBucket title="deprecated" entries={deprecated} />
+      </div>
+    </details>
+  );
+}
+
+function PerspectiveStateBasisBucket({
+  title,
+  entries,
+}: {
+  title: string;
+  entries: PerspectiveSnapshot["committed_state_basis"]["active"];
+}) {
+  return (
+    <article className="evidence-pack-card">
+      <h3>{title}</h3>
+      {entries.length === 0 ? (
+        <EmptyState label={`No ${title} committed_state_basis entries`} />
+      ) : (
+        <ul>
+          {entries.slice(0, 6).map((entry) => (
+            <li key={entry.id}>
+              <strong>{formatStateKeyLabel(entry.state_key)}</strong>{" "}
+              <code>{formatStateValueForDisplay(entry.value)}</code>
+              <div className="meta-row">
+                <span>{formatStatusLabel(entry.temporal_scope)}</span>
+                <span>{formatStatusLabel(entry.stability)}</span>
+                <span>{formatStatusLabel(entry.change_type)}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
+  );
+}
+
+function PerspectiveProposalPressure({
+  pressure,
+}: {
+  pressure: PerspectiveSnapshot["pending_proposal_pressure"];
+}) {
+  return (
+    <details className="perspective-detail-panel" open>
+      <summary>PerspectiveSnapshot pending_proposal_pressure</summary>
+      <div className="evidence-pack-grid">
+        <article className="evidence-pack-card evidence-pack-card-wide">
+          <h3>Pressure summary</h3>
+          <p>{pressure.summary_reason}</p>
+          <div className="meta-row">
+            <span>{pressure.count} proposals</span>
+            <StatusBadge
+              label={`${formatStatusLabel(pressure.pressure_level)} pressure`}
+            />
+          </div>
+        </article>
+        {pressure.proposals.length === 0 ? (
+          <article className="evidence-pack-card">
+            <EmptyState label="No pending proposal pressure" />
+          </article>
+        ) : (
+          pressure.proposals.slice(0, 6).map((proposal) => (
+            <article className="evidence-pack-card" key={proposal.id}>
+              <h3>{formatStateKeyLabel(proposal.state_key)}</h3>
+              <p>{proposal.reason ?? "No proposal reason recorded."}</p>
+              <div className="meta-row">
+                <span>{formatStatusLabel(proposal.operation)}</span>
+                <span>{formatStatusLabel(proposal.stability)}</span>
+                <span>{formatStatusLabel(proposal.change_type)}</span>
+                <span>{formatStatusLabel(proposal.consolidation_status)}</span>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+    </details>
+  );
+}
+
+function PerspectiveEvidenceBasis({
+  evidenceBasis,
+}: {
+  evidenceBasis: PerspectiveSnapshot["evidence_basis"];
+}) {
+  return (
+    <details className="perspective-detail-panel" open>
+      <summary>PerspectiveSnapshot evidence_basis</summary>
+      <div className="evidence-pack-grid">
+        <article className="evidence-pack-card evidence-pack-card-wide">
+          <h3>Evidence basis summary</h3>
+          <p>{evidenceBasis.summary_reason}</p>
+          <div className="meta-row">
+            <span>{evidenceBasis.count} records</span>
+          </div>
+        </article>
+        {evidenceBasis.recent.length === 0 ? (
+          <article className="evidence-pack-card">
+            <EmptyState label="No evidence_basis.recent records" />
+          </article>
+        ) : (
+          evidenceBasis.recent.slice(0, 6).map((record) => (
+            <article className="evidence-pack-card" key={record.evidence_id}>
+              <h3>{record.label}</h3>
+              <p>{record.result_summary}</p>
+              <div className="meta-row">
+                <span>{formatStatusLabel(record.evidence_kind)}</span>
+                <span>{formatStatusLabel(record.status)}</span>
+                <span>{formatStatusLabel(record.source_surface)}</span>
+                {record.work_id ? <code>{record.work_id}</code> : null}
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+    </details>
+  );
+}
+
+function PerspectiveTraceBasis({
+  workTraceBasis,
+  actionTraceBasis,
+}: {
+  workTraceBasis: PerspectiveSnapshot["work_trace_basis"];
+  actionTraceBasis: PerspectiveSnapshot["action_trace_basis"];
+}) {
+  return (
+    <details className="perspective-detail-panel" open>
+      <summary>PerspectiveSnapshot work_trace_basis.active and action_trace_basis.recent</summary>
+      <div className="evidence-pack-grid">
+        <article className="evidence-pack-card evidence-pack-card-wide">
+          <h3>Trace basis</h3>
+          <p>{workTraceBasis.summary_reason}</p>
+          <p>{actionTraceBasis.summary_reason}</p>
+          <div className="meta-row">
+            <span>{workTraceBasis.active.length} active work items</span>
+            <span>{actionTraceBasis.recent.length} recent actions</span>
+          </div>
+        </article>
+        {workTraceBasis.active.slice(0, 4).map((work) => (
+          <article className="evidence-pack-card" key={work.work_id}>
+            <h3>{work.title}</h3>
+            <p>{work.summary}</p>
+            <p>{work.next_action}</p>
+            <div className="meta-row">
+              <code>{work.work_id}</code>
+              <span>{formatStatusLabel(work.status)}</span>
+              <span>{formatStatusLabel(work.priority)}</span>
+            </div>
+          </article>
+        ))}
+        {actionTraceBasis.recent.slice(0, 4).map((action) => (
+          <article className="evidence-pack-card" key={action.id}>
+            <h3>{action.title}</h3>
+            <div className="meta-row">
+              <span>{formatStatusLabel(action.status)}</span>
+              {action.state_key ? (
+                <code>{formatStateKeyLabel(action.state_key)}</code>
+              ) : null}
+              {action.source_agent_id ? <span>{action.source_agent_id}</span> : null}
+            </div>
+          </article>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function PerspectiveAuthorityBoundaries({
+  boundaries,
+}: {
+  boundaries: PerspectiveSnapshot["authority_boundaries"] | null;
+}) {
+  if (!boundaries) {
+    return (
+      <ul className="boundary-list">
+        <li>read-first</li>
+        <li>commit state blocked outside local runtime gate</li>
+        <li>execute Codex blocked</li>
+        <li>publish/mutate GitHub blocked</li>
+        <li>proof/trace recording gated</li>
+      </ul>
+    );
+  }
+
+  return (
+    <>
+      <ul className="boundary-list">
+        <li>derived_view_only {String(boundaries.derived_view_only)}</li>
+        <li>source_of_truth {String(boundaries.source_of_truth)}</li>
+        <li>can_commit_or_reject_state {String(boundaries.can_commit_or_reject_state)}</li>
+        <li>can_record_proof {String(boundaries.can_record_proof)}</li>
+        <li>can_create_evidence {String(boundaries.can_create_evidence)}</li>
+        <li>can_update_work {String(boundaries.can_update_work)}</li>
+        <li>can_publish_external {String(boundaries.can_publish_external)}</li>
+        <li>can_retry {String(boundaries.can_retry)}</li>
+        <li>can_mutate_mailbox {String(boundaries.can_mutate_mailbox)}</li>
+        <li>
+          can_mutate_publication_state{" "}
+          {String(boundaries.can_mutate_publication_state)}
+        </li>
+        <li>
+          can_call_github_or_openai {String(boundaries.can_call_github_or_openai)}
+        </li>
+        <li>
+          can_write_temporal_review_artifacts{" "}
+          {String(boundaries.can_write_temporal_review_artifacts)}
+        </li>
+      </ul>
+      <RefChipList refs={boundaries.boundaries} emptyLabel="No boundaries listed" />
+      <div className="meta-row">
+        {boundaries.lanes.map((lane) => (
+          <span key={lane.id}>
+            {lane.label}{" "}
+            <code>
+              {formatStatusLabel(lane.role)} / derived_view_compatible{" "}
+              {String(lane.derived_view_compatible)}
+            </code>
+          </span>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ResearchDiagnosticsPanel({
+  diagnostics,
+}: {
+  diagnostics: PerspectiveSnapshot["research_diagnostics"];
+}) {
+  return (
+    <>
+      <p>
+        research_diagnostics are log_only placeholders only; they are null
+        diagnostic slots and not authority.
+      </p>
+      <div className="meta-row">
+        <StatusBadge label={`mode ${diagnostics.mode}`} />
+        <span>sidecar_e_t {String(diagnostics.sidecar_e_t)}</span>
+        <span>meta_wm_hint {String(diagnostics.meta_wm_hint)}</span>
+        <span>bsl_hint {String(diagnostics.bsl_hint)}</span>
+        <span>loopness_hint {String(diagnostics.loopness_hint)}</span>
+        <span>comp_index_hint {String(diagnostics.comp_index_hint)}</span>
+      </div>
+      <ul className="boundary-list">
+        {diagnostics.notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+    </>
   );
 }
 
