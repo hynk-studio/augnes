@@ -3042,8 +3042,8 @@ function PerspectiveStateBasis({
   deprecated: PerspectiveSnapshot["committed_state_basis"]["deprecated"];
 }) {
   return (
-    <details className="perspective-detail-panel" open>
-      <summary>{title}</summary>
+    <details className="perspective-detail-panel">
+      <summary>{title} details</summary>
       <div className="evidence-pack-grid">
         <article className="evidence-pack-card evidence-pack-card-wide">
           <h3>Summary</h3>
@@ -3095,8 +3095,8 @@ function PerspectiveProposalPressure({
   pressure: PerspectiveSnapshot["pending_proposal_pressure"];
 }) {
   return (
-    <details className="perspective-detail-panel" open>
-      <summary>PerspectiveSnapshot pending_proposal_pressure</summary>
+    <details className="perspective-detail-panel">
+      <summary>PerspectiveSnapshot pending_proposal_pressure details</summary>
       <div className="evidence-pack-grid">
         <article className="evidence-pack-card evidence-pack-card-wide">
           <h3>Pressure summary</h3>
@@ -3137,8 +3137,8 @@ function PerspectiveEvidenceBasis({
   evidenceBasis: PerspectiveSnapshot["evidence_basis"];
 }) {
   return (
-    <details className="perspective-detail-panel" open>
-      <summary>PerspectiveSnapshot evidence_basis</summary>
+    <details className="perspective-detail-panel">
+      <summary>PerspectiveSnapshot evidence_basis details</summary>
       <div className="evidence-pack-grid">
         <article className="evidence-pack-card evidence-pack-card-wide">
           <h3>Evidence basis summary</h3>
@@ -3178,8 +3178,10 @@ function PerspectiveTraceBasis({
   actionTraceBasis: PerspectiveSnapshot["action_trace_basis"];
 }) {
   return (
-    <details className="perspective-detail-panel" open>
-      <summary>PerspectiveSnapshot work_trace_basis.active and action_trace_basis.recent</summary>
+    <details className="perspective-detail-panel">
+      <summary>
+        PerspectiveSnapshot work_trace_basis.active and action_trace_basis.recent details
+      </summary>
       <div className="evidence-pack-grid">
         <article className="evidence-pack-card evidence-pack-card-wide">
           <h3>Trace basis</h3>
@@ -3260,18 +3262,21 @@ function PerspectiveAuthorityBoundaries({
           {String(boundaries.can_write_temporal_review_artifacts)}
         </li>
       </ul>
-      <RefChipList refs={boundaries.boundaries} emptyLabel="No boundaries listed" />
-      <div className="meta-row">
-        {boundaries.lanes.map((lane) => (
-          <span key={lane.id}>
-            {lane.label}{" "}
-            <code>
-              {formatStatusLabel(lane.role)} / derived_view_compatible{" "}
-              {String(lane.derived_view_compatible)}
-            </code>
-          </span>
-        ))}
-      </div>
+      <details className="perspective-detail-panel">
+        <summary>authority_boundaries lane details and source refs</summary>
+        <RefChipList refs={boundaries.boundaries} emptyLabel="No boundaries listed" />
+        <div className="meta-row">
+          {boundaries.lanes.map((lane) => (
+            <span key={lane.id}>
+              {lane.label}{" "}
+              <code>
+                {formatStatusLabel(lane.role)} / derived_view_compatible{" "}
+                {String(lane.derived_view_compatible)}
+              </code>
+            </span>
+          ))}
+        </div>
+      </details>
     </>
   );
 }
@@ -3339,20 +3344,23 @@ function LoopnessHintPanel({
         </li>
         <li>open_tension_count {loopnessHint.signals.open_tension_count}</li>
       </ul>
-      <RefChipList
-        refs={[
-          ...loopnessHint.source_refs.action_record_ids,
-          ...loopnessHint.source_refs.work_event_ids,
-          ...loopnessHint.source_refs.pending_proposal_ids,
-          ...loopnessHint.source_refs.tension_ids,
-        ]}
-        emptyLabel="No loopness_hint source refs"
-      />
-      <ul className="boundary-list">
-        {loopnessHint.notes.map((note) => (
-          <li key={note}>{note}</li>
-        ))}
-      </ul>
+      <details className="perspective-detail-panel">
+        <summary>loopness_hint source refs and non-authority notes</summary>
+        <RefChipList
+          refs={[
+            ...loopnessHint.source_refs.action_record_ids,
+            ...loopnessHint.source_refs.work_event_ids,
+            ...loopnessHint.source_refs.pending_proposal_ids,
+            ...loopnessHint.source_refs.tension_ids,
+          ]}
+          emptyLabel="No loopness_hint source refs"
+        />
+        <ul className="boundary-list">
+          {loopnessHint.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      </details>
     </div>
   );
 }

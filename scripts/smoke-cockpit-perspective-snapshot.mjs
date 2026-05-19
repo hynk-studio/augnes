@@ -57,12 +57,18 @@ for (const snippet of [
   "PerspectiveSnapshot pending_proposal_pressure",
   "PerspectiveSnapshot evidence_basis",
   "PerspectiveSnapshot work_trace_basis.active and action_trace_basis.recent",
+  "{title} details",
+  "pending_proposal_pressure details",
+  "evidence_basis details",
+  "action_trace_basis.recent details",
   "PerspectiveSnapshot open_tensions",
   "PerspectiveSnapshot boundary_next",
   "authority_boundaries",
+  "authority_boundaries lane details and source refs",
   "research_diagnostics",
   "research_diagnostics are log_only diagnostic slots only",
   "weak trace-pressure hint",
+  "loopness_hint source refs and non-authority notes",
   "loopnessHint.version",
   "sidecar_e_t",
   "meta_wm_hint",
@@ -87,6 +93,13 @@ assertIncludes(
   perspectiveSource,
   "review artifact write authority",
   "Perspective copy should state that snapshot rendering cannot write review artifacts.",
+);
+assert.equal(
+  perspectiveSource.includes(
+    '<details className="perspective-detail-panel" open>',
+  ),
+  false,
+  "Perspective read-model detail panels should be collapsed by default.",
 );
 
 assert.equal(
