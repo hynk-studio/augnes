@@ -77,7 +77,8 @@ PerspectiveSnapshot read-model verification belongs in bounded command
 evidence, such as `npm run smoke:perspective-snapshot`. It must record
 derived-view-only read-model facts and must not treat PerspectiveSnapshot as
 source of truth, proof, readiness, Gate/SRF input, Claim confidence, Evidence
-status, publication readiness, or Cockpit action input.
+status, publication readiness, proposal scoring, commit/reject input, or
+Cockpit action input.
 Cockpit PerspectiveSnapshot wiring verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-perspective-snapshot`. It must record
 GET-only Cockpit read wiring and forbidden-control absence without adding
@@ -93,7 +94,8 @@ Research diagnostics boundary fixture verification belongs in bounded command
 evidence, such as `npm run smoke:research-diagnostics-boundaries`. It must
 record fixture boundary facts only: `research_diagnostics` remains `log_only`
 and non-authoritative, placeholder diagnostics are not computed, Sidecar/QP/z_t
-logic is not run, and Core rows are not mutated.
+logic is not run, clean and repeated trace-pressure behavior is bounded, and
+Core rows are not mutated.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and

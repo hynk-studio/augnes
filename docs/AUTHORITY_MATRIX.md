@@ -144,8 +144,8 @@ log_only diagnostic object in `research_diagnostics`.
 `sidecar_e_t` is not actual Sidecar state, not QP output, and not a z_t regime
 commit.
 None of these are authority, proof, readiness, source of truth, Gate/SRF input,
-Claim confidence, Evidence status, publication readiness, or Cockpit action
-input.
+Claim confidence, Evidence status, publication readiness, proposal scoring,
+commit/reject input, or Cockpit action input.
 
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |

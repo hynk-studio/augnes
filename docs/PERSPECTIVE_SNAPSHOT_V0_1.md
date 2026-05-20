@@ -20,6 +20,21 @@ changing existing route behavior.
 `sidecar_e_t`, `meta_wm_hint`, `bsl_hint`, and `comp_index_hint` are structured
 placeholders.
 `loopness_hint` is the only bounded `log_only` diagnostic object.
+
+The following table is a documentation summary only, not schema authority.
+
+| Diagnostic slot | Status | Computed? | Authority? | Notes |
+| --- | --- | --- | --- | --- |
+| `loopness_hint` | bounded `log_only` diagnostic object | yes, bounded trace-pressure only | no | Weak trace-pressure hint from already-read action/work/proposal/tension refs. |
+| `sidecar_e_t` | structured placeholder | no | no | Not actual Sidecar state, not QP output, not `z_t` regime commit. |
+| `meta_wm_hint` | structured placeholder | no | no | Reserved for future working-memory reliability diagnostics. |
+| `bsl_hint` | structured placeholder | no | no | Reserved for future Behavioral State Layer diagnostics. |
+| `comp_index_hint` | structured placeholder | no | no | Reserved for future compressibility diagnostics. |
+
+None of these diagnostics are authority, proof, readiness, source of truth,
+Gate/SRF input, Claim confidence, Evidence status, publication readiness,
+proposal scoring, commit/reject input, or Cockpit action input.
+
 `sidecar_e_t` shape:
 
 - `version`: `sidecar_e_t.placeholder.v0.1`
@@ -101,7 +116,8 @@ publication readiness, Cockpit actions, or any Core state.
 
 `loopness_hint` is a weak trace-pressure hint only. It is not authority, proof,
 readiness, Gate/SRF input, Claim confidence, Evidence status, publication
-readiness, commit/reject input, Cockpit action input, or source of truth.
+readiness, proposal scoring, commit/reject input, Cockpit action input, or
+source of truth.
 Snapshot generation does not query external services or write Core records.
 
 ## Quality smoke
@@ -132,9 +148,11 @@ Sidecar, Meta-WM, BSL, or CompIndex values.
 `loopness_hint`, `sidecar_e_t`, `meta_wm_hint`, `bsl_hint`, and
 `comp_index_hint` boundaries at runtime. It verifies `sidecar_e_t` remains a
 structured placeholder with null values, `computed=false`, empty source refs,
-and no authority. It does not compute Sidecar/BSL/CompIndex or real Meta-WM
-values, run a Sidecar loop, update or commit `z_t`, create QP output, grant
-authority, or mutate Core records.
+and no authority. It verifies clean fixtures keep `loopness_hint` at
+`level=none` and repeated trace-pressure fixtures produce a bounded non-`none`
+`loopness_hint` without mutating Core records. It does not compute
+Sidecar/BSL/CompIndex or real Meta-WM values, run a Sidecar loop, update or
+commit `z_t`, create QP output, grant authority, or mutate Core records.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
