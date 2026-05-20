@@ -102,7 +102,9 @@ fixture facts only: clean/minimal, repeated/noisy, missing-context,
 conflicting-context, invalid-input, and source-ref boundary scopes preserve the
 structured placeholder, do not compute Sidecar/e_t/QP/z_t values, do not create
 QP output, do not commit `z_t`, do not mutate authority tables, and make no
-external calls.
+external calls. It may also record helper skeleton facts only: the offline
+helper returns placeholder fallback for valid, missing, malformed, ambiguous,
+and non-read candidate refs, and helper computation remains disabled.
 Sidecar e_t diagnostic design review belongs in PR body/docs evidence only.
 `docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is design-only and must not be
 recorded as runtime proof, schema authority, readiness, QP output, z_t commit,

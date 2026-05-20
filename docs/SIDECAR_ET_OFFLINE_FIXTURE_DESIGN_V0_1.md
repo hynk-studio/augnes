@@ -37,6 +37,9 @@ committing `z_t`.
 helper-design-only gate. It specifies allowed inputs, already-read ref
 boundaries, fallback rules, and future smoke requirements before any offline
 helper implementation.
+The current helper skeleton returns placeholder fallback only and is checked by
+`npm run smoke:sidecar-et-fixture-boundaries`; it still does not compute
+Sidecar/e_t/QP/z_t values.
 
 ## Fixture Cases
 
