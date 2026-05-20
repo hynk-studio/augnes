@@ -24,6 +24,32 @@
 - `CHANGELOG_PATCHLOG.md`: 변경 이력(권위 아님).
 - `00_INDEX_LATEST.md`: 업로드 레이아웃 + 유지보수 체크리스트(권위 아님).
 
+### 최근 Perspective diagnostics hardening 포인터 (repo-local, non-SSOT)
+
+이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. 최근
+Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이다.
+
+- `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
+  authority invariant smoke suite의 권위 경계를 설명한다.
+- `PERSPECTIVE_SNAPSHOT_V0_1.md`: `PerspectiveSnapshot` v0.1 read model,
+  Cockpit wiring, Perspective quality smoke, research diagnostics boundary
+  fixture smoke를 한 곳에서 연결한다.
+- `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
+  포인터를 둔다.
+- `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only
+  surface boundary를 설명한다.
+
+Boundary 요약:
+
+- `PerspectiveSnapshot`은 derived-view-only read model이다.
+- `research_diagnostics`는 `log_only`이고 non-authoritative다.
+- `loopness_hint`는 유일한 bounded `log_only` diagnostic object다.
+- `meta_wm_hint`, `bsl_hint`, `comp_index_hint`는 structured placeholder다.
+- `sidecar_e_t`는 별도 scope와 gate가 있는 PR 전까지 null/placeholder다.
+- 위 항목들은 authority, proof, readiness, source of truth, Gate/SRF input,
+  Claim confidence, Evidence status, publication readiness, Cockpit action
+  input이 아니다.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
@@ -131,4 +157,3 @@
 | A0l | Context Stencil(oscillation-inspired): 컨텍스트/메모리 ‘공간’ soft-gating(억제 스텐실) | `WIRING_INTEGRATION_MAP.md` |
 | A0m | Memory-ANN-lite(MN): “기억 변수” 기반 보상학습 프라이어(prior-only) | `WIRING_INTEGRATION_MAP.md` |
 | A0n | Parameter Memory(PM): TTT-lite Session Adapter(UBB coefficient update; boundary-only) | `WIRING_INTEGRATION_MAP.md` |
-

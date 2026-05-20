@@ -65,6 +65,34 @@ GitHub App/token management v0.1 closeout verification belongs in bounded
 command evidence, such as `npm run smoke:github-token-management-v01-closeout`.
 It must record only closeout status and docs-smoke facts, not raw token, JWT,
 private key, or exchange payload material.
+Provider-neutral execution lane verification belongs in bounded command
+evidence, such as `npm run smoke:execution-lanes`. It must record lane-registry
+facts only and must not promote provider/session/workspace/thread/run ids to
+canonical committed state.
+Authority invariant verification belongs in bounded command evidence, such as
+`npm run smoke:authority-invariants`. It must record that selected routes and
+helpers preserve Core-only commit/reject authority; it is not a new authority
+source and does not replace future full HTTP integration coverage.
+PerspectiveSnapshot read-model verification belongs in bounded command
+evidence, such as `npm run smoke:perspective-snapshot`. It must record
+derived-view-only read-model facts and must not treat PerspectiveSnapshot as
+source of truth, proof, readiness, Gate/SRF input, Claim confidence, Evidence
+status, publication readiness, or Cockpit action input.
+Cockpit PerspectiveSnapshot wiring verification belongs in bounded command
+evidence, such as `npm run smoke:cockpit-perspective-snapshot`. It must record
+GET-only Cockpit read wiring and forbidden-control absence without adding
+snapshot write routes, action controls, or authority.
+Perspective quality verification belongs in bounded command evidence, such as
+`npm run smoke:perspective-quality`. It must record bounded,
+source-ref-oriented, derived-view-only behavior: `loopness_hint` is the only
+bounded `log_only` diagnostic object; `meta_wm_hint`, `bsl_hint`, and
+`comp_index_hint` are structured placeholders; `sidecar_e_t` remains
+null/placeholder until separately scoped and gated PR.
+Research diagnostics boundary fixture verification belongs in bounded command
+evidence, such as `npm run smoke:research-diagnostics-boundaries`. It must
+record fixture boundary facts only: `research_diagnostics` remains `log_only`
+and non-authoritative, placeholder diagnostics are not computed, and Core rows
+are not mutated.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and
@@ -316,6 +344,12 @@ npm run smoke:github-app-jwt-fixture
 npm run smoke:github-app-target-policy
 npm run smoke:github-app-installation-token-exchange
 npm run smoke:github-token-management-v01-closeout
+npm run smoke:execution-lanes
+npm run smoke:authority-invariants
+npm run smoke:perspective-snapshot
+npm run smoke:cockpit-perspective-snapshot
+npm run smoke:perspective-quality
+npm run smoke:research-diagnostics-boundaries
 ```
 
 After running a command, Codex or another local verifier may record a bounded
