@@ -201,6 +201,22 @@ type BslHint = {
   notes: string[];
 };
 
+type CompIndexHint = {
+  version: "comp_index_hint.placeholder.v0.1";
+  mode: "log_only";
+  status: "placeholder";
+  computed: false;
+  values: {
+    compression_index_hat: null;
+    context_density_hat: null;
+    evidence_support_hat: null;
+    tension_load_hat: null;
+    comp_index_hat: null;
+  };
+  source_refs: string[];
+  notes: string[];
+};
+
 export type PerspectiveSnapshot = {
   runtime: "augnes";
   snapshot_version: "perspective_snapshot.v0.1";
@@ -288,7 +304,7 @@ export type PerspectiveSnapshot = {
     meta_wm_hint: MetaWmHint;
     bsl_hint: BslHint;
     loopness_hint: LoopnessHint;
-    comp_index_hint: null;
+    comp_index_hint: CompIndexHint;
     notes: string[];
   };
 };
@@ -463,13 +479,35 @@ export function buildPerspectiveSnapshot({
         pendingProposals,
         openTensions,
       }),
-      comp_index_hint: null,
+      comp_index_hint: buildCompIndexHintPlaceholder(),
       notes: [
         "Research diagnostic slots are log-only and control/view only.",
         "These fields are not authority, readiness, proof, or source of truth.",
         "Snapshot generation does not use diagnostics to mutate Core state, affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, or Cockpit actions.",
       ],
     },
+  };
+}
+
+function buildCompIndexHintPlaceholder(): CompIndexHint {
+  return {
+    version: "comp_index_hint.placeholder.v0.1",
+    mode: "log_only",
+    status: "placeholder",
+    computed: false,
+    values: {
+      compression_index_hat: null,
+      context_density_hat: null,
+      evidence_support_hat: null,
+      tension_load_hat: null,
+      comp_index_hat: null,
+    },
+    source_refs: [],
+    notes: [
+      "CompIndex is reserved for future compressibility diagnostics.",
+      "This placeholder is not computed and has no authority.",
+      "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, Cockpit actions, or any Core state.",
+    ],
   };
 }
 

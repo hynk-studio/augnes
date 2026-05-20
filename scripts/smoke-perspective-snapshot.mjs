@@ -148,6 +148,12 @@ try {
         bsl_hint_version: snapshot.research_diagnostics.bsl_hint.version,
         bsl_hint_status: snapshot.research_diagnostics.bsl_hint.status,
         bsl_hint_computed: snapshot.research_diagnostics.bsl_hint.computed,
+        comp_index_hint_version:
+          snapshot.research_diagnostics.comp_index_hint.version,
+        comp_index_hint_status:
+          snapshot.research_diagnostics.comp_index_hint.status,
+        comp_index_hint_computed:
+          snapshot.research_diagnostics.comp_index_hint.computed,
         loopness_hint_version:
           snapshot.research_diagnostics.loopness_hint.version,
         loopness_hint_mode: snapshot.research_diagnostics.loopness_hint.mode,
@@ -221,7 +227,7 @@ function assertSnapshotShape(snapshot) {
   assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
   assertMetaWmHintPlaceholder(snapshot.research_diagnostics.meta_wm_hint);
   assertBslHintPlaceholder(snapshot.research_diagnostics.bsl_hint);
-  assert.equal(snapshot.research_diagnostics.comp_index_hint, null);
+  assertCompIndexHintPlaceholder(snapshot.research_diagnostics.comp_index_hint);
   assert.equal(snapshot.research_diagnostics.loopness_hint.version, "loopness_hint.v0.1");
   assert.equal(snapshot.research_diagnostics.loopness_hint.mode, "log_only");
   assert.equal(snapshot.research_diagnostics.loopness_hint.level, "medium");
@@ -305,6 +311,29 @@ function assertBslHintPlaceholder(bslHint) {
   assert(
     bslHint.notes.some((note) => note.includes("no authority")),
     "BSL placeholder should state that it has no authority",
+  );
+}
+
+function assertCompIndexHintPlaceholder(compIndexHint) {
+  assert.equal(compIndexHint.version, "comp_index_hint.placeholder.v0.1");
+  assert.equal(compIndexHint.mode, "log_only");
+  assert.equal(compIndexHint.status, "placeholder");
+  assert.equal(compIndexHint.computed, false);
+  assert.deepEqual(compIndexHint.values, {
+    compression_index_hat: null,
+    context_density_hat: null,
+    evidence_support_hat: null,
+    tension_load_hat: null,
+    comp_index_hat: null,
+  });
+  assert.deepEqual(compIndexHint.source_refs, []);
+  assert(
+    compIndexHint.notes.some((note) => note.includes("not computed")),
+    "CompIndex placeholder should state that it is not computed",
+  );
+  assert(
+    compIndexHint.notes.some((note) => note.includes("no authority")),
+    "CompIndex placeholder should state that it has no authority",
   );
 }
 

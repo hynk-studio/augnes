@@ -3291,17 +3291,18 @@ function ResearchDiagnosticsPanel({
       <p>
         research_diagnostics are log_only diagnostic slots only. Meta-WM is a
         placeholder that is not computed. BSL is a placeholder that is not
-        computed. Loopness is a weak trace-pressure hint when present;
-        sidecar_e_t and comp_index_hint remain null placeholders. These
-        diagnostics are not authority, proof, readiness, or source of truth.
+        computed. CompIndex is a placeholder that is not computed. Loopness is a
+        weak trace-pressure hint when present; sidecar_e_t remains a null
+        placeholder. These diagnostics are not authority, proof, readiness, or
+        source of truth.
       </p>
       <div className="meta-row">
         <StatusBadge label={`mode ${diagnostics.mode}`} />
         <span>sidecar_e_t {String(diagnostics.sidecar_e_t)}</span>
-        <span>comp_index_hint {String(diagnostics.comp_index_hint)}</span>
       </div>
       <MetaWmHintPanel metaWmHint={diagnostics.meta_wm_hint} />
       <BslHintPanel bslHint={diagnostics.bsl_hint} />
+      <CompIndexHintPanel compIndexHint={diagnostics.comp_index_hint} />
       <LoopnessHintPanel loopnessHint={diagnostics.loopness_hint} />
       <ul className="boundary-list">
         {diagnostics.notes.map((note) => (
@@ -3388,6 +3389,50 @@ function BslHintPanel({
         />
         <ul className="boundary-list">
           {bslHint.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  );
+}
+
+function CompIndexHintPanel({
+  compIndexHint,
+}: {
+  compIndexHint: PerspectiveSnapshot["research_diagnostics"]["comp_index_hint"];
+}) {
+  return (
+    <div className="evidence-pack-card">
+      <h3>comp_index_hint</h3>
+      <p>
+        CompIndex placeholder is not computed. It is control/view only and is
+        not authority, proof, readiness, Gate input, source of truth, or a
+        Cockpit action input.
+      </p>
+      <div className="meta-row">
+        <StatusBadge label={formatStatusLabel(compIndexHint.version)} />
+        <StatusBadge label={`mode ${compIndexHint.mode}`} />
+        <StatusBadge label={`status ${compIndexHint.status}`} />
+        <span>computed {String(compIndexHint.computed)}</span>
+      </div>
+      <details className="perspective-detail-panel">
+        <summary>
+          comp_index_hint null values, source_refs, and boundary notes
+        </summary>
+        <ul className="boundary-list">
+          {Object.entries(compIndexHint.values).map(([name, value]) => (
+            <li key={name}>
+              {name} {String(value)}
+            </li>
+          ))}
+        </ul>
+        <RefChipList
+          refs={compIndexHint.source_refs}
+          emptyLabel="No comp_index_hint source refs"
+        />
+        <ul className="boundary-list">
+          {compIndexHint.notes.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>
