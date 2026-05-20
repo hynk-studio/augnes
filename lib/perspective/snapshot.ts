@@ -169,6 +169,22 @@ type LoopnessHint = {
   notes: string[];
 };
 
+type MetaWmHint = {
+  version: "meta_wm_hint.placeholder.v0.1";
+  mode: "log_only";
+  status: "placeholder";
+  computed: false;
+  values: {
+    wm_strength_hat: null;
+    wm_uncertainty_hat: null;
+    history_bias_hat: null;
+    arousal_proxy: null;
+    meta_wm_hat: null;
+  };
+  source_refs: string[];
+  notes: string[];
+};
+
 export type PerspectiveSnapshot = {
   runtime: "augnes";
   snapshot_version: "perspective_snapshot.v0.1";
@@ -253,7 +269,7 @@ export type PerspectiveSnapshot = {
   research_diagnostics: {
     mode: "log_only";
     sidecar_e_t: null;
-    meta_wm_hint: null;
+    meta_wm_hint: MetaWmHint;
     bsl_hint: null;
     loopness_hint: LoopnessHint;
     comp_index_hint: null;
@@ -423,7 +439,7 @@ export function buildPerspectiveSnapshot({
     research_diagnostics: {
       mode: "log_only",
       sidecar_e_t: null,
-      meta_wm_hint: null,
+      meta_wm_hint: buildMetaWmHintPlaceholder(),
       bsl_hint: null,
       loopness_hint: buildLoopnessHint({
         actionRecords,
@@ -438,6 +454,28 @@ export function buildPerspectiveSnapshot({
         "Snapshot generation does not use diagnostics to mutate Core state, affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, or Cockpit actions.",
       ],
     },
+  };
+}
+
+function buildMetaWmHintPlaceholder(): MetaWmHint {
+  return {
+    version: "meta_wm_hint.placeholder.v0.1",
+    mode: "log_only",
+    status: "placeholder",
+    computed: false,
+    values: {
+      wm_strength_hat: null,
+      wm_uncertainty_hat: null,
+      history_bias_hat: null,
+      arousal_proxy: null,
+      meta_wm_hat: null,
+    },
+    source_refs: [],
+    notes: [
+      "Meta-WM is reserved for future working-memory reliability diagnostics.",
+      "This placeholder is not computed and has no authority.",
+      "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, or Cockpit actions.",
+    ],
   };
 }
 
