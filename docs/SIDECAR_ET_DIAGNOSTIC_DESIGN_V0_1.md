@@ -120,7 +120,8 @@ Progression must be explicit and separate:
 
 1. Placeholder to fixture-only design:
    Write deterministic fixture definitions and review expected diagnostic
-   boundaries without adding computation.
+   boundaries without adding computation. The fixture-only gate is defined in
+   `docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md`.
 2. Fixture-only design to offline deterministic computation:
    Add a non-runtime helper that computes only against local deterministic
    fixtures. No routes, no Cockpit action inputs, no persistence writes.
@@ -182,6 +183,8 @@ It must also add or extend fixture smoke coverage proving:
   concepts into runtime authority.
 - `docs/PERSPECTIVE_SNAPSHOT_V0_1.md`: implemented `PerspectiveSnapshot` and
   `research_diagnostics` placeholder baseline.
+- `docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md`: deterministic offline
+  fixture categories and expected boundaries for the next promotion gate.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes
   and Perspective diagnostics.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke
