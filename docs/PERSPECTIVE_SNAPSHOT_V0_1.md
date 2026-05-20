@@ -58,6 +58,8 @@ any Core state.
 `docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is the design-only, non-SSOT
 future diagnostic path. It does not change this placeholder, compute Sidecar
 values, create QP output, commit `z_t`, or add runtime behavior.
+`docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md` defines deterministic
+fixture-design-only cases for the next gate and also does not compute values.
 
 `meta_wm_hint` shape:
 
