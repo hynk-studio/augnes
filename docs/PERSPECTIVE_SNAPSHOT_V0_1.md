@@ -58,6 +58,11 @@ source-ref-oriented behavior. It verifies `loopness_hint` remains log-only and
 unchanged, verifies `meta_wm_hint` remains a non-computed placeholder, and does
 not compute Sidecar, Meta-WM, BSL, or CompIndex values.
 
+`npm run smoke:research-diagnostics-boundaries` uses temp DB fixtures to verify
+`loopness_hint` and `meta_wm_hint` boundaries at runtime. It does not compute
+Sidecar/BSL/CompIndex or real Meta-WM values, grant authority, or mutate Core
+records.
+
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
 UI remains a derived read model and does not change snapshot generation, route
