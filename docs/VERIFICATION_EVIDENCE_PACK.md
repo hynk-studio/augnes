@@ -111,6 +111,10 @@ Sidecar e_t offline fixture design review also belongs in PR body/docs
 evidence only. `docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md` is
 fixture-design-only and must not be recorded as runtime computation, fixture
 execution, schema authority, or permission to compute Sidecar diagnostics.
+Sidecar e_t offline helper design review belongs in PR body/docs evidence
+only. `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md` is helper-design-only
+and must not be recorded as helper implementation, runtime computation, schema
+authority, fixture execution, or permission to compute Sidecar diagnostics.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and

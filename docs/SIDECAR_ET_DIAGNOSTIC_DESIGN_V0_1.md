@@ -124,7 +124,9 @@ Progression must be explicit and separate:
    `docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md`.
 2. Fixture-only design to offline deterministic computation:
    Add a non-runtime helper that computes only against local deterministic
-   fixtures. No routes, no Cockpit action inputs, no persistence writes.
+   fixtures. No routes, no Cockpit action inputs, no persistence writes. The
+   helper-design gate is defined in
+   `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md`.
 3. Offline deterministic computation to `log_only` runtime computation:
    Add read-only runtime computation only after smoke tests prove no authority
    table mutation, no external calls, no proposal status changes, and no route
@@ -185,6 +187,9 @@ It must also add or extend fixture smoke coverage proving:
   `research_diagnostics` placeholder baseline.
 - `docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md`: deterministic offline
   fixture categories and expected boundaries for the next promotion gate.
+- `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md`: future non-runtime helper
+  boundary, allowed inputs, allowed read-set, fallback rules, and smoke
+  requirements before helper implementation.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes
   and Perspective diagnostics.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke
