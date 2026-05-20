@@ -28,6 +28,11 @@ The implemented baseline remains:
 The future fixture set must prove placeholder fallback and boundary behavior
 before any offline deterministic helper is implemented.
 
+`npm run smoke:sidecar-et-fixture-boundaries` encodes these fixture categories
+as placeholder-boundary checks only. It verifies fallback and authority
+boundaries without computing Sidecar/e_t/QP/z_t values, creating QP output, or
+committing `z_t`.
+
 ## Fixture Cases
 
 These fixtures are design targets only. They do not define runtime data,

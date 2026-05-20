@@ -160,6 +160,13 @@ and no authority. It verifies clean fixtures keep `loopness_hint` at
 Sidecar/BSL/CompIndex or real Meta-WM values, run a Sidecar loop, update or
 commit `z_t`, create QP output, grant authority, or mutate Core records.
 
+`npm run smoke:sidecar-et-fixture-boundaries` encodes the Sidecar e_t offline
+fixture-design categories as a smoke skeleton. It checks clean/minimal,
+repeated/noisy, missing-context, conflicting-context, invalid-input, and
+source-ref boundary scopes for placeholder fallback and authority boundaries
+only; it does not compute Sidecar/e_t/QP/z_t values or change
+`PerspectiveSnapshot` shape.
+
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
 UI remains a derived read model and does not change snapshot generation, route
