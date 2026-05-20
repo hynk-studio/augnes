@@ -48,8 +48,8 @@ Boundary 요약:
   placeholder다.
 - `sidecar_e_t`는 실제 Sidecar state, QP output, z_t regime commit이 아니다.
 - 위 항목들은 authority, proof, readiness, source of truth, Gate/SRF input,
-  Claim confidence, Evidence status, publication readiness, Cockpit action
-  input이 아니다.
+  Claim confidence, Evidence status, publication readiness, proposal scoring,
+  commit/reject input, Cockpit action input이 아니다.
 
 ---
 

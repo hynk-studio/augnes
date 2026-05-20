@@ -311,6 +311,31 @@ assertIncludes(
   "None of these are authority",
   "Authority matrix should preserve research diagnostic non-authority boundary.",
 );
+assertIncludes(
+  authorityDoc,
+  "proposal scoring",
+  "Authority matrix should exclude proposal scoring authority.",
+);
+assertIncludes(
+  authorityDoc,
+  "commit/reject input",
+  "Authority matrix should exclude commit/reject input authority.",
+);
+assertIncludes(
+  perspectiveDoc,
+  "documentation summary only, not schema authority",
+  "PerspectiveSnapshot diagnostics table should be documentation-only.",
+);
+assertIncludes(
+  perspectiveDoc,
+  "clean fixtures keep `loopness_hint` at",
+  "PerspectiveSnapshot docs should describe clean fixture loopness behavior.",
+);
+assertIncludes(
+  perspectiveDoc,
+  "repeated trace-pressure fixtures produce a bounded non-`none`",
+  "PerspectiveSnapshot docs should describe repeated fixture loopness behavior.",
+);
 
 console.log(
   JSON.stringify(
