@@ -143,6 +143,8 @@ log_only diagnostic object in `research_diagnostics`.
 `comp_index_hint` is a structured placeholder object.
 `sidecar_e_t` is not actual Sidecar state, not QP output, and not a z_t regime
 commit.
+`docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is design-only and does not grant
+runtime, schema, computation, or authority.
 None of these are authority, proof, readiness, source of truth, Gate/SRF input,
 Claim confidence, Evidence status, publication readiness, proposal scoring,
 commit/reject input, or Cockpit action input.
