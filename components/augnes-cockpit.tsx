@@ -3290,18 +3290,18 @@ function ResearchDiagnosticsPanel({
     <>
       <p>
         research_diagnostics are log_only diagnostic slots only. Meta-WM is a
-        placeholder that is not computed. Loopness is a weak trace-pressure hint
-        when present; sidecar_e_t, bsl_hint, and comp_index_hint remain null
-        placeholders. These diagnostics are not authority, proof, readiness, or
-        source of truth.
+        placeholder that is not computed. BSL is a placeholder that is not
+        computed. Loopness is a weak trace-pressure hint when present;
+        sidecar_e_t and comp_index_hint remain null placeholders. These
+        diagnostics are not authority, proof, readiness, or source of truth.
       </p>
       <div className="meta-row">
         <StatusBadge label={`mode ${diagnostics.mode}`} />
         <span>sidecar_e_t {String(diagnostics.sidecar_e_t)}</span>
-        <span>bsl_hint {String(diagnostics.bsl_hint)}</span>
         <span>comp_index_hint {String(diagnostics.comp_index_hint)}</span>
       </div>
       <MetaWmHintPanel metaWmHint={diagnostics.meta_wm_hint} />
+      <BslHintPanel bslHint={diagnostics.bsl_hint} />
       <LoopnessHintPanel loopnessHint={diagnostics.loopness_hint} />
       <ul className="boundary-list">
         {diagnostics.notes.map((note) => (
@@ -3346,6 +3346,48 @@ function MetaWmHintPanel({
         />
         <ul className="boundary-list">
           {metaWmHint.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  );
+}
+
+function BslHintPanel({
+  bslHint,
+}: {
+  bslHint: PerspectiveSnapshot["research_diagnostics"]["bsl_hint"];
+}) {
+  return (
+    <div className="evidence-pack-card">
+      <h3>bsl_hint</h3>
+      <p>
+        BSL placeholder is not computed. It is control/view only and is not
+        authority, proof, readiness, Gate input, source of truth, or a Cockpit
+        action input.
+      </p>
+      <div className="meta-row">
+        <StatusBadge label={formatStatusLabel(bslHint.version)} />
+        <StatusBadge label={`mode ${bslHint.mode}`} />
+        <StatusBadge label={`status ${bslHint.status}`} />
+        <span>computed {String(bslHint.computed)}</span>
+      </div>
+      <details className="perspective-detail-panel">
+        <summary>bsl_hint null values, source_refs, and boundary notes</summary>
+        <ul className="boundary-list">
+          {Object.entries(bslHint.values).map(([name, value]) => (
+            <li key={name}>
+              {name} {String(value)}
+            </li>
+          ))}
+        </ul>
+        <RefChipList
+          refs={bslHint.source_refs}
+          emptyLabel="No bsl_hint source refs"
+        />
+        <ul className="boundary-list">
+          {bslHint.notes.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>

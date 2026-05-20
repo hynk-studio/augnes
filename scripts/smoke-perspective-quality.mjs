@@ -86,7 +86,13 @@ for (const diagnostic of [
   "arousal_proxy: null",
   "meta_wm_hat: null",
   "source_refs: []",
-  "bsl_hint: null",
+  "bsl_hint: BslHint",
+  'version: "bsl_hint.placeholder.v0.1"',
+  "behavioral_state_label: null",
+  "baseline_stability_hat: null",
+  "drift_pressure_hat: null",
+  "phase_lock_hat: null",
+  "bsl_hat: null",
   "loopness_hint: LoopnessHint",
   'version: "loopness_hint.v0.1"',
   'mode: "log_only"',
@@ -143,6 +149,7 @@ for (const section of [
 
 assertResearchDiagnosticsCopy(researchDiagnosticsPanel);
 assertMetaWmPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
+assertBslPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
 assertLoopnessHintRemainsBoundedLogOnly(snapshot, researchDiagnosticsPanel);
 
 assert.equal(
@@ -267,8 +274,13 @@ assertIncludes(
 );
 assertIncludes(
   authorityDoc,
-  "`sidecar_e_t`, `bsl_hint`, and `comp_index_hint` remain",
-  "Authority matrix should preserve remaining diagnostic placeholder boundary.",
+  "`bsl_hint` is a structured placeholder object",
+  "Authority matrix should distinguish bsl_hint as a structured placeholder.",
+);
+assertIncludes(
+  authorityDoc,
+  "`sidecar_e_t` and `comp_index_hint` remain",
+  "Authority matrix should preserve remaining null diagnostic placeholder boundary.",
 );
 assertIncludes(
   authorityDoc,
@@ -288,6 +300,8 @@ console.log(
       research_diagnostics_log_only: true,
       meta_wm_placeholder_log_only: true,
       meta_wm_placeholder_not_computed: true,
+      bsl_placeholder_log_only: true,
+      bsl_placeholder_not_computed: true,
       loopness_hint_log_only: true,
       cockpit_copy_derived_view_only: true,
       cockpit_copy_not_source_of_truth: true,
@@ -306,6 +320,7 @@ function assertResearchDiagnosticsCopy(source) {
   for (const required of [
     "research_diagnostics are log_only diagnostic slots only",
     "Meta-WM",
+    "BSL",
     "placeholder that is not computed",
     "weak trace-pressure hint",
     "null",
@@ -350,6 +365,67 @@ function assertResearchDiagnosticsCopy(source) {
       source.toLowerCase().includes(misleading),
       false,
       `Research diagnostics UI copy must not present placeholders as ${misleading}.`,
+    );
+  }
+}
+
+function assertBslPlaceholderBoundaries(snapshotSource, panelSource) {
+  for (const required of [
+    'version: "bsl_hint.placeholder.v0.1"',
+    'mode: "log_only"',
+    'status: "placeholder"',
+    "computed: false",
+    "behavioral_state_label: null",
+    "baseline_stability_hat: null",
+    "drift_pressure_hat: null",
+    "phase_lock_hat: null",
+    "bsl_hat: null",
+    "source_refs: []",
+    "BSL is reserved for future Behavioral State Layer diagnostics.",
+    "This placeholder is not computed and has no authority.",
+    "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, Cockpit actions, or any Core state.",
+  ]) {
+    assertIncludes(
+      snapshotSource,
+      required,
+      `BSL placeholder shape should include ${required}.`,
+    );
+  }
+
+  for (const required of [
+    "BSL placeholder is not computed",
+    "control/view only",
+    "not authority, proof, readiness",
+    "Gate input",
+    "source of truth",
+    "Cockpit",
+    "action input",
+    "computed {String(bslHint.computed)}",
+    "bsl_hint null values, source_refs, and boundary notes",
+    "No bsl_hint source refs",
+  ]) {
+    assertIncludes(
+      panelSource,
+      required,
+      `BSL placeholder UI copy should include ${required}.`,
+    );
+  }
+
+  for (const misleading of [
+    "computed metric",
+    "readiness metric",
+    "proof metric",
+    "authority metric",
+    "readiness signal",
+    "proof signal",
+    "authority signal",
+    "publication readiness signal",
+    "source of truth metric",
+  ]) {
+    assert.equal(
+      panelSource.toLowerCase().includes(misleading),
+      false,
+      `BSL placeholder UI must not present it as ${misleading}.`,
     );
   }
 }

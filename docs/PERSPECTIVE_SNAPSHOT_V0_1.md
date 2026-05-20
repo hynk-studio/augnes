@@ -16,9 +16,9 @@ state, call GitHub/OpenAI, or write temporal preview review artifacts. The
 `/api/perspective/snapshot` route is read-only and returns the model without
 changing existing route behavior.
 
-`research_diagnostics` is log-only in v0.1. `sidecar_e_t`, `bsl_hint`, and
-`comp_index_hint` remain `null` placeholders. `meta_wm_hint` is a structured
-null-state placeholder object:
+`research_diagnostics` is log-only in v0.1. `sidecar_e_t` and
+`comp_index_hint` remain `null` placeholders. `meta_wm_hint` and `bsl_hint` are
+structured null-state placeholder objects. `meta_wm_hint` shape:
 
 - `version`: `meta_wm_hint.placeholder.v0.1`
 - `mode`: `log_only`
@@ -31,6 +31,22 @@ null-state placeholder object:
 
 `meta_wm_hint` is reserved for future working-memory reliability diagnostics.
 The placeholder is not computed and has no authority. It must not affect
+commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status,
+publication readiness, Cockpit actions, or any Core state.
+
+`bsl_hint` shape:
+
+- `version`: `bsl_hint.placeholder.v0.1`
+- `mode`: `log_only`
+- `status`: `placeholder`
+- `computed`: `false`
+- `values`: `behavioral_state_label`, `baseline_stability_hat`,
+  `drift_pressure_hat`, `phase_lock_hat`, and `bsl_hat`, all `null`
+- `source_refs`: empty array
+- `notes`: explicit future-diagnostic and non-authority boundaries
+
+`bsl_hint` is reserved for future Behavioral State Layer diagnostics. The
+placeholder is not computed and has no authority. It must not affect
 commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status,
 publication readiness, Cockpit actions, or any Core state.
 
@@ -55,13 +71,13 @@ Snapshot generation does not query external services or write Core records.
 `npm run smoke:perspective-quality` statically checks the v0.1 read model,
 route, Cockpit rendering, and authority docs for bounded, derived-view-only,
 source-ref-oriented behavior. It verifies `loopness_hint` remains log-only and
-unchanged, verifies `meta_wm_hint` remains a non-computed placeholder, and does
-not compute Sidecar, Meta-WM, BSL, or CompIndex values.
+unchanged, verifies `meta_wm_hint` and `bsl_hint` remain non-computed
+placeholders, and does not compute Sidecar, Meta-WM, BSL, or CompIndex values.
 
 `npm run smoke:research-diagnostics-boundaries` uses temp DB fixtures to verify
-`loopness_hint` and `meta_wm_hint` boundaries at runtime. It does not compute
-Sidecar/BSL/CompIndex or real Meta-WM values, grant authority, or mutate Core
-records.
+`loopness_hint`, `meta_wm_hint`, and `bsl_hint` boundaries at runtime. It does
+not compute Sidecar/BSL/CompIndex or real Meta-WM values, grant authority, or
+mutate Core records.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
