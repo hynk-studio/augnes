@@ -19,6 +19,11 @@ const refreshRuntimeSource = extractFunctionSource(
 const metaWmHintPanelSource = extractFunctionSource(
   cockpit,
   "function MetaWmHintPanel",
+  "function BslHintPanel",
+);
+const bslHintPanelSource = extractFunctionSource(
+  cockpit,
+  "function BslHintPanel",
   "function LoopnessHintPanel",
 );
 
@@ -73,10 +78,14 @@ for (const snippet of [
   "research_diagnostics",
   "research_diagnostics are log_only diagnostic slots only",
   "Meta-WM placeholder is not computed",
+  "BSL placeholder is not computed",
   "control/view only",
   "computed {String(metaWmHint.computed)}",
+  "computed {String(bslHint.computed)}",
   "meta_wm_hint null values, source_refs, and boundary notes",
   "No meta_wm_hint source refs",
+  "bsl_hint null values, source_refs, and boundary notes",
+  "No bsl_hint source refs",
   "weak trace-pressure hint",
   "loopness_hint source refs and non-authority notes",
   "loopnessHint.version",
@@ -177,6 +186,11 @@ assert.equal(
   false,
   "Meta-WM placeholder UI must not introduce action buttons.",
 );
+assert.equal(
+  /<button\b/.test(bslHintPanelSource),
+  false,
+  "BSL placeholder UI must not introduce action buttons.",
+);
 
 console.log(
   JSON.stringify(
@@ -187,6 +201,7 @@ console.log(
       derived_view_only_copy_present: true,
       research_diagnostics_log_only_present: true,
       meta_wm_placeholder_boundary_copy_present: true,
+      bsl_placeholder_boundary_copy_present: true,
       perspective_write_routes_introduced: false,
       perspective_mutation_controls_introduced: false,
     },

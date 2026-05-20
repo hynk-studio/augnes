@@ -135,11 +135,13 @@ integration-test work.
 `docs/PERSPECTIVE_SNAPSHOT_V0_1.md` defines the first Perspective-specific read
 model over these same boundaries. PerspectiveSnapshot is derived-view-only and
 `research_diagnostics` remains log_only and non-authoritative.
-`loopness_hint` is a bounded log_only diagnostic object. `meta_wm_hint` is a structured
-placeholder object. `sidecar_e_t`, `bsl_hint`, and `comp_index_hint` remain
-placeholders until separately scoped and gated PRs. None of these are authority,
-proof, readiness, source of truth, Gate/SRF input, Claim confidence, Evidence
-status, publication readiness, or Cockpit action input.
+`loopness_hint` is a bounded log_only diagnostic object.
+`meta_wm_hint` is a structured placeholder object.
+`bsl_hint` is a structured placeholder object.
+`sidecar_e_t` and `comp_index_hint` remain placeholders/null until separately
+scoped and gated PRs. None of these are authority, proof, readiness, source of
+truth, Gate/SRF input, Claim confidence, Evidence status, publication
+readiness, or Cockpit action input.
 
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |

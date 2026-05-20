@@ -122,6 +122,7 @@ try {
         repeated_loopness_score:
           repeatedHelperSnapshot.research_diagnostics.loopness_hint.score,
         meta_wm_placeholder_preserved: true,
+        bsl_placeholder_preserved: true,
         remaining_placeholders_preserved: true,
         authority_tables_mutated: false,
         fetch_calls: fetchCalls,
@@ -257,9 +258,9 @@ function assertLoopnessCommon(snapshot) {
 function assertPlaceholders(snapshot) {
   assert.equal(snapshot.research_diagnostics.mode, "log_only");
   assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
-  assert.equal(snapshot.research_diagnostics.bsl_hint, null);
   assert.equal(snapshot.research_diagnostics.comp_index_hint, null);
   assertMetaWmHintPlaceholder(snapshot.research_diagnostics.meta_wm_hint);
+  assertBslHintPlaceholder(snapshot.research_diagnostics.bsl_hint);
 }
 
 function assertMetaWmHintPlaceholder(metaWmHint) {
@@ -282,6 +283,29 @@ function assertMetaWmHintPlaceholder(metaWmHint) {
   assert(
     metaWmHint.notes.some((note) => note.includes("no authority")),
     "Meta-WM placeholder should state that it has no authority",
+  );
+}
+
+function assertBslHintPlaceholder(bslHint) {
+  assert.equal(bslHint.version, "bsl_hint.placeholder.v0.1");
+  assert.equal(bslHint.mode, "log_only");
+  assert.equal(bslHint.status, "placeholder");
+  assert.equal(bslHint.computed, false);
+  assert.deepEqual(bslHint.values, {
+    behavioral_state_label: null,
+    baseline_stability_hat: null,
+    drift_pressure_hat: null,
+    phase_lock_hat: null,
+    bsl_hat: null,
+  });
+  assert.deepEqual(bslHint.source_refs, []);
+  assert(
+    bslHint.notes.some((note) => note.includes("not computed")),
+    "BSL placeholder should state that it is not computed",
+  );
+  assert(
+    bslHint.notes.some((note) => note.includes("no authority")),
+    "BSL placeholder should state that it has no authority",
   );
 }
 

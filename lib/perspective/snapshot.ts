@@ -185,6 +185,22 @@ type MetaWmHint = {
   notes: string[];
 };
 
+type BslHint = {
+  version: "bsl_hint.placeholder.v0.1";
+  mode: "log_only";
+  status: "placeholder";
+  computed: false;
+  values: {
+    behavioral_state_label: null;
+    baseline_stability_hat: null;
+    drift_pressure_hat: null;
+    phase_lock_hat: null;
+    bsl_hat: null;
+  };
+  source_refs: string[];
+  notes: string[];
+};
+
 export type PerspectiveSnapshot = {
   runtime: "augnes";
   snapshot_version: "perspective_snapshot.v0.1";
@@ -270,7 +286,7 @@ export type PerspectiveSnapshot = {
     mode: "log_only";
     sidecar_e_t: null;
     meta_wm_hint: MetaWmHint;
-    bsl_hint: null;
+    bsl_hint: BslHint;
     loopness_hint: LoopnessHint;
     comp_index_hint: null;
     notes: string[];
@@ -440,7 +456,7 @@ export function buildPerspectiveSnapshot({
       mode: "log_only",
       sidecar_e_t: null,
       meta_wm_hint: buildMetaWmHintPlaceholder(),
-      bsl_hint: null,
+      bsl_hint: buildBslHintPlaceholder(),
       loopness_hint: buildLoopnessHint({
         actionRecords,
         workEvents: allWorkEvents,
@@ -454,6 +470,28 @@ export function buildPerspectiveSnapshot({
         "Snapshot generation does not use diagnostics to mutate Core state, affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, or Cockpit actions.",
       ],
     },
+  };
+}
+
+function buildBslHintPlaceholder(): BslHint {
+  return {
+    version: "bsl_hint.placeholder.v0.1",
+    mode: "log_only",
+    status: "placeholder",
+    computed: false,
+    values: {
+      behavioral_state_label: null,
+      baseline_stability_hat: null,
+      drift_pressure_hat: null,
+      phase_lock_hat: null,
+      bsl_hat: null,
+    },
+    source_refs: [],
+    notes: [
+      "BSL is reserved for future Behavioral State Layer diagnostics.",
+      "This placeholder is not computed and has no authority.",
+      "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, Cockpit actions, or any Core state.",
+    ],
   };
 }
 

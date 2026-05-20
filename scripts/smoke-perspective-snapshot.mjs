@@ -145,6 +145,9 @@ try {
           snapshot.research_diagnostics.meta_wm_hint.status,
         meta_wm_hint_computed:
           snapshot.research_diagnostics.meta_wm_hint.computed,
+        bsl_hint_version: snapshot.research_diagnostics.bsl_hint.version,
+        bsl_hint_status: snapshot.research_diagnostics.bsl_hint.status,
+        bsl_hint_computed: snapshot.research_diagnostics.bsl_hint.computed,
         loopness_hint_version:
           snapshot.research_diagnostics.loopness_hint.version,
         loopness_hint_mode: snapshot.research_diagnostics.loopness_hint.mode,
@@ -217,7 +220,7 @@ function assertSnapshotShape(snapshot) {
   assert.equal(snapshot.research_diagnostics.mode, "log_only");
   assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
   assertMetaWmHintPlaceholder(snapshot.research_diagnostics.meta_wm_hint);
-  assert.equal(snapshot.research_diagnostics.bsl_hint, null);
+  assertBslHintPlaceholder(snapshot.research_diagnostics.bsl_hint);
   assert.equal(snapshot.research_diagnostics.comp_index_hint, null);
   assert.equal(snapshot.research_diagnostics.loopness_hint.version, "loopness_hint.v0.1");
   assert.equal(snapshot.research_diagnostics.loopness_hint.mode, "log_only");
@@ -279,6 +282,29 @@ function assertMetaWmHintPlaceholder(metaWmHint) {
   assert(
     metaWmHint.notes.some((note) => note.includes("no authority")),
     "Meta-WM placeholder should state that it has no authority",
+  );
+}
+
+function assertBslHintPlaceholder(bslHint) {
+  assert.equal(bslHint.version, "bsl_hint.placeholder.v0.1");
+  assert.equal(bslHint.mode, "log_only");
+  assert.equal(bslHint.status, "placeholder");
+  assert.equal(bslHint.computed, false);
+  assert.deepEqual(bslHint.values, {
+    behavioral_state_label: null,
+    baseline_stability_hat: null,
+    drift_pressure_hat: null,
+    phase_lock_hat: null,
+    bsl_hat: null,
+  });
+  assert.deepEqual(bslHint.source_refs, []);
+  assert(
+    bslHint.notes.some((note) => note.includes("not computed")),
+    "BSL placeholder should state that it is not computed",
+  );
+  assert(
+    bslHint.notes.some((note) => note.includes("no authority")),
+    "BSL placeholder should state that it has no authority",
   );
 }
 
