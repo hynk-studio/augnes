@@ -56,6 +56,14 @@ emit source refs, does not set `computed=true`, does not create QP output, and
 does not commit or hint an actual `z_t` regime. Future computation requires a
 separate gated PR with smoke coverage.
 
+## Validation Hardening Note
+
+`validateSidecarEtOfflineInputBoundary` is a pure boundary validator for the
+helper skeleton. It returns a bounded validation object only. The validation
+result is not authority, not diagnostic output, not source of truth, and not a
+permission to compute. Invalid input returns placeholder fallback. Valid input
+also returns placeholder fallback in this skeleton phase.
+
 ## Allowed Future Inputs
 
 Future helper inputs may be design-limited to:

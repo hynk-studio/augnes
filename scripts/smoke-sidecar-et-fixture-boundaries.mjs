@@ -106,9 +106,10 @@ try {
   const perspectiveSnapshotRoute = await import(
     "../app/api/perspective/snapshot/route.ts"
   );
-  const { buildSidecarEtOfflineDiagnosticCandidate } = await import(
-    "../lib/perspective/sidecar-et-offline-helper.ts"
-  );
+  const {
+    buildSidecarEtOfflineDiagnosticCandidate,
+    validateSidecarEtOfflineInputBoundary,
+  } = await import("../lib/perspective/sidecar-et-offline-helper.ts");
 
   const before = readAuthoritySnapshot(openDatabase);
   assertNoCockpitSidecarActionButtons();
@@ -120,6 +121,7 @@ try {
     assertFixtureSnapshot(snapshot, fixture);
     assertHelperSkeleton({
       buildSidecarEtOfflineDiagnosticCandidate,
+      validateSidecarEtOfflineInputBoundary,
       fixture,
       snapshot,
     });
@@ -165,6 +167,7 @@ try {
         repeated_noisy_loopness_level:
           repeatedSnapshot.research_diagnostics.loopness_hint.level,
         helper_skeleton_checked: true,
+        helper_validation_cases_checked: 18,
         helper_returns_placeholder_only: true,
         helper_computation_enabled: false,
         sidecar_placeholder_preserved: true,
@@ -298,6 +301,7 @@ function assertFixtureSnapshot(snapshot, fixture) {
 
 function assertHelperSkeleton({
   buildSidecarEtOfflineDiagnosticCandidate,
+  validateSidecarEtOfflineInputBoundary,
   fixture,
   snapshot,
 }) {
@@ -367,6 +371,238 @@ function assertHelperSkeleton({
 
   if (fixture.attemptedRefs) {
     assertNoAttemptedRefsLeakedInSidecar(validResult, fixture.attemptedRefs);
+  }
+
+  assertHelperValidationCases({
+    buildSidecarEtOfflineDiagnosticCandidate,
+    validateSidecarEtOfflineInputBoundary,
+    fixture,
+    alreadyReadRefs,
+    validSubsetRefs,
+    nonSubsetRefs,
+  });
+}
+
+function assertHelperValidationCases({
+  buildSidecarEtOfflineDiagnosticCandidate,
+  validateSidecarEtOfflineInputBoundary,
+  fixture,
+  alreadyReadRefs,
+  validSubsetRefs,
+  nonSubsetRefs,
+}) {
+  const validationCases = [
+    {
+      label: "missing input",
+      input: undefined,
+      valid: false,
+      reason: "missing_input",
+    },
+    {
+      label: "null input",
+      input: null,
+      valid: false,
+      reason: "non_object_input",
+    },
+    {
+      label: "non-object input",
+      input: "not an object",
+      valid: false,
+      reason: "non_object_input",
+    },
+    {
+      label: "array input",
+      input: [],
+      valid: false,
+      reason: "array_input",
+    },
+    {
+      label: "empty scope",
+      input: {
+        scope: "",
+        already_read_refs: alreadyReadRefs,
+      },
+      valid: false,
+      reason: "empty_scope",
+    },
+    {
+      label: "non-string scope",
+      input: {
+        scope: 42,
+        already_read_refs: alreadyReadRefs,
+      },
+      valid: false,
+      reason: "non_string_scope",
+    },
+    {
+      label: "missing already_read_refs",
+      input: {
+        scope: fixture.scope,
+      },
+      valid: false,
+      reason: "missing_already_read_refs",
+    },
+    {
+      label: "already_read_refs unsupported keys",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: {
+          state_entry_ids: [],
+          evidence_ids: [],
+        },
+      },
+      valid: false,
+      reason: "malformed_already_read_refs",
+    },
+    {
+      label: "already_read_refs non-array values",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: {
+          state_entry_ids: "state:sidecar-et:not-array",
+        },
+      },
+      valid: false,
+      reason: "malformed_already_read_refs",
+    },
+    {
+      label: "already_read_refs non-string entries",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: {
+          state_entry_ids: [42],
+        },
+      },
+      valid: false,
+      reason: "malformed_already_read_refs",
+    },
+    {
+      label: "candidate_source_refs unsupported keys",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        candidate_source_refs: {
+          evidence_ids: [],
+        },
+      },
+      valid: false,
+      reason: "malformed_candidate_source_refs",
+    },
+    {
+      label: "candidate_source_refs non-string entries",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        candidate_source_refs: {
+          state_entry_ids: [42],
+        },
+      },
+      valid: false,
+      reason: "malformed_candidate_source_refs",
+    },
+    {
+      label: "candidate_source_refs not subset",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        candidate_source_refs: nonSubsetRefs,
+      },
+      valid: false,
+      reason: "candidate_refs_not_already_read",
+      attemptedRefs: [
+        ...nonSubsetRefs.state_entry_ids,
+        ...nonSubsetRefs.action_record_ids,
+        ...nonSubsetRefs.work_event_ids,
+        ...nonSubsetRefs.tension_ids,
+      ],
+    },
+    {
+      label: "fixture_metadata non-string category",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        fixture_metadata: {
+          category: 42,
+        },
+      },
+      valid: false,
+      reason: "malformed_fixture_metadata",
+    },
+    {
+      label: "fixture_metadata non-string notes",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        fixture_metadata: {
+          notes: [42],
+        },
+      },
+      valid: false,
+      reason: "malformed_fixture_metadata",
+    },
+    {
+      label: "extra top-level unsupported keys",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        unsupported_input_kind: "qp-output",
+      },
+      valid: false,
+      reason: "unsupported_top_level_key",
+    },
+    {
+      label: "valid subset refs",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        candidate_source_refs: validSubsetRefs,
+        fixture_metadata: {
+          category: fixture.category,
+          notes: ["valid subset remains placeholder-only"],
+        },
+      },
+      valid: true,
+      reason: "valid",
+    },
+    {
+      label: "empty valid refs",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: {},
+        candidate_source_refs: {},
+      },
+      valid: true,
+      reason: "valid",
+    },
+  ];
+
+  assert.equal(
+    validationCases.length,
+    18,
+    "Sidecar e_t validation smoke should cover the expected case count",
+  );
+
+  for (const validationCase of validationCases) {
+    const validation = validateSidecarEtOfflineInputBoundary(
+      validationCase.input,
+    );
+    assert.deepEqual(
+      validation,
+      {
+        valid: validationCase.valid,
+        reason: validationCase.reason,
+      },
+      `${validationCase.label} validation result should be bounded and explicit`,
+    );
+
+    const result = buildSidecarEtOfflineDiagnosticCandidate(
+      validationCase.input,
+    );
+    assertSidecarEtHelperPlaceholder(result);
+    assertNoAttemptedRefsLeakedInSidecar(
+      result,
+      validationCase.attemptedRefs ?? [],
+    );
   }
 }
 

@@ -33,12 +33,105 @@ export type SidecarEtOfflineDiagnosticCandidate = {
   notes: string[];
 };
 
+export type SidecarEtOfflineInputBoundaryValidation = {
+  valid: boolean;
+  reason:
+    | "valid"
+    | "missing_input"
+    | "non_object_input"
+    | "array_input"
+    | "unsupported_top_level_key"
+    | "missing_scope"
+    | "non_string_scope"
+    | "empty_scope"
+    | "missing_already_read_refs"
+    | "malformed_already_read_refs"
+    | "malformed_fixture_metadata"
+    | "malformed_candidate_source_refs"
+    | "candidate_refs_not_already_read";
+};
+
 export function buildSidecarEtOfflineDiagnosticCandidate(
-  input?: SidecarEtOfflineHelperInput | null,
+  input?: unknown,
 ): SidecarEtOfflineDiagnosticCandidate {
-  validateBoundaryOnly(input);
+  validateSidecarEtOfflineInputBoundary(input);
 
   return buildSidecarEtPlaceholderFallback();
+}
+
+export function validateSidecarEtOfflineInputBoundary(
+  input?: unknown,
+): SidecarEtOfflineInputBoundaryValidation {
+  if (input === undefined) {
+    return invalid("missing_input");
+  }
+
+  if (Array.isArray(input)) {
+    return invalid("array_input");
+  }
+
+  if (!isPlainObject(input)) {
+    return invalid("non_object_input");
+  }
+
+  const allowedKeys = new Set([
+    "scope",
+    "already_read_refs",
+    "fixture_metadata",
+    "candidate_source_refs",
+  ]);
+
+  for (const key of Object.keys(input)) {
+    if (!allowedKeys.has(key)) {
+      return invalid("unsupported_top_level_key");
+    }
+  }
+
+  if (!("scope" in input)) {
+    return invalid("missing_scope");
+  }
+
+  if (typeof input.scope !== "string") {
+    return invalid("non_string_scope");
+  }
+
+  if (input.scope.length === 0) {
+    return invalid("empty_scope");
+  }
+
+  if (!("already_read_refs" in input)) {
+    return invalid("missing_already_read_refs");
+  }
+
+  if (!isRefSet(input.already_read_refs)) {
+    return invalid("malformed_already_read_refs");
+  }
+
+  if (
+    input.fixture_metadata !== undefined &&
+    !isFixtureMetadata(input.fixture_metadata)
+  ) {
+    return invalid("malformed_fixture_metadata");
+  }
+
+  if (
+    input.candidate_source_refs !== undefined &&
+    !isRefSet(input.candidate_source_refs)
+  ) {
+    return invalid("malformed_candidate_source_refs");
+  }
+
+  if (
+    input.candidate_source_refs !== undefined &&
+    !isSubsetRefSet(input.candidate_source_refs, input.already_read_refs)
+  ) {
+    return invalid("candidate_refs_not_already_read");
+  }
+
+  return {
+    valid: true,
+    reason: "valid",
+  };
 }
 
 function buildSidecarEtPlaceholderFallback(): SidecarEtOfflineDiagnosticCandidate {
@@ -64,50 +157,6 @@ function buildSidecarEtPlaceholderFallback(): SidecarEtOfflineDiagnosticCandidat
       "Placeholder fallback is returned by the offline helper skeleton for every input.",
     ],
   };
-}
-
-function validateBoundaryOnly(input?: SidecarEtOfflineHelperInput | null) {
-  if (!isPlainObject(input)) {
-    return false;
-  }
-
-  if (typeof input.scope !== "string" || input.scope.length === 0) {
-    return false;
-  }
-
-  const allowedKeys = new Set([
-    "scope",
-    "already_read_refs",
-    "fixture_metadata",
-    "candidate_source_refs",
-  ]);
-
-  for (const key of Object.keys(input)) {
-    if (!allowedKeys.has(key)) {
-      return false;
-    }
-  }
-
-  if (!isRefSet(input.already_read_refs)) {
-    return false;
-  }
-
-  if (
-    input.fixture_metadata !== undefined &&
-    !isFixtureMetadata(input.fixture_metadata)
-  ) {
-    return false;
-  }
-
-  if (
-    input.candidate_source_refs !== undefined &&
-    (!isRefSet(input.candidate_source_refs) ||
-      !isSubsetRefSet(input.candidate_source_refs, input.already_read_refs))
-  ) {
-    return false;
-  }
-
-  return true;
 }
 
 function isFixtureMetadata(value: unknown): value is FixtureMetadata {
@@ -182,4 +231,13 @@ function isOptionalStringArray(value: unknown) {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function invalid(
+  reason: Exclude<SidecarEtOfflineInputBoundaryValidation["reason"], "valid">,
+): SidecarEtOfflineInputBoundaryValidation {
+  return {
+    valid: false,
+    reason,
+  };
 }
