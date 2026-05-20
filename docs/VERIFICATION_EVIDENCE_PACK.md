@@ -96,6 +96,10 @@ record fixture boundary facts only: `research_diagnostics` remains `log_only`
 and non-authoritative, placeholder diagnostics are not computed, Sidecar/QP/z_t
 logic is not run, clean and repeated trace-pressure behavior is bounded, and
 Core rows are not mutated.
+Sidecar e_t diagnostic design review belongs in PR body/docs evidence only.
+`docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is design-only and must not be
+recorded as runtime proof, schema authority, readiness, QP output, z_t commit,
+or permission to compute Sidecar diagnostics.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and

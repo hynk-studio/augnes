@@ -55,6 +55,10 @@ regime/state. It must not affect commit/reject, proposal scoring, Gate/SRF,
 Claim confidence, Evidence status, publication readiness, Cockpit actions, or
 any Core state.
 
+`docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is the design-only, non-SSOT
+future diagnostic path. It does not change this placeholder, compute Sidecar
+values, create QP output, commit `z_t`, or add runtime behavior.
+
 `meta_wm_hint` shape:
 
 - `version`: `meta_wm_hint.placeholder.v0.1`
