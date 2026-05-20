@@ -33,6 +33,11 @@ as placeholder-boundary checks only. It verifies fallback and authority
 boundaries without computing Sidecar/e_t/QP/z_t values, creating QP output, or
 committing `z_t`.
 
+`docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md` defines the next
+helper-design-only gate. It specifies allowed inputs, already-read ref
+boundaries, fallback rules, and future smoke requirements before any offline
+helper implementation.
+
 ## Fixture Cases
 
 These fixtures are design targets only. They do not define runtime data,
@@ -205,6 +210,8 @@ This fixture design does not allow:
   concepts into runtime authority.
 - `docs/PERSPECTIVE_SNAPSHOT_V0_1.md`: implemented `PerspectiveSnapshot` and
   `research_diagnostics` placeholder baseline.
+- `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md`: future non-runtime helper
+  design and read-set/fallback boundaries for the next gate.
 - `docs/AUTHORITY_MATRIX.md`: provider-neutral and Perspective diagnostic
   authority boundaries.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke

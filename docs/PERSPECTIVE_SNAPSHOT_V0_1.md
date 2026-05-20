@@ -60,6 +60,9 @@ future diagnostic path. It does not change this placeholder, compute Sidecar
 values, create QP output, commit `z_t`, or add runtime behavior.
 `docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md` defines deterministic
 fixture-design-only cases for the next gate and also does not compute values.
+`docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md` defines a future
+helper-design-only boundary for deterministic offline diagnostics and also does
+not implement computation.
 
 `meta_wm_hint` shape:
 
@@ -166,6 +169,11 @@ repeated/noisy, missing-context, conflicting-context, invalid-input, and
 source-ref boundary scopes for placeholder fallback and authority boundaries
 only; it does not compute Sidecar/e_t/QP/z_t values or change
 `PerspectiveSnapshot` shape.
+
+`docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md` is the non-runtime helper
+design gate that follows the fixture smoke skeleton. It describes allowed
+inputs, the already-read ref read-set, fallback rules, and future smoke
+requirements without changing runtime behavior or response shape.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
