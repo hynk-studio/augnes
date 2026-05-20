@@ -3292,14 +3292,16 @@ function ResearchDiagnosticsPanel({
         research_diagnostics are log_only diagnostic slots only. Meta-WM is a
         placeholder that is not computed. BSL is a placeholder that is not
         computed. CompIndex is a placeholder that is not computed. Loopness is a
-        weak trace-pressure hint when present; sidecar_e_t remains a null
-        placeholder. These diagnostics are not authority, proof, readiness, or
-        source of truth.
+        weak trace-pressure hint when present. Sidecar e_t is a structured
+        placeholder that is not computed, not actual Sidecar state, not
+        authority, and not source of truth; it does not run a Sidecar loop,
+        commit z_t, or create QP output. These diagnostics are not authority,
+        proof, readiness, or source of truth.
       </p>
       <div className="meta-row">
         <StatusBadge label={`mode ${diagnostics.mode}`} />
-        <span>sidecar_e_t {String(diagnostics.sidecar_e_t)}</span>
       </div>
+      <SidecarEtHintPanel sidecarEtHint={diagnostics.sidecar_e_t} />
       <MetaWmHintPanel metaWmHint={diagnostics.meta_wm_hint} />
       <BslHintPanel bslHint={diagnostics.bsl_hint} />
       <CompIndexHintPanel compIndexHint={diagnostics.comp_index_hint} />
@@ -3310,6 +3312,50 @@ function ResearchDiagnosticsPanel({
         ))}
       </ul>
     </>
+  );
+}
+
+function SidecarEtHintPanel({
+  sidecarEtHint,
+}: {
+  sidecarEtHint: PerspectiveSnapshot["research_diagnostics"]["sidecar_e_t"];
+}) {
+  return (
+    <div className="evidence-pack-card">
+      <h3>sidecar_e_t</h3>
+      <p>
+        Sidecar e_t placeholder is not computed. It is not actual Sidecar
+        state, not authority, not source of truth, and not a Cockpit action
+        input. It does not run a Sidecar loop, commit z_t, or create QP output.
+      </p>
+      <div className="meta-row">
+        <StatusBadge label={formatStatusLabel(sidecarEtHint.version)} />
+        <StatusBadge label={`mode ${sidecarEtHint.mode}`} />
+        <StatusBadge label={`status ${sidecarEtHint.status}`} />
+        <span>computed {String(sidecarEtHint.computed)}</span>
+      </div>
+      <details className="perspective-detail-panel">
+        <summary>
+          sidecar_e_t null values, source_refs, and boundary notes
+        </summary>
+        <ul className="boundary-list">
+          {Object.entries(sidecarEtHint.values).map(([name, value]) => (
+            <li key={name}>
+              {name} {String(value)}
+            </li>
+          ))}
+        </ul>
+        <RefChipList
+          refs={sidecarEtHint.source_refs}
+          emptyLabel="No sidecar_e_t source refs"
+        />
+        <ul className="boundary-list">
+          {sidecarEtHint.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      </details>
+    </div>
   );
 }
 

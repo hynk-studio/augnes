@@ -16,6 +16,11 @@ const refreshRuntimeSource = extractFunctionSource(
   "async function refreshRuntime",
   "async function refreshWorkBrief",
 );
+const sidecarEtHintPanelSource = extractFunctionSource(
+  cockpit,
+  "function SidecarEtHintPanel",
+  "function MetaWmHintPanel",
+);
 const metaWmHintPanelSource = extractFunctionSource(
   cockpit,
   "function MetaWmHintPanel",
@@ -82,13 +87,21 @@ for (const snippet of [
   "authority_boundaries lane details and source refs",
   "research_diagnostics",
   "research_diagnostics are log_only diagnostic slots only",
+  "Sidecar e_t placeholder is not computed",
+  "not actual Sidecar state",
+  "does not run a Sidecar loop",
+  "commit z_t",
+  "create QP output",
   "Meta-WM placeholder is not computed",
   "BSL placeholder is not computed",
   "CompIndex placeholder is not computed",
   "control/view only",
   "computed {String(metaWmHint.computed)}",
+  "computed {String(sidecarEtHint.computed)}",
   "computed {String(bslHint.computed)}",
   "computed {String(compIndexHint.computed)}",
+  "sidecar_e_t null values, source_refs, and boundary notes",
+  "No sidecar_e_t source refs",
   "meta_wm_hint null values, source_refs, and boundary notes",
   "No meta_wm_hint source refs",
   "bsl_hint null values, source_refs, and boundary notes",
@@ -191,6 +204,11 @@ for (const forbiddenControl of [
 }
 
 assert.equal(
+  /<button\b/.test(sidecarEtHintPanelSource),
+  false,
+  "Sidecar e_t placeholder UI must not introduce action buttons.",
+);
+assert.equal(
   /<button\b/.test(metaWmHintPanelSource),
   false,
   "Meta-WM placeholder UI must not introduce action buttons.",
@@ -214,6 +232,7 @@ console.log(
       endpoint_method: "GET",
       derived_view_only_copy_present: true,
       research_diagnostics_log_only_present: true,
+      sidecar_e_t_placeholder_boundary_copy_present: true,
       meta_wm_placeholder_boundary_copy_present: true,
       bsl_placeholder_boundary_copy_present: true,
       comp_index_placeholder_boundary_copy_present: true,

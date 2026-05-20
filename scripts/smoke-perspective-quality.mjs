@@ -75,7 +75,13 @@ for (const boundary of [
 
 for (const diagnostic of [
   'mode: "log_only"',
-  "sidecar_e_t: null",
+  "sidecar_e_t: SidecarEtHint",
+  'version: "sidecar_e_t.placeholder.v0.1"',
+  "e_t_register: null",
+  "qp_observability_proxy: null",
+  "z_t_regime_hint: null",
+  "sidecar_state_summary: null",
+  "sidecar_e_t_hat: null",
   "meta_wm_hint: MetaWmHint",
   'version: "meta_wm_hint.placeholder.v0.1"',
   'status: "placeholder"',
@@ -154,6 +160,7 @@ for (const section of [
 }
 
 assertResearchDiagnosticsCopy(researchDiagnosticsPanel);
+assertSidecarEtPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
 assertMetaWmPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
 assertBslPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
 assertCompIndexPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
@@ -291,8 +298,13 @@ assertIncludes(
 );
 assertIncludes(
   authorityDoc,
-  "`sidecar_e_t` remains",
-  "Authority matrix should preserve sidecar null diagnostic placeholder boundary.",
+  "`sidecar_e_t` is a structured placeholder object",
+  "Authority matrix should distinguish sidecar_e_t as a structured placeholder.",
+);
+assertIncludes(
+  authorityDoc,
+  "`sidecar_e_t` is not actual Sidecar state",
+  "Authority matrix should preserve sidecar_e_t non-state boundary.",
 );
 assertIncludes(
   authorityDoc,
@@ -310,6 +322,8 @@ console.log(
       snapshot_version: "perspective_snapshot.v0.1",
       authority_boundaries_preserved: true,
       research_diagnostics_log_only: true,
+      sidecar_e_t_placeholder_log_only: true,
+      sidecar_e_t_placeholder_not_computed: true,
       meta_wm_placeholder_log_only: true,
       meta_wm_placeholder_not_computed: true,
       bsl_placeholder_log_only: true,
@@ -334,15 +348,19 @@ function assertResearchDiagnosticsCopy(source) {
   for (const required of [
     "research_diagnostics are log_only diagnostic slots only",
     "Meta-WM",
+    "Sidecar e_t",
     "BSL",
     "CompIndex",
     "placeholder that is not computed",
     "weak trace-pressure hint",
-    "null",
     "not authority",
     "not authority, proof, readiness",
     "Gate input",
     "source of truth",
+    "not actual Sidecar state",
+    "does not run a Sidecar loop",
+    "commit z_t",
+    "create QP output",
     "score",
     "signals",
     "source_refs",
@@ -372,6 +390,10 @@ function assertResearchDiagnosticsCopy(source) {
     "computed bsl",
     "computed loopness",
     "computed compindex",
+    "actual internal state",
+    "actual sidecar state metric",
+    "z_t commit signal",
+    "qp output signal",
     "readiness signal",
     "proof signal",
     "authority signal",
@@ -380,6 +402,75 @@ function assertResearchDiagnosticsCopy(source) {
       source.toLowerCase().includes(misleading),
       false,
       `Research diagnostics UI copy must not present placeholders as ${misleading}.`,
+    );
+  }
+}
+
+function assertSidecarEtPlaceholderBoundaries(snapshotSource, panelSource) {
+  for (const required of [
+    'version: "sidecar_e_t.placeholder.v0.1"',
+    'mode: "log_only"',
+    'status: "placeholder"',
+    "computed: false",
+    "e_t_register: null",
+    "qp_observability_proxy: null",
+    "z_t_regime_hint: null",
+    "sidecar_state_summary: null",
+    "sidecar_e_t_hat: null",
+    "source_refs: []",
+    "Sidecar e_t is reserved for future Sidecar diagnostics.",
+    "This placeholder is not computed and has no authority.",
+    "This placeholder is not actual Sidecar state.",
+    "It does not run a Sidecar loop, update or commit z_t, create QP output, or commit any regime/state.",
+    "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, Cockpit actions, or any Core state.",
+  ]) {
+    assertIncludes(
+      snapshotSource,
+      required,
+      `Sidecar e_t placeholder shape should include ${required}.`,
+    );
+  }
+
+  for (const required of [
+    "Sidecar e_t placeholder is not computed",
+    "not actual Sidecar state",
+    "not authority",
+    "not source of truth",
+    "Cockpit",
+    "action input",
+    "does not run a Sidecar loop",
+    "commit z_t",
+    "create QP output",
+    "computed {String(sidecarEtHint.computed)}",
+    "sidecar_e_t null values, source_refs, and boundary notes",
+    "No sidecar_e_t source refs",
+  ]) {
+    assertIncludes(
+      panelSource,
+      required,
+      `Sidecar e_t placeholder UI copy should include ${required}.`,
+    );
+  }
+
+  for (const misleading of [
+    "computed metric",
+    "readiness metric",
+    "proof metric",
+    "authority metric",
+    "readiness signal",
+    "proof signal",
+    "authority signal",
+    "publication readiness signal",
+    "source of truth metric",
+    "actual internal state",
+    "actual sidecar state metric",
+    "z_t commit signal",
+    "qp output signal",
+  ]) {
+    assert.equal(
+      panelSource.toLowerCase().includes(misleading),
+      false,
+      `Sidecar e_t placeholder UI must not present it as ${misleading}.`,
     );
   }
 }

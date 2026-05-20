@@ -137,10 +137,12 @@ model over these same boundaries. PerspectiveSnapshot is derived-view-only and
 `research_diagnostics` remains log_only and non-authoritative.
 `loopness_hint` is a bounded log_only diagnostic object; it is the only bounded
 log_only diagnostic object in `research_diagnostics`.
+`sidecar_e_t` is a structured placeholder object.
 `meta_wm_hint` is a structured placeholder object.
 `bsl_hint` is a structured placeholder object.
 `comp_index_hint` is a structured placeholder object.
-`sidecar_e_t` remains null/placeholder until separately scoped and gated PR.
+`sidecar_e_t` is not actual Sidecar state, not QP output, and not a z_t regime
+commit.
 None of these are authority, proof, readiness, source of truth, Gate/SRF input,
 Claim confidence, Evidence status, publication readiness, or Cockpit action
 input.

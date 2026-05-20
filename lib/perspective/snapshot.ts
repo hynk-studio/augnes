@@ -169,6 +169,22 @@ type LoopnessHint = {
   notes: string[];
 };
 
+type SidecarEtHint = {
+  version: "sidecar_e_t.placeholder.v0.1";
+  mode: "log_only";
+  status: "placeholder";
+  computed: false;
+  values: {
+    e_t_register: null;
+    qp_observability_proxy: null;
+    z_t_regime_hint: null;
+    sidecar_state_summary: null;
+    sidecar_e_t_hat: null;
+  };
+  source_refs: string[];
+  notes: string[];
+};
+
 type MetaWmHint = {
   version: "meta_wm_hint.placeholder.v0.1";
   mode: "log_only";
@@ -300,7 +316,7 @@ export type PerspectiveSnapshot = {
   };
   research_diagnostics: {
     mode: "log_only";
-    sidecar_e_t: null;
+    sidecar_e_t: SidecarEtHint;
     meta_wm_hint: MetaWmHint;
     bsl_hint: BslHint;
     loopness_hint: LoopnessHint;
@@ -470,7 +486,7 @@ export function buildPerspectiveSnapshot({
     authority_boundaries: buildAuthorityBoundaries(lanes),
     research_diagnostics: {
       mode: "log_only",
-      sidecar_e_t: null,
+      sidecar_e_t: buildSidecarEtPlaceholder(),
       meta_wm_hint: buildMetaWmHintPlaceholder(),
       bsl_hint: buildBslHintPlaceholder(),
       loopness_hint: buildLoopnessHint({
@@ -486,6 +502,30 @@ export function buildPerspectiveSnapshot({
         "Snapshot generation does not use diagnostics to mutate Core state, affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, or Cockpit actions.",
       ],
     },
+  };
+}
+
+function buildSidecarEtPlaceholder(): SidecarEtHint {
+  return {
+    version: "sidecar_e_t.placeholder.v0.1",
+    mode: "log_only",
+    status: "placeholder",
+    computed: false,
+    values: {
+      e_t_register: null,
+      qp_observability_proxy: null,
+      z_t_regime_hint: null,
+      sidecar_state_summary: null,
+      sidecar_e_t_hat: null,
+    },
+    source_refs: [],
+    notes: [
+      "Sidecar e_t is reserved for future Sidecar diagnostics.",
+      "This placeholder is not computed and has no authority.",
+      "This placeholder is not actual Sidecar state.",
+      "It does not run a Sidecar loop, update or commit z_t, create QP output, or commit any regime/state.",
+      "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, Cockpit actions, or any Core state.",
+    ],
   };
 }
 

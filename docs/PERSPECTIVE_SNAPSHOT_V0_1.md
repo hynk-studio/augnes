@@ -17,9 +17,29 @@ state, call GitHub/OpenAI, or write temporal preview review artifacts. The
 changing existing route behavior.
 
 `research_diagnostics` is `log_only` and non-authoritative in v0.1.
-`sidecar_e_t` remains null/placeholder until separately scoped and gated PR.
-`meta_wm_hint`, `bsl_hint`, and `comp_index_hint` are structured placeholders.
+`sidecar_e_t`, `meta_wm_hint`, `bsl_hint`, and `comp_index_hint` are structured
+placeholders.
 `loopness_hint` is the only bounded `log_only` diagnostic object.
+`sidecar_e_t` shape:
+
+- `version`: `sidecar_e_t.placeholder.v0.1`
+- `mode`: `log_only`
+- `status`: `placeholder`
+- `computed`: `false`
+- `values`: `e_t_register`, `qp_observability_proxy`,
+  `z_t_regime_hint`, `sidecar_state_summary`, and `sidecar_e_t_hat`, all
+  `null`
+- `source_refs`: empty array
+- `notes`: explicit future-diagnostic, non-authority, no-Sidecar-loop,
+  no-z_t-commit, no-QP-output, and not-actual-Sidecar-state boundaries
+
+`sidecar_e_t` is reserved for future Sidecar diagnostics. The placeholder is
+not computed, has no authority, and is not actual Sidecar state. It does not
+run a Sidecar loop, update or commit `z_t`, create QP output, or commit any
+regime/state. It must not affect commit/reject, proposal scoring, Gate/SRF,
+Claim confidence, Evidence status, publication readiness, Cockpit actions, or
+any Core state.
+
 `meta_wm_hint` shape:
 
 - `version`: `meta_wm_hint.placeholder.v0.1`
@@ -104,15 +124,17 @@ authority.
 `npm run smoke:perspective-quality` statically checks the v0.1 read model,
 route, Cockpit rendering, and authority docs for bounded, derived-view-only,
 source-ref-oriented behavior. It verifies `loopness_hint` remains log-only and
-unchanged, verifies `meta_wm_hint` and `bsl_hint` remain non-computed
-placeholders, verifies `comp_index_hint` remains a non-computed placeholder,
-verifies `sidecar_e_t` remains null/placeholder, and does not compute Sidecar,
-Meta-WM, BSL, or CompIndex values.
+unchanged, verifies `sidecar_e_t`, `meta_wm_hint`, `bsl_hint`, and
+`comp_index_hint` remain non-computed placeholders, and does not compute
+Sidecar, Meta-WM, BSL, or CompIndex values.
 
 `npm run smoke:research-diagnostics-boundaries` uses temp DB fixtures to verify
-`loopness_hint`, `meta_wm_hint`, `bsl_hint`, and `comp_index_hint` boundaries at
-runtime. It does not compute Sidecar/BSL/CompIndex or real Meta-WM values,
-grant authority, or mutate Core records.
+`loopness_hint`, `sidecar_e_t`, `meta_wm_hint`, `bsl_hint`, and
+`comp_index_hint` boundaries at runtime. It verifies `sidecar_e_t` remains a
+structured placeholder with null values, `computed=false`, empty source refs,
+and no authority. It does not compute Sidecar/BSL/CompIndex or real Meta-WM
+values, run a Sidecar loop, update or commit `z_t`, create QP output, grant
+authority, or mutate Core records.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
