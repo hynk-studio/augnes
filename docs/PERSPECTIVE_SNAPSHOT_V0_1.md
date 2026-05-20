@@ -174,6 +174,9 @@ only; it does not compute Sidecar/e_t/QP/z_t values or change
 design gate that follows the fixture smoke skeleton. It describes allowed
 inputs, the already-read ref read-set, fallback rules, and future smoke
 requirements without changing runtime behavior or response shape.
+`lib/perspective/sidecar-et-offline-helper.ts` is a non-runtime helper
+skeleton that returns placeholder fallback only; it is not wired into
+`PerspectiveSnapshot` generation.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed

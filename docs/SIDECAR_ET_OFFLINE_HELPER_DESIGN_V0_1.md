@@ -46,6 +46,16 @@ The helper must return the structured placeholder fallback if inputs are
 missing, malformed, unsupported, out of scope, not already read, or ambiguous.
 Placeholder fallback remains valid and preferred when uncertainty exists.
 
+## Implementation Skeleton Note
+
+`lib/perspective/sidecar-et-offline-helper.ts` implements the helper skeleton
+only. It exports `buildSidecarEtOfflineDiagnosticCandidate`, accepts the
+bounded input shape described here, and always returns the structured
+placeholder fallback. It does not compute Sidecar/e_t/QP/z_t values, does not
+emit source refs, does not set `computed=true`, does not create QP output, and
+does not commit or hint an actual `z_t` regime. Future computation requires a
+separate gated PR with smoke coverage.
+
 ## Allowed Future Inputs
 
 Future helper inputs may be design-limited to:

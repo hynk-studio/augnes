@@ -106,6 +106,9 @@ try {
   const perspectiveSnapshotRoute = await import(
     "../app/api/perspective/snapshot/route.ts"
   );
+  const { buildSidecarEtOfflineDiagnosticCandidate } = await import(
+    "../lib/perspective/sidecar-et-offline-helper.ts"
+  );
 
   const before = readAuthoritySnapshot(openDatabase);
   assertNoCockpitSidecarActionButtons();
@@ -115,6 +118,11 @@ try {
     const snapshot = buildPerspectiveSnapshot({ scope: fixture.scope });
     helperSnapshots.push(snapshot);
     assertFixtureSnapshot(snapshot, fixture);
+    assertHelperSkeleton({
+      buildSidecarEtOfflineDiagnosticCandidate,
+      fixture,
+      snapshot,
+    });
     assertNoDiagnosticAuthority(snapshot);
     assertAuthorityUnchanged({
       openDatabase,
@@ -156,6 +164,9 @@ try {
           "direct GET /api/perspective/snapshot handler for clean and repeated/noisy scopes; no Next server started",
         repeated_noisy_loopness_level:
           repeatedSnapshot.research_diagnostics.loopness_hint.level,
+        helper_skeleton_checked: true,
+        helper_returns_placeholder_only: true,
+        helper_computation_enabled: false,
         sidecar_placeholder_preserved: true,
         no_sidecar_loop: true,
         no_qp_output: true,
@@ -285,6 +296,98 @@ function assertFixtureSnapshot(snapshot, fixture) {
   }
 }
 
+function assertHelperSkeleton({
+  buildSidecarEtOfflineDiagnosticCandidate,
+  fixture,
+  snapshot,
+}) {
+  const alreadyReadRefs = buildAlreadyReadRefs(snapshot);
+  const validSubsetRefs = buildValidCandidateRefs(alreadyReadRefs);
+  const nonSubsetRefs = {
+    state_entry_ids: ["state:sidecar-et:not-read"],
+    action_record_ids: ["action:sidecar-et:not-read"],
+    work_event_ids: ["work-event:sidecar-et:not-read"],
+    tension_ids: ["tension:sidecar-et:not-read"],
+  };
+
+  const validResult = buildSidecarEtOfflineDiagnosticCandidate({
+    scope: fixture.scope,
+    already_read_refs: alreadyReadRefs,
+    fixture_metadata: {
+      category: fixture.category,
+      notes: ["placeholder-only helper skeleton fixture"],
+    },
+    candidate_source_refs: validSubsetRefs,
+  });
+  assertSidecarEtHelperPlaceholder(validResult);
+
+  const nonSubsetResult = buildSidecarEtOfflineDiagnosticCandidate({
+    scope: fixture.scope,
+    already_read_refs: alreadyReadRefs,
+    fixture_metadata: {
+      category: fixture.category,
+    },
+    candidate_source_refs: nonSubsetRefs,
+  });
+  assertSidecarEtHelperPlaceholder(nonSubsetResult);
+
+  const missingInputResult = buildSidecarEtOfflineDiagnosticCandidate();
+  assertSidecarEtHelperPlaceholder(missingInputResult);
+
+  const malformedInputResult = buildSidecarEtOfflineDiagnosticCandidate({
+    scope: fixture.scope,
+    already_read_refs: {
+      state_entry_ids: [42],
+    },
+  });
+  assertSidecarEtHelperPlaceholder(malformedInputResult);
+
+  const unsupportedInputResult = buildSidecarEtOfflineDiagnosticCandidate({
+    scope: fixture.scope,
+    already_read_refs: alreadyReadRefs,
+    unsupported_input_kind: "qp-output",
+  });
+  assertSidecarEtHelperPlaceholder(unsupportedInputResult);
+
+  const ambiguousMetadataResult = buildSidecarEtOfflineDiagnosticCandidate({
+    scope: fixture.scope,
+    already_read_refs: alreadyReadRefs,
+    fixture_metadata: {
+      category: 42,
+    },
+  });
+  assertSidecarEtHelperPlaceholder(ambiguousMetadataResult);
+
+  assertNoAttemptedRefsLeakedInSidecar(nonSubsetResult, [
+    ...nonSubsetRefs.state_entry_ids,
+    ...nonSubsetRefs.action_record_ids,
+    ...nonSubsetRefs.work_event_ids,
+    ...nonSubsetRefs.tension_ids,
+  ]);
+
+  if (fixture.attemptedRefs) {
+    assertNoAttemptedRefsLeakedInSidecar(validResult, fixture.attemptedRefs);
+  }
+}
+
+function buildAlreadyReadRefs(snapshot) {
+  return {
+    state_entry_ids: snapshot.source_refs.state_entry_ids,
+    action_record_ids: snapshot.source_refs.action_record_ids,
+    work_event_ids: snapshot.source_refs.work_event_ids,
+    tension_ids: snapshot.source_refs.tension_ids,
+  };
+}
+
+function buildValidCandidateRefs(alreadyReadRefs) {
+  return {
+    state_entry_ids: alreadyReadRefs.state_entry_ids.slice(0, 1),
+    action_record_ids: alreadyReadRefs.action_record_ids.slice(0, 1),
+    work_event_ids: alreadyReadRefs.work_event_ids.slice(0, 1),
+    tension_ids: alreadyReadRefs.tension_ids.slice(0, 1),
+  };
+}
+
 function assertSidecarEtPlaceholder(sidecarEtHint) {
   assert.equal(sidecarEtHint.version, "sidecar_e_t.placeholder.v0.1");
   assert.equal(sidecarEtHint.mode, "log_only");
@@ -320,6 +423,14 @@ function assertSidecarEtPlaceholder(sidecarEtHint) {
         note.includes("create QP output"),
     ),
     "Sidecar e_t placeholder should state no Sidecar loop, no z_t update/commit, and no QP output",
+  );
+}
+
+function assertSidecarEtHelperPlaceholder(sidecarEtHint) {
+  assertSidecarEtPlaceholder(sidecarEtHint);
+  assert(
+    sidecarEtHint.notes.some((note) => note.includes("Placeholder fallback")),
+    "Sidecar e_t helper skeleton should state placeholder fallback behavior",
   );
 }
 
@@ -386,6 +497,14 @@ function assertNoAttemptedRefsLeaked(snapshot, attemptedRefs = []) {
   const serializedSidecar = JSON.stringify(
     snapshot.research_diagnostics.sidecar_e_t,
   );
+  assertNoAttemptedRefsLeakedInSidecar(serializedSidecar, attemptedRefs);
+}
+
+function assertNoAttemptedRefsLeakedInSidecar(sidecarEtHint, attemptedRefs = []) {
+  const serializedSidecar =
+    typeof sidecarEtHint === "string"
+      ? sidecarEtHint
+      : JSON.stringify(sidecarEtHint);
   for (const ref of attemptedRefs) {
     assert(
       !serializedSidecar.includes(ref),
