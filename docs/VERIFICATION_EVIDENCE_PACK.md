@@ -96,6 +96,13 @@ record fixture boundary facts only: `research_diagnostics` remains `log_only`
 and non-authoritative, placeholder diagnostics are not computed, Sidecar/QP/z_t
 logic is not run, clean and repeated trace-pressure behavior is bounded, and
 Core rows are not mutated.
+Sidecar e_t fixture boundary verification belongs in bounded command evidence,
+such as `npm run smoke:sidecar-et-fixture-boundaries`. It must record skeleton
+fixture facts only: clean/minimal, repeated/noisy, missing-context,
+conflicting-context, invalid-input, and source-ref boundary scopes preserve the
+structured placeholder, do not compute Sidecar/e_t/QP/z_t values, do not create
+QP output, do not commit `z_t`, do not mutate authority tables, and make no
+external calls.
 Sidecar e_t diagnostic design review belongs in PR body/docs evidence only.
 `docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is design-only and must not be
 recorded as runtime proof, schema authority, readiness, QP output, z_t commit,
@@ -361,6 +368,7 @@ npm run smoke:perspective-snapshot
 npm run smoke:cockpit-perspective-snapshot
 npm run smoke:perspective-quality
 npm run smoke:research-diagnostics-boundaries
+npm run smoke:sidecar-et-fixture-boundaries
 ```
 
 After running a command, Codex or another local verifier may record a bounded
