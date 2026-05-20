@@ -139,6 +139,12 @@ try {
         action_count: snapshot.action_trace_basis.count,
         open_tension_count: snapshot.open_tensions.count,
         research_diagnostics_mode: snapshot.research_diagnostics.mode,
+        sidecar_e_t_version:
+          snapshot.research_diagnostics.sidecar_e_t.version,
+        sidecar_e_t_status:
+          snapshot.research_diagnostics.sidecar_e_t.status,
+        sidecar_e_t_computed:
+          snapshot.research_diagnostics.sidecar_e_t.computed,
         meta_wm_hint_version:
           snapshot.research_diagnostics.meta_wm_hint.version,
         meta_wm_hint_status:
@@ -224,7 +230,7 @@ function assertSnapshotShape(snapshot) {
     false,
   );
   assert.equal(snapshot.research_diagnostics.mode, "log_only");
-  assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
+  assertSidecarEtPlaceholder(snapshot.research_diagnostics.sidecar_e_t);
   assertMetaWmHintPlaceholder(snapshot.research_diagnostics.meta_wm_hint);
   assertBslHintPlaceholder(snapshot.research_diagnostics.bsl_hint);
   assertCompIndexHintPlaceholder(snapshot.research_diagnostics.comp_index_hint);
@@ -265,6 +271,44 @@ function assertSnapshotShape(snapshot) {
       note.includes("not authority"),
     ),
     "research diagnostics should state non-authority boundary",
+  );
+}
+
+function assertSidecarEtPlaceholder(sidecarEtHint) {
+  assert.equal(sidecarEtHint.version, "sidecar_e_t.placeholder.v0.1");
+  assert.equal(sidecarEtHint.mode, "log_only");
+  assert.equal(sidecarEtHint.status, "placeholder");
+  assert.equal(sidecarEtHint.computed, false);
+  assert.deepEqual(sidecarEtHint.values, {
+    e_t_register: null,
+    qp_observability_proxy: null,
+    z_t_regime_hint: null,
+    sidecar_state_summary: null,
+    sidecar_e_t_hat: null,
+  });
+  assert.deepEqual(sidecarEtHint.source_refs, []);
+  assert(
+    sidecarEtHint.notes.some((note) => note.includes("not computed")),
+    "Sidecar e_t placeholder should state that it is not computed",
+  );
+  assert(
+    sidecarEtHint.notes.some((note) => note.includes("no authority")),
+    "Sidecar e_t placeholder should state that it has no authority",
+  );
+  assert(
+    sidecarEtHint.notes.some((note) =>
+      note.includes("not actual Sidecar state"),
+    ),
+    "Sidecar e_t placeholder should state that it is not actual Sidecar state",
+  );
+  assert(
+    sidecarEtHint.notes.some(
+      (note) =>
+        note.includes("does not run a Sidecar loop") &&
+        note.includes("update or commit z_t") &&
+        note.includes("create QP output"),
+    ),
+    "Sidecar e_t placeholder should state no Sidecar loop, no z_t update/commit, and no QP output",
   );
 }
 

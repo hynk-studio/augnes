@@ -85,14 +85,15 @@ snapshot write routes, action controls, or authority.
 Perspective quality verification belongs in bounded command evidence, such as
 `npm run smoke:perspective-quality`. It must record bounded,
 source-ref-oriented, derived-view-only behavior: `loopness_hint` is the only
-bounded `log_only` diagnostic object; `meta_wm_hint`, `bsl_hint`, and
-`comp_index_hint` are structured placeholders; `sidecar_e_t` remains
-null/placeholder until separately scoped and gated PR.
+bounded `log_only` diagnostic object; `sidecar_e_t`, `meta_wm_hint`,
+`bsl_hint`, and `comp_index_hint` are structured placeholders; `sidecar_e_t`
+is not computed, not actual Sidecar state, not QP output, and not a z_t regime
+commit.
 Research diagnostics boundary fixture verification belongs in bounded command
 evidence, such as `npm run smoke:research-diagnostics-boundaries`. It must
 record fixture boundary facts only: `research_diagnostics` remains `log_only`
-and non-authoritative, placeholder diagnostics are not computed, and Core rows
-are not mutated.
+and non-authoritative, placeholder diagnostics are not computed, Sidecar/QP/z_t
+logic is not run, and Core rows are not mutated.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and

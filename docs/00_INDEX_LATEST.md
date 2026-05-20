@@ -44,8 +44,9 @@ Boundary 요약:
 - `PerspectiveSnapshot`은 derived-view-only read model이다.
 - `research_diagnostics`는 `log_only`이고 non-authoritative다.
 - `loopness_hint`는 유일한 bounded `log_only` diagnostic object다.
-- `meta_wm_hint`, `bsl_hint`, `comp_index_hint`는 structured placeholder다.
-- `sidecar_e_t`는 별도 scope와 gate가 있는 PR 전까지 null/placeholder다.
+- `sidecar_e_t`, `meta_wm_hint`, `bsl_hint`, `comp_index_hint`는 structured
+  placeholder다.
+- `sidecar_e_t`는 실제 Sidecar state, QP output, z_t regime commit이 아니다.
 - 위 항목들은 authority, proof, readiness, source of truth, Gate/SRF input,
   Claim confidence, Evidence status, publication readiness, Cockpit action
   input이 아니다.

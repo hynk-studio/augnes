@@ -121,6 +121,7 @@ try {
           repeatedHelperSnapshot.research_diagnostics.loopness_hint.level,
         repeated_loopness_score:
           repeatedHelperSnapshot.research_diagnostics.loopness_hint.score,
+        sidecar_e_t_placeholder_preserved: true,
         meta_wm_placeholder_preserved: true,
         bsl_placeholder_preserved: true,
         comp_index_placeholder_preserved: true,
@@ -258,10 +259,48 @@ function assertLoopnessCommon(snapshot) {
 
 function assertPlaceholders(snapshot) {
   assert.equal(snapshot.research_diagnostics.mode, "log_only");
-  assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
+  assertSidecarEtPlaceholder(snapshot.research_diagnostics.sidecar_e_t);
   assertMetaWmHintPlaceholder(snapshot.research_diagnostics.meta_wm_hint);
   assertBslHintPlaceholder(snapshot.research_diagnostics.bsl_hint);
   assertCompIndexHintPlaceholder(snapshot.research_diagnostics.comp_index_hint);
+}
+
+function assertSidecarEtPlaceholder(sidecarEtHint) {
+  assert.equal(sidecarEtHint.version, "sidecar_e_t.placeholder.v0.1");
+  assert.equal(sidecarEtHint.mode, "log_only");
+  assert.equal(sidecarEtHint.status, "placeholder");
+  assert.equal(sidecarEtHint.computed, false);
+  assert.deepEqual(sidecarEtHint.values, {
+    e_t_register: null,
+    qp_observability_proxy: null,
+    z_t_regime_hint: null,
+    sidecar_state_summary: null,
+    sidecar_e_t_hat: null,
+  });
+  assert.deepEqual(sidecarEtHint.source_refs, []);
+  assert(
+    sidecarEtHint.notes.some((note) => note.includes("not computed")),
+    "Sidecar e_t placeholder should state that it is not computed",
+  );
+  assert(
+    sidecarEtHint.notes.some((note) => note.includes("no authority")),
+    "Sidecar e_t placeholder should state that it has no authority",
+  );
+  assert(
+    sidecarEtHint.notes.some((note) =>
+      note.includes("not actual Sidecar state"),
+    ),
+    "Sidecar e_t placeholder should state that it is not actual Sidecar state",
+  );
+  assert(
+    sidecarEtHint.notes.some(
+      (note) =>
+        note.includes("does not run a Sidecar loop") &&
+        note.includes("update or commit z_t") &&
+        note.includes("create QP output"),
+    ),
+    "Sidecar e_t placeholder should state no Sidecar loop, no z_t update/commit, and no QP output",
+  );
 }
 
 function assertMetaWmHintPlaceholder(metaWmHint) {
