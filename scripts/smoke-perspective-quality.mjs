@@ -97,7 +97,13 @@ for (const diagnostic of [
   'version: "loopness_hint.v0.1"',
   'mode: "log_only"',
   "source_refs:",
-  "comp_index_hint: null",
+  "comp_index_hint: CompIndexHint",
+  'version: "comp_index_hint.placeholder.v0.1"',
+  "compression_index_hat: null",
+  "context_density_hat: null",
+  "evidence_support_hat: null",
+  "tension_load_hat: null",
+  "comp_index_hat: null",
 ]) {
   assertIncludes(
     snapshot,
@@ -150,6 +156,7 @@ for (const section of [
 assertResearchDiagnosticsCopy(researchDiagnosticsPanel);
 assertMetaWmPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
 assertBslPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
+assertCompIndexPlaceholderBoundaries(snapshot, researchDiagnosticsPanel);
 assertLoopnessHintRemainsBoundedLogOnly(snapshot, researchDiagnosticsPanel);
 
 assert.equal(
@@ -279,8 +286,13 @@ assertIncludes(
 );
 assertIncludes(
   authorityDoc,
-  "`sidecar_e_t` and `comp_index_hint` remain",
-  "Authority matrix should preserve remaining null diagnostic placeholder boundary.",
+  "`comp_index_hint` is a structured placeholder object",
+  "Authority matrix should distinguish comp_index_hint as a structured placeholder.",
+);
+assertIncludes(
+  authorityDoc,
+  "`sidecar_e_t` remains",
+  "Authority matrix should preserve sidecar null diagnostic placeholder boundary.",
 );
 assertIncludes(
   authorityDoc,
@@ -302,6 +314,8 @@ console.log(
       meta_wm_placeholder_not_computed: true,
       bsl_placeholder_log_only: true,
       bsl_placeholder_not_computed: true,
+      comp_index_placeholder_log_only: true,
+      comp_index_placeholder_not_computed: true,
       loopness_hint_log_only: true,
       cockpit_copy_derived_view_only: true,
       cockpit_copy_not_source_of_truth: true,
@@ -321,6 +335,7 @@ function assertResearchDiagnosticsCopy(source) {
     "research_diagnostics are log_only diagnostic slots only",
     "Meta-WM",
     "BSL",
+    "CompIndex",
     "placeholder that is not computed",
     "weak trace-pressure hint",
     "null",
@@ -365,6 +380,67 @@ function assertResearchDiagnosticsCopy(source) {
       source.toLowerCase().includes(misleading),
       false,
       `Research diagnostics UI copy must not present placeholders as ${misleading}.`,
+    );
+  }
+}
+
+function assertCompIndexPlaceholderBoundaries(snapshotSource, panelSource) {
+  for (const required of [
+    'version: "comp_index_hint.placeholder.v0.1"',
+    'mode: "log_only"',
+    'status: "placeholder"',
+    "computed: false",
+    "compression_index_hat: null",
+    "context_density_hat: null",
+    "evidence_support_hat: null",
+    "tension_load_hat: null",
+    "comp_index_hat: null",
+    "source_refs: []",
+    "CompIndex is reserved for future compressibility diagnostics.",
+    "This placeholder is not computed and has no authority.",
+    "It must not affect commit/reject, proposal scoring, Gate/SRF, Claim confidence, Evidence status, publication readiness, Cockpit actions, or any Core state.",
+  ]) {
+    assertIncludes(
+      snapshotSource,
+      required,
+      `CompIndex placeholder shape should include ${required}.`,
+    );
+  }
+
+  for (const required of [
+    "CompIndex placeholder is not computed",
+    "control/view only",
+    "not authority, proof, readiness",
+    "Gate input",
+    "source of truth",
+    "Cockpit",
+    "action input",
+    "computed {String(compIndexHint.computed)}",
+    "comp_index_hint null values, source_refs, and boundary notes",
+    "No comp_index_hint source refs",
+  ]) {
+    assertIncludes(
+      panelSource,
+      required,
+      `CompIndex placeholder UI copy should include ${required}.`,
+    );
+  }
+
+  for (const misleading of [
+    "computed metric",
+    "readiness metric",
+    "proof metric",
+    "authority metric",
+    "readiness signal",
+    "proof signal",
+    "authority signal",
+    "publication readiness signal",
+    "source of truth metric",
+  ]) {
+    assert.equal(
+      panelSource.toLowerCase().includes(misleading),
+      false,
+      `CompIndex placeholder UI must not present it as ${misleading}.`,
     );
   }
 }

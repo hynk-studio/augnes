@@ -123,6 +123,7 @@ try {
           repeatedHelperSnapshot.research_diagnostics.loopness_hint.score,
         meta_wm_placeholder_preserved: true,
         bsl_placeholder_preserved: true,
+        comp_index_placeholder_preserved: true,
         remaining_placeholders_preserved: true,
         authority_tables_mutated: false,
         fetch_calls: fetchCalls,
@@ -258,9 +259,9 @@ function assertLoopnessCommon(snapshot) {
 function assertPlaceholders(snapshot) {
   assert.equal(snapshot.research_diagnostics.mode, "log_only");
   assert.equal(snapshot.research_diagnostics.sidecar_e_t, null);
-  assert.equal(snapshot.research_diagnostics.comp_index_hint, null);
   assertMetaWmHintPlaceholder(snapshot.research_diagnostics.meta_wm_hint);
   assertBslHintPlaceholder(snapshot.research_diagnostics.bsl_hint);
+  assertCompIndexHintPlaceholder(snapshot.research_diagnostics.comp_index_hint);
 }
 
 function assertMetaWmHintPlaceholder(metaWmHint) {
@@ -306,6 +307,29 @@ function assertBslHintPlaceholder(bslHint) {
   assert(
     bslHint.notes.some((note) => note.includes("no authority")),
     "BSL placeholder should state that it has no authority",
+  );
+}
+
+function assertCompIndexHintPlaceholder(compIndexHint) {
+  assert.equal(compIndexHint.version, "comp_index_hint.placeholder.v0.1");
+  assert.equal(compIndexHint.mode, "log_only");
+  assert.equal(compIndexHint.status, "placeholder");
+  assert.equal(compIndexHint.computed, false);
+  assert.deepEqual(compIndexHint.values, {
+    compression_index_hat: null,
+    context_density_hat: null,
+    evidence_support_hat: null,
+    tension_load_hat: null,
+    comp_index_hat: null,
+  });
+  assert.deepEqual(compIndexHint.source_refs, []);
+  assert(
+    compIndexHint.notes.some((note) => note.includes("not computed")),
+    "CompIndex placeholder should state that it is not computed",
+  );
+  assert(
+    compIndexHint.notes.some((note) => note.includes("no authority")),
+    "CompIndex placeholder should state that it has no authority",
   );
 }
 

@@ -24,6 +24,11 @@ const metaWmHintPanelSource = extractFunctionSource(
 const bslHintPanelSource = extractFunctionSource(
   cockpit,
   "function BslHintPanel",
+  "function CompIndexHintPanel",
+);
+const compIndexHintPanelSource = extractFunctionSource(
+  cockpit,
+  "function CompIndexHintPanel",
   "function LoopnessHintPanel",
 );
 
@@ -79,13 +84,17 @@ for (const snippet of [
   "research_diagnostics are log_only diagnostic slots only",
   "Meta-WM placeholder is not computed",
   "BSL placeholder is not computed",
+  "CompIndex placeholder is not computed",
   "control/view only",
   "computed {String(metaWmHint.computed)}",
   "computed {String(bslHint.computed)}",
+  "computed {String(compIndexHint.computed)}",
   "meta_wm_hint null values, source_refs, and boundary notes",
   "No meta_wm_hint source refs",
   "bsl_hint null values, source_refs, and boundary notes",
   "No bsl_hint source refs",
+  "comp_index_hint null values, source_refs, and boundary notes",
+  "No comp_index_hint source refs",
   "weak trace-pressure hint",
   "loopness_hint source refs and non-authority notes",
   "loopnessHint.version",
@@ -191,6 +200,11 @@ assert.equal(
   false,
   "BSL placeholder UI must not introduce action buttons.",
 );
+assert.equal(
+  /<button\b/.test(compIndexHintPanelSource),
+  false,
+  "CompIndex placeholder UI must not introduce action buttons.",
+);
 
 console.log(
   JSON.stringify(
@@ -202,6 +216,7 @@ console.log(
       research_diagnostics_log_only_present: true,
       meta_wm_placeholder_boundary_copy_present: true,
       bsl_placeholder_boundary_copy_present: true,
+      comp_index_placeholder_boundary_copy_present: true,
       perspective_write_routes_introduced: false,
       perspective_mutation_controls_introduced: false,
     },
