@@ -145,6 +145,15 @@ must not be recorded as runtime computation, smoke execution, schema authority,
 evidence/proof, readiness, QP output, z_t commit, or permission to wire Sidecar
 e_t computation into `PerspectiveSnapshot`, routes, Cockpit, OpenAI, GitHub,
 commit/reject, or Core writes.
+Sidecar e_t runtime boundary skeleton verification belongs in bounded command
+evidence, such as `npm run smoke:sidecar-et-runtime-boundaries`. It must record
+current placeholder-only runtime behavior only: runtime scopes preserve
+`sidecar_e_t.placeholder.v0.1`, `computed=false`, empty `source_refs`, null
+values, no runtime computation, no QP evidence, no `z_t` commit, no Core
+mutation, `fetch_calls=0`, no extra Sidecar route, and no Cockpit action input.
+It may document the future source-ref subset policy, but it must not be treated
+as runtime proof, schema authority, readiness, or permission to compute
+Sidecar e_t.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and

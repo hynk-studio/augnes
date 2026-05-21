@@ -121,11 +121,13 @@ A future runtime implementation PR must:
 - extend `npm run smoke:perspective-snapshot`
 - extend `npm run smoke:perspective-quality`
 - extend `npm run smoke:research-diagnostics-boundaries`
+- extend `npm run smoke:sidecar-et-runtime-boundaries`
 - keep `npm run smoke:sidecar-et-fixture-boundaries` passing
 
 `docs/SIDECAR_ET_RUNTIME_SMOKE_DESIGN_V0_1.md` defines the smoke and
-regression-test plan for those future gates. It is design-only and does not
-add a smoke script or runtime computation.
+regression-test plan for those future gates. `npm run
+smoke:sidecar-et-runtime-boundaries` is the focused placeholder-only runtime
+boundary skeleton; it does not add runtime computation.
 
 It must add assertions proving:
 
@@ -197,8 +199,8 @@ This runtime `log_only` design does not allow:
   computation boundary, output wording constraints, required gates, and
   rollback rules.
 - `docs/SIDECAR_ET_RUNTIME_SMOKE_DESIGN_V0_1.md`: future runtime smoke and
-  regression-test plan. It does not implement runtime computation or add smoke
-  scripts.
+  regression-test plan. Its focused skeleton smoke checks current placeholder
+  runtime behavior and does not implement runtime computation.
 - `docs/PERSPECTIVE_SNAPSHOT_V0_1.md`: implemented runtime placeholder
   baseline. This runtime design does not change response shape.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes

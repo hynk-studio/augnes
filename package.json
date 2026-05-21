@@ -60,6 +60,7 @@
     "smoke:perspective-quality": "node scripts/smoke-perspective-quality.mjs",
     "smoke:research-diagnostics-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-research-diagnostics-boundaries.mjs",
     "smoke:sidecar-et-fixture-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-sidecar-et-fixture-boundaries.mjs",
+    "smoke:sidecar-et-runtime-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-sidecar-et-runtime-boundaries.mjs",
     "codex:record-completion": "npm --prefix apps/augnes_apps run codex:record-completion",
     "codex:read-brief": "npm --prefix apps/augnes_apps run codex:read-brief",
     "codex:record-evidence": "npm --prefix apps/augnes_apps run codex:record-evidence",
