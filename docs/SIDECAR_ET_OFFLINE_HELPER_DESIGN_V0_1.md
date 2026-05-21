@@ -8,9 +8,10 @@
 - Schema authority: none.
 - Implementation authority: none.
 
-This document defines a possible future non-runtime helper boundary for
-deterministic offline Sidecar e_t diagnostics. It does not implement a helper.
-It does not compute Sidecar/e_t/QP/z_t values. It does not change
+This document defines the non-runtime helper boundary for deterministic
+offline Sidecar e_t diagnostics. The default helper path remains
+placeholder-only. A separate fixture-only candidate helper may compute bounded
+smoke-only labels from supplied fixture refs. Neither path changes
 `PerspectiveSnapshot`, API response shape, database schema, routes, Cockpit
 behavior, OpenAI behavior, commit/reject behavior, GitHub publish behavior, or
 evidence/proof behavior.
@@ -21,26 +22,26 @@ The implemented baseline remains:
 
 - `sidecar_e_t` is a structured placeholder.
 - `npm run smoke:sidecar-et-fixture-boundaries` verifies fixture placeholder
-  fallback and authority boundaries.
+  fallback, fixture-only candidate boundaries, and authority boundaries.
 - `loopness_hint` remains the only bounded `log_only` diagnostic object
-  currently computed.
+  currently computed by runtime `PerspectiveSnapshot` generation.
 - `research_diagnostics` remains `log_only` and non-authoritative.
 - `sidecar_e_t` is not actual Sidecar state, not QP output, and not `z_t`
   regime commit.
 
 ## Proposed Future Helper Boundary
 
-Design name suggestion only:
-
 ```text
 buildSidecarEtOfflineDiagnosticCandidate
+buildSidecarEtOfflineFixtureCandidate
 ```
 
-This helper is not implemented in this PR. A future PR may implement it only as
-a non-runtime helper that runs against deterministic local fixture inputs. It
-must not be called by production routes, Cockpit rendering, OpenAI
-observe/plan/preview paths, commit/reject paths, GitHub publish paths, or any
-Core write path.
+The default helper, `buildSidecarEtOfflineDiagnosticCandidate`, must return the
+structured placeholder fallback for normal/default calls. The fixture-only
+helper, `buildSidecarEtOfflineFixtureCandidate`, is separate and may run only
+against deterministic local fixture inputs. Neither helper may be called by
+production routes, Cockpit rendering, OpenAI observe/plan/preview paths,
+commit/reject paths, GitHub publish paths, or any Core write path.
 
 The helper must return the structured placeholder fallback if inputs are
 missing, malformed, unsupported, out of scope, not already read, or ambiguous.
@@ -48,13 +49,18 @@ Placeholder fallback remains valid and preferred when uncertainty exists.
 
 ## Implementation Skeleton Note
 
-`lib/perspective/sidecar-et-offline-helper.ts` implements the helper skeleton
-only. It exports `buildSidecarEtOfflineDiagnosticCandidate`, accepts the
-bounded input shape described here, and always returns the structured
-placeholder fallback. It does not compute Sidecar/e_t/QP/z_t values, does not
-emit source refs, does not set `computed=true`, does not create QP output, and
-does not commit or hint an actual `z_t` regime. Future computation requires a
-separate gated PR with smoke coverage.
+`lib/perspective/sidecar-et-offline-helper.ts` implements the helper skeleton.
+It exports `buildSidecarEtOfflineDiagnosticCandidate`, accepts the bounded
+input shape described here, and always returns the structured placeholder
+fallback.
+
+It also exports `buildSidecarEtOfflineFixtureCandidate` as a separate
+smoke/fixture-only candidate path. That path may set `computed=true` only on
+the fixture-only candidate shape, with `fixture_only=true` and
+`runtime_enabled=false`. It is not runtime `sidecar_e_t`, not actual Sidecar
+state, not QP output or evidence, and not a `z_t` commit. It must return
+placeholder fallback for invalid, malformed, unsupported, out-of-scope,
+non-read, or ambiguous inputs.
 
 ## Validation Hardening Note
 
@@ -62,7 +68,9 @@ separate gated PR with smoke coverage.
 helper skeleton. It returns a bounded validation object only. The validation
 result is not authority, not diagnostic output, not source of truth, and not a
 permission to compute. Invalid input returns placeholder fallback. Valid input
-also returns placeholder fallback in this skeleton phase.
+also returns placeholder fallback in the default helper path. The fixture-only
+candidate helper may compute only after validation is valid and
+`candidate_source_refs` are proven already read.
 
 ## Allowed Future Inputs
 
@@ -139,15 +147,16 @@ output must remain:
 - not publication readiness
 - not Cockpit action input
 
-A future helper may return a bounded no-pressure result for clean fixtures only
-if that result is explicitly defined in a later implementation PR and guarded
-by smoke tests. Otherwise, and whenever uncertainty exists, it must return the
-structured placeholder fallback.
+The fixture-only helper may return a bounded no-pressure result for clean
+fixtures, a bounded repeated/noisy pressure label, or a bounded
+non-authoritative caveat for missing/conflicting context. Otherwise, and
+whenever uncertainty exists, it must return the structured placeholder
+fallback.
 
-`docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines the next
-computation-design-only boundary after this helper skeleton. It limits future
-computation to offline deterministic fixture context first and does not grant
-runtime behavior, schema authority, or implementation authority.
+`docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines the
+computation boundary after this helper skeleton. It limits this skeleton to
+offline deterministic fixture context and does not grant runtime behavior,
+schema authority, or implementation authority beyond the fixture-only helper.
 
 ## Required Future Smoke Additions
 

@@ -108,11 +108,13 @@ try {
   );
   const {
     buildSidecarEtOfflineDiagnosticCandidate,
+    buildSidecarEtOfflineFixtureCandidate,
     validateSidecarEtOfflineInputBoundary,
   } = await import("../lib/perspective/sidecar-et-offline-helper.ts");
 
   const before = readAuthoritySnapshot(openDatabase);
   assertNoCockpitSidecarActionButtons();
+  assertFixtureOnlyHelperNotUsedByPerspectiveSnapshot();
 
   const helperSnapshots = [];
   for (const fixture of FIXTURES) {
@@ -122,6 +124,11 @@ try {
     assertHelperSkeleton({
       buildSidecarEtOfflineDiagnosticCandidate,
       validateSidecarEtOfflineInputBoundary,
+      fixture,
+      snapshot,
+    });
+    assertFixtureOnlyCandidate({
+      buildSidecarEtOfflineFixtureCandidate,
       fixture,
       snapshot,
     });
@@ -168,11 +175,17 @@ try {
           repeatedSnapshot.research_diagnostics.loopness_hint.level,
         helper_skeleton_checked: true,
         helper_validation_cases_checked: 18,
+        helper_default_returns_placeholder_only: true,
         helper_returns_placeholder_only: true,
         helper_computation_enabled: false,
+        fixture_only_candidate_checked: true,
+        fixture_only_runtime_enabled: false,
+        fixture_only_refs_already_read_only: true,
+        perspective_snapshot_sidecar_still_placeholder: true,
         sidecar_placeholder_preserved: true,
         no_sidecar_loop: true,
         no_qp_output: true,
+        no_qp_output_treated_as_evidence: true,
         no_z_t_commit: true,
         sidecar_source_refs_empty: true,
         structured_placeholders_preserved: true,
@@ -381,6 +394,242 @@ function assertHelperSkeleton({
     validSubsetRefs,
     nonSubsetRefs,
   });
+}
+
+function assertFixtureOnlyCandidate({
+  buildSidecarEtOfflineFixtureCandidate,
+  fixture,
+  snapshot,
+}) {
+  const alreadyReadRefs = buildAlreadyReadRefs(snapshot);
+  const input = buildFixtureOnlyInput({ fixture, alreadyReadRefs });
+  const candidate = buildSidecarEtOfflineFixtureCandidate(input);
+
+  assert.equal(
+    snapshot.research_diagnostics.sidecar_e_t.status,
+    "placeholder",
+    "PerspectiveSnapshot must still use the runtime placeholder, not fixture-only output",
+  );
+
+  if (
+    fixture.scope === INVALID_INPUT_SCOPE ||
+    fixture.scope === SOURCE_REF_BOUNDARY_SCOPE
+  ) {
+    assertSidecarEtHelperPlaceholder(candidate);
+    assertNoAttemptedRefsLeakedInSidecar(candidate, fixture.attemptedRefs ?? []);
+    return;
+  }
+
+  assertFixtureOnlyCandidateShape(candidate);
+  assertFixtureOnlyRefsAlreadyReadOnly(candidate.source_refs, alreadyReadRefs);
+  assertNoQpEvidence(candidate);
+  assertNoZtCommit(candidate);
+  assertNoRuntimeAuthority(candidate);
+
+  if (fixture.scope === CLEAN_SCOPE) {
+    assert.equal(candidate.values.missing_basis, false);
+    assert.equal(candidate.values.repeated_trace_pressure, "none");
+    assert.equal(candidate.values.unresolved_tension_pressure, "none");
+    assert.notEqual(candidate.values.source_ref_completeness, "empty");
+  }
+
+  if (fixture.scope === REPEATED_NOISY_SCOPE) {
+    assert(["low", "medium", "high"].includes(
+      candidate.values.repeated_trace_pressure,
+    ));
+    assert.equal(candidate.values.missing_basis, false);
+    assert(
+      candidate.notes.some((note) => note === "non-authoritative"),
+      "repeated/noisy fixture-only output must be non-authoritative",
+    );
+  }
+
+  if (fixture.scope === MISSING_CONTEXT_SCOPE) {
+    assert.equal(candidate.values.missing_basis, true);
+    assert.equal(candidate.values.repeated_trace_pressure, "none");
+    assert.equal(candidate.values.unresolved_tension_pressure, "none");
+    assert.deepEqual(candidate.source_refs, {
+      state_entry_ids: [],
+      action_record_ids: [],
+      work_event_ids: [],
+      tension_ids: [],
+    });
+  }
+
+  if (fixture.scope === CONFLICTING_CONTEXT_SCOPE) {
+    assert.equal(candidate.values.repeated_trace_pressure, "none");
+    assert.notEqual(candidate.values.unresolved_tension_pressure, "high");
+    assertNoEvidenceOrClaimConfidenceInfluence(candidate);
+  }
+}
+
+function buildFixtureOnlyInput({ fixture, alreadyReadRefs }) {
+  if (fixture.scope === INVALID_INPUT_SCOPE) {
+    return {
+      scope: fixture.scope,
+      already_read_refs: {
+        state_entry_ids: [42],
+      },
+      fixture_metadata: {
+        category: fixture.category,
+      },
+    };
+  }
+
+  if (fixture.scope === SOURCE_REF_BOUNDARY_SCOPE) {
+    return {
+      scope: fixture.scope,
+      already_read_refs: alreadyReadRefs,
+      fixture_metadata: {
+        category: fixture.category,
+      },
+      candidate_source_refs: {
+        state_entry_ids: ["state:sidecar-et:outside-scope"],
+        action_record_ids: ["action:sidecar-et:not-read"],
+        work_event_ids: ["work-event:sidecar-et:not-read"],
+        tension_ids: ["tension:sidecar-et:not-read"],
+      },
+    };
+  }
+
+  return {
+    scope: fixture.scope,
+    already_read_refs: alreadyReadRefs,
+    fixture_metadata: {
+      category: fixture.category,
+      notes: ["fixture-only candidate smoke"],
+    },
+    candidate_source_refs:
+      fixture.scope === MISSING_CONTEXT_SCOPE
+        ? {
+            state_entry_ids: [],
+            action_record_ids: [],
+            work_event_ids: [],
+            tension_ids: [],
+          }
+        : alreadyReadRefs,
+  };
+}
+
+function assertFixtureOnlyCandidateShape(candidate) {
+  assert.equal(candidate.version, "sidecar_e_t.offline_fixture_candidate.v0.1");
+  assert.equal(candidate.mode, "log_only");
+  assert.equal(candidate.status, "fixture_only_candidate");
+  assert.equal(candidate.computed, true);
+  assert.equal(candidate.fixture_only, true);
+  assert.equal(candidate.runtime_enabled, false);
+  assert.equal(typeof candidate.values.missing_basis, "boolean");
+  assert(["none", "low", "medium", "high"].includes(
+    candidate.values.repeated_trace_pressure,
+  ));
+  assert(["none", "low", "medium", "high"].includes(
+    candidate.values.unresolved_tension_pressure,
+  ));
+  assert(["empty", "partial", "complete"].includes(
+    candidate.values.source_ref_completeness,
+  ));
+  assert.equal(typeof candidate.values.sidecar_e_t_candidate_summary, "string");
+  assert.equal(
+    typeof candidate.values.qp_observability_proxy_candidate_summary,
+    "string",
+  );
+  assert.equal(
+    typeof candidate.values.z_t_regime_hint_candidate_summary,
+    "string",
+  );
+  assert.deepEqual(Object.keys(candidate.source_refs).sort(), [
+    "action_record_ids",
+    "state_entry_ids",
+    "tension_ids",
+    "work_event_ids",
+  ]);
+
+  for (const note of [
+    "fixture-only",
+    "log_only",
+    "non-authoritative",
+    "not runtime",
+    "not actual Sidecar state",
+    "not QP evidence",
+    "not z_t commit",
+    "not source of truth",
+    "not proposal scoring",
+    "not commit/reject input",
+    "not Gate/SRF input",
+    "not Claim confidence or Evidence status input",
+    "not publication readiness",
+    "not Cockpit action input",
+  ]) {
+    assert(
+      candidate.notes.includes(note),
+      `fixture-only candidate should include boundary note: ${note}`,
+    );
+  }
+}
+
+function assertFixtureOnlyRefsAlreadyReadOnly(candidateRefs, alreadyReadRefs) {
+  for (const key of [
+    "state_entry_ids",
+    "action_record_ids",
+    "work_event_ids",
+    "tension_ids",
+  ]) {
+    const alreadyRead = new Set(alreadyReadRefs[key] ?? []);
+    for (const ref of candidateRefs[key] ?? []) {
+      assert(
+        alreadyRead.has(ref),
+        `fixture-only candidate emitted non-read ref ${ref}`,
+      );
+    }
+  }
+}
+
+function assertNoQpEvidence(candidate) {
+  assert(
+    candidate.values.qp_observability_proxy_candidate_summary.includes(
+      "no QP output is created",
+    ),
+    "fixture-only candidate must not create QP output",
+  );
+  assert(
+    candidate.notes.includes("not QP evidence"),
+    "fixture-only candidate must state it is not QP evidence",
+  );
+}
+
+function assertNoZtCommit(candidate) {
+  assert(
+    candidate.values.z_t_regime_hint_candidate_summary.includes("no z_t"),
+    "fixture-only candidate must state no z_t update or commit",
+  );
+  assert(
+    candidate.notes.includes("not z_t commit"),
+    "fixture-only candidate must state it is not a z_t commit",
+  );
+}
+
+function assertNoRuntimeAuthority(candidate) {
+  for (const note of [
+    "not runtime",
+    "not source of truth",
+    "not proposal scoring",
+    "not commit/reject input",
+    "not Gate/SRF input",
+    "not publication readiness",
+    "not Cockpit action input",
+  ]) {
+    assert(
+      candidate.notes.includes(note),
+      `missing authority boundary note ${note}`,
+    );
+  }
+}
+
+function assertNoEvidenceOrClaimConfidenceInfluence(candidate) {
+  assert(
+    candidate.notes.includes("not Claim confidence or Evidence status input"),
+    "conflicting fixture candidate must not influence Evidence status or Claim confidence",
+  );
 }
 
 function assertHelperValidationCases({
@@ -763,6 +1012,18 @@ function assertNoCockpitSidecarActionButtons() {
   assert(
     normalizedSidecarPanelSource.includes("not a Cockpit action input"),
     "Sidecar e_t Cockpit panel should keep action-input boundary copy",
+  );
+}
+
+function assertFixtureOnlyHelperNotUsedByPerspectiveSnapshot() {
+  const source = readFileSync("lib/perspective/snapshot.ts", "utf8");
+  assert(
+    !source.includes("buildSidecarEtOfflineFixtureCandidate"),
+    "PerspectiveSnapshot must not call the fixture-only Sidecar e_t helper",
+  );
+  assert(
+    !source.includes("sidecar_e_t.offline_fixture_candidate"),
+    "PerspectiveSnapshot response shape must not include fixture-only candidate output",
   );
 }
 

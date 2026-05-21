@@ -22,27 +22,55 @@ The implemented baseline remains:
 - `sidecar_e_t` remains a structured placeholder.
 - `buildSidecarEtOfflineDiagnosticCandidate` currently returns placeholder
   fallback for every input.
+- `buildSidecarEtOfflineFixtureCandidate` exists as a separate smoke/fixture
+  only candidate path.
 - `validateSidecarEtOfflineInputBoundary` returns bounded validation only and
   is not authority.
 - `npm run smoke:sidecar-et-fixture-boundaries` verifies placeholder fallback,
-  validation boundaries, and no authority mutation.
+  validation boundaries, fixture-only candidate boundaries, and no authority
+  mutation.
 - `loopness_hint` remains the only bounded `log_only` diagnostic object
-  currently computed.
+  currently computed by runtime `PerspectiveSnapshot` generation.
 
 The helper skeleton does not compute Sidecar/e_t/QP/z_t values, does not emit
 `sidecar_e_t.source_refs`, does not set `computed=true`, does not create QP
 output, and does not commit or hint an actual `z_t` regime.
+The fixture-only candidate helper may return a bounded smoke-only candidate,
+but it is not wired into `PerspectiveSnapshot` runtime generation, routes,
+Cockpit, OpenAI, GitHub, commit/reject, or any Core write path.
+
+## Implementation Skeleton Note
+
+`lib/perspective/sidecar-et-offline-helper.ts` now has two separate paths:
+
+- `buildSidecarEtOfflineDiagnosticCandidate(input?)`: the default helper path.
+  It returns the structured placeholder fallback for every input and remains
+  the only default diagnostic helper behavior.
+- `buildSidecarEtOfflineFixtureCandidate(input?)`: the smoke/fixture-only
+  candidate path. It is pure, deterministic, non-runtime, and can compute only
+  bounded candidate labels from supplied already-read fixture refs and fixture
+  metadata.
+
+The fixture-only candidate path does not perform DB reads, fetches, OpenAI
+calls, GitHub calls, filesystem writes, env mutation, time-dependent output, or
+persistence writes. It returns placeholder fallback when validation fails, when
+`candidate_source_refs` are missing or not already read, or when the fixture
+scope is invalid-input/source-ref-boundary.
+
+`PerspectiveSnapshot` still returns the structured `sidecar_e_t` placeholder.
+Future runtime `log_only` computation still requires a separate PR, separate
+review, and smoke coverage proving no route, Cockpit, API response shape,
+authority, evidence/proof, `z_t`, QP-evidence, or Core-write leakage.
 
 ## Proposed Future Computation Boundary
 
-A future computation step may be considered only as an offline deterministic
-helper path. The first implementation target must be fixture-only computation,
-not runtime computation.
+The first implemented computation skeleton is an offline deterministic
+fixture-only helper path, not runtime computation.
 
 The future computation boundary is:
 
 - offline deterministic helper only
-- fixture-only computation first
+- fixture-only computation first and only in this skeleton
 - no runtime routes
 - no Cockpit rendering or action path
 - no OpenAI calls
@@ -137,21 +165,24 @@ Allowed deterministic signal families include:
 - unresolved tension pressure
 - source-ref completeness
 
-Any concrete formula, threshold, label mapping, or output vocabulary requires a
-separate implementation PR and smoke updates. No score, label, or caveat may be
-used outside `log_only` diagnostics. No score may influence proposal scoring,
-commit/reject, Gate/SRF, Claim confidence, Evidence status, publication
-readiness, Cockpit actions, evidence/proof creation, or authority boundaries.
+Any formula, threshold, label mapping, or output vocabulary beyond the bounded
+fixture-only skeleton requires a separate implementation PR and smoke updates.
+No score, label, or caveat may be used outside `log_only` fixture diagnostics.
+No score may influence proposal scoring, commit/reject, Gate/SRF, Claim
+confidence, Evidence status, publication readiness, Cockpit actions,
+evidence/proof creation, or authority boundaries.
 
 ## Required Future Implementation Gates
 
-A future offline computation PR must extend
-`npm run smoke:sidecar-et-fixture-boundaries` and add focused validation tests.
-It must prove:
+The first fixture-only skeleton extends
+`npm run smoke:sidecar-et-fixture-boundaries` and keeps validation coverage.
+Any future expansion must continue to prove:
 
 - validator true cases are accepted only as bounded input validation
 - validator false cases return placeholder fallback
 - helper computation only runs in offline fixture context
+- default helper still returns placeholder fallback for every input
+- fixture-only helper is not used by `buildPerspectiveSnapshot`
 - placeholder fallback for invalid inputs
 - placeholder fallback for ambiguous inputs
 - clean fixture does not fabricate pressure
