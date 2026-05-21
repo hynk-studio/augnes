@@ -27,6 +27,9 @@ const ALLOWED_FIXTURE_CATEGORIES = new Set<string>([
   "conflicting-context",
 ]);
 
+const FIXTURE_ONLY_BOUNDARY_NOTE =
+  "fixture-only log_only smoke-only non-runtime non-authoritative; not actual Sidecar state; not evidence; not proof; not QP evidence; not z_t commit; not source of truth; not proposal scoring; not commit/reject input; not Gate/SRF input; not Claim confidence or Evidence status input; not publication readiness; not Cockpit action input.";
+
 export type SidecarEtOfflineHelperInput = {
   scope?: string;
   already_read_refs?: SidecarEtRefSet;
@@ -158,17 +161,21 @@ export function buildSidecarEtOfflineFixtureCandidate(
         sourceRefCompleteness,
       }),
       qp_observability_proxy_candidate_summary:
-        "Fixture-only bounded observability caveat; no QP output is created and no QP value is treated as evidence.",
+        `Fixture-only log_only smoke-only non-runtime observability caveat; non-authoritative and not QP evidence, not evidence, not proof, not source of truth, not publication readiness, and not Cockpit action input.`,
       z_t_regime_hint_candidate_summary:
-        "Fixture-only bounded regime caveat; no z_t update, commit, or regime authority is created.",
+        `Fixture-only log_only smoke-only non-runtime regime caveat; non-authoritative and not z_t commit, not evidence, not proof, not source of truth, not proposal scoring, and not commit/reject input.`,
     },
     source_refs: candidateRefs,
     notes: [
       "fixture-only",
       "log_only",
+      "smoke-only",
+      "non-runtime",
       "non-authoritative",
       "not runtime",
       "not actual Sidecar state",
+      "not evidence",
+      "not proof",
       "not QP evidence",
       "not z_t commit",
       "not source of truth",
@@ -179,6 +186,7 @@ export function buildSidecarEtOfflineFixtureCandidate(
       "not publication readiness",
       "not Cockpit action input",
       "source_refs are emitted only after validation proves candidate_source_refs are a subset of already_read_refs",
+      FIXTURE_ONLY_BOUNDARY_NOTE,
     ],
   };
 }
@@ -396,14 +404,14 @@ function buildSidecarFixtureSummary({
   sourceRefCompleteness: SidecarEtSourceRefCompleteness;
 }) {
   if (missingBasis) {
-    return `Fixture-only ${category} candidate reports missing basis with ${sourceRefCompleteness} source refs; no runtime diagnostic or authority is produced.`;
+    return `Fixture-only log_only smoke-only non-runtime ${category} candidate reports missing basis with ${sourceRefCompleteness} source refs; non-authoritative and not actual Sidecar state, not evidence, not proof, not QP evidence, not z_t commit, not source of truth, not proposal scoring, not commit/reject input, not Gate/SRF input, not Claim confidence or Evidence status input, not publication readiness, and not Cockpit action input.`;
   }
 
   if (category === "conflicting-context") {
-    return `Fixture-only conflicting-context candidate reports bounded unresolved tension pressure=${unresolvedTensionPressure}; no z_t commit, evidence effect, or authority is produced.`;
+    return `Fixture-only log_only smoke-only non-runtime conflicting-context candidate reports bounded unresolved tension pressure=${unresolvedTensionPressure}; non-authoritative and not actual Sidecar state, not evidence, not proof, not QP evidence, not z_t commit, not source of truth, not proposal scoring, not commit/reject input, not Gate/SRF input, not Claim confidence or Evidence status input, not publication readiness, and not Cockpit action input.`;
   }
 
-  return `Fixture-only ${category} candidate reports repeated_trace_pressure=${repeatedTracePressure}, unresolved_tension_pressure=${unresolvedTensionPressure}, and source_ref_completeness=${sourceRefCompleteness}; no runtime diagnostic or authority is produced.`;
+  return `Fixture-only log_only smoke-only non-runtime ${category} candidate reports repeated_trace_pressure=${repeatedTracePressure}, unresolved_tension_pressure=${unresolvedTensionPressure}, and source_ref_completeness=${sourceRefCompleteness}; non-authoritative and not actual Sidecar state, not evidence, not proof, not QP evidence, not z_t commit, not source of truth, not proposal scoring, not commit/reject input, not Gate/SRF input, not Claim confidence or Evidence status input, not publication readiness, and not Cockpit action input.`;
 }
 
 function isFixtureMetadata(value: unknown): value is FixtureMetadata {

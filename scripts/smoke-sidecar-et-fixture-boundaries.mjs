@@ -181,6 +181,8 @@ try {
         fixture_only_candidate_checked: true,
         fixture_only_category_allowlist_checked: true,
         fixture_only_unknown_category_fallback: true,
+        fixture_only_positive_boundary_assertions_checked: true,
+        fixture_only_misleading_phrases_blocked: true,
         fixture_only_runtime_enabled: false,
         fixture_only_refs_already_read_only: true,
         perspective_snapshot_sidecar_still_placeholder: true,
@@ -428,6 +430,8 @@ function assertFixtureOnlyCandidate({
   }
 
   assertFixtureOnlyCandidateShape(candidate);
+  assertFixtureOnlyOutputBoundaryLanguage(candidate);
+  assertNoMisleadingFixtureOnlyLanguage(candidate);
   assertFixtureOnlyRefsAlreadyReadOnly(candidate.source_refs, alreadyReadRefs);
   assertNoQpEvidence(candidate);
   assertNoZtCommit(candidate);
@@ -599,9 +603,13 @@ function assertFixtureOnlyCandidateShape(candidate) {
   for (const note of [
     "fixture-only",
     "log_only",
+    "smoke-only",
+    "non-runtime",
     "non-authoritative",
     "not runtime",
     "not actual Sidecar state",
+    "not evidence",
+    "not proof",
     "not QP evidence",
     "not z_t commit",
     "not source of truth",
@@ -615,6 +623,94 @@ function assertFixtureOnlyCandidateShape(candidate) {
     assert(
       candidate.notes.includes(note),
       `fixture-only candidate should include boundary note: ${note}`,
+    );
+  }
+}
+
+function assertFixtureOnlyOutputBoundaryLanguage(candidate) {
+  const summaries = [
+    candidate.values.sidecar_e_t_candidate_summary,
+    candidate.values.qp_observability_proxy_candidate_summary,
+    candidate.values.z_t_regime_hint_candidate_summary,
+  ];
+  const combinedOutput = [...summaries, ...candidate.notes].join(" ");
+
+  for (const requiredPhrase of [
+    "fixture-only",
+    "log_only",
+    "smoke-only",
+    "non-runtime",
+    "non-authoritative",
+    "not evidence",
+    "not proof",
+    "not z_t commit",
+    "not QP evidence",
+  ]) {
+    assert(
+      combinedOutput.includes(requiredPhrase),
+      `fixture-only output should include boundary phrase: ${requiredPhrase}`,
+    );
+  }
+
+  for (const summary of summaries) {
+    for (const requiredPhrase of [
+      "Fixture-only",
+      "log_only",
+      "smoke-only",
+      "non-runtime",
+      "non-authoritative",
+    ]) {
+      assert(
+        summary.includes(requiredPhrase),
+        `fixture-only summary should include boundary phrase: ${requiredPhrase}`,
+      );
+    }
+  }
+}
+
+function assertNoMisleadingFixtureOnlyLanguage(candidate) {
+  const outputText = [
+    candidate.values.sidecar_e_t_candidate_summary,
+    candidate.values.qp_observability_proxy_candidate_summary,
+    candidate.values.z_t_regime_hint_candidate_summary,
+    ...candidate.notes,
+  ].join(" ");
+  const normalizedOutput = outputText.toLowerCase();
+  const misleadingPhrases = [
+    { phrase: "proof", allowedBoundary: "not proof" },
+    {
+      phrase: "evidence status",
+      allowedBoundary: "not claim confidence or evidence status input",
+    },
+    {
+      phrase: "publication readiness",
+      allowedBoundary: "not publication readiness",
+    },
+    { phrase: "commit/reject", allowedBoundary: "not commit/reject input" },
+    { phrase: "gate input", allowedBoundary: null },
+    { phrase: "srf input", allowedBoundary: "not gate/srf input" },
+    {
+      phrase: "claim confidence",
+      allowedBoundary: "not claim confidence or evidence status input",
+    },
+    {
+      phrase: "actual sidecar state",
+      allowedBoundary: "not actual sidecar state",
+    },
+    { phrase: "z_t commit", allowedBoundary: "not z_t commit" },
+    { phrase: "qp output", allowedBoundary: null },
+    { phrase: "runtime signal", allowedBoundary: null },
+    { phrase: "source of truth", allowedBoundary: "not source of truth" },
+  ];
+
+  for (const { phrase, allowedBoundary } of misleadingPhrases) {
+    if (!normalizedOutput.includes(phrase)) {
+      continue;
+    }
+
+    assert(
+      allowedBoundary !== null && normalizedOutput.includes(allowedBoundary),
+      `fixture-only output contains misleading phrase without boundary: ${phrase}`,
     );
   }
 }
@@ -639,9 +735,9 @@ function assertFixtureOnlyRefsAlreadyReadOnly(candidateRefs, alreadyReadRefs) {
 function assertNoQpEvidence(candidate) {
   assert(
     candidate.values.qp_observability_proxy_candidate_summary.includes(
-      "no QP output is created",
+      "not QP evidence",
     ),
-    "fixture-only candidate must not create QP output",
+    "fixture-only candidate must state it is not QP evidence",
   );
   assert(
     candidate.notes.includes("not QP evidence"),
@@ -651,8 +747,10 @@ function assertNoQpEvidence(candidate) {
 
 function assertNoZtCommit(candidate) {
   assert(
-    candidate.values.z_t_regime_hint_candidate_summary.includes("no z_t"),
-    "fixture-only candidate must state no z_t update or commit",
+    candidate.values.z_t_regime_hint_candidate_summary.includes(
+      "not z_t commit",
+    ),
+    "fixture-only candidate must state it is not a z_t commit",
   );
   assert(
     candidate.notes.includes("not z_t commit"),

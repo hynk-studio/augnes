@@ -64,6 +64,13 @@ placeholder fallback for invalid, malformed, unsupported, out-of-scope,
 non-read, ambiguous inputs, missing fixture metadata, missing fixture category,
 or unknown fixture category.
 
+Fixture-only candidate summaries and notes must stay explicit smoke-only
+boundary text. They must not imply proof, evidence status, publication
+readiness, proposal scoring, commit/reject input, Gate/SRF input, Claim
+confidence input, Cockpit action input, actual Sidecar state, QP evidence, a
+`z_t` commit, source-of-truth status, recommendation, actionability, regime
+assignment, QP measurement, `z_t` update, or production/runtime signal.
+
 ## Validation Hardening Note
 
 `validateSidecarEtOfflineInputBoundary` is a pure boundary validator for the
@@ -157,6 +164,8 @@ The fixture-only helper may return a bounded no-pressure result for
 or a bounded non-authoritative caveat for `missing-context` and
 `conflicting-context`. Unknown or unsupported categories return the structured
 placeholder fallback. This does not permit runtime computation.
+If output wording becomes ambiguous, the helper must return placeholder
+fallback or the change must block merge until smoke assertions and docs agree.
 
 `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines the
 computation boundary after this helper skeleton. It limits this skeleton to

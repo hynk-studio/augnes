@@ -111,6 +111,10 @@ fixture-only candidate helper remains smoke-only, runtime-disabled,
 known-fixture-category-only, already-read-ref bounded, non-authoritative, not
 QP evidence, and not a `z_t` commit. Unknown or unsupported fixture categories
 must return placeholder fallback and must not permit runtime computation.
+Fixture-only output wording review in this smoke is bounded command evidence
+only. It is not runtime proof, schema authority, evidence status, readiness,
+QP output, `z_t` commit, or permission to use the helper outside fixture
+context.
 Sidecar e_t diagnostic design review belongs in PR body/docs evidence only.
 `docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is design-only and must not be
 recorded as runtime proof, schema authority, readiness, QP output, z_t commit,
