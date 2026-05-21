@@ -25,12 +25,13 @@ The implemented baseline remains:
   computed.
 - `research_diagnostics` remains `log_only` and non-authoritative.
 
-The future fixture set must prove placeholder fallback and boundary behavior
-before any offline deterministic helper is implemented.
+The fixture set proves placeholder fallback, fixture-only candidate behavior,
+and boundary behavior for the offline deterministic helper skeleton.
 
 `npm run smoke:sidecar-et-fixture-boundaries` encodes these fixture categories
-as placeholder-boundary checks only. It verifies fallback and authority
-boundaries without computing Sidecar/e_t/QP/z_t values, creating QP output, or
+as placeholder-boundary checks plus fixture-only candidate checks. It verifies
+default fallback and authority boundaries without changing runtime
+`PerspectiveSnapshot`, creating QP output, treating QP output as evidence, or
 committing `z_t`.
 
 `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md` defines the next
@@ -38,11 +39,11 @@ helper-design-only gate. It specifies allowed inputs, already-read ref
 boundaries, fallback rules, and future smoke requirements before any offline
 helper implementation.
 The current helper skeleton returns placeholder fallback only and is checked by
-`npm run smoke:sidecar-et-fixture-boundaries`; it still does not compute
-Sidecar/e_t/QP/z_t values.
+`npm run smoke:sidecar-et-fixture-boundaries`; the separate fixture-only
+candidate helper may compute bounded smoke-only labels and still does not
+compute actual Sidecar/e_t/QP/z_t values.
 `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines the later
-computation-design-only boundary. It does not implement computation and does
-not change the fixture placeholder baseline.
+computation boundary. It does not change the runtime placeholder baseline.
 
 ## Fixture Cases
 
@@ -61,9 +62,10 @@ Input shape:
 
 Expected Sidecar e_t fallback:
 
-- structured placeholder or null-equivalent fallback
+- runtime structured placeholder remains unchanged
+- fixture-only helper may return a bounded no-pressure candidate
 - no fabricated e_t, QP, or z_t values
-- no computed Sidecar e_t diagnostic output
+- no runtime computed Sidecar e_t diagnostic output
 - `loopness_hint` may remain `level=none`
 
 ### Repeated/noisy Fixture
@@ -78,8 +80,8 @@ Input shape:
 
 Expected Sidecar e_t fallback:
 
-- structured placeholder or null-equivalent fallback unless a future offline
-  computation PR explicitly defines bounded output
+- runtime structured placeholder remains unchanged
+- fixture-only helper may return bounded repeated trace pressure
 - no z_t commit
 - no QP output treated as evidence
 - no proposal scoring, commit/reject, Gate/SRF, or publication readiness
@@ -98,9 +100,9 @@ Input shape:
 Expected behavior:
 
 - no fabricated e_t, QP, or z_t values
-- placeholder fallback
-- explicit missing-context note in future fixture output, if a future output
-  shape adds notes
+- runtime placeholder fallback
+- fixture-only helper may return placeholder fallback or an explicit
+  missing-basis caveat only
 - no source-of-truth claim
 
 ### Conflicting-context Fixture
@@ -117,8 +119,9 @@ Expected behavior:
 - no authority
 - no QP output treated as evidence
 - no Evidence status or Claim confidence influence
-- placeholder fallback unless a future offline computation PR defines a
-  bounded non-authoritative conflict caveat
+- runtime placeholder fallback
+- fixture-only helper may return placeholder fallback or a bounded
+  non-authoritative conflict caveat
 
 ### Invalid-input Fixture
 
@@ -182,6 +185,11 @@ field must remain:
 - bounded
 - derived from already-read refs only
 - separately implemented in a later PR
+
+The first fixture-only helper skeleton uses a smoke-only candidate shape with
+`version=sidecar_e_t.offline_fixture_candidate.v0.1`, `fixture_only=true`, and
+`runtime_enabled=false`. It is not `PerspectiveSnapshot` response shape and is
+not schema authority.
 
 The fixture output must not become source of truth, proof, readiness, proposal
 scoring, Gate/SRF input, Claim confidence, Evidence status, publication

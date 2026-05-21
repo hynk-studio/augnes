@@ -100,13 +100,17 @@ Sidecar e_t fixture boundary verification belongs in bounded command evidence,
 such as `npm run smoke:sidecar-et-fixture-boundaries`. It must record skeleton
 fixture facts only: clean/minimal, repeated/noisy, missing-context,
 conflicting-context, invalid-input, and source-ref boundary scopes preserve the
-structured placeholder, do not compute Sidecar/e_t/QP/z_t values, do not create
-QP output, do not commit `z_t`, do not mutate authority tables, and make no
-external calls. It may also record helper skeleton facts only: the offline
-helper returns placeholder fallback for valid, missing, malformed, ambiguous,
-unsupported, empty, non-object, non-read, and out-of-boundary validation cases;
-the validation result is not authority or diagnostic output, and helper
-computation remains disabled.
+runtime structured placeholder, do not compute runtime Sidecar/e_t/QP/z_t
+values, do not create QP output, do not treat QP output as evidence, do not
+commit `z_t`, do not mutate authority tables, and make no external calls. It
+may also record helper skeleton facts only: the default offline helper returns
+placeholder fallback for valid, missing, malformed, ambiguous, unsupported,
+empty, non-object, non-read, and out-of-boundary validation cases; the
+validation result is not authority or diagnostic output; and the separate
+fixture-only candidate helper remains smoke-only, runtime-disabled,
+known-fixture-category-only, already-read-ref bounded, non-authoritative, not
+QP evidence, and not a `z_t` commit. Unknown or unsupported fixture categories
+must return placeholder fallback and must not permit runtime computation.
 Sidecar e_t diagnostic design review belongs in PR body/docs evidence only.
 `docs/SIDECAR_ET_DIAGNOSTIC_DESIGN_V0_1.md` is design-only and must not be
 recorded as runtime proof, schema authority, readiness, QP output, z_t commit,

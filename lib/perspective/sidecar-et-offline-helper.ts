@@ -10,6 +10,23 @@ type FixtureMetadata = {
   notes?: string[];
 };
 
+type SidecarEtPressureLevel = "none" | "low" | "medium" | "high";
+
+type SidecarEtSourceRefCompleteness = "empty" | "partial" | "complete";
+
+type SidecarEtAllowedFixtureCategory =
+  | "clean/minimal"
+  | "repeated/noisy"
+  | "missing-context"
+  | "conflicting-context";
+
+const ALLOWED_FIXTURE_CATEGORIES = new Set<string>([
+  "clean/minimal",
+  "repeated/noisy",
+  "missing-context",
+  "conflicting-context",
+]);
+
 export type SidecarEtOfflineHelperInput = {
   scope?: string;
   already_read_refs?: SidecarEtRefSet;
@@ -30,6 +47,26 @@ export type SidecarEtOfflineDiagnosticCandidate = {
     sidecar_e_t_hat: null;
   };
   source_refs: string[];
+  notes: string[];
+};
+
+export type SidecarEtOfflineFixtureCandidate = {
+  version: "sidecar_e_t.offline_fixture_candidate.v0.1";
+  mode: "log_only";
+  status: "fixture_only_candidate";
+  computed: true;
+  fixture_only: true;
+  runtime_enabled: false;
+  values: {
+    missing_basis: boolean;
+    repeated_trace_pressure: SidecarEtPressureLevel;
+    unresolved_tension_pressure: SidecarEtPressureLevel;
+    source_ref_completeness: SidecarEtSourceRefCompleteness;
+    sidecar_e_t_candidate_summary: string;
+    qp_observability_proxy_candidate_summary: string;
+    z_t_regime_hint_candidate_summary: string;
+  };
+  source_refs: Required<SidecarEtRefSet>;
   notes: string[];
 };
 
@@ -57,6 +94,93 @@ export function buildSidecarEtOfflineDiagnosticCandidate(
   validateSidecarEtOfflineInputBoundary(input);
 
   return buildSidecarEtPlaceholderFallback();
+}
+
+export function buildSidecarEtOfflineFixtureCandidate(
+  input?: unknown,
+): SidecarEtOfflineDiagnosticCandidate | SidecarEtOfflineFixtureCandidate {
+  const validation = validateSidecarEtOfflineInputBoundary(input);
+  if (!validation.valid || !isPlainObject(input)) {
+    return buildSidecarEtPlaceholderFallback();
+  }
+
+  const helperInput = input as SidecarEtOfflineHelperInput;
+  if (helperInput.candidate_source_refs === undefined) {
+    return buildSidecarEtPlaceholderFallback();
+  }
+
+  const category = getAllowedFixtureCategory(helperInput.fixture_metadata);
+  if (category === undefined) {
+    return buildSidecarEtPlaceholderFallback();
+  }
+
+  const candidateRefs = normalizeRefSet(helperInput.candidate_source_refs);
+  const alreadyReadRefs = normalizeRefSet(helperInput.already_read_refs);
+  const candidateRefCount = countRefs(candidateRefs);
+  const alreadyReadRefCount = countRefs(alreadyReadRefs);
+  const missingBasis =
+    candidateRefCount === 0 ||
+    alreadyReadRefCount === 0 ||
+    category === "missing-context";
+
+  const repeatedTracePressure = deriveRepeatedTracePressure({
+    category,
+    candidateRefs,
+  });
+  const unresolvedTensionPressure = deriveUnresolvedTensionPressure({
+    category,
+    candidateRefs,
+  });
+  const sourceRefCompleteness = deriveSourceRefCompleteness({
+    candidateRefCount,
+    alreadyReadRefCount,
+    candidateRefs,
+    alreadyReadRefs,
+  });
+
+  return {
+    version: "sidecar_e_t.offline_fixture_candidate.v0.1",
+    mode: "log_only",
+    status: "fixture_only_candidate",
+    computed: true,
+    fixture_only: true,
+    runtime_enabled: false,
+    values: {
+      missing_basis: missingBasis,
+      repeated_trace_pressure: repeatedTracePressure,
+      unresolved_tension_pressure: unresolvedTensionPressure,
+      source_ref_completeness: sourceRefCompleteness,
+      sidecar_e_t_candidate_summary: buildSidecarFixtureSummary({
+        category,
+        missingBasis,
+        repeatedTracePressure,
+        unresolvedTensionPressure,
+        sourceRefCompleteness,
+      }),
+      qp_observability_proxy_candidate_summary:
+        "Fixture-only bounded observability caveat; no QP output is created and no QP value is treated as evidence.",
+      z_t_regime_hint_candidate_summary:
+        "Fixture-only bounded regime caveat; no z_t update, commit, or regime authority is created.",
+    },
+    source_refs: candidateRefs,
+    notes: [
+      "fixture-only",
+      "log_only",
+      "non-authoritative",
+      "not runtime",
+      "not actual Sidecar state",
+      "not QP evidence",
+      "not z_t commit",
+      "not source of truth",
+      "not proposal scoring",
+      "not commit/reject input",
+      "not Gate/SRF input",
+      "not Claim confidence or Evidence status input",
+      "not publication readiness",
+      "not Cockpit action input",
+      "source_refs are emitted only after validation proves candidate_source_refs are a subset of already_read_refs",
+    ],
+  };
 }
 
 export function validateSidecarEtOfflineInputBoundary(
@@ -157,6 +281,129 @@ function buildSidecarEtPlaceholderFallback(): SidecarEtOfflineDiagnosticCandidat
       "Placeholder fallback is returned by the offline helper skeleton for every input.",
     ],
   };
+}
+
+function getAllowedFixtureCategory(
+  metadata: FixtureMetadata | undefined,
+): SidecarEtAllowedFixtureCategory | undefined {
+  const category = metadata?.category;
+  if (category === undefined || !ALLOWED_FIXTURE_CATEGORIES.has(category)) {
+    return undefined;
+  }
+
+  return category as SidecarEtAllowedFixtureCategory;
+}
+
+function normalizeRefSet(
+  refs: SidecarEtRefSet | undefined,
+): Required<SidecarEtRefSet> {
+  return {
+    state_entry_ids: [...(refs?.state_entry_ids ?? [])],
+    action_record_ids: [...(refs?.action_record_ids ?? [])],
+    work_event_ids: [...(refs?.work_event_ids ?? [])],
+    tension_ids: [...(refs?.tension_ids ?? [])],
+  };
+}
+
+function countRefs(refs: SidecarEtRefSet) {
+  return (
+    (refs.state_entry_ids ?? []).length +
+    (refs.action_record_ids ?? []).length +
+    (refs.work_event_ids ?? []).length +
+    (refs.tension_ids ?? []).length
+  );
+}
+
+function deriveRepeatedTracePressure({
+  category,
+  candidateRefs,
+}: {
+  category: string;
+  candidateRefs: Required<SidecarEtRefSet>;
+}): SidecarEtPressureLevel {
+  if (category === "repeated/noisy") {
+    const traceCount =
+      candidateRefs.action_record_ids.length +
+      candidateRefs.work_event_ids.length;
+    if (traceCount >= 4) {
+      return "high";
+    }
+    if (traceCount >= 2) {
+      return "medium";
+    }
+    if (traceCount === 1) {
+      return "low";
+    }
+  }
+
+  return "none";
+}
+
+function deriveUnresolvedTensionPressure({
+  category,
+  candidateRefs,
+}: {
+  category: string;
+  candidateRefs: Required<SidecarEtRefSet>;
+}): SidecarEtPressureLevel {
+  if (
+    (category === "repeated/noisy" || category === "conflicting-context") &&
+    candidateRefs.tension_ids.length > 0
+  ) {
+    return candidateRefs.tension_ids.length > 1 ? "medium" : "low";
+  }
+
+  return "none";
+}
+
+function deriveSourceRefCompleteness({
+  candidateRefCount,
+  alreadyReadRefCount,
+  candidateRefs,
+  alreadyReadRefs,
+}: {
+  candidateRefCount: number;
+  alreadyReadRefCount: number;
+  candidateRefs: Required<SidecarEtRefSet>;
+  alreadyReadRefs: Required<SidecarEtRefSet>;
+}): SidecarEtSourceRefCompleteness {
+  if (candidateRefCount === 0) {
+    return "empty";
+  }
+
+  if (
+    alreadyReadRefCount > 0 &&
+    candidateRefCount === alreadyReadRefCount &&
+    isSubsetRefSet(alreadyReadRefs, candidateRefs)
+  ) {
+    return "complete";
+  }
+
+  return "partial";
+}
+
+function buildSidecarFixtureSummary({
+  category,
+  missingBasis,
+  repeatedTracePressure,
+  unresolvedTensionPressure,
+  sourceRefCompleteness,
+}: {
+  category: string;
+  missingBasis: boolean;
+  repeatedTracePressure: SidecarEtPressureLevel;
+  unresolvedTensionPressure: SidecarEtPressureLevel;
+  sourceRefCompleteness: SidecarEtSourceRefCompleteness;
+}) {
+  if (missingBasis) {
+    return `Fixture-only ${category} candidate reports missing basis with ${sourceRefCompleteness} source refs; no runtime diagnostic or authority is produced.`;
+  }
+
+  if (category === "conflicting-context") {
+    return `Fixture-only conflicting-context candidate reports bounded unresolved tension pressure=${unresolvedTensionPressure}; no z_t commit, evidence effect, or authority is produced.`;
+  }
+
+  return `Fixture-only ${category} candidate reports repeated_trace_pressure=${repeatedTracePressure}, unresolved_tension_pressure=${unresolvedTensionPressure}, and source_ref_completeness=${sourceRefCompleteness}; no runtime diagnostic or authority is produced.`;
 }
 
 function isFixtureMetadata(value: unknown): value is FixtureMetadata {
