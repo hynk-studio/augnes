@@ -70,8 +70,9 @@ and also does not implement computation or change response shape.
 runtime-log-only design boundary and also does not implement runtime
 computation or change response shape.
 `docs/SIDECAR_ET_RUNTIME_SMOKE_DESIGN_V0_1.md` defines a future
-runtime-smoke-design-only boundary and also does not implement runtime
-computation, add smoke scripts, or change response shape.
+runtime-smoke-design-only boundary. `npm run smoke:sidecar-et-runtime-boundaries`
+is the focused skeleton smoke for current placeholder-only runtime behavior; it
+does not implement runtime computation or change response shape.
 
 `meta_wm_hint` shape:
 
@@ -199,7 +200,11 @@ no evidence/proof creation, no `z_t` commit, and no QP evidence.
 `docs/SIDECAR_ET_RUNTIME_SMOKE_DESIGN_V0_1.md` is the runtime-smoke design gate
 for that future implementation. It specifies smoke families, source-ref
 assertions, mutation/external-call assertions, UI/Cockpit assertions, fallback
-cases, and test isolation without adding runtime behavior.
+cases, and test isolation. `npm run smoke:sidecar-et-runtime-boundaries` now
+checks the current placeholder-only helper and direct route behavior for
+runtime Sidecar e_t scopes, documents the future source-ref subset assertion,
+and verifies no runtime computation, authority mutation, external call, route
+expansion, or Cockpit action input is introduced.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed

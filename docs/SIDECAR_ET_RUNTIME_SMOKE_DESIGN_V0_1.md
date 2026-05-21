@@ -27,7 +27,10 @@ The implemented baseline remains:
 - `loopness_hint` remains the only bounded `log_only` diagnostic object
   computed by runtime `PerspectiveSnapshot`.
 
-This PR must not change runtime `sidecar_e_t` output.
+This runtime smoke skeleton PR does not change runtime `sidecar_e_t` output.
+`npm run smoke:sidecar-et-runtime-boundaries` now exists as a focused
+placeholder-only runtime boundary smoke. It checks current runtime behavior and
+does not enable runtime computation.
 
 ## Required Smoke Families
 
@@ -38,10 +41,13 @@ families:
 - `npm run smoke:perspective-quality`
 - `npm run smoke:research-diagnostics-boundaries`
 - `npm run smoke:sidecar-et-fixture-boundaries`
+- `npm run smoke:sidecar-et-runtime-boundaries`
 
-A future focused smoke such as `npm run smoke:sidecar-et-runtime-boundaries`
-may be added in a separate implementation or smoke-skeleton PR if the existing
-families become too broad. This design PR does not add that script.
+The focused runtime smoke currently asserts placeholder-only behavior,
+source-ref fallback boundaries, mutation/external-call absence, static Cockpit
+non-action boundaries, and static `PerspectiveSnapshot` non-wiring boundaries.
+It is a skeleton for future regression checks, not permission to implement
+runtime computation.
 
 ## Runtime Smoke Assertions
 
