@@ -144,6 +144,11 @@ if that result is explicitly defined in a later implementation PR and guarded
 by smoke tests. Otherwise, and whenever uncertainty exists, it must return the
 structured placeholder fallback.
 
+`docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines the next
+computation-design-only boundary after this helper skeleton. It limits future
+computation to offline deterministic fixture context first and does not grant
+runtime behavior, schema authority, or implementation authority.
+
 ## Required Future Smoke Additions
 
 `npm run smoke:sidecar-et-fixture-boundaries` must be extended, not bypassed.
@@ -211,6 +216,10 @@ This helper design does not allow:
   path for a possible future Sidecar e_t diagnostic.
 - `docs/SIDECAR_ET_OFFLINE_FIXTURE_DESIGN_V0_1.md`: deterministic offline
   fixture categories and expected boundary assertions.
+- `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md`: future offline
+  deterministic computation boundary, candidate input/output limits,
+  deterministic signal constraints, required implementation gates, and
+  rollback rules.
 - `docs/PERSPECTIVE_SNAPSHOT_V0_1.md`: implemented `PerspectiveSnapshot` and
   `research_diagnostics` placeholder baseline.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes

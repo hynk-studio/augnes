@@ -63,6 +63,9 @@ fixture-design-only cases for the next gate and also does not compute values.
 `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md` defines a future
 helper-design-only boundary for deterministic offline diagnostics and also does
 not implement computation.
+`docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines a future
+computation-design-only boundary for offline deterministic fixture computation
+and also does not implement computation or change response shape.
 
 `meta_wm_hint` shape:
 
@@ -177,6 +180,11 @@ requirements without changing runtime behavior or response shape.
 `lib/perspective/sidecar-et-offline-helper.ts` is a non-runtime helper
 skeleton that returns placeholder fallback only; it is not wired into
 `PerspectiveSnapshot` generation.
+`docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` is the
+computation-design-only gate after the helper skeleton and validation
+hardening. It keeps future computation fixture-only first and does not permit
+runtime routes, Cockpit action paths, external calls, persistence writes,
+evidence/proof creation, `z_t` commit, or QP output treated as evidence.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
