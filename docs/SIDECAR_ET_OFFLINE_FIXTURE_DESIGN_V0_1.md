@@ -40,6 +40,9 @@ helper implementation.
 The current helper skeleton returns placeholder fallback only and is checked by
 `npm run smoke:sidecar-et-fixture-boundaries`; it still does not compute
 Sidecar/e_t/QP/z_t values.
+`docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines the later
+computation-design-only boundary. It does not implement computation and does
+not change the fixture placeholder baseline.
 
 ## Fixture Cases
 
@@ -215,6 +218,9 @@ This fixture design does not allow:
   `research_diagnostics` placeholder baseline.
 - `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md`: future non-runtime helper
   design and read-set/fallback boundaries for the next gate.
+- `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md`: future offline
+  deterministic computation boundary and required implementation gates after
+  the helper skeleton and validation hardening.
 - `docs/AUTHORITY_MATRIX.md`: provider-neutral and Perspective diagnostic
   authority boundaries.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke

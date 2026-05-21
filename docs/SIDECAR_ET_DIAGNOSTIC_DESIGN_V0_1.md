@@ -127,6 +127,9 @@ Progression must be explicit and separate:
    fixtures. No routes, no Cockpit action inputs, no persistence writes. The
    helper-design gate is defined in
    `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md`.
+   The computation-design gate is defined in
+   `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md`; it is design-only and
+   does not implement computation.
 3. Offline deterministic computation to `log_only` runtime computation:
    Add read-only runtime computation only after smoke tests prove no authority
    table mutation, no external calls, no proposal status changes, and no route
@@ -190,6 +193,10 @@ It must also add or extend fixture smoke coverage proving:
 - `docs/SIDECAR_ET_OFFLINE_HELPER_DESIGN_V0_1.md`: future non-runtime helper
   boundary, allowed inputs, allowed read-set, fallback rules, and smoke
   requirements before helper implementation.
+- `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md`: future offline
+  deterministic computation boundary, candidate input/output limits,
+  deterministic signal constraints, required implementation gates, and
+  rollback rules. It does not implement computation or grant authority.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes
   and Perspective diagnostics.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke
