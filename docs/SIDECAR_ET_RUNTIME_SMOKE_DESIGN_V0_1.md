@@ -31,6 +31,9 @@ This runtime smoke skeleton PR does not change runtime `sidecar_e_t` output.
 `npm run smoke:sidecar-et-runtime-boundaries` now exists as a focused
 placeholder-only runtime boundary smoke. It checks current runtime behavior and
 does not enable runtime computation.
+`docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` is the final
+review checklist that must be satisfied before any runtime implementation PR.
+It is docs-only and does not enable runtime computation.
 
 ## Required Smoke Families
 
@@ -213,6 +216,9 @@ This runtime smoke design does not allow:
 - `docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md`: runtime `log_only`
   promotion boundary. This smoke design expands the required test plan for
   that future promotion.
+- `docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md`: final
+  implementation review checklist for a future runtime PR. It does not add
+  implementation authority.
 - `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md`: offline fixture-only
   computation boundary, output wording constraints, required gates, and
   rollback rules.

@@ -73,6 +73,9 @@ computation or change response shape.
 runtime-smoke-design-only boundary. `npm run smoke:sidecar-et-runtime-boundaries`
 is the focused skeleton smoke for current placeholder-only runtime behavior; it
 does not implement runtime computation or change response shape.
+`docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` defines the final
+review checklist before any runtime implementation PR and also does not
+implement computation or change response shape.
 
 `meta_wm_hint` shape:
 
@@ -205,6 +208,11 @@ checks the current placeholder-only helper and direct route behavior for
 runtime Sidecar e_t scopes, documents the future source-ref subset assertion,
 and verifies no runtime computation, authority mutation, external call, route
 expansion, or Cockpit action input is introduced.
+`docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` is the final
+review checklist for a future runtime implementation PR. It requires explicit
+user/PM approval, reviewed source-ref and output policies, smoke updates,
+blocking conditions, and rollback requirements before runtime computation can
+be implemented.
 
 Cockpit may collapse dense PerspectiveSnapshot basis, authority lane, and
 diagnostic source-ref details by default to reduce visual density. The collapsed
