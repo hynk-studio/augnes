@@ -154,6 +154,11 @@ mutation, `fetch_calls=0`, no extra Sidecar route, and no Cockpit action input.
 It may document the future source-ref subset policy, but it must not be treated
 as runtime proof, schema authority, readiness, or permission to compute
 Sidecar e_t.
+Sidecar e_t runtime implementation checklist review belongs in PR body/docs
+evidence only. `docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` is
+implementation-checklist-only and must not be recorded as runtime computation,
+schema authority, smoke execution, evidence/proof, readiness, QP output,
+`z_t` commit, or permission to implement without explicit user/PM approval.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and

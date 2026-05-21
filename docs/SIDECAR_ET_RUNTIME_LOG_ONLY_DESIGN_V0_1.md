@@ -49,6 +49,8 @@ Runtime `log_only` design may be considered only after:
 
 Meeting these preconditions does not authorize implementation. Runtime
 implementation still requires a separate PR, explicit smoke updates, and review.
+`docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` defines the final
+review checklist that must be satisfied before any implementation PR.
 
 ## Runtime Log-Only Candidate Boundary
 
@@ -201,6 +203,9 @@ This runtime `log_only` design does not allow:
 - `docs/SIDECAR_ET_RUNTIME_SMOKE_DESIGN_V0_1.md`: future runtime smoke and
   regression-test plan. Its focused skeleton smoke checks current placeholder
   runtime behavior and does not implement runtime computation.
+- `docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md`: final
+  implementation review checklist. It is non-SSOT and does not authorize
+  runtime implementation by itself.
 - `docs/PERSPECTIVE_SNAPSHOT_V0_1.md`: implemented runtime placeholder
   baseline. This runtime design does not change response shape.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes
@@ -214,6 +219,8 @@ This runtime `log_only` design does not allow:
 A future runtime PR is not ready until:
 
 - this runtime `log_only` design has been reviewed
+- `docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` has been
+  reviewed and all applicable checklist items are satisfied
 - the final runtime output policy is separately reviewed
 - source refs are proven to be already-read `PerspectiveSnapshot` refs only
 - no runtime route or Cockpit expansion is introduced
