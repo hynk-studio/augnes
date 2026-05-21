@@ -14,6 +14,19 @@ type SidecarEtPressureLevel = "none" | "low" | "medium" | "high";
 
 type SidecarEtSourceRefCompleteness = "empty" | "partial" | "complete";
 
+type SidecarEtAllowedFixtureCategory =
+  | "clean/minimal"
+  | "repeated/noisy"
+  | "missing-context"
+  | "conflicting-context";
+
+const ALLOWED_FIXTURE_CATEGORIES = new Set<string>([
+  "clean/minimal",
+  "repeated/noisy",
+  "missing-context",
+  "conflicting-context",
+]);
+
 export type SidecarEtOfflineHelperInput = {
   scope?: string;
   already_read_refs?: SidecarEtRefSet;
@@ -96,8 +109,8 @@ export function buildSidecarEtOfflineFixtureCandidate(
     return buildSidecarEtPlaceholderFallback();
   }
 
-  const category = helperInput.fixture_metadata?.category ?? "unknown";
-  if (category === "invalid-input" || category === "source-ref-boundary") {
+  const category = getAllowedFixtureCategory(helperInput.fixture_metadata);
+  if (category === undefined) {
     return buildSidecarEtPlaceholderFallback();
   }
 
@@ -268,6 +281,17 @@ function buildSidecarEtPlaceholderFallback(): SidecarEtOfflineDiagnosticCandidat
       "Placeholder fallback is returned by the offline helper skeleton for every input.",
     ],
   };
+}
+
+function getAllowedFixtureCategory(
+  metadata: FixtureMetadata | undefined,
+): SidecarEtAllowedFixtureCategory | undefined {
+  const category = metadata?.category;
+  if (category === undefined || !ALLOWED_FIXTURE_CATEGORIES.has(category)) {
+    return undefined;
+  }
+
+  return category as SidecarEtAllowedFixtureCategory;
 }
 
 function normalizeRefSet(

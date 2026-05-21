@@ -48,14 +48,26 @@ Cockpit, OpenAI, GitHub, commit/reject, or any Core write path.
   the only default diagnostic helper behavior.
 - `buildSidecarEtOfflineFixtureCandidate(input?)`: the smoke/fixture-only
   candidate path. It is pure, deterministic, non-runtime, and can compute only
-  bounded candidate labels from supplied already-read fixture refs and fixture
-  metadata.
+  bounded candidate labels from supplied already-read fixture refs and known
+  deterministic fixture metadata.
 
 The fixture-only candidate path does not perform DB reads, fetches, OpenAI
 calls, GitHub calls, filesystem writes, env mutation, time-dependent output, or
 persistence writes. It returns placeholder fallback when validation fails, when
 `candidate_source_refs` are missing or not already read, or when the fixture
-scope is invalid-input/source-ref-boundary.
+category is missing, unknown, unsupported, invalid-input, or
+source-ref-boundary.
+
+Fixture-only candidate computation is allowed only for known deterministic
+fixture categories:
+
+- `clean/minimal`
+- `repeated/noisy`
+- `missing-context`
+- `conflicting-context`
+
+Unknown or unsupported categories return placeholder fallback. This does not
+permit runtime computation.
 
 `PerspectiveSnapshot` still returns the structured `sidecar_e_t` placeholder.
 Future runtime `log_only` computation still requires a separate PR, separate

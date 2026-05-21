@@ -179,6 +179,8 @@ try {
         helper_returns_placeholder_only: true,
         helper_computation_enabled: false,
         fixture_only_candidate_checked: true,
+        fixture_only_category_allowlist_checked: true,
+        fixture_only_unknown_category_fallback: true,
         fixture_only_runtime_enabled: false,
         fixture_only_refs_already_read_only: true,
         perspective_snapshot_sidecar_still_placeholder: true,
@@ -403,6 +405,11 @@ function assertFixtureOnlyCandidate({
 }) {
   const alreadyReadRefs = buildAlreadyReadRefs(snapshot);
   const input = buildFixtureOnlyInput({ fixture, alreadyReadRefs });
+  assertUnsupportedFixtureCategoryFallbacks({
+    buildSidecarEtOfflineFixtureCandidate,
+    fixture,
+    alreadyReadRefs,
+  });
   const candidate = buildSidecarEtOfflineFixtureCandidate(input);
 
   assert.equal(
@@ -460,6 +467,51 @@ function assertFixtureOnlyCandidate({
     assert.equal(candidate.values.repeated_trace_pressure, "none");
     assert.notEqual(candidate.values.unresolved_tension_pressure, "high");
     assertNoEvidenceOrClaimConfidenceInfluence(candidate);
+  }
+}
+
+function assertUnsupportedFixtureCategoryFallbacks({
+  buildSidecarEtOfflineFixtureCandidate,
+  fixture,
+  alreadyReadRefs,
+}) {
+  for (const fallbackCase of [
+    {
+      label: "missing fixture_metadata",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        candidate_source_refs: alreadyReadRefs,
+      },
+    },
+    {
+      label: "fixture_metadata without category",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        fixture_metadata: {
+          notes: ["well-shaped metadata without category"],
+        },
+        candidate_source_refs: alreadyReadRefs,
+      },
+    },
+    {
+      label: "unsupported fixture category",
+      input: {
+        scope: fixture.scope,
+        already_read_refs: alreadyReadRefs,
+        fixture_metadata: {
+          category: "unsupported-fixture-category",
+        },
+        candidate_source_refs: alreadyReadRefs,
+      },
+    },
+  ]) {
+    const candidate = buildSidecarEtOfflineFixtureCandidate(fallbackCase.input);
+    assertSidecarEtHelperPlaceholder(
+      candidate,
+      `fixture-only helper should return placeholder for ${fallbackCase.label}`,
+    );
   }
 }
 
@@ -911,11 +963,14 @@ function assertSidecarEtPlaceholder(sidecarEtHint) {
   );
 }
 
-function assertSidecarEtHelperPlaceholder(sidecarEtHint) {
+function assertSidecarEtHelperPlaceholder(
+  sidecarEtHint,
+  message = "Sidecar e_t helper skeleton should state placeholder fallback behavior",
+) {
   assertSidecarEtPlaceholder(sidecarEtHint);
   assert(
     sidecarEtHint.notes.some((note) => note.includes("Placeholder fallback")),
-    "Sidecar e_t helper skeleton should state placeholder fallback behavior",
+    message,
   );
 }
 

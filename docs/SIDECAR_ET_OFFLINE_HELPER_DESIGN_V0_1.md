@@ -39,9 +39,10 @@ buildSidecarEtOfflineFixtureCandidate
 The default helper, `buildSidecarEtOfflineDiagnosticCandidate`, must return the
 structured placeholder fallback for normal/default calls. The fixture-only
 helper, `buildSidecarEtOfflineFixtureCandidate`, is separate and may run only
-against deterministic local fixture inputs. Neither helper may be called by
-production routes, Cockpit rendering, OpenAI observe/plan/preview paths,
-commit/reject paths, GitHub publish paths, or any Core write path.
+against deterministic local fixture inputs with a known fixture category.
+Neither helper may be called by production routes, Cockpit rendering, OpenAI
+observe/plan/preview paths, commit/reject paths, GitHub publish paths, or any
+Core write path.
 
 The helper must return the structured placeholder fallback if inputs are
 missing, malformed, unsupported, out of scope, not already read, or ambiguous.
@@ -60,7 +61,8 @@ the fixture-only candidate shape, with `fixture_only=true` and
 `runtime_enabled=false`. It is not runtime `sidecar_e_t`, not actual Sidecar
 state, not QP output or evidence, and not a `z_t` commit. It must return
 placeholder fallback for invalid, malformed, unsupported, out-of-scope,
-non-read, or ambiguous inputs.
+non-read, ambiguous inputs, missing fixture metadata, missing fixture category,
+or unknown fixture category.
 
 ## Validation Hardening Note
 
@@ -70,7 +72,10 @@ result is not authority, not diagnostic output, not source of truth, and not a
 permission to compute. Invalid input returns placeholder fallback. Valid input
 also returns placeholder fallback in the default helper path. The fixture-only
 candidate helper may compute only after validation is valid and
-`candidate_source_refs` are proven already read.
+`candidate_source_refs` are proven already read. Category support remains a
+fixture-only compute gate, not validation authority; a well-shaped unsupported
+category may still validate as shape-valid while returning placeholder
+fallback from the fixture-only helper.
 
 ## Allowed Future Inputs
 
@@ -147,11 +152,11 @@ output must remain:
 - not publication readiness
 - not Cockpit action input
 
-The fixture-only helper may return a bounded no-pressure result for clean
-fixtures, a bounded repeated/noisy pressure label, or a bounded
-non-authoritative caveat for missing/conflicting context. Otherwise, and
-whenever uncertainty exists, it must return the structured placeholder
-fallback.
+The fixture-only helper may return a bounded no-pressure result for
+`clean/minimal`, a bounded repeated/noisy pressure label for `repeated/noisy`,
+or a bounded non-authoritative caveat for `missing-context` and
+`conflicting-context`. Unknown or unsupported categories return the structured
+placeholder fallback. This does not permit runtime computation.
 
 `docs/SIDECAR_ET_OFFLINE_COMPUTATION_DESIGN_V0_1.md` defines the
 computation boundary after this helper skeleton. It limits this skeleton to
