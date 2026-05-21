@@ -69,6 +69,20 @@ fixture categories:
 Unknown or unsupported categories return placeholder fallback. This does not
 permit runtime computation.
 
+Fixture-only output text is smoke-only review text. Candidate summaries and
+notes must use explicit boundary language: fixture-only, `log_only`,
+smoke-only/non-runtime, non-authoritative, not actual Sidecar state, not
+evidence, not proof, not QP evidence, not `z_t` commit, not source of truth,
+not proposal scoring, not commit/reject input, not Gate/SRF input, not Claim
+confidence or Evidence status input, not publication readiness, and not
+Cockpit action input.
+
+Fixture-only output text must avoid ambiguous proof, evidence, readiness,
+authority, recommendation, actionability, regime-assignment, QP-measurement,
+`z_t` update, or production/runtime signal language. Any wording ambiguity
+forces placeholder fallback or blocks merge until docs, helper output, and
+smoke assertions agree.
+
 `PerspectiveSnapshot` still returns the structured `sidecar_e_t` placeholder.
 Future runtime `log_only` computation still requires a separate PR, separate
 review, and smoke coverage proving no route, Cockpit, API response shape,
@@ -163,6 +177,9 @@ Any computed output, if ever implemented, must stay:
 
 The structured placeholder remains the required fallback whenever output cannot
 be proven bounded, deterministic, fixture-scoped, and non-authoritative.
+It also remains the required fallback whenever fixture-only output wording
+cannot be kept clearly smoke-only, non-runtime, non-authoritative, not
+evidence, not proof, not QP evidence, and not `z_t` commit.
 
 ## Deterministic Scoring And Labeling Constraints
 
