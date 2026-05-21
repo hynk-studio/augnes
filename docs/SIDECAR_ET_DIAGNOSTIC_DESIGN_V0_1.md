@@ -133,7 +133,9 @@ Progression must be explicit and separate:
 3. Offline deterministic computation to `log_only` runtime computation:
    Add read-only runtime computation only after smoke tests prove no authority
    table mutation, no external calls, no proposal status changes, and no route
-   or Cockpit action expansion.
+   or Cockpit action expansion. The runtime log-only design gate is defined in
+   `docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md`; it is design-only and
+   does not implement runtime computation.
 4. `log_only` runtime computation to prior-only use:
    Only if separately approved by user/PM governance. Prior-only use still
    cannot become proof, readiness, Gate/SRF input, proposal scoring authority,
@@ -197,6 +199,10 @@ It must also add or extend fixture smoke coverage proving:
   deterministic computation boundary, candidate input/output limits,
   deterministic signal constraints, required implementation gates, and
   rollback rules. It does not implement computation or grant authority.
+- `docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md`: future runtime
+  `log_only` promotion boundary, source-ref policy, output policy, required
+  runtime gates, and rollback rules. It does not implement runtime
+  computation or grant authority.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes
   and Perspective diagnostics.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke

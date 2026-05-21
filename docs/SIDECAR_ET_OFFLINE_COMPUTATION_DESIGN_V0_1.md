@@ -87,6 +87,8 @@ smoke assertions agree.
 Future runtime `log_only` computation still requires a separate PR, separate
 review, and smoke coverage proving no route, Cockpit, API response shape,
 authority, evidence/proof, `z_t`, QP-evidence, or Core-write leakage.
+`docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md` defines the next
+runtime-log-only design gate without implementing runtime computation.
 
 ## Proposed Future Computation Boundary
 
@@ -284,6 +286,9 @@ This computation design does not allow:
   placeholder fallback requirement.
 - `docs/PERSPECTIVE_SNAPSHOT_V0_1.md`: implemented `PerspectiveSnapshot`
   placeholder baseline. This document does not change response shape.
+- `docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md`: future runtime
+  `log_only` promotion boundary after fixture-only output review. It does not
+  wire computation into runtime.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes
   and Perspective diagnostics. This document does not add authority.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke

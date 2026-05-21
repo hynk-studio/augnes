@@ -171,6 +171,9 @@ fallback or the change must block merge until smoke assertions and docs agree.
 computation boundary after this helper skeleton. It limits this skeleton to
 offline deterministic fixture context and does not grant runtime behavior,
 schema authority, or implementation authority beyond the fixture-only helper.
+`docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md` defines a later
+runtime-log-only design boundary. It does not wire the helper into runtime or
+change `PerspectiveSnapshot`.
 
 ## Required Future Smoke Additions
 
@@ -243,6 +246,8 @@ This helper design does not allow:
   deterministic computation boundary, candidate input/output limits,
   deterministic signal constraints, required implementation gates, and
   rollback rules.
+- `docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md`: future runtime
+  `log_only` promotion boundary. It does not implement runtime computation.
 - `docs/PERSPECTIVE_SNAPSHOT_V0_1.md`: implemented `PerspectiveSnapshot` and
   `research_diagnostics` placeholder baseline.
 - `docs/AUTHORITY_MATRIX.md`: authority boundaries for provider-neutral lanes

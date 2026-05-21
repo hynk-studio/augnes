@@ -133,6 +133,12 @@ computation-design-only and must not be recorded as runtime computation,
 fixture execution, helper implementation, schema authority, evidence/proof,
 readiness, QP output, z_t commit, or permission to compute outside a separately
 gated future implementation PR.
+Sidecar e_t runtime log-only design review belongs in PR body/docs evidence
+only. `docs/SIDECAR_ET_RUNTIME_LOG_ONLY_DESIGN_V0_1.md` is
+runtime-log-only-design-only and must not be recorded as runtime computation,
+schema authority, evidence/proof, readiness, QP output, z_t commit, or
+permission to wire Sidecar e_t computation into `PerspectiveSnapshot`, routes,
+Cockpit, OpenAI, GitHub, commit/reject, or Core writes.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and
