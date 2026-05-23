@@ -74,6 +74,26 @@ Boundary 요약:
   Claim confidence, Evidence status, publication readiness, proposal scoring,
   commit/reject input, Cockpit action input이 아니다.
 
+### 최근 dogfooding research 포인터 (repo-local, non-SSOT)
+
+이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. Augnes
+development dogfooding과 Perspective continuity 연구 방향을 찾기 위한
+repo-local 색인이다.
+
+- `AUGNES_DOGFOODING_RESEARCH_DIRECTION_V0_1.md`: Augnes 개발 작업을 첫
+  dogfooding/evaluation context로 다루는 non-SSOT research direction이다.
+- `AUGNES_PERSPECTIVE_CONTINUITY_RESEARCH_NOTE_V0_1.md`: project context가
+  시간에 따라 어떻게 유지, 수정, 수리, 전환, 은퇴, 또는 boundary-block
+  되는지 논의하기 위한 non-authoritative research vocabulary note다.
+
+이 문서들은 Active set을 확장하지 않고 runtime/schema/implementation/
+diagnostic/evaluation authority를 만들지 않는다. production-readiness 또는
+autonomous capability를 의미하지 않는다.
+
+Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
+schema, routes, Cockpit controls, 또는 Augnes Core authority를 변경하지
+않는다.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)

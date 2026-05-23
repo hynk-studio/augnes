@@ -28,6 +28,12 @@ Augnes gives that work a shared local record: committed state, work trace
 anchors, and proof records. Models can help interpret and propose changes, while
 the runtime and the user keep control over what becomes durable state.
 
+Augnes also uses its own development as a dogfooding context. The first
+evaluation target is the Augnes workflow itself: planning, Codex handoff, PR
+review, next-task selection, and noticing when project context has become stale
+or misaligned. These notes are research and evaluation guidance only; they do
+not imply new runtime behavior or production capability.
+
 ## What it does
 
 - Compiles natural language into typed temporal state delta proposals.
