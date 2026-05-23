@@ -116,6 +116,26 @@ Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
 schema, routes, Cockpit controls, Augnes Core authority, 또는 Sidecar e_t
 placeholder status를 변경하지 않는다.
 
+### 최근 dogfooding evaluation 포인터 (repo-local, non-SSOT)
+
+이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. dogfooding
+episode를 raw-episode-grounded 방식으로 비교하고 negative/partial case를
+보존하기 위한 repo-local 색인이다.
+
+- `DOGFOODING_EVALUATION_CRITERIA_V0_1.md`: Augnes dogfooding episode를
+  비교하기 위한 docs-only, non-authoritative, case-based review aid다.
+- `DOGFOODING_EVALUATION_CASEBOOK_V0_1.md`: negative, partial, ambiguous,
+  failed, successful case를 raw anchor와 gap 중심으로 모으기 위한 docs-only
+  casebook template이다.
+
+이 문서들은 Active set을 확장하지 않고 runtime/schema/implementation/
+diagnostic/evaluation/evidence/proof authority를 만들지 않는다.
+production-readiness 또는 autonomous capability를 의미하지 않는다.
+
+Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
+schema, routes, Cockpit controls, Augnes Core authority, 또는 Sidecar e_t
+placeholder status를 변경하지 않는다.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
