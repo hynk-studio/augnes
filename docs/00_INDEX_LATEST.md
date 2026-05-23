@@ -94,6 +94,28 @@ Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
 schema, routes, Cockpit controls, 또는 Augnes Core authority를 변경하지
 않는다.
 
+### 최근 dogfooding episode template 포인터 (repo-local, non-SSOT)
+
+이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. raw episode
+capture, Codex handoff, dogfooding episode log 형식을 찾기 위한 repo-local
+색인이다.
+
+- `RAW_EPISODE_CAPTURE_V0_1.md`: raw episode anchor를 summary보다 먼저
+  보존하기 위한 docs-only, non-SSOT research/evaluation guidance다.
+- `CODEX_HANDOFF_V0_1.md`: Codex 작업을 scoping, testing, reporting,
+  review하기 위한 docs-only handoff template이다.
+- `DOGFOODING_EPISODE_LOG_V0_1.md`: raw anchors, handoff quality, review
+  outcome, gaps, next-goal selection을 분리해서 기록하기 위한 docs-only
+  episode log template이다.
+
+이 문서들은 Active set을 확장하지 않고 runtime/schema/implementation/
+diagnostic/evaluation/evidence/proof authority를 만들지 않는다.
+production-readiness 또는 autonomous capability를 의미하지 않는다.
+
+Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
+schema, routes, Cockpit controls, Augnes Core authority, 또는 Sidecar e_t
+placeholder status를 변경하지 않는다.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
