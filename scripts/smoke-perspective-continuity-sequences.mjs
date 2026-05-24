@@ -328,6 +328,11 @@ console.log(
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
       changed_files_checked: changedFilesBoundary.files,
+      changed_files_base_ref: changedFilesBoundary.base_ref,
+      changed_files_base_range_checked: changedFilesBoundary.base_range_checked,
+      changed_files_base_range_skipped: changedFilesBoundary.base_range_skipped,
+      changed_files_working_tree_checked:
+        changedFilesBoundary.working_tree_checked,
       runtime_behavior_changed: false,
       perspective_snapshot_shape_changed: false,
       sidecar_runtime_computation_added: false,

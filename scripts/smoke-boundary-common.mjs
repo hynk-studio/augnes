@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -78,31 +78,97 @@ export function assertNoForbiddenPositivePhrases({
 }
 
 export function assertChangedFilesWithin({ allowedChangedFiles, label }) {
-  let output;
-  try {
-    output = execSync("git diff --name-only HEAD", {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  } catch (error) {
-    if (error.status === undefined) {
-      return { checked: false, skipped: true, files: [] };
-    }
-    throw error;
-  }
-
-  const files = output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const workingTree = collectGitDiffFiles(["diff", "--name-only", "HEAD"]);
+  const baseRange = getBaseRangeChangedFiles();
+  const files = uniqueSorted([...workingTree.files, ...baseRange.files]);
   const allowed = new Set(allowedChangedFiles);
 
   for (const file of files) {
     assert(allowed.has(file), `Unexpected changed file for ${label}: ${file}`);
   }
 
-  return { checked: true, skipped: false, files };
+  const checked = workingTree.checked || baseRange.checked;
+
+  return {
+    checked,
+    skipped: !checked,
+    files,
+    working_tree_files: workingTree.files,
+    working_tree_checked: workingTree.checked,
+    working_tree_skipped: workingTree.skipped,
+    base_ref: baseRange.base_ref,
+    base_range_files: baseRange.files,
+    base_range_checked: baseRange.checked,
+    base_range_skipped: baseRange.skipped,
+  };
+}
+
+export function collectGitDiffFiles(args) {
+  try {
+    const output = execFileSync("git", args, {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return {
+      checked: true,
+      skipped: false,
+      files: uniqueSorted(parseGitFileList(output)),
+    };
+  } catch {
+    return { checked: false, skipped: true, files: [] };
+  }
+}
+
+export function getCandidateBaseRefs() {
+  return [
+    process.env.AUGNES_CHANGED_FILES_BASE_REF,
+    process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : null,
+    "origin/main",
+    "main",
+  ].filter(Boolean);
+}
+
+export function getBaseRangeChangedFiles() {
+  const baseRef = getCandidateBaseRefs().find((candidate) =>
+    gitRefExists(candidate),
+  );
+
+  if (!baseRef) {
+    return { checked: false, skipped: true, files: [], base_ref: null };
+  }
+
+  const result = collectGitDiffFiles(["diff", "--name-only", `${baseRef}...HEAD`]);
+
+  return {
+    checked: result.checked,
+    skipped: result.skipped,
+    files: result.files,
+    base_ref: baseRef,
+  };
+}
+
+export function uniqueSorted(files) {
+  return [...new Set(files.filter(Boolean))].sort();
+}
+
+function gitRefExists(ref) {
+  try {
+    execFileSync("git", ["rev-parse", "--verify", "--quiet", ref], {
+      cwd: repoRoot,
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseGitFileList(output) {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 export function parsePackageJson(text) {
