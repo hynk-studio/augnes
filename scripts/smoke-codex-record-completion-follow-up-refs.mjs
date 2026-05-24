@@ -91,6 +91,22 @@ try {
   assert.match(success.stdout, /action_record_response:/);
   assert.match(success.stdout, /work_event_response:/);
   assert.match(success.stdout, /read_only_review_refs:/);
+  assert.doesNotMatch(success.stdout, /Verify work event:/);
+  assert.doesNotMatch(success.stdout, /Verify action record:/);
+  assert.match(
+    success.stdout,
+    new RegExp(
+      `Verify work brief: ${escapeRegExp(
+        buildReviewUrl(apiBaseUrl, `/api/work/${encodeURIComponent(workId)}/brief`, { scope }),
+      )}`,
+    ),
+  );
+  assert.match(
+    success.stdout,
+    new RegExp(
+      `Verify state brief: ${escapeRegExp(buildReviewUrl(apiBaseUrl, "/api/state/brief", { scope }))}`,
+    ),
+  );
   assert.match(
     success.stdout,
     new RegExp(

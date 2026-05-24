@@ -347,8 +347,18 @@ function printCompletionResult({
   console.log(`related_state_keys count: ${config.relatedStateKeys.length}`);
   console.log(`action_record_response: ${JSON.stringify(actionResult)}`);
   console.log(`work_event_response: ${JSON.stringify(workEventResult)}`);
-  console.log(`Verify work event: ${config.apiBaseUrl}/api/work/${config.workId}/brief?scope=${encodeURIComponent(config.scope)}`);
-  console.log(`Verify action record: ${config.apiBaseUrl}/api/state/brief?scope=${encodeURIComponent(config.scope)}`);
+  console.log(
+    `Verify work brief: ${buildReviewUrl(
+      config.apiBaseUrl,
+      `/api/work/${encodeURIComponent(config.workId)}/brief`,
+      { scope: config.scope },
+    )}`,
+  );
+  console.log(
+    `Verify state brief: ${buildReviewUrl(config.apiBaseUrl, "/api/state/brief", {
+      scope: config.scope,
+    })}`,
+  );
   console.log("read_only_review_refs:");
   console.log(
     `work_brief_url: ${buildReviewUrl(
