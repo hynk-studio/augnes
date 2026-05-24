@@ -54,6 +54,13 @@ behavior.
   builder, call API routes, implement runtime sequence behavior, change
   `PerspectiveSnapshot` shape, compute diagnostics, or change Sidecar e_t
   placeholder status.
+- PR #190 extends that runtime-disabled sequence fixture smoke with
+  `retirement`, `transition_accepted`, and `temporal_grouping_failure`.
+  These are in-memory review-aid-only fixture descriptors. They do not
+  implement runtime sequence behavior, write state transitions, perform
+  commit/reject, evaluate PR quality, detect drift at runtime, repair context
+  automatically, change `PerspectiveSnapshot` shape, compute diagnostics, or
+  change Sidecar e_t placeholder status.
 
 ## Future Smoke Goals
 
@@ -73,26 +80,32 @@ These are future smoke design goals only:
   computation
 - ensure Sidecar e_t remains placeholder unless separately approved
 
-## Future Sequence Fixture Families
+## Sequence Fixture Families
 
-These are fixture family names for future smoke design only, not implemented
-fixtures and not proof categories.
+These fixture family names are non-authoritative review aids and not proof
+categories.
 
-- stable continuity
-- minor revision
+Implemented as runtime-disabled in-memory smoke fixtures:
+
+- stable_continuity
+- minor_revision
+- missing_raw_anchors
+- misleading_summary
+- boundary_blocked
+- source_ref_temptation
+- merged_but_review_gaps_remained
+- retirement
+- transition_accepted
+- temporal_grouping_failure
+
+Remaining or future fixture families remain future design-only and
+non-authoritative:
+
 - drift detected
 - repair needed
 - transition pressure
-- transition accepted
-- retirement
-- boundary blocked
-- source-ref temptation
-- temporal grouping failure
-- misleading summary
 - over-preserved perspective
 - premature transition
-- missing raw anchors
-- merged but review gaps remained
 
 ## t0 / t1 / t2 Review Shape
 
