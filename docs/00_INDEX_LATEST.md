@@ -145,15 +145,21 @@ smoke-design-only, documentation-boundary-first 색인이다.
 - `PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md`: future smoke sequence
   fixture families와 boundary assertions를 정리하는 non-authoritative
   research/evaluation guidance다.
+- `npm run smoke:perspective-continuity-boundaries`: focused
+  documentation-boundary-only smoke로, public-safe wording, non-authority
+  status, raw-anchor summary boundaries, evaluation/scoring boundaries,
+  diagnostic placeholder boundaries, index pointer boundaries를 정적으로
+  확인한다.
 
 이 문서는 Active set을 확장하지 않고 runtime/schema/implementation/
 diagnostic/evaluation/evidence/proof/scoring/benchmark authority를 만들지
 않는다. production-readiness 또는 autonomous capability를 의미하지 않는다.
 
-Boundary 요약: 이 문서는 smoke script를 구현하지 않고 package scripts를
-추가하지 않으며 `PerspectiveSnapshot` behavior, diagnostics, schema, routes,
-Cockpit controls, Augnes Core authority, 또는 Sidecar e_t placeholder status를
-변경하지 않는다.
+Boundary 요약: 이 디자인 문서는 runtime sequence fixture behavior를
+구현하지 않으며, 새 smoke는 documentation-boundary-only 정적 확인에
+한정된다. 이 포인터들은 `PerspectiveSnapshot` behavior, diagnostics,
+schema, routes, Cockpit controls, Augnes Core authority, 또는 Sidecar e_t
+placeholder status를 변경하지 않는다.
 
 ---
 
