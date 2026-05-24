@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import http from "node:http";
 
-const scope = "project:augnes";
+const codexScope = "project:custom-scope";
+const legacyAugnesScope = "project:legacy-scope";
+let expectedScope = codexScope;
 const workId = "AG-001";
 const calls = [];
 
@@ -19,16 +21,16 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
 
   if (url.pathname === "/api/state/brief") {
-    assert.equal(url.searchParams.get("scope"), scope);
+    assert.equal(url.searchParams.get("scope"), expectedScope);
     sendJson(res, 200, stateBriefFixture());
     return;
   }
 
   if (url.pathname === `/api/work/${workId}/brief`) {
-    assert.equal(url.searchParams.get("scope"), scope);
+    assert.equal(url.searchParams.get("scope"), expectedScope);
 
     if (workMode === "invalid") {
-      sendJson(res, 200, { runtime: "augnes", scope, work_id: workId });
+      sendJson(res, 200, { runtime: "augnes", scope: expectedScope, work_id: workId });
       return;
     }
 
@@ -57,6 +59,21 @@ try {
   assert.equal(countCalls(`/api/work/${workId}/brief`), 0);
 
   resetCalls();
+
+  expectedScope = legacyAugnesScope;
+  const legacyScopeFallback = await runReadBrief({
+    apiBaseUrl,
+    scopeMode: "augnes-only",
+    workId,
+  });
+  assert.equal(legacyScopeFallback.status, 0, legacyScopeFallback.stderr);
+  assert.match(legacyScopeFallback.stdout, new RegExp(`scope: ${legacyAugnesScope}`));
+  assert.equal(countCalls("/api/state/brief"), 1);
+  assert.equal(countCalls(`/api/work/${workId}/brief`), 1);
+  assertNoMutationCalls();
+
+  resetCalls();
+  expectedScope = codexScope;
 
   const withWork = await runReadBrief({ apiBaseUrl, workId });
   assert.equal(withWork.status, 0, withWork.stderr);
@@ -107,6 +124,8 @@ try {
         smoke: "codex-read-brief-work",
         state_only_calls_state_brief: true,
         state_only_calls_work_brief: false,
+        codex_scope_precedence_checked: true,
+        augnes_scope_fallback_checked: true,
         work_id_calls_state_and_work_brief: true,
         work_output_includes_constraints: true,
         work_output_includes_review_anchor_convention: true,
@@ -125,13 +144,19 @@ try {
   await close(server);
 }
 
-function runReadBrief({ apiBaseUrl, workId: maybeWorkId }) {
+function runReadBrief({ apiBaseUrl, workId: maybeWorkId, scopeMode = "codex-preferred" }) {
   const env = {
     ...process.env,
     AUGNES_API_BASE_URL: apiBaseUrl,
-    AUGNES_SCOPE: scope,
+    AUGNES_SCOPE: legacyAugnesScope,
     OPENAI_API_KEY: "smoke-openai-key-must-not-be-used",
   };
+
+  if (scopeMode === "codex-preferred") {
+    env.CODEX_SCOPE = codexScope;
+  } else {
+    delete env.CODEX_SCOPE;
+  }
 
   if (maybeWorkId) {
     env.CODEX_WORK_ID = maybeWorkId;
@@ -166,7 +191,7 @@ function runReadBrief({ apiBaseUrl, workId: maybeWorkId }) {
 function stateBriefFixture() {
   return {
     runtime: "augnes",
-    scope,
+    scope: expectedScope,
     active_state: [{ state_id: "state:1" }],
     pending_proposals: [],
     recent_actions: [{ action_id: "action:1" }],
@@ -178,7 +203,7 @@ function stateBriefFixture() {
 function workBriefFixture() {
   return {
     runtime: "augnes",
-    scope,
+    scope: expectedScope,
     work_id: workId,
     as_of: "2026-05-24T00:00:00.000Z",
     work: {
@@ -217,7 +242,7 @@ function workBriefFixture() {
       ],
       work_event_template: {
         work_id: workId,
-        scope,
+        scope: expectedScope,
         actor: "codex",
         event_type: "implementation",
         summary: "Summarize the human-readable work result.",

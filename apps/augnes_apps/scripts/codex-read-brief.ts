@@ -58,9 +58,17 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
 
+function readDefaultedEnv(names: string[], fallback: string): string {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return fallback;
+}
+
 function resolveConfig() {
   const apiBaseUrl = trimTrailingSlash((process.env.AUGNES_API_BASE_URL ?? DEFAULT_API_BASE_URL).trim() || DEFAULT_API_BASE_URL);
-  const scope = (process.env.AUGNES_SCOPE ?? DEFAULT_SCOPE).trim() || DEFAULT_SCOPE;
+  const scope = readDefaultedEnv(["CODEX_SCOPE", "AUGNES_SCOPE"], DEFAULT_SCOPE);
   const workId = process.env.CODEX_WORK_ID?.trim() || null;
 
   return { apiBaseUrl, scope, workId };
