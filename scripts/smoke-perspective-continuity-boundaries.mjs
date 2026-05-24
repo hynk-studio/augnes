@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
-
-const repoRoot = process.cwd();
+import {
+  assertChangedFilesWithin,
+  assertContainsAll as assertTextContainsAll,
+  assertNoForbiddenPositivePhrases,
+  assertPackageScript as assertPackageJsonScript,
+  loadTextByFile,
+} from "./smoke-boundary-common.mjs";
 
 const docs = [
   "docs/AUGNES_DOGFOODING_RESEARCH_DIRECTION_V0_1.md",
@@ -45,14 +47,10 @@ const allowedChangedFiles = new Set([
   "docs/AUGNES_PERSPECTIVE_CONTINUITY_RESEARCH_NOTE_V0_1.md",
   "docs/DOGFOODING_EVALUATION_CASEBOOK_V0_1.md",
   "scripts/smoke-perspective-continuity-sequences.mjs",
+  "scripts/smoke-boundary-common.mjs",
 ]);
 
-const textByFile = new Map();
-
-for (const file of inspectedFiles) {
-  assert(existsSync(resolve(file)), `Expected ${file} to exist`);
-  textByFile.set(file, read(file));
-}
+const textByFile = loadTextByFile(inspectedFiles);
 
 assertPackageScript();
 assertPublicWordingBoundary();
@@ -86,12 +84,11 @@ const summary = {
 console.log(JSON.stringify(summary, null, 2));
 
 function assertPackageScript() {
-  const pkg = JSON.parse(textByFile.get("package.json"));
-  assert.equal(
-    pkg.scripts?.["smoke:perspective-continuity-boundaries"],
-    "node scripts/smoke-perspective-continuity-boundaries.mjs",
-    "package.json must expose smoke:perspective-continuity-boundaries",
-  );
+  assertPackageJsonScript({
+    packageJsonText: textByFile.get("package.json"),
+    scriptName: "smoke:perspective-continuity-boundaries",
+    expectedCommand: "node scripts/smoke-perspective-continuity-boundaries.mjs",
+  });
 }
 
 function assertPublicWordingBoundary() {
@@ -111,12 +108,11 @@ function assertPublicWordingBoundary() {
     "metacognitive",
   ];
 
-  for (const file of continuityPublicDocs) {
-    const text = textByFile.get(file);
-    for (const phrase of forbiddenPositivePhrases) {
-      assertNoUnnegatedPhrase({ file, text, phrase });
-    }
-  }
+  assertNoForbiddenPositivePhrases({
+    files: continuityPublicDocs,
+    textByFile,
+    phrases: forbiddenPositivePhrases,
+  });
 }
 
 function assertProtocolNamingBoundary() {
@@ -244,70 +240,12 @@ function assertIndexPointerBoundary() {
 }
 
 function assertChangedFilesBoundary() {
-  try {
-    const output = execSync("git diff --name-only HEAD", {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const files = output
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    for (const file of files) {
-      assert(
-        allowedChangedFiles.has(file),
-        `Unexpected changed file for docs boundary smoke: ${file}`,
-      );
-    }
-
-    return { checked: true, skipped: false, files };
-  } catch (error) {
-    if (error.status === undefined) {
-      return { checked: false, skipped: true, files: [] };
-    }
-    throw error;
-  }
+  return assertChangedFilesWithin({
+    allowedChangedFiles,
+    label: "docs boundary smoke",
+  });
 }
 
 function assertContainsAll(file, requiredPhrases) {
-  const text = textByFile.get(file);
-  const normalizedText = normalizeText(text);
-  for (const phrase of requiredPhrases) {
-    assert(
-      normalizedText.includes(normalizeText(phrase)),
-      `${file} must contain: ${phrase}`,
-    );
-  }
-}
-
-function assertNoUnnegatedPhrase({ file, text, phrase }) {
-  const lowerText = text.toLowerCase();
-  const lowerPhrase = phrase.toLowerCase();
-  let index = lowerText.indexOf(lowerPhrase);
-
-  while (index !== -1) {
-    const before = lowerText.slice(Math.max(0, index - 80), index);
-    const negated = /\b(no|not|does not|do not|must not|out of scope|without)\b/.test(
-      before,
-    );
-    assert(
-      negated,
-      `${file} contains forbidden positive capability phrase: ${phrase}`,
-    );
-    index = lowerText.indexOf(lowerPhrase, index + lowerPhrase.length);
-  }
-}
-
-function read(file) {
-  return readFileSync(resolve(file), "utf8");
-}
-
-function resolve(file) {
-  return path.join(repoRoot, file);
-}
-
-function normalizeText(text) {
-  return text.replace(/\s+/g, " ").trim();
+  assertTextContainsAll(file, requiredPhrases, { textByFile });
 }
