@@ -216,6 +216,133 @@ Boundary Note: This case entry is a review aid over PR-linked raw anchors. It is
 not proof, evidence status, readiness, benchmark result, score, proposal scoring,
 commit/reject input, Gate/SRF input, or source of truth.
 
+### Case PR188: Documentation Boundary Smoke Wording Repair
+
+This case entry records a boundary-relevant review and repair episode around
+PR #188. It records the issue as a documentation wording repair, not as proof of
+workflow improvement, evidence status, readiness, benchmark behavior, scoring,
+runtime behavior, or source-of-truth authority.
+
+- case id: PR188-documentation-boundary-smoke-wording-repair
+- linked dogfooding episode id: None yet. This case predates persisted episode
+  records. Record this as a gap, not a failure.
+- PR / branch / commit refs:
+  - PR URL: `https://github.com/Aurna-code/augnes/pull/188`
+  - branch: `smoke/perspective-continuity-doc-boundaries-v0-1`
+  - final head commit: `fcb7dcfadc82d9ef05449cf3088f5c7a98c56e4d`
+  - merge commit: `12fb96161bc74d91b23d10c864fbd9e8f3655b90`
+  - merged at: `2026-05-24T02:45:02Z`
+- raw episode anchors:
+  - PR #188 URL: `https://github.com/Aurna-code/augnes/pull/188`
+  - PR body summary: added a focused documentation-boundary-only Perspective
+    continuity smoke skeleton, `smoke:perspective-continuity-boundaries`, smoke
+    design updates, verification evidence pointers, and latest index pointers,
+    while keeping runtime sequence fixtures, PerspectiveSnapshot behavior,
+    diagnostics, scoring, benchmark behavior, and runtime Sidecar e_t
+    computation out of scope.
+  - final changed files: `scripts/smoke-perspective-continuity-boundaries.mjs`,
+    `package.json`, `docs/PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md`,
+    `docs/VERIFICATION_EVIDENCE_PACK.md`, `docs/00_INDEX_LATEST.md`.
+  - test/check list from PR body: documentation-boundary smoke, execution
+    lanes, authority invariants, Perspective snapshot, Cockpit Perspective
+    snapshot, Perspective quality, research diagnostics boundaries, Sidecar e_t
+    fixture boundaries, Sidecar e_t runtime boundaries, typecheck, build,
+    GitHub App target policy, Codex record evidence helper, and
+    `git diff --check`.
+  - amend report / changed commit SHA: final head commit after the repair is
+    confirmed as `fcb7dcfadc82d9ef05449cf3088f5c7a98c56e4d`. The exact amend
+    report text is not repo-anchored in this case entry.
+  - PR-hosted Codex review/comment: one repo-anchored Codex review comment
+    exists for PR #188, but it addressed changed-files boundary checking rather
+    than the stale smoke-design wording described in this case.
+  - ChatGPT review recommendation: the stale / ambiguous wording review was
+    external conversation context and is not repo-anchored here; record the
+    exact recommendation text as a gap.
+  - user merge decision: PR #188 is confirmed merged by GitHub metadata.
+- baseline context used: Review reconstruction only, not proof. The likely
+  baseline context was PR #187 smoke design, the PR #188 task request, current
+  repo docs, and the Codex prompt/handoff. If the exact Codex prompt text is not
+  repo-anchored, record it as a gap or external conversation context.
+- Augnes-assisted context used: PR #183-#187 dogfooding / raw anchor /
+  evaluation / smoke design chain. No runtime PerspectiveSnapshot output is
+  claimed.
+- task goal: Add documentation-boundary-only Perspective continuity smoke and
+  package script.
+- handoff used: Codex received a structured prompt requiring a
+  documentation-boundary-only smoke, public-safe wording, expected/forbidden
+  files, full checks, PR body, and final report. The exact prompt text is not
+  repo-anchored in this case entry and is recorded as a gap.
+- changed files:
+  - `scripts/smoke-perspective-continuity-boundaries.mjs`
+  - `package.json`
+  - `docs/PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md`
+  - `docs/VERIFICATION_EVIDENCE_PACK.md`
+  - `docs/00_INDEX_LATEST.md`
+- checks requested:
+  - `npm run smoke:perspective-continuity-boundaries`
+  - `npm run smoke:execution-lanes`
+  - `npm run smoke:authority-invariants`
+  - `npm run smoke:perspective-snapshot`
+  - `npm run smoke:cockpit-perspective-snapshot`
+  - `npm run smoke:perspective-quality`
+  - `npm run smoke:research-diagnostics-boundaries`
+  - `npm run smoke:sidecar-et-fixture-boundaries`
+  - `npm run smoke:sidecar-et-runtime-boundaries`
+  - `npm run typecheck`
+  - `npm run build`
+  - `npm run smoke:github-app-target-policy`
+  - `npm run smoke:codex-record-evidence-helper`
+  - `git diff --check`
+- checks run: According to the PR #188 body, all requested checks passed. This
+  is PR-body reported status, not independently re-executed by this casebook
+  entry.
+- skipped checks: None reported in the PR #188 body.
+- observed result: PR #188 added a documentation-boundary-only smoke and package
+  script, then amended wording in the smoke design doc to avoid contradiction
+  between "no smoke implementation" wording and the actual
+  documentation-boundary-only smoke implementation.
+- context preserved:
+  - documentation-boundary-only smoke scope
+  - no runtime behavior
+  - no PerspectiveSnapshot response-shape change
+  - no Sidecar e_t runtime computation
+  - no production/autonomous capability claims
+  - public-facing wording safety
+  - generated `next-env.d.ts` churn restored according to the PR body
+  - full checks passed according to the PR body
+- context lost or ambiguous:
+  - exact external conversation review text is not repo-anchored
+  - exact Codex prompt may not be repo-anchored
+  - initial stale wording was fixed before merge, so final merged docs no
+    longer show the issue directly
+- drift / stale-context observation: No runtime drift detection is claimed. The
+  episode revealed documentation wording drift: a design doc non-goal line
+  became stale after a smoke script/package script was added in the same PR.
+- repair action, if any: Codex amended
+  `docs/PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md` to clarify that PR #188 did
+  not implement runtime sequence fixture smoke and did not add package scripts
+  beyond `smoke:perspective-continuity-boundaries`. This was documentation
+  repair only, not runtime repair behavior.
+- outcome label: merged, useful, boundary-repair,
+  partial-success-with-gaps. Useful because review caught a public-facing
+  boundary ambiguity before merge; partial because exact external review/prompt
+  anchors remain outside repo anchors.
+- follow-up question: Should future PRs with amended boundary wording receive
+  casebook entries only when the ambiguity was visible before merge and repaired
+  before merge?
+- next suggested goal: Pause smoke expansion for review, or continue only with
+  small maintenance improvements if a clear issue appears.
+- gaps / missing anchors:
+  - no persisted dogfooding episode id
+  - exact external conversation review text not repo-anchored
+  - exact Codex prompt text not repo-anchored
+  - pre-amend wording is not preserved in final merged file unless available
+    through PR history / commit diff
+
+Boundary Note: This case entry is a review aid over PR-linked raw anchors. It is
+not proof, evidence status, readiness, benchmark result, score, proposal scoring,
+commit/reject input, Gate/SRF input, or source of truth.
+
 ## Relationship To Existing Docs
 
 This casebook template relates to:
