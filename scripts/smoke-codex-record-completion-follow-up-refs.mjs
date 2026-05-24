@@ -87,6 +87,7 @@ try {
   assert.equal(success.status, 0, success.stderr);
   assert.match(success.stdout, /Augnes Codex completion recorded/);
   assert.match(success.stdout, new RegExp(`work_id: ${escapeRegExp(workId)}`));
+  assert.match(success.stdout, new RegExp(`work_event_id: ${escapeRegExp(workEventId)}`));
   assert.match(success.stdout, new RegExp(`related_action_id: ${escapeRegExp(actionId)}`));
   assert.match(success.stdout, /action_record_response:/);
   assert.match(success.stdout, /work_event_response:/);
