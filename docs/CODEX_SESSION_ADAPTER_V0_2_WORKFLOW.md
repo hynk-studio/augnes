@@ -13,7 +13,8 @@ v0.2 is not a new session runtime. v0.2 does not create sessions automatically. 
 
 ## Existing Components Used
 
-- State/work brief read: `npm run codex:read-brief` and `GET /api/state/brief`.
+- State/work brief read: `npm run codex:read-brief`, `GET /api/state/brief`,
+  and, when `CODEX_WORK_ID` is set, `GET /api/work/{work_id}/brief`.
 - Session binding: `npm run codex:bind-session` and `POST /api/sessions/bind`.
 - Session trace review: `GET /api/sessions/trace` and `GET /api/sessions/{session_id}/trace`.
 - Structured evidence rows: `npm run codex:record-evidence` and `POST /api/evidence/records`.
@@ -28,7 +29,9 @@ v0.2 is not a new session runtime. v0.2 does not create sessions automatically. 
 ## Required Environment
 
 - `CODEX_SCOPE`: Augnes scope. Defaults to `project:augnes` in helpers that support defaults.
-- `CODEX_WORK_ID`: Existing Augnes work trace anchor, such as `AG-004`, when recording evidence or completion.
+- `CODEX_WORK_ID`: Optional for `codex:read-brief`; existing Augnes work trace
+  anchor, such as `AG-004`, when reading Work Brief context or recording
+  evidence or completion.
 - `AUGNES_API_BASE_URL`: Local Augnes runtime URL. Defaults to `http://localhost:3000` in existing helpers.
 
 ## Optional Environment
@@ -53,6 +56,21 @@ AUGNES_API_BASE_URL=http://localhost:3000 \
 CODEX_SCOPE=project:augnes \
 npm run codex:read-brief
 ```
+
+When the work ID is already known, include it so the helper reads the Work Brief
+route after the state brief:
+
+```bash
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_WORK_ID=AG-___ \
+npm run codex:read-brief
+```
+
+With `CODEX_WORK_ID` set, `codex:read-brief` prints the Work Brief summary,
+Codex handoff constraints, and suggested verification. Missing runtime or an
+unknown `work_id` must be reported as a concrete skipped reason or helper error,
+not reconstructed.
 
 3. Identify the `work_id` from the handoff packet, state/work brief, or user task.
 4. Identify the `session_id` only if one was supplied or already exists in Augnes Core. Never create a session automatically in v0.2.
