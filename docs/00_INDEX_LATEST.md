@@ -150,15 +150,19 @@ smoke-design-only, documentation-boundary-first 색인이다.
   status, raw-anchor summary boundaries, evaluation/scoring boundaries,
   diagnostic placeholder boundaries, index pointer boundaries를 정적으로
   확인한다.
+- `npm run smoke:perspective-continuity-sequences`: runtime-disabled sequence
+  fixture skeleton으로, in-memory fixture descriptors의 review-aid-only
+  boundary와 gap handling을 확인한다.
 
 이 문서는 Active set을 확장하지 않고 runtime/schema/implementation/
 diagnostic/evaluation/evidence/proof/scoring/benchmark authority를 만들지
 않는다. production-readiness 또는 autonomous capability를 의미하지 않는다.
 
 Boundary 요약: 이 디자인 문서는 runtime sequence fixture behavior를
-구현하지 않으며, 새 smoke는 documentation-boundary-only 정적 확인에
-한정된다. 이 포인터들은 `PerspectiveSnapshot` behavior, diagnostics,
-schema, routes, Cockpit controls, Augnes Core authority, 또는 Sidecar e_t
+구현하지 않으며, 새 smoke들은 documentation-boundary-only 정적 확인과
+runtime-disabled sequence fixture 확인에 한정된다. 이 포인터들은
+`PerspectiveSnapshot` behavior, diagnostics, schema, routes, Cockpit
+controls, Augnes Core authority, runtime sequence behavior, 또는 Sidecar e_t
 placeholder status를 변경하지 않는다.
 
 ---

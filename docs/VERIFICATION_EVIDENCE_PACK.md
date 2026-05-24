@@ -168,6 +168,20 @@ be treated as runtime proof, evidence status, readiness, benchmark authority,
 scoring authority, diagnostic authority, evaluation authority, or permission
 for runtime sequence fixtures. It does not compute Perspective continuity,
 Sidecar e_t, QP output, or `z_t`.
+Perspective continuity runtime-disabled sequence fixture verification belongs
+in bounded command evidence, such as
+`npm run smoke:perspective-continuity-sequences`. It must record
+runtime-disabled sequence fixture boundary facts only: in-memory fixture
+descriptors, t0/t1/t2 review labels, raw-anchor gap handling, source-ref
+temptation boundaries, and non-authority outcome labels. It must not be
+treated as runtime proof, evidence status, readiness, benchmark authority,
+scoring authority, diagnostic authority, evaluation authority, or permission
+for runtime sequence behavior. It does not compute Perspective continuity,
+does not compute Sidecar e_t, does not create QP output, and does not commit
+`z_t`. It does not read/write DB, call API routes, call `PerspectiveSnapshot`,
+or call external services.
+It is not runtime proof, not evidence status, not readiness, not benchmark
+authority, and not scoring authority.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and

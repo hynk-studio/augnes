@@ -47,6 +47,13 @@ behavior.
 - That smoke checks static documentation boundaries only. It does not implement
   runtime sequence fixtures, add runtime behavior, change `PerspectiveSnapshot`
   shape, compute diagnostics, or change Sidecar e_t placeholder status.
+- PR #189 separately implements `npm run
+  smoke:perspective-continuity-sequences` as the first runtime-disabled
+  sequence fixture skeleton. It uses in-memory fixture descriptors only and
+  does not call runtime code, read/write DB, call the `PerspectiveSnapshot`
+  builder, call API routes, implement runtime sequence behavior, change
+  `PerspectiveSnapshot` shape, compute diagnostics, or change Sidecar e_t
+  placeholder status.
 
 ## Future Smoke Goals
 
@@ -158,12 +165,12 @@ This smoke-design-only note relates to:
 
 This document does not override those docs and does not create authority.
 
-## Future Implementation Gate
+## Future Runtime Implementation Gate
 
-A future implementation PR for `smoke:perspective-continuity-sequences`, if
-approved, must:
+A future runtime implementation PR beyond the runtime-disabled
+`smoke:perspective-continuity-sequences` skeleton, if approved, must:
 
-- separately add a smoke script
+- separately add runtime-capable smoke or fixture behavior
 - separately update `package.json`
 - separately update verification evidence docs if needed
 - prove no runtime mutation and no external calls
@@ -174,9 +181,11 @@ approved, must:
 
 ## Non-Goals
 
-- no runtime sequence fixture smoke implementation in this PR
-- no runtime behavior beyond the documentation-boundary-only smoke script
-- no additional package script beyond `smoke:perspective-continuity-boundaries`
+- no runtime sequence fixture behavior in this PR
+- no runtime behavior beyond the documentation-boundary-only smoke script and
+  runtime-disabled sequence fixture skeleton
+- no additional package scripts beyond `smoke:perspective-continuity-boundaries`
+  and `smoke:perspective-continuity-sequences`
 - no runtime behavior
 - no schema change
 - no benchmark
