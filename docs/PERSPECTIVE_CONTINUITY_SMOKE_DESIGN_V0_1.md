@@ -15,7 +15,7 @@
 - no scoring authority
 - no production-readiness claim
 - no autonomous-capability claim
-- no smoke script implemented in this PR
+- no smoke script implemented by PR #187
 
 ## Purpose
 
@@ -39,7 +39,14 @@ behavior.
   structured placeholders unless separately approved in future work.
 - Dogfooding research docs, raw episode docs, handoff docs, episode logs,
   criteria, and casebook entries are review aids only.
-- No current Perspective continuity smoke is implemented by this document.
+- No Perspective continuity smoke was implemented by PR #187 or by this design
+  document itself.
+- PR #188 separately implements `npm run
+  smoke:perspective-continuity-boundaries` as the first
+  documentation-boundary-only smoke skeleton.
+- That smoke checks static documentation boundaries only. It does not implement
+  runtime sequence fixtures, add runtime behavior, change `PerspectiveSnapshot`
+  shape, compute diagnostics, or change Sidecar e_t placeholder status.
 
 ## Future Smoke Goals
 
@@ -167,8 +174,9 @@ approved, must:
 
 ## Non-Goals
 
-- no smoke implementation in this PR
-- no package script
+- no runtime sequence fixture smoke implementation in this PR
+- no runtime behavior beyond the documentation-boundary-only smoke script
+- no additional package script beyond `smoke:perspective-continuity-boundaries`
 - no runtime behavior
 - no schema change
 - no benchmark

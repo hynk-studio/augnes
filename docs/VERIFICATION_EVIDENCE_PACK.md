@@ -159,6 +159,15 @@ evidence only. `docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` is
 implementation-checklist-only and must not be recorded as runtime computation,
 schema authority, smoke execution, evidence/proof, readiness, QP output,
 `z_t` commit, or permission to implement without explicit user/PM approval.
+Perspective continuity documentation-boundary verification belongs in bounded
+command evidence, such as `npm run smoke:perspective-continuity-boundaries`.
+It must record documentation-boundary-only facts about public-safe wording,
+non-authority status, raw-anchor summary boundaries, evaluation/scoring
+boundaries, diagnostic placeholder boundaries, and index pointers. It must not
+be treated as runtime proof, evidence status, readiness, benchmark authority,
+scoring authority, diagnostic authority, evaluation authority, or permission
+for runtime sequence fixtures. It does not compute Perspective continuity,
+Sidecar e_t, QP output, or `z_t`.
 Cockpit six-tab functional map verification belongs in bounded command
 evidence, such as `npm run smoke:cockpit-six-tab-functional-map`. It must
 record docs-smoke facts only: the functional map exists, all six tabs and
