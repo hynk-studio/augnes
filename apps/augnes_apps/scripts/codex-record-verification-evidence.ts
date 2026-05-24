@@ -254,6 +254,25 @@ function buildEvidenceRecordsUrl(apiBaseUrl: string): URL {
   }
 }
 
+function buildReviewUrl(
+  apiBaseUrl: string,
+  pathname: string,
+  params: Record<string, string | undefined>,
+): string {
+  let url: URL;
+  try {
+    url = new URL(pathname, `${apiBaseUrl}/`);
+  } catch {
+    throw new Error("CODEX_RECORD_EVIDENCE_INVALID_BASE_URL");
+  }
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) url.searchParams.set(key, value);
+  }
+
+  return url.toString();
+}
+
 async function readJson(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text.trim()) return {};
@@ -299,18 +318,73 @@ export async function recordEvidenceInput(
   return parsed as EvidenceRecordResponse;
 }
 
-function printEvidenceSummary(index: number, result: EvidenceRecordResponse) {
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+
+  return undefined;
+}
+
+function printEvidenceSummary(
+  index: number,
+  apiBaseUrl: string,
+  input: EvidenceInput,
+  result: EvidenceRecordResponse,
+) {
   const record = result.record ?? {};
   const suffix = index > 0 ? ` ${index + 1}` : "";
+  const scope = firstString(record.scope, result.scope, input.scope) ?? DEFAULT_SCOPE;
+  const workId = firstString(record.work_id, input.work_id);
+  const publicationId = firstString(record.publication_id, input.publication_id);
+  const deliveryId = firstString(record.delivery_id, input.delivery_id);
+  const targetRef = firstString(input.target_ref);
 
   console.log(`Augnes verification evidence recorded${suffix}`);
   console.log(`evidence_id: ${String(record.evidence_id ?? "(none returned)")}`);
   console.log(`evidence_kind: ${String(record.evidence_kind ?? "(none returned)")}`);
   console.log(`status: ${String(record.status ?? "(none returned)")}`);
-  console.log(`scope: ${String(record.scope ?? result.scope ?? "(none returned)")}`);
-  if (record.work_id) console.log(`work_id: ${String(record.work_id)}`);
-  if (record.publication_id) console.log(`publication_id: ${String(record.publication_id)}`);
-  if (record.delivery_id) console.log(`delivery_id: ${String(record.delivery_id)}`);
+  console.log(`scope: ${scope}`);
+  if (workId) console.log(`work_id: ${workId}`);
+  if (publicationId) console.log(`publication_id: ${publicationId}`);
+  if (deliveryId) console.log(`delivery_id: ${deliveryId}`);
+  console.log("read_only_review_refs:");
+  console.log(
+    `evidence_records_url: ${buildReviewUrl(apiBaseUrl, "/api/evidence/records", { scope })}`,
+  );
+  if (workId) {
+    const workBriefPath = `/api/work/${encodeURIComponent(workId)}/brief`;
+    console.log(
+      `work_brief_url: ${buildReviewUrl(apiBaseUrl, workBriefPath, { scope })}`,
+    );
+    console.log(
+      `evidence_pack_url: ${buildReviewUrl(apiBaseUrl, "/api/evidence-pack", {
+        scope,
+        work_id: workId,
+      })}`,
+    );
+  } else if (publicationId) {
+    console.log(
+      `evidence_pack_url: ${buildReviewUrl(apiBaseUrl, "/api/evidence-pack", {
+        scope,
+        publication_id: publicationId,
+      })}`,
+    );
+  } else if (deliveryId) {
+    console.log(
+      `evidence_pack_url: ${buildReviewUrl(apiBaseUrl, "/api/evidence-pack", {
+        scope,
+        delivery_id: deliveryId,
+      })}`,
+    );
+  } else if (targetRef) {
+    console.log(
+      `evidence_pack_url: ${buildReviewUrl(apiBaseUrl, "/api/evidence-pack", {
+        scope,
+        target_ref: targetRef,
+      })}`,
+    );
+  }
 }
 
 async function main() {
@@ -321,7 +395,11 @@ async function main() {
     results.push(await recordEvidenceInput(config.apiBaseUrl, input));
   }
 
-  results.forEach((result, index) => printEvidenceSummary(index, result));
+  results.forEach((result, index) => {
+    const input = config.inputs[index];
+    if (!input) throw new Error("CODEX_RECORD_EVIDENCE_MISSING_INPUT_FOR_RESULT");
+    printEvidenceSummary(index, config.apiBaseUrl, input, result);
+  });
   console.log(
     "This helper records observation evidence only; it does not call GitHub/OpenAI, execute replay, publish, approve, or mutate state authority rows.",
   );
