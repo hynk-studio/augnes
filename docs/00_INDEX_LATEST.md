@@ -136,6 +136,25 @@ Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
 schema, routes, Cockpit controls, Augnes Core authority, 또는 Sidecar e_t
 placeholder status를 변경하지 않는다.
 
+### 최근 Perspective continuity smoke design 포인터 (repo-local, non-SSOT)
+
+이 포인터는 Active set을 늘리거나 새 권위를 만들지 않는다. Perspective
+continuity sequence fixtures를 future smoke 관점에서 검토하기 위한
+smoke-design-only, documentation-boundary-first 색인이다.
+
+- `PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md`: future smoke sequence
+  fixture families와 boundary assertions를 정리하는 non-authoritative
+  research/evaluation guidance다.
+
+이 문서는 Active set을 확장하지 않고 runtime/schema/implementation/
+diagnostic/evaluation/evidence/proof/scoring/benchmark authority를 만들지
+않는다. production-readiness 또는 autonomous capability를 의미하지 않는다.
+
+Boundary 요약: 이 문서는 smoke script를 구현하지 않고 package scripts를
+추가하지 않으며 `PerspectiveSnapshot` behavior, diagnostics, schema, routes,
+Cockpit controls, Augnes Core authority, 또는 Sidecar e_t placeholder status를
+변경하지 않는다.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
