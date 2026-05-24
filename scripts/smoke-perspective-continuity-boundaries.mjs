@@ -15,6 +15,7 @@ const docs = [
   "docs/DOGFOODING_EPISODE_LOG_V0_1.md",
   "docs/DOGFOODING_EVALUATION_CRITERIA_V0_1.md",
   "docs/DOGFOODING_EVALUATION_CASEBOOK_V0_1.md",
+  "docs/PR_REVIEW_ANCHOR_CONVENTION_V0_1.md",
   "docs/PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md",
   "docs/PERSPECTIVE_SNAPSHOT_V0_1.md",
   "docs/VERIFICATION_EVIDENCE_PACK.md",
@@ -35,6 +36,7 @@ const continuityPublicDocs = [
   "docs/DOGFOODING_EPISODE_LOG_V0_1.md",
   "docs/DOGFOODING_EVALUATION_CRITERIA_V0_1.md",
   "docs/DOGFOODING_EVALUATION_CASEBOOK_V0_1.md",
+  "docs/PR_REVIEW_ANCHOR_CONVENTION_V0_1.md",
   "docs/PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md",
 ];
 
@@ -47,6 +49,7 @@ const allowedChangedFiles = new Set([
   "docs/AUGNES_PERSPECTIVE_CONTINUITY_RESEARCH_NOTE_V0_1.md",
   "docs/DOGFOODING_EVALUATION_CASEBOOK_V0_1.md",
   "docs/DOGFOODING_REVIEW_CHECKPOINT_2026_05_24.md",
+  "docs/PR_REVIEW_ANCHOR_CONVENTION_V0_1.md",
   "scripts/smoke-perspective-continuity-sequences.mjs",
   "scripts/smoke-boundary-common.mjs",
 ]);

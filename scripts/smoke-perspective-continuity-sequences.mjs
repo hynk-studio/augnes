@@ -551,6 +551,7 @@ function assertChangedFilesBoundary() {
       "docs/00_INDEX_LATEST.md",
       "docs/DOGFOODING_EVALUATION_CASEBOOK_V0_1.md",
       "docs/DOGFOODING_REVIEW_CHECKPOINT_2026_05_24.md",
+      "docs/PR_REVIEW_ANCHOR_CONVENTION_V0_1.md",
       "scripts/smoke-perspective-continuity-boundaries.mjs",
       "scripts/smoke-boundary-common.mjs",
     ],
