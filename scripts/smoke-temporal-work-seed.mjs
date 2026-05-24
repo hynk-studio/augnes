@@ -106,6 +106,20 @@ try {
     briefPayload.codex_handoff.task_brief.includes(workId),
     "work brief should include the work anchor in handoff text",
   );
+  assert.ok(
+    briefPayload.codex_handoff.constraints.some((constraint) =>
+      constraint.includes("docs/PR_REVIEW_ANCHOR_CONVENTION_V0_1.md"),
+    ),
+    "work brief should point Codex to the PR review anchor convention",
+  );
+  assert.ok(
+    briefPayload.codex_handoff.constraints.some(
+      (constraint) =>
+        constraint.includes("review aids only") &&
+        constraint.includes("record missing exact external ChatGPT/Codex prompt or review text as a gap"),
+    ),
+    "work brief should keep PR review anchors bounded and gap-oriented",
+  );
 
   const evidenceResponse = await evidenceRecordsRoute.POST(
     jsonRequest("http://localhost/api/evidence/records", {
