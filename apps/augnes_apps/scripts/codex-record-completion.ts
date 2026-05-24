@@ -38,6 +38,7 @@ type CompletionConfig = {
   resultStatus: StateRuntimeActionResultStatus;
   resultKind: StateRuntimeActionResultKind;
   relatedPr?: string;
+  sessionId?: string;
   relatedStateKeys: string[];
   actor: string;
   eventType: WorkEventType;
@@ -165,10 +166,30 @@ function resolveCompletionConfig(): CompletionConfig {
     resultStatus,
     resultKind,
     relatedPr: readOptionalEnv("CODEX_RELATED_PR"),
+    sessionId: readOptionalEnv("CODEX_SESSION_ID"),
     relatedStateKeys: parseStringListEnv("CODEX_RELATED_STATE_KEYS", []),
     actor: readDefaultedEnv(["CODEX_WORK_ACTOR"], DEFAULT_ACTOR),
     eventType: resolveEventType(resultStatus, resultKind),
   };
+}
+
+function buildReviewUrl(
+  apiBaseUrl: string,
+  pathname: string,
+  params: Record<string, string | undefined>,
+): string {
+  let url: URL;
+  try {
+    url = new URL(pathname, `${apiBaseUrl}/`);
+  } catch {
+    throw new Error("CODEX_RECORD_COMPLETION_INVALID_BASE_URL");
+  }
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) url.searchParams.set(key, value);
+  }
+
+  return url.toString();
 }
 
 function buildWorkEventUrl(config: CompletionConfig): URL {
@@ -328,6 +349,34 @@ function printCompletionResult({
   console.log(`work_event_response: ${JSON.stringify(workEventResult)}`);
   console.log(`Verify work event: ${config.apiBaseUrl}/api/work/${config.workId}/brief?scope=${encodeURIComponent(config.scope)}`);
   console.log(`Verify action record: ${config.apiBaseUrl}/api/state/brief?scope=${encodeURIComponent(config.scope)}`);
+  console.log("read_only_review_refs:");
+  console.log(
+    `work_brief_url: ${buildReviewUrl(
+      config.apiBaseUrl,
+      `/api/work/${encodeURIComponent(config.workId)}/brief`,
+      { scope: config.scope },
+    )}`,
+  );
+  console.log(
+    `state_brief_url: ${buildReviewUrl(config.apiBaseUrl, "/api/state/brief", {
+      scope: config.scope,
+    })}`,
+  );
+  console.log(
+    `evidence_pack_url: ${buildReviewUrl(config.apiBaseUrl, "/api/evidence-pack", {
+      scope: config.scope,
+      work_id: config.workId,
+    })}`,
+  );
+  if (config.sessionId) {
+    console.log(
+      `session_trace_url: ${buildReviewUrl(
+        config.apiBaseUrl,
+        `/api/sessions/${encodeURIComponent(config.sessionId)}/trace`,
+        { scope: config.scope },
+      )}`,
+    );
+  }
   console.log("This helper records completion proof and trace notes only; it does not commit or reject state proposals.");
 }
 
