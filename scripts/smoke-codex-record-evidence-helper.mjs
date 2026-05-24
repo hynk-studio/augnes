@@ -69,6 +69,33 @@ try {
     commandResult.stdout.includes("evidence_kind: command_run"),
     "command_run helper summary should include evidence kind",
   );
+  assert(
+    commandResult.stdout.includes("evidence_id:"),
+    "command_run helper summary should include evidence id",
+  );
+  assert(
+    commandResult.stdout.includes("evidence_records_url:") &&
+      commandResult.stdout.includes(`${apiBaseUrl}/api/evidence/records?scope=project%3Aaugnes`),
+    "command_run helper summary should include scoped evidence records URL",
+  );
+  assert(
+    commandResult.stdout.includes("work_brief_url:") &&
+      commandResult.stdout.includes(`${apiBaseUrl}/api/work/AG-EVIDENCE/brief?scope=project%3Aaugnes`),
+    "command_run helper summary should include work brief URL when work id is present",
+  );
+  assert(
+    commandResult.stdout.includes("evidence_pack_url:") &&
+      commandResult.stdout.includes(
+        `${apiBaseUrl}/api/evidence-pack?scope=project%3Aaugnes&work_id=AG-EVIDENCE`,
+      ),
+    "command_run helper summary should include work-filtered Evidence Pack URL",
+  );
+  assert(
+    commandResult.stdout.includes(
+      "This helper records observation evidence only; it does not call GitHub/OpenAI, execute replay, publish, approve, or mutate state authority rows.",
+    ),
+    "command_run helper summary should preserve no-authority boundary line",
+  );
 
   const checkPassedResult = await runHelper({
     ...commonEnv,
@@ -88,7 +115,27 @@ try {
     CODEX_SKIPPED_REASON: "No browser runtime was available in this environment.",
   });
   assertEqual(checkSkippedResult.code, 0, "check_skipped helper should pass");
-  assertEqual(postEvidenceCalls, 3, "three valid helper runs should POST three records");
+
+  const targetRefOnlyResult = await runHelper({
+    AUGNES_API_BASE_URL: apiBaseUrl,
+    CODEX_SCOPE: "project:augnes",
+    CODEX_SOURCE_SURFACE: "codex",
+    CODEX_CREATED_BY: "codex-smoke",
+    CODEX_TARGET_REF: "github:pull/201",
+    CODEX_EVIDENCE_KIND: "check_passed",
+    CODEX_EVIDENCE_STATUS: "passed",
+    CODEX_EVIDENCE_LABEL: "Target ref Evidence Pack filter",
+    CODEX_RESULT_SUMMARY: "Target-ref-only Evidence Pack review ref was printed.",
+  });
+  assertEqual(targetRefOnlyResult.code, 0, "target_ref-only helper should pass");
+  assert(
+    targetRefOnlyResult.stdout.includes("evidence_pack_url:") &&
+      targetRefOnlyResult.stdout.includes(
+        `${apiBaseUrl}/api/evidence-pack?scope=project%3Aaugnes&target_ref=github%3Apull%2F201`,
+      ),
+    "target_ref-only helper summary should include target_ref-filtered Evidence Pack URL",
+  );
+  assertEqual(postEvidenceCalls, 4, "four valid helper runs should POST four records");
 
   const invalidMissingResult = await runHelper({
     ...commonEnv,
@@ -101,7 +148,7 @@ try {
     invalidMissingResult.stderr.includes("CODEX_EVIDENCE_LABEL is required"),
     "missing label should fail with local validation error",
   );
-  assertEqual(postEvidenceCalls, 3, "missing label should fail before POST");
+  assertEqual(postEvidenceCalls, 4, "missing label should fail before POST");
 
   const invalidMetadataResult = await runHelper({
     ...commonEnv,
@@ -116,7 +163,7 @@ try {
     invalidMetadataResult.stderr.includes("CODEX_METADATA_JSON must be a JSON object string"),
     "invalid metadata should fail with object validation error",
   );
-  assertEqual(postEvidenceCalls, 3, "invalid metadata should fail before POST");
+  assertEqual(postEvidenceCalls, 4, "invalid metadata should fail before POST");
 
   const listResponse = await fetch(
     `${apiBaseUrl}/api/evidence/records?scope=project:augnes&work_id=AG-EVIDENCE`,
@@ -163,6 +210,7 @@ try {
         db_path: process.env.AUGNES_DB_PATH,
         helper_records_created: listJson.records.length,
         post_evidence_calls: postEvidenceCalls,
+        target_ref_review_ref_checked: true,
         invalid_input_failed_before_post: true,
         metadata_object_validation: true,
         evidence_pack_commands_run: evidencePack.verification_trace.commands_run.length,
