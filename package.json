@@ -62,6 +62,7 @@
     "smoke:sidecar-et-fixture-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-sidecar-et-fixture-boundaries.mjs",
     "smoke:sidecar-et-runtime-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-sidecar-et-runtime-boundaries.mjs",
     "smoke:perspective-continuity-boundaries": "node scripts/smoke-perspective-continuity-boundaries.mjs",
+    "smoke:perspective-continuity-sequences": "node scripts/smoke-perspective-continuity-sequences.mjs",
     "codex:record-completion": "npm --prefix apps/augnes_apps run codex:record-completion",
     "codex:read-brief": "npm --prefix apps/augnes_apps run codex:read-brief",
     "codex:record-evidence": "npm --prefix apps/augnes_apps run codex:record-evidence",
