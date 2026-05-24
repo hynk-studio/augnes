@@ -254,6 +254,19 @@ function extractActionId(actionResult: Record<string, unknown>): string | undefi
   return candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0);
 }
 
+function extractWorkEventId(workEventResult: Record<string, unknown>): string | undefined {
+  const candidates = [
+    getPath(workEventResult, ["event", "id"]),
+    getPath(workEventResult, ["event", "event_id"]),
+    getPath(workEventResult, ["work_event", "id"]),
+    getPath(workEventResult, ["work_event", "event_id"]),
+    workEventResult.work_event_id,
+    workEventResult.id,
+  ];
+
+  return candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0);
+}
+
 async function assertWorkItemExists(config: CompletionConfig): Promise<void> {
   let response: Response;
   try {
@@ -334,6 +347,8 @@ function printCompletionResult({
   workEventResult: Record<string, unknown>;
   relatedActionId?: string;
 }) {
+  const workEventId = extractWorkEventId(workEventResult);
+
   console.log("Augnes Codex completion recorded");
   console.log(`scope: ${config.scope}`);
   console.log(`work_id: ${config.workId}`);
@@ -342,6 +357,7 @@ function printCompletionResult({
   console.log(`result_kind: ${config.resultKind}`);
   console.log(`event_type: ${config.eventType}`);
   console.log(`related_action_id: ${relatedActionId ?? "(none returned)"}`);
+  console.log(`work_event_id: ${workEventId ?? "(none returned)"}`);
   console.log(`related_pr: ${config.relatedPr ?? "(none)"}`);
   console.log(`files_changed count: ${config.filesChanged.length}`);
   console.log(`related_state_keys count: ${config.relatedStateKeys.length}`);
