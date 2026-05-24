@@ -14,8 +14,17 @@ function resolveApiBaseUrl(): string {
   return trimTrailingSlash((process.env.AUGNES_API_BASE_URL ?? DEFAULT_API_BASE_URL).trim() || DEFAULT_API_BASE_URL);
 }
 
+function readDefaultedEnv(names: string[], fallback: string): string {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+
+  return fallback;
+}
+
 function resolveScope(): string {
-  return (process.env.AUGNES_SCOPE ?? DEFAULT_SCOPE).trim() || DEFAULT_SCOPE;
+  return readDefaultedEnv(["CODEX_SCOPE", "AUGNES_SCOPE"], DEFAULT_SCOPE);
 }
 
 function countRecentActions(brief: { recent_actions: unknown[] }): number {

@@ -51,6 +51,7 @@
     "smoke:verification-evidence": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-verification-evidence-records.mjs",
     "smoke:codex-record-evidence-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-evidence-helper.mjs",
     "smoke:codex-read-brief-work": "node scripts/smoke-codex-read-brief-work.mjs",
+    "smoke:codex-scope-env-consistency": "node scripts/smoke-codex-scope-env-consistency.mjs",
     "smoke:codex-closeout-docs": "node scripts/smoke-codex-closeout-docs.mjs",
     "smoke:session-binding": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-session-binding.mjs",
     "smoke:codex-session-adapter-v2": "node scripts/smoke-codex-session-adapter-v2.mjs",
