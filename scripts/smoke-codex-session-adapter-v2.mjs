@@ -18,6 +18,10 @@ const appPackage = JSON.parse(readFileSync("apps/augnes_apps/package.json", "utf
 
 assertIncludes(workflow, [
   "codex:read-brief",
+  "CODEX_WORK_ID",
+  "GET /api/work/{work_id}/brief",
+  "Codex handoff constraints",
+  "suggested verification",
   "codex:bind-session",
   "codex:record-evidence",
   "codex:record-completion",
@@ -52,6 +56,7 @@ for (const scriptName of [
   "smoke:session-binding",
   "smoke:cockpit-session-trace",
   "smoke:codex-session-adapter-v2",
+  "smoke:codex-read-brief-work",
 ]) {
   assertScript(rootPackage, scriptName);
 }
