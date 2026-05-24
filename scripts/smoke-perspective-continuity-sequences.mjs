@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
-
-const repoRoot = process.cwd();
+import {
+  assertChangedFilesWithin,
+  assertContainsAll as assertTextContainsAll,
+  assertNoRuntimeImports,
+  assertPackageScript as assertPackageJsonScript,
+  hasOwn,
+  loadTextByFile,
+} from "./smoke-boundary-common.mjs";
 
 const allowedFamilies = new Set([
   "stable_continuity",
@@ -278,17 +281,14 @@ const fixtures = [
   },
 ];
 
-const textByFile = new Map();
-for (const file of [
+const textByFile = loadTextByFile([
   "package.json",
   "docs/PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md",
   "docs/VERIFICATION_EVIDENCE_PACK.md",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-perspective-continuity-sequences.mjs",
-]) {
-  assert(existsSync(resolve(file)), `Expected ${file} to exist`);
-  textByFile.set(file, read(file));
-}
+  "scripts/smoke-boundary-common.mjs",
+]);
 
 assertFixtureShape();
 assertFixtureFamilies();
@@ -361,7 +361,7 @@ function assertFixtureShape() {
   for (const fixture of fixtures) {
     for (const field of requiredFields) {
       assert(
-        Object.hasOwn(fixture, field),
+        hasOwn(fixture, field),
         `${fixture.id ?? "fixture"} must include ${field}`,
       );
     }
@@ -392,9 +392,9 @@ function assertRuntimeDisabledBoundary() {
     }
     const serialized = JSON.stringify(fixture).toLowerCase();
     assert(!serialized.includes("implemented_runtime_behavior\":true"));
-    assert(!Object.hasOwn(fixture, "sidecar_e_t"));
-    assert(!Object.hasOwn(fixture, "runtime_source_refs"));
-    assert(!Object.hasOwn(fixture, "source_of_truth"));
+    assert(!hasOwn(fixture, "sidecar_e_t"));
+    assert(!hasOwn(fixture, "runtime_source_refs"));
+    assert(!hasOwn(fixture, "source_of_truth"));
   }
 }
 
@@ -464,50 +464,39 @@ function assertScoreBenchmarkBoundary() {
 }
 
 function assertScoreBenchmarkFieldsAbsent(fixture) {
-  assert.equal(Object.hasOwn(fixture, "score"), false);
-  assert.equal(Object.hasOwn(fixture, "benchmark_result"), false);
-  assert.equal(Object.hasOwn(fixture, "KPI"), false);
-  assert.equal(Object.hasOwn(fixture, "proof_status"), false);
-  assert.equal(Object.hasOwn(fixture, "readiness_status"), false);
+  assert.equal(hasOwn(fixture, "score"), false);
+  assert.equal(hasOwn(fixture, "benchmark_result"), false);
+  assert.equal(hasOwn(fixture, "KPI"), false);
+  assert.equal(hasOwn(fixture, "proof_status"), false);
+  assert.equal(hasOwn(fixture, "readiness_status"), false);
 }
 
 function assertStaticNoRuntimeImport() {
   const self = textByFile.get("scripts/smoke-perspective-continuity-sequences.mjs");
-  const importLines = self
-    .split("\n")
-    .filter((line) => line.trim().startsWith("import "));
-  const forbiddenImports = [
-    "../lib/",
-    "./lib/",
-    "lib/perspective",
-    "app/",
-    "components/",
-    "better-sqlite3",
-    "next",
-    "openai",
-    "octokit",
-  ];
-
-  for (const line of importLines) {
-    for (const forbiddenImport of forbiddenImports) {
-      assert(
-        !line.includes(forbiddenImport),
-        `Smoke must not import runtime module: ${forbiddenImport}`,
-      );
-    }
-  }
-  assert(
-    !/\bfetch\s*\(/.test(self),
-    "Smoke must not perform or reference fetch calls",
-  );
+  assertNoRuntimeImports({
+    file: "scripts/smoke-perspective-continuity-sequences.mjs",
+    text: self,
+    forbiddenImports: [
+      "../lib/",
+      "./lib/",
+      "lib/perspective",
+      "app/",
+      "components/",
+      "better-sqlite3",
+      "next",
+      "openai",
+      "octokit",
+    ],
+    forbidFetch: true,
+  });
 }
 
 function assertPackageScript() {
-  const pkg = JSON.parse(textByFile.get("package.json"));
-  assert.equal(
-    pkg.scripts?.["smoke:perspective-continuity-sequences"],
-    "node scripts/smoke-perspective-continuity-sequences.mjs",
-  );
+  assertPackageJsonScript({
+    packageJsonText: textByFile.get("package.json"),
+    scriptName: "smoke:perspective-continuity-sequences",
+    expectedCommand: "node scripts/smoke-perspective-continuity-sequences.mjs",
+  });
 }
 
 function assertDesignDocPointer() {
@@ -548,65 +537,26 @@ function assertIndexPointer() {
 }
 
 function assertChangedFilesBoundary() {
-  try {
-    const output = execSync("git diff --name-only HEAD", {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const files = output
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const allowedChangedFiles = new Set([
+  return assertChangedFilesWithin({
+    allowedChangedFiles: [
       "scripts/smoke-perspective-continuity-sequences.mjs",
       "package.json",
       "docs/PERSPECTIVE_CONTINUITY_SMOKE_DESIGN_V0_1.md",
       "docs/VERIFICATION_EVIDENCE_PACK.md",
       "docs/00_INDEX_LATEST.md",
       "scripts/smoke-perspective-continuity-boundaries.mjs",
-    ]);
-
-    for (const file of files) {
-      assert(
-        allowedChangedFiles.has(file),
-        `Unexpected changed file for sequence smoke: ${file}`,
-      );
-    }
-
-    return { checked: true, skipped: false, files };
-  } catch (error) {
-    if (error.status === undefined) {
-      return { checked: false, skipped: true, files: [] };
-    }
-    throw error;
-  }
+      "scripts/smoke-boundary-common.mjs",
+    ],
+    label: "sequence smoke",
+  });
 }
 
 function assertContainsAll(file, requiredPhrases) {
-  const normalizedText = normalizeText(textByFile.get(file));
-  for (const phrase of requiredPhrases) {
-    assert(
-      normalizedText.includes(normalizeText(phrase)),
-      `${file} must contain: ${phrase}`,
-    );
-  }
+  assertTextContainsAll(file, requiredPhrases, { textByFile });
 }
 
 function getFixture(family) {
   const fixture = fixtures.find((candidate) => candidate.family === family);
   assert(fixture, `Expected fixture family ${family}`);
   return fixture;
-}
-
-function read(file) {
-  return readFileSync(resolve(file), "utf8");
-}
-
-function resolve(file) {
-  return path.join(repoRoot, file);
-}
-
-function normalizeText(text) {
-  return text.replace(/\s+/g, " ").trim();
 }
