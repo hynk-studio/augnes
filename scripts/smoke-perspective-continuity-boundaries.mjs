@@ -46,6 +46,7 @@ const allowedChangedFiles = new Set([
   "docs/00_INDEX_LATEST.md",
   "docs/AUGNES_PERSPECTIVE_CONTINUITY_RESEARCH_NOTE_V0_1.md",
   "docs/DOGFOODING_EVALUATION_CASEBOOK_V0_1.md",
+  "docs/DOGFOODING_REVIEW_CHECKPOINT_2026_05_24.md",
   "scripts/smoke-perspective-continuity-sequences.mjs",
   "scripts/smoke-boundary-common.mjs",
 ]);
