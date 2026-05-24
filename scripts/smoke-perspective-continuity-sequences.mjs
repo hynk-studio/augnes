@@ -13,6 +13,9 @@ const allowedFamilies = new Set([
   "boundary_blocked",
   "source_ref_temptation",
   "merged_but_review_gaps_remained",
+  "retirement",
+  "transition_accepted",
+  "temporal_grouping_failure",
 ]);
 
 const allowedT2Results = new Set([
@@ -21,6 +24,9 @@ const allowedT2Results = new Set([
   "repair_needed",
   "boundary_blocked",
   "gaps_recorded",
+  "retired_from_active_review",
+  "transition_accepted_review_note",
+  "grouping_gap_recorded",
 ]);
 
 const allowedOutcomeLabels = new Set([
@@ -31,6 +37,8 @@ const allowedOutcomeLabels = new Set([
   "blocked",
   "needs_repair",
   "merged_with_gaps",
+  "retired_review_note",
+  "transition_reviewed",
 ]);
 
 const forbiddenAuthority = [
@@ -195,6 +203,79 @@ const fixtures = [
     ],
     forbidden_authority: forbiddenAuthority,
   },
+  {
+    id: "pc-seq-008",
+    family: "retirement",
+    status: "runtime_disabled_fixture",
+    mode: "review_aid_only",
+    implemented_runtime_behavior: false,
+    t0_project_view: "Prior view is no longer useful for active review.",
+    t1_update_pressure:
+      "New anchors show the prior framing should stop guiding review notes.",
+    t2_review_result: "retired_from_active_review",
+    raw_anchor_policy:
+      "Missing anchors must be recorded as gaps, not fabricated.",
+    summary_policy: "Summaries are review aids over raw anchors.",
+    outcome_label: "retired_review_note",
+    gaps: [],
+    boundary_notes: [
+      "Retirement is a review label only.",
+      "Not a delete/archive runtime action.",
+      "Not commit/reject input.",
+      "Not source of truth.",
+      "Not evidence/proof.",
+    ],
+    forbidden_authority: forbiddenAuthority,
+  },
+  {
+    id: "pc-seq-009",
+    family: "transition_accepted",
+    status: "runtime_disabled_fixture",
+    mode: "review_aid_only",
+    implemented_runtime_behavior: false,
+    t0_project_view: "Prior review framing is supported by older anchors.",
+    t1_update_pressure:
+      "New raw anchors support a different review framing for later work.",
+    t2_review_result: "transition_accepted_review_note",
+    raw_anchor_policy:
+      "Missing anchors must be recorded as gaps, not fabricated.",
+    summary_policy: "Summaries are review aids over raw anchors.",
+    outcome_label: "transition_reviewed",
+    gaps: [],
+    boundary_notes: [
+      "Transition accepted is a casebook/review label only.",
+      "Not a state transition write.",
+      "Not commit/reject input.",
+      "Not proposal scoring.",
+      "Not Gate/SRF input.",
+      "Not source of truth.",
+      "Does not imply Augnes accepts transitions at runtime.",
+    ],
+    forbidden_authority: forbiddenAuthority,
+  },
+  {
+    id: "pc-seq-010",
+    family: "temporal_grouping_failure",
+    status: "runtime_disabled_fixture",
+    mode: "review_aid_only",
+    implemented_runtime_behavior: false,
+    t0_project_view: "Prior anchors span multiple work periods.",
+    t1_update_pressure:
+      "The available summary groups events in a way the raw anchors do not clearly support.",
+    t2_review_result: "grouping_gap_recorded",
+    raw_anchor_policy:
+      "Missing anchors must be recorded as gaps, not fabricated.",
+    summary_policy: "Summaries are review aids over raw anchors.",
+    outcome_label: "needs_repair",
+    gaps: ["ambiguous or missing temporal grouping anchor"],
+    boundary_notes: [
+      "Temporal grouping failure is a review label only.",
+      "Missing or ambiguous grouping must be recorded as a gap.",
+      "No runtime repair behavior is claimed.",
+      "No runtime drift detection is claimed.",
+    ],
+    forbidden_authority: forbiddenAuthority,
+  },
 ];
 
 const textByFile = new Map();
@@ -214,6 +295,9 @@ assertFixtureFamilies();
 assertRuntimeDisabledBoundary();
 assertRawAnchorGapBoundary();
 assertSourceRefTemptationBoundary();
+assertRetirementBoundary();
+assertTransitionAcceptedBoundary();
+assertTemporalGroupingFailureBoundary();
 assertScoreBenchmarkBoundary();
 assertStaticNoRuntimeImport();
 assertPackageScript();
@@ -232,6 +316,9 @@ console.log(
       runtime_authority_boundary_checked: true,
       raw_anchor_gap_boundary_checked: true,
       source_ref_temptation_boundary_checked: true,
+      retirement_boundary_checked: true,
+      transition_accepted_boundary_checked: true,
+      temporal_grouping_failure_boundary_checked: true,
       score_benchmark_boundary_checked: true,
       static_no_runtime_import_checked: true,
       package_script_checked: true,
@@ -252,6 +339,8 @@ console.log(
 );
 
 function assertFixtureShape() {
+  assert.equal(fixtures.length, 10, "Expected exactly 10 sequence fixtures");
+
   const requiredFields = [
     "id",
     "family",
@@ -305,7 +394,7 @@ function assertRuntimeDisabledBoundary() {
     assert(!serialized.includes("implemented_runtime_behavior\":true"));
     assert(!Object.hasOwn(fixture, "sidecar_e_t"));
     assert(!Object.hasOwn(fixture, "runtime_source_refs"));
-    assert(!serialized.includes("source of truth"));
+    assert(!Object.hasOwn(fixture, "source_of_truth"));
   }
 }
 
@@ -336,14 +425,50 @@ function assertSourceRefTemptationBoundary() {
   assert(notes.includes("Does not set sidecar_e_t.computed=true"));
 }
 
+function assertRetirementBoundary() {
+  const fixture = getFixture("retirement");
+  const notes = fixture.boundary_notes.join(" ");
+  assert.equal(fixture.implemented_runtime_behavior, false);
+  assert(notes.includes("Not a delete/archive runtime action."));
+  assert(notes.includes("Not commit/reject input."));
+  assert(notes.includes("Not source of truth."));
+  assertScoreBenchmarkFieldsAbsent(fixture);
+}
+
+function assertTransitionAcceptedBoundary() {
+  const fixture = getFixture("transition_accepted");
+  const notes = fixture.boundary_notes.join(" ");
+  assert.equal(fixture.implemented_runtime_behavior, false);
+  assert(notes.includes("Not a state transition write."));
+  assert(notes.includes("Not commit/reject input."));
+  assert(notes.includes("Not proposal scoring."));
+  assert(notes.includes("Not Gate/SRF input."));
+  assertScoreBenchmarkFieldsAbsent(fixture);
+}
+
+function assertTemporalGroupingFailureBoundary() {
+  const fixture = getFixture("temporal_grouping_failure");
+  const notes = fixture.boundary_notes.join(" ");
+  assert.equal(fixture.implemented_runtime_behavior, false);
+  assert(fixture.gaps.length > 0);
+  assert(notes.includes("Temporal grouping failure is a review label only."));
+  assert(notes.includes("No runtime repair behavior is claimed."));
+  assert(notes.includes("No runtime drift detection is claimed."));
+  assertScoreBenchmarkFieldsAbsent(fixture);
+}
+
 function assertScoreBenchmarkBoundary() {
   for (const fixture of fixtures) {
-    assert.equal(Object.hasOwn(fixture, "score"), false);
-    assert.equal(Object.hasOwn(fixture, "benchmark_result"), false);
-    assert.equal(Object.hasOwn(fixture, "KPI"), false);
-    assert.equal(Object.hasOwn(fixture, "proof_status"), false);
-    assert.equal(Object.hasOwn(fixture, "readiness_status"), false);
+    assertScoreBenchmarkFieldsAbsent(fixture);
   }
+}
+
+function assertScoreBenchmarkFieldsAbsent(fixture) {
+  assert.equal(Object.hasOwn(fixture, "score"), false);
+  assert.equal(Object.hasOwn(fixture, "benchmark_result"), false);
+  assert.equal(Object.hasOwn(fixture, "KPI"), false);
+  assert.equal(Object.hasOwn(fixture, "proof_status"), false);
+  assert.equal(Object.hasOwn(fixture, "readiness_status"), false);
 }
 
 function assertStaticNoRuntimeImport() {
