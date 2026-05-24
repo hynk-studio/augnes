@@ -419,6 +419,8 @@ export function buildWorkBrief(workId: string, scope = DEFAULT_SCOPE): WorkBrief
         "Use committed Augnes state for durable project facts.",
         "Use action_records and the Temporal State Graph as official execution proof.",
         "Record work_events only as human-readable trace notes linked to proof when relevant.",
+        "For boundary-relevant PR review findings, use PR comments or review comments as repo-anchored review anchors per docs/PR_REVIEW_ANCHOR_CONVENTION_V0_1.md.",
+        "Treat review anchors as review aids only, not source of truth, proof, evidence status, readiness, score, benchmark, runtime authority, or implementation approval; record missing exact external ChatGPT/Codex prompt or review text as a gap rather than reconstructing it.",
       ],
       suggested_verification: [
         `curl -sS "http://localhost:3000/api/work/${work.work_id}?scope=${encodeURIComponent(scope)}" | jq .`,
