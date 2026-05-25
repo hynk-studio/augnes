@@ -94,6 +94,12 @@ CODEX_RESULT_STATUS=completed
 CODEX_RESULT_KIND=documentation
 CODEX_RELATED_PR=https://github.com/Aurna-code/augnes/pull/___
 CODEX_RELATED_STATE_KEYS=state.key
+
+Preferred completion command:
+npm run codex:record-completion-proof
+
+Compatibility completion command:
+npm run codex:record-completion
 ```
 
 ## Completion Expectations
@@ -108,7 +114,8 @@ Codex should report:
 - PR URL, if opened
 - session_id, session binding status, evidence IDs, and skipped reason when applicable
 - structured evidence record IDs, or the exact reason evidence rows were skipped
-- whether `npm run codex:record-completion` was run or why it was skipped
+- whether `npm run codex:record-completion-proof` was run or why it was
+  skipped; use `npm run codex:record-completion` only as compatibility behavior
 - whether `npm run codex:bind-session` was run or why it was skipped
 
 ## Boundary

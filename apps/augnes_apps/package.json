@@ -18,6 +18,7 @@
     "codex:read-brief": "tsx scripts/codex-read-brief.ts",
     "codex:record-result": "tsx scripts/codex-record-result.ts",
     "codex:record-completion": "tsx scripts/codex-record-completion.ts",
+    "codex:record-completion-proof": "tsx scripts/codex-record-completion-proof.ts",
     "codex:closeout-block": "tsx scripts/codex-closeout-block.ts",
     "codex:closeout-check": "tsx scripts/codex-closeout-check.ts",
     "codex:closeout-pipeline": "tsx scripts/codex-closeout-pipeline.ts",

@@ -15,7 +15,11 @@ const checkOnlyHelpers = [
   "codex:actuation-preview",
 ];
 
-const proofNativeHelpers = ["codex:record-evidence"];
+const proofNativeHelpers = ["codex:record-evidence", "codex:record-completion-proof"];
+const proofNativeRequiredPatterns = {
+  "codex:record-evidence": /\/api\/evidence\/records/,
+  "codex:record-completion-proof": /\/api\/work\/.*\/events/,
+};
 const compatibilityActionRecordHelpers = ["codex:record-completion", "codex:record-result"];
 
 const checkOnlyForbiddenPatterns = [
@@ -52,6 +56,7 @@ assertIncludes(taxonomyDoc, [
   "### Commit-State",
   "`codex:handoff-check` is now a read-only state-brief check",
   "`codex:record-evidence`: records `verification_evidence_records` only",
+  "`codex:record-completion-proof`: records completion proof",
   "`codex:record-completion`",
   "`codex:record-result`",
   "`external.<action>_recorded` state marker",
@@ -75,7 +80,7 @@ for (const helper of checkOnlyHelpers) {
 
 for (const helper of proofNativeHelpers) {
   const source = readAppScriptSource(helper);
-  assert.match(source, /\/api\/evidence\/records/, `${helper} should write evidence records`);
+  assert.match(source, proofNativeRequiredPatterns[helper], `${helper} should write its documented proof-native record`);
   assert.doesNotMatch(source, /\/api\/actions\/record|recordActionResult|commitStateUpdate|external\./);
 }
 

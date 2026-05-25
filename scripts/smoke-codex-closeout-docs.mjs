@@ -19,6 +19,7 @@ const checks = [
     needles: [
       "## Structured Evidence Recording Closeout",
       "npm run codex:record-evidence",
+      "npm run codex:record-completion-proof",
       "CODEX_EVIDENCE_KIND=command_run",
       "CODEX_EVIDENCE_KIND=check_skipped",
       "evidence_id",
@@ -54,9 +55,11 @@ const rootPackage = JSON.parse(readFileSync("package.json", "utf8"));
 const appPackage = JSON.parse(readFileSync("apps/augnes_apps/package.json", "utf8"));
 
 assertScript(rootPackage, "codex:record-evidence");
+assertScript(rootPackage, "codex:record-completion-proof");
 assertScript(rootPackage, "smoke:codex-record-evidence-helper");
 assertScript(rootPackage, "smoke:codex-closeout-docs");
 assertScript(appPackage, "codex:record-evidence");
+assertScript(appPackage, "codex:record-completion-proof");
 
 console.log(
   JSON.stringify(
