@@ -18,7 +18,7 @@ const checkOnlyHelpers = [
 const proofNativeHelpers = ["codex:record-evidence", "codex:record-completion-proof"];
 const proofNativeRequiredPatterns = {
   "codex:record-evidence": /\/api\/evidence\/records/,
-  "codex:record-completion-proof": /\/api\/work\/.*\/events/,
+  "codex:record-completion-proof": /\/api\/actions\/record-proof[\s\S]*\/api\/work\/.*\/events/,
 };
 const compatibilityActionRecordHelpers = ["codex:record-completion", "codex:record-result"];
 
@@ -56,7 +56,8 @@ assertIncludes(taxonomyDoc, [
   "### Commit-State",
   "`codex:handoff-check` is now a read-only state-brief check",
   "`codex:record-evidence`: records `verification_evidence_records` only",
-  "`codex:record-completion-proof`: records completion proof",
+  "`codex:record-completion-proof`: records completion proof as proof-only",
+  "`action_records`, linked `work_events`",
   "`codex:record-completion`",
   "`codex:record-result`",
   "`external.<action>_recorded` state marker",
@@ -81,14 +82,14 @@ for (const helper of checkOnlyHelpers) {
 for (const helper of proofNativeHelpers) {
   const source = readAppScriptSource(helper);
   assert.match(source, proofNativeRequiredPatterns[helper], `${helper} should write its documented proof-native record`);
-  assert.doesNotMatch(source, /\/api\/actions\/record|recordActionResult|commitStateUpdate|external\./);
+  assert.doesNotMatch(source, /\/api\/actions\/record(?=["'/?])|recordActionResult|commitStateUpdate|external\./);
 }
 
 const actionRecordHelpers = Object.keys(appPackage.scripts)
   .filter((scriptName) => scriptName.startsWith("codex:"))
   .filter((scriptName) => {
     const source = readAppScriptSource(scriptName);
-    return /\/api\/actions\/record|recordActionResult/.test(source);
+    return /\/api\/actions\/record(?=["'/?])|recordActionResult/.test(source);
   })
   .sort();
 

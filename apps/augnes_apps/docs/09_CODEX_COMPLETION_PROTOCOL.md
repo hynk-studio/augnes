@@ -56,9 +56,10 @@ npm run codex:record-completion-proof
 ```
 
 `codex:record-completion-proof` checks that `CODEX_WORK_ID` exists, then
-records `/api/work/{work_id}/events` only. It writes proof-native
-`work_events`/coordination trace and does not call `/api/actions/record`, create
-`action_records`, or create legacy `external.*` committed state markers.
+records `/api/actions/record-proof` and `/api/work/{work_id}/events`. It writes
+proof-native `action_records`, `work_events`, and coordination trace, links the
+work event to the action record, and does not call legacy `/api/actions/record`
+or create `external.*` committed state markers.
 
 Compatibility completion recording remains available:
 
@@ -77,7 +78,16 @@ CODEX_RELATED_STATE_KEYS="integration.chatgpt_app,implementation.stack" \
 npm run codex:record-completion
 ```
 
-`CODEX_WORK_ID` is normalized to uppercase. Before writing any action record, the helper preflights the trace anchor with `GET /api/work/{CODEX_WORK_ID}?scope=<scope>`. Unknown or unavailable work IDs fail before `/api/actions/record`, which prevents orphan `action_records` caused by mistyped work IDs.
+`CODEX_WORK_ID` is normalized to uppercase. Before writing any action record,
+the helpers preflight the trace anchor with
+`GET /api/work/{CODEX_WORK_ID}?scope=<scope>`. Unknown or unavailable work IDs
+fail before `/api/actions/record-proof` or compatibility `/api/actions/record`,
+which prevents orphan `action_records` caused by mistyped work IDs.
+
+The proof-only action-record path uses `/api/actions/record-proof`. That route
+creates an `action_records` row with no `state_key` and appends coordination
+proof. It does not call `commitStateUpdate` and does not create Temporal State
+Graph `external.*` markers.
 
 `CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
 

@@ -19,8 +19,8 @@ v0.2 is not a new session runtime. v0.2 does not create sessions automatically. 
 - Session trace review: `GET /api/sessions/trace` and `GET /api/sessions/{session_id}/trace`.
 - Structured evidence rows: `npm run codex:record-evidence` and `POST /api/evidence/records`.
 - Evidence Pack review: `GET /api/evidence-pack`.
-- Proof-only completion trace: `npm run codex:record-completion-proof` and
-  `/api/work/{work_id}/events`.
+- Proof-only completion trace: `npm run codex:record-completion-proof`,
+  `/api/actions/record-proof`, and `/api/work/{work_id}/events`.
 - Compatibility completion proof: `npm run codex:record-completion`,
   `/api/actions/record`, and `/api/work/{work_id}/events`.
 - Handoff smoke/check path: `npm run codex:handoff-check`, a read-only
@@ -175,8 +175,10 @@ npm run codex:record-completion-proof
 ```
 
 `codex:record-completion-proof` preflights `GET /api/work/{work_id}` and then
-records only `/api/work/{work_id}/events`. It does not call
-`/api/actions/record` and does not create legacy `external.*` state markers.
+records `/api/actions/record-proof` plus `/api/work/{work_id}/events`. It
+creates a proof-only `action_records` row, links the work event to that action
+record, does not call legacy `/api/actions/record`, and does not create
+legacy `external.*` state markers.
 
 `codex:record-completion` remains available as a compatibility path:
 

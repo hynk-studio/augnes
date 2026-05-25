@@ -14,7 +14,8 @@ const workId = "AG-PROOF";
 let server;
 let workItemGets = 0;
 let workEventPosts = 0;
-let forbiddenActionRecordPosts = 0;
+let actionProofPosts = 0;
+let forbiddenLegacyActionRecordPosts = 0;
 let unexpectedRequests = 0;
 
 try {
@@ -24,12 +25,14 @@ try {
   db.close();
 
   const workItemRoute = await import("../app/api/work/[work_id]/route.ts");
+  const actionProofRoute = await import("../app/api/actions/record-proof/route.ts");
   const workEventRoute = await import("../app/api/work/[work_id]/events/route.ts");
 
   server = http.createServer(async (request, response) => {
     try {
       const routeResponse = await routeLocalRequest({
         request,
+        actionProofRoute,
         workItemRoute,
         workEventRoute,
       });
@@ -50,6 +53,33 @@ try {
   const address = server.address();
   const apiBaseUrl = `http://127.0.0.1:${address.port}`;
 
+  const beforeInvalidActionProof = readProofBoundarySnapshot(openDatabase);
+  const invalidActionProof = await fetch(`${apiBaseUrl}/api/actions/record-proof`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      scope,
+      action_name: "invalid_missing_source_agent",
+      result_summary: "Invalid proof request should fail before any writes.",
+      files_changed: [],
+      result_status: "completed",
+      result_kind: "verification",
+      work_id: workId,
+      related_state_keys: ["verification.evidence_records"],
+    }),
+  });
+  const afterInvalidActionProof = readProofBoundarySnapshot(openDatabase);
+  assert.equal(invalidActionProof.status, 400, "invalid action proof request should fail");
+  assert.deepEqual(
+    afterInvalidActionProof,
+    beforeInvalidActionProof,
+    "invalid action proof request must not create proof or state records",
+  );
+  assert.equal(workItemGets, 0, "invalid action proof request must not read work item route");
+  assert.equal(workEventPosts, 0, "invalid action proof request must not POST work event");
+  assert.equal(forbiddenLegacyActionRecordPosts, 0, "invalid action proof request must not call legacy action-record route");
+  const invalidActionProofPosts = actionProofPosts;
+
   const before = readProofBoundarySnapshot(openDatabase);
   const success = await runProofHelper({
     AUGNES_API_BASE_URL: apiBaseUrl,
@@ -68,24 +98,34 @@ try {
 
   assert.equal(success.status, 0, success.stderr);
   assert.match(success.stdout, /Augnes Codex completion proof recorded/);
+  assert.match(success.stdout, /action_record_id: action:/);
   assert.match(success.stdout, /work_event_id: work-event:/);
   assert.match(success.stdout, /read_only_review_refs:/);
-  assert.match(success.stdout, /proof-native completion trace only/);
+  assert.match(success.stdout, /proof-native action and work trace only/);
   assert.doesNotMatch(success.stdout, /external\./);
-  assert.doesNotMatch(success.stdout, /action_record_response:/);
+  assert.match(success.stdout, /action_proof_response:/);
   assert.equal(workItemGets, 1, "successful helper should preflight work item once");
+  assert.equal(
+    actionProofPosts,
+    invalidActionProofPosts + 1,
+    "successful helper should POST one valid action proof after the invalid guardrail request",
+  );
   assert.equal(workEventPosts, 1, "successful helper should POST one work event");
-  assert.equal(forbiddenActionRecordPosts, 0, "proof helper must not call action-record route");
+  assert.equal(forbiddenLegacyActionRecordPosts, 0, "proof helper must not call legacy action-record route");
   assert.equal(unexpectedRequests, 0, "smoke server should see no unexpected local requests");
   assert.equal(after.state_entries, before.state_entries, "proof helper must not create state entries");
   assert.equal(after.state_transitions, before.state_transitions, "proof helper must not create state transitions");
   assert.equal(after.external_state_entries, before.external_state_entries, "proof helper must not create external state entries");
-  assert.equal(after.action_records, before.action_records, "proof helper must not create action records");
+  assert.equal(after.action_records, before.action_records + 1, "proof helper should create one action record");
   assert.equal(after.verification_evidence_records, before.verification_evidence_records);
   assert.equal(after.work_events, before.work_events + 1, "proof helper should create one work event");
-  assert.equal(after.coordination_events, before.coordination_events + 1, "work event should create one coordination event");
+  assert.equal(after.coordination_events, before.coordination_events + 2, "action proof and work event should each create one coordination event");
 
-  const callsAfterSuccess = workItemGets + workEventPosts + forbiddenActionRecordPosts + unexpectedRequests;
+  const proofActionRecord = readLatestActionRecord(openDatabase);
+  assert.equal(proofActionRecord.state_key, null, "proof-only action record must not carry external.* state key");
+  assert.equal(proofActionRecord.title, "codex_completion_proof_smoke");
+
+  const callsAfterSuccess = workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests;
   const unknownWork = await runProofHelper({
     AUGNES_API_BASE_URL: apiBaseUrl,
     CODEX_SCOPE: scope,
@@ -96,15 +136,16 @@ try {
   });
   assert.notEqual(unknownWork.status, 0);
   assert.match(unknownWork.stderr, /CODEX_RECORD_COMPLETION_PROOF_UNKNOWN_WORK_ID/);
+  assert.equal(actionProofPosts, invalidActionProofPosts + 1, "unknown work must not POST an action proof");
   assert.equal(workEventPosts, 1, "unknown work must not POST a work event");
-  assert.equal(forbiddenActionRecordPosts, 0, "unknown work must not call action-record route");
+  assert.equal(forbiddenLegacyActionRecordPosts, 0, "unknown work must not call legacy action-record route");
   assert.equal(
-    workItemGets + workEventPosts + forbiddenActionRecordPosts + unexpectedRequests,
+    workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests,
     callsAfterSuccess + 1,
     "unknown work should add only one preflight GET",
   );
 
-  const callsAfterUnknown = workItemGets + workEventPosts + forbiddenActionRecordPosts + unexpectedRequests;
+  const callsAfterUnknown = workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests;
   const missingSummary = await runProofHelper({
     AUGNES_API_BASE_URL: apiBaseUrl,
     CODEX_SCOPE: scope,
@@ -115,7 +156,7 @@ try {
   assert.notEqual(missingSummary.status, 0);
   assert.match(missingSummary.stderr, /CODEX_RESULT_SUMMARY is required/);
   assert.equal(
-    workItemGets + workEventPosts + forbiddenActionRecordPosts + unexpectedRequests,
+    workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests,
     callsAfterUnknown,
     "missing required env should fail before route calls",
   );
@@ -125,16 +166,21 @@ try {
       {
         smoke: "codex-record-completion-proof-helper",
         helper: "codex:record-completion-proof",
-        proof_native_records_used: ["work_events", "coordination_events"],
+        proof_native_records_used: ["action_records", "work_events", "coordination_events"],
         work_item_gets: workItemGets,
+        action_proof_posts: actionProofPosts,
+        invalid_action_proof_posts: invalidActionProofPosts,
+        successful_action_proof_posts: actionProofPosts - invalidActionProofPosts,
         work_event_posts: workEventPosts,
-        action_record_posts: forbiddenActionRecordPosts,
+        legacy_action_record_posts: forbiddenLegacyActionRecordPosts,
         state_entries_delta: after.state_entries - before.state_entries,
         state_transitions_delta: after.state_transitions - before.state_transitions,
         external_state_entries_delta: after.external_state_entries - before.external_state_entries,
         action_records_delta: after.action_records - before.action_records,
         work_events_delta: after.work_events - before.work_events,
         coordination_events_delta: after.coordination_events - before.coordination_events,
+        proof_action_record_state_key: proofActionRecord.state_key,
+        invalid_action_proof_failed_without_writes: true,
         unknown_work_failed_before_write: true,
         invalid_env_failed_before_route_calls: true,
         github_calls: 0,
@@ -154,7 +200,7 @@ try {
   rmSync(tempDir, { recursive: true, force: true });
 }
 
-async function routeLocalRequest({ request, workItemRoute, workEventRoute }) {
+async function routeLocalRequest({ request, actionProofRoute, workItemRoute, workEventRoute }) {
   const method = request.method ?? "GET";
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   const body = method === "GET" || method === "HEAD" ? undefined : await readRequestBody(request);
@@ -165,8 +211,13 @@ async function routeLocalRequest({ request, workItemRoute, workEventRoute }) {
   });
 
   if (url.pathname === "/api/actions/record") {
-    forbiddenActionRecordPosts += 1;
+    forbiddenLegacyActionRecordPosts += 1;
     return Response.json({ error: "proof helper must not call action-record route" }, { status: 500 });
+  }
+
+  if (url.pathname === "/api/actions/record-proof" && method === "POST") {
+    actionProofPosts += 1;
+    return actionProofRoute.POST(webRequest);
   }
 
   const workEventMatch = url.pathname.match(/^\/api\/work\/([^/]+)\/events$/);
@@ -260,6 +311,24 @@ function readProofBoundarySnapshot(openDatabase) {
         .get().count,
       coordination_events: db.prepare("SELECT COUNT(*) AS count FROM coordination_events").get().count,
     };
+  } finally {
+    db.close();
+  }
+}
+
+function readLatestActionRecord(openDatabase) {
+  const db = openDatabase();
+  try {
+    return db
+      .prepare(
+        `
+          SELECT id, state_key, title, status
+          FROM action_records
+          ORDER BY created_at DESC, id ASC
+          LIMIT 1
+        `,
+      )
+      .get();
   } finally {
     db.close();
   }

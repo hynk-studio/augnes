@@ -102,6 +102,10 @@ Compatibility completion command:
 npm run codex:record-completion
 ```
 
+`codex:record-completion-proof` is the preferred path. It records a proof-only
+`action_records` row through `/api/actions/record-proof`, links a work event,
+and does not create legacy `external.*` committed state markers.
+
 ## Completion Expectations
 
 Codex should report:

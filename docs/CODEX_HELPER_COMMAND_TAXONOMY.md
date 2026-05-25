@@ -52,8 +52,10 @@ Evidence Pack material. New record-proof helpers must not create committed
 Current proof-native helpers:
 
 - `codex:record-evidence`: records `verification_evidence_records` only.
-- `codex:record-completion-proof`: records completion proof as
-  `work_events`/coordination trace only.
+- `codex:record-completion-proof`: records completion proof as proof-only
+  `action_records`, linked `work_events`, and coordination trace.
+  It uses `/api/actions/record-proof`, not the legacy `/api/actions/record`
+  state-marker route.
 
 Compatibility proof helpers:
 
