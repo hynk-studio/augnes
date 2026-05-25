@@ -53,6 +53,33 @@ try {
   const address = server.address();
   const apiBaseUrl = `http://127.0.0.1:${address.port}`;
 
+  const beforeInvalidActionProof = readProofBoundarySnapshot(openDatabase);
+  const invalidActionProof = await fetch(`${apiBaseUrl}/api/actions/record-proof`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      scope,
+      action_name: "invalid_missing_source_agent",
+      result_summary: "Invalid proof request should fail before any writes.",
+      files_changed: [],
+      result_status: "completed",
+      result_kind: "verification",
+      work_id: workId,
+      related_state_keys: ["verification.evidence_records"],
+    }),
+  });
+  const afterInvalidActionProof = readProofBoundarySnapshot(openDatabase);
+  assert.equal(invalidActionProof.status, 400, "invalid action proof request should fail");
+  assert.deepEqual(
+    afterInvalidActionProof,
+    beforeInvalidActionProof,
+    "invalid action proof request must not create proof or state records",
+  );
+  assert.equal(workItemGets, 0, "invalid action proof request must not read work item route");
+  assert.equal(workEventPosts, 0, "invalid action proof request must not POST work event");
+  assert.equal(forbiddenLegacyActionRecordPosts, 0, "invalid action proof request must not call legacy action-record route");
+  const invalidActionProofPosts = actionProofPosts;
+
   const before = readProofBoundarySnapshot(openDatabase);
   const success = await runProofHelper({
     AUGNES_API_BASE_URL: apiBaseUrl,
@@ -78,7 +105,11 @@ try {
   assert.doesNotMatch(success.stdout, /external\./);
   assert.match(success.stdout, /action_proof_response:/);
   assert.equal(workItemGets, 1, "successful helper should preflight work item once");
-  assert.equal(actionProofPosts, 1, "successful helper should POST one action proof");
+  assert.equal(
+    actionProofPosts,
+    invalidActionProofPosts + 1,
+    "successful helper should POST one valid action proof after the invalid guardrail request",
+  );
   assert.equal(workEventPosts, 1, "successful helper should POST one work event");
   assert.equal(forbiddenLegacyActionRecordPosts, 0, "proof helper must not call legacy action-record route");
   assert.equal(unexpectedRequests, 0, "smoke server should see no unexpected local requests");
@@ -105,7 +136,7 @@ try {
   });
   assert.notEqual(unknownWork.status, 0);
   assert.match(unknownWork.stderr, /CODEX_RECORD_COMPLETION_PROOF_UNKNOWN_WORK_ID/);
-  assert.equal(actionProofPosts, 1, "unknown work must not POST an action proof");
+  assert.equal(actionProofPosts, invalidActionProofPosts + 1, "unknown work must not POST an action proof");
   assert.equal(workEventPosts, 1, "unknown work must not POST a work event");
   assert.equal(forbiddenLegacyActionRecordPosts, 0, "unknown work must not call legacy action-record route");
   assert.equal(
@@ -138,6 +169,8 @@ try {
         proof_native_records_used: ["action_records", "work_events", "coordination_events"],
         work_item_gets: workItemGets,
         action_proof_posts: actionProofPosts,
+        invalid_action_proof_posts: invalidActionProofPosts,
+        successful_action_proof_posts: actionProofPosts - invalidActionProofPosts,
         work_event_posts: workEventPosts,
         legacy_action_record_posts: forbiddenLegacyActionRecordPosts,
         state_entries_delta: after.state_entries - before.state_entries,
@@ -147,6 +180,7 @@ try {
         work_events_delta: after.work_events - before.work_events,
         coordination_events_delta: after.coordination_events - before.coordination_events,
         proof_action_record_state_key: proofActionRecord.state_key,
+        invalid_action_proof_failed_without_writes: true,
         unknown_work_failed_before_write: true,
         invalid_env_failed_before_route_calls: true,
         github_calls: 0,
