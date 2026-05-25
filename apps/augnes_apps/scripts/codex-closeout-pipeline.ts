@@ -242,7 +242,7 @@ async function main(): Promise<void> {
   const blockResult = await runChild(
     ["run", "--silent", "codex:closeout-block"],
     childEnv({
-      CODEX_CLOSEOUT_FORMAT: process.env.CODEX_CLOSEOUT_FORMAT ?? "both",
+      CODEX_CLOSEOUT_FORMAT: "both",
     }),
   );
   if (blockResult.status !== 0) {

@@ -90,6 +90,22 @@ try {
   assert.doesNotMatch(summaryOnly.stdout, new RegExp(beginMarker));
   assert.doesNotMatch(summaryOnly.stdout, /BEGIN_AUGNES_CODEX_CLOSEOUT_JSON/);
 
+  const parentJsonFormat = await runPipeline({
+    ...completeEnv(apiBaseUrl),
+    CODEX_CLOSEOUT_PIPELINE_OUTPUT: "json",
+    CODEX_CLOSEOUT_FORMAT: "json",
+  });
+  assert.equal(parentJsonFormat.status, 0, parentJsonFormat.stderr);
+  assertExpectedPipelineJson(JSON.parse(parentJsonFormat.stdout), "delegated", true, "pass");
+
+  const parentMarkdownFormat = await runPipeline({
+    ...completeEnv(apiBaseUrl),
+    CODEX_CLOSEOUT_PIPELINE_OUTPUT: "json",
+    CODEX_CLOSEOUT_FORMAT: "markdown",
+  });
+  assert.equal(parentMarkdownFormat.status, 0, parentMarkdownFormat.stderr);
+  assertExpectedPipelineJson(JSON.parse(parentMarkdownFormat.stdout), "delegated", true, "pass");
+
   const needsReview = await runPipeline({
     AUGNES_API_BASE_URL: apiBaseUrl,
     CODEX_SCOPE: scope,
@@ -105,7 +121,7 @@ try {
 
   const blockFailed = await runPipeline({
     ...completeEnv(apiBaseUrl),
-    CODEX_CLOSEOUT_FORMAT: "xml",
+    CODEX_EVIDENCE_IDS: '["evidence:ok", 12]',
   });
   assert.notEqual(blockFailed.status, 0);
   assert.match(blockFailed.stderr, /CODEX_CLOSEOUT_PIPELINE_BLOCK_FAILED/);
@@ -139,6 +155,8 @@ try {
         both_mode_checked: true,
         json_only_checked: true,
         summary_only_checked: true,
+        parent_closeout_format_json_ignored: true,
+        parent_closeout_format_markdown_ignored: true,
         needs_review_checked: true,
         block_failure_checked: true,
         check_failure_checked: true,
