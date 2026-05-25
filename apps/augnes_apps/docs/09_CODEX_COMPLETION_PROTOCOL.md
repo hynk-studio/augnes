@@ -86,8 +86,8 @@ mailbox/state rows.
 Read back the trace with:
 
 ```bash
-curl -sS "http://localhost:3000/api/sessions/trace?scope=project:augnes" | jq .
-curl -sS "http://localhost:3000/api/sessions/session:.../trace?scope=project:augnes" | jq .
+curl -sS 'http://localhost:3000/api/sessions/trace?scope=project:augnes' | jq .
+curl -sS 'http://localhost:3000/api/sessions/session:.../trace?scope=project:augnes' | jq .
 ```
 
 Allowed `CODEX_RESULT_STATUS` values:
@@ -320,7 +320,7 @@ completion proof, and read-only review traces. The compact closeout sequence is:
 If the helper is unavailable, confirm the work ID exists before recording the action result:
 
 ```bash
-curl -sS "http://localhost:3000/api/work/AG-004?scope=project:augnes" | jq .
+curl -sS 'http://localhost:3000/api/work/AG-004?scope=project:augnes' | jq .
 ```
 
 Then record the action result:
@@ -345,7 +345,7 @@ curl -sS -X POST "http://localhost:3000/api/actions/record" \
 Then record the trace note. Copy the returned action record ID into `related_action_id` when available:
 
 ```bash
-curl -sS -X POST "http://localhost:3000/api/work/AG-004/events?scope=project:augnes" \
+curl -sS -X POST 'http://localhost:3000/api/work/AG-004/events?scope=project:augnes' \
   -H "content-type: application/json" \
   -d '{
     "scope": "project:augnes",
@@ -367,13 +367,13 @@ curl -sS -X POST "http://localhost:3000/api/work/AG-004/events?scope=project:aug
 Confirm the work event is attached to the trace anchor:
 
 ```bash
-curl -sS "http://localhost:3000/api/work/AG-004/brief?scope=project:augnes" | jq '.recent_events[0]'
+curl -sS 'http://localhost:3000/api/work/AG-004/brief?scope=project:augnes' | jq '.recent_events[0]'
 ```
 
 Confirm the action record is visible in recent actions:
 
 ```bash
-curl -sS "http://localhost:3000/api/state/brief?scope=project:augnes" | jq '.recent_actions[0]'
+curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq '.recent_actions[0]'
 ```
 
 Open the Runtime Cockpit and confirm Work Focus shows the event. When applicable, confirm the Temporal State Graph shows the official action result transition, such as:

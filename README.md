@@ -159,9 +159,34 @@ More screenshots and supporting proof captures are listed in [screenshots/README
    Tensions, and Boundary / Next.
 5. Open Bridge to review read-first / no direct external-control boundaries.
 6. Open Operator to see safe local runtime controls.
-7. Fetch `/api/state/brief?scope=project:augnes` and inspect `agent_handoff`.
+7. Fetch the state brief and inspect `agent_handoff`:
+
+```bash
+curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq '.agent_handoff'
+```
+
 8. Start the MCP bridge and verify state brief + action record proof through
    MCP Inspector.
+
+## Dogfood evaluation
+
+The repo-local dogfooding docs are:
+
+- [Augnes dogfooding research direction](docs/AUGNES_DOGFOODING_RESEARCH_DIRECTION_V0_1.md)
+- [Raw episode capture](docs/RAW_EPISODE_CAPTURE_V0_1.md)
+- [Dogfooding episode log](docs/DOGFOODING_EPISODE_LOG_V0_1.md)
+- [Dogfooding evaluation criteria](docs/DOGFOODING_EVALUATION_CRITERIA_V0_1.md)
+
+For an independent dogfood report, keep outputs in bounded repo-local paths:
+
+- `reports/dogfood/<date>-<run-id>.md`
+- `reports/dogfood/<date>-<index-or-summary>.md`
+- `backlog/augnes-friction-backlog.md`
+- `backlog/augnes-improvement-proposals.md`
+
+Dogfood notes are research and evaluation guidance only. They do not change
+runtime behavior, DB schema, API routes, bridge tools, Cockpit controls, or
+authority boundaries.
 
 ## Security and boundaries
 
@@ -193,4 +218,6 @@ More screenshots and supporting proof captures are listed in [screenshots/README
 - [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md)
 - [Evidence Pack / verification evidence](docs/VERIFICATION_EVIDENCE_PACK.md)
 - [Authority matrix](docs/AUTHORITY_MATRIX.md)
+- [Dogfooding evaluation criteria](docs/DOGFOODING_EVALUATION_CRITERIA_V0_1.md)
+- [Raw episode capture](docs/RAW_EPISODE_CAPTURE_V0_1.md)
 - [Latest docs index](docs/00_INDEX_LATEST.md)
