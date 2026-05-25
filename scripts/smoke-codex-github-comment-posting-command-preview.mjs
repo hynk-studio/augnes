@@ -75,6 +75,27 @@ const markedEnv = await previewJson({
 });
 assert.equal(markedEnv.command_preview.method_preview, "would_POST");
 
+const shorthandTarget = await previewJson({
+  CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+    buildReadiness({ target: { ...baseTarget(), target_ref: "Aurna-code/augnes#214" } }),
+  ),
+});
+assert.equal(shorthandTarget.target.target_ref, "Aurna-code/augnes#214");
+
+const httpsTarget = await previewJson({
+  CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+    buildReadiness({ target: { ...baseTarget(), target_ref: "https://github.com/Aurna-code/augnes/pull/214" } }),
+  ),
+});
+assert.equal(httpsTarget.target.target_ref, "https://github.com/Aurna-code/augnes/pull/214");
+
+const httpTarget = await previewJson({
+  CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+    buildReadiness({ target: { ...baseTarget(), target_ref: "http://github.com/Aurna-code/augnes/pull/214" } }),
+  ),
+});
+assert.equal(httpTarget.target.target_ref, "http://github.com/Aurna-code/augnes/pull/214");
+
 const inputFilePath = path.join(tmpdir(), `augnes-github-comment-command-preview-readiness-${process.pid}.json`);
 await writeFile(inputFilePath, marked(buildReadiness()), "utf8");
 const fileInput = await runPreview({
@@ -155,6 +176,77 @@ await assertInvalid({
   },
   expected: /INVALID_PAYLOAD_FINGERPRINT/,
 });
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({ target: { ...baseTarget(), target_ref: "https://github.com/evil/repo/pull/999" } }),
+    ),
+  },
+  expected: /TARGET_REF_MISMATCH/,
+});
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({ target: { ...baseTarget(), target_ref: "https://github.com/evil/augnes/pull/214" } }),
+    ),
+  },
+  expected: /TARGET_REF_MISMATCH/,
+});
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({ target: { ...baseTarget(), target_ref: "https://github.com/Aurna-code/other/pull/214" } }),
+    ),
+  },
+  expected: /TARGET_REF_MISMATCH/,
+});
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({ target: { ...baseTarget(), target_ref: "https://github.com/Aurna-code/augnes/pull/999" } }),
+    ),
+  },
+  expected: /TARGET_REF_MISMATCH/,
+});
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({ target: { ...baseTarget(), pull_number: 999 } }),
+    ),
+  },
+  expected: /TARGET_REF_MISMATCH/,
+});
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({ target: { ...baseTarget(), issue_number: 999 } }),
+    ),
+  },
+  expected: /TARGET_REF_MISMATCH/,
+});
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({
+        target: {
+          ...baseTarget(),
+          target_ref: "https://github.com/Aurna-code/augnes/pull/999",
+          pull_number: 999,
+          issue_number: 214,
+        },
+      }),
+    ),
+  },
+  expected: /TARGET_REF_MISMATCH/,
+});
+await assertInvalid({
+  env: {
+    CODEX_GITHUB_COMMENT_READINESS_JSON: JSON.stringify(
+      buildReadiness({ target: { ...baseTarget(), target_ref: "Aurna-code/augnes/pull/214" } }),
+    ),
+  },
+  expected: /INVALID_TARGET/,
+});
 
 for (const owner of ["", "Aurna-code/other", "Aurna-code%2Fother", "Aurna code", "Aurna#code", "Aurna?code", "Aurna\u0001code"]) {
   await assertInvalid({
@@ -226,6 +318,11 @@ console.log(
       marked_json_env_checked: true,
       file_input_checked: true,
       stdin_input_checked: true,
+      target_ref_shorthand_checked: true,
+      target_ref_https_checked: true,
+      target_ref_http_checked: true,
+      target_ref_mismatch_rejected: true,
+      pull_issue_mismatch_rejected: true,
       preflight_needs_review_rejected: true,
       preflight_blocked_rejected: true,
       invalid_json_and_shape_checked: true,

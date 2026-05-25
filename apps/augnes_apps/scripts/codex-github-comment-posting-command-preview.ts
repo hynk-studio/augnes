@@ -27,6 +27,13 @@ type Target = {
   issue_number: number;
 };
 
+type ParsedTargetRef = {
+  target_ref: string;
+  owner: string;
+  repo: string;
+  pull_number: number;
+};
+
 type PayloadFingerprint = {
   endpoint_preview: string;
   api_url_preview: string;
@@ -238,13 +245,78 @@ function validateTarget(value: Record<string, unknown>): Target {
   if (!isPositiveInteger(value.pull_number)) throw new GithubCommentCommandPreviewError(code);
   if (!isPositiveInteger(value.issue_number)) throw new GithubCommentCommandPreviewError(code);
 
-  return {
-    target_ref: value.target_ref,
+  const target: Target = {
+    target_ref: value.target_ref.trim(),
     owner: validateTargetSegment(value.owner, "CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_OWNER"),
     repo: validateTargetSegment(value.repo, "CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_REPO"),
     pull_number: value.pull_number,
     issue_number: value.issue_number,
   };
+  const parsedTargetRef = parseTargetRef(value.target_ref);
+  if (
+    parsedTargetRef.owner !== target.owner ||
+    parsedTargetRef.repo !== target.repo ||
+    parsedTargetRef.pull_number !== target.pull_number ||
+    target.issue_number !== target.pull_number
+  ) {
+    throw new GithubCommentCommandPreviewError("CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_TARGET_REF_MISMATCH");
+  }
+
+  return target;
+}
+
+function parseTargetRef(targetRef: string): ParsedTargetRef {
+  const trimmed = targetRef.trim();
+  if (!trimmed) throw new GithubCommentCommandPreviewError("CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_TARGET");
+
+  const shorthand = /^([^/\s#]+)\/([^/\s#]+)#(\d+)$/.exec(trimmed);
+  if (shorthand !== null) {
+    return {
+      target_ref: trimmed,
+      owner: validateTargetSegment(shorthand[1], "CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_OWNER"),
+      repo: validateTargetSegment(shorthand[2], "CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_REPO"),
+      pull_number: parsePullNumber(shorthand[3]),
+    };
+  }
+
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new GithubCommentCommandPreviewError("CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_TARGET");
+  }
+
+  if (url.hostname !== "github.com" || (url.protocol !== "https:" && url.protocol !== "http:")) {
+    throw new GithubCommentCommandPreviewError("CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_TARGET");
+  }
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length !== 4 || parts[2] !== "pull") {
+    throw new GithubCommentCommandPreviewError("CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_TARGET");
+  }
+
+  return {
+    target_ref: trimmed,
+    owner: validateTargetSegment(decodePathPart(parts[0]), "CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_OWNER"),
+    repo: validateTargetSegment(decodePathPart(parts[1]), "CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_REPO"),
+    pull_number: parsePullNumber(parts[3]),
+  };
+}
+
+function decodePathPart(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new GithubCommentCommandPreviewError("CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_TARGET");
+  }
+}
+
+function parsePullNumber(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0 || String(parsed) !== value) {
+    throw new GithubCommentCommandPreviewError("CODEX_GITHUB_COMMENT_COMMAND_PREVIEW_INVALID_TARGET");
+  }
+  return parsed;
 }
 
 function validateTargetSegment(value: string, code: string): string {
