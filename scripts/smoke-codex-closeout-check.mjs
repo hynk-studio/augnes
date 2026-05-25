@@ -170,6 +170,62 @@ try {
   assert.equal(invalidReadRefs.stdout, "");
 
   calls = [];
+  const forbiddenProviderRef = await runCloseoutCheck({
+    env: {
+      CODEX_CLOSEOUT_JSON: JSON.stringify({
+        ...delegatedCloseout,
+        runtime_refs: {
+          ...delegatedCloseout.runtime_refs,
+          state_brief_url: "https://api.openai.com/api/state/brief?scope=project%3Aaugnes",
+        },
+      }),
+      CODEX_CLOSEOUT_CHECK_READ_REFS: "true",
+    },
+  });
+  assert.notEqual(forbiddenProviderRef.status, 0);
+  assert.match(forbiddenProviderRef.stderr, /CODEX_CLOSEOUT_CHECK_INVALID_URL/);
+  assert.equal(forbiddenProviderRef.stdout, "");
+  assert.equal(calls.length, 0, "forbidden provider ref should fail before fetch");
+
+  calls = [];
+  const unexpectedPathRef = await runCloseoutCheck({
+    env: {
+      CODEX_CLOSEOUT_JSON: JSON.stringify({
+        ...delegatedCloseout,
+        runtime_refs: {
+          ...delegatedCloseout.runtime_refs,
+          state_brief_url: `${apiBaseUrl}/api/actions/record?scope=${encodeURIComponent(scope)}`,
+        },
+      }),
+      CODEX_CLOSEOUT_CHECK_READ_REFS: "true",
+    },
+  });
+  assert.notEqual(unexpectedPathRef.status, 0);
+  assert.match(unexpectedPathRef.stderr, /CODEX_CLOSEOUT_CHECK_INVALID_URL/);
+  assert.equal(unexpectedPathRef.stdout, "");
+  assert.equal(calls.length, 0, "unexpected read-ref path should fail before fetch");
+
+  calls = [];
+  const mixedOriginRef = await runCloseoutCheck({
+    env: {
+      CODEX_CLOSEOUT_JSON: JSON.stringify({
+        ...delegatedCloseout,
+        runtime_refs: {
+          ...delegatedCloseout.runtime_refs,
+          evidence_pack_url: `http://localhost:${port}/api/evidence-pack?scope=${encodeURIComponent(
+            scope,
+          )}&work_id=${encodeURIComponent(workId)}`,
+        },
+      }),
+      CODEX_CLOSEOUT_CHECK_READ_REFS: "true",
+    },
+  });
+  assert.notEqual(mixedOriginRef.status, 0);
+  assert.match(mixedOriginRef.stderr, /CODEX_CLOSEOUT_CHECK_INVALID_URL/);
+  assert.equal(mixedOriginRef.stdout, "");
+  assert.equal(calls.length, 0, "mixed-origin read refs should fail before fetch");
+
+  calls = [];
   const readRefs = await runCloseoutCheck({
     env: {
       CODEX_CLOSEOUT_JSON: JSON.stringify(delegatedCloseout),
@@ -222,6 +278,9 @@ try {
         invalid_operation_mode_failed: true,
         invalid_url_failed: true,
         invalid_read_refs_failed: true,
+        forbidden_provider_ref_failed_before_fetch: true,
+        unexpected_path_ref_failed_before_fetch: true,
+        mixed_origin_ref_failed_before_fetch: true,
         default_mode_fetch_calls: 0,
         read_ref_mode_get_only: true,
         read_ref_mode_statuses_checked: true,

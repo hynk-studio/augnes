@@ -37,6 +37,13 @@ const RUNTIME_REF_KEYS = [
   "session_trace_url",
 ] as const;
 
+const FORBIDDEN_READ_REF_HOST_PARTS = [
+  "github.com",
+  "api.github.com",
+  "openai.com",
+  "api.openai.com",
+] as const;
+
 const AUTHORITY_BOUNDARY_REQUIREMENTS = [
   {
     label: "does not call GitHub/OpenAI",
@@ -164,6 +171,10 @@ async function readInputText(): Promise<string> {
     const content = await readFile(filePath, "utf8");
     if (!content.trim()) throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_MISSING_INPUT");
     return content;
+  }
+
+  if (process.stdin.isTTY) {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_MISSING_INPUT");
   }
 
   const stdin = await readStdin();
@@ -354,7 +365,65 @@ function skippedReadOnlyRefChecks(runtimeRefs: RuntimeRefs): ReadOnlyRefCheck[] 
   }));
 }
 
+function validateReadOnlyRuntimeRef(name: RuntimeRefName, value: string, expectedOrigin: string): void {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+  if (url.origin !== expectedOrigin) {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (FORBIDDEN_READ_REF_HOST_PARTS.some((forbidden) => hostname.includes(forbidden))) {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+
+  if (name === "state_brief_url" && url.pathname !== "/api/state/brief") {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+  if (name === "evidence_pack_url" && url.pathname !== "/api/evidence-pack") {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+  if (name === "work_brief_url" && !/^\/api\/work\/[^/]+\/brief$/.test(url.pathname)) {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+  if (name === "session_trace_url" && !/^\/api\/sessions\/[^/]+\/trace$/.test(url.pathname)) {
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+}
+
+function validateReadOnlyRuntimeRefs(runtimeRefs: RuntimeRefs): void {
+  const firstRef = RUNTIME_REF_KEYS.map((name) => runtimeRefs[name]).find((value): value is string => value !== null);
+  if (!firstRef) return;
+
+  let expectedOrigin: string;
+  try {
+    const firstUrl = new URL(firstRef);
+    if (firstUrl.protocol !== "http:" && firstUrl.protocol !== "https:") {
+      throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+    }
+    expectedOrigin = firstUrl.origin;
+  } catch (error) {
+    if (error instanceof CloseoutCheckError) throw error;
+    throw new CloseoutCheckError("CODEX_CLOSEOUT_CHECK_INVALID_URL");
+  }
+
+  for (const name of RUNTIME_REF_KEYS) {
+    const url = runtimeRefs[name];
+    if (url) validateReadOnlyRuntimeRef(name, url, expectedOrigin);
+  }
+}
+
 async function checkReadOnlyRefs(runtimeRefs: RuntimeRefs): Promise<ReadOnlyRefCheck[]> {
+  validateReadOnlyRuntimeRefs(runtimeRefs);
+
   const checks: ReadOnlyRefCheck[] = [];
 
   for (const name of RUNTIME_REF_KEYS) {
