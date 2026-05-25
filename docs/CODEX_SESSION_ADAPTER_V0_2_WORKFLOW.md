@@ -19,7 +19,10 @@ v0.2 is not a new session runtime. v0.2 does not create sessions automatically. 
 - Session trace review: `GET /api/sessions/trace` and `GET /api/sessions/{session_id}/trace`.
 - Structured evidence rows: `npm run codex:record-evidence` and `POST /api/evidence/records`.
 - Evidence Pack review: `GET /api/evidence-pack`.
-- Completion proof: `npm run codex:record-completion`, `/api/actions/record`, and `/api/work/{work_id}/events`.
+- Proof-only completion trace: `npm run codex:record-completion-proof` and
+  `/api/work/{work_id}/events`.
+- Compatibility completion proof: `npm run codex:record-completion`,
+  `/api/actions/record`, and `/api/work/{work_id}/events`.
 - Handoff smoke/check path: `npm run codex:handoff-check`, a read-only
   state-brief check.
 - Command taxonomy: `docs/CODEX_HELPER_COMMAND_TAXONOMY.md` separates
@@ -154,7 +157,28 @@ Avoid generic reasons such as `not needed`, `skipped`, or `N/A` unless paired wi
 
 ## Record Codex Completion
 
-At closeout, record completion when the runtime is available and `CODEX_WORK_ID` is known:
+At closeout, prefer proof-only completion recording when the runtime is
+available and `CODEX_WORK_ID` is known:
+
+```bash
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_WORK_ID=AG-___ \
+CODEX_ACTION_NAME=codex_session_adapter_v0_2_workflow \
+CODEX_RESULT_SUMMARY="Codex packaged the Session Adapter v0.2 workflow and verified docs/smoke checks." \
+CODEX_FILES_CHANGED="docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md,apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md" \
+CODEX_RESULT_STATUS=completed \
+CODEX_RESULT_KIND=documentation \
+CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/___" \
+CODEX_RELATED_STATE_KEYS="coordination.session_binding,verification.evidence_records" \
+npm run codex:record-completion-proof
+```
+
+`codex:record-completion-proof` preflights `GET /api/work/{work_id}` and then
+records only `/api/work/{work_id}/events`. It does not call
+`/api/actions/record` and does not create legacy `external.*` state markers.
+
+`codex:record-completion` remains available as a compatibility path:
 
 ```bash
 AUGNES_API_BASE_URL=http://localhost:3000 \
@@ -233,6 +257,8 @@ v0.2 keeps these boundaries:
 - check-only helper names such as `codex:handoff-check` remain read-only
 - legacy `external.*` markers from action-record compatibility helpers are not
   treated as accepted project facts
+- proof-only completion recording uses `codex:record-completion-proof`; the
+  legacy `codex:record-completion` helper remains compatibility behavior
 
 Normal development use of GitHub remains allowed: fetch, branch, commit, push, and open a draft PR for code review.
 
@@ -259,7 +285,7 @@ Session trace:
 - trace review: GET /api/sessions/{session_id}/trace passed
 
 Completion:
-- npm run codex:record-completion: recorded action/work event, IDs copied from helper output
+- npm run codex:record-completion-proof: recorded proof-native work event, ID copied from helper output
 - skipped reason if not recorded: missing CODEX_WORK_ID
 
 Authority boundaries:

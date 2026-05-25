@@ -24,6 +24,7 @@ assertIncludes(workflow, [
   "suggested verification",
   "codex:bind-session",
   "codex:record-evidence",
+  "codex:record-completion-proof",
   "codex:record-completion",
   "codex:handoff-check",
   "augnes_get_session_trace",
@@ -52,6 +53,7 @@ assertIncludes(evidencePack, [
 
 for (const scriptName of [
   "codex:record-evidence",
+  "codex:record-completion-proof",
   "codex:bind-session",
   "smoke:session-binding",
   "smoke:cockpit-session-trace",
@@ -60,6 +62,8 @@ for (const scriptName of [
 ]) {
   assertScript(rootPackage, scriptName);
 }
+
+assertScript(appPackage, "codex:record-completion-proof");
 
 const optionalHelperExists = existsSync(
   "apps/augnes_apps/scripts/codex-session-adapter-v2-check.ts",

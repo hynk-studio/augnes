@@ -39,7 +39,28 @@ If local Turbopack root inference fails, use:
 npm run dev -- --port 3000 --webpack
 ```
 
-Record completion:
+Prefer proof-only completion recording:
+
+```bash
+AUGNES_API_BASE_URL=http://localhost:3000 \
+CODEX_SCOPE=project:augnes \
+CODEX_WORK_ID=AG-004 \
+CODEX_ACTION_NAME=ag_004_codex_completion_protocol \
+CODEX_RESULT_SUMMARY="Codex implemented and verified the AG-004 completion protocol." \
+CODEX_FILES_CHANGED="apps/augnes_apps/scripts/codex-record-completion-proof.ts,apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md" \
+CODEX_RESULT_STATUS=completed \
+CODEX_RESULT_KIND=implementation \
+CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/..." \
+CODEX_RELATED_STATE_KEYS="integration.chatgpt_app,implementation.stack" \
+npm run codex:record-completion-proof
+```
+
+`codex:record-completion-proof` checks that `CODEX_WORK_ID` exists, then
+records `/api/work/{work_id}/events` only. It writes proof-native
+`work_events`/coordination trace and does not call `/api/actions/record`, create
+`action_records`, or create legacy `external.*` committed state markers.
+
+Compatibility completion recording remains available:
 
 ```bash
 AUGNES_API_BASE_URL=http://localhost:3000 \
@@ -317,7 +338,9 @@ completion proof, and read-only review traces. The compact closeout sequence is:
 1. Read current context with `npm run codex:read-brief`.
 2. Optionally bind a pre-existing session with `npm run codex:bind-session`.
 3. Run verification and record rows with `npm run codex:record-evidence`.
-4. Record completion with `npm run codex:record-completion`.
+4. Record proof-only completion with `npm run codex:record-completion-proof`;
+   use `npm run codex:record-completion` only when compatibility action-record
+   behavior is required and explicitly understood.
 5. Run or reference `npm run codex:handoff-check` when validating the read-only handoff path.
 6. Review `GET /api/evidence-pack` and `GET /api/sessions/trace`.
 7. When ChatGPT App bridge review is relevant, use only read-only tools:
@@ -326,32 +349,14 @@ completion proof, and read-only review traces. The compact closeout sequence is:
 
 ## Manual Fallback
 
-If the helper is unavailable, confirm the work ID exists before recording the action result:
+If the proof-only helper is unavailable, confirm the work ID exists before
+recording the work event:
 
 ```bash
 curl -sS 'http://localhost:3000/api/work/AG-004?scope=project:augnes' | jq .
 ```
 
-Then record the action result:
-
-```bash
-curl -sS -X POST "http://localhost:3000/api/actions/record" \
-  -H "content-type: application/json" \
-  -d '{
-    "scope": "project:augnes",
-    "source_agent_id": "agent:codex",
-    "action_name": "ag_004_codex_completion_protocol",
-    "result_summary": "Codex implemented and verified the AG-004 completion protocol.",
-    "files_changed": [
-      "apps/augnes_apps/scripts/codex-record-completion.ts",
-      "apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md"
-    ],
-    "result_status": "completed",
-    "result_kind": "implementation"
-  }' | jq .
-```
-
-Then record the trace note. Copy the returned action record ID into `related_action_id` when available:
+Then record the trace note:
 
 ```bash
 curl -sS -X POST 'http://localhost:3000/api/work/AG-004/events?scope=project:augnes' \
@@ -363,7 +368,6 @@ curl -sS -X POST 'http://localhost:3000/api/work/AG-004/events?scope=project:aug
     "summary": "Codex implemented and verified the AG-004 completion protocol.",
     "result_status": "completed",
     "result_kind": "implementation",
-    "related_action_id": "action:...",
     "related_pr": "https://github.com/Aurna-code/augnes/pull/...",
     "related_state_keys": ["integration.chatgpt_app", "implementation.stack"]
   }' | jq .
@@ -379,15 +383,10 @@ Confirm the work event is attached to the trace anchor:
 curl -sS 'http://localhost:3000/api/work/AG-004/brief?scope=project:augnes' | jq '.recent_events[0]'
 ```
 
-Confirm the action record is visible in recent actions:
-
-```bash
-curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq '.recent_actions[0]'
-```
-
-Open the Runtime Cockpit and confirm Work Focus shows the event. For
-compatibility action-record helpers only, the Temporal State Graph may show the
-legacy state marker, such as:
+Open the Runtime Cockpit and confirm Work Focus shows the event. When using
+the compatibility action-record helper only, confirm the action record is
+visible in recent actions and the Temporal State Graph may show the legacy
+state marker, such as:
 
 ```text
 external.ag_004_codex_completion_protocol_recorded

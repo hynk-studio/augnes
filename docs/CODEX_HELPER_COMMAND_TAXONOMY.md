@@ -49,9 +49,11 @@ proof-native rows such as `verification_evidence_records`, `work_events`,
 Evidence Pack material. New record-proof helpers must not create committed
 `external.*` state markers by default.
 
-Current proof-native helper:
+Current proof-native helpers:
 
 - `codex:record-evidence`: records `verification_evidence_records` only.
+- `codex:record-completion-proof`: records completion proof as
+  `work_events`/coordination trace only.
 
 Compatibility proof helpers:
 
@@ -79,7 +81,8 @@ No Codex commit-state helper is defined yet.
 - Names containing `check`, `read`, `preview`, `readiness`, or `validate` are
   read-only.
 - Names containing `record-evidence` or `record-proof` may write proof-native
-  records only.
+  records only. Names ending in `-proof` may also write proof-native records
+  only when the helper docs state the exact proof record type.
 - Names that create `external.*` or other committed state markers must be
   explicit state mutation commands, except for the documented compatibility
   helpers listed above.
