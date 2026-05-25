@@ -7,6 +7,10 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
 - The user owns durable approval.
 - Augnes Core owns committed state storage and the commit/reject gate implementation.
 - Codex owns repo execution and verification.
+- Codex helper command names follow
+  `docs/CODEX_HELPER_COMMAND_TAXONOMY.md`: check-only helpers are read-only,
+  record-proof helpers write proof records, and committed state mutation
+  requires explicit naming and gates.
 - GitHub owns code history and PR review surfaces.
 - ChatGPT App owns conversational interpretation and handoff, not execution control.
 - Browser/Chrome and MCP Inspector are verification surfaces, not authorities.

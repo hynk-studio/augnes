@@ -94,8 +94,9 @@ try {
         github_calls: 0,
         mutation_routes_called: {
           route: "/api/actions/record",
-          bounded_stub_only: true,
+          record_result_only: true,
         },
+        handoff_check_read_only: true,
       },
       null,
       2,
@@ -128,8 +129,9 @@ async function assertHandoffCheckScope({ apiBaseUrl, expected, envMode, label })
   });
   assert.equal(result.status, 0, `${label}: ${result.stderr}`);
   assert.match(result.stdout, /Codex handoff check/);
+  assert.match(result.stdout, new RegExp(`scope: ${escapeRegExp(expected)}`));
   assert.equal(countCalls("GET", "/api/state/brief"), 2, label);
-  assert.equal(countCalls("POST", "/api/actions/record"), 1, label);
+  assert.equal(countCalls("POST", "/api/actions/record"), 0, label);
   assertOnlyExpectedRoutes();
 }
 

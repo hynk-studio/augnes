@@ -20,7 +20,10 @@ v0.2 is not a new session runtime. v0.2 does not create sessions automatically. 
 - Structured evidence rows: `npm run codex:record-evidence` and `POST /api/evidence/records`.
 - Evidence Pack review: `GET /api/evidence-pack`.
 - Completion proof: `npm run codex:record-completion`, `/api/actions/record`, and `/api/work/{work_id}/events`.
-- Handoff smoke/check path: `npm run codex:handoff-check`.
+- Handoff smoke/check path: `npm run codex:handoff-check`, a read-only
+  state-brief check.
+- Command taxonomy: `docs/CODEX_HELPER_COMMAND_TAXONOMY.md` separates
+  check-only, record-proof, and commit-state helper semantics.
 - ChatGPT App read-only review tools:
   - `augnes_get_evidence_pack`
   - `augnes_get_session_trace`
@@ -227,6 +230,9 @@ v0.2 keeps these boundaries:
 - no Cockpit write controls
 - no DB schema changes
 - no new runtime authority
+- check-only helper names such as `codex:handoff-check` remain read-only
+- legacy `external.*` markers from action-record compatibility helpers are not
+  treated as accepted project facts
 
 Normal development use of GitHub remains allowed: fetch, branch, commit, push, and open a draft PR for code review.
 

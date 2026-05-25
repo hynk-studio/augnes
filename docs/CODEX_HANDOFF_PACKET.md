@@ -65,6 +65,9 @@ Constraints and safety boundaries:
 - Do not add ChatGPT App commit/reject tools.
 - Do not add GitHub auto-merge.
 - Do not add hosted auth or deployment semantics.
+- Keep check-only Codex helpers read-only; use
+  `docs/CODEX_HELPER_COMMAND_TAXONOMY.md` for check-only, record-proof, and
+  commit-state helper semantics.
 
 Verification commands:
 - npm run typecheck
