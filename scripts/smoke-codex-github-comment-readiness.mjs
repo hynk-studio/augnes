@@ -136,6 +136,22 @@ await assertBlocked(
 );
 await assertBlocked(
   fullChainEnv({
+    CODEX_GITHUB_COMMENT_PAYLOAD_JSON: JSON.stringify(
+      buildPayload({}, { body: `${commentBody} plus`, body_sha256: sha256(`${commentBody} plus`) }),
+    ),
+  }),
+  "payload_body_length_mismatch",
+);
+await assertBlocked(
+  fullChainEnv({
+    CODEX_GITHUB_COMMENT_PAYLOAD_JSON: JSON.stringify(
+      buildPayload({}, { body: commentBody, body_sha256: "a".repeat(64) }),
+    ),
+  }),
+  "payload_body_hash_mismatch",
+);
+await assertBlocked(
+  fullChainEnv({
     CODEX_ACTUATION_GATE_JSON: JSON.stringify(buildGate({ gate_status: "needs_review" })),
   }),
   "gate_status_mismatch",
@@ -213,6 +229,21 @@ await assertInvalid({
   }),
   expected: /CODEX_GITHUB_COMMENT_READINESS_INVALID_PAYLOAD/,
 });
+for (const target of [
+  { ...baseTarget(), owner: "Aurna-code/other" },
+  { ...baseTarget(), repo: "augnes/extra" },
+  { ...baseTarget(), repo: "augnes space" },
+  { ...baseTarget(), repo: "augnes#frag" },
+  { ...baseTarget(), repo: "augnes?query" },
+  { ...baseTarget(), owner: "Aurna-code\u0001" },
+]) {
+  await assertInvalid({
+    env: fullChainEnv({
+      CODEX_GITHUB_COMMENT_PAYLOAD_JSON: JSON.stringify(buildPayload({ target })),
+    }),
+    expected: /CODEX_GITHUB_COMMENT_READINESS_INVALID_PAYLOAD/,
+  });
+}
 await assertInvalid({
   env: fullChainEnv({ CODEX_ACTUATION_GATE_JSON: "{nope" }),
   expected: /CODEX_GITHUB_COMMENT_READINESS_INVALID_GATE_JSON/,
@@ -294,6 +325,8 @@ console.log(
       payload_blocked_checked: true,
       payload_needs_review_checked: true,
       payload_internal_blockers_checked: true,
+      payload_target_segment_validation_checked: true,
+      payload_body_consistency_checked: true,
       gate_mismatch_blockers_checked: true,
       preview_mismatch_blockers_checked: true,
       grant_mismatch_blockers_checked: true,

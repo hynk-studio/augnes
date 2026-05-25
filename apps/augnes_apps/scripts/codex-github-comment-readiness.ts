@@ -343,8 +343,8 @@ function validateTarget(value: Record<string, unknown>): Target {
 
   return {
     target_ref: value.target_ref,
-    owner: value.owner,
-    repo: value.repo,
+    owner: validateTargetSegment(value.owner),
+    repo: validateTargetSegment(value.repo),
     pull_number: value.pull_number,
     issue_number: value.issue_number,
     target_status: "present",
@@ -374,6 +374,13 @@ function validateCommentPayload(value: Record<string, unknown>): GithubCommentPa
     dry_run_only: true,
     would_execute: false,
   };
+}
+
+function validateTargetSegment(value: string): string {
+  if (!value || /[\s/#?]/.test(value) || /[\u0000-\u001F\u007F]/.test(value)) {
+    throw new GithubCommentReadinessError("CODEX_GITHUB_COMMENT_READINESS_INVALID_PAYLOAD");
+  }
+  return value;
 }
 
 function validateGate(value: unknown): ActuationGate {
@@ -585,6 +592,12 @@ function payloadInternalCheck(payload: PayloadResult): ConsistencyCheck {
   if (preview.api_url_preview !== expectedApiUrl) addBlocker(result, "api_url_preview_mismatch");
   if (!/^[a-f0-9]{64}$/.test(preview.body_sha256)) addBlocker(result, "body_sha256_invalid");
   if (!Number.isSafeInteger(preview.body_length) || preview.body_length <= 0) addBlocker(result, "body_length_invalid");
+  if (preview.body !== undefined && preview.body.length !== preview.body_length) {
+    addBlocker(result, "payload_body_length_mismatch");
+  }
+  if (preview.body !== undefined && createHash("sha256").update(preview.body).digest("hex") !== preview.body_sha256) {
+    addBlocker(result, "payload_body_hash_mismatch");
+  }
   return result;
 }
 
