@@ -4,13 +4,37 @@
 
 - decision memo only
 - docs-only
-- product decision not yet made
+- Option C accepted as product direction for future implementation planning
 - no runtime behavior change
 - no schema change
 - no API route change
 - no helper behavior change
 - no Cockpit UI change
 - no package/script change
+- migration of existing `external.*` entries remains undecided
+
+## Accepted Direction
+
+Option C is accepted as the product direction for future implementation
+planning:
+
+- split helper semantics into explicit check, record-proof, and commit-state
+  categories
+- check-only commands must be read-only
+- proof/evidence recording commands should write proof-native records only,
+  such as `action_records`, `work_events`, `verification_evidence_records`,
+  session trace, or Evidence Pack material
+- committed state mutation must be explicit, separately named, and
+  user/runtime gated
+- helper names must not imply read-only behavior if they write records
+- `external.*` committed state keys should not be the default proof marker path
+  for Codex proof/check helpers
+- legacy `external.*` entries should be treated as compatibility proof-marker
+  material until a separate migration decision is made
+
+This decision chooses the direction for future implementation planning. It does
+not itself change runtime behavior, helper behavior, schemas, routes, package
+scripts, or UI.
 
 ## 1. Problem Statement
 
@@ -29,8 +53,8 @@ or should proof remain only in `action_records`, `work_events`, and
 `verification_evidence_records` unless the user explicitly invokes a state
 mutation command?
 
-This memo does not decide the product question. It frames the options and gives
-a recommended direction for user/PM review.
+This memo records the accepted direction for future implementation planning and
+keeps implementation and legacy migration work separate.
 
 ## 2. Current Observed Behavior
 
@@ -90,17 +114,14 @@ authority. The authority invariant smoke explicitly allows the current
 action-proof state transition behavior while asserting no pending proposal is
 committed or rejected.
 
-The unresolved boundary question is narrower:
+The accepted direction is that normal Codex proof/check helpers should not use
+committed `external.*` state keys as their default proof marker path. Committed
+state mutation should be reserved for explicitly named and gated state mutation
+commands.
 
-- Is a committed `external.*` proof marker a valid kind of committed state?
-- Or should committed state be reserved for accepted project facts, with proof
-  stored in proof-native tables and surfaced through derived views?
-
-If `external.*` proof markers remain committed state, docs and helper names
-must say that proof recording creates a committed proof marker. If proof moves
-out of committed state, Evidence Pack, Work Brief, State Brief, and Cockpit
-views must continue to make proof discoverable without relying on active
-`external.*` state entries.
+Evidence Pack, Work Brief, State Brief, Session Trace, and any future proof
+lane should continue to make proof discoverable without requiring active
+`external.*` state entries for new Codex proof recording.
 
 ## 5. Command Categories
 
@@ -132,8 +153,8 @@ Examples of acceptable proof-native destinations:
 - `verification_evidence_records`
 - coordination events with proof or execution-trace authority
 
-Open question: whether `external.*` committed state keys belong in this
-category.
+Accepted direction: `external.*` committed state keys do not belong in the
+default proof/evidence recording category for future Codex helper behavior.
 
 ### Committed State Mutation Commands
 
@@ -154,6 +175,10 @@ Examples of expected properties:
 
 Keep action proof recording as both an `action_records` insert and a committed
 `external.*` state transition.
+
+Decision: rejected as the future default. It remains useful as a description of
+current behavior and as compatibility context for historical `external.*`
+records.
 
 Benefits:
 
@@ -183,6 +208,10 @@ Required follow-up if chosen:
 Stop proof helpers from creating committed `external.*` state transitions.
 Proof remains in `action_records`, `work_events`,
 `verification_evidence_records`, and coordination events.
+
+Decision: directionally aligned but incomplete by itself. It describes the
+future proof-recording destination, but it does not fully solve ambiguous helper
+names or provide an explicit state-mutation category.
 
 Benefits:
 
@@ -215,9 +244,9 @@ Make the command model explicit:
 - `commit-state` commands create committed state transitions and are
   user/runtime gated.
 
-This option may keep current behavior temporarily, but the target model splits
-semantics so command names, docs, tests, and routes match what each command
-actually writes.
+Decision: accepted as the product direction for future implementation
+planning. The target model splits semantics so command names, docs, tests, and
+routes match what each command actually writes.
 
 Benefits:
 
@@ -243,11 +272,10 @@ Required follow-up if chosen:
 - Decide whether current `codex:record-completion` remains a compatibility
   alias or becomes proof-only.
 
-## 7. Recommendation
+## 7. Decision And Rationale
 
-Recommendation for review: choose Option C as the product direction, with a
-near-term implementation target that moves normal proof recording toward
-proof-native records only.
+Option C is accepted as the product direction, with a near-term implementation
+target that moves normal proof recording toward proof-native records only.
 
 The reason is not that the current behavior is broken. The current behavior can
 be defended as a durable proof marker model. The problem is that command names
@@ -262,12 +290,12 @@ The recommended end state is:
 - any retained `external.*` state marker is treated as a deliberate state
   mutation, not incidental proof recording
 
-This memo does not mark that decision resolved. It should be reviewed by the
-user/PM before implementation.
+This memo does not implement that behavior. It also does not decide how to
+migrate, hide, preserve, or reinterpret existing `external.*` entries.
 
 ## 8. Migration Impact
 
-If Option C is accepted, migration should be staged:
+Because Option C is accepted for planning, migration should be staged:
 
 1. Documentation and tests define the command taxonomy.
 2. Existing `codex:handoff-check` is renamed or supplemented with a read-only
@@ -279,7 +307,9 @@ If Option C is accepted, migration should be staged:
 5. Historical `external.*` entries remain readable as historical proof markers.
 
 Compatibility should avoid deleting historical proof/state records. The
-question is where future records should go and how helpers should be named.
+accepted future direction is where future records should go and how helpers
+should be named; the separate migration question is what to do with historical
+`external.*` records already present in local runtimes.
 
 ## 9. Naming Changes If Needed
 
@@ -296,6 +326,15 @@ Candidate naming model:
 
 Avoid names where `check`, `preview`, `read`, or `validate` write durable state.
 
+Command names must match side effects:
+
+- names containing `check`, `read`, `preview`, or `validate` should be
+  read-only
+- names containing `record-proof` or `record-evidence` may write proof-native
+  records but should not create committed state transitions
+- names that create committed state transitions should include `commit-state`,
+  `state-marker`, or an equally explicit state mutation phrase
+
 ## 10. Tests That Should Protect The Chosen Model
 
 Tests should make the chosen boundary executable:
@@ -305,8 +344,8 @@ Tests should make the chosen boundary executable:
   publication, delivery, approval, or readiness tables.
 - A proof-recording smoke asserts proof-native records are created and pending
   proposals are not committed or rejected.
-- If proof-only is chosen, proof-recording smokes assert no `external.*` state
-  entry or state transition is created.
+- Proof-recording smokes assert no `external.*` state entry or state transition
+  is created by default.
 - If `external.*` state markers remain, tests assert they are created only by
   explicitly named state-marker commands.
 - Evidence Pack and Session Trace smokes assert proof remains discoverable
@@ -315,7 +354,34 @@ Tests should make the chosen boundary executable:
   no publish/replay/approval, no GitHub/OpenAI calls, and no Cockpit write
   controls.
 
-## 11. What Remains Out Of Scope
+Minimum future smoke coverage for the accepted model:
+
+- `codex:handoff-check` or its replacement is read-only if the command keeps a
+  check-only name.
+- Proof-recording helpers create proof-native records and do not create
+  `external.*` state entries by default.
+- Any command that creates `external.*` or other committed state markers has an
+  explicit state-mutation name and a dedicated test asserting that side effect.
+- Branch/PR closeout docs do not instruct users to treat `external.*` proof
+  markers as accepted project facts.
+
+## 11. Implementation Guardrails
+
+Future implementation work for this decision must follow these guardrails:
+
+- check commands must be read-only
+- proof recording must use proof-native records by default
+- state mutation must be explicit and gated
+- command names must match side effects
+- legacy `external.*` entries must not be deleted or rewritten without a
+  separate migration decision
+- proof visibility must remain available through derived review surfaces such
+  as Evidence Pack, Session Trace, Work Brief, State Brief, or a future proof
+  lane
+- implementation PRs must include smoke tests for table-level write boundaries
+  and helper naming semantics
+
+## 12. What Remains Out Of Scope
 
 This memo does not:
 
@@ -328,26 +394,29 @@ This memo does not:
 - update generated screenshots
 - add bridge health behavior
 - add root `codex:handoff-check`
-- decide whether proof-vs-state behavior is accepted
 - migrate historical `external.*` records
-- mark any product decision as resolved
+- delete, rewrite, or reinterpret historical proof markers
+- mark migration decisions as resolved
+- implement Option C
+- create compatibility aliases
 
-## 12. Questions Requiring User/PM Judgment
+## 13. Questions Requiring User/PM Judgment
 
-1. Should committed state include proof-marker state keys at all?
-2. If `external.*` remains, should it be hidden from normal active project
-   state or shown as a separate proof-marker lane?
-3. Should `codex:record-completion` become proof-only, or remain a
+1. If `external.*` remains for legacy records, should it be hidden from normal
+   active project state or shown as a separate proof-marker lane?
+2. Should `codex:record-completion` become proof-only, or remain a
    compatibility helper that also writes a state marker?
-4. Should `codex:handoff-check` be renamed because it is not check-only today?
-5. Should historical `external.*` entries be treated as proof markers, project
+3. Should `codex:handoff-check` be renamed because it is not check-only today?
+4. Should historical `external.*` entries be treated as proof markers, project
    state, or legacy compatibility data?
-6. Which surface should be the primary proof review surface: Temporal State
+5. Which surface should be the primary proof review surface: Temporal State
    Graph, Evidence Pack, Session Trace, Work Brief, or a separate proof lane?
+6. Should compatibility aliases warn, fail, or continue old behavior during a
+   transition window?
 
-## 13. Next Suggested Implementation Goal
+## 14. Proposed Next Implementation PR Scope
 
-If the user accepts the recommendation, the next implementation goal should be:
+The next implementation PR should be narrow:
 
 ```text
 Define and enforce the Codex helper command taxonomy. Make check-only helpers
@@ -357,5 +426,21 @@ user/runtime-gated state mutation commands. Do not change Cockpit UI or bridge
 health in the same PR.
 ```
 
-That implementation should be separate from this memo and should include smoke
-tests proving the chosen boundary.
+Suggested included changes for that future PR:
+
+- add or update docs that define check / record-proof / commit-state command
+  classes
+- rename or supplement `codex:handoff-check` so check-only behavior is
+  read-only
+- make default Codex proof recording avoid new `external.*` committed state
+  entries
+- add smoke tests for read-only check commands and proof-native recording
+- preserve legacy `external.*` records without migration
+
+Suggested excluded changes for that future PR:
+
+- bridge health improvements
+- Cockpit UI changes
+- historical `external.*` migration
+- schema redesign beyond what is strictly needed for helper behavior
+- live GitHub posting or external side effects
