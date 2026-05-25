@@ -213,6 +213,54 @@ await assertInvalid({
 });
 await assertInvalid({
   env: {
+    CODEX_CLOSEOUT_PIPELINE_JSON: JSON.stringify(
+      buildPipeline({
+        operationMode: "delegated",
+        pipelineStatus: "pass",
+        closeoutCheckOverrides: { validation_status: "fail" },
+      }),
+    ),
+  },
+  expected: /CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE/,
+});
+await assertInvalid({
+  env: {
+    CODEX_CLOSEOUT_PIPELINE_JSON: JSON.stringify(
+      buildPipeline({
+        operationMode: "delegated",
+        pipelineStatus: "pass",
+        closeoutCheckOverrides: { operation_mode: "human_assisted" },
+      }),
+    ),
+  },
+  expected: /CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE/,
+});
+await assertInvalid({
+  env: {
+    CODEX_CLOSEOUT_PIPELINE_JSON: JSON.stringify(
+      buildPipeline({
+        operationMode: "delegated",
+        pipelineStatus: "pass",
+        closeoutCheckOverrides: { delegated_consumption: false },
+      }),
+    ),
+  },
+  expected: /CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE/,
+});
+await assertInvalid({
+  env: {
+    CODEX_CLOSEOUT_PIPELINE_JSON: JSON.stringify(
+      buildPipeline({
+        operationMode: "delegated",
+        pipelineStatus: "pass",
+        closeoutCheckOverrides: { helper: "codex:closeout-block" },
+      }),
+    ),
+  },
+  expected: /CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE/,
+});
+await assertInvalid({
+  env: {
     CODEX_CLOSEOUT_PIPELINE_JSON: JSON.stringify(delegatedPass),
     CODEX_REQUESTED_ACTIONS: '["prepare_pr_body", 7]',
   },
@@ -255,6 +303,7 @@ console.log(
       explicit_policy_checked: true,
       pipeline_pass_requirement_checked: true,
       invalid_input_checked: true,
+      closeout_check_consistency_checked: true,
       forbidden_public_overclaims_checked: true,
       fake_secret_absence_checked: true,
       http_server_started: false,
@@ -268,7 +317,7 @@ console.log(
   ),
 );
 
-function buildPipeline({ operationMode, pipelineStatus, pipelineForbiddenActions = [] }) {
+function buildPipeline({ operationMode, pipelineStatus, pipelineForbiddenActions = [], closeoutCheckOverrides = {} }) {
   const delegatedConsumption = operationMode === "delegated";
   return {
     helper: "codex:closeout-pipeline",
@@ -292,6 +341,7 @@ function buildPipeline({ operationMode, pipelineStatus, pipelineForbiddenActions
       validation_status: pipelineStatus,
       operation_mode: operationMode,
       delegated_consumption: delegatedConsumption,
+      ...closeoutCheckOverrides,
     },
     recommended_next_action:
       "Use this local material as input to a separate policy gate before any posting, approval, merge, publication, or mutation.",

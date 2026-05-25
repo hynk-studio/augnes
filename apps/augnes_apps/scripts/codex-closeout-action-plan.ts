@@ -89,13 +89,20 @@ type PipelineResult = {
   scope: string;
   work_id: string | null;
   related_pr: string | null;
-  closeout_check: Record<string, unknown>;
+  closeout_check: CloseoutCheckResult;
   closeout: {
     forbidden_actions?: unknown;
     [key: string]: unknown;
   };
   recommended_next_action: string;
   authority_boundary: string;
+};
+
+type CloseoutCheckResult = {
+  helper: "codex:closeout-check";
+  validation_status: PipelineStatus;
+  operation_mode: OperationMode;
+  delegated_consumption: boolean;
 };
 
 type ActionPlanDecision = {
@@ -163,6 +170,10 @@ async function readInputText(): Promise<string> {
     return content;
   }
 
+  if (process.stdin.isTTY) {
+    throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_MISSING_INPUT");
+  }
+
   const stdin = await readStdin();
   if (!stdin.trim()) throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_MISSING_INPUT");
   return stdin;
@@ -207,6 +218,33 @@ function assertStringArray(value: unknown): asserts value is string[] {
   }
 }
 
+function validateCloseoutCheckShape(value: unknown): CloseoutCheckResult {
+  if (!isRecord(value)) throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
+  if (value.helper !== "codex:closeout-check") {
+    throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
+  }
+  if (
+    value.validation_status !== "pass" &&
+    value.validation_status !== "needs_review" &&
+    value.validation_status !== "fail"
+  ) {
+    throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
+  }
+  if (value.operation_mode !== "human_assisted" && value.operation_mode !== "delegated") {
+    throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
+  }
+  if (typeof value.delegated_consumption !== "boolean") {
+    throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
+  }
+
+  return {
+    helper: "codex:closeout-check",
+    validation_status: value.validation_status,
+    operation_mode: value.operation_mode,
+    delegated_consumption: value.delegated_consumption,
+  };
+}
+
 function validatePipelineShape(value: unknown): PipelineResult {
   if (!isRecord(value)) throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
   if (value.helper !== "codex:closeout-pipeline") {
@@ -226,7 +264,14 @@ function validatePipelineShape(value: unknown): PipelineResult {
   if (typeof value.delegated_consumption !== "boolean") {
     throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
   }
-  if (!isRecord(value.closeout_check)) throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
+  const closeoutCheck = validateCloseoutCheckShape(value.closeout_check);
+  if (
+    value.pipeline_status !== closeoutCheck.validation_status ||
+    value.operation_mode !== closeoutCheck.operation_mode ||
+    value.delegated_consumption !== closeoutCheck.delegated_consumption
+  ) {
+    throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
+  }
   if (!isRecord(value.closeout)) throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
   if (typeof value.authority_boundary !== "string" || !value.authority_boundary.trim()) {
     throw new CloseoutActionPlanError("CODEX_CLOSEOUT_ACTION_PLAN_INVALID_SHAPE");
@@ -239,7 +284,20 @@ function validatePipelineShape(value: unknown): PipelineResult {
   assertStringOrNull(value.related_pr);
   if (value.closeout.forbidden_actions !== undefined) assertStringArray(value.closeout.forbidden_actions);
 
-  return value as PipelineResult;
+  return {
+    helper: "codex:closeout-pipeline",
+    version: value.version,
+    operation_mode: value.operation_mode,
+    delegated_consumption: value.delegated_consumption,
+    pipeline_status: value.pipeline_status,
+    scope: value.scope,
+    work_id: value.work_id,
+    related_pr: value.related_pr,
+    closeout_check: closeoutCheck,
+    closeout: value.closeout,
+    recommended_next_action: value.recommended_next_action,
+    authority_boundary: value.authority_boundary,
+  };
 }
 
 function readOutputMode(): OutputMode {
