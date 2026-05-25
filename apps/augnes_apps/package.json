@@ -22,6 +22,7 @@
     "codex:closeout-check": "tsx scripts/codex-closeout-check.ts",
     "codex:closeout-pipeline": "tsx scripts/codex-closeout-pipeline.ts",
     "codex:closeout-action-plan": "tsx scripts/codex-closeout-action-plan.ts",
+    "codex:actuation-gate": "tsx scripts/codex-actuation-gate.ts",
     "codex:record-evidence": "tsx scripts/codex-record-verification-evidence.ts",
     "codex:bind-session": "tsx scripts/codex-bind-session.ts",
     "codex:handoff-check": "tsx scripts/codex-handoff-check.ts"
