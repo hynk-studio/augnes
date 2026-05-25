@@ -126,7 +126,9 @@ If the runtime is running and seeded:
 npm run codex:handoff-check
 ```
 
-This reads the state brief, records a demo result with action name `codex_handoff_check`, then reads the brief again. If the exact graph transition is not visible in the brief payload, the script keeps the check to API success and prints manual confirmation steps.
+This reads the state brief twice and confirms visible state counts do not
+change. It does not record an action result, evidence row, work event, or
+`external.*` state marker.
 
 ## Confirm in Augnes
 
@@ -136,7 +138,7 @@ Refresh:
 http://localhost:3000
 ```
 
-Check the Temporal State Graph for:
+When using `codex:record-result`, check the Temporal State Graph for:
 
 ```text
 external.<action_name>_recorded

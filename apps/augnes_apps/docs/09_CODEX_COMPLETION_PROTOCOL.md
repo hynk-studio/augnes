@@ -14,6 +14,8 @@ The protocol records two linked layers:
 Use the root docs and PR template when preparing Codex work:
 
 - `docs/AUTHORITY_MATRIX.md` defines which actor can read state, propose, record proof, commit/reject, edit repo, use Browser/Chrome, and open PRs.
+- `docs/CODEX_HELPER_COMMAND_TAXONOMY.md` defines check-only,
+  record-proof, and commit-state Codex helper semantics.
 - `docs/CODEX_HANDOFF_PACKET.md` defines the copy-pasteable packet ChatGPT App or Augnes can give Codex without turning ChatGPT App into a Codex controller.
 - `docs/VERIFICATION_EVIDENCE_PACK.md` defines command, Browser/Chrome, ChatGPT Developer Mode, MCP/widget, and artifact evidence expectations.
 - `docs/EXECUTION_SURFACE_RECORD.md` defines canonical execution surface names such as `github`, `browser`, `chrome`, `chatgpt_developer_mode`, `mcp_inspector`, and `local_runtime`.
@@ -111,6 +113,13 @@ Allowed `CODEX_RESULT_KIND` values:
 Preserve the real result status. Failed, blocked, partial, and needs-review work must not be dressed up as completed.
 
 The helper checks that `CODEX_WORK_ID` exists, then records `/api/actions/record`, then records `/api/work/{work_id}/events`. If the work ID preflight fails, no action record is created. If action recording fails, it stops and does not record the work event. If the action response includes an action record ID, the helper passes it to the work event as `related_action_id`.
+
+Compatibility note: `/api/actions/record` currently uses the legacy
+action-record path that also creates an `external.<action>_recorded` state
+marker. `codex:record-completion` is therefore a compatibility proof helper,
+not the final proof-only helper described by the accepted proof-vs-state
+direction. Do not treat that `external.*` marker as accepted project fact, and
+do not use it as the default model for new Codex proof helpers.
 
 The helper never calls commit/reject routes and never creates autonomous execution, GitHub sync, Discord sync, or workflow orchestration.
 
@@ -309,7 +318,7 @@ completion proof, and read-only review traces. The compact closeout sequence is:
 2. Optionally bind a pre-existing session with `npm run codex:bind-session`.
 3. Run verification and record rows with `npm run codex:record-evidence`.
 4. Record completion with `npm run codex:record-completion`.
-5. Run or reference `npm run codex:handoff-check` when validating the handoff path.
+5. Run or reference `npm run codex:handoff-check` when validating the read-only handoff path.
 6. Review `GET /api/evidence-pack` and `GET /api/sessions/trace`.
 7. When ChatGPT App bridge review is relevant, use only read-only tools:
    `augnes_get_evidence_pack`, `augnes_get_session_trace`, and
@@ -376,7 +385,9 @@ Confirm the action record is visible in recent actions:
 curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq '.recent_actions[0]'
 ```
 
-Open the Runtime Cockpit and confirm Work Focus shows the event. When applicable, confirm the Temporal State Graph shows the official action result transition, such as:
+Open the Runtime Cockpit and confirm Work Focus shows the event. For
+compatibility action-record helpers only, the Temporal State Graph may show the
+legacy state marker, such as:
 
 ```text
 external.ag_004_codex_completion_protocol_recorded
