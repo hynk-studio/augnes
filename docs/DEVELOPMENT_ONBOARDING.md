@@ -297,16 +297,17 @@ line. env `GITHUB_TOKEN` remains the only implemented publish provider.
 GitHub App live exchange, provider integration, C5 provider use, live publish,
 Cockpit write controls, and ChatGPT App write tools remain future work.
 
-Cockpit MVP UI polish now has the six-tab implementation contract in
-`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`, a six-tab shell implementation,
-and browser-checked demo readiness and visual tone polish passes. The approved
-tab order is `Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. The
-shell reorganizes existing Cockpit runtime data and safe local controls across
-Overview, Work, Ledger, Proof, Bridge, and Operator. The current visual tone uses
-a pale green page wash, white/near-white cards, green-gray borders, and system
-fonts only. It does not add backend routes, schema, dependencies, token
-behavior, ChatGPT App tools, external execution, logo artwork, font files,
-remote fonts, or publish/merge/retry/live-exchange controls.
+Cockpit MVP UI polish originally used the six-tab implementation contract in
+`docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`:
+`Overview -> Work -> Ledger -> Proof -> Bridge -> Operator`. That document is
+now historical context. The current Cockpit top-level IA is the five-tab
+Perspective IA documented in `docs/COCKPIT_PERSPECTIVE_IA_V0_1.md`:
+`Overview -> Work -> Perspective -> Bridge -> Operator`. Ledger inspection now
+lives under Perspective as Ledger Basis, and Proof inspection lives under
+Perspective as Evidence. The IA change does not add backend routes, schema,
+dependencies, token behavior, ChatGPT App tools, external execution, logo
+artwork, font files, remote fonts, or publish/merge/retry/live-exchange
+controls.
 
 Safe local Cockpit demo command:
 
@@ -314,7 +315,7 @@ Safe local Cockpit demo command:
 env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-cockpit-demo.db npm run dev -- --port 3000
 ```
 
-Demo route: Overview -> Work -> Ledger -> Proof -> Bridge -> Operator. Cockpit
+Demo route: Overview -> Work -> Perspective -> Bridge -> Operator. Cockpit
 remains local-runtime/read-first where appropriate and does not add external
 publish/merge/token controls.
 
@@ -352,11 +353,12 @@ A new session should read these files in this order:
 23. `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1.md` - current env-token provider and future GitHub App token-management boundary.
 24. `docs/GITHUB_APP_TOKEN_MANAGEMENT_V0_1_CLOSEOUT.md` - completed GitHub App/token management v0.1 foundation line and future out-of-scope boundary.
 25. `docs/GITHUB_APP_INSTALLATION_TOKEN_CONFIG_BOUNDARY_V0_1.md` - GitHub App installation-token config/JWT/exchange boundary; config validation, offline fake-key JWT fixture, target policy, and network-disabled exchange boundary are implemented, provider integration remains future.
-26. `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md` - six-tab Cockpit MVP functional split, component mapping, wireframes, and authority boundaries.
-27. `docs/COCKPIT_MVP_UI_POLISH_PLAN.md` - completed Cockpit UI polish sequence from docs-only spec through implementation and demo closeout.
-28. `.github/pull_request_template.md` - required PR trace format.
-29. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
-30. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
+26. `docs/COCKPIT_PERSPECTIVE_IA_V0_1.md` - current five-tab Cockpit Perspective IA and the Ledger/Proof migration notes.
+27. `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md` - historical six-tab Cockpit MVP functional split retained for compatibility context.
+28. `docs/COCKPIT_MVP_UI_POLISH_PLAN.md` - completed Cockpit UI polish sequence from docs-only spec through implementation and demo closeout.
+29. `.github/pull_request_template.md` - required PR trace format.
+30. `apps/augnes_apps/docs/11_AGENT_BRIDGE_LOCAL_RUNBOOK.md` - ChatGPT App bridge behavior.
+31. `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` - proof recording after Codex work.
 
 ## Mental Model
 
@@ -764,39 +766,39 @@ If ChatGPT Developer Mode or MCP Inspector is unavailable, record the exact skip
 Core runtime:
 
 ```text
-GET  /api/state/brief?scope=project:augnes
-GET  /api/control/brief?scope=project:augnes
-GET  /api/events?scope=project:augnes
-GET  /api/work?scope=project:augnes
-GET  /api/work/{work_id}/brief?scope=project:augnes
+GET  '/api/state/brief?scope=project:augnes'
+GET  '/api/control/brief?scope=project:augnes'
+GET  '/api/events?scope=project:augnes'
+GET  '/api/work?scope=project:augnes'
+GET  '/api/work/{work_id}/brief?scope=project:augnes'
 POST /api/handoffs/generate
-GET  /api/handoffs?scope=project:augnes
+GET  '/api/handoffs?scope=project:augnes'
 POST /api/handoffs/review
-GET  /api/mailbox?scope=project:augnes
-GET  /api/mailbox?scope=project:augnes&active=true
-GET  /api/mailbox/summary?scope=project:augnes
+GET  '/api/mailbox?scope=project:augnes'
+GET  '/api/mailbox?scope=project:augnes&active=true'
+GET  '/api/mailbox/summary?scope=project:augnes'
 POST /api/mailbox
 GET  /api/mailbox/{message_id}
 POST /api/mailbox/{message_id}/status
-GET  /api/publications?scope=project:augnes
+GET  '/api/publications?scope=project:augnes'
 POST /api/publications
-GET  /api/publications/{publication_id}?scope=project:augnes
+GET  '/api/publications/{publication_id}?scope=project:augnes'
 POST /api/publications/{publication_id}/status
-GET  /api/deliveries?scope=project:augnes
+GET  '/api/deliveries?scope=project:augnes'
 POST /api/deliveries
-GET  /api/deliveries/{delivery_id}?scope=project:augnes
+GET  '/api/deliveries/{delivery_id}?scope=project:augnes'
 POST /api/deliveries/{delivery_id}/status
-GET  /api/publications/summary?scope=project:augnes
-GET  /api/approval-gate-state/summary?scope=project:augnes
-GET  /api/publication-approval-requests?scope=project:augnes
+GET  '/api/publications/summary?scope=project:augnes'
+GET  '/api/approval-gate-state/summary?scope=project:augnes'
+GET  '/api/publication-approval-requests?scope=project:augnes'
 POST /api/publication-approval-requests
-GET  /api/publication-approval-requests/{approval_request_id}?scope=project:augnes
+GET  '/api/publication-approval-requests/{approval_request_id}?scope=project:augnes'
 POST /api/publication-approval-requests/{approval_request_id}/approve
-GET  /api/publication-approval-decisions?scope=project:augnes
-GET  /api/publication-approval-decisions/{approval_decision_id}?scope=project:augnes
+GET  '/api/publication-approval-decisions?scope=project:augnes'
+GET  '/api/publication-approval-decisions/{approval_decision_id}?scope=project:augnes'
 POST /api/publication-approval-decisions/{approval_decision_id}/readiness/dry-run
-GET  /api/publication-readiness-checks?scope=project:augnes
-GET  /api/publication-readiness-checks/{readiness_check_id}?scope=project:augnes
+GET  '/api/publication-readiness-checks?scope=project:augnes'
+GET  '/api/publication-readiness-checks/{readiness_check_id}?scope=project:augnes'
 POST /api/publication-readiness-checks/{readiness_check_id}/publish/github-pr-comment
 POST /api/publications/{publication_id}/publish/github-pr-comment  # disabled, returns 410
 POST /api/actions/record

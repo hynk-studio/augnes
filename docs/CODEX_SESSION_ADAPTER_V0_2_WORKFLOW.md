@@ -175,7 +175,7 @@ If completion cannot be recorded, state the exact reason: missing runtime, missi
 Review the derived Evidence Pack before PR closeout when the runtime is available:
 
 ```bash
-curl -sS "http://localhost:3000/api/evidence-pack?scope=project:augnes&work_id=AG-___" | jq .
+curl -sS 'http://localhost:3000/api/evidence-pack?scope=project:augnes&work_id=AG-___' | jq .
 ```
 
 The Evidence Pack is read-only. It may show structured evidence rows, session refs, and gaps. Missing rows or refs must remain gaps.
@@ -187,8 +187,8 @@ ChatGPT App review may use `augnes_get_evidence_pack` for the same read-only rou
 Review the bounded Session Trace when a `session_id` is known:
 
 ```bash
-curl -sS "http://localhost:3000/api/sessions/trace?scope=project:augnes" | jq .
-curl -sS "http://localhost:3000/api/sessions/session:.../trace?scope=project:augnes" | jq .
+curl -sS 'http://localhost:3000/api/sessions/trace?scope=project:augnes' | jq .
+curl -sS 'http://localhost:3000/api/sessions/session:.../trace?scope=project:augnes' | jq .
 ```
 
 The trace is read-only. It does not bind sessions, create sessions, expand authority, execute Codex, call OpenAI/GitHub, approve, publish, replay, or mutate work/evidence/publication/delivery/readiness/mailbox/state records.

@@ -22,6 +22,20 @@ casebook and evaluation design, but it is research/evaluation guidance only and
 does not create runtime behavior, evidence/proof authority, or evaluation
 authority.
 
+## Repo-Local Report Paths
+
+Independent dogfood runs should keep generated notes in bounded repo-local
+paths so another evaluator can reproduce the trail from the repository:
+
+- `reports/dogfood/<date>-<run-id>.md`
+- `reports/dogfood/<date>-<index-or-summary>.md`
+- `backlog/augnes-friction-backlog.md`
+- `backlog/augnes-improvement-proposals.md`
+
+Runtime proof writes, if any, should use an explicit temp database path and
+must not require changes to app code, DB schema, API routes, helper behavior,
+or Cockpit UI.
+
 ## Episode Log Fields
 
 - episode id

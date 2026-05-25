@@ -24,11 +24,14 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
 - Observability surface: Cockpit should show event spine, mailbox, handoff,
   publication, delivery, proof, and gate state. It should not become hidden
   authority; any future write controls must be separately scoped and Core-gated.
-- Cockpit MVP UI polish follows
-  `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md`: Overview, Work, Ledger, Proof,
-  Bridge, and Operator are layout/composition boundaries only. The implemented
-  six-tab shell does not create new authority, backend behavior, token behavior,
-  external execution, or GitHub mutation authority.
+- Cockpit MVP UI polish originally followed the historical
+  `docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md` layout. The current top-level
+  IA follows `docs/COCKPIT_PERSPECTIVE_IA_V0_1.md`: Overview, Work,
+  Perspective, Bridge, and Operator. Ledger remains committed runtime state
+  under Perspective as Ledger Basis, and Proof remains evidence/verification
+  support under Perspective as Evidence. The IA naming change does not create
+  new authority, backend behavior, token behavior, external execution, or
+  GitHub mutation authority.
 - Source-of-truth authority: Augnes Core remains the durable authority runtime
   for committed state, proof records, event spine, mailbox, publication drafts,
   delivery ledger, and gate validation.

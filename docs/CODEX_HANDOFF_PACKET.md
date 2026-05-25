@@ -21,6 +21,14 @@ Prefer these sources, in order:
 4. Recent `action_records` and `work_events`
 5. Pending proposals and open tensions as warnings, not committed truth
 
+When using these routes in shell examples, quote the full URL so `?` and `&`
+are not interpreted by zsh or bash:
+
+```bash
+curl -sS 'http://localhost:3000/api/work/AG-___/brief?scope=project:augnes' | jq .
+curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq .
+```
+
 ## Copy-Paste Template
 
 ```text

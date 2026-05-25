@@ -47,14 +47,18 @@ Start the Augnes runtime from the repository root on port `3000`:
 cd /path/to/augnes
 npm install
 npm run db:reset
+npm run db:migrate
 npm run demo:seed
 npm run dev -- --port 3000
 ```
 
+`db:migrate` is required after `db:reset` for a fresh or temp SQLite database.
+Keep it before `demo:seed` so seeded demo data lands on the current schema.
+
 In a second terminal, verify the runtime state brief:
 
 ```bash
-curl "http://localhost:3000/api/state/brief?scope=project:augnes"
+curl 'http://localhost:3000/api/state/brief?scope=project:augnes'
 ```
 
 Expected:
@@ -289,7 +293,7 @@ Active mailbox views exclude terminal messages with `superseded` or `expired`
 status. The runtime list API exposes the same read-only composed view with:
 
 ```bash
-curl "http://localhost:3000/api/mailbox?scope=project:augnes&active=true"
+curl 'http://localhost:3000/api/mailbox?scope=project:augnes&active=true'
 ```
 
 The summary buckets also exclude `superseded` and `expired` messages and report
@@ -434,7 +438,7 @@ outputs, or local artifacts into git.
 - Or call:
 
 ```bash
-curl "http://localhost:3000/api/state/brief?scope=project:augnes"
+curl 'http://localhost:3000/api/state/brief?scope=project:augnes'
 ```
 
 The Temporal State Graph should show the external action record after the runtime receives `augnes_record_action_result`.
