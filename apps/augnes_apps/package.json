@@ -23,6 +23,7 @@
     "codex:closeout-pipeline": "tsx scripts/codex-closeout-pipeline.ts",
     "codex:closeout-action-plan": "tsx scripts/codex-closeout-action-plan.ts",
     "codex:authority-grant": "tsx scripts/codex-authority-grant.ts",
+    "codex:github-comment-payload": "tsx scripts/codex-github-comment-payload.ts",
     "codex:actuation-gate": "tsx scripts/codex-actuation-gate.ts",
     "codex:actuation-preview": "tsx scripts/codex-actuation-preview.ts",
     "codex:actuation-rehearsal": "tsx scripts/codex-actuation-rehearsal.ts",
