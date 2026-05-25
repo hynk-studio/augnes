@@ -251,6 +251,66 @@ export function recordExternalAction({
   };
 }
 
+export function recordActionProof({
+  scope,
+  sourceAgentId,
+  actionName,
+  resultSummary,
+  filesChanged,
+  resultStatus = "completed",
+  resultKind = "other",
+  workId = null,
+  relatedStateKeys = [],
+}: {
+  scope: string;
+  sourceAgentId: string;
+  actionName: string;
+  resultSummary: string;
+  filesChanged: string[];
+  resultStatus?: ActionResultStatus;
+  resultKind?: ActionResultKind;
+  workId?: string | null;
+  relatedStateKeys?: string[];
+}) {
+  ensureAgent({
+    id: sourceAgentId,
+    name: sourceAgentId,
+    kind: "external",
+  });
+
+  const actionRecord = insertActionRecord({
+    scope,
+    state_key: null,
+    title: actionName,
+    description: JSON.stringify({
+      result_summary: resultSummary,
+      files_changed: filesChanged,
+      result_status: resultStatus,
+      result_kind: resultKind,
+      related_state_keys: relatedStateKeys,
+    }),
+    status: resultStatus,
+    source_agent_id: sourceAgentId,
+  });
+  appendCoordinationEvent({
+    event_id: `event:${actionRecord.id}`,
+    event_type: "action_result_recorded",
+    scope,
+    work_id: workId,
+    actor: sourceAgentId,
+    source_surface: "local_runtime",
+    authority_level: "action_proof",
+    state_keys: relatedStateKeys,
+    payload_ref: actionRecord.id,
+    result_status: resultStatus,
+    created_at: actionRecord.created_at,
+  });
+
+  return {
+    action_record: actionRecord,
+  };
+}
+
 function transitionForResultStatus(status: ActionResultStatus): {
   beforeValue: boolean | string;
   afterValue: boolean | string;

@@ -9,6 +9,8 @@ import {
 
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
 const DEFAULT_SCOPE = "project:augnes";
+const DEFAULT_SOURCE_AGENT_ID = "agent:codex";
+const DEFAULT_ACTION_NAME = "codex_completion_proof";
 const DEFAULT_ACTOR = "codex";
 
 const WorkEventTypeSchema = z.enum([
@@ -22,6 +24,7 @@ const WorkEventTypeSchema = z.enum([
 ]);
 
 const WorkEventResultSchema = z.record(z.unknown());
+const ActionProofResultSchema = z.record(z.unknown());
 
 type WorkEventType = z.infer<typeof WorkEventTypeSchema>;
 
@@ -29,7 +32,8 @@ type CompletionProofConfig = {
   apiBaseUrl: string;
   scope: string;
   workId: string;
-  actionName?: string;
+  sourceAgentId: string;
+  actionName: string;
   resultSummary: string;
   filesChanged: string[];
   resultStatus: StateRuntimeActionResultStatus;
@@ -158,7 +162,8 @@ function resolveCompletionProofConfig(): CompletionProofConfig {
     apiBaseUrl,
     scope,
     workId,
-    actionName: readOptionalEnv("CODEX_ACTION_NAME"),
+    sourceAgentId: readDefaultedEnv(["CODEX_SOURCE_AGENT_ID"], DEFAULT_SOURCE_AGENT_ID),
+    actionName: readDefaultedEnv(["CODEX_ACTION_NAME"], DEFAULT_ACTION_NAME),
     resultSummary,
     filesChanged,
     resultStatus,
@@ -188,6 +193,14 @@ function buildReviewUrl(
   }
 
   return url.toString();
+}
+
+function buildActionProofUrl(config: CompletionProofConfig): URL {
+  try {
+    return new URL("/api/actions/record-proof", `${config.apiBaseUrl}/`);
+  } catch {
+    throw new Error("CODEX_RECORD_COMPLETION_PROOF_INVALID_BASE_URL");
+  }
 }
 
 function buildWorkEventUrl(config: CompletionProofConfig): URL {
@@ -253,6 +266,18 @@ function extractWorkEventId(workEventResult: Record<string, unknown>): string | 
   return candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0);
 }
 
+function extractActionId(actionProofResult: Record<string, unknown>): string | undefined {
+  const candidates = [
+    getPath(actionProofResult, ["result", "action_record", "id"]),
+    getPath(actionProofResult, ["action_record", "id"]),
+    getPath(actionProofResult, ["result", "action_id"]),
+    actionProofResult.action_id,
+    actionProofResult.id,
+  ];
+
+  return candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0);
+}
+
 async function assertWorkItemExists(config: CompletionProofConfig): Promise<void> {
   let response: Response;
   try {
@@ -277,7 +302,48 @@ async function assertWorkItemExists(config: CompletionProofConfig): Promise<void
   );
 }
 
-async function recordWorkEvent(config: CompletionProofConfig): Promise<Record<string, unknown>> {
+async function recordActionProof(config: CompletionProofConfig): Promise<Record<string, unknown>> {
+  const body: Record<string, unknown> = {
+    scope: config.scope,
+    source_agent_id: config.sourceAgentId,
+    action_name: config.actionName,
+    result_summary: config.resultSummary,
+    files_changed: config.filesChanged,
+    result_status: config.resultStatus,
+    result_kind: config.resultKind,
+    work_id: config.workId,
+    related_state_keys: config.relatedStateKeys,
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(buildActionProofUrl(config), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("CODEX_RECORD_COMPLETION_PROOF_RUNTIME_UNAVAILABLE");
+  }
+
+  const parsedBody = await readJson(response);
+  if (!response.ok) {
+    throw new Error(`CODEX_RECORD_COMPLETION_PROOF_ACTION_PROOF_FAILED status=${response.status} body=${JSON.stringify(parsedBody)}`);
+  }
+
+  const parsed = ActionProofResultSchema.safeParse(parsedBody);
+  if (!parsed.success) {
+    throw new Error("CODEX_RECORD_COMPLETION_PROOF_INVALID_ACTION_PROOF_RESPONSE");
+  }
+
+  return parsed.data;
+}
+
+async function recordWorkEvent(
+  config: CompletionProofConfig,
+  actionProofResult: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const actionId = extractActionId(actionProofResult);
   const body: Record<string, unknown> = {
     scope: config.scope,
     actor: config.actor,
@@ -288,7 +354,8 @@ async function recordWorkEvent(config: CompletionProofConfig): Promise<Record<st
     related_state_keys: config.relatedStateKeys,
   };
 
-  if (config.actionName) body.action_name = config.actionName;
+  body.action_name = config.actionName;
+  if (actionId) body.related_action_id = actionId;
   if (config.filesChanged.length) body.files_changed = config.filesChanged;
   if (config.relatedPr) body.related_pr = config.relatedPr;
 
@@ -318,24 +385,30 @@ async function recordWorkEvent(config: CompletionProofConfig): Promise<Record<st
 
 function printCompletionProofResult({
   config,
+  actionProofResult,
   workEventResult,
 }: {
   config: CompletionProofConfig;
+  actionProofResult: Record<string, unknown>;
   workEventResult: Record<string, unknown>;
 }) {
+  const actionId = extractActionId(actionProofResult);
   const workEventId = extractWorkEventId(workEventResult);
 
   console.log("Augnes Codex completion proof recorded");
   console.log(`scope: ${config.scope}`);
   console.log(`work_id: ${config.workId}`);
-  console.log(`action_name: ${config.actionName ?? "(none)"}`);
+  console.log(`action_name: ${config.actionName}`);
+  console.log(`source_agent_id: ${config.sourceAgentId}`);
   console.log(`result_status: ${config.resultStatus}`);
   console.log(`result_kind: ${config.resultKind}`);
+  console.log(`action_record_id: ${actionId ?? "(none returned)"}`);
   console.log(`event_type: ${config.eventType}`);
   console.log(`work_event_id: ${workEventId ?? "(none returned)"}`);
   console.log(`related_pr: ${config.relatedPr ?? "(none)"}`);
   console.log(`files_changed count: ${config.filesChanged.length}`);
   console.log(`related_state_keys count: ${config.relatedStateKeys.length}`);
+  console.log(`action_proof_response: ${JSON.stringify(actionProofResult)}`);
   console.log(`work_event_response: ${JSON.stringify(workEventResult)}`);
   console.log("read_only_review_refs:");
   console.log(
@@ -365,15 +438,16 @@ function printCompletionProofResult({
       )}`,
     );
   }
-  console.log("This helper records proof-native completion trace only; it does not use the legacy action-record state-marker path.");
+  console.log("This helper records proof-native action and work trace only; it does not use the legacy action-record state-marker path.");
 }
 
 async function main() {
   const config = resolveCompletionProofConfig();
   await assertWorkItemExists(config);
-  const workEventResult = await recordWorkEvent(config);
+  const actionProofResult = await recordActionProof(config);
+  const workEventResult = await recordWorkEvent(config, actionProofResult);
 
-  printCompletionProofResult({ config, workEventResult });
+  printCompletionProofResult({ config, actionProofResult, workEventResult });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

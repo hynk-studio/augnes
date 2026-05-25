@@ -11,6 +11,9 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   `docs/CODEX_HELPER_COMMAND_TAXONOMY.md`: check-only helpers are read-only,
   record-proof helpers write proof records, and committed state mutation
   requires explicit naming and gates.
+- The Codex proof-only action-record path is `/api/actions/record-proof`; it
+  creates action proof without calling `commitStateUpdate` or creating
+  `external.*` committed state markers.
 - GitHub owns code history and PR review surfaces.
 - ChatGPT App owns conversational interpretation and handoff, not execution control.
 - Browser/Chrome and MCP Inspector are verification surfaces, not authorities.
