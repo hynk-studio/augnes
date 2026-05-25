@@ -400,12 +400,14 @@ function parseTarget(targetRef: string | null): { target: Target; warnings: stri
   const trimmed = targetRef.trim();
   const shorthand = /^([^/\s#]+)\/([^/\s#]+)#(\d+)$/.exec(trimmed);
   if (shorthand !== null) {
+    const owner = validateTargetSegment(shorthand[1]);
+    const repo = validateTargetSegment(shorthand[2]);
     const pullNumber = parsePullNumber(shorthand[3]);
     return {
       target: {
         target_ref: trimmed,
-        owner: shorthand[1],
-        repo: shorthand[2],
+        owner,
+        repo,
         pull_number: pullNumber,
         issue_number: pullNumber,
         target_status: "present",
@@ -433,8 +435,8 @@ function parseTarget(targetRef: string | null): { target: Target; warnings: stri
     throw new GithubCommentPayloadError("CODEX_GITHUB_COMMENT_PAYLOAD_INVALID_TARGET");
   }
 
-  const owner = decodePathPart(parts[0]);
-  const repo = decodePathPart(parts[1]);
+  const owner = validateTargetSegment(decodePathPart(parts[0]));
+  const repo = validateTargetSegment(decodePathPart(parts[1]));
   const pullNumber = parsePullNumber(parts[3]);
   return {
     target: {
@@ -455,6 +457,13 @@ function decodePathPart(value: string): string {
   } catch {
     throw new GithubCommentPayloadError("CODEX_GITHUB_COMMENT_PAYLOAD_INVALID_TARGET");
   }
+}
+
+function validateTargetSegment(value: string): string {
+  if (!value || /[\s/#?]/.test(value) || /[\u0000-\u001F\u007F]/.test(value)) {
+    throw new GithubCommentPayloadError("CODEX_GITHUB_COMMENT_PAYLOAD_INVALID_TARGET");
+  }
+  return value;
 }
 
 function parsePullNumber(value: string): number {

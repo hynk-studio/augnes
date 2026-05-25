@@ -170,6 +170,21 @@ await assertInvalid({
   }),
   expected: /CODEX_GITHUB_COMMENT_PAYLOAD_INVALID_TARGET/,
 });
+for (const targetRef of [
+  "https://github.com/Aurna-code%2Fother/augnes/pull/213",
+  "https://github.com/Aurna-code/augnes%2Fextra/pull/213",
+  "https://github.com/Aurna-code/augnes%20space/pull/213",
+  "https://github.com/Aurna-code/augnes%23frag/pull/213",
+  "https://github.com/Aurna-code/augnes%3Fquery/pull/213",
+]) {
+  await assertInvalid({
+    env: payloadEnv({
+      CODEX_GITHUB_COMMENT_TARGET_REF: targetRef,
+      CODEX_GITHUB_COMMENT_BODY: commentBody,
+    }),
+    expected: /CODEX_GITHUB_COMMENT_PAYLOAD_INVALID_TARGET/,
+  });
+}
 await assertInvalid({
   env: payloadEnv({
     CODEX_ACTUATION_PREVIEW_JSON: JSON.stringify(buildPreview({ target_status: "missing" })),
@@ -288,6 +303,7 @@ console.log(
       stdin_input_checked: true,
       invalid_target_host_failed: true,
       malformed_target_failed: true,
+      decoded_target_segment_validation_failed: true,
       missing_target_failed: true,
       missing_body_failed: true,
       body_too_large_failed: true,
