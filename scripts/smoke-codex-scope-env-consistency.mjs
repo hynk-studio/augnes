@@ -96,6 +96,7 @@ try {
           route: "/api/actions/record",
           record_result_only: true,
         },
+        record_result_compatibility_warning_stderr_only: true,
         handoff_check_read_only: true,
       },
       null,
@@ -114,6 +115,11 @@ async function assertRecordResultScope({ apiBaseUrl, expected, envMode, label })
     envMode,
   });
   assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+  assert.match(
+    result.stderr,
+    /Compatibility warning: codex:record-result is a low-level legacy compatibility helper for \/api\/actions\/record and may create external\.\* marker state\. Prefer codex:record-completion-proof for Codex closeout proof\./,
+  );
+  assert.doesNotMatch(result.stdout, /Compatibility warning:/);
   assert.match(result.stdout, new RegExp(`scope: ${escapeRegExp(expected)}`));
   assert.equal(countCalls("POST", "/api/actions/record"), 1, label);
   assert.equal(countCalls("GET", "/api/state/brief"), 0, label);

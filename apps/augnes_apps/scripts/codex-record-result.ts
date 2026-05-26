@@ -13,6 +13,8 @@ const DEFAULT_SOURCE_AGENT_ID = "agent:codex";
 const DEFAULT_ACTION_NAME = "codex_handoff_demo";
 const DEFAULT_RESULT_SUMMARY = "Codex handoff demo recorded an external action result through Augnes.";
 const DEFAULT_FILES_CHANGED = "docs/CODEX_HANDOFF_DEMO.md";
+const COMPATIBILITY_WARNING =
+  "Compatibility warning: codex:record-result is a low-level legacy compatibility helper for /api/actions/record and may create external.* marker state. Prefer codex:record-completion-proof for Codex closeout proof.";
 
 const ActionRecordResultSchema = z.record(z.unknown());
 
@@ -187,9 +189,14 @@ export function printRecordResult(config: RecordResultConfig, result: Record<str
   console.log(`Refresh http://localhost:3000 and confirm the Temporal State Graph shows external.${config.actionName}_recorded`);
 }
 
+function printCompatibilityWarning(): void {
+  console.error(COMPATIBILITY_WARNING);
+}
+
 async function main() {
   const config = resolveRecordResultConfig();
   const result = await recordActionResult(config);
+  printCompatibilityWarning();
   printRecordResult(config, result);
 }
 

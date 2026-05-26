@@ -12,6 +12,8 @@ const DEFAULT_API_BASE_URL = "http://localhost:3000";
 const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_SOURCE_AGENT_ID = "agent:codex";
 const DEFAULT_ACTOR = "codex";
+const COMPATIBILITY_WARNING =
+  "Compatibility warning: codex:record-completion uses the legacy /api/actions/record path and may create external.* marker state. Prefer codex:record-completion-proof for proof-only closeout.";
 
 const WorkEventTypeSchema = z.enum([
   "note",
@@ -425,6 +427,7 @@ async function main() {
   const relatedActionId = extractActionId(actionResult);
   const workEventResult = await recordWorkEvent(config, relatedActionId);
 
+  console.error(COMPATIBILITY_WARNING);
   printCompletionResult({ config, actionResult, workEventResult, relatedActionId });
 }
 

@@ -85,7 +85,12 @@ try {
     CODEX_SESSION_ID: sessionId,
   });
   assert.equal(success.status, 0, success.stderr);
+  assert.match(
+    success.stderr,
+    /Compatibility warning: codex:record-completion uses the legacy \/api\/actions\/record path and may create external\.\* marker state\. Prefer codex:record-completion-proof for proof-only closeout\./,
+  );
   assert.match(success.stdout, /Augnes Codex completion recorded/);
+  assert.doesNotMatch(success.stdout, /Compatibility warning:/);
   assert.match(success.stdout, new RegExp(`work_id: ${escapeRegExp(workId)}`));
   assert.match(success.stdout, new RegExp(`work_event_id: ${escapeRegExp(workEventId)}`));
   assert.match(success.stdout, new RegExp(`related_action_id: ${escapeRegExp(actionId)}`));
@@ -160,6 +165,7 @@ try {
   });
   assert.notEqual(unknownWork.status, 0);
   assert.match(unknownWork.stderr, /CODEX_RECORD_COMPLETION_UNKNOWN_WORK_ID/);
+  assert.doesNotMatch(unknownWork.stderr, /Compatibility warning:/);
   assert.equal(actionRecordPosts, 1, "unknown work should not POST action record");
   assert.equal(workEventPosts, 1, "unknown work should not POST work event");
   assert.equal(calls.length, callsAfterSuccess + 1, "unknown work should only add preflight GET");
@@ -175,6 +181,7 @@ try {
   });
   assert.notEqual(invalidMissing.status, 0);
   assert.match(invalidMissing.stderr, /CODEX_ACTION_NAME is required/);
+  assert.doesNotMatch(invalidMissing.stderr, /Compatibility warning:/);
   assert.equal(calls.length, callsAfterUnknown, "missing required env should fail before route calls");
   assertNoForbiddenRouteCalls();
 
@@ -189,6 +196,7 @@ try {
         session_trace_fetch_calls: countSessionTraceFetches(),
         action_record_posts: actionRecordPosts,
         work_event_posts: workEventPosts,
+        compatibility_warning_stderr_only: true,
         unknown_work_failed_before_mutation_posts: true,
         invalid_env_failed_before_route_calls: true,
         github_calls: 0,
