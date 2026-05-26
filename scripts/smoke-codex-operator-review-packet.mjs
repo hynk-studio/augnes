@@ -242,6 +242,31 @@ assertRawTimelinePreserved(unresolvedFollowUpOnly, ["review_finding", "follow_up
 assertNoResolvedFollowUpObservation(unresolvedFollowUpOnly);
 assertNoManualHandoffObservation(unresolvedFollowUpOnly);
 
+const negatedFallbackFollowUp = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_type: "review_finding",
+          summary: "Blocking review finding noted target_ref consistency needed correction.",
+          result: "blocking",
+        },
+        {
+          event_type: "follow_up_commit",
+          summary: "Follow-up not fixed and not addressed; issue remains.",
+          result: "updated",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assertRawTimelinePreserved(negatedFallbackFollowUp, ["review_finding", "follow_up_commit"]);
+assertNoResolvedFollowUpObservation(negatedFallbackFollowUp);
+
 const unresolvedThenResolvedFollowUp = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
     buildPr215LikeInput({
@@ -469,6 +494,11 @@ await assertInvalid({
   },
   expected: /CODEX_OPERATOR_REVIEW_PACKET_UNRESOLVED_LINK_EVENT/,
 });
+await assertUnresolvedLinkedFollowUp("Follow-up not fixed; target_ref consistency is still open.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up not addressed; target_ref consistency remains open.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up not resolving target_ref consistency yet.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up still broken after the attempted change.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up still failing after the attempted change.", "updated");
 await assertInvalid({
   env: {
     CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: "{nope",
@@ -627,6 +657,33 @@ async function assertInvalid({ env, expected }) {
   assert.notEqual(result.status, 0, result.stdout);
   assert.match(result.stderr, expected);
   assertNoSecretsOrPayload(result.stdout + result.stderr);
+}
+
+async function assertUnresolvedLinkedFollowUp(summary, result) {
+  await assertInvalid({
+    env: {
+      CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+        buildPr215LikeInput({
+          review_events: [
+            {
+              event_id: "finding",
+              event_type: "review_finding",
+              summary: "Blocking review finding.",
+              result: "blocking",
+            },
+            {
+              event_id: "negated-follow-up",
+              resolves_event_id: "finding",
+              event_type: "follow_up_commit",
+              summary,
+              result,
+            },
+          ],
+        }),
+      ),
+    },
+    expected: /CODEX_OPERATOR_REVIEW_PACKET_UNRESOLVED_LINK_EVENT/,
+  });
 }
 
 function assertPacketShape(value) {
