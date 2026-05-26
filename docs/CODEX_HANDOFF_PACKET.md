@@ -117,6 +117,10 @@ records from work-linked proof. `action_records_by_session` counts only action
 records whose `source_session_id` matches the session. Proof-only completion
 actions keep `source_session_id: null`, so they appear through
 `work_linked_proof_actions[]` and bound `work_events.related_action_id`.
+Treat `work_linked_proof_actions[]` as the canonical Session Trace vocabulary
+for proof visible through explicit work binding. `latest_work_event` and
+`proof_visibility.latest_work_event_related_action_id` are useful shortcuts,
+but they are not the primary proof summary.
 
 ## Completion Expectations
 

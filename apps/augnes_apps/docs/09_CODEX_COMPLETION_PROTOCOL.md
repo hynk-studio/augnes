@@ -109,9 +109,13 @@ explicit bind:
 
 - `action_records_by_session` and `action_records` count only records with
   `source_session_id` equal to the bound session ID.
-- `proof_visibility.work_linked_proof_action_ids` and
-  `work_linked_proof_actions[]` show action proof linked through the bound
-  work trace's `work_events.related_action_id`.
+- `work_linked_proof_actions[]` is the canonical Session Trace vocabulary for
+  action proof visible through explicit work binding and the bound work trace's
+  `work_events.related_action_id`.
+- `proof_visibility.work_linked_proof_action_ids` is the compact ID summary for
+  that same work-linked proof lane.
+- `proof_visibility.latest_work_event_related_action_id` is a latest-event
+  shortcut and debug anchor, not the primary proof summary.
 - Proof-only completion actions keep `source_session_id: null`; binding a
   session does not rewrite them.
 
@@ -144,8 +148,8 @@ mailbox/state rows.
 
 The bind helper does not assign `source_session_id` to existing proof-only
 action records. After binding, Session Trace may show proof through
-`work_linked_proof_actions[]` even while `action_records_by_session` remains
-zero.
+`work_linked_proof_actions[]`, the canonical work-linked proof lane, even
+while `action_records_by_session` remains zero.
 
 Read back the trace with:
 
