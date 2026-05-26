@@ -131,8 +131,11 @@ work status, proof links, and Codex handoff context without receiving
 commit/reject authority.
 
 For Codex-side usage, see the [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md),
-which covers `codex:read-brief`, `codex:record-evidence`, and
-`codex:record-completion`.
+which covers `codex:read-brief`, `codex:record-evidence`, and the preferred
+proof-only `codex:record-completion-proof` closeout path through
+`/api/actions/record-proof`.
+`codex:record-completion` remains legacy compatibility behavior and may use
+`/api/actions/record` to create legacy `external.*` marker state.
 
 ## Screenshots
 

@@ -104,7 +104,12 @@ Confirm this PR keeps the authority boundaries intact.
 
 ## Completion Record Reminder
 
-After the PR task is complete, record Augnes proof with `npm run codex:record-completion` when a local runtime and valid `CODEX_WORK_ID` are available.
+After the PR task is complete, record Augnes proof with
+`npm run codex:record-completion-proof` when a local runtime and valid
+`CODEX_WORK_ID` are available. The proof-only helper uses
+`/api/actions/record-proof`. Use `npm run codex:record-completion` only as
+legacy compatibility behavior; it uses `/api/actions/record` and may create
+legacy `external.*` marker state.
 
 Recommended fields:
 

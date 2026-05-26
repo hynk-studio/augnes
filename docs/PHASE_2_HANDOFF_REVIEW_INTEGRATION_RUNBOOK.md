@@ -141,9 +141,11 @@ curl -sS -X POST "http://localhost:3000/api/handoffs/review" \
 
 11. Only after explicit user decision, proof may be recorded separately through:
 
+- `npm run codex:record-completion-proof` for preferred proof-only Codex closeout
 - `augnes_record_action_result`
 - `augnes_record_work_event`
-- `npm run codex:record-completion`
+- `npm run codex:record-completion` only as legacy compatibility behavior; it may
+  create legacy `external.*` marker state through `/api/actions/record`
 
 ## API Summary
 

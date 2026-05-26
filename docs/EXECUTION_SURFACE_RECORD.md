@@ -72,4 +72,10 @@ Execution surfaces used:
 
 ## Completion Record Use
 
-When recording completion through `npm run codex:record-completion`, summarize surfaces in `CODEX_RESULT_SUMMARY` or the work event note. Keep the summary short and point to the PR for full evidence.
+When recording Codex closeout proof, prefer
+`npm run codex:record-completion-proof`, which uses
+`/api/actions/record-proof`, and summarize surfaces in `CODEX_RESULT_SUMMARY`
+or the linked work event note. Use `npm run codex:record-completion` only as
+legacy compatibility behavior; it uses `/api/actions/record` and may create
+legacy `external.*` marker state. Keep the summary short and point to the PR
+for full evidence.
