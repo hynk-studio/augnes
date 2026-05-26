@@ -140,6 +140,111 @@ assert.deepEqual(missingMaterials.material_summary.missing_optional, [
 assert.ok(missingMaterials.warnings.every((warning) => warning.startsWith("Missing optional material:")));
 assert.equal(missingMaterials.blockers.length, 0);
 
+const unresolvedFollowUpOnly = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_type: "review_finding",
+          summary: "Blocking review finding noted target_ref consistency needed correction.",
+          result: "blocking",
+        },
+        {
+          event_type: "follow_up_required",
+          summary: "Follow-up still required; issue not resolved.",
+          result: "needs_review",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assertRawTimelinePreserved(unresolvedFollowUpOnly, ["review_finding", "follow_up_required"]);
+assertNoResolvedFollowUpObservation(unresolvedFollowUpOnly);
+assertNoManualHandoffObservation(unresolvedFollowUpOnly);
+
+const unresolvedThenResolvedFollowUp = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_type: "review_finding",
+          summary: "Blocking review finding noted target_ref consistency needed correction.",
+          result: "blocking",
+        },
+        {
+          event_type: "follow_up_required",
+          summary: "Follow-up still required; issue not resolved.",
+          result: "needs_review",
+        },
+        {
+          event_type: "follow_up_commit",
+          summary: "Follow-up resolved the target_ref consistency issue.",
+          result: "follow_up_resolved",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assertRawTimelinePreserved(unresolvedThenResolvedFollowUp, [
+  "review_finding",
+  "follow_up_required",
+  "follow_up_commit",
+]);
+assert.ok(
+  unresolvedThenResolvedFollowUp.perspective_observations.some((observation) =>
+    observation.includes("Review event 1 was blocking") &&
+    observation.includes("later event 3") &&
+    observation.includes("Follow-up resolved the target_ref consistency issue."),
+  ),
+);
+assert.doesNotMatch(unresolvedThenResolvedFollowUp.perspective_observations.join("\n"), /later event 2/);
+
+const actuationApprovedDecision = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_type: "operator_decision",
+          summary: "Operator approved separate actuation helper.",
+          result: "approved",
+        },
+      ],
+      operator_decision: {
+        decision: "operator_approved_actuation",
+        reason: "Operator approved a separate actuation helper.",
+      },
+    }),
+  ),
+});
+assertNoManualHandoffObservation(actuationApprovedDecision);
+
+const explicitManualDecision = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_type: "operator_decision",
+          summary: "Manual handoff preserved.",
+          result: "manual_handoff",
+        },
+      ],
+      operator_decision: {
+        decision: "manual_handoff_no_actuation",
+        reason: "Use the material for operator review only; do not post or actuate.",
+      },
+    }),
+  ),
+});
+assertManualHandoffObservation(explicitManualDecision);
+
 await assertInvalid({
   env: {
     CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(buildPr215LikeInput({ task: { title: "", intent: "x", scope: "x" } })),
@@ -337,6 +442,35 @@ function assertPacketShape(value) {
   assert.equal(value.dry_run_only, true);
   assert.equal(value.would_execute, false);
   assert.equal(typeof value.authority_boundary, "string");
+}
+
+function assertRawTimelinePreserved(packet, expectedEventTypes) {
+  assert.deepEqual(
+    packet.timeline.map((event) => event.event_type),
+    expectedEventTypes,
+  );
+}
+
+function assertNoResolvedFollowUpObservation(packet) {
+  const observations = packet.perspective_observations.join("\n");
+  assert.doesNotMatch(observations, /recorded a resolved follow-up/i);
+  assert.doesNotMatch(observations, /resolved follow-up/i);
+}
+
+function assertManualHandoffObservation(packet) {
+  assert.ok(
+    packet.perspective_observations.some((observation) =>
+      observation.includes("manual handoff/no actuation"),
+    ),
+  );
+}
+
+function assertNoManualHandoffObservation(packet) {
+  assert.ok(
+    packet.perspective_observations.every((observation) =>
+      !observation.includes("manual handoff/no actuation"),
+    ),
+  );
 }
 
 function assertNoSecretsOrPayload(output) {

@@ -272,19 +272,84 @@ function isBlockingEvent(event: ReviewEvent): boolean {
   return containsAny(eventText(event), [/\bblocking\b/i, /\bblocked\b/i, /\bblocker\b/i, /\bneeds\s+changes\b/i]);
 }
 
-function isResolvedFollowUpEvent(event: ReviewEvent): boolean {
+function isFollowUpLike(event: ReviewEvent): boolean {
+  return containsAny(`${event.event_type} ${event.summary}`, [/\bfollow[-_\s]?up\b/i, /\bfollowup\b/i]);
+}
+
+function hasResolutionSignal(event: ReviewEvent): boolean {
   return containsAny(eventText(event), [
-    /\bfollow[-\s]?up\b/i,
     /\bresolved\b/i,
     /\bresolving\b/i,
     /\bfixed\b/i,
     /\baddressed\b/i,
+    /\bblocker[-_\s]?resolved\b/i,
+    /\bblocking[-_\s]?resolved\b/i,
+    /\bfollow[-_\s]?up[-_\s]?resolved\b/i,
+  ]);
+}
+
+function hasUnresolvedSignal(event: ReviewEvent): boolean {
+  return containsAny(eventText(event), [
+    /\bnot\s+resolved\b/i,
+    /\bnot[-_]resolved\b/i,
+    /\bunresolved\b/i,
+    /\bstill\s+required\b/i,
+    /\bneeds[-_\s]+review\b/i,
+    /\bfollow[-_\s]?up[-_\s]?required\b/i,
+    /\bfollow[-_\s]?up[-_\s]?needed\b/i,
+  ]);
+}
+
+function hasResolutionResult(event: ReviewEvent): boolean {
+  return containsAny(event.result, [
+    /^resolved$/i,
+    /^fixed$/i,
+    /^addressed$/i,
+    /^blocker[-_\s]?resolved$/i,
+    /^blocking[-_\s]?resolved$/i,
+    /^follow[-_\s]?up[-_\s]?resolved$/i,
+  ]);
+}
+
+function isResolvedFollowUpEvent(event: ReviewEvent): boolean {
+  return hasResolutionSignal(event) && !hasUnresolvedSignal(event) && (isFollowUpLike(event) || hasResolutionResult(event));
+}
+
+function hasActuationProceedSignal(decision: OperatorDecision): boolean {
+  const text = `${decision.decision} ${decision.reason}`;
+  return containsAny(text, [
+    /\bapproved[-_\s]?actuation\b/i,
+    /\bapproved\s+(?:a\s+)?separate\s+actuation\s+helper\b/i,
+    /\bseparate\s+actuation\s+helper\s+approved\b/i,
+    /\bproceed[-_\s]?to[-_\s]?actuation\b/i,
+    /\bposting\s+approved\b/i,
+    /\bexecute\b/i,
+    /\bwould[-_\s]?execute\b/i,
+    /\bimplement\s+actuation\b/i,
+    /\bimplement\s+real\s+posting\s+helper\b/i,
+    /\b(?:approve|approved|proceed(?:ing)?\s+to|implement)\s+real\s+posting\b/i,
+    /\bauto[-_\s]?post\b/i,
+    /\bpublish\b/i,
   ]);
 }
 
 function preservesManualHandoff(decision: OperatorDecision): boolean {
   const text = `${decision.decision} ${decision.reason}`;
-  return containsAny(text, [/\bmanual\s+handoff\b/i, /\bno\s+actuation\b/i, /\bhuman\s+review\b/i, /\boperator\b/i]);
+  const explicitManualSignal = containsAny(text, [
+    /\bmanual[-_\s]?handoff\b/i,
+    /\bno[-_\s]?actuation\b/i,
+    /\bhuman\s+review\s+only\b/i,
+    /\boperator\s+review\s+only\b/i,
+    /\breview\s+only\b/i,
+    /\bno\s+real\s+posting\b/i,
+    /\bdo\s+not\s+post\b/i,
+    /\bdon't\s+post\b/i,
+    /\bdo\s+not\s+actuate\b/i,
+    /\bdon't\s+actuate\b/i,
+    /\bkeep\s+actuation\s+manual\b/i,
+  ]);
+
+  return explicitManualSignal && !hasActuationProceedSignal(decision);
 }
 
 function renderPerspectiveObservations(input: OperatorReviewPacketInput): string[] {
