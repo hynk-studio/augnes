@@ -112,6 +112,12 @@ not be read as active committed state. Session Trace visibility requires a
 separate explicit `codex:bind-session` call against an existing session; the
 completion proof helper does not bind sessions.
 
+When reviewing Session Trace after binding, distinguish session-owned action
+records from work-linked proof. `action_records_by_session` counts only action
+records whose `source_session_id` matches the session. Proof-only completion
+actions keep `source_session_id: null`, so they appear through
+`work_linked_proof_actions[]` and bound `work_events.related_action_id`.
+
 ## Completion Expectations
 
 Codex should report:

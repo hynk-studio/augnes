@@ -155,6 +155,8 @@ function printResult(config: BindSessionConfig, result: Record<string, unknown>)
   console.log(
     `Verify trace: ${config.apiBaseUrl}/api/sessions/${encodeURIComponent(config.sessionId)}/trace?scope=${encodeURIComponent(config.scope)}`,
   );
+  console.log("Session Trace note: action_records_by_session counts only action_records whose source_session_id matches this session.");
+  console.log("Session Trace note: proof-only completion actions keep source_session_id null and appear through bound work_events.related_action_id.");
   console.log("This helper binds metadata only; it does not execute Codex, publish, approve, or record evidence.");
 }
 

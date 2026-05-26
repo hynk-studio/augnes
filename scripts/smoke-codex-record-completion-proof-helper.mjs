@@ -31,6 +31,8 @@ try {
   const evidencePackRoute = await import("../app/api/evidence-pack/route.ts");
   const stateBriefRoute = await import("../app/api/state/brief/route.ts");
   const sessionTraceRoute = await import("../app/api/sessions/trace/route.ts");
+  const sessionBindRoute = await import("../app/api/sessions/bind/route.ts");
+  const sessionTraceByIdRoute = await import("../app/api/sessions/[session_id]/trace/route.ts");
 
   server = http.createServer(async (request, response) => {
     try {
@@ -129,6 +131,7 @@ try {
   const proofActionRecord = readLatestActionRecord(openDatabase);
   assert.equal(proofActionRecord.state_key, null, "proof-only action record must not carry external.* state key");
   assert.equal(proofActionRecord.title, "codex_completion_proof_smoke");
+  assert.equal(proofActionRecord.source_session_id, null, "proof-only action record should not set source_session_id automatically");
   const proofWorkEvent = readLatestWorkEvent(openDatabase);
   assert.equal(
     proofWorkEvent.related_action_id,
@@ -237,6 +240,78 @@ try {
     true,
     "Session Trace should report absence as an explicit gap before binding",
   );
+  assert.equal(
+    readSessionCount(openDatabase),
+    0,
+    "proof-only completion should not auto-create sessions",
+  );
+
+  seedExistingSession(openDatabase);
+  const unboundSessionTrace = await readJson(
+    await sessionTraceByIdRoute.GET(
+      new Request(`http://localhost/api/sessions/${encodeURIComponent("session:proof-smoke")}/trace?scope=${encodeURIComponent(scope)}`),
+      { params: Promise.resolve({ session_id: "session:proof-smoke" }) },
+    ),
+  );
+  const unboundSession = unboundSessionTrace.sessions[0];
+  assert.equal(unboundSession.related_work_id, null, "proof-only completion should not auto-bind sessions");
+  assert.equal(unboundSession.proof_visibility.work_linked_proof_action_ids.length, 0);
+  assert.equal(unboundSession.evidence_counts.action_records_by_session, 0);
+
+  await readJson(
+    await sessionBindRoute.POST(
+      new Request("http://localhost/api/sessions/bind", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          scope,
+          session_id: "session:proof-smoke",
+          surface: "codex",
+          actor: "codex",
+          related_work_id: workId,
+          related_pr: "https://github.com/Aurna-code/augnes/pull/220",
+          summary: "Bound after proof-only closeout to verify work-linked proof visibility.",
+          evidence_pack_ref: `/api/evidence-pack?scope=${encodeURIComponent(scope)}&work_id=${encodeURIComponent(workId)}`,
+        }),
+      }),
+    ),
+  );
+  const boundSessionTrace = await readJson(
+    await sessionTraceByIdRoute.GET(
+      new Request(`http://localhost/api/sessions/${encodeURIComponent("session:proof-smoke")}/trace?scope=${encodeURIComponent(scope)}`),
+      { params: Promise.resolve({ session_id: "session:proof-smoke" }) },
+    ),
+  );
+  const boundSession = boundSessionTrace.sessions[0];
+  assert.equal(boundSession.related_work_id, workId);
+  assert.equal(boundSession.evidence_counts.action_records_by_session, 0);
+  assert.deepEqual(boundSession.action_records, []);
+  assert.deepEqual(boundSession.proof_visibility.session_owned_action_ids, []);
+  assert.equal(
+    boundSession.proof_visibility.work_linked_proof_action_ids.includes(proofActionRecord.id),
+    true,
+    "bound Session Trace should expose work-linked proof action IDs",
+  );
+  assert.equal(
+    boundSession.proof_visibility.latest_work_event_related_action_id,
+    proofActionRecord.id,
+    "bound Session Trace should expose latest work event related action ID",
+  );
+  assert.equal(
+    boundSession.work_linked_proof_actions.some(
+      (action) =>
+        action.id === proofActionRecord.id &&
+        action.source_session_id === null &&
+        action.proof_marker_type === "proof_only" &&
+        action.linked_work_event_ids.includes(proofWorkEvent.id),
+    ),
+    true,
+    "bound Session Trace should summarize work-linked proof actions separately",
+  );
+  assert.match(
+    boundSession.proof_visibility.source_session_id_note,
+    /source_session_id matches this session/,
+  );
 
   const callsAfterSuccess = workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests;
   const unknownWork = await runProofHelper({
@@ -297,6 +372,11 @@ try {
         evidence_pack_proof_visibility: true,
         state_brief_recent_action_visibility: true,
         session_trace_requires_explicit_binding: true,
+        session_auto_created: false,
+        session_auto_bound: false,
+        action_records_by_session_unchanged_for_source_session_null: true,
+        work_linked_proof_visible_after_explicit_bind: true,
+        proof_source_session_id: null,
         invalid_action_proof_failed_without_writes: true,
         unknown_work_failed_before_write: true,
         invalid_env_failed_before_route_calls: true,
@@ -375,7 +455,10 @@ async function writeWebResponse(nodeResponse, webResponse) {
 }
 
 async function readJson(response) {
-  assert.equal(response.status, 200, `expected 200 response, got ${response.status}`);
+  assert(
+    response.status === 200 || response.status === 201,
+    `expected 200/201 response, got ${response.status}`,
+  );
   return response.json();
 }
 
@@ -444,13 +527,48 @@ function readLatestActionRecord(openDatabase) {
     return db
       .prepare(
         `
-          SELECT id, state_key, title, status
+          SELECT id, state_key, title, status, source_session_id
           FROM action_records
           ORDER BY created_at DESC, id ASC
           LIMIT 1
         `,
       )
       .get();
+  } finally {
+    db.close();
+  }
+}
+
+function readSessionCount(openDatabase) {
+  const db = openDatabase();
+  try {
+    return db.prepare("SELECT COUNT(*) AS count FROM sessions").get().count;
+  } finally {
+    db.close();
+  }
+}
+
+function seedExistingSession(openDatabase) {
+  const db = openDatabase();
+  try {
+    db.prepare(
+      `
+        INSERT INTO sessions (
+          id,
+          agent_id,
+          scope,
+          title,
+          started_at
+        )
+        VALUES (
+          'session:proof-smoke',
+          'agent:codex',
+          ?,
+          'Proof-only closeout session trace smoke',
+          '2026-01-01T00:01:00.000Z'
+        )
+      `,
+    ).run(scope);
   } finally {
     db.close();
   }
