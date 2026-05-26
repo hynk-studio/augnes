@@ -83,8 +83,56 @@ const summaryOnly = await runPacket({
 assert.equal(summaryOnly.status, 0, summaryOnly.stderr);
 assert.match(summaryOnly.stdout, /Codex operator review packet/);
 assert.doesNotMatch(summaryOnly.stdout, new RegExp(beginMarker));
+assert.doesNotMatch(summaryOnly.stdout, /event_id=undefined/);
+assert.doesNotMatch(summaryOnly.stdout, /resolves_event_id=undefined/);
+assert.doesNotMatch(summaryOnly.stdout, /event_id=null/);
+assert.doesNotMatch(summaryOnly.stdout, /resolves_event_id=null/);
 assertNoSecretsOrPayload(summaryOnly.stdout + summaryOnly.stderr);
 successfulOutputs.push(summaryOnly.stdout);
+
+const linkedSummaryInput = buildLinkedReviewEventsInput();
+const linkedSummary = await runPacket({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(linkedSummaryInput),
+    CODEX_OPERATOR_REVIEW_PACKET_OUTPUT: "summary",
+  },
+});
+assert.equal(linkedSummary.status, 0, linkedSummary.stderr);
+assert.match(linkedSummary.stdout, /Codex operator review packet/);
+assert.doesNotMatch(linkedSummary.stdout, new RegExp(beginMarker));
+assert.match(
+  linkedSummary.stdout,
+  /- 1\. review_finding \[event_id=finding-target-ref\]: Blocking review finding noted target_ref consistency needed correction\. \(blocking\)/,
+);
+assert.match(
+  linkedSummary.stdout,
+  /- 2\. follow_up_commit \[event_id=fix-target-ref resolves_event_id=finding-target-ref\]: Follow-up resolved target_ref parsing and pull\/issue consistency\. \(follow_up_resolved\)/,
+);
+assert.match(linkedSummary.stdout, /event_id=finding-target-ref/);
+assert.match(linkedSummary.stdout, /event_id=fix-target-ref/);
+assert.match(linkedSummary.stdout, /resolves_event_id=finding-target-ref/);
+assertNoSecretsOrPayload(linkedSummary.stdout + linkedSummary.stderr);
+successfulOutputs.push(linkedSummary.stdout);
+
+const linkedBoth = await runPacket({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(linkedSummaryInput),
+    CODEX_OPERATOR_REVIEW_PACKET_OUTPUT: "both",
+  },
+});
+assert.equal(linkedBoth.status, 0, linkedBoth.stderr);
+assert.match(linkedBoth.stdout, new RegExp(`${beginMarker}\\n`));
+const linkedBothSummary = extractSummaryText(linkedBoth.stdout);
+assert.match(linkedBothSummary, /event_id=finding-target-ref/);
+assert.match(linkedBothSummary, /event_id=fix-target-ref/);
+assert.match(linkedBothSummary, /resolves_event_id=finding-target-ref/);
+const linkedBothJson = extractPacketJson(linkedBoth.stdout);
+assert.equal(linkedBothJson.timeline[0].event_id, "finding-target-ref");
+assert.equal(linkedBothJson.timeline[1].event_id, "fix-target-ref");
+assert.equal(linkedBothJson.timeline[1].resolves_event_id, "finding-target-ref");
+assert.equal(linkedBothJson.resolution_links, undefined);
+assertNoSecretsOrPayload(linkedBoth.stdout + linkedBoth.stderr);
+successfulOutputs.push(linkedBoth.stdout);
 
 const rawJsonEnv = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(buildPr215LikeInput()),
@@ -144,29 +192,7 @@ assert.ok(missingMaterials.warnings.every((warning) => warning.startsWith("Missi
 assert.equal(missingMaterials.blockers.length, 0);
 
 const structuredLink = await runPacketJson({
-  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
-    buildPr215LikeInput({
-      review_events: [
-        {
-          event_id: "finding-target-ref",
-          event_type: "review_finding",
-          summary: "Blocking review finding noted target_ref consistency needed correction.",
-          result: "blocking",
-        },
-        {
-          event_id: "fix-target-ref",
-          resolves_event_id: "finding-target-ref",
-          event_type: "follow_up_commit",
-          summary: "Follow-up resolved target_ref parsing and pull/issue consistency.",
-          result: "follow_up_resolved",
-        },
-      ],
-      operator_decision: {
-        decision: "defer_review",
-        reason: "More review is needed.",
-      },
-    }),
-  ),
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(linkedSummaryInput),
 });
 assert.equal(structuredLink.timeline[0].event_id, "finding-target-ref");
 assert.equal(structuredLink.timeline[1].event_id, "fix-target-ref");
@@ -598,6 +624,36 @@ function extractPacketJson(output) {
   assert.notEqual(begin, -1);
   assert.notEqual(end, -1);
   return JSON.parse(output.slice(begin + beginMarker.length, end).trim());
+}
+
+function extractSummaryText(output) {
+  const begin = output.indexOf(beginMarker);
+  assert.notEqual(begin, -1);
+  return output.slice(0, begin);
+}
+
+function buildLinkedReviewEventsInput() {
+  return buildPr215LikeInput({
+    review_events: [
+      {
+        event_id: "finding-target-ref",
+        event_type: "review_finding",
+        summary: "Blocking review finding noted target_ref consistency needed correction.",
+        result: "blocking",
+      },
+      {
+        event_id: "fix-target-ref",
+        resolves_event_id: "finding-target-ref",
+        event_type: "follow_up_commit",
+        summary: "Follow-up resolved target_ref parsing and pull/issue consistency.",
+        result: "follow_up_resolved",
+      },
+    ],
+    operator_decision: {
+      decision: "defer_review",
+      reason: "More review is needed.",
+    },
+  });
 }
 
 async function runPacketJson(env) {

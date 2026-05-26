@@ -554,6 +554,16 @@ function buildPacket(input: OperatorReviewPacketInput): OperatorReviewPacket {
   };
 }
 
+function renderTimelineLinkLabel(event: TimelineItem): string {
+  const labels: string[] = [];
+  if (event.event_id !== undefined) labels.push(`event_id=${event.event_id}`);
+  if (event.resolves_event_id !== undefined && event.resolves_event_id !== null) {
+    labels.push(`resolves_event_id=${event.resolves_event_id}`);
+  }
+
+  return labels.length > 0 ? ` [${labels.join(" ")}]` : "";
+}
+
 function renderSummary(packet: OperatorReviewPacket): string {
   const lines = [
     "Codex operator review packet",
@@ -570,7 +580,9 @@ function renderSummary(packet: OperatorReviewPacket): string {
       packet.material_summary.missing_optional.length > 0 ? packet.material_summary.missing_optional.join(", ") : "none"
     }`,
     "Timeline:",
-    ...packet.timeline.map((event) => `- ${event.index}. ${event.event_type}: ${event.summary} (${event.result})`),
+    ...packet.timeline.map(
+      (event) => `- ${event.index}. ${event.event_type}${renderTimelineLinkLabel(event)}: ${event.summary} (${event.result})`,
+    ),
     "Perspective observations:",
     ...packet.perspective_observations.map((observation) => `- ${observation}`),
     "Operator questions:",
