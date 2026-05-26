@@ -22,6 +22,9 @@ const forbiddenPublicOverclaimPhrases = [
   "autonomous research agent",
   "benchmark result",
   "quality score",
+  "KPI",
+  "proof of quality",
+  "readiness authority",
 ];
 
 const successfulOutputs = [];
@@ -140,6 +143,79 @@ assert.deepEqual(missingMaterials.material_summary.missing_optional, [
 assert.ok(missingMaterials.warnings.every((warning) => warning.startsWith("Missing optional material:")));
 assert.equal(missingMaterials.blockers.length, 0);
 
+const structuredLink = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_id: "finding-target-ref",
+          event_type: "review_finding",
+          summary: "Blocking review finding noted target_ref consistency needed correction.",
+          result: "blocking",
+        },
+        {
+          event_id: "fix-target-ref",
+          resolves_event_id: "finding-target-ref",
+          event_type: "follow_up_commit",
+          summary: "Follow-up resolved target_ref parsing and pull/issue consistency.",
+          result: "follow_up_resolved",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assert.equal(structuredLink.timeline[0].event_id, "finding-target-ref");
+assert.equal(structuredLink.timeline[1].event_id, "fix-target-ref");
+assert.equal(structuredLink.timeline[1].resolves_event_id, "finding-target-ref");
+assert.ok(
+  structuredLink.perspective_observations.some((observation) =>
+    observation.includes("Review event fix-target-ref resolved blocking event finding-target-ref") &&
+    observation.includes("Follow-up resolved target_ref parsing and pull/issue consistency."),
+  ),
+);
+
+const structuredDisambiguation = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_id: "first-blocker",
+          event_type: "review_finding",
+          summary: "Blocking review finding for target_ref consistency.",
+          result: "blocking",
+        },
+        {
+          event_id: "second-blocker",
+          event_type: "review_finding",
+          summary: "Blocking review finding for command body redaction.",
+          result: "blocking",
+        },
+        {
+          event_id: "fix-first-blocker",
+          resolves_event_id: "first-blocker",
+          event_type: "follow_up_commit",
+          summary: "Follow-up resolved target_ref consistency while body redaction remains separate.",
+          result: "follow_up_resolved",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assert.ok(
+  structuredDisambiguation.perspective_observations.some((observation) =>
+    observation.includes("Review event fix-first-blocker resolved blocking event first-blocker"),
+  ),
+);
+assert.doesNotMatch(structuredDisambiguation.perspective_observations.join("\n"), /resolved blocking event second-blocker/);
+
 const unresolvedFollowUpOnly = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
     buildPr215LikeInput({
@@ -165,6 +241,31 @@ const unresolvedFollowUpOnly = await runPacketJson({
 assertRawTimelinePreserved(unresolvedFollowUpOnly, ["review_finding", "follow_up_required"]);
 assertNoResolvedFollowUpObservation(unresolvedFollowUpOnly);
 assertNoManualHandoffObservation(unresolvedFollowUpOnly);
+
+const negatedFallbackFollowUp = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_type: "review_finding",
+          summary: "Blocking review finding noted target_ref consistency needed correction.",
+          result: "blocking",
+        },
+        {
+          event_type: "follow_up_commit",
+          summary: "Follow-up not fixed and not addressed; issue remains.",
+          result: "updated",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assertRawTimelinePreserved(negatedFallbackFollowUp, ["review_finding", "follow_up_commit"]);
+assertNoResolvedFollowUpObservation(negatedFallbackFollowUp);
 
 const unresolvedThenResolvedFollowUp = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
@@ -265,6 +366,141 @@ await assertInvalid({
 });
 await assertInvalid({
   env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          { event_id: "dup", event_type: "review_finding", summary: "Blocking finding one.", result: "blocking" },
+          { event_id: "dup", event_type: "review_finding", summary: "Blocking finding two.", result: "blocking" },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_DUPLICATE_REVIEW_EVENT_ID/,
+});
+await assertInvalid({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          {
+            event_id: "fix-unknown",
+            resolves_event_id: "missing-finding",
+            event_type: "follow_up_commit",
+            summary: "Follow-up resolved a missing finding.",
+            result: "follow_up_resolved",
+          },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_UNKNOWN_RESOLVED_EVENT/,
+});
+await assertInvalid({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          {
+            event_id: "fix-before-finding",
+            resolves_event_id: "future-finding",
+            event_type: "follow_up_commit",
+            summary: "Follow-up resolved a future finding.",
+            result: "follow_up_resolved",
+          },
+          {
+            event_id: "future-finding",
+            event_type: "review_finding",
+            summary: "Blocking finding appears later.",
+            result: "blocking",
+          },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_FORWARD_RESOLUTION_LINK/,
+});
+await assertInvalid({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          {
+            event_id: "same-event",
+            resolves_event_id: "same-event",
+            event_type: "follow_up_commit",
+            summary: "Follow-up resolved itself.",
+            result: "follow_up_resolved",
+          },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_FORWARD_RESOLUTION_LINK/,
+});
+await assertInvalid({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          { event_id: "not-blocking", event_type: "task_opened", summary: "Task opened.", result: "opened" },
+          {
+            event_id: "fix-not-blocking",
+            resolves_event_id: "not-blocking",
+            event_type: "follow_up_commit",
+            summary: "Follow-up resolved a non-blocking event.",
+            result: "follow_up_resolved",
+          },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_NON_BLOCKING_RESOLUTION_TARGET/,
+});
+await assertInvalid({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          { event_id: "finding", event_type: "review_finding", summary: "Blocking finding.", result: "blocking" },
+          {
+            event_id: "unresolved-fix",
+            resolves_event_id: "finding",
+            event_type: "follow_up_required",
+            summary: "Follow-up still required; issue not resolved.",
+            result: "needs_review",
+          },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_UNRESOLVED_LINK_EVENT/,
+});
+await assertInvalid({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          { event_id: "finding", event_type: "review_finding", summary: "Blocking finding.", result: "blocking" },
+          {
+            event_id: "non-resolving-follow-up",
+            resolves_event_id: "finding",
+            event_type: "follow_up_commit",
+            summary: "Follow-up commit updated the helper.",
+            result: "updated",
+          },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_UNRESOLVED_LINK_EVENT/,
+});
+await assertUnresolvedLinkedFollowUp("Follow-up not fixed; target_ref consistency is still open.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up not addressed; target_ref consistency remains open.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up not resolving target_ref consistency yet.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up still broken after the attempted change.", "updated");
+await assertUnresolvedLinkedFollowUp("Follow-up still failing after the attempted change.", "updated");
+await assertInvalid({
+  env: {
     CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: "{nope",
   },
   expected: /CODEX_OPERATOR_REVIEW_PACKET_INVALID_JSON/,
@@ -278,7 +514,7 @@ await assertInvalid({
 
 for (const output of successfulOutputs) {
   for (const phrase of forbiddenPublicOverclaimPhrases) {
-    assert.doesNotMatch(output, new RegExp(escapeRegExp(phrase), "i"), phrase);
+    assertNoForbiddenPhrase(output, phrase);
   }
 }
 
@@ -423,6 +659,33 @@ async function assertInvalid({ env, expected }) {
   assertNoSecretsOrPayload(result.stdout + result.stderr);
 }
 
+async function assertUnresolvedLinkedFollowUp(summary, result) {
+  await assertInvalid({
+    env: {
+      CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+        buildPr215LikeInput({
+          review_events: [
+            {
+              event_id: "finding",
+              event_type: "review_finding",
+              summary: "Blocking review finding.",
+              result: "blocking",
+            },
+            {
+              event_id: "negated-follow-up",
+              resolves_event_id: "finding",
+              event_type: "follow_up_commit",
+              summary,
+              result,
+            },
+          ],
+        }),
+      ),
+    },
+    expected: /CODEX_OPERATOR_REVIEW_PACKET_UNRESOLVED_LINK_EVENT/,
+  });
+}
+
 function assertPacketShape(value) {
   assert.equal(value.helper, "codex:operator-review-packet");
   assert.equal(value.version, 1);
@@ -485,10 +748,19 @@ function assertNoSecretsOrPayload(output) {
   assert.doesNotMatch(output, /token/i);
 }
 
+function assertNoForbiddenPhrase(output, phrase) {
+  const pattern =
+    phrase === "KPI"
+      ? /(^|[^A-Za-z0-9_])KPI([^A-Za-z0-9_]|$)/i
+      : new RegExp(escapeRegExp(phrase), "i");
+  assert.doesNotMatch(output, pattern, phrase);
+}
+
 async function assertLocalOnlySource() {
   const source = await readFile("apps/augnes_apps/scripts/codex-operator-review-packet.ts", "utf8");
   assert.doesNotMatch(source, /from\s+["']node:http/);
   assert.doesNotMatch(source, /from\s+["']node:https/);
+  assert.doesNotMatch(source, /from\s+["']node:http2/);
   assert.doesNotMatch(source, /\bfetch\s*\(/);
   assert.doesNotMatch(source, /\bXMLHttpRequest\b/);
   assert.doesNotMatch(source, /\bWebSocket\b/);

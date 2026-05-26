@@ -41,6 +41,8 @@ type ReviewEvent = {
   event_type: string;
   summary: string;
   result: string;
+  event_id?: string;
+  resolves_event_id?: string | null;
 };
 
 type OperatorDecision = {
@@ -219,14 +221,80 @@ function validateReviewEvents(value: unknown): ReviewEvent[] {
   const code = "CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENTS_SHAPE";
   if (!Array.isArray(value)) throw new OperatorReviewPacketError(code);
 
-  return value.map((item) => {
+  const events = value.map((item) => {
     if (!isRecord(item)) throw new OperatorReviewPacketError(code);
-    return {
+    const event: ReviewEvent = {
       event_type: readRequiredString(item.event_type, code),
       summary: readRequiredString(item.summary, code),
       result: readRequiredString(item.result, code),
     };
+
+    const eventId = readOptionalEventId(item.event_id, "CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENT_LINK");
+    if (eventId !== undefined) event.event_id = eventId;
+
+    const resolvesEventId = readOptionalResolvesEventId(
+      item.resolves_event_id,
+      "CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENT_LINK",
+    );
+    if (resolvesEventId !== undefined) event.resolves_event_id = resolvesEventId;
+
+    return event;
   });
+
+  validateReviewEventLinks(events);
+  return events;
+}
+
+function readOptionalEventId(value: unknown, code: string): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim()) throw new OperatorReviewPacketError(code);
+  return value.trim();
+}
+
+function readOptionalResolvesEventId(value: unknown, code: string): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string" || !value.trim()) throw new OperatorReviewPacketError(code);
+  return value.trim();
+}
+
+function validateReviewEventLinks(events: ReviewEvent[]): void {
+  const eventIdToIndex = new Map<string, number>();
+
+  for (let index = 0; index < events.length; index += 1) {
+    const eventId = events[index].event_id;
+    if (eventId === undefined) continue;
+    if (eventIdToIndex.has(eventId)) {
+      throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_DUPLICATE_REVIEW_EVENT_ID");
+    }
+    eventIdToIndex.set(eventId, index);
+  }
+
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
+    const resolvesEventId = event.resolves_event_id;
+    if (resolvesEventId === undefined || resolvesEventId === null) continue;
+
+    if (event.event_id !== undefined && event.event_id === resolvesEventId) {
+      throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_FORWARD_RESOLUTION_LINK");
+    }
+
+    const targetIndex = eventIdToIndex.get(resolvesEventId);
+    if (targetIndex === undefined) {
+      throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_UNKNOWN_RESOLVED_EVENT");
+    }
+    if (targetIndex >= index) {
+      throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_FORWARD_RESOLUTION_LINK");
+    }
+
+    const targetEvent = events[targetIndex];
+    if (!isBlockingEvent(targetEvent)) {
+      throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_NON_BLOCKING_RESOLUTION_TARGET");
+    }
+    if (!isResolvedLinkedEvent(event)) {
+      throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_UNRESOLVED_LINK_EVENT");
+    }
+  }
 }
 
 function validateOperatorDecision(value: unknown): OperatorDecision {
@@ -292,7 +360,19 @@ function hasUnresolvedSignal(event: ReviewEvent): boolean {
   return containsAny(eventText(event), [
     /\bnot\s+resolved\b/i,
     /\bnot[-_]resolved\b/i,
+    /\bnot\s+fixed\b/i,
+    /\bnot[-_]fixed\b/i,
+    /\bnot\s+addressed\b/i,
+    /\bnot[-_]addressed\b/i,
+    /\bnot\s+resolving\b/i,
+    /\bnot[-_]resolving\b/i,
+    /\bnot\s+solved\b/i,
+    /\bnot[-_]solved\b/i,
+    /\bnot\s+corrected\b/i,
+    /\bnot[-_]corrected\b/i,
     /\bunresolved\b/i,
+    /\bstill\s+broken\b/i,
+    /\bstill\s+failing\b/i,
     /\bstill\s+required\b/i,
     /\bneeds[-_\s]+review\b/i,
     /\bfollow[-_\s]?up[-_\s]?required\b/i,
@@ -313,6 +393,44 @@ function hasResolutionResult(event: ReviewEvent): boolean {
 
 function isResolvedFollowUpEvent(event: ReviewEvent): boolean {
   return hasResolutionSignal(event) && !hasUnresolvedSignal(event) && (isFollowUpLike(event) || hasResolutionResult(event));
+}
+
+function isResolvedLinkedEvent(event: ReviewEvent): boolean {
+  return hasResolutionSignal(event) && !hasUnresolvedSignal(event);
+}
+
+function hasStructuredResolutionLinks(events: ReviewEvent[]): boolean {
+  return events.some((event) => event.resolves_event_id !== undefined && event.resolves_event_id !== null);
+}
+
+function eventReference(event: ReviewEvent, index: number): string {
+  return event.event_id ?? String(index + 1);
+}
+
+function renderStructuredResolutionObservations(events: ReviewEvent[]): string[] {
+  const eventIdToIndex = new Map<string, number>();
+  for (let index = 0; index < events.length; index += 1) {
+    const eventId = events[index].event_id;
+    if (eventId !== undefined) eventIdToIndex.set(eventId, index);
+  }
+
+  const observations: string[] = [];
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
+    if (event.resolves_event_id === undefined || event.resolves_event_id === null) continue;
+
+    const targetIndex = eventIdToIndex.get(event.resolves_event_id);
+    if (targetIndex === undefined) continue;
+    const targetEvent = events[targetIndex];
+    observations.push(
+      `Review event ${eventReference(event, index)} resolved blocking event ${eventReference(
+        targetEvent,
+        targetIndex,
+      )}: ${event.summary}`,
+    );
+  }
+
+  return observations;
 }
 
 function hasActuationProceedSignal(decision: OperatorDecision): boolean {
@@ -356,17 +474,21 @@ function renderPerspectiveObservations(input: OperatorReviewPacketInput): string
   const observations: string[] = [];
   const events = input.review_events;
 
-  for (let index = 0; index < events.length; index += 1) {
-    const blockingEvent = events[index];
-    if (!isBlockingEvent(blockingEvent)) continue;
+  if (hasStructuredResolutionLinks(events)) {
+    observations.push(...renderStructuredResolutionObservations(events));
+  } else {
+    for (let index = 0; index < events.length; index += 1) {
+      const blockingEvent = events[index];
+      if (!isBlockingEvent(blockingEvent)) continue;
 
-    const followUpIndex = events.findIndex(
-      (candidate, candidateIndex) => candidateIndex > index && isResolvedFollowUpEvent(candidate),
-    );
-    if (followUpIndex !== -1) {
-      observations.push(
-        `Review event ${index + 1} was blocking, and later event ${followUpIndex + 1} recorded a resolved follow-up: ${events[followUpIndex].summary}`,
+      const followUpIndex = events.findIndex(
+        (candidate, candidateIndex) => candidateIndex > index && isResolvedFollowUpEvent(candidate),
       );
+      if (followUpIndex !== -1) {
+        observations.push(
+          `Review event ${index + 1} was blocking, and later event ${followUpIndex + 1} recorded a resolved follow-up: ${events[followUpIndex].summary}`,
+        );
+      }
     }
   }
 
