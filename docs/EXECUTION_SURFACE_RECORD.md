@@ -77,5 +77,6 @@ When recording Codex closeout proof, prefer
 `/api/actions/record-proof`, and summarize surfaces in `CODEX_RESULT_SUMMARY`
 or the linked work event note. Use `npm run codex:record-completion` only as
 legacy compatibility behavior; it uses `/api/actions/record` and may create
-legacy `external.*` marker state. Keep the summary short and point to the PR
-for full evidence.
+legacy `external.*` marker state. Successful legacy writes emit a stderr
+compatibility warning. Keep the summary short and point to the PR for full
+evidence. Compatibility migration remains unresolved.

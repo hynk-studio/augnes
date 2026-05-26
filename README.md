@@ -135,7 +135,11 @@ which covers `codex:read-brief`, `codex:record-evidence`, and the preferred
 proof-only `codex:record-completion-proof` closeout path through
 `/api/actions/record-proof`.
 `codex:record-completion` remains legacy compatibility behavior and may use
-`/api/actions/record` to create legacy `external.*` marker state.
+`/api/actions/record` to create legacy `external.*` marker state. Successful
+legacy writes emit a stderr compatibility warning, and compatibility migration
+remains unresolved. `codex:record-result` is the lower-level legacy
+compatibility helper for direct action-record writes, not the normal Codex
+closeout path.
 
 ## Screenshots
 

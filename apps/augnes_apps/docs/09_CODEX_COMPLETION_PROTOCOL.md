@@ -61,7 +61,7 @@ proof-native `action_records`, `work_events`, and coordination trace, links the
 work event to the action record, and does not call legacy `/api/actions/record`
 or create `external.*` committed state markers.
 
-Compatibility completion recording remains available:
+Legacy compatibility completion recording remains available:
 
 ```bash
 AUGNES_API_BASE_URL=http://localhost:3000 \
@@ -77,6 +77,12 @@ CODEX_RELATED_PR="https://github.com/Aurna-code/augnes/pull/..." \
 CODEX_RELATED_STATE_KEYS="integration.chatgpt_app,implementation.stack" \
 npm run codex:record-completion
 ```
+
+Use this only when legacy action-record behavior is required and explicitly
+understood. `codex:record-completion` uses `/api/actions/record`, may create
+legacy `external.*` marker state, and emits a stderr compatibility warning on
+successful legacy writes. It is not the preferred/default Codex closeout proof
+path; compatibility migration remains unresolved.
 
 `CODEX_WORK_ID` is normalized to uppercase. Before writing any action record,
 the helpers preflight the trace anchor with
@@ -183,7 +189,9 @@ The compatibility helper checks that `CODEX_WORK_ID` exists, then records
 ID preflight fails, no action record is created. If action recording fails, it
 stops and does not record the work event. If the action response includes an
 action record ID, the helper passes it to the work event as
-`related_action_id`.
+`related_action_id`. On successful legacy writes, the helper prints its
+compatibility warning to stderr only; stdout remains reserved for the existing
+helper summary and JSON-bearing response lines.
 
 Compatibility note: `/api/actions/record` currently uses the legacy
 action-record path that also creates an `external.<action>_recorded` state
@@ -191,6 +199,11 @@ marker. `codex:record-completion` is therefore a compatibility proof helper,
 not the final proof-only helper described by the accepted proof-vs-state
 direction. Do not treat that `external.*` marker as accepted project fact, and
 do not use it as the default model for new Codex proof helpers.
+
+`codex:record-result` is the lower-level legacy compatibility helper for
+direct `/api/actions/record` writes. It also emits a stderr compatibility
+warning on successful legacy writes and should not be used as the normal Codex
+closeout helper.
 
 The helper never calls commit/reject routes and never creates autonomous execution, GitHub sync, Discord sync, or workflow orchestration.
 
@@ -434,9 +447,9 @@ curl -sS 'http://localhost:3000/api/work/AG-004/brief?scope=project:augnes' | jq
 ```
 
 Open the Runtime Cockpit and confirm Work Focus shows the event. When using
-the compatibility action-record helper only, confirm the action record is
-visible in recent actions and the Temporal State Graph may show the legacy
-state marker, such as:
+the compatibility action-record helper only, expect its stderr compatibility
+warning, confirm the action record is visible in recent actions, and remember
+that the Temporal State Graph may show the legacy state marker, such as:
 
 ```text
 external.ag_004_codex_completion_protocol_recorded

@@ -13,12 +13,14 @@
 - no explicit state-marker helper added
 - no legacy `external.*` migration
 - no compatibility helper conversion
-- no warning implementation added
+- warning implementation now exists for the legacy helper commands:
+  `codex:record-completion` and `codex:record-result` print stderr-only
+  compatibility warnings on successful legacy writes
 
 ## 1. Purpose
 
 This design inventories where Codex completion compatibility helpers are still
-referenced and proposes how Augnes should warn or steer users toward the
+referenced and records the warning strategy used to steer users toward the
 proof-only closeout path without changing current helper behavior.
 
 The goal is to reduce accidental use of legacy state-marker helpers while
@@ -59,11 +61,13 @@ Script entry points:
 - `apps/augnes_apps/package.json` exposes `codex:record-result`,
   `codex:record-completion`, and `codex:record-completion-proof`.
 - `apps/augnes_apps/scripts/codex-record-result.ts` posts to
-  `/api/actions/record` and prints the Temporal State Graph
-  `external.<action>_recorded` confirmation.
+  `/api/actions/record`, prints the Temporal State Graph
+  `external.<action>_recorded` confirmation, and emits a stderr compatibility
+  warning on successful legacy writes.
 - `apps/augnes_apps/scripts/codex-record-completion.ts` calls
   `recordActionResult`, so it uses the same legacy `/api/actions/record` path,
-  then records `/api/work/{work_id}/events`.
+  then records `/api/work/{work_id}/events`, and emits a stderr compatibility
+  warning on successful legacy writes.
 - `apps/augnes_apps/scripts/codex-record-completion-proof.ts` uses the
   proof-only `/api/actions/record-proof` path.
 
@@ -86,16 +90,23 @@ Workflow and runbook references:
   to use `codex:record-completion` only as compatibility behavior.
 - `apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md` recommends
   proof-only completion, then documents compatibility completion behavior.
-- `README.md` still points readers to the Codex Session Adapter workflow and
-  names `codex:record-completion` without naming the proof-only helper.
-- `.github/pull_request_template.md` still tells users to record Augnes proof
-  with `npm run codex:record-completion`.
-- `docs/EXECUTION_SURFACE_RECORD.md` still mentions recording completion
-  through `npm run codex:record-completion`.
+- `README.md` points readers to the Session Adapter workflow, names
+  `codex:record-completion-proof` as the preferred proof-only closeout path,
+  and frames `codex:record-completion` plus `codex:record-result` as legacy
+  compatibility.
+- `.github/pull_request_template.md` tells users to record Augnes proof with
+  `npm run codex:record-completion-proof` when possible and frames
+  `codex:record-completion` as legacy compatibility.
+- `docs/EXECUTION_SURFACE_RECORD.md` recommends
+  `codex:record-completion-proof` for closeout proof and frames
+  `codex:record-completion` as legacy compatibility.
 - `docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md` lists
-  `npm run codex:record-completion` as a proof recording option.
-- `apps/augnes_apps/docs/CODEX_HANDOFF_DEMO.md` remains a legacy
-  `codex:record-result` demo and instructs users to check for
+  `npm run codex:record-completion-proof` as preferred proof-only closeout and
+  frames `codex:record-completion` plus `codex:record-result` as legacy
+  compatibility.
+- `apps/augnes_apps/docs/CODEX_HANDOFF_DEMO.md` is a legacy
+  `codex:record-result` demo and labels that helper as low-level legacy
+  compatibility before instructing users to check for
   `external.<action_name>_recorded`.
 
 Read-model and smoke references:
@@ -138,7 +149,7 @@ Preferred proof helper references are already present in:
 - `scripts/smoke-codex-closeout-docs.mjs`
 - `scripts/smoke-codex-helper-taxonomy.mjs`
 - `scripts/smoke-codex-record-completion-proof-helper.mjs`
-- recent dogfood reports from PR #223, PR #226, and PR #228
+- recent dogfood reports from PR #223, PR #226, PR #228, and PR #234
 
 The strongest current guidance appears in the Session Adapter workflow,
 handoff packet, completion protocol, state brief instructions, helper taxonomy,
@@ -164,47 +175,35 @@ These surfaces already steer new workflows toward the proof-only helper:
   proof-only helper avoids legacy action-record posts and `external.*`
   markers.
 
-## 6. Places Where Legacy Helper Wording May Still Be Confusing
+## 6. Remaining Legacy Helper Wording Boundaries
 
-These references may still steer users toward legacy helper behavior without
-enough context:
+Current closeout docs and templates should name
+`codex:record-completion-proof` first, label `codex:record-completion` and
+`codex:record-result` as compatibility helpers, and keep legacy `external.*`
+marker behavior framed as unresolved compatibility material.
 
-- `.github/pull_request_template.md`: completion reminder names
-  `npm run codex:record-completion` rather than the proof-only helper.
-- `README.md`: Codex-side usage mentions `codex:record-completion` but not
-  `codex:record-completion-proof`.
-- `docs/EXECUTION_SURFACE_RECORD.md`: completion recording example names
-  `codex:record-completion`.
-- `docs/PHASE_2_HANDOFF_REVIEW_INTEGRATION_RUNBOOK.md`: proof may be recorded
-  with `npm run codex:record-completion`.
-- `apps/augnes_apps/docs/CODEX_HANDOFF_DEMO.md`: demo centers
-  `codex:record-result` and `external.<action_name>_recorded`; this is useful
-  as a legacy demo but should be labeled as such before new users rely on it.
-- `apps/augnes_apps/scripts/codex-record-completion.ts`: stdout says the
-  helper records "completion proof and trace notes only"; it does not mention
-  the legacy committed `external.*` marker side effect.
-- `apps/augnes_apps/scripts/codex-record-result.ts`: stdout clearly mentions
-  the `external.<action>_recorded` graph marker, but it does not label itself
-  as legacy compatibility or point to `codex:record-completion-proof`.
+Historical design memos, dogfood reports, and screenshots may still mention
+older `external.*` marker observations. Those artifacts should not be edited
+to rewrite history. Current runbooks should instead point new Codex closeouts
+to `codex:record-completion-proof` and describe legacy helper warnings when a
+compatibility path is intentionally used.
 
-This design does not edit those files. It identifies them as candidates for a
-future docs-only steering PR or an approved warning implementation PR.
+## 7. Warning Strategy For `codex:record-completion`
 
-## 7. Proposed Warning Strategy For `codex:record-completion`
+Keep behavior unchanged while warning operators on successful legacy writes.
 
-Keep behavior unchanged unless a separate implementation PR is approved.
-
-Recommended warning content:
+Implemented warning content:
 
 ```text
-Compatibility warning: codex:record-completion uses the legacy /api/actions/record path and may create an external.<action>_recorded committed state marker. For default Codex closeout proof, prefer codex:record-completion-proof.
+Compatibility warning: codex:record-completion uses the legacy /api/actions/record path and may create external.* marker state. Prefer codex:record-completion-proof for proof-only closeout.
 ```
 
-Recommended placement if approved:
+Implemented placement:
 
-- print near the start of the helper before POSTing to `/api/actions/record`
-- print again in the closeout summary only if the action record succeeds
-- keep stdout warning non-fatal
+- print to stderr only after the successful legacy action-record and work-event
+  write path
+- do not print the compatibility warning on failure paths
+- keep stdout free of warning text so existing stdout parsing remains stable
 - keep exit codes unchanged
 - do not require interactive confirmation
 - do not suppress legacy marker behavior
@@ -216,27 +215,26 @@ Recommended operator wording:
 - "may create" if the runtime behavior can vary across older branches
 - "prefer" rather than "must use" because compatibility remains supported
 
-Do not make this warning conditional on environment variables in the first
-implementation. A bypass flag would add policy surface before the team has
-approved a deprecation path.
+Do not make this warning conditional on environment variables. A bypass flag
+would add policy surface before the team has approved a deprecation path.
 
-## 8. Proposed Warning Strategy For `codex:record-result`
+## 8. Warning Strategy For `codex:record-result`
 
-Keep behavior unchanged unless a separate implementation PR is approved.
+Keep behavior unchanged while warning operators on successful legacy writes.
 
-Recommended warning content:
+Implemented warning content:
 
 ```text
-Compatibility warning: codex:record-result is the low-level legacy action-record helper. It posts to /api/actions/record and may create an external.<action>_recorded committed state marker. For Codex closeout proof, prefer codex:record-completion-proof.
+Compatibility warning: codex:record-result is a low-level legacy compatibility helper for /api/actions/record and may create external.* marker state. Prefer codex:record-completion-proof for Codex closeout proof.
 ```
 
-Recommended placement if approved:
+Implemented placement:
 
-- print before POSTing to `/api/actions/record`
+- print to stderr only after the successful legacy `/api/actions/record` write
+- do not print the compatibility warning on failure paths
+- keep stdout free of warning text so existing stdout parsing remains stable
 - keep the existing Temporal State Graph confirmation because it remains true
   for the legacy path
-- add a proof-only alternative in the summary output
-- keep stdout warning non-fatal
 - keep exit codes unchanged
 
 The warning should make clear that `codex:record-result` is lower-level than
@@ -245,9 +243,8 @@ pattern.
 
 ## 9. Warning Form Decision
 
-Recommended now: docs-only and smoke-enforced documentation warnings.
-
-Recommended later, if approved: CLI stdout warnings.
+Current form: docs steering plus stderr-only CLI warnings on successful legacy
+helper writes.
 
 Do not add structured JSON warning fields yet.
 
@@ -262,11 +259,11 @@ The first docs-only follow-up could update the PR template, README,
 `codex:record-completion-proof` first and label legacy helper use as
 compatibility behavior.
 
-### CLI Stdout Warnings
+### CLI Stderr Warnings
 
-CLI stdout warnings are the smallest future runtime implementation if warning
-behavior is approved. They are visible to human operators, easy to smoke test,
-and do not change API payloads, response shapes, or exit codes.
+CLI stderr warnings are the implemented non-breaking runtime surface. They are
+visible to human operators, easy to smoke test, and do not change stdout
+payloads, API payloads, response shapes, or exit codes.
 
 ### Structured JSON Warning Fields
 
@@ -287,40 +284,39 @@ Deprecation language should wait. The current policy keeps compatibility
 helpers available and does not decide migration timing, alias behavior, or
 legacy `external.*` treatment.
 
-## 10. Recommended First Implementation Step
+## 10. Implemented Warning And Docs Cleanup Path
 
-If warning behavior is approved, the smallest future implementation PR should
-add non-breaking CLI stdout warnings to:
+PR #233 added non-breaking stderr-only compatibility warnings to:
 
 - `apps/augnes_apps/scripts/codex-record-completion.ts`
 - `apps/augnes_apps/scripts/codex-record-result.ts`
 
-The PR should also add focused smoke assertions that:
+PR #234 dogfooded those warnings and found:
 
-- both helpers still call `/api/actions/record`
-- both helpers keep current exit-code behavior
-- both helpers still create or expect the legacy marker path as today
-- warning text points to `codex:record-completion-proof`
-- proof-only helper output remains free of legacy `external.*` marker language
+- warnings appear only on stderr
+- warnings appear on successful legacy helper writes
+- warnings do not appear in stdout
+- stdout JSON-bearing lines remain parseable
+- failure paths do not print compatibility warning text
+- exit codes remain compatible
+- legacy helpers retain `external.*` marker behavior
+- `codex:record-completion-proof` remains unchanged and warning-free
 
-No implementation should be added until this warning design is reviewed and
-approved.
-
-Recommended first non-runtime step:
+Recommended current non-runtime step:
 
 - update stale docs and templates to steer default closeout proof toward
   `codex:record-completion-proof`
 - keep historical dogfood reports and screenshots unchanged
-- add a docs smoke that enforces proof-only default wording in current closeout
+- keep docs smokes enforcing proof-only default wording in current closeout
   docs/templates
 
-## 11. Risks Of Adding Runtime Warnings Too Early
+## 11. Risks Of Runtime Warnings
 
 Risks:
 
 - users may interpret "warning" as deprecation even though compatibility
   lifetime is unresolved
-- scripts that compare exact stdout could need updates
+- scripts that compare exact stderr could need updates
 - noisy output may obscure action IDs or work event IDs during closeout
 - warnings could create pressure to migrate before deciding the future of
   `external.*` state markers
@@ -330,14 +326,14 @@ Risks:
 
 Mitigation:
 
-- start with docs-only steering
-- keep any later CLI warning plain, non-fatal, and stdout-only
+- keep docs and templates aligned with the implemented warning behavior
+- keep CLI warnings plain, non-fatal, and stderr-only
 - avoid "deprecated" wording until a deprecation decision exists
 - keep behavior, exit codes, and response shapes unchanged
 
-## 12. Risks Of Never Warning
+## 12. Risks Addressed By Warning
 
-Risks:
+The implemented warnings reduce these risks:
 
 - users may keep using `codex:record-completion` by habit even when proof-only
   closeout is the preferred path
@@ -349,10 +345,11 @@ Risks:
   and Session Trace `work_linked_proof_actions[]` may be slower
 - future migration could be harder because legacy helper use remains invisible
 
-Mitigation:
+Ongoing mitigation:
 
 - fix current docs/templates first
-- use non-breaking helper warnings only after approval
+- keep non-breaking helper warnings constrained to documented compatibility
+  helpers
 - keep taxonomy smoke coverage constraining the legacy path to documented
   compatibility helpers
 
@@ -379,7 +376,7 @@ These decisions remain open:
 
 - whether `codex:record-completion` should eventually become proof-only
 - whether `codex:record-completion` should warn forever, warn temporarily, or
-  remain silent
+  later move behind another migration shape
 - how long `codex:record-result` remains a low-level legacy compatibility
   helper
 - whether an explicit state-marker helper is needed
@@ -389,7 +386,8 @@ These decisions remain open:
   reclassified
 - which review surface is primary for product documentation outside Codex
   closeout
-- whether CLI warnings should be stdout-only or also machine-readable later
+- whether CLI warnings should remain stderr-only or become machine-readable
+  later
 
 This design intentionally does not resolve those migration decisions.
 

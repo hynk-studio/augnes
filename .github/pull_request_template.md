@@ -109,7 +109,8 @@ After the PR task is complete, record Augnes proof with
 `CODEX_WORK_ID` are available. The proof-only helper uses
 `/api/actions/record-proof`. Use `npm run codex:record-completion` only as
 legacy compatibility behavior; it uses `/api/actions/record` and may create
-legacy `external.*` marker state.
+legacy `external.*` marker state. Successful legacy writes emit a stderr
+compatibility warning; compatibility migration remains unresolved.
 
 Recommended fields:
 

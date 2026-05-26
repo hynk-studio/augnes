@@ -21,8 +21,10 @@ v0.2 is not a new session runtime. v0.2 does not create sessions automatically. 
 - Evidence Pack review: `GET /api/evidence-pack`.
 - Proof-only completion trace: `npm run codex:record-completion-proof`,
   `/api/actions/record-proof`, and `/api/work/{work_id}/events`.
-- Compatibility completion proof: `npm run codex:record-completion`,
-  `/api/actions/record`, and `/api/work/{work_id}/events`.
+- Legacy compatibility completion proof: `npm run codex:record-completion`,
+  `/api/actions/record`, and `/api/work/{work_id}/events`; successful legacy
+  writes emit a stderr compatibility warning and may create `external.*`
+  marker state.
 - Handoff smoke/check path: `npm run codex:handoff-check`, a read-only
   state-brief check.
 - Command taxonomy: `docs/CODEX_HELPER_COMMAND_TAXONOMY.md` separates
@@ -227,6 +229,11 @@ CODEX_RELATED_STATE_KEYS="coordination.session_binding,verification.evidence_rec
 npm run codex:record-completion
 ```
 
+This legacy helper still uses `/api/actions/record`, may create
+`external.*` marker state, and emits a stderr compatibility warning on
+successful legacy writes. It is not the preferred/default Codex closeout proof
+path, and compatibility migration remains unresolved.
+
 If completion cannot be recorded, state the exact reason: missing runtime, missing work ID, unknown work ID, or helper failure. Do not claim a completion action ID unless the helper returned one.
 
 ## Inspect Evidence Pack
@@ -290,7 +297,8 @@ v0.2 keeps these boundaries:
 - legacy `external.*` markers from action-record compatibility helpers are not
   treated as accepted project facts
 - proof-only completion recording uses `codex:record-completion-proof`; the
-  legacy `codex:record-completion` helper remains compatibility behavior
+  legacy `codex:record-completion` helper remains compatibility behavior and
+  warns on stderr after successful legacy writes
 
 Normal development use of GitHub remains allowed: fetch, branch, commit, push, and open a draft PR for code review.
 

@@ -82,12 +82,23 @@ The legacy completion path still behaves differently:
 - `codex:record-completion` preflights `GET /api/work/{work_id}`, then records
   through `recordActionResult`, which posts to `/api/actions/record`, and then
   records `/api/work/{work_id}/events`.
+- On successful legacy writes, `codex:record-completion` emits a stderr-only
+  compatibility warning that recommends `codex:record-completion-proof`.
 - `/api/actions/record` calls `recordExternalAction`, which inserts an
   `action_records` row and creates a committed state marker named
   `external.<sanitized_action_name>_recorded`.
 - `codex:record-result` is the lower-level compatibility helper for the same
   `/api/actions/record` path. Its output still tells operators to confirm the
   Temporal State Graph shows `external.<action>_recorded`.
+- On successful legacy writes, `codex:record-result` emits a stderr-only
+  compatibility warning that recommends `codex:record-completion-proof`.
+
+The stderr-only warning behavior was dogfooded in
+`reports/dogfood/2026-05-26-legacy-helper-warning-dogfood.md`. The report found
+that warnings stay off stdout, stdout JSON-bearing lines remain parseable,
+failure paths do not print extra compatibility warning text, exit codes remain
+compatible, legacy helpers retain `external.*` marker behavior, and
+`codex:record-completion-proof` remains unchanged and warning-free.
 
 ## 2. Preferred Future Path
 
@@ -131,6 +142,7 @@ the preferred closeout path in new Codex handoff, closeout, or adapter docs.
 For the transition period:
 
 - document it as compatibility behavior
+- expect a stderr compatibility warning on successful legacy writes
 - keep its current side effects explicit
 - do not silently change it to proof-only
 - do not remove it
@@ -164,6 +176,7 @@ For now:
 
 - do not advertise it as a new proof-only pattern
 - do not use it as the default Codex closeout recommendation
+- expect a stderr compatibility warning on successful legacy writes
 - keep taxonomy guardrails that explain its legacy state-marker side effect
 - retain it for compatibility while callers move to proof-native helpers
 
@@ -298,8 +311,8 @@ Stage 4: inventory legacy dependencies before changing behavior.
 - Search docs, scripts, smokes, and operator runbooks for
   `codex:record-completion`, `codex:record-result`, `/api/actions/record`, and
   `external.*` marker assumptions.
-- Decide whether compatibility helpers should warn, remain indefinitely, or be
-  migrated.
+- Decide whether compatibility helper warnings remain indefinitely, are changed
+  in a later migration, or are replaced by a different compatibility shape.
 
 Stage 5: make a separate implementation decision.
 
@@ -318,8 +331,8 @@ Recommended next compatibility policy decision:
 - keep `codex:record-completion-proof` as the preferred/default closeout proof
   helper
 - defer behavior-changing compatibility migration until a separate explicit
-  decision chooses the migration shape, user/runtime gating, warnings, and
-  legacy marker treatment
+  decision chooses the migration shape, user/runtime gating, warning lifetime,
+  and legacy marker treatment
 
 ## 10. Tests And Smokes Required Before Any Behavior Change
 
@@ -379,6 +392,8 @@ Before any future behavior migration, the implementation PR should also:
   `external.*`
 - choose whether legacy helpers warn, remain unchanged, become aliases, or move
   state marker writes behind a separate gated helper
+- keep the existing stderr-only warnings unchanged unless that same migration
+  decision explicitly changes the warning contract
 - document how historical `external.*` entries remain readable
 - update PR templates, handoff packets, closeout docs, and smoke expectations
   in the same PR or a staged pair of PRs
@@ -397,7 +412,8 @@ These decisions remain open:
   a separate proof lane, or be deprecated
 - whether a separately named state-marker helper is needed at all
 - what user/runtime gate would authorize deliberate marker state
-- whether compatibility helpers should warn before writing legacy markers
+- whether the existing stderr-only compatibility warnings should remain
+  indefinitely, change timing, or move to a later migration path
 - whether old local runtime records should ever be migrated, hidden, or
   reclassified
 - how Session Trace should be bound during Codex closeout without automatic

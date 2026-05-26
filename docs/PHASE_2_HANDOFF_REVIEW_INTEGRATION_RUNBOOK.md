@@ -145,7 +145,12 @@ curl -sS -X POST "http://localhost:3000/api/handoffs/review" \
 - `augnes_record_action_result`
 - `augnes_record_work_event`
 - `npm run codex:record-completion` only as legacy compatibility behavior; it may
-  create legacy `external.*` marker state through `/api/actions/record`
+  create legacy `external.*` marker state through `/api/actions/record` and
+  emits a stderr compatibility warning on successful legacy writes
+
+`codex:record-result` is the lower-level legacy compatibility helper for
+direct `/api/actions/record` writes. It is not the normal Codex closeout path,
+and compatibility migration remains unresolved.
 
 ## API Summary
 
