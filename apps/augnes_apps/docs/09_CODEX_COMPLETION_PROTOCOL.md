@@ -89,6 +89,21 @@ creates an `action_records` row with no `state_key` and appends coordination
 proof. It does not call `commitStateUpdate` and does not create Temporal State
 Graph `external.*` markers.
 
+Proof-only closeout is visible in the read-only review surfaces without active
+state mutation:
+
+- Work Brief shows the linked `work_events` entry and
+  `related_proof.action_records[]` summaries, with `state_key: null` labeled
+  as proof-only.
+- Evidence Pack shows linked work-event and action-record proof in
+  `verification_trace`, including proof-only action IDs and source refs.
+- State Brief keeps active committed state separate from `recent_actions`; a
+  proof-only action record appears with `state_key: null` and does not add an
+  active state entry.
+- Session Trace requires a pre-existing session plus explicit
+  `npm run codex:bind-session`; `codex:record-completion-proof` does not create
+  or bind sessions.
+
 `CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
 
 `CODEX_RELATED_PR` and `CODEX_RELATED_STATE_KEYS` are the core trace fields that connect GitHub history back to Augnes continuity. `CODEX_RELATED_PR` points from the work event to the PR where Codex changed or verified the repo. `CODEX_RELATED_STATE_KEYS` names the committed state lanes or expected state lanes the work depended on, affected, or verified. Together with `CODEX_WORK_ID`, they let reviewers move from PR, to work trace, to state graph without giving GitHub or ChatGPT App authority over committed Augnes state.
@@ -143,7 +158,12 @@ Allowed `CODEX_RESULT_KIND` values:
 
 Preserve the real result status. Failed, blocked, partial, and needs-review work must not be dressed up as completed.
 
-The helper checks that `CODEX_WORK_ID` exists, then records `/api/actions/record`, then records `/api/work/{work_id}/events`. If the work ID preflight fails, no action record is created. If action recording fails, it stops and does not record the work event. If the action response includes an action record ID, the helper passes it to the work event as `related_action_id`.
+The compatibility helper checks that `CODEX_WORK_ID` exists, then records
+`/api/actions/record`, then records `/api/work/{work_id}/events`. If the work
+ID preflight fails, no action record is created. If action recording fails, it
+stops and does not record the work event. If the action response includes an
+action record ID, the helper passes it to the work event as
+`related_action_id`.
 
 Compatibility note: `/api/actions/record` currently uses the legacy
 action-record path that also creates an `external.<action>_recorded` state

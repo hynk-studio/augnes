@@ -25,8 +25,12 @@ try {
   db.close();
 
   const workItemRoute = await import("../app/api/work/[work_id]/route.ts");
+  const workBriefRoute = await import("../app/api/work/[work_id]/brief/route.ts");
   const actionProofRoute = await import("../app/api/actions/record-proof/route.ts");
   const workEventRoute = await import("../app/api/work/[work_id]/events/route.ts");
+  const evidencePackRoute = await import("../app/api/evidence-pack/route.ts");
+  const stateBriefRoute = await import("../app/api/state/brief/route.ts");
+  const sessionTraceRoute = await import("../app/api/sessions/trace/route.ts");
 
   server = http.createServer(async (request, response) => {
     try {
@@ -88,7 +92,7 @@ try {
     CODEX_ACTION_NAME: "codex_completion_proof_smoke",
     CODEX_RESULT_SUMMARY: "Proof-only completion helper recorded a work event only.",
     CODEX_RESULT_STATUS: "completed",
-    CODEX_RESULT_KIND: "implementation",
+    CODEX_RESULT_KIND: "verification",
     CODEX_FILES_CHANGED: "apps/augnes_apps/scripts/codex-record-completion-proof.ts",
     CODEX_RELATED_STATE_KEYS: "verification.evidence_records",
     CODEX_RELATED_PR: "https://github.com/Aurna-code/augnes/pull/220",
@@ -102,6 +106,7 @@ try {
   assert.match(success.stdout, /work_event_id: work-event:/);
   assert.match(success.stdout, /read_only_review_refs:/);
   assert.match(success.stdout, /proof-native action and work trace only/);
+  assert.match(success.stdout, /session_trace_note: this helper does not create or bind sessions/);
   assert.doesNotMatch(success.stdout, /external\./);
   assert.match(success.stdout, /action_proof_response:/);
   assert.equal(workItemGets, 1, "successful helper should preflight work item once");
@@ -124,6 +129,114 @@ try {
   const proofActionRecord = readLatestActionRecord(openDatabase);
   assert.equal(proofActionRecord.state_key, null, "proof-only action record must not carry external.* state key");
   assert.equal(proofActionRecord.title, "codex_completion_proof_smoke");
+  const proofWorkEvent = readLatestWorkEvent(openDatabase);
+  assert.equal(
+    proofWorkEvent.related_action_id,
+    proofActionRecord.id,
+    "work event should link the proof-only action record",
+  );
+
+  const workBrief = await readJson(
+    await workBriefRoute.GET(
+      new Request(`http://localhost/api/work/${encodeURIComponent(workId)}/brief?scope=${encodeURIComponent(scope)}`),
+      { params: Promise.resolve({ work_id: workId }) },
+    ),
+  );
+  assert.equal(
+    workBrief.related_proof.action_ids.includes(proofActionRecord.id),
+    true,
+    "Work Brief should include the proof action ID",
+  );
+  const workBriefProof = workBrief.related_proof.action_records.find(
+    (record) => record.id === proofActionRecord.id,
+  );
+  assert.equal(workBriefProof.state_key, null, "Work Brief should expose proof action state_key: null");
+  assert.equal(workBriefProof.proof_marker_type, "proof_only");
+  assert.deepEqual(workBriefProof.linked_work_event_ids, [proofWorkEvent.id]);
+
+  const evidencePack = await readJson(
+    await evidencePackRoute.GET(
+      new Request(`http://localhost/api/evidence-pack?scope=${encodeURIComponent(scope)}&work_id=${encodeURIComponent(workId)}`),
+    ),
+  );
+  assert.equal(
+    evidencePack.verification_trace.proof_visibility.proof_only_action_ids.includes(proofActionRecord.id),
+    true,
+    "Evidence Pack should list the proof-only action ID",
+  );
+  assert.deepEqual(
+    evidencePack.verification_trace.proof_visibility.committed_state_marker_action_ids,
+    [],
+    "Evidence Pack should not report committed marker action IDs for proof-only closeout",
+  );
+  assert.equal(
+    evidencePack.verification_trace.proof_visibility.linked_work_event_ids.includes(proofWorkEvent.id),
+    true,
+    "Evidence Pack should list the linked work event ID",
+  );
+  assert(
+    evidencePack.verification_trace.checks_passed.some(
+      (check) =>
+        check.source === "action_records" &&
+        check.id === proofActionRecord.id &&
+        check.state_key === null &&
+        check.proof_marker_type === "proof_only",
+    ),
+    "Evidence Pack should label proof-only action records in checks_passed",
+  );
+  assert(
+    evidencePack.verification_trace.checks_passed.some(
+      (check) =>
+        check.source === "work_events" &&
+        check.id === proofWorkEvent.id &&
+        check.related_action_id === proofActionRecord.id,
+    ),
+    "Evidence Pack should show the linked work event proof",
+  );
+  assert(
+    evidencePack.verification_trace.source_refs.includes(`action_record:${proofActionRecord.id}`),
+    "Evidence Pack source_refs should include action record proof",
+  );
+  assert(
+    evidencePack.verification_trace.source_refs.includes(`work_event:${proofWorkEvent.id}`),
+    "Evidence Pack source_refs should include linked work event proof",
+  );
+
+  const stateBrief = await readJson(
+    await stateBriefRoute.GET(
+      new Request(`http://localhost/api/state/brief?scope=${encodeURIComponent(scope)}`),
+    ),
+  );
+  const stateBriefAction = stateBrief.recent_actions.find(
+    (action) => action.id === proofActionRecord.id,
+  );
+  assert.equal(stateBriefAction.state_key, null, "State Brief recent_actions should preserve proof action state_key: null");
+  assert.equal(
+    stateBrief.recent_action_visibility.proof_only_action_ids.includes(proofActionRecord.id),
+    true,
+    "State Brief should label proof-only recent actions separately from active state",
+  );
+  assert.equal(
+    stateBrief.active_state.some((entry) => entry.state_key?.startsWith?.("external.")),
+    false,
+    "State Brief active_state should not contain external.* markers for proof-only closeout",
+  );
+
+  const sessionTrace = await readJson(
+    await sessionTraceRoute.GET(
+      new Request(`http://localhost/api/sessions/trace?scope=${encodeURIComponent(scope)}`),
+    ),
+  );
+  assert.deepEqual(
+    sessionTrace.sessions,
+    [],
+    "Session Trace should remain empty without explicit session binding",
+  );
+  assert.equal(
+    sessionTrace.gaps.includes("no_sessions_for_scope"),
+    true,
+    "Session Trace should report absence as an explicit gap before binding",
+  );
 
   const callsAfterSuccess = workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests;
   const unknownWork = await runProofHelper({
@@ -180,6 +293,10 @@ try {
         work_events_delta: after.work_events - before.work_events,
         coordination_events_delta: after.coordination_events - before.coordination_events,
         proof_action_record_state_key: proofActionRecord.state_key,
+        work_brief_proof_action_visible: true,
+        evidence_pack_proof_visibility: true,
+        state_brief_recent_action_visibility: true,
+        session_trace_requires_explicit_binding: true,
         invalid_action_proof_failed_without_writes: true,
         unknown_work_failed_before_write: true,
         invalid_env_failed_before_route_calls: true,
@@ -257,6 +374,11 @@ async function writeWebResponse(nodeResponse, webResponse) {
   nodeResponse.end(Buffer.from(await webResponse.arrayBuffer()));
 }
 
+async function readJson(response) {
+  assert.equal(response.status, 200, `expected 200 response, got ${response.status}`);
+  return response.json();
+}
+
 function runProofHelper(env) {
   const childEnv = {
     PATH: process.env.PATH ?? "",
@@ -324,6 +446,24 @@ function readLatestActionRecord(openDatabase) {
         `
           SELECT id, state_key, title, status
           FROM action_records
+          ORDER BY created_at DESC, id ASC
+          LIMIT 1
+        `,
+      )
+      .get();
+  } finally {
+    db.close();
+  }
+}
+
+function readLatestWorkEvent(openDatabase) {
+  const db = openDatabase();
+  try {
+    return db
+      .prepare(
+        `
+          SELECT id, related_action_id
+          FROM work_events
           ORDER BY created_at DESC, id ASC
           LIMIT 1
         `,

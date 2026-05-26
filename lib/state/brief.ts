@@ -31,6 +31,7 @@ export function buildStateBrief(scope: string) {
   });
   const recentActions = listActionRecords(scope).slice(0, 8);
   const asOf = new Date().toISOString();
+  const recentActionVisibility = buildRecentActionVisibility(recentActions);
 
   return {
     runtime: "augnes",
@@ -44,12 +45,13 @@ export function buildStateBrief(scope: string) {
     open_tensions: openTensions,
     pending_proposals: pendingProposals,
     recent_actions: recentActions,
+    recent_action_visibility: recentActionVisibility,
     agent_instructions: [
       "Treat committed state as the source of truth.",
       "Use pending proposals as suggestions only; do not assume they are committed.",
       "Respect future_phase and future_intent as deferred work unless the user asks to change priority.",
       "Surface open tensions before making changes that depend on contested state.",
-      "Record external work through POST /api/actions/record so continuity stays queryable.",
+      "For Codex closeout proof, prefer POST /api/actions/record-proof or codex:record-completion-proof so proof remains separate from committed state.",
       "Do not commit API keys or local secrets.",
     ],
     agent_handoff: buildAgentHandoff({
@@ -129,7 +131,7 @@ function buildAgentHandoff({
         "Do not change commit/reject behavior or add lifecycle states.",
         "Do not add auth, OAuth, multi-user, hosted deployment, or ChatGPT App write tools.",
         "Do not commit secrets, .env files, local SQLite files, generated outputs, screenshots, or unrelated files.",
-        "Record external work outcomes through POST /api/actions/record.",
+        "Record Codex closeout proof through codex:record-completion-proof; use codex:record-completion only as documented compatibility behavior.",
       ],
       likely_files: [
         "lib/state/brief.ts",
@@ -165,6 +167,22 @@ function buildAgentHandoff({
         result_kind: "verification",
       },
     },
+  };
+}
+
+function buildRecentActionVisibility(recentActions: ActionRecord[]) {
+  const proofOnlyActionIds = recentActions
+    .filter((action) => action.state_key === null)
+    .map((action) => action.id);
+  const committedStateMarkerActionIds = recentActions
+    .filter((action) => action.state_key !== null)
+    .map((action) => action.id);
+
+  return {
+    proof_only_action_ids: proofOnlyActionIds,
+    committed_state_marker_action_ids: committedStateMarkerActionIds,
+    note:
+      "recent_actions is proof/continuity context. Rows with state_key: null are proof-only and do not add active committed state.",
   };
 }
 

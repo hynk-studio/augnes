@@ -146,6 +146,12 @@ export type EvidencePack = {
     commands_run: Array<Record<string, unknown>>;
     checks_passed: Array<Record<string, unknown>>;
     skipped_checks: Array<Record<string, unknown>>;
+    proof_visibility: {
+      proof_only_action_ids: string[];
+      committed_state_marker_action_ids: string[];
+      linked_work_event_ids: string[];
+      note: string;
+    };
     source_refs: string[];
   };
   session_trace: {
@@ -820,6 +826,7 @@ function buildVerificationTrace({
       .map((event) => ({
         source: "work_events",
         id: event.id,
+        related_action_id: event.related_action_id,
         result_status: event.result_status,
         result_kind: event.result_kind,
         summary: event.summary,
@@ -829,10 +836,23 @@ function buildVerificationTrace({
       .map((record) => ({
         source: "action_records",
         id: record.id,
+        state_key: record.state_key,
+        proof_marker_type: record.state_key
+          ? "committed_state_marker"
+          : "proof_only",
         status: record.status,
         title: record.title,
       })),
   ];
+  const proofOnlyActionIds = actionRecords
+    .filter((record) => record.state_key === null)
+    .map((record) => record.id);
+  const committedStateMarkerActionIds = actionRecords
+    .filter((record) => record.state_key !== null)
+    .map((record) => record.id);
+  const linkedWorkEventIds = recentEvents
+    .filter((event) => Boolean(event.related_action_id))
+    .map((event) => event.id);
 
   return {
     commands_run: commandRecords.map(formatEvidenceRecordForTrace),
@@ -848,6 +868,13 @@ function buildVerificationTrace({
           summary: event.summary,
         })),
     ],
+    proof_visibility: {
+      proof_only_action_ids: proofOnlyActionIds,
+      committed_state_marker_action_ids: committedStateMarkerActionIds,
+      linked_work_event_ids: linkedWorkEventIds,
+      note:
+        "proof_only action records have state_key: null and do not represent active committed state; committed_state_marker action records are legacy compatibility markers.",
+    },
     source_refs: [
       "docs/VERIFICATION_EVIDENCE_PACK.md",
       "docs/AUGNES_CORE_GATED_APPROVE_PUBLISH_WORKFLOW.md",

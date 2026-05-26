@@ -437,7 +437,10 @@ function printCompletionProofResult({
         { scope: config.scope },
       )}`,
     );
+  } else {
+    console.log("session_trace_url: (requires CODEX_SESSION_ID and explicit session binding)");
   }
+  console.log("session_trace_note: this helper does not create or bind sessions; run codex:bind-session separately for Session Trace visibility.");
   console.log("This helper records proof-native action and work trace only; it does not use the legacy action-record state-marker path.");
 }
 

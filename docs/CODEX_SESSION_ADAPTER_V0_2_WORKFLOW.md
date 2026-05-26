@@ -180,6 +180,19 @@ creates a proof-only `action_records` row, links the work event to that action
 record, does not call legacy `/api/actions/record`, and does not create
 legacy `external.*` state markers.
 
+Review the proof-only result in these read-only surfaces:
+
+- Work Brief: `recent_events` shows the linked work event, and
+  `related_proof.action_records[]` labels `state_key: null` rows as
+  proof-only.
+- Evidence Pack: `verification_trace.proof_visibility` lists proof-only action
+  IDs, linked work event IDs, and any legacy committed marker action IDs.
+- State Brief: `recent_actions` may include the proof row with
+  `state_key: null`; active committed state remains separate.
+- Session Trace: visibility requires explicit `codex:bind-session` against an
+  existing session. Completion proof recording alone does not create or bind a
+  session.
+
 `codex:record-completion` remains available as a compatibility path:
 
 ```bash

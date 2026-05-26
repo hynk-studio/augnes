@@ -106,6 +106,12 @@ npm run codex:record-completion
 `action_records` row through `/api/actions/record-proof`, links a work event,
 and does not create legacy `external.*` committed state markers.
 
+Review proof-only closeout through Work Brief, Evidence Pack, and State Brief
+`recent_actions`. `state_key: null` action records are proof-only and should
+not be read as active committed state. Session Trace visibility requires a
+separate explicit `codex:bind-session` call against an existing session; the
+completion proof helper does not bind sessions.
+
 ## Completion Expectations
 
 Codex should report:

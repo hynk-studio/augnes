@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { appendCoordinationEvent } from "@/lib/coordination-events";
-import { openDatabase } from "@/lib/db";
+import { listActionRecords, openDatabase, type ActionRecord } from "@/lib/db";
 
 const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_EVENT_LIMIT = 12;
@@ -91,6 +91,18 @@ export type WorkEventInput = {
   created_at?: string;
 };
 
+export type ProofMarkerType = "proof_only" | "committed_state_marker";
+
+export type WorkProofActionRecord = {
+  id: string;
+  title: string;
+  status: string;
+  state_key: string | null;
+  proof_marker_type: ProofMarkerType;
+  linked_work_event_ids: string[];
+  created_at: string;
+};
+
 export type WorkBrief = {
   runtime: "augnes";
   scope: string;
@@ -109,9 +121,11 @@ export type WorkBrief = {
   related_state_keys: string[];
   related_proof: {
     action_ids: string[];
+    action_records: WorkProofActionRecord[];
     prs: string[];
     docs: string[];
     links: WorkLinks;
+    note: string;
   };
   codex_handoff: {
     task_brief: string;
@@ -371,6 +385,11 @@ export function buildWorkBrief(workId: string, scope = DEFAULT_SCOPE): WorkBrief
       .map((event) => event.related_action_id)
       .filter((value): value is string => Boolean(value)),
   );
+  const actionRecords = buildRelatedActionRecordProof({
+    scope,
+    recentEvents,
+    actionIds,
+  });
   const prs = uniqueStrings([
     ...extractStringArray(work.links.prs),
     ...extractStringArray(work.links.github_prs),
@@ -402,9 +421,12 @@ export function buildWorkBrief(workId: string, scope = DEFAULT_SCOPE): WorkBrief
     related_state_keys: relatedStateKeys,
     related_proof: {
       action_ids: actionIds,
+      action_records: actionRecords,
       prs,
       docs,
       links: work.links,
+      note:
+        "Action records with state_key: null are proof-only records; linked work_events make them visible without committed state mutation.",
     },
     codex_handoff: {
       task_brief: [
@@ -437,6 +459,55 @@ export function buildWorkBrief(workId: string, scope = DEFAULT_SCOPE): WorkBrief
         related_state_keys: relatedStateKeys,
       },
     },
+  };
+}
+
+function buildRelatedActionRecordProof({
+  scope,
+  recentEvents,
+  actionIds,
+}: {
+  scope: string;
+  recentEvents: WorkEvent[];
+  actionIds: string[];
+}): WorkProofActionRecord[] {
+  if (actionIds.length === 0) {
+    return [];
+  }
+
+  const linkedEventIdsByActionId = recentEvents.reduce<Record<string, string[]>>(
+    (links, event) => {
+      if (!event.related_action_id) {
+        return links;
+      }
+
+      links[event.related_action_id] = [
+        ...(links[event.related_action_id] ?? []),
+        event.id,
+      ];
+      return links;
+    },
+    {},
+  );
+  const actionIdSet = new Set(actionIds);
+
+  return listActionRecords(scope)
+    .filter((record) => actionIdSet.has(record.id))
+    .map((record) => formatWorkProofActionRecord(record, linkedEventIdsByActionId));
+}
+
+function formatWorkProofActionRecord(
+  record: ActionRecord,
+  linkedEventIdsByActionId: Record<string, string[]>,
+): WorkProofActionRecord {
+  return {
+    id: record.id,
+    title: record.title,
+    status: record.status,
+    state_key: record.state_key,
+    proof_marker_type: record.state_key ? "committed_state_marker" : "proof_only",
+    linked_work_event_ids: linkedEventIdsByActionId[record.id] ?? [],
+    created_at: record.created_at,
   };
 }
 
