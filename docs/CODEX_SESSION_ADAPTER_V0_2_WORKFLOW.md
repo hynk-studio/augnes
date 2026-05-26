@@ -197,9 +197,13 @@ In Session Trace, keep two proof lanes distinct:
 
 - `action_records_by_session` and `action_records` are session-owned action
   records where `source_session_id` matches the bound session.
-- `proof_visibility.work_linked_proof_action_ids` and
-  `work_linked_proof_actions[]` are proof actions discovered through the bound
-  work trace's `work_events.related_action_id`.
+- `work_linked_proof_actions[]` is the canonical Session Trace vocabulary for
+  proof actions discovered through an explicit work binding and the bound work
+  trace's `work_events.related_action_id`.
+- `proof_visibility.work_linked_proof_action_ids` is the compact ID summary for
+  the same work-linked proof lane.
+- `proof_visibility.latest_work_event_related_action_id` is a latest-event
+  shortcut and debug anchor, not the primary proof summary.
 
 `codex:record-completion-proof` records the proof action with
 `source_session_id: null`; explicit `codex:bind-session` links the session to

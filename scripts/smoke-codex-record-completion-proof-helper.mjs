@@ -295,18 +295,25 @@ try {
   assert.equal(
     boundSession.proof_visibility.latest_work_event_related_action_id,
     proofActionRecord.id,
-    "bound Session Trace should expose latest work event related action ID",
+    "bound Session Trace should expose latest work event related action ID as a secondary shortcut",
+  );
+  const canonicalWorkLinkedProofAction = boundSession.work_linked_proof_actions.find(
+    (action) => action.id === proofActionRecord.id,
+  );
+  assert.ok(
+    canonicalWorkLinkedProofAction,
+    "work_linked_proof_actions[] is the canonical Session Trace proof summary after explicit binding",
   );
   assert.equal(
-    boundSession.work_linked_proof_actions.some(
-      (action) =>
-        action.id === proofActionRecord.id &&
-        action.source_session_id === null &&
-        action.proof_marker_type === "proof_only" &&
-        action.linked_work_event_ids.includes(proofWorkEvent.id),
-    ),
+    canonicalWorkLinkedProofAction.source_session_id,
+    null,
+    "canonical work-linked proof action should preserve source_session_id: null",
+  );
+  assert.equal(canonicalWorkLinkedProofAction.proof_marker_type, "proof_only");
+  assert.equal(
+    canonicalWorkLinkedProofAction.linked_work_event_ids.includes(proofWorkEvent.id),
     true,
-    "bound Session Trace should summarize work-linked proof actions separately",
+    "canonical work-linked proof action should include the linked work event ID",
   );
   assert.match(
     boundSession.proof_visibility.source_session_id_note,
@@ -375,6 +382,8 @@ try {
         session_auto_created: false,
         session_auto_bound: false,
         action_records_by_session_unchanged_for_source_session_null: true,
+        session_trace_canonical_work_linked_proof_actions: true,
+        latest_work_event_related_action_id_secondary_shortcut: true,
         work_linked_proof_visible_after_explicit_bind: true,
         proof_source_session_id: null,
         invalid_action_proof_failed_without_writes: true,
