@@ -62,6 +62,7 @@
     "smoke:codex-github-comment-posting-command-preview": "node scripts/smoke-codex-github-comment-posting-command-preview.mjs",
     "smoke:codex-operator-review-packet": "node scripts/smoke-codex-operator-review-packet.mjs",
     "smoke:codex-operator-review-packet-dogfood": "node scripts/smoke-codex-operator-review-packet-dogfood.mjs",
+    "smoke:codex-operator-review-packet-linked-dogfood": "node scripts/smoke-codex-operator-review-packet-linked-dogfood.mjs",
     "smoke:codex-actuation-gate": "node scripts/smoke-codex-actuation-gate.mjs",
     "smoke:codex-actuation-preview": "node scripts/smoke-codex-actuation-preview.mjs",
     "smoke:codex-actuation-rehearsal": "node scripts/smoke-codex-actuation-rehearsal.mjs",
