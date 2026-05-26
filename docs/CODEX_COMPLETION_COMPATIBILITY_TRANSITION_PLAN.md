@@ -4,6 +4,8 @@
 
 - decision / transition plan only
 - docs-only
+- updated after proof-only closeout review-surface hardening and Session Trace
+  vocabulary canonicalization
 - no runtime behavior change
 - no helper behavior change
 - no schema change
@@ -34,6 +36,16 @@ The proof-only action route creates an `action_records` row with
 `state_key: null`, appends coordination proof, and does not call
 `commitStateUpdate`.
 
+The current preferred proof-only closeout path is:
+
+- `codex:record-completion-proof`
+- `POST /api/actions/record-proof`
+- proof-only `action_records` with `state_key: null`
+- linked `work_events` with `related_action_id`
+- coordination trace in `coordination_events`
+- no legacy `/api/actions/record` call
+- no committed `external.*` state marker
+
 The proof-only action-record dogfood report is present on `origin/main` at
 `reports/dogfood/2026-05-26-proof-only-action-record-dogfood.md`. It found:
 
@@ -44,6 +56,26 @@ The proof-only action-record dogfood report is present on `origin/main` at
   remains unchanged
 - Session Trace still requires a separate session binding workflow
 - invalid proof payloads fail without writes
+
+Follow-up visibility hardening and dogfood runs established the current
+proof-only review model:
+
+- Work Brief: `related_proof.action_records[]`
+- Evidence Pack: `verification_trace.proof_visibility`
+- State Brief: `recent_action_visibility`
+- Session Trace: `work_linked_proof_actions[]`
+
+`work_linked_proof_actions[]` is the canonical Session Trace vocabulary for
+proof visible through explicit work binding. `action_records_by_session`
+continues to mean only action records whose `source_session_id` matches the
+session. `latest_work_event.related_action_id` and
+`proof_visibility.latest_work_event_related_action_id` are useful shortcuts or
+debug anchors, but they are not the primary Session Trace proof summary.
+
+Proof-only completion actions keep `source_session_id: null`. Explicit
+`codex:bind-session` links an existing session to work/PR context, but it does
+not rewrite proof actions, create sessions, bind sessions automatically, or
+turn work-linked proof into session-owned action proof.
 
 The legacy completion path still behaves differently:
 
@@ -70,6 +102,23 @@ The preferred future path for Codex closeout proof is:
 This keeps completion proof discoverable without adding committed
 `external.*` state markers or treating proof markers as accepted project facts.
 
+For new Codex closeout and handoff workflows, the default proof review path is:
+
+1. Work Brief `related_proof.action_records[]` for linked proof action
+   summaries.
+2. Evidence Pack `verification_trace.proof_visibility` for compact proof-only
+   action IDs, linked work event IDs, and legacy committed marker action IDs
+   when present.
+3. State Brief `recent_action_visibility` for distinguishing proof-only
+   `state_key: null` recent actions from active committed state.
+4. Session Trace `work_linked_proof_actions[]` after explicit session binding
+   for work-linked proof visible through bound work events.
+
+In Session Trace, `work_linked_proof_actions[]` is the canonical phrase for
+work-linked proof. `latest_work_event.related_action_id` should remain a
+latest-event shortcut and debugging anchor, not the primary proof review
+surface.
+
 ## 3. Compatibility Policy For `codex:record-completion`
 
 Keep `codex:record-completion` as a legacy compatibility helper for now.
@@ -91,6 +140,15 @@ For the transition period:
 Changing `codex:record-completion` should require a separate implementation PR
 with dedicated smokes and a clear migration decision.
 
+Do not convert `codex:record-completion` to proof-only yet. The proof-only
+review model is now clear enough for new closeouts, but the compatibility
+helper may still be embedded in existing scripts, runbooks, and operator
+habits that expect the legacy `/api/actions/record` behavior or the
+`external.<action>_recorded` marker. An immediate behavior change would reuse a
+familiar command name for different side effects and could make existing
+legacy proof appear missing to reviewers who still depend on Temporal State
+Graph marker visibility.
+
 ## 4. Compatibility Policy For `codex:record-result`
 
 Keep `codex:record-result` as a lower-level legacy compatibility helper for
@@ -108,6 +166,12 @@ For now:
 - do not use it as the default Codex closeout recommendation
 - keep taxonomy guardrails that explain its legacy state-marker side effect
 - retain it for compatibility while callers move to proof-native helpers
+
+Do not convert or remove `codex:record-result` yet. It remains the low-level
+legacy compatibility path for callers that deliberately use
+`/api/actions/record`. Its lifetime should be decided together with the
+future of legacy action-record state markers, not as part of proof-only
+closeout vocabulary hardening.
 
 ## 5. Default Closeout Recommendation
 
@@ -127,6 +191,16 @@ The default recommendation should still include skipped-reason handling:
 missing runtime, missing `CODEX_WORK_ID`, unknown work ID, missing session ID,
 or unavailable evidence/session review routes should be reported as explicit
 gaps, not papered over.
+
+This recommendation is now stronger after review-surface hardening:
+
+- Work Brief, Evidence Pack, and State Brief make proof-only closeout visible
+  without committed state mutation.
+- Session Trace has canonical vocabulary for proof visible through explicit
+  work binding.
+- `action_records_by_session` remains session-owned only, which prevents
+  proof-only actions with `source_session_id: null` from being misread as
+  direct session-owned actions.
 
 ## 6. Legacy `external.*` Markers
 
@@ -150,8 +224,8 @@ Near-term docs and review surfaces should continue to distinguish:
 
 Do not add an explicit state-marker helper now.
 
-The proof-only path is usable without it, and adding a state-marker helper now
-would force unresolved product choices before they are necessary:
+The proof-only path is usable and reviewable without it. Adding a state-marker
+helper now would force unresolved product choices before they are necessary:
 
 - whether `external.*` should remain the state-marker namespace
 - whether marker state belongs in active committed state or a separate proof
@@ -160,7 +234,9 @@ would force unresolved product choices before they are necessary:
 - which views should show deliberate marker state
 
 Defer this helper until there is a concrete operator need for committed marker
-state that proof-native records do not satisfy.
+state that proof-native records do not satisfy. The now-canonical proof review
+surfaces reduce the need to create committed state markers merely to make
+closeout proof discoverable.
 
 ## 8. Risks Of Changing `codex:record-completion` Immediately
 
@@ -179,6 +255,12 @@ Specific risks:
 - tests that assert legacy marker behavior would need coordinated updates
 - support burden would rise if the same command name means different side
   effects across branches or local runtimes
+- Session Trace clarity now depends on explicit work binding and
+  `work_linked_proof_actions[]`; silently changing the legacy helper would
+  mix compatibility migration with proof-review vocabulary adoption
+- any migration must decide whether existing `external.*` marker expectations
+  become warnings, aliases, explicit state-marker commands, or unsupported
+  legacy behavior
 
 The safer transition is to make the proof-only command preferred first, then
 change or retire the compatibility command only after callers and smokes have
@@ -203,7 +285,13 @@ Stage 3: harden proof-only review surfaces.
 
 - Keep Work Brief and Evidence Pack visibility covered by smokes.
 - Keep State Brief `recent_actions` behavior clear for `state_key: null`.
+- Keep State Brief `recent_action_visibility` clear about proof-only recent
+  actions versus active committed state.
 - Keep Session Trace binding separate and explicit.
+- Use `work_linked_proof_actions[]` as the canonical Session Trace phrase for
+  proof visible through explicit work binding.
+- Treat `latest_work_event.related_action_id` as a shortcut/debug anchor, not
+  the primary proof summary.
 
 Stage 4: inventory legacy dependencies before changing behavior.
 
@@ -223,6 +311,16 @@ Stage 5: make a separate implementation decision.
 
 This plan recommends Stage 1 through Stage 4 now. Stage 5 remains unresolved.
 
+Recommended next compatibility policy decision:
+
+- keep `codex:record-completion` as legacy compatibility for now
+- keep `codex:record-result` as low-level legacy compatibility for now
+- keep `codex:record-completion-proof` as the preferred/default closeout proof
+  helper
+- defer behavior-changing compatibility migration until a separate explicit
+  decision chooses the migration shape, user/runtime gating, warnings, and
+  legacy marker treatment
+
 ## 10. Tests And Smokes Required Before Any Behavior Change
 
 Before changing `codex:record-completion`, `codex:record-result`, or
@@ -239,7 +337,16 @@ Before changing `codex:record-completion`, `codex:record-result`, or
 - Evidence Pack includes both work-event and action-record proof
 - State Brief shows proof-only records as recent actions while active committed
   state remains unchanged
+- State Brief `recent_action_visibility` distinguishes proof-only actions from
+  committed state marker actions
 - Session Trace behavior is explicit when no session binding exists
+- Session Trace `work_linked_proof_actions[]` shows work-linked proof after
+  explicit binding
+- Session Trace `action_records_by_session` remains session-owned only
+- Session Trace `latest_work_event.related_action_id` remains a secondary
+  shortcut/debug anchor, not the primary proof summary
+- proof-only completion actions keep `source_session_id: null`
+- no session is auto-created or auto-bound by proof recording
 - check-only helpers remain read-only
 - compatibility helpers are the only allowed helpers that create legacy
   `external.*` state markers
@@ -264,6 +371,19 @@ Runtime-backed dogfood should also compare table counts before and after
 proof-only completion, including `state_entries`, `state_transitions`,
 `external_state_entries`, `action_records`, `work_events`, and
 `coordination_events`.
+
+Before any future behavior migration, the implementation PR should also:
+
+- inventory docs, scripts, smokes, runbooks, and operator references to
+  `codex:record-completion`, `codex:record-result`, `/api/actions/record`, and
+  `external.*`
+- choose whether legacy helpers warn, remain unchanged, become aliases, or move
+  state marker writes behind a separate gated helper
+- document how historical `external.*` entries remain readable
+- update PR templates, handoff packets, closeout docs, and smoke expectations
+  in the same PR or a staged pair of PRs
+- include rollback guidance for callers that still need legacy state-marker
+  behavior
 
 ## 11. What Remains Unresolved
 
