@@ -4,8 +4,9 @@ This is a small local proof that Codex, or another external agent, can use Augne
 
 1. Read the Augnes runtime state brief.
 2. Perform or simulate a small repo task.
-3. Record the external action result back into Augnes.
-4. Confirm the Temporal State Graph shows the external action transition.
+3. Record the external action result back into Augnes with the legacy
+   compatibility helper.
+4. Confirm the Temporal State Graph shows the legacy external action transition.
 
 The scripts call the Augnes runtime REST API directly. They do not invoke MCP tools, add ChatGPT write tools, or change the public app surface.
 
@@ -79,6 +80,12 @@ The important boundary is that the action result is recorded in Augnes Core, not
 
 ## Record the action result
 
+This demo uses `codex:record-result`, the low-level legacy compatibility
+helper. It posts to `/api/actions/record` and may create an
+`external.<action>_recorded` marker. For normal Codex closeout proof, use
+`npm run codex:record-completion-proof`; compatibility migration remains
+unresolved.
+
 ```bash
 npm run codex:record-result
 ```
@@ -138,7 +145,8 @@ Refresh:
 http://localhost:3000
 ```
 
-When using `codex:record-result`, check the Temporal State Graph for:
+When using the legacy-compatible `codex:record-result`, check the Temporal
+State Graph for:
 
 ```text
 external.<action_name>_recorded
