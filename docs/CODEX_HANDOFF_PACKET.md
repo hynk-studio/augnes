@@ -106,6 +106,11 @@ npm run codex:record-completion
 `action_records` row through `/api/actions/record-proof`, links a work event,
 and does not create legacy `external.*` committed state markers.
 
+`codex:record-completion` is legacy compatibility behavior. It continues to
+use `/api/actions/record`, may create legacy `external.*` marker state, and
+emits a stderr compatibility warning on successful legacy writes.
+Compatibility migration remains unresolved.
+
 Review proof-only closeout through Work Brief, Evidence Pack, and State Brief
 `recent_actions`. `state_key: null` action records are proof-only and should
 not be read as active committed state. Session Trace visibility requires a
@@ -136,6 +141,7 @@ Codex should report:
 - structured evidence record IDs, or the exact reason evidence rows were skipped
 - whether `npm run codex:record-completion-proof` was run or why it was
   skipped; use `npm run codex:record-completion` only as compatibility behavior
+  and report its stderr warning if that legacy path was intentionally used
 - whether `npm run codex:bind-session` was run or why it was skipped
 
 ## Boundary

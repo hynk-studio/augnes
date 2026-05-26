@@ -67,7 +67,13 @@ runtime implementation records an `action_records` row and a legacy
 `external.<action>_recorded` state marker. That behavior is retained only as
 compatibility material until a separate migration decision decides whether
 these helpers become proof-only or move the state marker behind an explicit
-commit-state helper.
+commit-state helper. On successful legacy writes, both compatibility helpers
+emit stderr-only compatibility warnings that recommend
+`codex:record-completion-proof`.
+
+`codex:record-completion` remains the legacy compatibility closeout helper.
+`codex:record-result` remains the low-level legacy compatibility helper for
+callers that deliberately need the `/api/actions/record` path.
 
 ### Commit-State
 

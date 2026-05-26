@@ -82,9 +82,10 @@ The important boundary is that the action result is recorded in Augnes Core, not
 
 This demo uses `codex:record-result`, the low-level legacy compatibility
 helper. It posts to `/api/actions/record` and may create an
-`external.<action>_recorded` marker. For normal Codex closeout proof, use
-`npm run codex:record-completion-proof`; compatibility migration remains
-unresolved.
+`external.<action>_recorded` marker. On successful legacy writes, it emits a
+stderr compatibility warning that recommends `codex:record-completion-proof`.
+For normal Codex closeout proof, use `npm run codex:record-completion-proof`;
+compatibility migration remains unresolved.
 
 ```bash
 npm run codex:record-result
@@ -146,7 +147,8 @@ http://localhost:3000
 ```
 
 When using the legacy-compatible `codex:record-result`, check the Temporal
-State Graph for:
+State Graph for the compatibility marker and expect the helper's stderr
+compatibility warning on successful writes:
 
 ```text
 external.<action_name>_recorded
