@@ -104,6 +104,17 @@ state mutation:
   `npm run codex:bind-session`; `codex:record-completion-proof` does not create
   or bind sessions.
 
+Session Trace separates session-owned proof from work-linked proof after an
+explicit bind:
+
+- `action_records_by_session` and `action_records` count only records with
+  `source_session_id` equal to the bound session ID.
+- `proof_visibility.work_linked_proof_action_ids` and
+  `work_linked_proof_actions[]` show action proof linked through the bound
+  work trace's `work_events.related_action_id`.
+- Proof-only completion actions keep `source_session_id: null`; binding a
+  session does not rewrite them.
+
 `CODEX_FILES_CHANGED=""` records an empty file list. `CODEX_FILES_CHANGED` and `CODEX_RELATED_STATE_KEYS` may be comma-separated strings or JSON string arrays.
 
 `CODEX_RELATED_PR` and `CODEX_RELATED_STATE_KEYS` are the core trace fields that connect GitHub history back to Augnes continuity. `CODEX_RELATED_PR` points from the work event to the PR where Codex changed or verified the repo. `CODEX_RELATED_STATE_KEYS` names the committed state lanes or expected state lanes the work depended on, affected, or verified. Together with `CODEX_WORK_ID`, they let reviewers move from PR, to work trace, to state graph without giving GitHub or ChatGPT App authority over committed Augnes state.
@@ -130,6 +141,11 @@ surface, actor, related work ID, related PR, summary, handoff ref, and Evidence
 Pack ref. It does not execute Codex, call GitHub/OpenAI, create evidence,
 approve, publish, replay, or mutate work/evidence/publication/delivery/readiness
 mailbox/state rows.
+
+The bind helper does not assign `source_session_id` to existing proof-only
+action records. After binding, Session Trace may show proof through
+`work_linked_proof_actions[]` even while `action_records_by_session` remains
+zero.
 
 Read back the trace with:
 

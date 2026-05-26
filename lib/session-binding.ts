@@ -1,4 +1,4 @@
-import { openDatabase } from "@/lib/db";
+import { listActionRecords, openDatabase, type ActionRecord } from "@/lib/db";
 import {
   listEvidenceRecords,
   type EvidenceRecord,
@@ -102,11 +102,19 @@ export type SessionTraceItem = {
     with_related_action_id: number;
     with_related_pr: number;
   };
+  proof_visibility: {
+    session_owned_action_ids: string[];
+    work_linked_proof_action_ids: string[];
+    latest_work_event_related_action_id: string | null;
+    source_session_id_note: string;
+    binding_note: string;
+  };
   latest_work_event: WorkEvent | null;
   latest_evidence_record: EvidenceRecord | null;
   message_count: number;
   latest_message: SessionMessageSummary | null;
   action_records: ActionRecordSummary[];
+  work_linked_proof_actions: WorkLinkedProofActionSummary[];
   work: WorkItem | null;
   gaps: string[];
 };
@@ -136,7 +144,24 @@ type SessionMessageSummary = {
 type ActionRecordSummary = {
   id: string;
   title: string;
+  state_key: string | null;
   status: string;
+  source_session_id: string | null;
+  proof_marker_type: ProofMarkerType;
+  created_at: string;
+  completed_at: string | null;
+};
+
+type ProofMarkerType = "proof_only" | "committed_state_marker";
+
+type WorkLinkedProofActionSummary = {
+  id: string;
+  title: string;
+  state_key: string | null;
+  status: string;
+  source_session_id: string | null;
+  proof_marker_type: ProofMarkerType;
+  linked_work_event_ids: string[];
   created_at: string;
   completed_at: string | null;
 };
@@ -212,6 +237,9 @@ export function buildSessionTrace(filters: SessionTraceFilters = {}): SessionTra
       boundaries: [
         "Session trace is a bounded read-only view over existing Augnes Core records.",
         "POST /api/sessions/bind only updates session metadata fields.",
+        "Completion proof recording does not create or bind sessions and does not set source_session_id automatically.",
+        "action_records_by_session counts only action_records whose source_session_id matches the session.",
+        "Work-linked proof actions are derived from bound work_events.related_action_id and remain separate from session-owned action records.",
         "Session trace does not execute Codex, call OpenAI/GitHub, publish, approve, retry, or mutate work/evidence/publication/delivery/readiness/mailbox/state records.",
         "evidence_pack_ref is included as a string reference; the trace API does not invoke Evidence Pack generation.",
       ],
@@ -319,6 +347,10 @@ function buildSessionTraceItem(row: SessionRow): SessionTraceItem {
     ...evidenceForPr,
   ]);
   const actionRecords = listActionRecordSummaries(row.scope, row.id);
+  const workLinkedProofActions = listWorkLinkedProofActions({
+    scope: row.scope,
+    workEvents,
+  });
   const messageSummary = getMessageSummary(row.id);
   const latestEvidenceRecord = evidenceRecords[0] ?? null;
   const gaps = collectSessionGaps({
@@ -354,11 +386,21 @@ function buildSessionTraceItem(row: SessionRow): SessionTraceItem {
       with_related_action_id: workEvents.filter((event) => event.related_action_id).length,
       with_related_pr: workEvents.filter((event) => event.related_pr).length,
     },
+    proof_visibility: {
+      session_owned_action_ids: actionRecords.map((record) => record.id),
+      work_linked_proof_action_ids: workLinkedProofActions.map((record) => record.id),
+      latest_work_event_related_action_id: workEvents[0]?.related_action_id ?? null,
+      source_session_id_note:
+        "action_records_by_session counts only action_records whose source_session_id matches this session.",
+      binding_note:
+        "Proof-only closeout remains visible through bound work_events.related_action_id after explicit session binding; completion proof recording does not bind sessions.",
+    },
     latest_work_event: workEvents[0] ?? null,
     latest_evidence_record: latestEvidenceRecord,
     message_count: messageSummary.count,
     latest_message: messageSummary.latest,
     action_records: actionRecords,
+    work_linked_proof_actions: workLinkedProofActions,
     work,
     gaps,
   };
@@ -500,13 +542,18 @@ function listActionRecordSummaries(
   const db = openDatabase();
 
   try {
-    return db
+    const rows = db
       .prepare(
         `
           SELECT
+            scope,
             id,
             title,
+            description,
+            state_key,
             status,
+            source_agent_id,
+            source_session_id,
             created_at,
             completed_at
           FROM action_records
@@ -516,10 +563,59 @@ function listActionRecordSummaries(
           LIMIT 25
         `,
       )
-      .all(scope, sessionId) as ActionRecordSummary[];
+      .all(scope, sessionId) as ActionRecord[];
+
+    return rows.map(formatActionRecordSummary);
   } finally {
     db.close();
   }
+}
+
+function listWorkLinkedProofActions({
+  scope,
+  workEvents,
+}: {
+  scope: string;
+  workEvents: WorkEvent[];
+}): WorkLinkedProofActionSummary[] {
+  const linkedEventIdsByActionId = workEvents.reduce<Record<string, string[]>>(
+    (links, event) => {
+      if (!event.related_action_id) {
+        return links;
+      }
+
+      links[event.related_action_id] = [
+        ...(links[event.related_action_id] ?? []),
+        event.id,
+      ];
+      return links;
+    },
+    {},
+  );
+  const linkedActionIds = new Set(Object.keys(linkedEventIdsByActionId));
+  if (linkedActionIds.size === 0) {
+    return [];
+  }
+
+  return listActionRecords(scope)
+    .filter((record) => linkedActionIds.has(record.id))
+    .map((record) => ({
+      ...formatActionRecordSummary(record),
+      linked_work_event_ids: linkedEventIdsByActionId[record.id] ?? [],
+    }));
+}
+
+function formatActionRecordSummary(record: ActionRecord): ActionRecordSummary {
+  return {
+    id: record.id,
+    title: record.title,
+    state_key: record.state_key,
+    status: record.status,
+    source_session_id: record.source_session_id,
+    proof_marker_type: record.state_key ? "committed_state_marker" : "proof_only",
+    created_at: record.created_at,
+    completed_at: record.completed_at,
+  };
 }
 
 function getMessageSummary(sessionId: string): {

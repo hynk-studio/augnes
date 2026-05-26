@@ -193,6 +193,19 @@ Review the proof-only result in these read-only surfaces:
   existing session. Completion proof recording alone does not create or bind a
   session.
 
+In Session Trace, keep two proof lanes distinct:
+
+- `action_records_by_session` and `action_records` are session-owned action
+  records where `source_session_id` matches the bound session.
+- `proof_visibility.work_linked_proof_action_ids` and
+  `work_linked_proof_actions[]` are proof actions discovered through the bound
+  work trace's `work_events.related_action_id`.
+
+`codex:record-completion-proof` records the proof action with
+`source_session_id: null`; explicit `codex:bind-session` links the session to
+the work/PR, but it does not rewrite the proof action or make it
+session-owned.
+
 `codex:record-completion` remains available as a compatibility path:
 
 ```bash
