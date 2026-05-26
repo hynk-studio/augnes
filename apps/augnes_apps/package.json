@@ -27,6 +27,7 @@
     "codex:github-comment-payload": "tsx scripts/codex-github-comment-payload.ts",
     "codex:github-comment-readiness": "tsx scripts/codex-github-comment-readiness.ts",
     "codex:github-comment-posting-command-preview": "tsx scripts/codex-github-comment-posting-command-preview.ts",
+    "codex:operator-review-packet": "tsx scripts/codex-operator-review-packet.ts",
     "codex:actuation-gate": "tsx scripts/codex-actuation-gate.ts",
     "codex:actuation-preview": "tsx scripts/codex-actuation-preview.ts",
     "codex:actuation-rehearsal": "tsx scripts/codex-actuation-rehearsal.ts",
