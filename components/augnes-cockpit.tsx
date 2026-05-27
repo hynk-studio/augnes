@@ -4169,7 +4169,7 @@ function WorkFocusSection({
                     <span>Codex handoff draft</span>
                     <small>Draft/copy only</small>
                   </summary>
-                  <p>{workBrief.codex_handoff.task_brief}</p>
+                  <WorkCodexHandoffReview codexHandoff={workBrief.codex_handoff} />
                   <div className="work-copy-row">
                     <div className="copy-control">
                       <button
@@ -4219,6 +4219,78 @@ function WorkFocusSection({
           </aside>
         </div>
       )}
+    </section>
+  );
+}
+
+function WorkCodexHandoffReview({
+  codexHandoff,
+}: {
+  codexHandoff: WorkBriefResponse["codex_handoff"];
+}) {
+  const constraintsCount = codexHandoff.constraints.length;
+  const suggestedVerificationCount = codexHandoff.suggested_verification.length;
+  const workEventTemplateAvailable =
+    Object.keys(codexHandoff.work_event_template).length > 0;
+
+  return (
+    <section className="work-codex-handoff-review" aria-label="Codex Handoff Review">
+      <PanelHeader
+        eyebrow="Local draft"
+        title="Codex Handoff Review"
+        description="Review the local task brief, constraints, and suggested verification before copying this handoff. This does not execute Codex."
+      />
+      <div className="work-codex-handoff-grid">
+        <div className="work-codex-handoff-field">
+          <span>Constraints</span>
+          <strong>{constraintsCount}</strong>
+        </div>
+        <div className="work-codex-handoff-field">
+          <span>Suggested verification</span>
+          <strong>{suggestedVerificationCount}</strong>
+        </div>
+        <div className="work-codex-handoff-field">
+          <span>Work event template</span>
+          <strong>{workEventTemplateAvailable ? "Available" : "Not loaded"}</strong>
+        </div>
+      </div>
+
+      <div className="work-codex-handoff-block">
+        <h4>Task brief</h4>
+        <p>{codexHandoff.task_brief}</p>
+      </div>
+
+      <div className="work-codex-handoff-block">
+        <h4>Constraints</h4>
+        {constraintsCount ? (
+          <ul className="work-codex-handoff-list">
+            {codexHandoff.constraints.map((constraint) => (
+              <li key={constraint}>{constraint}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>No constraints recorded</p>
+        )}
+      </div>
+
+      <div className="work-codex-handoff-block">
+        <h4>Suggested verification</h4>
+        {suggestedVerificationCount ? (
+          <ul className="work-codex-handoff-list">
+            {codexHandoff.suggested_verification.map((command) => (
+              <li key={command}>
+                <code>{command}</code>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No suggested verification recorded</p>
+        )}
+      </div>
+
+      <BoundaryNote>
+        Read-only handoff review. Copying text does not execute Codex, call providers, post to GitHub, approve, merge, publish, mutate Augnes, or commit/reject state.
+      </BoundaryNote>
     </section>
   );
 }
