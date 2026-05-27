@@ -15,11 +15,30 @@ const MATERIAL_KEYS = [
   "github_comment_command_preview",
 ] as const;
 
+const REVIEW_EVENT_RESULT_VALUES = [
+  "opened",
+  "implemented",
+  "blocking",
+  "needs_review",
+  "follow_up_required",
+  "follow_up_resolved",
+  "resolved",
+  "updated",
+  "verified",
+  "deferred",
+  "local_preflight_only",
+  "manual_handoff_no_actuation",
+  "merged_local_only",
+  "dogfood_next_local_only",
+  "approved_actuation",
+] as const;
+
 const AUTHORITY_BOUNDARY =
   "This helper renders a local operator review handoff packet only. It does not call GitHub, OpenAI, providers, or Augnes runtime routes. It does not post comments, create reviews, approve, merge, publish, create evidence, create proof, mutate Augnes, grade or rank work, or commit/reject state.";
 
 type OutputMode = "summary" | "json" | "both";
 type MaterialKey = (typeof MATERIAL_KEYS)[number];
+type ReviewEventResult = (typeof REVIEW_EVENT_RESULT_VALUES)[number];
 
 type ReviewTask = {
   title: string;
@@ -40,7 +59,7 @@ type MaterialsInput = Record<MaterialKey, unknown | null | undefined>;
 type ReviewEvent = {
   event_type: string;
   summary: string;
-  result: string;
+  result: ReviewEventResult;
   event_id?: string;
   resolves_event_id?: string | null;
 };
@@ -71,7 +90,7 @@ type ResolutionLink = {
   resolving_event_index: number;
   blocking_event_type: string;
   resolving_event_type: string;
-  resolving_event_result: string;
+  resolving_event_result: ReviewEventResult;
 };
 
 type MaterialSummary = {
@@ -174,6 +193,23 @@ function readRequiredString(value: unknown, code: string): string {
   return value.trim();
 }
 
+function readReviewEventResult(value: unknown): ReviewEventResult {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENT_RESULT");
+  }
+
+  const result = value.trim();
+  if (!isReviewEventResult(result)) {
+    throw new OperatorReviewPacketError("CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENT_RESULT");
+  }
+
+  return result;
+}
+
+function isReviewEventResult(value: string): value is ReviewEventResult {
+  return REVIEW_EVENT_RESULT_VALUES.some((allowed) => allowed === value);
+}
+
 function readOptionalNullableString(value: unknown, code: string): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") throw new OperatorReviewPacketError(code);
@@ -239,7 +275,7 @@ function validateReviewEvents(value: unknown): ReviewEvent[] {
     const event: ReviewEvent = {
       event_type: readRequiredString(item.event_type, code),
       summary: readRequiredString(item.summary, code),
-      result: readRequiredString(item.result, code),
+      result: readReviewEventResult(item.result),
     };
 
     const eventId = readOptionalEventId(item.event_id, "CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENT_LINK");
@@ -345,32 +381,16 @@ function containsAny(value: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(value));
 }
 
-function eventText(event: ReviewEvent): string {
-  return `${event.event_type} ${event.summary} ${event.result}`;
-}
-
 function isBlockingEvent(event: ReviewEvent): boolean {
-  return containsAny(eventText(event), [/\bblocking\b/i, /\bblocked\b/i, /\bblocker\b/i, /\bneeds\s+changes\b/i]);
+  return event.result === "blocking";
 }
 
 function isFollowUpLike(event: ReviewEvent): boolean {
   return containsAny(`${event.event_type} ${event.summary}`, [/\bfollow[-_\s]?up\b/i, /\bfollowup\b/i]);
 }
 
-function hasResolutionSignal(event: ReviewEvent): boolean {
-  return containsAny(eventText(event), [
-    /\bresolved\b/i,
-    /\bresolving\b/i,
-    /\bfixed\b/i,
-    /\baddressed\b/i,
-    /\bblocker[-_\s]?resolved\b/i,
-    /\bblocking[-_\s]?resolved\b/i,
-    /\bfollow[-_\s]?up[-_\s]?resolved\b/i,
-  ]);
-}
-
 function hasUnresolvedSignal(event: ReviewEvent): boolean {
-  return containsAny(eventText(event), [
+  return containsAny(`${event.event_type} ${event.summary} ${event.result}`, [
     /\bnot\s+resolved\b/i,
     /\bnot[-_]resolved\b/i,
     /\bnot\s+fixed\b/i,
@@ -394,22 +414,15 @@ function hasUnresolvedSignal(event: ReviewEvent): boolean {
 }
 
 function hasResolutionResult(event: ReviewEvent): boolean {
-  return containsAny(event.result, [
-    /^resolved$/i,
-    /^fixed$/i,
-    /^addressed$/i,
-    /^blocker[-_\s]?resolved$/i,
-    /^blocking[-_\s]?resolved$/i,
-    /^follow[-_\s]?up[-_\s]?resolved$/i,
-  ]);
+  return event.result === "resolved" || event.result === "follow_up_resolved";
 }
 
 function isResolvedFollowUpEvent(event: ReviewEvent): boolean {
-  return hasResolutionSignal(event) && !hasUnresolvedSignal(event) && (isFollowUpLike(event) || hasResolutionResult(event));
+  return isFollowUpLike(event) && hasResolutionResult(event) && !hasUnresolvedSignal(event);
 }
 
 function isResolvedLinkedEvent(event: ReviewEvent): boolean {
-  return hasResolutionSignal(event) && !hasUnresolvedSignal(event);
+  return hasResolutionResult(event) && !hasUnresolvedSignal(event);
 }
 
 function hasStructuredResolutionLinks(events: ReviewEvent[]): boolean {
