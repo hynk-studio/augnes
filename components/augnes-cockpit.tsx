@@ -2686,6 +2686,14 @@ function OperatorTab({
         />
         <MetricCard label="Shell Status" value="MVP shell" detail="demo readiness" />
       </div>
+      <OperatorHandoffSnapshot
+        pendingDecisionCount={pendingDecisionCount}
+        mailboxReviewCount={mailboxReviewCount}
+        evidencePackLoaded={evidencePackLoaded}
+        sessionTraceLoaded={sessionTraceLoaded}
+        publicationSummary={publicationSummary}
+        approvalGateState={approvalGateState}
+      />
       <div className="operator-layout-grid">
         <aside className="operator-side-stack">
           <BoundaryNote tone="green">
@@ -2754,6 +2762,105 @@ function OperatorTab({
         Local runtime only. No external execution, publish, merge, retry, token,
         backup, or live exchange controls.
       </BoundaryNote>
+    </section>
+  );
+}
+
+function OperatorHandoffSnapshot({
+  pendingDecisionCount,
+  mailboxReviewCount,
+  evidencePackLoaded,
+  sessionTraceLoaded,
+  publicationSummary,
+  approvalGateState,
+}: {
+  pendingDecisionCount: number;
+  mailboxReviewCount: number;
+  evidencePackLoaded: boolean;
+  sessionTraceLoaded: boolean;
+  publicationSummary: PublicationSummaryResponse | null;
+  approvalGateState: ApprovalGateStateSummaryResponse | null;
+}) {
+  const publicationReviewCount = publicationSummary
+    ? publicationSummary.summary.drafts.length +
+      publicationSummary.summary.approved_previews.length +
+      publicationSummary.summary.failed.length +
+      publicationSummary.summary.failed_deliveries.length
+    : null;
+  const approvalGateReviewCount = approvalGateState
+    ? approvalGateState.counts.requested_count +
+      approvalGateState.counts.blocked_count +
+      approvalGateState.counts.ready_for_review_count +
+      approvalGateState.counts.dry_run_ready_count
+    : null;
+
+  return (
+    <section
+      className="cockpit-surface-card operator-handoff-snapshot"
+      aria-label="Operator Handoff Snapshot"
+    >
+      <PanelHeader
+        eyebrow="Operator handoff"
+        title="Operator Handoff Snapshot"
+        description="Local review state for the current operator handoff. This is read-only and does not post, approve, merge, publish, or execute."
+      />
+      <div className="operator-handoff-snapshot-grid">
+        <MetricCard
+          label="Pending local proposals"
+          value={pendingDecisionCount}
+          detail={
+            pendingDecisionCount === 0
+              ? "No pending proposals"
+              : `${pendingDecisionCount} pending proposals`
+          }
+        />
+        <MetricCard
+          label="Mailbox review queue"
+          value={mailboxReviewCount}
+          detail={
+            mailboxReviewCount === 0
+              ? "No mailbox review items"
+              : `${mailboxReviewCount} mailbox review items`
+          }
+        />
+        <MetricCard
+          label="Evidence Pack"
+          value={evidencePackLoaded ? "Loaded" : "Not loaded"}
+          detail="local review material"
+        />
+        <MetricCard
+          label="Session Trace"
+          value={sessionTraceLoaded ? "Loaded" : "Not loaded"}
+          detail="local session context"
+        />
+        <MetricCard
+          label="Publication review"
+          value={
+            publicationReviewCount === null
+              ? "Not loaded"
+              : `${publicationReviewCount} publication review items`
+          }
+          detail="drafts, previews, failures"
+        />
+        <MetricCard
+          label="Approval gate"
+          value={
+            approvalGateReviewCount === null
+              ? "Not loaded"
+              : `${approvalGateReviewCount} gate review items`
+          }
+          detail="requested and dry-run review"
+        />
+      </div>
+      <div className="operator-handoff-next">
+        <BoundaryNote tone="green">
+          Safe next step: Review local proposals, handoffs, and dry-run material before any separate authority-gated action.
+        </BoundaryNote>
+        <BoundaryNote>
+          Read-only snapshot. No GitHub posting, PR review creation, approval,
+          merge, publication, provider call, Augnes mutation, or state commit/reject.
+        </BoundaryNote>
+      </div>
     </section>
   );
 }

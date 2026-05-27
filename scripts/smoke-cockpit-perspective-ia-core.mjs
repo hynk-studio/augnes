@@ -103,6 +103,25 @@ export function runPerspectiveIaSmoke(smokeName) {
     "publish/mutate GitHub blocked",
     "proof/trace recording gated",
     "Operator actions affect the local Augnes runtime only",
+    "Operator Handoff Snapshot",
+    "Local review state for the current operator handoff",
+    "Read-only snapshot",
+    "No GitHub posting",
+    "PR review creation",
+    "approval",
+    "merge",
+    "publication",
+    "provider call",
+    "Augnes mutation",
+    "state commit/reject",
+    "Pending local proposals",
+    "Mailbox review queue",
+    "Evidence Pack",
+    "Session Trace",
+    "Publication review",
+    "Approval gate",
+    "Safe next step",
+    "Review local proposals, handoffs, and dry-run material before any separate authority-gated action",
     "Evidence Pack details",
     "Temporal Review Artifact details",
     "Session Trace details",
@@ -157,6 +176,32 @@ export function runPerspectiveIaSmoke(smokeName) {
     );
   }
 
+  for (const forbidden of [
+    "production-ready",
+    "ready_to_execute",
+    "execution_ready",
+    "readiness authority",
+    "evaluates PR quality",
+    "detects drift at runtime",
+    "repairs context automatically",
+    "selects next tasks autonomously",
+    "autonomous research agent",
+    "benchmark result",
+    "quality score",
+    "proof of quality",
+  ]) {
+    assert.equal(
+      cockpit.toLowerCase().includes(forbidden.toLowerCase()),
+      false,
+      `Cockpit source must not include forbidden overclaim wording: ${forbidden}`,
+    );
+  }
+  assert.equal(
+    /(^|[^A-Za-z0-9_])KPI([^A-Za-z0-9_]|$)/i.test(cockpit),
+    false,
+    "Cockpit source must not include forbidden overclaim wording: KPI",
+  );
+
   const perspectiveSource = extractFunctionSource(
     cockpit,
     "function PerspectiveTab",
@@ -199,6 +244,54 @@ export function runPerspectiveIaSmoke(smokeName) {
       ),
       false,
       `mutation control found inside Perspective: ${forbiddenPerspectiveControl}`,
+    );
+  }
+
+  const snapshotSource = extractFunctionSource(
+    cockpit,
+    "function OperatorHandoffSnapshot",
+    "function PendingProposalQueue",
+  );
+  for (const snippet of [
+    "Pending local proposals",
+    "Mailbox review queue",
+    "Evidence Pack",
+    "Session Trace",
+    "Publication review",
+    "Approval gate",
+    "Safe next step",
+    "Read-only snapshot",
+    "No GitHub posting",
+    "PR review creation",
+    "approval",
+    "merge",
+    "publication",
+    "provider call",
+    "Augnes mutation",
+    "state commit/reject",
+  ]) {
+    assertIncludes(snapshotSource, snippet);
+  }
+  assert.equal(
+    /<button\b/.test(snapshotSource),
+    false,
+    "Operator Handoff Snapshot must not add action buttons.",
+  );
+  for (const forbiddenSnapshotSource of [
+    "fetch(",
+    "/api/",
+    "Octokit",
+    "axios",
+    "api.github.com",
+    "api.openai.com",
+    "process.env.GITHUB_TOKEN",
+    "process.env.OPENAI_API_KEY",
+    "use server",
+  ]) {
+    assert.equal(
+      snapshotSource.includes(forbiddenSnapshotSource),
+      false,
+      `Operator Handoff Snapshot must not introduce source boundary risk: ${forbiddenSnapshotSource}`,
     );
   }
 
@@ -259,6 +352,9 @@ export function runPerspectiveIaSmoke(smokeName) {
     ".bridge-grid",
     ".capability-matrix",
     ".operator-layout-grid",
+    ".operator-handoff-snapshot",
+    ".operator-handoff-snapshot-grid",
+    ".operator-handoff-next",
     ".operator-tab .panel-control-row",
     ".operator-tab .action-controls",
   ]) {
