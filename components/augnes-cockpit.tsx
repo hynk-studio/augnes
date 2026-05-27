@@ -3998,6 +3998,11 @@ function WorkFocusSection({
         title="Trace Spine"
         description="Work ID is a trace anchor. Durable state lives in committed Augnes state; execution proof lives in action records and the Temporal State Graph."
       />
+      <SelectedWorkHandoffSnapshot
+        selectedWorkId={selectedWorkId}
+        selectedWorkItem={selectedItem}
+        workBrief={workBrief}
+      />
 
       {error ? (
         <EmptyState
@@ -4214,6 +4219,116 @@ function WorkFocusSection({
           </aside>
         </div>
       )}
+    </section>
+  );
+}
+
+function SelectedWorkHandoffSnapshot({
+  selectedWorkId,
+  selectedWorkItem,
+  workBrief,
+}: {
+  selectedWorkId: string | null;
+  selectedWorkItem: WorkItem | null;
+  workBrief: WorkBriefResponse | null;
+}) {
+  const workId =
+    selectedWorkItem?.work_id ?? workBrief?.work_id ?? selectedWorkId ?? null;
+  const title = selectedWorkItem?.title ?? workBrief?.work.title ?? null;
+  const status = selectedWorkItem?.status ?? workBrief?.work.status ?? null;
+  const priority = selectedWorkItem?.priority ?? workBrief?.work.priority ?? null;
+  const needsAttention =
+    selectedWorkItem?.user_attention_required ??
+    workBrief?.user_attention_required ??
+    false;
+  const nextAction =
+    workBrief?.next_action || selectedWorkItem?.next_action || "No next action recorded";
+  const relatedStateKeys =
+    workBrief?.related_state_keys ?? selectedWorkItem?.related_state_keys ?? [];
+  const recentEventCount = workBrief?.recent_events.length ?? 0;
+  const suggestedVerificationCount =
+    workBrief?.codex_handoff?.suggested_verification.length ?? 0;
+  const codexHandoffAvailable = Boolean(workBrief?.codex_handoff);
+
+  return (
+    <section
+      className="cockpit-surface-card selected-work-handoff-snapshot"
+      aria-label="Selected Work Handoff Snapshot"
+    >
+      <PanelHeader
+        eyebrow="Selected work"
+        title="Selected Work Handoff Snapshot"
+        description="Local handoff view for the selected work item. This is read-only and does not execute Codex, post, approve, merge, publish, or mutate state."
+      />
+      {!workId ? (
+        <EmptyState
+          label="No selected work"
+          description="Select a work item to see local handoff context."
+        />
+      ) : (
+        <>
+          <div className="selected-work-handoff-grid">
+            <MetricCard
+              label="Selected work"
+              value={workId}
+              detail={title ?? "No selected work"}
+            />
+            <MetricCard
+              label="Status"
+              value={status ? formatStatusLabel(status) : "Not loaded"}
+              detail="selected work state"
+            />
+            <MetricCard
+              label="Priority"
+              value={priority ? formatStatusLabel(priority) : "Not loaded"}
+              detail="local work ordering"
+            />
+            <MetricCard
+              label="Needs attention"
+              value={needsAttention ? "Yes" : "No"}
+              detail="user attention required"
+            />
+            <MetricCard label="Next action" value={nextAction} detail="local handoff cue" />
+            <MetricCard
+              label="Related state keys"
+              value={relatedStateKeys.length}
+              detail={
+                relatedStateKeys.length === 0
+                  ? "No related state keys"
+                  : "state key references"
+              }
+            />
+            <MetricCard
+              label="Recent events"
+              value={recentEventCount}
+              detail="loaded work trace events"
+            />
+            <MetricCard
+              label="Codex handoff"
+              value={codexHandoffAvailable ? "Available" : "Not loaded"}
+              detail="draft handoff material"
+            />
+            <MetricCard
+              label="Suggested verification"
+              value={suggestedVerificationCount}
+              detail="local verification prompts"
+            />
+          </div>
+          {relatedStateKeys.length ? (
+            <div className="selected-work-state-keys">
+              <RefChipList refs={relatedStateKeys} emptyLabel="No related state keys" />
+            </div>
+          ) : null}
+        </>
+      )}
+      <div className="selected-work-handoff-next">
+        <BoundaryNote tone="green">
+          Safe next step: Review the selected work brief, related state keys, and suggested verification before delegating or closing out work.
+        </BoundaryNote>
+        <BoundaryNote>
+          Read-only snapshot. No Codex execution, GitHub posting, PR review creation, approval, merge, publication, provider call, Augnes mutation, or state commit/reject.
+        </BoundaryNote>
+      </div>
     </section>
   );
 }
