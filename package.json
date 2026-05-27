@@ -59,6 +59,7 @@
     "smoke:codex-authority-grant": "node scripts/smoke-codex-authority-grant.mjs",
     "smoke:codex-github-comment-payload": "node scripts/smoke-codex-github-comment-payload.mjs",
     "smoke:codex-github-comment-readiness": "node scripts/smoke-codex-github-comment-readiness.mjs",
+    "smoke:codex-github-comment-readiness-summary-dogfood": "node scripts/smoke-codex-github-comment-readiness-summary-dogfood.mjs",
     "smoke:codex-github-comment-posting-command-preview": "node scripts/smoke-codex-github-comment-posting-command-preview.mjs",
     "smoke:codex-operator-review-packet": "node scripts/smoke-codex-operator-review-packet.mjs",
     "smoke:codex-operator-review-packet-dogfood": "node scripts/smoke-codex-operator-review-packet-dogfood.mjs",
