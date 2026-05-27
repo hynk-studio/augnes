@@ -18,6 +18,7 @@
     "smoke:cockpit-perspective-ia": "node scripts/smoke-cockpit-perspective-ia.mjs",
     "smoke:cockpit-operator-handoff-snapshot-dogfood": "node scripts/smoke-cockpit-operator-handoff-snapshot-dogfood.mjs",
     "smoke:cockpit-selected-work-handoff-snapshot-dogfood": "node scripts/smoke-cockpit-selected-work-handoff-snapshot-dogfood.mjs",
+    "smoke:cockpit-work-codex-handoff-review-dogfood": "node scripts/smoke-cockpit-work-codex-handoff-review-dogfood.mjs",
     "smoke:cockpit-work-codex-handoff-scan": "node scripts/smoke-cockpit-work-codex-handoff-scan.mjs",
     "smoke:cockpit-visual-tone-refresh": "node scripts/smoke-cockpit-visual-tone-refresh.mjs",
     "smoke:cockpit-temporal-admission": "node scripts/smoke-cockpit-temporal-admission.mjs",
