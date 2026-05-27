@@ -49,6 +49,7 @@ for (const sample of samples) {
     sample.blockingEventId,
     sample.id,
   );
+  assertStructuredResolutionLink(packet, sample.followUpEventId, sample.blockingEventId);
   assertStructuredResolutionObservation(packet, sample.followUpEventId, sample.blockingEventId);
   assertManualOrLocalOnlyObservation(packet);
   assertNoSecretsOrHiddenMaterial(JSON.stringify(packet));
@@ -60,6 +61,7 @@ for (const sample of samples) {
 }
 
 const disambiguation = await runPacketJson(buildDisambiguationNegativeFixture());
+assertStructuredResolutionLink(disambiguation, "fix-earlier-blocker", "earlier-blocker");
 assertStructuredResolutionObservation(disambiguation, "fix-earlier-blocker", "earlier-blocker");
 assert.doesNotMatch(disambiguation.perspective_observations.join("\n"), /resolved blocking event later-blocker/);
 assertNoManualHandoffObservation(disambiguation);
@@ -415,6 +417,20 @@ function assertStructuredResolutionObservation(packet, followUpEventId, blocking
   assert.ok(
     packet.perspective_observations.some((observation) =>
       observation.includes(`Review event ${followUpEventId} resolved blocking event ${blockingEventId}`),
+    ),
+    `${followUpEventId} -> ${blockingEventId}`,
+  );
+}
+
+function assertStructuredResolutionLink(packet, followUpEventId, blockingEventId) {
+  assert.ok(Array.isArray(packet.resolution_links), "resolution_links should be present");
+  assert.ok(
+    packet.resolution_links.some(
+      (link) =>
+        link.link_kind === "review_event_resolution" &&
+        link.source === "structured_resolves_event_id" &&
+        link.resolving_event_id === followUpEventId &&
+        link.blocking_event_id === blockingEventId,
     ),
     `${followUpEventId} -> ${blockingEventId}`,
   );

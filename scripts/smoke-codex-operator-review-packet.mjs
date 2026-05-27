@@ -45,6 +45,7 @@ assert.equal(bothJson.helper, "codex:operator-review-packet");
 assert.equal(bothJson.packet_kind, "review_handoff");
 assert.equal(bothJson.dry_run_only, true);
 assert.equal(bothJson.would_execute, false);
+assert.deepEqual(bothJson.resolution_links, []);
 assert.deepEqual(
   bothJson.timeline.map((event) => event.event_type),
   ["task_opened", "review_finding", "follow_up_commit", "operator_decision"],
@@ -83,6 +84,7 @@ const summaryOnly = await runPacket({
 assert.equal(summaryOnly.status, 0, summaryOnly.stderr);
 assert.match(summaryOnly.stdout, /Codex operator review packet/);
 assert.doesNotMatch(summaryOnly.stdout, new RegExp(beginMarker));
+assert.doesNotMatch(summaryOnly.stdout, /Resolution links:/);
 assert.doesNotMatch(summaryOnly.stdout, /event_id=undefined/);
 assert.doesNotMatch(summaryOnly.stdout, /resolves_event_id=undefined/);
 assert.doesNotMatch(summaryOnly.stdout, /event_id=null/);
@@ -111,6 +113,8 @@ assert.match(
 assert.match(linkedSummary.stdout, /event_id=finding-target-ref/);
 assert.match(linkedSummary.stdout, /event_id=fix-target-ref/);
 assert.match(linkedSummary.stdout, /resolves_event_id=finding-target-ref/);
+assert.match(linkedSummary.stdout, /^Resolution links:$/m);
+assert.match(linkedSummary.stdout, /- fix-target-ref -> finding-target-ref/);
 assertNoSecretsOrPayload(linkedSummary.stdout + linkedSummary.stderr);
 successfulOutputs.push(linkedSummary.stdout);
 
@@ -126,11 +130,25 @@ const linkedBothSummary = extractSummaryText(linkedBoth.stdout);
 assert.match(linkedBothSummary, /event_id=finding-target-ref/);
 assert.match(linkedBothSummary, /event_id=fix-target-ref/);
 assert.match(linkedBothSummary, /resolves_event_id=finding-target-ref/);
+assert.match(linkedBothSummary, /^Resolution links:$/m);
+assert.match(linkedBothSummary, /- fix-target-ref -> finding-target-ref/);
 const linkedBothJson = extractPacketJson(linkedBoth.stdout);
 assert.equal(linkedBothJson.timeline[0].event_id, "finding-target-ref");
 assert.equal(linkedBothJson.timeline[1].event_id, "fix-target-ref");
 assert.equal(linkedBothJson.timeline[1].resolves_event_id, "finding-target-ref");
-assert.equal(linkedBothJson.resolution_links, undefined);
+assert.deepEqual(linkedBothJson.resolution_links, [
+  {
+    link_kind: "review_event_resolution",
+    source: "structured_resolves_event_id",
+    blocking_event_id: "finding-target-ref",
+    resolving_event_id: "fix-target-ref",
+    blocking_event_index: 1,
+    resolving_event_index: 2,
+    blocking_event_type: "review_finding",
+    resolving_event_type: "follow_up_commit",
+    resolving_event_result: "follow_up_resolved",
+  },
+]);
 assertNoSecretsOrPayload(linkedBoth.stdout + linkedBoth.stderr);
 successfulOutputs.push(linkedBoth.stdout);
 
@@ -197,12 +215,63 @@ const structuredLink = await runPacketJson({
 assert.equal(structuredLink.timeline[0].event_id, "finding-target-ref");
 assert.equal(structuredLink.timeline[1].event_id, "fix-target-ref");
 assert.equal(structuredLink.timeline[1].resolves_event_id, "finding-target-ref");
+assert.deepEqual(structuredLink.resolution_links, [
+  {
+    link_kind: "review_event_resolution",
+    source: "structured_resolves_event_id",
+    blocking_event_id: "finding-target-ref",
+    resolving_event_id: "fix-target-ref",
+    blocking_event_index: 1,
+    resolving_event_index: 2,
+    blocking_event_type: "review_finding",
+    resolving_event_type: "follow_up_commit",
+    resolving_event_result: "follow_up_resolved",
+  },
+]);
 assert.ok(
   structuredLink.perspective_observations.some((observation) =>
     observation.includes("Review event fix-target-ref resolved blocking event finding-target-ref") &&
     observation.includes("Follow-up resolved target_ref parsing and pull/issue consistency."),
   ),
 );
+
+const linkedEventWithoutEventId = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_id: "finding-with-anonymous-fix",
+          event_type: "review_finding",
+          summary: "Blocking review finding for anonymous linked resolver.",
+          result: "blocking",
+        },
+        {
+          resolves_event_id: "finding-with-anonymous-fix",
+          event_type: "follow_up_commit",
+          summary: "Follow-up resolved the anonymous linked resolver case.",
+          result: "follow_up_resolved",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assert.deepEqual(linkedEventWithoutEventId.resolution_links, [
+  {
+    link_kind: "review_event_resolution",
+    source: "structured_resolves_event_id",
+    blocking_event_id: "finding-with-anonymous-fix",
+    resolving_event_id: null,
+    blocking_event_index: 1,
+    resolving_event_index: 2,
+    blocking_event_type: "review_finding",
+    resolving_event_type: "follow_up_commit",
+    resolving_event_result: "follow_up_resolved",
+  },
+]);
 
 const structuredDisambiguation = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
@@ -241,6 +310,47 @@ assert.ok(
   ),
 );
 assert.doesNotMatch(structuredDisambiguation.perspective_observations.join("\n"), /resolved blocking event second-blocker/);
+assert.deepEqual(structuredDisambiguation.resolution_links, [
+  {
+    link_kind: "review_event_resolution",
+    source: "structured_resolves_event_id",
+    blocking_event_id: "first-blocker",
+    resolving_event_id: "fix-first-blocker",
+    blocking_event_index: 1,
+    resolving_event_index: 3,
+    blocking_event_type: "review_finding",
+    resolving_event_type: "follow_up_commit",
+    resolving_event_result: "follow_up_resolved",
+  },
+]);
+
+const multipleStructuredLinks = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(buildMultipleStructuredLinksInput()),
+});
+assert.deepEqual(multipleStructuredLinks.resolution_links, [
+  {
+    link_kind: "review_event_resolution",
+    source: "structured_resolves_event_id",
+    blocking_event_id: "second-blocking-finding",
+    resolving_event_id: "first-fix",
+    blocking_event_index: 2,
+    resolving_event_index: 3,
+    blocking_event_type: "review_finding",
+    resolving_event_type: "follow_up_commit",
+    resolving_event_result: "follow_up_resolved",
+  },
+  {
+    link_kind: "review_event_resolution",
+    source: "structured_resolves_event_id",
+    blocking_event_id: "first-blocking-finding",
+    resolving_event_id: "second-fix",
+    blocking_event_index: 1,
+    resolving_event_index: 4,
+    blocking_event_type: "review_finding",
+    resolving_event_type: "follow_up_commit",
+    resolving_event_result: "follow_up_resolved",
+  },
+]);
 
 const unresolvedFollowUpOnly = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
@@ -325,6 +435,7 @@ assertRawTimelinePreserved(unresolvedThenResolvedFollowUp, [
   "follow_up_required",
   "follow_up_commit",
 ]);
+assert.deepEqual(unresolvedThenResolvedFollowUp.resolution_links, []);
 assert.ok(
   unresolvedThenResolvedFollowUp.perspective_observations.some((observation) =>
     observation.includes("Review event 1 was blocking") &&
@@ -656,6 +767,43 @@ function buildLinkedReviewEventsInput() {
   });
 }
 
+function buildMultipleStructuredLinksInput() {
+  return buildPr215LikeInput({
+    review_events: [
+      {
+        event_id: "first-blocking-finding",
+        event_type: "review_finding",
+        summary: "Blocking review finding for first output relationship.",
+        result: "blocking",
+      },
+      {
+        event_id: "second-blocking-finding",
+        event_type: "review_finding",
+        summary: "Blocking review finding for second output relationship.",
+        result: "blocking",
+      },
+      {
+        event_id: "first-fix",
+        resolves_event_id: "second-blocking-finding",
+        event_type: "follow_up_commit",
+        summary: "Follow-up resolved the second output relationship first.",
+        result: "follow_up_resolved",
+      },
+      {
+        event_id: "second-fix",
+        resolves_event_id: "first-blocking-finding",
+        event_type: "follow_up_commit",
+        summary: "Follow-up resolved the first output relationship second.",
+        result: "follow_up_resolved",
+      },
+    ],
+    operator_decision: {
+      decision: "defer_review",
+      reason: "More review is needed.",
+    },
+  });
+}
+
 async function runPacketJson(env) {
   const result = await runPacket({
     env: {
@@ -753,6 +901,7 @@ function assertPacketShape(value) {
   assert.ok(Array.isArray(value.material_summary.missing_optional));
   assert.ok(Array.isArray(value.boundary_summary));
   assert.ok(Array.isArray(value.timeline));
+  assert.ok(Array.isArray(value.resolution_links));
   assert.ok(Array.isArray(value.perspective_observations));
   assert.ok(Array.isArray(value.operator_questions));
   assert.equal(typeof value.recommended_next_decision.decision, "string");

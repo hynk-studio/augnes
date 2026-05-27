@@ -62,6 +62,18 @@ type TimelineItem = ReviewEvent & {
   index: number;
 };
 
+type ResolutionLink = {
+  link_kind: "review_event_resolution";
+  source: "structured_resolves_event_id";
+  blocking_event_id: string;
+  resolving_event_id: string | null;
+  blocking_event_index: number;
+  resolving_event_index: number;
+  blocking_event_type: string;
+  resolving_event_type: string;
+  resolving_event_result: string;
+};
+
 type MaterialSummary = {
   present: MaterialKey[];
   missing_optional: MaterialKey[];
@@ -78,6 +90,7 @@ type OperatorReviewPacket = {
   material_summary: MaterialSummary;
   boundary_summary: string[];
   timeline: TimelineItem[];
+  resolution_links: ResolutionLink[];
   perspective_observations: string[];
   operator_questions: string[];
   recommended_next_decision: OperatorDecision;
@@ -433,6 +446,38 @@ function renderStructuredResolutionObservations(events: ReviewEvent[]): string[]
   return observations;
 }
 
+function buildResolutionLinks(events: ReviewEvent[]): ResolutionLink[] {
+  const eventIdToIndex = new Map<string, number>();
+  for (let index = 0; index < events.length; index += 1) {
+    const eventId = events[index].event_id;
+    if (eventId !== undefined) eventIdToIndex.set(eventId, index);
+  }
+
+  const links: ResolutionLink[] = [];
+  for (let index = 0; index < events.length; index += 1) {
+    const resolvingEvent = events[index];
+    const resolvesEventId = resolvingEvent.resolves_event_id;
+    if (resolvesEventId === undefined || resolvesEventId === null) continue;
+
+    const blockingEventIndex = eventIdToIndex.get(resolvesEventId);
+    if (blockingEventIndex === undefined) continue;
+    const blockingEvent = events[blockingEventIndex];
+    links.push({
+      link_kind: "review_event_resolution",
+      source: "structured_resolves_event_id",
+      blocking_event_id: resolvesEventId,
+      resolving_event_id: resolvingEvent.event_id ?? null,
+      blocking_event_index: blockingEventIndex + 1,
+      resolving_event_index: index + 1,
+      blocking_event_type: blockingEvent.event_type,
+      resolving_event_type: resolvingEvent.event_type,
+      resolving_event_result: resolvingEvent.result,
+    });
+  }
+
+  return links;
+}
+
 function hasActuationProceedSignal(decision: OperatorDecision): boolean {
   const text = `${decision.decision} ${decision.reason}`;
   return containsAny(text, [
@@ -543,6 +588,7 @@ function buildPacket(input: OperatorReviewPacketInput): OperatorReviewPacket {
       "no_ui_change",
     ],
     timeline: input.review_events.map((event, index) => ({ index: index + 1, ...event })),
+    resolution_links: buildResolutionLinks(input.review_events),
     perspective_observations: renderPerspectiveObservations(input),
     operator_questions: renderOperatorQuestions(input, materialSummary),
     recommended_next_decision: input.operator_decision,
@@ -565,7 +611,7 @@ function renderTimelineLinkLabel(event: TimelineItem): string {
 }
 
 function renderSummary(packet: OperatorReviewPacket): string {
-  const lines = [
+  const lines: string[] = [
     "Codex operator review packet",
     `Helper: ${packet.helper} v${packet.version}`,
     `Mode: ${packet.operation_mode}`,
@@ -583,6 +629,18 @@ function renderSummary(packet: OperatorReviewPacket): string {
     ...packet.timeline.map(
       (event) => `- ${event.index}. ${event.event_type}${renderTimelineLinkLabel(event)}: ${event.summary} (${event.result})`,
     ),
+  ];
+
+  if (packet.resolution_links.length > 0) {
+    lines.push(
+      "Resolution links:",
+      ...packet.resolution_links.map(
+        (link) => `- ${link.resolving_event_id ?? String(link.resolving_event_index)} -> ${link.blocking_event_id}`,
+      ),
+    );
+  }
+
+  lines.push(
     "Perspective observations:",
     ...packet.perspective_observations.map((observation) => `- ${observation}`),
     "Operator questions:",
@@ -594,7 +652,7 @@ function renderSummary(packet: OperatorReviewPacket): string {
     `Dry run only: ${packet.dry_run_only}`,
     `Would execute: ${packet.would_execute}`,
     `Authority boundary: ${packet.authority_boundary}`,
-  ];
+  );
 
   return `${lines.join("\n")}\n`;
 }
