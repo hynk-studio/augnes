@@ -64,6 +64,7 @@
     "smoke:codex-operator-review-packet-dogfood": "node scripts/smoke-codex-operator-review-packet-dogfood.mjs",
     "smoke:codex-operator-review-packet-linked-dogfood": "node scripts/smoke-codex-operator-review-packet-linked-dogfood.mjs",
     "smoke:codex-operator-review-packet-linked-summary-dogfood": "node scripts/smoke-codex-operator-review-packet-linked-summary-dogfood.mjs",
+    "smoke:codex-operator-review-packet-result-enum-dogfood": "node scripts/smoke-codex-operator-review-packet-result-enum-dogfood.mjs",
     "smoke:codex-actuation-gate": "node scripts/smoke-codex-actuation-gate.mjs",
     "smoke:codex-actuation-preview": "node scripts/smoke-codex-actuation-preview.mjs",
     "smoke:codex-actuation-rehearsal": "node scripts/smoke-codex-actuation-rehearsal.mjs",
