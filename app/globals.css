@@ -1530,6 +1530,38 @@ h1 {
   box-shadow: 0 8px 20px rgba(39, 52, 66, 0.045);
 }
 
+.selected-work-handoff-snapshot {
+  display: grid;
+  gap: 12px;
+  box-shadow: none;
+}
+
+.selected-work-handoff-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.selected-work-handoff-grid .metric-card {
+  padding: 12px;
+  box-shadow: none;
+}
+
+.selected-work-handoff-grid .metric-card strong {
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.selected-work-state-keys .proof-list {
+  margin: 0;
+}
+
+.selected-work-handoff-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .work-focus-grid {
   display: grid;
   grid-template-columns: minmax(250px, 0.34fr) minmax(0, 1fr) minmax(270px, 0.42fr);
@@ -4018,6 +4050,8 @@ h1 {
   .perspective-next-grid,
   .operator-handoff-snapshot-grid,
   .operator-handoff-next,
+  .selected-work-handoff-grid,
+  .selected-work-handoff-next,
   .operator-layout-grid,
   .endpoint-grid,
   .current-work-main,

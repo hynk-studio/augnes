@@ -103,6 +103,29 @@ export function runPerspectiveIaSmoke(smokeName) {
     "publish/mutate GitHub blocked",
     "proof/trace recording gated",
     "Operator actions affect the local Augnes runtime only",
+    "Selected Work Handoff Snapshot",
+    "Local handoff view for the selected work item",
+    "Read-only snapshot",
+    "No Codex execution",
+    "GitHub posting",
+    "PR review creation",
+    "approval",
+    "merge",
+    "publication",
+    "provider call",
+    "Augnes mutation",
+    "state commit/reject",
+    "Selected work",
+    "Status",
+    "Priority",
+    "Needs attention",
+    "Next action",
+    "Related state keys",
+    "Recent events",
+    "Codex handoff",
+    "Suggested verification",
+    "Safe next step",
+    "Review the selected work brief, related state keys, and suggested verification before delegating or closing out work",
     "Operator Handoff Snapshot",
     "Local review state for the current operator handoff",
     "Read-only snapshot",
@@ -295,6 +318,69 @@ export function runPerspectiveIaSmoke(smokeName) {
     );
   }
 
+  const selectedWorkSnapshotSource = extractFunctionSource(
+    cockpit,
+    "function SelectedWorkHandoffSnapshot",
+    "function ProofList",
+  );
+  for (const snippet of [
+    "Selected Work Handoff Snapshot",
+    "Local handoff view for the selected work item",
+    "Selected work",
+    "Status",
+    "Priority",
+    "Needs attention",
+    "Next action",
+    "Related state keys",
+    "Recent events",
+    "Codex handoff",
+    "Suggested verification",
+    "Safe next step",
+    "Read-only snapshot",
+    "No Codex execution",
+    "GitHub posting",
+    "PR review creation",
+    "approval",
+    "merge",
+    "publication",
+    "provider call",
+    "Augnes mutation",
+    "state commit/reject",
+  ]) {
+    assertIncludes(selectedWorkSnapshotSource, snippet);
+  }
+  assert.equal(
+    /<button\b/.test(selectedWorkSnapshotSource),
+    false,
+    "Selected Work Handoff Snapshot must not add action buttons.",
+  );
+  for (const forbiddenSelectedWorkSnapshotSource of [
+    "fetch(",
+    "/api/",
+    "Octokit",
+    "axios",
+    "api.github.com",
+    "api.openai.com",
+    "process.env.GITHUB_TOKEN",
+    "process.env.OPENAI_API_KEY",
+    "use server",
+  ]) {
+    assert.equal(
+      selectedWorkSnapshotSource.includes(forbiddenSelectedWorkSnapshotSource),
+      false,
+      `Selected Work Handoff Snapshot must not introduce source boundary risk: ${forbiddenSelectedWorkSnapshotSource}`,
+    );
+  }
+
+  const workFocusSource = extractFunctionSource(
+    cockpit,
+    "function WorkFocusSection",
+    "function SelectedWorkHandoffSnapshot",
+  );
+  assertIncludes(workFocusSource, "WorkFocusSection");
+  assertIncludes(workFocusSource, "work-focus-grid");
+  assertIncludes(workFocusSource, "Copy Codex handoff");
+
   const brandMarkup = extractCockpitBrandMarkup(cockpit);
   assertIncludes(brandMarkup, "<strong>AUGNES</strong>");
   assertIncludes(brandMarkup, "<span>Temporal State Runtime</span>");
@@ -351,6 +437,9 @@ export function runPerspectiveIaSmoke(smokeName) {
     ".perspective-detail-panel",
     ".bridge-grid",
     ".capability-matrix",
+    ".selected-work-handoff-snapshot",
+    ".selected-work-handoff-grid",
+    ".selected-work-handoff-next",
     ".operator-layout-grid",
     ".operator-handoff-snapshot",
     ".operator-handoff-snapshot-grid",
