@@ -1713,6 +1713,77 @@ h1 {
   font-size: 0.82rem;
 }
 
+.work-codex-handoff-review {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.work-codex-handoff-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.work-codex-handoff-field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.work-codex-handoff-field span,
+.work-codex-handoff-block h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.work-codex-handoff-field strong {
+  color: #203047;
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.work-codex-handoff-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(248, 251, 249, 0.86);
+}
+
+.work-codex-handoff-block p {
+  margin: 0;
+  color: #405168;
+  font-size: 0.82rem;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.work-codex-handoff-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: #405168;
+  font-size: 0.8rem;
+  line-height: 1.36;
+}
+
+.work-codex-handoff-list code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .work-proof-grid {
   display: grid;
   grid-template-columns: minmax(230px, 0.8fr) minmax(0, 1.2fr);
@@ -4052,6 +4123,7 @@ h1 {
   .operator-handoff-next,
   .selected-work-handoff-grid,
   .selected-work-handoff-next,
+  .work-codex-handoff-grid,
   .operator-layout-grid,
   .endpoint-grid,
   .current-work-main,
