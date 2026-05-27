@@ -1640,6 +1640,12 @@ function PerspectiveTab({
     (evidencePack?.gaps.length ?? 0) +
     (temporalReviewArtifacts?.gaps.length ?? 0) +
     (sessionTrace?.gaps.length ?? 0);
+  const evidenceAnchorRefCount =
+    (preview?.evidence_anchors.length ?? 0) +
+    (selectedTemporalReviewArtifact?.evidence_anchor_refs.length ?? 0);
+  const summaryRefCount =
+    (preview?.summary_refs.length ?? 0) +
+    (selectedTemporalReviewArtifact?.summary_refs.length ?? 0);
   const selectedWorkNextAction =
     workBrief?.next_action || selectedWorkItem?.next_action || null;
   const snapshotStateBasisCount = perspectiveSnapshot
@@ -1951,6 +1957,68 @@ function PerspectiveTab({
             title="Evidence support and challenge"
             description="Evidence supports or challenges the frame. It does not commit, approve, publish, replay, or execute."
           />
+          <section
+            className="cockpit-surface-card perspective-evidence-handoff-snapshot"
+            aria-label="Perspective Evidence Handoff Snapshot"
+          >
+            <PanelHeader
+              eyebrow="Perspective evidence"
+              title="Perspective Evidence Handoff Snapshot"
+              description="Read-only evidence and continuity orientation for the current perspective frame. This does not create proof, call providers, execute Codex, publish, or mutate state."
+            />
+            <div className="perspective-evidence-handoff-grid">
+              <MetricCard
+                label="Evidence Pack"
+                value={evidencePack ? "Loaded" : "Not loaded"}
+                detail="current evidence packet"
+              />
+              <MetricCard
+                label="Evidence records"
+                value={evidenceRecordCount}
+                detail="commands, checks, and skipped checks"
+              />
+              <MetricCard
+                label="Temporal Review Artifacts"
+                value={temporalReviewArtifacts?.count ?? 0}
+                detail={temporalReviewArtifacts ? "Loaded" : "Not loaded"}
+              />
+              <MetricCard
+                label="Session Trace"
+                value={sessionTrace ? "Loaded" : "Not loaded"}
+                detail="continuity context"
+              />
+              <MetricCard
+                label="Loaded evidence gaps"
+                value={gapCount}
+                detail="evidence/session/artifact gaps"
+              />
+              <MetricCard
+                label="Evidence anchor refs"
+                value={evidenceAnchorRefCount}
+                detail="preview and artifact anchors"
+              />
+              <MetricCard
+                label="Summary refs"
+                value={summaryRefCount}
+                detail="preview and artifact summaries"
+              />
+              <MetricCard
+                label="Selected temporal review artifact"
+                value={selectedTemporalReviewArtifact ? "Available" : "Not loaded"}
+                detail="read-only artifact focus"
+              />
+            </div>
+            <div className="perspective-evidence-handoff-next">
+              <BoundaryNote tone="green">
+                Safe next step: Review evidence pack, session trace, and temporal review artifacts before treating a frame as grounded.
+              </BoundaryNote>
+              <BoundaryNote>
+                Boundary: Read-only snapshot. No proof creation, provider call,
+                Codex execution, GitHub posting, approval, merge, publication,
+                Augnes mutation, or state commit/reject.
+              </BoundaryNote>
+            </div>
+          </section>
           <div className="perspective-evidence-grid">
             <MetricCard
               label="Snapshot evidence_basis"
