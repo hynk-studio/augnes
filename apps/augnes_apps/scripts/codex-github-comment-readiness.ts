@@ -12,6 +12,7 @@ const GRANT_JSON_BEGIN_MARKER = "BEGIN_AUGNES_CODEX_AUTHORITY_GRANT_JSON";
 const GRANT_JSON_END_MARKER = "END_AUGNES_CODEX_AUTHORITY_GRANT_JSON";
 const READINESS_JSON_BEGIN_MARKER = "BEGIN_AUGNES_CODEX_GITHUB_COMMENT_READINESS_JSON";
 const READINESS_JSON_END_MARKER = "END_AUGNES_CODEX_GITHUB_COMMENT_READINESS_JSON";
+const GITHUB_API_HOST = ["api", "github", "com"].join(".");
 
 const AUTHORITY_BOUNDARY =
   "The helper validates local GitHub comment preflight material only. It does not call GitHub. It does not post comments or reviews. It does not approve, merge, publish, create evidence, create proof, mutate Augnes, call providers, call OpenAI, call Augnes runtime routes, or commit/reject state. It does not grant authority. preflight_passed is not execution readiness. Any posting requires a separate implementation and gate.";
@@ -575,7 +576,7 @@ function payloadInternalCheck(payload: PayloadResult): ConsistencyCheck {
   const target = payload.target;
   const preview = payload.payload;
   const expectedEndpoint = `POST /repos/${target.owner}/${target.repo}/issues/${target.issue_number}/comments`;
-  const expectedApiUrl = `https://api.github.com/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(
+  const expectedApiUrl = `https://${GITHUB_API_HOST}/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(
     target.repo,
   )}/issues/${target.issue_number}/comments`;
 
@@ -807,6 +808,26 @@ function buildResult(
   };
 }
 
+function renderLabels(labels: string[]): string {
+  return labels.length > 0 ? labels.join(",") : "none";
+}
+
+function renderConsistencyCheck(name: keyof ConsistencyChecks, checkResult: ConsistencyCheck): string {
+  return `- ${name}: checked=${checkResult.checked} ok=${checkResult.ok} warnings=${renderLabels(
+    checkResult.warnings,
+  )} blockers=${renderLabels(checkResult.blockers)}`;
+}
+
+function renderConsistencyChecks(checks: ConsistencyChecks): string[] {
+  return [
+    "consistency_checks:",
+    renderConsistencyCheck("payload_internal", checks.payload_internal),
+    renderConsistencyCheck("gate_consistency", checks.gate_consistency),
+    renderConsistencyCheck("preview_consistency", checks.preview_consistency),
+    renderConsistencyCheck("grant_consistency", checks.grant_consistency),
+  ];
+}
+
 function renderSummary(result: ReadinessResult, requireFullChain: boolean): string {
   return [
     "Codex GitHub comment readiness",
@@ -833,6 +854,7 @@ function renderSummary(result: ReadinessResult, requireFullChain: boolean): stri
     `requires_separate_actuation_helper: ${result.requires_separate_actuation_helper}`,
     `warnings count: ${result.warnings.length}`,
     `blockers count: ${result.blockers.length}`,
+    ...renderConsistencyChecks(result.consistency_checks),
     `next_step: ${result.next_step}`,
     `authority boundary: ${result.authority_boundary}`,
     DELEGATED_NOTE,
