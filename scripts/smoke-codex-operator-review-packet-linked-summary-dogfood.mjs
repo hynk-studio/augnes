@@ -395,6 +395,7 @@ function assertJsonPacket(packet, sample) {
     sample.blockingEventId,
     sample.id,
   );
+  assertStructuredResolutionLink(packet, sample.followUpEventId, sample.blockingEventId);
   assertStructuredResolutionObservation(packet, sample.followUpEventId, sample.blockingEventId);
   assertManualOrLocalOnlyObservation(packet);
 }
@@ -415,6 +416,8 @@ function assertSummaryOutput(summary, sample) {
     ),
     sample.id,
   );
+  assert.match(summary, /^Resolution links:$/m);
+  assert.match(summary, new RegExp(escapeRegExp(`- ${sample.followUpEventId} -> ${sample.blockingEventId}`)), sample.id);
   assert.match(summary, /manual handoff\/no actuation/);
 }
 
@@ -440,6 +443,20 @@ function assertStructuredResolutionObservation(packet, followUpEventId, blocking
   assert.ok(
     packet.perspective_observations.some((observation) =>
       observation.includes(`Review event ${followUpEventId} resolved blocking event ${blockingEventId}`),
+    ),
+    `${followUpEventId} -> ${blockingEventId}`,
+  );
+}
+
+function assertStructuredResolutionLink(packet, followUpEventId, blockingEventId) {
+  assert.ok(Array.isArray(packet.resolution_links), "resolution_links should be present");
+  assert.ok(
+    packet.resolution_links.some(
+      (link) =>
+        link.link_kind === "review_event_resolution" &&
+        link.source === "structured_resolves_event_id" &&
+        link.resolving_event_id === followUpEventId &&
+        link.blocking_event_id === blockingEventId,
     ),
     `${followUpEventId} -> ${blockingEventId}`,
   );
