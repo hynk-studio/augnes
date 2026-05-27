@@ -26,6 +26,23 @@ const forbiddenPublicOverclaimPhrases = [
   "proof of quality",
   "readiness authority",
 ];
+const allowedReviewEventResults = [
+  "opened",
+  "implemented",
+  "blocking",
+  "needs_review",
+  "follow_up_required",
+  "follow_up_resolved",
+  "resolved",
+  "updated",
+  "verified",
+  "deferred",
+  "local_preflight_only",
+  "manual_handoff_no_actuation",
+  "merged_local_only",
+  "dogfood_next_local_only",
+  "approved_actuation",
+];
 
 const successfulOutputs = [];
 
@@ -209,6 +226,31 @@ assert.deepEqual(missingMaterials.material_summary.missing_optional, [
 assert.ok(missingMaterials.warnings.every((warning) => warning.startsWith("Missing optional material:")));
 assert.equal(missingMaterials.blockers.length, 0);
 
+for (const result of allowedReviewEventResults) {
+  const allowedResultPacket = await runPacketJson({
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          {
+            event_type: "result_enum_fixture",
+            summary: `Controlled result value ${result} is accepted.`,
+            result,
+          },
+        ],
+        operator_decision: {
+          decision: "defer_review",
+          reason: "More review is needed.",
+        },
+      }),
+    ),
+  });
+  assert.equal(allowedResultPacket.timeline[0].result, result);
+}
+
+for (const result of ["", " ", null, 123, "created", "approved", "merged_manual_handoff", "random_success"]) {
+  await assertInvalidReviewEventResult(result);
+}
+
 const structuredLink = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(linkedSummaryInput),
 });
@@ -234,6 +276,45 @@ assert.ok(
     observation.includes("Follow-up resolved target_ref parsing and pull/issue consistency."),
   ),
 );
+
+const structuredLinkResolvedResult = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_id: "resolved-result-finding",
+          event_type: "review_finding",
+          summary: "Blocking review finding for resolved result validation.",
+          result: "blocking",
+        },
+        {
+          event_id: "resolved-result-fix",
+          resolves_event_id: "resolved-result-finding",
+          event_type: "follow_up_commit",
+          summary: "Follow-up recorded the resolved result value.",
+          result: "resolved",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assert.deepEqual(structuredLinkResolvedResult.resolution_links, [
+  {
+    link_kind: "review_event_resolution",
+    source: "structured_resolves_event_id",
+    blocking_event_id: "resolved-result-finding",
+    resolving_event_id: "resolved-result-fix",
+    blocking_event_index: 1,
+    resolving_event_index: 2,
+    blocking_event_type: "review_finding",
+    resolving_event_type: "follow_up_commit",
+    resolving_event_result: "resolved",
+  },
+]);
 
 const linkedEventWithoutEventId = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
@@ -403,6 +484,31 @@ const negatedFallbackFollowUp = await runPacketJson({
 assertRawTimelinePreserved(negatedFallbackFollowUp, ["review_finding", "follow_up_commit"]);
 assertNoResolvedFollowUpObservation(negatedFallbackFollowUp);
 
+const updatedFallbackFollowUpWithResolvedText = await runPacketJson({
+  CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+    buildPr215LikeInput({
+      review_events: [
+        {
+          event_type: "review_finding",
+          summary: "Blocking review finding noted target_ref consistency needed correction.",
+          result: "blocking",
+        },
+        {
+          event_type: "follow_up_commit",
+          summary: "Follow-up resolved wording appears here, but the controlled result is only updated.",
+          result: "updated",
+        },
+      ],
+      operator_decision: {
+        decision: "defer_review",
+        reason: "More review is needed.",
+      },
+    }),
+  ),
+});
+assertRawTimelinePreserved(updatedFallbackFollowUpWithResolvedText, ["review_finding", "follow_up_commit"]);
+assertNoResolvedFollowUpObservation(updatedFallbackFollowUpWithResolvedText);
+
 const unresolvedThenResolvedFollowUp = await runPacketJson({
   CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
     buildPr215LikeInput({
@@ -452,7 +558,7 @@ const actuationApprovedDecision = await runPacketJson({
         {
           event_type: "operator_decision",
           summary: "Operator approved separate actuation helper.",
-          result: "approved",
+          result: "approved_actuation",
         },
       ],
       operator_decision: {
@@ -471,7 +577,7 @@ const explicitManualDecision = await runPacketJson({
         {
           event_type: "operator_decision",
           summary: "Manual handoff preserved.",
-          result: "manual_handoff",
+          result: "manual_handoff_no_actuation",
         },
       ],
       operator_decision: {
@@ -497,7 +603,7 @@ await assertInvalid({
 });
 await assertInvalid({
   env: {
-    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(buildPr215LikeInput({ review_events: [{ event_type: "x", summary: "x" }] })),
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(buildPr215LikeInput({ review_events: [{}] })),
   },
   expected: /CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENTS_SHAPE/,
 });
@@ -593,6 +699,32 @@ await assertInvalid({
   },
   expected: /CODEX_OPERATOR_REVIEW_PACKET_NON_BLOCKING_RESOLUTION_TARGET/,
 });
+for (const targetResult of ["needs_review", "opened", "updated", "verified"]) {
+  await assertInvalid({
+    env: {
+      CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+        buildPr215LikeInput({
+          review_events: [
+            {
+              event_id: `not-blocking-${targetResult}`,
+              event_type: "review_finding",
+              summary: "Review finding text mentions blocking but controlled result is not blocking.",
+              result: targetResult,
+            },
+            {
+              event_id: `fix-not-blocking-${targetResult}`,
+              resolves_event_id: `not-blocking-${targetResult}`,
+              event_type: "follow_up_commit",
+              summary: "Follow-up resolved a non-blocking controlled result target.",
+              result: "follow_up_resolved",
+            },
+          ],
+        }),
+      ),
+    },
+    expected: /CODEX_OPERATOR_REVIEW_PACKET_NON_BLOCKING_RESOLUTION_TARGET/,
+  });
+}
 await assertInvalid({
   env: {
     CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
@@ -605,6 +737,25 @@ await assertInvalid({
             event_type: "follow_up_required",
             summary: "Follow-up still required; issue not resolved.",
             result: "needs_review",
+          },
+        ],
+      }),
+    ),
+  },
+  expected: /CODEX_OPERATOR_REVIEW_PACKET_UNRESOLVED_LINK_EVENT/,
+});
+await assertInvalid({
+  env: {
+    CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+      buildPr215LikeInput({
+        review_events: [
+          { event_id: "finding", event_type: "review_finding", summary: "Blocking finding.", result: "blocking" },
+          {
+            event_id: "updated-but-resolved-wording",
+            resolves_event_id: "finding",
+            event_type: "follow_up_commit",
+            summary: "Follow-up resolved the finding in prose only.",
+            result: "updated",
           },
         ],
       }),
@@ -685,7 +836,7 @@ function buildPr215LikeInput(overrides = {}) {
       {
         event_type: "task_opened",
         summary: "Initial dry-run command preview task was prepared for local review.",
-        result: "created",
+        result: "opened",
       },
       {
         event_type: "review_finding",
@@ -700,7 +851,7 @@ function buildPr215LikeInput(overrides = {}) {
       {
         event_type: "operator_decision",
         summary: "Final merged state preserved manual handoff for any real posting.",
-        result: "merged_manual_handoff",
+        result: "manual_handoff_no_actuation",
       },
     ],
     operator_decision: {
@@ -861,6 +1012,25 @@ async function assertInvalid({ env, expected }) {
   assert.notEqual(result.status, 0, result.stdout);
   assert.match(result.stderr, expected);
   assertNoSecretsOrPayload(result.stdout + result.stderr);
+}
+
+async function assertInvalidReviewEventResult(result) {
+  await assertInvalid({
+    env: {
+      CODEX_OPERATOR_REVIEW_PACKET_INPUT_JSON: JSON.stringify(
+        buildPr215LikeInput({
+          review_events: [
+            {
+              event_type: "result_enum_fixture",
+              summary: "Invalid review event result fixture.",
+              result,
+            },
+          ],
+        }),
+      ),
+    },
+    expected: /CODEX_OPERATOR_REVIEW_PACKET_INVALID_REVIEW_EVENT_RESULT/,
+  });
 }
 
 async function assertUnresolvedLinkedFollowUp(summary, result) {

@@ -223,7 +223,7 @@ function buildSampleC() {
         {
           event_type: "operator_decision",
           summary: "Final decision moved to local dogfood before any UI, sidecar, or actuation work.",
-          result: "dogfood_next_manual_handoff",
+          result: "dogfood_next_local_only",
         },
       ],
       operator_decision: {

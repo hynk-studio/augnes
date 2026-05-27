@@ -119,7 +119,7 @@ function buildSampleA() {
       event_id: "pr240-operator-decision",
       event_type: "operator_decision",
       summary: "Operator decision merged with manual local-only follow-up; no posting or actuation.",
-      result: "merged_manual_local_only",
+      result: "merged_local_only",
     },
   ];
 
@@ -196,7 +196,7 @@ function buildSampleB() {
       event_id: "pr238-operator-decision",
       event_type: "operator_decision",
       summary: "Operator decision merged and kept dogfood-next local-only before UI, sidecar, or actuation work.",
-      result: "merged_dogfood_next_local_only",
+      result: "dogfood_next_local_only",
     },
   ];
 
