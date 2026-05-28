@@ -1,5 +1,6 @@
 const input = await readJsonFromStdin();
 const toolName = stringValue(input.tool_name ?? input.toolName ?? input.name);
+const hookEventName = stringValue(input.hook_event_name ?? input.hookEventName) || "PostToolUse";
 const toolInputText = collectText(input.tool_input ?? input.toolInput ?? input.input).join("\n");
 const outputText = collectText(
   input.tool_response ?? input.toolResponse ?? input.tool_output ?? input.toolOutput ?? input.output ?? input.result ?? input,
@@ -7,7 +8,16 @@ const outputText = collectText(
 const combinedText = `${toolInputText}\n${outputText}`.replace(/\s+/g, " ").trim();
 
 const context = reviewContext(toolName, combinedText);
-writeJson(context ? { additionalContext: context } : {});
+writeJson(
+  context
+    ? {
+        hookSpecificOutput: {
+          hookEventName,
+          additionalContext: context,
+        },
+      }
+    : {},
+);
 
 function reviewContext(toolNameValue, text) {
   if (!text) return "";

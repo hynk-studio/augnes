@@ -1,7 +1,7 @@
 const input = await readJsonFromStdin();
 
 if (input.stop_hook_active === true) {
-  writeJson({ additionalContext: "Augnes operator Stop hook is already active; no continuation requested." });
+  writeJson({ systemMessage: "Augnes operator Stop hook is already active; no continuation requested." });
   process.exit(0);
 }
 
@@ -27,11 +27,6 @@ if (issues.length === 0) {
   writeJson({
     decision: "block",
     reason: prompt,
-    hookSpecificOutput: {
-      hookEventName: "Stop",
-      decision: "block",
-      reason: prompt,
-    },
   });
 }
 

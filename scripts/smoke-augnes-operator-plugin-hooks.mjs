@@ -51,9 +51,8 @@ for (const scriptName of Object.values(hookScripts)) {
 
 const sessionStart = runHook("session_start.mjs", { hook_event_name: "SessionStart" });
 assert.equal(sessionStart.status, 0);
-assert.match(sessionStart.json.additionalContext, /Read AGENTS\.md/);
-assert.match(sessionStart.json.additionalContext, /never merge PRs/);
-assert.equal(sessionStart.json.hookSpecificOutput, undefined);
+assertHookContext(sessionStart.json, "SessionStart", /Read AGENTS\.md/);
+assert.match(sessionStart.json.hookSpecificOutput.additionalContext, /never merge PRs/);
 
 const malformedSessionStart = spawnSync(process.execPath, [path.join(hooksRoot, "session_start.mjs")], {
   input: "{not json",
@@ -61,7 +60,9 @@ const malformedSessionStart = spawnSync(process.execPath, [path.join(hooksRoot, 
 });
 assert.equal(malformedSessionStart.status, 0);
 assert.doesNotThrow(() => JSON.parse(malformedSessionStart.stdout));
-assert.match(JSON.parse(malformedSessionStart.stdout).systemMessage, /malformed/);
+const malformedSessionStartJson = JSON.parse(malformedSessionStart.stdout);
+assert.match(malformedSessionStartJson.systemMessage, /malformed/);
+assertHookContext(malformedSessionStartJson, "SessionStart", /Read AGENTS\.md/);
 
 assertPreToolDenies("gh pr merge 262", /merge PRs/);
 assertPreToolDenies("git push --force origin branch", /force-pushing/);
@@ -70,7 +71,11 @@ assertPreToolDenies("npm run codex:record-completion", /legacy codex:record-comp
 
 assertPreToolAllows("npm run codex:closeout-preflight");
 assertPreToolAllows("npm run typecheck");
-assertPreToolAllows("npm run codex:record-completion-proof", { CODEX_WORK_ID: "AG-123" });
+const proofOnlyPreTool = assertPreToolAllows("npm run codex:record-completion-proof", { CODEX_WORK_ID: "AG-123" });
+assertHookContext(proofOnlyPreTool.json, "PreToolUse", /proof-only closeout/);
+
+const evidencePreTool = assertPreToolAllows("npm run codex:record-evidence", { CODEX_WORK_ID: "AG-123" });
+assertHookContext(evidencePreTool.json, "PreToolUse", /evidence rows/);
 
 const postTypecheckPass = runHook("post_tool_use_review.mjs", {
   hook_event_name: "PostToolUse",
@@ -78,7 +83,7 @@ const postTypecheckPass = runHook("post_tool_use_review.mjs", {
   tool_input: { command: "npm run typecheck" },
   tool_response: { stdout: "Process exited with code 0" },
 });
-assert.match(postTypecheckPass.json.additionalContext, /verification appears to have passed/);
+assertHookContext(postTypecheckPass.json, "PostToolUse", /verification appears to have passed/);
 
 const postSmokePass = runHook("post_tool_use_review.mjs", {
   hook_event_name: "PostToolUse",
@@ -86,7 +91,7 @@ const postSmokePass = runHook("post_tool_use_review.mjs", {
   tool_input: { command: "npm run smoke:augnes-operator-plugin-hooks" },
   tool_response: { stdout: "passed" },
 });
-assert.match(postSmokePass.json.additionalContext, /verification appears to have passed/);
+assertHookContext(postSmokePass.json, "PostToolUse", /verification appears to have passed/);
 
 const postFailure = runHook("post_tool_use_review.mjs", {
   hook_event_name: "PostToolUse",
@@ -94,7 +99,7 @@ const postFailure = runHook("post_tool_use_review.mjs", {
   tool_input: { command: "npm run typecheck" },
   tool_response: { stderr: "Process exited with code 2\nerror TS1234" },
 });
-assert.match(postFailure.json.additionalContext, /summarize the failure/i);
+assertHookContext(postFailure.json, "PostToolUse", /summarize the failure/i);
 
 const stopMissingCloseout = runHook("stop_closeout_guard.mjs", {
   hook_event_name: "Stop",
@@ -102,6 +107,7 @@ const stopMissingCloseout = runHook("stop_closeout_guard.mjs", {
 });
 assert.equal(stopMissingCloseout.json.decision, "block");
 assert.match(stopMissingCloseout.json.reason, /Summary, Files changed/);
+assert.equal(stopMissingCloseout.json.hookSpecificOutput, undefined);
 
 const stopAlreadyActive = runHook("stop_closeout_guard.mjs", {
   hook_event_name: "Stop",
@@ -109,7 +115,8 @@ const stopAlreadyActive = runHook("stop_closeout_guard.mjs", {
   last_assistant_message: "Done.",
 });
 assert.equal(stopAlreadyActive.json.decision, undefined);
-assert.match(stopAlreadyActive.json.additionalContext, /already active/);
+assert.equal(stopAlreadyActive.json.additionalContext, undefined);
+assert.match(stopAlreadyActive.json.systemMessage, /already active/);
 
 const stopMergeClaim = runHook("stop_closeout_guard.mjs", {
   hook_event_name: "Stop",
@@ -124,6 +131,7 @@ const stopMergeClaim = runHook("stop_closeout_guard.mjs", {
 });
 assert.equal(stopMergeClaim.json.decision, "block");
 assert.match(stopMergeClaim.json.reason, /merge-authority language/);
+assert.equal(stopMergeClaim.json.hookSpecificOutput, undefined);
 
 console.log(
   JSON.stringify(
@@ -165,6 +173,12 @@ function assertPreToolAllows(command, env = {}) {
   );
   assert.equal(result.status, 0);
   assert.notEqual(result.json.hookSpecificOutput?.permissionDecision, "deny", `${command} should not be denied`);
+  return result;
+}
+
+function assertHookContext(output, eventName, contextPattern) {
+  assert.equal(output.hookSpecificOutput?.hookEventName, eventName);
+  assert.match(output.hookSpecificOutput?.additionalContext ?? "", contextPattern);
 }
 
 function runHook(scriptName, payload, env = {}) {

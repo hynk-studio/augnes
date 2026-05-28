@@ -13,10 +13,18 @@ const reminder = [
 if (input.__malformed) {
   writeJson({
     systemMessage: "Augnes operator SessionStart input was malformed; continuing with safe guardrail reminders.",
-    additionalContext: reminder,
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: reminder,
+    },
   });
 } else {
-  writeJson({ additionalContext: reminder });
+  writeJson({
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: reminder,
+    },
+  });
 }
 
 async function readJsonFromStdin() {

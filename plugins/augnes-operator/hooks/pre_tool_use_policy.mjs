@@ -16,7 +16,16 @@ if (denial) {
   });
 } else {
   const warning = findAdditionalContext(toolName, normalizedText);
-  writeJson(warning ? { additionalContext: warning } : {});
+  writeJson(
+    warning
+      ? {
+          hookSpecificOutput: {
+            hookEventName,
+            additionalContext: warning,
+          },
+        }
+      : {},
+  );
 }
 
 function findDenial(toolNameValue, text) {

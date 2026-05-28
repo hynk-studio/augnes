@@ -41,7 +41,8 @@ subdirectory.
 
 ### SessionStart
 
-`session_start.mjs` returns `additionalContext` that reminds Codex to:
+`session_start.mjs` returns `hookSpecificOutput.additionalContext` that
+reminds Codex to:
 
 - read `AGENTS.md`
 - use `npm run codex:read-brief` when local runtime is available
@@ -51,7 +52,8 @@ subdirectory.
 - remember that proof is not approval
 
 Malformed input returns a safe system message instead of crashing. Startup is
-not blocked.
+not blocked, and the reminder is still returned through
+`hookSpecificOutput.additionalContext`.
 
 ### PreToolUse
 
@@ -75,15 +77,17 @@ clear forbidden actions, including:
 It allows local checks such as `npm run typecheck`, `npm run smoke:*`, and
 `npm run codex:closeout-preflight`. It allows proof-only closeout and evidence
 recording commands only when `CODEX_WORK_ID` is present, but the hook does not
-record proof or evidence itself.
+record proof or evidence itself. Non-deny reminders are returned through
+`hookSpecificOutput.additionalContext`.
 
 ### PostToolUse
 
 `post_tool_use_review.mjs` inspects command output defensively. If a Bash check
 such as `npm run typecheck` or `npm run smoke:*` appears to pass, it returns
-context suggesting evidence recording only when runtime and `CODEX_WORK_ID` are
-available. If output suggests failure, it asks Codex to summarize the failure
-in Verification or Skipped checks.
+context through `hookSpecificOutput.additionalContext` suggesting evidence
+recording only when runtime and `CODEX_WORK_ID` are available. If output
+suggests failure, it asks Codex to summarize the failure in Verification or
+Skipped checks.
 
 It does not record evidence automatically.
 
@@ -92,6 +96,8 @@ It does not record evidence automatically.
 `stop_closeout_guard.mjs` inspects the last assistant message. It asks for a
 continuation when closeout sections are missing, when the message claims merge
 authority, or when proof-only closeout status/skipped reason is missing.
+Continuation requests use the documented top-level `decision: "block"` and
+`reason` fields.
 
 If `stop_hook_active` is true, it does not request another continuation loop.
 It does not require proof recording when runtime or `CODEX_WORK_ID` is
