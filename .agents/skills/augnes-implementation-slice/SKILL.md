@@ -76,4 +76,3 @@ externally post, merge PRs, enable auto-merge, or claim merge authority.
 - Adding ChatGPT direct Codex execution.
 - Adding approve/publish/retry/replay/external-posting automation.
 - Claiming skipped checks passed.
-

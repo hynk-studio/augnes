@@ -75,4 +75,3 @@ execute Codex from ChatGPT.
 - Treating Work IDs as state authority.
 - Treating read context as approval.
 - Calling approval, publish, retry, replay, merge, or external-posting paths.
-

@@ -75,4 +75,3 @@ decision.
 - Letting docs-only PRs change runtime, route, schema, MCP/App tool, hook,
   plugin, skill implementation, package script, closeout helper, browser
   runbook, dogfood helper, or secret-handling files.
-

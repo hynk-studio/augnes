@@ -85,4 +85,3 @@ merge, auto-merge, or durable user/Core decision.
 - Treating `codex:record-completion` as the default path.
 - Fabricating action IDs, work event IDs, evidence IDs, PR refs, or state keys.
 - Merging PRs, enabling auto-merge, or claiming merge authority.
-

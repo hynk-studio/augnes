@@ -86,4 +86,3 @@ publication readiness, merge authority, or proof of user/Core durable decision.
 - Recording evidence without required work context.
 - Using evidence rows to commit/reject state, approve, publish, retry, replay,
   externally post, merge, or enable auto-merge.
-
