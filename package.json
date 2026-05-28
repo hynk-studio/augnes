@@ -62,6 +62,7 @@
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",
     "smoke:chatgpt-work-contract-card": "node scripts/smoke-chatgpt-work-contract-card.mjs",
+    "smoke:browser-verification-report-template": "node scripts/smoke-browser-verification-report-template.mjs",
     "smoke:codex-closeout-block": "node scripts/smoke-codex-closeout-block.mjs",
     "smoke:codex-closeout-check": "node scripts/smoke-codex-closeout-check.mjs",
     "smoke:codex-closeout-pipeline": "node scripts/smoke-codex-closeout-pipeline.mjs",
