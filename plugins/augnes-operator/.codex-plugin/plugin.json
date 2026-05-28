@@ -1,0 +1,22 @@
+{
+  "name": "augnes-operator",
+  "version": "0.1.0",
+  "description": "Augnes workflow harness for Codex preflight, bounded implementation, evidence reporting, proof-only closeout, and authority audit.",
+  "author": {
+    "name": "Aurna-code"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Augnes Operator",
+    "shortDescription": "Use Augnes workflow skills inside Codex.",
+    "longDescription": "Packages the approved Augnes workflow skills for Codex context intake, bounded implementation, evidence reporting, proof-only closeout, and authority audit. This local scaffold does not include hooks, MCP config, app mappings, runtime calls, GitHub calls, OpenAI calls, network calls, or secrets.",
+    "developerName": "Aurna-code",
+    "category": "Productivity",
+    "capabilities": [
+      "workflow-guidance",
+      "preflight",
+      "authority-audit"
+    ],
+    "defaultPrompt": "Use the Augnes Operator skills to keep Codex work bounded, evidence-aware, proof-only at closeout, and aligned with Augnes authority boundaries."
+  }
+}

@@ -58,6 +58,7 @@
     "smoke:codex-record-completion-proof-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-record-completion-proof-helper.mjs",
     "smoke:codex-record-completion-follow-up-refs": "node scripts/smoke-codex-record-completion-follow-up-refs.mjs",
     "smoke:codex-closeout-preflight": "node scripts/smoke-codex-closeout-preflight.mjs",
+    "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:codex-closeout-block": "node scripts/smoke-codex-closeout-block.mjs",
     "smoke:codex-closeout-check": "node scripts/smoke-codex-closeout-check.mjs",
     "smoke:codex-closeout-pipeline": "node scripts/smoke-codex-closeout-pipeline.mjs",
