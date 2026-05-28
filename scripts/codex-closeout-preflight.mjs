@@ -285,31 +285,39 @@ function findDocsOnlyForbiddenFiles(files) {
   return files.filter((file) => {
     const normalized = file.replace(/\\/g, "/");
 
+    if (isDocsOnlyForbiddenPath(normalized)) return true;
     if (normalized === "AGENTS.md") return false;
     if (normalized.startsWith("docs/")) return false;
     if (/\.md$/i.test(normalized)) return false;
     if (/^\.agents\/skills\/[^/]+\/SKILL\.md$/.test(normalized)) return false;
 
-    return (
-      normalized === "package.json" ||
-      normalized.endsWith("/package.json") ||
-      normalized.includes("package-lock.json") ||
-      normalized.startsWith("apps/") ||
-      normalized.startsWith("app/") ||
-      normalized.startsWith("src/") ||
-      normalized.startsWith("lib/") ||
-      normalized.startsWith("components/") ||
-      normalized.startsWith("scripts/") ||
-      normalized.startsWith("prisma/") ||
-      normalized.startsWith("migrations/") ||
-      normalized.includes("/api/") ||
-      normalized.includes("/schema") ||
-      normalized.includes("schema.") ||
-      normalized.includes("/hooks/") ||
-      normalized.includes("/plugins/") ||
-      normalized.startsWith(".codex/")
-    );
+    return false;
   });
+}
+
+function isDocsOnlyForbiddenPath(file) {
+  return (
+    file === "package.json" ||
+    file.endsWith("/package.json") ||
+    file.includes("package-lock.json") ||
+    file.startsWith("apps/") ||
+    file.startsWith("app/") ||
+    file.startsWith("src/") ||
+    file.startsWith("lib/") ||
+    file.startsWith("components/") ||
+    file.startsWith("scripts/") ||
+    file.startsWith("prisma/") ||
+    file.startsWith("migrations/") ||
+    file.startsWith("plugins/") ||
+    file.startsWith("hooks/") ||
+    file.startsWith(".codex/") ||
+    file.startsWith(".agents/plugins/") ||
+    file.includes("/api/") ||
+    file.includes("/schema") ||
+    file.includes("schema.") ||
+    file.includes("/hooks/") ||
+    file.includes("/plugins/")
+  );
 }
 
 function mentionsLegacyCompletion(text) {
@@ -317,11 +325,37 @@ function mentionsLegacyCompletion(text) {
 }
 
 function mentionsMergeAuthority(text) {
-  const normalized = text.replace(/\s+/g, " ");
-  return (
-    /\bcodex\b.{0,80}\b(merged|enabled auto-merge|auto-merged|owns merge authority|has merge authority|merge authority)\b/i.test(normalized) ||
-    /\b(enabled auto-merge|auto-merge enabled|codex merged)\b/i.test(normalized)
-  );
+  const clauses = text
+    .replace(/\s+/g, " ")
+    .split(/[.;!?]/)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+
+  return clauses.some((clause) => hasUnsafeMergeAuthorityClaim(clause));
+}
+
+function hasUnsafeMergeAuthorityClaim(clause) {
+  const unsafePatterns = [
+    /\bcodex\b.{0,80}\b(merged|auto-merged)\b/i,
+    /\bcodex\b.{0,80}\benabled\s+auto-merge\b/i,
+    /\bcodex\b.{0,80}\b(owns|has|claimed|claims|claiming|was\s+granted|is\s+granted)\s+merge\s+authority\b/i,
+    /\bgrant(?:s|ed|ing)?\b.{0,80}\bcodex\b.{0,80}\bmerge\s+authority\b/i,
+    /\bauto-merge\s+enabled\s+by\s+codex\b/i,
+  ];
+
+  if (!unsafePatterns.some((pattern) => pattern.test(clause))) return false;
+  return !isNegatedMergeAuthorityBoundary(clause);
+}
+
+function isNegatedMergeAuthorityBoundary(clause) {
+  const negatedCodexAction =
+    /\bcodex\b.{0,80}\b(must\s+never|never|must\s+not|does\s+not|do\s+not|doesn't|cannot|can't|should\s+not|is\s+not)\b.{0,80}\b(merge|auto-merge|merge\s+authority)\b/i;
+  const negatedGrant =
+    /\b(does\s+not|do\s+not|doesn't|must\s+not|never|cannot|can't|should\s+not|without)\b.{0,80}\b(grant|claim|enable|merge|own|have)\b.{0,80}\bcodex\b.{0,80}\b(merge\s+authority|auto-merge|merge)\b/i;
+  const noMergeAuthority =
+    /\b(no|not)\b.{0,40}\bcodex\b.{0,80}\b(merge\s+authority|authority)\b/i;
+
+  return negatedCodexAction.test(clause) || negatedGrant.test(clause) || noMergeAuthority.test(clause);
 }
 
 function recommendedNextStep(workId) {

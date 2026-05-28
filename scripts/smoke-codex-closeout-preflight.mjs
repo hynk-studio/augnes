@@ -37,6 +37,26 @@ assertCheck(complete.json, "work_id", "pass");
 assertCheck(complete.json, "legacy_completion", "pass");
 assertCheck(complete.json, "merge_authority", "pass");
 
+for (const safeBoundary of [
+  "Codex must never merge PRs, enable auto-merge, or claim merge authority.",
+  "Codex does not merge PRs and does not own merge authority.",
+  "Merge remains a user/GitHub review decision, not Codex authority.",
+  "This PR does not grant Codex merge authority.",
+]) {
+  const safeDefault = runHelper({
+    env: { ...baselineEnv, CODEX_AUTHORITY_BOUNDARY_STATEMENT: safeBoundary },
+  });
+  assert.equal(safeDefault.status, 0, safeDefault.stderr);
+  assertCheck(safeDefault.json, "merge_authority", "pass");
+
+  const safeStrict = runHelper({
+    args: ["--strict"],
+    env: { ...baselineEnv, CODEX_AUTHORITY_BOUNDARY_STATEMENT: safeBoundary },
+  });
+  assert.equal(safeStrict.status, 0, safeStrict.stderr);
+  assertCheck(safeStrict.json, "merge_authority", "pass");
+}
+
 const missingWorkIdDefault = runHelper({ env: { ...baselineEnv, CODEX_WORK_ID: "" } });
 assert.equal(missingWorkIdDefault.status, 0, missingWorkIdDefault.stderr);
 assert.equal(missingWorkIdDefault.json.ok, true);
@@ -85,6 +105,49 @@ assertCheck(docsOnlyRuntimeFiles.json, "docs_only_scope", "warn");
 assert.match(findCheck(docsOnlyRuntimeFiles.json, "docs_only_scope").message, /apps\/augnes_apps\/src\/server\.ts/);
 assert.match(findCheck(docsOnlyRuntimeFiles.json, "docs_only_scope").message, /package\.json/);
 
+const docsOnlyForbiddenFiles = [
+  "package.json",
+  "apps/augnes_apps/src/server.ts",
+  "scripts/example.mjs",
+  "lib/example.ts",
+  "src/example.ts",
+  "app/api/example/route.ts",
+  "plugins/augnes-operator/.codex-plugin/plugin.json",
+  "plugins/augnes-operator/hooks/hooks.json",
+  "hooks/pre_tool_use.mjs",
+  ".codex/config.toml",
+  ".agents/plugins/marketplace.json",
+];
+const docsOnlyHighRiskPaths = runHelper({
+  env: {
+    ...baselineEnv,
+    CODEX_DOCS_ONLY: "true",
+    CODEX_FILES_CHANGED: JSON.stringify(docsOnlyForbiddenFiles),
+  },
+});
+assert.equal(docsOnlyHighRiskPaths.status, 0, docsOnlyHighRiskPaths.stderr);
+assertCheck(docsOnlyHighRiskPaths.json, "docs_only_scope", "warn");
+for (const forbiddenFile of docsOnlyForbiddenFiles) {
+  assert.match(
+    findCheck(docsOnlyHighRiskPaths.json, "docs_only_scope").message,
+    new RegExp(escapeRegExp(forbiddenFile)),
+  );
+}
+
+const docsOnlyAllowedFiles = runHelper({
+  env: {
+    ...baselineEnv,
+    CODEX_DOCS_ONLY: "true",
+    CODEX_FILES_CHANGED: JSON.stringify([
+      "AGENTS.md",
+      "docs/example.md",
+      ".agents/skills/augnes-read-brief/SKILL.md",
+    ]),
+  },
+});
+assert.equal(docsOnlyAllowedFiles.status, 0, docsOnlyAllowedFiles.stderr);
+assertCheck(docsOnlyAllowedFiles.json, "docs_only_scope", "pass");
+
 const legacyCompletionMention = runHelper({
   env: {
     ...baselineEnv,
@@ -98,7 +161,7 @@ const mergeAuthorityStrict = runHelper({
   args: ["--strict"],
   env: {
     ...baselineEnv,
-    CODEX_RESULT_SUMMARY: "Codex merged the PR and enabled auto-merge.",
+    CODEX_RESULT_SUMMARY: "Codex merged the PR, enabled auto-merge, and claimed merge authority.",
   },
 });
 assert.notEqual(mergeAuthorityStrict.status, 0);
@@ -117,10 +180,13 @@ console.log(
       smoke: "codex-closeout-preflight",
       cases: [
         "complete closeout packet passes",
+        "safe merge-boundary statements pass in default and strict mode",
         "missing CODEX_WORK_ID warns by default",
         "missing CODEX_WORK_ID fails in strict",
         "skipped check generic reason warns and fails in strict",
         "docs-only mode flags forbidden files",
+        "docs-only mode flags top-level plugins, hooks, and .codex paths",
+        "docs-only mode allows AGENTS.md, docs/*.md, and .agents/skills/*/SKILL.md",
         "legacy completion mention warns",
         "merge authority claim fails in strict",
         "malformed CODEX_SKIPPED_CHECKS_JSON fails",
@@ -161,4 +227,8 @@ function findCheck(output, id) {
   const check = output.checks.find((entry) => entry.id === id);
   assert.ok(check, `missing check ${id}`);
   return check;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
