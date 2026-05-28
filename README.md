@@ -174,7 +174,7 @@ curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq '.age
 8. Start the MCP bridge and verify state brief + action record proof through
    MCP Inspector.
 
-## Dogfood evaluation
+## Augnes-on-Augnes evaluation
 
 The repo-local dogfooding docs are:
 
