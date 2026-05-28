@@ -10,7 +10,7 @@ const baselineEnv = {
   CODEX_SCOPE: "project:augnes",
   CODEX_WORK_ID: "AG-260",
   CODEX_RESULT_STATUS: "completed",
-  CODEX_RESULT_KIND: "tooling",
+  CODEX_RESULT_KIND: "documentation",
   CODEX_RESULT_SUMMARY: "Added a local deterministic closeout preflight helper.",
   CODEX_FILES_CHANGED: JSON.stringify([
     "scripts/codex-closeout-preflight.mjs",
@@ -101,6 +101,23 @@ const missingWorkIdStrict = runHelper({
 assert.notEqual(missingWorkIdStrict.status, 0);
 assert.equal(missingWorkIdStrict.json.ok, false);
 assertCheck(missingWorkIdStrict.json, "work_id", "fail");
+
+const runtimeBackedDogfoodKindDefault = runHelper({
+  env: { ...baselineEnv, CODEX_RESULT_KIND: "runtime_backed_dogfood" },
+});
+assert.equal(runtimeBackedDogfoodKindDefault.status, 0, runtimeBackedDogfoodKindDefault.stderr);
+assertCheck(runtimeBackedDogfoodKindDefault.json, "result_kind", "warn");
+assert.match(
+  findCheck(runtimeBackedDogfoodKindDefault.json, "result_kind").message,
+  /not accepted by codex:record-completion-proof/,
+);
+
+const runtimeBackedDogfoodKindStrict = runHelper({
+  args: ["--strict"],
+  env: { ...baselineEnv, CODEX_RESULT_KIND: "runtime_backed_dogfood" },
+});
+assert.notEqual(runtimeBackedDogfoodKindStrict.status, 0);
+assertCheck(runtimeBackedDogfoodKindStrict.json, "result_kind", "fail");
 
 const skippedGenericDefault = runHelper({
   env: {
@@ -206,6 +223,7 @@ console.log(
         "positive merge permission claims warn by default and fail in strict",
         "missing CODEX_WORK_ID warns by default",
         "missing CODEX_WORK_ID fails in strict",
+        "runtime_backed_dogfood result kind warns by default and fails in strict",
         "skipped check generic reason warns and fails in strict",
         "docs-only mode flags forbidden files",
         "docs-only mode flags top-level plugins, hooks, and .codex paths",
