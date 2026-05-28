@@ -330,6 +330,168 @@ function describeWorkBrief(brief: WorkBrief): string {
   return `Work brief for ${brief.work_id}: ${brief.work.title}. Status ${brief.work.status}, priority ${brief.work.priority}, ${brief.recent_events.length} recent event(s), ${brief.related_proof.action_ids.length} linked action record(s). work_id is a trace anchor; committed state remains authoritative.`;
 }
 
+const WORK_CONTRACT_CARD_BOUNDARY_TEXT = [
+  "Work ID is a trace anchor, not committed state authority.",
+  "This card is read-only.",
+  "This card cannot execute Codex.",
+  "This card cannot commit or reject Augnes state.",
+  "This card cannot approve, publish, retry, replay, externally post, merge, or enable auto-merge.",
+  "Proof is not approval.",
+  "A PR is not merge authority.",
+  "Durable approval remains user/Core gated.",
+] as const;
+
+type WorkContractCard = {
+  card_type: "work_contract_card";
+  title: "Work Contract Card";
+  scope: string;
+  work_id: string;
+  work_title: string;
+  work_status: string;
+  priority: string;
+  current_or_next_step: string;
+  expected_files: string[];
+  expected_files_summary: string;
+  expected_checks: string[];
+  expected_checks_summary: string;
+  related_state_keys: string[];
+  related_state_keys_summary: string;
+  recent_events_count: number;
+  linked_proof_action_ids_count: number;
+  linked_prs_count: number;
+  linked_docs_count: number;
+  linked_proof_summary: string;
+  proof_evidence_expectation_summary: string;
+  skipped_check_expectation_summary: string;
+  authority_boundary_text: readonly string[];
+  source: {
+    tool: "augnes_get_work_brief";
+    structured_content: "brief";
+    state_brief: "not fetched by this card";
+  };
+  boundaries: {
+    read_only: true;
+    state_commit_or_reject: false;
+    codex_execution: false;
+    approval_authority: false;
+    publish_authority: false;
+    retry_authority: false;
+    replay_authority: false;
+    external_posting: false;
+    merge_authority: false;
+    auto_merge_authority: false;
+    proof_recording: false;
+    evidence_recording: false;
+    durable_approval: "user/Core gated";
+  };
+};
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function stringArrayFromUnknown(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => nonEmptyString(item))
+    .filter((item): item is string => Boolean(item));
+}
+
+function firstStringArray(...values: unknown[]): string[] {
+  for (const value of values) {
+    const items = stringArrayFromUnknown(value);
+    if (items.length > 0) return items;
+  }
+  return [];
+}
+
+function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
+  const codexHandoff = brief.codex_handoff as typeof brief.codex_handoff & Record<string, unknown>;
+  const workLinks = brief.work.links as Record<string, unknown>;
+  const expectedFiles = firstStringArray(codexHandoff.expected_files, workLinks.expected_files);
+  const expectedChecks = firstStringArray(
+    codexHandoff.expected_checks,
+    codexHandoff.suggested_verification,
+    codexHandoff.verification_commands,
+    workLinks.expected_checks
+  );
+  const relatedStateKeys = firstStringArray(brief.related_state_keys, brief.work.related_state_keys);
+  const actionIds = stringArrayFromUnknown(brief.related_proof.action_ids);
+  const prs = stringArrayFromUnknown(brief.related_proof.prs);
+  const docs = stringArrayFromUnknown(brief.related_proof.docs);
+  const nextStep =
+    nonEmptyString(brief.next_action) ??
+    nonEmptyString(brief.work.next_action) ??
+    nonEmptyString(codexHandoff.task_brief) ??
+    "No current or next step is listed in the work brief.";
+  const proofSummary =
+    actionIds.length || prs.length || docs.length
+      ? `${actionIds.length} linked action ID(s), ${prs.length} PR ref(s), ${docs.length} doc ref(s).`
+      : "No linked proof/action IDs are listed in the work brief.";
+  const proofEvidenceSummary = expectedChecks.length
+    ? `Expected verification is listed as ${expectedChecks.length} check(s); proof and evidence remain separate from approval.`
+    : "No proof/evidence expectation is listed in the work brief; proof and evidence remain separate from approval.";
+
+  return {
+    card_type: "work_contract_card",
+    title: "Work Contract Card",
+    scope: brief.scope,
+    work_id: brief.work_id,
+    work_title: brief.work.title,
+    work_status: brief.work.status,
+    priority: brief.work.priority,
+    current_or_next_step: nextStep,
+    expected_files: expectedFiles,
+    expected_files_summary: expectedFiles.length
+      ? `${expectedFiles.length} expected file(s) listed.`
+      : "No expected files are listed in the work brief.",
+    expected_checks: expectedChecks,
+    expected_checks_summary: expectedChecks.length
+      ? `${expectedChecks.length} expected check(s) listed.`
+      : "No expected checks are listed in the work brief.",
+    related_state_keys: relatedStateKeys,
+    related_state_keys_summary: relatedStateKeys.length
+      ? `${relatedStateKeys.length} related state key(s) listed.`
+      : "No related state keys are listed in the work brief.",
+    recent_events_count: brief.recent_events.length,
+    linked_proof_action_ids_count: actionIds.length,
+    linked_prs_count: prs.length,
+    linked_docs_count: docs.length,
+    linked_proof_summary: proofSummary,
+    proof_evidence_expectation_summary: proofEvidenceSummary,
+    skipped_check_expectation_summary:
+      "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief.",
+    authority_boundary_text: WORK_CONTRACT_CARD_BOUNDARY_TEXT,
+    source: {
+      tool: "augnes_get_work_brief",
+      structured_content: "brief",
+      state_brief: "not fetched by this card",
+    },
+    boundaries: {
+      read_only: true,
+      state_commit_or_reject: false,
+      codex_execution: false,
+      approval_authority: false,
+      publish_authority: false,
+      retry_authority: false,
+      replay_authority: false,
+      external_posting: false,
+      merge_authority: false,
+      auto_merge_authority: false,
+      proof_recording: false,
+      evidence_recording: false,
+      durable_approval: "user/Core gated",
+    },
+  };
+}
+
+function describeWorkContractCard(card: WorkContractCard): string {
+  return [
+    `Work Contract Card for ${card.work_id}: ${card.work_title}. Status ${card.work_status}, priority ${card.priority}, ${card.recent_events_count} recent event(s), ${card.linked_proof_action_ids_count} linked action ID(s).`,
+    WORK_CONTRACT_CARD_BOUNDARY_TEXT.join(" "),
+  ].join(" ");
+}
+
 function describeCodexHandoffDraft(workId: string, handoffId: string): string {
   return [
     `Generated Codex handoff draft ${handoffId} for ${workId}.`,
@@ -921,18 +1083,25 @@ export function createMcpAppServer(
         workId: z.string().min(1),
       },
       annotations: bridgeReadAnnotations,
-      _meta: modelOnlyToolMeta,
+      _meta: widgetToolMeta,
     },
     async ({ scope, workId }) => {
       const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
 
       try {
         const brief = await stateRuntimeAdapter.getWorkBrief(resolvedScope, workId);
-        const structuredContent = sanitizePayload({ profile: config.appProfile, brief });
+        const workContractCard = buildWorkContractCard(brief);
+        const structuredContent = sanitizePayload({
+          profile: config.appProfile,
+          panel: "work_contract_card",
+          brief,
+          work_contract_card: workContractCard,
+          boundaries: workContractCard.boundaries,
+        });
         return {
           structuredContent,
-          content: narrative(describeWorkBrief(brief)),
-          _meta: sanitizePayload({ profile: config.appProfile }),
+          content: narrative(`${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)}`),
+          _meta: structuredContent,
         };
       } catch (error) {
         return buildBridgeToolError("augnes_get_work_brief", error);

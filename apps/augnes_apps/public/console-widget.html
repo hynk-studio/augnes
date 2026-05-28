@@ -548,6 +548,88 @@
         return pre;
       }
 
+      function nonEmptyText(value, fallback) {
+        return typeof value === "string" && value.trim() ? value.trim() : fallback;
+      }
+
+      function safeArray(value) {
+        if (!Array.isArray(value)) return [];
+        return value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim());
+      }
+
+      function safeCount(value) {
+        return Number.isFinite(value) ? String(value) : "0";
+      }
+
+      function createCodeListWithFallback(items, fallback) {
+        const list = safeArray(items);
+        if (!list.length) {
+          return el("div", { className: "status-box", text: fallback });
+        }
+        return createCodeList(list);
+      }
+
+      function normalizeWorkContractCard(data) {
+        const card = data?.work_contract_card || {};
+        const brief = data?.brief || {};
+        const work = brief.work || {};
+        const codexHandoff = brief.codex_handoff || {};
+        const relatedProof = brief.related_proof || {};
+        const expectedFiles = safeArray(card.expected_files).length
+          ? safeArray(card.expected_files)
+          : safeArray(codexHandoff.expected_files);
+        const expectedChecks = safeArray(card.expected_checks).length
+          ? safeArray(card.expected_checks)
+          : safeArray(codexHandoff.expected_checks || codexHandoff.suggested_verification || codexHandoff.verification_commands);
+        const relatedStateKeys = safeArray(card.related_state_keys).length
+          ? safeArray(card.related_state_keys)
+          : safeArray(brief.related_state_keys || work.related_state_keys);
+        const boundaries = safeArray(card.authority_boundary_text).length
+          ? safeArray(card.authority_boundary_text)
+          : [
+              "Work ID is a trace anchor, not committed state authority.",
+              "This card is read-only.",
+              "This card cannot execute Codex.",
+              "This card cannot commit or reject Augnes state.",
+              "This card cannot approve, publish, retry, replay, externally post, merge, or enable auto-merge.",
+              "Proof is not approval.",
+              "A PR is not merge authority.",
+              "Durable approval remains user/Core gated.",
+            ];
+
+        return {
+          scope: nonEmptyText(card.scope || brief.scope, "No scope listed."),
+          work_id: nonEmptyText(card.work_id || brief.work_id || work.work_id, "No work ID listed."),
+          work_title: nonEmptyText(card.work_title || work.title, "No work title listed."),
+          work_status: nonEmptyText(card.work_status || work.status, "No status listed."),
+          priority: nonEmptyText(card.priority || work.priority, "No priority listed."),
+          current_or_next_step: nonEmptyText(
+            card.current_or_next_step || brief.next_action || work.next_action || codexHandoff.task_brief,
+            "No current or next step is listed in the work brief."
+          ),
+          expected_files: expectedFiles,
+          expected_files_summary: nonEmptyText(card.expected_files_summary, "No expected files are listed in the work brief."),
+          expected_checks: expectedChecks,
+          expected_checks_summary: nonEmptyText(card.expected_checks_summary, "No expected checks are listed in the work brief."),
+          related_state_keys: relatedStateKeys,
+          related_state_keys_summary: nonEmptyText(card.related_state_keys_summary, "No related state keys are listed in the work brief."),
+          recent_events_count: card.recent_events_count ?? brief.recent_events?.length ?? 0,
+          linked_proof_action_ids_count: card.linked_proof_action_ids_count ?? relatedProof.action_ids?.length ?? 0,
+          linked_prs_count: card.linked_prs_count ?? relatedProof.prs?.length ?? 0,
+          linked_docs_count: card.linked_docs_count ?? relatedProof.docs?.length ?? 0,
+          linked_proof_summary: nonEmptyText(card.linked_proof_summary, "No linked proof/action IDs are listed in the work brief."),
+          proof_evidence_expectation_summary: nonEmptyText(
+            card.proof_evidence_expectation_summary,
+            "No proof/evidence expectation is listed in the work brief; proof and evidence remain separate from approval."
+          ),
+          skipped_check_expectation_summary: nonEmptyText(
+            card.skipped_check_expectation_summary,
+            "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief."
+          ),
+          authority_boundary_text: boundaries,
+        };
+      }
+
       function renderError(error) {
         const box = el("div", { className: "status-box error-box" });
         box.textContent = error?.message || "Tool execution failed.";
@@ -709,6 +791,34 @@
         return root;
       }
 
+      function renderWorkContractCard(data) {
+        const card = normalizeWorkContractCard(data);
+        const root = el("div", { className: "stack" });
+
+        root.appendChild(createMetricGrid([
+          ["Scope", card.scope],
+          ["Work ID", card.work_id],
+          ["Status", card.work_status],
+          ["Priority", card.priority],
+          ["Recent events", safeCount(card.recent_events_count)],
+          ["Linked action IDs", safeCount(card.linked_proof_action_ids_count)],
+          ["Linked PR refs", safeCount(card.linked_prs_count)],
+          ["Linked docs", safeCount(card.linked_docs_count)],
+        ]));
+        root.appendChild(el("p", { className: "summary", text: card.work_title }));
+        root.appendChild(createSection("Current / next step", el("div", { className: "status-box", text: card.current_or_next_step })));
+        root.appendChild(createSection("Expected files", createCodeListWithFallback(card.expected_files, card.expected_files_summary), { badge: `${safeArray(card.expected_files).length}` }));
+        root.appendChild(createSection("Expected checks", createCodeListWithFallback(card.expected_checks, card.expected_checks_summary), { badge: `${safeArray(card.expected_checks).length}` }));
+        root.appendChild(createSection("Related state keys", createCodeListWithFallback(card.related_state_keys, card.related_state_keys_summary), { badge: `${safeArray(card.related_state_keys).length}` }));
+        root.appendChild(createSection("Proof and evidence expectations", createTextList([
+          card.linked_proof_summary,
+          card.proof_evidence_expectation_summary,
+          card.skipped_check_expectation_summary,
+        ]), { badge: "read-only" }));
+        root.appendChild(createSection("Authority boundary", createTextList(card.authority_boundary_text), { badge: "no writes" }));
+        return root;
+      }
+
       function updateShellState(panel, profile = uiState.profile) {
         uiState.lastPanel = panel || "text";
         uiState.lastUpdated = new Date();
@@ -779,6 +889,11 @@
             panelTitleEl.textContent = "Governance Audit";
             panelEl.appendChild(renderAudit(data.audit, profile));
             updateShellState("audit", profile);
+            return;
+          case "work_contract_card":
+            panelTitleEl.textContent = "Work Contract Card";
+            panelEl.appendChild(renderWorkContractCard(data));
+            updateShellState("work_contract_card", profile);
             return;
           default:
             panelTitleEl.textContent = "Structured Output";
