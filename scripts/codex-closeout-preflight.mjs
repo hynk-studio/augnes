@@ -338,9 +338,15 @@ function hasUnsafeMergeAuthorityClaim(clause) {
   const unsafePatterns = [
     /\bcodex\b.{0,80}\b(merged|auto-merged)\b/i,
     /\bcodex\b.{0,80}\benabled\s+auto-merge\b/i,
+    /\bcodex\b.{0,40}\b(can|may)\s+merge\b/i,
+    /\bcodex\b.{0,80}\b(can|may)\s+enable\s+auto-merge\b/i,
+    /\bcodex\b.{0,80}\bis\s+(allowed|permitted)\s+to\s+(merge|enable\s+auto-merge)\b/i,
+    /\bcodex\b.{0,80}\bhas\s+permission\s+to\s+(merge|enable\s+auto-merge)\b/i,
     /\bcodex\b.{0,80}\b(owns|has|claimed|claims|claiming|was\s+granted|is\s+granted)\s+merge\s+authority\b/i,
     /\bgrant(?:s|ed|ing)?\b.{0,80}\bcodex\b.{0,80}\bmerge\s+authority\b/i,
+    /\bmerged\s+by\s+codex\b/i,
     /\bauto-merge\s+enabled\s+by\s+codex\b/i,
+    /\bauto-merge\s+was\s+enabled\s+by\s+codex\b/i,
   ];
 
   if (!unsafePatterns.some((pattern) => pattern.test(clause))) return false;
@@ -349,9 +355,9 @@ function hasUnsafeMergeAuthorityClaim(clause) {
 
 function isNegatedMergeAuthorityBoundary(clause) {
   const negatedCodexAction =
-    /\bcodex\b.{0,80}\b(must\s+never|never|must\s+not|does\s+not|do\s+not|doesn't|cannot|can't|should\s+not|is\s+not)\b.{0,80}\b(merge|auto-merge|merge\s+authority)\b/i;
+    /\bcodex\b.{0,80}\b(must\s+never|never|must\s+not|may\s+not|does\s+not|do\s+not|doesn't|cannot|can't|can\s+not|should\s+not|is\s+not|is\s+not\s+allowed|is\s+not\s+permitted|has\s+no\s+permission)\b.{0,80}\b(merge|auto-merge|merge\s+authority)\b/i;
   const negatedGrant =
-    /\b(does\s+not|do\s+not|doesn't|must\s+not|never|cannot|can't|should\s+not|without)\b.{0,80}\b(grant|claim|enable|merge|own|have)\b.{0,80}\bcodex\b.{0,80}\b(merge\s+authority|auto-merge|merge)\b/i;
+    /\b(does\s+not|do\s+not|doesn't|must\s+not|may\s+not|never|cannot|can't|can\s+not|should\s+not|without|no)\b.{0,80}\b(grant|claim|enable|merge|own|have|permission|allow|permit)\b.{0,80}\bcodex\b.{0,80}\b(merge\s+authority|auto-merge|merge)\b/i;
   const noMergeAuthority =
     /\b(no|not)\b.{0,40}\bcodex\b.{0,80}\b(merge\s+authority|authority)\b/i;
 

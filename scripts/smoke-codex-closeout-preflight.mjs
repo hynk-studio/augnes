@@ -40,8 +40,11 @@ assertCheck(complete.json, "merge_authority", "pass");
 for (const safeBoundary of [
   "Codex must never merge PRs, enable auto-merge, or claim merge authority.",
   "Codex does not merge PRs and does not own merge authority.",
+  "Codex may edit files and open PRs, but may not merge PRs.",
+  "Codex can prepare a PR; merge remains a user/GitHub review decision.",
   "Merge remains a user/GitHub review decision, not Codex authority.",
   "This PR does not grant Codex merge authority.",
+  "This PR grants no Codex merge authority.",
 ]) {
   const safeDefault = runHelper({
     env: { ...baselineEnv, CODEX_AUTHORITY_BOUNDARY_STATEMENT: safeBoundary },
@@ -55,6 +58,35 @@ for (const safeBoundary of [
   });
   assert.equal(safeStrict.status, 0, safeStrict.stderr);
   assertCheck(safeStrict.json, "merge_authority", "pass");
+}
+
+for (const unsafeClaim of [
+  "Codex can merge PRs.",
+  "Codex may merge this PR.",
+  "Codex is allowed to merge PRs.",
+  "Codex is permitted to merge PRs.",
+  "Codex is allowed to enable auto-merge.",
+  "Codex has permission to enable auto-merge.",
+  "The PR was merged by Codex.",
+  "Auto-merge was enabled by Codex.",
+  "Codex merged the PR.",
+  "Codex enabled auto-merge.",
+  "Codex owns merge authority.",
+  "Codex has merge authority.",
+  "Codex claimed merge authority.",
+]) {
+  const unsafeDefault = runHelper({
+    env: { ...baselineEnv, CODEX_RESULT_SUMMARY: unsafeClaim },
+  });
+  assert.equal(unsafeDefault.status, 0, unsafeDefault.stderr);
+  assertCheck(unsafeDefault.json, "merge_authority", "warn");
+
+  const unsafeStrict = runHelper({
+    args: ["--strict"],
+    env: { ...baselineEnv, CODEX_RESULT_SUMMARY: unsafeClaim },
+  });
+  assert.notEqual(unsafeStrict.status, 0);
+  assertCheck(unsafeStrict.json, "merge_authority", "fail");
 }
 
 const missingWorkIdDefault = runHelper({ env: { ...baselineEnv, CODEX_WORK_ID: "" } });
@@ -157,16 +189,6 @@ const legacyCompletionMention = runHelper({
 assert.equal(legacyCompletionMention.status, 0, legacyCompletionMention.stderr);
 assertCheck(legacyCompletionMention.json, "legacy_completion", "warn");
 
-const mergeAuthorityStrict = runHelper({
-  args: ["--strict"],
-  env: {
-    ...baselineEnv,
-    CODEX_RESULT_SUMMARY: "Codex merged the PR, enabled auto-merge, and claimed merge authority.",
-  },
-});
-assert.notEqual(mergeAuthorityStrict.status, 0);
-assertCheck(mergeAuthorityStrict.json, "merge_authority", "fail");
-
 const malformedSkippedChecks = runHelper({
   env: { ...baselineEnv, CODEX_SKIPPED_CHECKS_JSON: "{not json" },
 });
@@ -181,6 +203,7 @@ console.log(
       cases: [
         "complete closeout packet passes",
         "safe merge-boundary statements pass in default and strict mode",
+        "positive merge permission claims warn by default and fail in strict",
         "missing CODEX_WORK_ID warns by default",
         "missing CODEX_WORK_ID fails in strict",
         "skipped check generic reason warns and fails in strict",
