@@ -27,7 +27,7 @@ Browser/computer-use verification report for: PR #265 Work Contract Card.
 - Source commit before report creation: `28ab7f6`
 - Node/npm versions: Node `v24.13.0`, npm `11.6.2`
 - Operating system: Linux WSL2, `5.15.167.4-microsoft-standard-WSL2`
-- Browser or runtime: Playwright MCP Chromium using cached Chromium under `/home/hynk1/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome`
+- Browser or runtime: Playwright MCP Chromium using cached Chromium under `~/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome`
 - Local runtime availability: available through ephemeral demo DB mode at `http://127.0.0.1:3000`
 - ChatGPT Developer Mode tunnel/session availability: not used; no Developer Mode tunnel or session was provided for this local verification
 
@@ -234,3 +234,4 @@ Durable approval remains user/Core gated.
 ## Notes
 
 - Additional context: the Playwright CLI wrapper was present but not executable, so `bash ~/.codex/skills/playwright/scripts/playwright_cli.sh` was used for CLI diagnostics. The CLI default `chrome` launch failed because no system Chrome existed at `/opt/google/chrome/chrome`; Playwright MCP Chromium browser use succeeded through the existing cached Chromium runtime.
+- Local user-home paths are written with `~` in this report.
