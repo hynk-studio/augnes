@@ -22,8 +22,12 @@ repo implementation and verification worker. Preserve the authority boundaries.
 ## Authority Boundaries
 
 - Never commit or reject Augnes state.
-- Never approve, publish, retry, replay, merge, or externally post unless a
-  future task explicitly scopes a Core-gated route and user approval.
+- Codex may edit repo files and open PRs through normal GitHub workflow.
+- Never merge PRs, enable auto-merge, or claim merge authority.
+- Never approve, publish, retry, replay, or externally post unless a future task
+  explicitly scopes a Core-gated route and explicit user approval.
+- Even when a future Core-gated publish, retry, or replay route is explicitly
+  scoped, merge remains a user/GitHub review decision, not Codex authority.
 - Do not execute Codex from ChatGPT, add ChatGPT execution controls, or imply
   ChatGPT owns implementation authority.
 - Do not treat proof as approval.
@@ -79,4 +83,3 @@ Every PR body should include:
 For docs-only PRs, explicitly confirm that no runtime, route, schema,
 MCP/App tool, hook, plugin, skill, package script, or secret-handling changes
 were made.
-
