@@ -156,6 +156,20 @@ they exist. Do not fabricate IDs.
 Dogfood notes may link or mention those refs, but the notes do not create them
 or convert them into committed Augnes state.
 
+## Ephemeral Demo Runtime Mode
+
+When no real runtime work item is available, a bounded dogfood episode may use
+an ephemeral demo runtime DB for local proof/evidence rehearsal. Label the
+episode and PR clearly as demo-mode, use
+`AUGNES_DB_PATH=/tmp/augnes-runtime-dogfood.db`,
+`CODEX_SCOPE=project:augnes`, and seeded `CODEX_WORK_ID=AG-004` only for that
+demo-mode run.
+
+Refs returned from a demo DB must be labeled as ephemeral demo runtime refs.
+Do not mix them with production/current Augnes state, and do not commit temp
+DB, log, or PID files. Proof is not approval. Evidence is not approval. PR is
+not merge authority. Durable approval remains user/Core gated.
+
 ## Relationship To AGENTS.md
 
 `AGENTS.md` is the root Codex operating contract. This capture workflow follows
