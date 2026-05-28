@@ -1,5 +1,10 @@
 # Augnes
 
+> **Status:** Augnes is under active Augnes-on-Augnes dogfooding.
+> We use Augnes itself to plan, hand off, review, and refine Augnes development,
+> continuously improving its temporal perspective, cross-session continuity, and
+> practical usability.
+
 ## What it is
 
 Augnes is a local runtime for AI-assisted project work. It keeps proposed
@@ -27,12 +32,6 @@ current project state can still live in the operator's head.
 Augnes gives that work a shared local record: committed state, work trace
 anchors, and proof records. Models can help interpret and propose changes, while
 the runtime and the user keep control over what becomes durable state.
-
-Augnes also uses its own development as a dogfooding context. The first
-evaluation target is the Augnes workflow itself: planning, Codex handoff, PR
-review, next-task selection, and noticing when project context has become stale
-or misaligned. These notes are research and evaluation guidance only; they do
-not imply new runtime behavior or production capability.
 
 ## What it does
 
