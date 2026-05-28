@@ -4,13 +4,13 @@
 
 - Run ID: runtime-backed-harness-slice
 - Date: 2026-05-28
-- Outcome: completed, pending final proof refs until draft PR exists.
+- Outcome: completed with runtime-backed demo evidence and proof refs.
 - Runtime mode: ephemeral demo runtime mode.
 - Demo DB: `AUGNES_DB_PATH=/tmp/augnes-runtime-dogfood.db`
 - Runtime base URL: `http://127.0.0.1:3000`
 - Scope: `project:augnes`
 - Work ID: `AG-004`
-- Workflow: Codex read Augnes brief -> made one tiny docs-only change -> ran verification -> recorded evidence -> opened draft PR -> records proof-only closeout after PR URL is available.
+- Workflow: Codex read Augnes brief -> made one tiny docs-only change -> ran verification -> recorded evidence -> opened draft PR -> recorded proof-only closeout with the PR URL.
 - This capture preserves raw anchors before summaries. Summaries are review aids, not replacements for raw anchors.
 
 Authority boundaries:
@@ -150,8 +150,8 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 - Expected files changed:
   - `docs/DOGFOOD_AI_SURFACE_EPISODE_CAPTURE_V0_1.md`
   - `reports/dogfood/2026-05-28-runtime-backed-harness-slice.md`
-- Actual files changed: same as expected before PR creation.
-- Diff scope check: pending final pre-commit check.
+- Actual files changed: same as expected.
+- Diff scope check: passed before commit.
 - Unexpected files: none at report creation time.
 - Generated files intentionally not committed: `/tmp/augnes-runtime-dogfood.db`, `/tmp/augnes-runtime-dogfood-single-shell.log`, `/tmp/augnes-runtime-dogfood-evidence.log`, and transient read-brief stdout/stderr files.
 
@@ -166,8 +166,9 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 - `npm run smoke:augnes-operator-plugin-hooks`: passed.
 - `git diff --check`: passed.
 - Closeout preflight: passed in advisory mode with `CODEX_WORK_ID=AG-004` present.
+- Proof-only closeout: succeeded with `CODEX_RESULT_KIND=documentation`.
 - Failed checks: none.
-- Partial checks: proof-only closeout pending until the draft PR URL exists.
+- Partial checks: the first proof attempt used requested `CODEX_RESULT_KIND=runtime_backed_dogfood` and failed because the helper enum rejected that result kind; the successful retry used the valid docs-only `documentation` kind.
 
 ## Browser / Computer-Use Checks
 
@@ -192,18 +193,24 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 
 ## PR Link
 
-- PR: pending at report creation time; update after draft PR is opened.
+- PR: https://github.com/Aurna-code/augnes/pull/269
 - Branch: `codex/runtime-backed-harness-dogfood`
-- Commit: pending at report creation time.
-- Paste exact PR title/body excerpts when relevant: pending.
+- Initial commit: `f5859e2`
+- Paste exact PR title/body excerpts when relevant:
+
+```text
+dogfood: run runtime-backed Augnes harness slice
+Runtime mode: ephemeral demo runtime.
+Work ID: AG-004 (`Codex completion protocol`)
+```
 
 ## Codex Result Summary
 
-- Result status: completed through evidence recording; proof closeout pending until PR URL exists.
-- Summary: Codex validated the demo runtime-backed loop, added a small docs section for ephemeral demo runtime mode, ran requested checks, and recorded evidence rows against `AG-004`.
-- What Codex completed: read brief, docs update, verification, evidence recording, and dogfood report creation.
+- Result status: completed.
+- Summary: Codex validated the demo runtime-backed loop, added a small docs section for ephemeral demo runtime mode, ran requested checks, recorded evidence rows against `AG-004`, opened draft PR #269, and recorded proof-only closeout.
+- What Codex completed: read brief, docs update, verification, evidence recording, dogfood report creation, draft PR creation, and proof-only closeout.
 - What Codex skipped: browser/computer-use verification and session binding with concrete reasons.
-- What Codex reported as failed, partial, or blocked: no failed checks; proof-only closeout remains pending until the draft PR exists.
+- What Codex reported as failed, partial, or blocked: no failed checks; first proof attempt failed with invalid requested result kind and was retried successfully with the helper-valid `documentation` kind.
 
 ## ChatGPT Review Findings
 
@@ -211,7 +218,7 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 - Expected scope vs actual: expected docs-only guidance and one report; actual matches before PR creation.
 - Expected checks vs actual: expected checks passed before PR creation.
 - Authority boundary review: no authority expansion intended.
-- Missing evidence, proof, action, work event, or session refs: proof/action/work-event refs pending after PR creation; session refs unavailable because no session ID was supplied.
+- Missing evidence, proof, action, work event, or session refs: session refs unavailable because no session ID was supplied.
 - Findings: placeholder for post-PR review.
 
 ## User Merge / Approval Decision
@@ -227,11 +234,13 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
   - `evidence:8d7fab71-7ec3-4c95-9aa9-586888fcc722` for `npm run typecheck`.
   - `evidence:9dea1238-5c7b-4b8e-a45b-ac47b7e8eb52` for `npm run smoke:dogfood-episode-template`.
   - `evidence:19449260-0829-4c99-870e-79a48d847f1f` for `npm run codex:closeout-preflight`.
-- Proof/action IDs: pending after draft PR URL exists.
-- Work event IDs: pending after draft PR URL exists.
+- Proof/action IDs:
+  - `action:5689ecd1-b8a1-4abf-8205-c4aa806524cb` from proof-only closeout.
+- Work event IDs:
+  - `work-event:9a78418a-135a-41f4-abe2-e45fc345059e` linked to the proof action.
 - Session trace refs: none; missing `CODEX_SESSION_ID`.
 - Browser/computer-use report refs: none; docs-only no rendered UI.
-- Missing refs and concrete reasons: proof-only closeout is intentionally deferred until the draft PR URL can be included.
+- Missing refs and concrete reasons: no session trace ref because no `CODEX_SESSION_ID` was supplied. First proof attempt failed with `Invalid CODEX_RESULT_KIND: runtime_backed_dogfood`; retry succeeded with `CODEX_RESULT_KIND=documentation`, one of the helper's accepted result kinds.
 - Dogfood notes do not create evidence, proof, action, work event, session, or committed state records by themselves.
 
 ## Context Preserved
@@ -245,9 +254,9 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 
 - Missing raw anchors: full chat transcript and full command stdout for every smoke check.
 - Missing commands or outputs: detailed server logs were not preserved in the report because the successful single-shell lifecycle used only readiness output; temp logs are not committed.
-- Missing IDs: session ID and proof/action/work event IDs pending at report creation time.
+- Missing IDs: session ID remains missing because no existing session was supplied.
 - Ambiguous user/Core decision state: user merge approval is pending.
-- Impact: none for docs change; proof and PR fields must be updated after draft PR/proof closeout.
+- Impact: no session-specific trace visibility is claimed.
 
 ## Context Repaired
 
@@ -258,10 +267,10 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 
 ## Remaining Gaps
 
-- Gap: proof/action/work-event IDs not yet recorded at report creation time.
-  - Reason: proof-only closeout needs draft PR URL.
-  - Impact: report requires follow-up update after PR opens.
-  - Owner or next review surface: Codex closeout after draft PR creation.
+- Gap: requested proof result kind did not match helper enum.
+  - Reason: `CODEX_RESULT_KIND=runtime_backed_dogfood` was rejected with `Invalid CODEX_RESULT_KIND`; the helper accepts `documentation` for this docs-only slice.
+  - Impact: proof was recorded successfully, but as `result_kind=documentation`.
+  - Owner or next review surface: future docs or helper alignment if `runtime_backed_dogfood` should become a first-class result kind.
 - Gap: session trace not bound.
   - Reason: missing `CODEX_SESSION_ID`.
   - Impact: no session-specific trace visibility.
@@ -269,10 +278,10 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 
 ## Follow-Up Backlog
 
-- Follow-up: record proof-only closeout after draft PR URL exists.
-  - Priority: high.
-  - Blocking condition: draft PR URL required.
-  - Proposed next PR or work item: this PR closeout.
+- Follow-up: decide whether closeout preflight docs should mention the proof helper's accepted result kinds.
+  - Priority: low.
+  - Blocking condition: none.
+  - Proposed next PR or work item: future docs-only clarification if useful.
 - Follow-up: run a real non-demo runtime-backed dogfood item.
   - Priority: medium.
   - Blocking condition: production/current runtime work ID supplied by user/Core.
@@ -280,12 +289,12 @@ npm run dogfood:create-episode -- --run-id runtime-backed-harness-slice --title 
 
 ## Final Outcome
 
-- Outcome: completed through evidence recording, with proof closeout pending.
-- Successful parts: demo runtime read brief, docs change, verification, evidence recording, dogfood report.
+- Outcome: completed with runtime-backed demo evidence and proof refs.
+- Successful parts: demo runtime read brief, docs change, verification, evidence recording, dogfood report, draft PR creation, proof-only closeout.
 - Failed parts: none.
-- Partial parts: proof/action/work-event IDs pending.
+- Partial parts: requested `runtime_backed_dogfood` result kind was not accepted by the proof helper enum; `documentation` was used for the successful docs-only proof.
 - Skipped parts: browser verification and session binding, both with concrete reasons.
-- Final user/Core/GitHub state if known: no GitHub PR or Core approval yet at report creation time.
+- Final user/Core/GitHub state if known: draft PR #269 is open; no durable Core approval is claimed.
 
 ## Notes
 
