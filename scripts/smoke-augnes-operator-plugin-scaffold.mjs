@@ -18,7 +18,6 @@ assert.equal(pluginJson.name, "augnes-operator");
 assert.equal(pluginJson.skills, "./skills/");
 assert.equal(pluginJson.mcpServers, undefined, "plugin scaffold must not include MCP config");
 assert.equal(pluginJson.apps, undefined, "plugin scaffold must not include app mappings");
-assert.equal(pluginJson.hooks, undefined, "plugin scaffold must not include hooks config");
 assert.match(
   pluginJson.description,
   /Augnes workflow harness for Codex preflight, bounded implementation, evidence reporting, proof-only closeout, and authority audit/,
@@ -36,12 +35,14 @@ assert.deepEqual(marketplaceEntry.source, {
 assert.equal(marketplaceEntry.policy?.installation, "AVAILABLE");
 assert.equal(marketplaceEntry.policy?.authentication, "ON_INSTALL");
 
-assert.equal(existsSync(path.join(pluginRoot, "hooks")), false, "plugin scaffold must not contain hooks directory");
 assert.equal(existsSync(path.join(pluginRoot, ".mcp.json")), false, "plugin scaffold must not contain .mcp.json");
 assert.equal(existsSync(path.join(pluginRoot, ".app.json")), false, "plugin scaffold must not contain .app.json");
 assert.equal(existsSync(path.join(pluginRoot, "apps")), false, "plugin scaffold must not contain app mappings");
+const hooksPresent = existsSync(path.join(pluginRoot, "hooks"));
 
-const pluginFiles = listFiles(pluginRoot).concat([marketplacePath]);
+const pluginFiles = listFiles(pluginRoot)
+  .filter((filePath) => !filePath.startsWith(path.join(pluginRoot, "hooks") + path.sep))
+  .concat([marketplacePath]);
 const combinedText = pluginFiles.map((filePath) => readFileSync(filePath, "utf8")).join("\n\n");
 
 for (const skillName of approvedSkills) {
@@ -69,7 +70,8 @@ console.log(
       marketplace_json_valid: true,
       marketplace_source: marketplaceEntry.source,
       packaged_skills: approvedSkills,
-      hooks_config_absent: true,
+      hooks_present: hooksPresent,
+      hooks_covered_by: hooksPresent ? "smoke:augnes-operator-plugin-hooks" : null,
       mcp_config_absent: true,
       app_mapping_absent: true,
       authority_boundary_preserved: true,
