@@ -1,0 +1,22 @@
+{
+  "name": "augnes-local",
+  "interface": {
+    "displayName": "Augnes Local"
+  },
+  "plugins": [
+    {
+      "name": "augnes-operator",
+      "source": {
+        "source": "local",
+        "path": "./plugins/augnes-operator"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "status": "local-scaffold",
+      "authority": "non-authoritative workflow packaging only"
+    }
+  ]
+}
