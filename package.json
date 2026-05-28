@@ -20,6 +20,7 @@
     "smoke:cockpit-selected-work-handoff-snapshot-dogfood": "node scripts/smoke-cockpit-selected-work-handoff-snapshot-dogfood.mjs",
     "smoke:cockpit-work-codex-handoff-review-dogfood": "node scripts/smoke-cockpit-work-codex-handoff-review-dogfood.mjs",
     "smoke:cockpit-work-codex-handoff-scan": "node scripts/smoke-cockpit-work-codex-handoff-scan.mjs",
+    "smoke:cockpit-perspective-evidence-handoff-snapshot": "node scripts/smoke-cockpit-perspective-evidence-handoff-snapshot.mjs",
     "smoke:cockpit-visual-tone-refresh": "node scripts/smoke-cockpit-visual-tone-refresh.mjs",
     "smoke:cockpit-temporal-admission": "node scripts/smoke-cockpit-temporal-admission.mjs",
     "smoke:cockpit-temporal-review-artifacts": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-cockpit-temporal-review-artifacts.mjs",

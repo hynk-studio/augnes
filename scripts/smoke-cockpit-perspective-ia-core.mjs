@@ -29,6 +29,11 @@ export function runPerspectiveIaSmoke(smokeName) {
     "node scripts/smoke-cockpit-perspective-ia.mjs",
     "package.json should register smoke:cockpit-perspective-ia",
   );
+  assert.equal(
+    packageJson.scripts["smoke:cockpit-perspective-evidence-handoff-snapshot"],
+    "node scripts/smoke-cockpit-perspective-evidence-handoff-snapshot.mjs",
+    "package.json should register smoke:cockpit-perspective-evidence-handoff-snapshot",
+  );
 
   assertIncludes(
     cockpit,
@@ -87,6 +92,16 @@ export function runPerspectiveIaSmoke(smokeName) {
     "from evidence/session/artifacts",
     "Evidence supports or challenges the frame",
     "It does not commit, approve, publish, replay, or execute",
+    "Perspective Evidence Handoff Snapshot",
+    "Read-only evidence and continuity orientation for the current perspective frame",
+    "Evidence records",
+    "Temporal Review Artifacts",
+    "Evidence anchor refs",
+    "Summary refs",
+    "Selected temporal review artifact",
+    "Review evidence pack, session trace, and temporal review artifacts before treating a frame as grounded",
+    "Boundary: Read-only snapshot",
+    "No proof creation",
     "Perspective must not become a self-confirming summary",
     "metaChips",
     "Why deferred",
@@ -372,6 +387,51 @@ export function runPerspectiveIaSmoke(smokeName) {
     );
   }
 
+  const perspectiveEvidenceSnapshotSource = extractBetween(
+    cockpit,
+    'className="cockpit-surface-card perspective-evidence-handoff-snapshot"',
+    '<div className="perspective-evidence-grid">',
+  );
+  for (const snippet of [
+    "Perspective Evidence Handoff Snapshot",
+    "Evidence records",
+    "Temporal Review Artifacts",
+    "Session Trace",
+    "Loaded evidence gaps",
+    "Evidence anchor refs",
+    "Summary refs",
+    "Selected temporal review artifact",
+    "Safe next step",
+    "Boundary: Read-only snapshot",
+  ]) {
+    assertIncludes(perspectiveEvidenceSnapshotSource, snippet);
+  }
+  assert.equal(
+    /<button\b/.test(perspectiveEvidenceSnapshotSource),
+    false,
+    "Perspective Evidence Handoff Snapshot must not add action buttons.",
+  );
+  for (const forbiddenPerspectiveEvidenceSnapshotSource of [
+    "fetch(",
+    "/api/",
+    "Octokit",
+    "axios",
+    "api.github.com",
+    "api.openai.com",
+    "process.env",
+    "GITHUB_TOKEN",
+    "OPENAI_API_KEY",
+    "use server",
+  ]) {
+    assert.equal(
+      perspectiveEvidenceSnapshotSource.includes(
+        forbiddenPerspectiveEvidenceSnapshotSource,
+      ),
+      false,
+      `Perspective Evidence Handoff Snapshot must not introduce source boundary risk: ${forbiddenPerspectiveEvidenceSnapshotSource}`,
+    );
+  }
+
   const workFocusSource = extractFunctionSource(
     cockpit,
     "function WorkFocusSection",
@@ -426,6 +486,9 @@ export function runPerspectiveIaSmoke(smokeName) {
     "position: sticky",
     ".perspective-trace-strip",
     ".perspective-boundary-card",
+    ".perspective-evidence-handoff-snapshot",
+    ".perspective-evidence-handoff-grid",
+    ".perspective-evidence-handoff-next",
     ".perspective-evidence-grid",
     ".tension-diagnostic-card",
     ".tension-card-header",
@@ -550,6 +613,7 @@ export function runPerspectiveIaSmoke(smokeName) {
         evidence_boundary_present: true,
         bridge_boundary_present: true,
         operator_controls_preserved: true,
+        perspective_evidence_handoff_snapshot_present: true,
         readme_demo_flow_current: true,
         mobile_trace_strip_non_scrolling: true,
         app_api_files_changed: false,
@@ -628,6 +692,16 @@ function extractFunctionSource(value, startMarker, endMarker) {
 
   assert.notEqual(start, -1, `Expected function start marker: ${startMarker}`);
   assert.notEqual(end, -1, `Expected function end marker: ${endMarker}`);
+
+  return value.slice(start, end);
+}
+
+function extractBetween(value, startMarker, endMarker) {
+  const start = value.indexOf(startMarker);
+  const end = value.indexOf(endMarker, start + startMarker.length);
+
+  assert.notEqual(start, -1, `Expected start marker: ${startMarker}`);
+  assert.notEqual(end, -1, `Expected end marker: ${endMarker}`);
 
   return value.slice(start, end);
 }

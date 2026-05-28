@@ -827,6 +827,34 @@ code {
   gap: 12px;
 }
 
+.perspective-evidence-handoff-snapshot {
+  display: grid;
+  gap: 12px;
+  box-shadow: none;
+}
+
+.perspective-evidence-handoff-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.perspective-evidence-handoff-grid .metric-card {
+  padding: 12px;
+  box-shadow: none;
+}
+
+.perspective-evidence-handoff-grid .metric-card strong {
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.perspective-evidence-handoff-next {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .perspective-evidence-refs,
 .perspective-tension-grid {
   display: grid;
@@ -4117,6 +4145,8 @@ h1 {
   .perspective-trace-strip,
   .perspective-frame-summary,
   .perspective-evidence-grid,
+  .perspective-evidence-handoff-grid,
+  .perspective-evidence-handoff-next,
   .perspective-evidence-refs,
   .perspective-next-grid,
   .operator-handoff-snapshot-grid,

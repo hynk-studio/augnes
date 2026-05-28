@@ -58,8 +58,7 @@ for (const forbidden of [
 for (const snippet of [
   "Overview",
   "Work",
-  "Ledger",
-  "Proof",
+  "Perspective",
   "Bridge",
   "Operator",
   "AUGNES",
@@ -78,7 +77,17 @@ for (const snippet of [
   assertIncludes(css, snippet);
 }
 
-assertOrder(cockpit, ["Overview", "Work", "Ledger", "Proof", "Bridge", "Operator"]);
+assertOrder(cockpit, ["Overview", "Work", "Perspective", "Bridge", "Operator"]);
+assert.equal(
+  cockpit.includes('label: "Ledger"'),
+  false,
+  "Ledger top-level tab label must not be reintroduced",
+);
+assert.equal(
+  cockpit.includes('label: "Proof"'),
+  false,
+  "Proof top-level tab label must not be reintroduced",
+);
 
 const brandMarkup = extractCockpitBrandMarkup(cockpit);
 assertIncludes(brandMarkup, "<strong>AUGNES</strong>");
@@ -194,7 +203,7 @@ console.log(
       text_identity_present: true,
       graphic_logo_mark_recreated: false,
       new_logo_asset_added_or_imported: false,
-      tab_order_preserved: true,
+      five_tab_ia_preserved: true,
       app_api_files_changed: false,
       lib_files_changed: false,
       lockfiles_changed: false,
