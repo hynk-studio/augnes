@@ -4,11 +4,15 @@
 
 This roadmap defines the initial plan for a Codex Agent Harness for Augnes. The
 harness is a set of repo instructions, skills, plugin packaging, optional local
-hooks, MCP configuration, and proof-only closeout practices that make Codex work
-more repeatable and reviewable.
+hooks, MCP / bridge usage guidance, and proof-only closeout practices that make
+Codex work more repeatable and reviewable.
 
 The harness does not create a new runtime, does not execute Codex from
 ChatGPT, and does not grant Codex durable approval authority.
+
+This document is the canonical future roadmap for the Augnes AI Surface
+Maximization / Codex Agent Harness line. Other docs may summarize or apply this
+sequence, but they should not maintain competing PR roadmaps.
 
 ## Harness Operating Model
 
@@ -16,7 +20,8 @@ Codex should operate as a specialist worker inside this loop:
 
 ```text
 ChatGPT drafts/reviews
--> Augnes records state/proof/evidence
+-> Augnes keeps committed state distinct from pending proposals, proof-only
+   action records, evidence rows, and Core-gated durable decisions
 -> Codex implements/tests/PRs
 -> ChatGPT reviews
 -> user merges or sends decisions through Core-gated surfaces
@@ -95,17 +100,18 @@ Acceptance criteria:
 
 Skills should capture repeatable workflows that are easy to invoke from Codex.
 
-Candidate skills:
+Planned repo-local skills:
 
-- `augnes-context-intake`: read README, authority docs, state/work briefs, and
+- `augnes-read-brief`: read README, authority docs, state/work briefs, and
   task-specific handoff context.
-- `augnes-proof-closeout`: run verification, record evidence when possible, and
-  prefer proof-only completion.
-- `augnes-pr-body`: create PR body sections for Summary, Files changed,
-  Authority boundary statement, Verification, and Skipped checks.
-- `augnes-review-packet`: prepare a ChatGPT-readable review packet with
-  expected-vs-actual files, checks, state keys, proof refs, skipped checks, and
-  blockers.
+- `augnes-implementation-slice`: keep implementation scope bounded to expected
+  files, checks, and authority constraints.
+- `augnes-record-evidence`: record or report verification evidence rows with
+  concrete skipped reasons.
+- `augnes-closeout-proof`: prefer proof-only completion and avoid legacy
+  committed marker-state behavior unless explicitly called out.
+- `augnes-authority-audit`: check changed files, PR body, proof/evidence
+  language, and forbidden authority changes before closeout.
 
 Acceptance criteria:
 
@@ -153,12 +159,12 @@ Acceptance criteria:
 - Hook failures are actionable.
 - Hooks do not create evidence, publish, approve, merge, or commit/reject state.
 
-### MCP Config
+### MCP / Bridge Usage Docs
 
-MCP configuration should make read-first Augnes context easy to reach from
-ChatGPT Developer Mode, MCP Inspector, or other MCP-compatible clients.
+MCP / bridge usage docs should make read-first Augnes context easy to reach
+from ChatGPT Developer Mode, MCP Inspector, or other MCP-compatible clients.
 
-Recommended configuration goals:
+Recommended documentation goals:
 
 - clear local bridge URL
 - safe default public profile
@@ -193,11 +199,11 @@ Acceptance criteria:
 - Work events link to proof when available.
 - Missing proof is described as a gap, not inferred.
 
-## Staged PR Roadmap
+## Canonical Staged PR Roadmap
 
-### PR 0: Initial Strategy And Protocol Docs
+### PR 0: Strategy And Protocol Docs
 
-This PR creates the baseline documentation only.
+The current documentation-only baseline.
 
 Allowed changes:
 
@@ -213,13 +219,15 @@ Forbidden changes:
 - app tools
 - hooks
 - package scripts
+- plugin implementation
+- `AGENTS.md` creation
 
 Verification:
 
 - `npm run typecheck`
 - confirm only docs changed
 
-### PR 1: AGENTS.md Baseline
+### PR 1: Root AGENTS.md For Codex Behavior
 
 Add the repo-local Codex operating contract.
 
@@ -230,77 +238,121 @@ Acceptance criteria:
 - Does not modify runtime files.
 - `npm run typecheck` passes.
 
-### PR 2: Skill Design Docs
+### PR 2: Repo-Local Codex Skills
 
-Document the proposed harness skills before installation.
+Add `.agents/skills` for the approved Codex harness workflows:
+
+- `augnes-read-brief`
+- `augnes-implementation-slice`
+- `augnes-record-evidence`
+- `augnes-closeout-proof`
+- `augnes-authority-audit`
 
 Acceptance criteria:
 
 - Each skill has trigger conditions, inputs, outputs, and forbidden actions.
 - Skills refer to existing docs and helpers.
-- No generated plugin artifacts yet.
+- Skills do not execute Codex from ChatGPT and do not grant Codex durable state,
+  approval, publication, or merge authority.
+- No plugin scaffold, hooks, MCP config, runtime routes, or package scripts are
+  added in this slice unless a later user-approved scope explicitly says so.
 
-### PR 3: Skill Implementation
+### PR 3: Codex Closeout / Evidence Checklist Helper
 
-Add the approved skill files.
+Add a deterministic closeout preflight helper and smoke test. Keep it local and
+non-mutating.
 
 Acceptance criteria:
 
-- Skills are small and task-focused.
-- Skills do not call external publication or approval routes.
-- Skills include fallback language for missing runtime context.
+- Helper checks expected closeout fields, evidence/proof gaps, skipped-check
+  reasons, docs-only file boundaries, and authority statements.
+- Helper does not create evidence rows, action records, work events, pending
+  proposals, committed state, approval records, publication records, delivery
+  records, or PR comments.
+- Smoke test verifies local behavior without network or runtime side effects.
 
-### PR 4: Plugin Packaging
+### PR 4: Local `augnes-operator` Codex Plugin Scaffold
 
-Package the approved skills and metadata.
+Package approved skills and local metadata. Do not add hooks or MCP config yet
+unless separately scoped.
 
 Acceptance criteria:
 
 - Manifest validates.
-- Plugin docs explain installation scope.
+- Plugin docs explain local installation scope and authority boundaries.
+- Plugin scaffold does not execute Codex from ChatGPT and does not call
+  approval, publication, merge, or commit/reject paths.
 - No runtime, schema, route, or package-script changes unless explicitly
   approved.
 
-### PR 5: Hook Design
+### PR 5: Plugin Hooks
 
-Document proposed hooks and false-positive handling.
-
-Acceptance criteria:
-
-- Hooks are advisory or local quality gates only.
-- No hook implementation yet.
-- Authority boundaries are repeated in the design.
-
-### PR 6: Hook Implementation
-
-Implement approved hooks.
+Add `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop` hooks only after the
+plugin scaffold exists. Hooks must be local, deterministic, and
+non-authoritative.
 
 Acceptance criteria:
 
-- Hooks are local, deterministic, and testable.
-- Hooks do not mutate Augnes runtime state.
-- Hooks do not call GitHub publication, approval, replay, or merge paths.
+- Hooks do not create evidence, publish, approve, merge, execute Codex from
+  ChatGPT, or commit/reject Augnes state.
+- Hooks check or remind; they do not become hidden runtime authority.
+- Hook failures are actionable and include bypass/false-positive handling where
+  appropriate.
+- Hook tests are local and deterministic.
 
-### PR 7: MCP Config And Runbook
+### PR 6: Codex MCP / Augnes Bridge Usage Docs
 
-Add safe local setup guidance for bridge usage.
-
-Acceptance criteria:
-
-- Includes ChatGPT Developer Mode and MCP Inspector usage.
-- Separates public profile tools from bridge-enabled tools.
-- No secrets or live tokens are committed.
-
-### PR 8: Full Harness Dogfood
-
-Use the harness on a bounded Augnes work item and record gaps.
+Document safe local MCP bridge usage for Codex and ChatGPT Developer Mode. No
+secrets or authority expansion.
 
 Acceptance criteria:
 
-- PR includes proof-only closeout status.
-- Evidence Pack and Session Trace are reviewed or skipped with exact reasons.
-- ChatGPT review packet compares expected vs actual work.
-- User/Core approval remains separate from proof and merge.
+- Separates public tools, bridge read tools, and bridge-gated proof/trace tools.
+- Explains that bridge usage does not execute Codex, approve, publish, merge, or
+  commit/reject state.
+- Includes concrete skipped reasons for missing runtime, missing work ID,
+  missing session ID, no Developer Mode tunnel/session, or unavailable evidence
+  API.
+- Commits no secrets or live tokens.
+
+### PR 7: ChatGPT App Operator Card Design And First Work Contract Card
+
+Add a read-only operator card using existing work/state brief content. Do not
+add write controls, a Run Codex button, or approval/publish/merge controls.
+
+Acceptance criteria:
+
+- Card is derived from existing brief content or documented read models.
+- Card distinguishes committed state, pending proposals, proof-only records,
+  evidence rows, and Core-gated decisions.
+- Card cannot execute Codex, mutate state, record proof, approve, publish,
+  merge, or call external services.
+
+### PR 8: Browser / Computer-Use Verification Runbook
+
+Add a runbook and report template for UI/operator-surface verification.
+
+Acceptance criteria:
+
+- Defines what browser or computer-use verification should inspect.
+- Includes screenshot/report expectations and concrete skipped-check language.
+- Treats browser/computer-use as a validation surface, not an authority.
+- Does not add runtime behavior, app tools, hooks, package scripts, or MCP
+  config.
+
+### PR 9: Dogfood Episode Capture
+
+Add a template/helper for ChatGPT -> Codex -> PR -> ChatGPT review -> user
+merge episodes.
+
+Acceptance criteria:
+
+- Captures handoff source, expected-vs-actual review, verification evidence,
+  proof-only closeout status, skipped checks, PR link, ChatGPT review, and user
+  decision.
+- Keeps dogfood notes as evaluation guidance unless Augnes Core records a
+  durable decision.
+- Preserves that proof is not approval and a PR is not merge authority.
 
 ## Future PR Acceptance Criteria
 
@@ -340,4 +392,3 @@ The harness must not:
 - treat proof-only records as accepted project facts
 - hide failed or skipped checks
 - modify runtime behavior in documentation-only PRs
-

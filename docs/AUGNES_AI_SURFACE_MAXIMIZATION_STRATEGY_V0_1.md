@@ -7,10 +7,11 @@ ChatGPT, Codex, GitHub, Cockpit, browser verification, and MCP surfaces without
 moving durable authority out of Augnes Core or away from the user.
 
 The goal is to maximize useful AI surface area, not autonomous control. ChatGPT
-should help draft, interpret, and review. Augnes should preserve committed
-state, proof, evidence, work traces, and handoff context. Codex should
-implement, verify, and prepare PRs. GitHub should host code review. The user
-and Augnes Core remain the durable approval boundary.
+should help draft, interpret, and review. Augnes should keep committed state,
+pending proposals, proof-only action records, evidence rows, work traces, and
+Core-gated durable decisions distinct. Codex should implement, verify, and
+prepare PRs. GitHub should host code review. The user and Augnes Core remain
+the durable approval boundary.
 
 ## Desired Workflow
 
@@ -18,7 +19,8 @@ The target operating loop is:
 
 ```text
 ChatGPT drafts or reviews
--> Augnes records state, proof, and evidence
+-> Augnes separates committed state, pending proposals, proof-only action
+   records, evidence rows, and Core-gated durable decisions
 -> Codex implements, tests, and opens PRs
 -> ChatGPT reviews the result against Augnes context
 -> user approves, publishes, or merges through explicit gates
@@ -86,6 +88,21 @@ ChatGPT should not receive direct Codex execution controls. If a user wants
 Codex work, ChatGPT should produce an explicit handoff packet or review note
 that a Codex session can use.
 
+### ChatGPT Operator UI Surface
+
+ChatGPT operator UI should be strengthened as a read-only decision-support
+surface, starting with a Work Contract Card that uses existing work/state brief
+content.
+
+The Work Contract Card should show the task contract a human is asking Codex to
+honor: scope, work ID, expected files, expected checks, related state keys,
+proof/evidence expectations, skipped-check requirements, and authority
+boundaries. It should distinguish committed state, pending proposals,
+proof-only records, evidence rows, and Core-gated durable decisions.
+
+The card must not add write controls, a Run Codex button, approval controls,
+publish controls, merge controls, or commit/reject controls.
+
 ### Augnes Surface
 
 Augnes should be strengthened as the continuity and proof layer:
@@ -140,6 +157,28 @@ Cockpit should remain the local operator review surface:
 - any future write controls must be separately scoped, Core-gated, and reviewed
   against `docs/AUTHORITY_MATRIX.md`
 
+### Browser And Computer-Use Verification Surface
+
+Browser and computer-use workflows should be a later validation surface for
+operator UI and Cockpit behavior. They can inspect rendered UI, capture
+screenshots, report layout or copy problems, and verify that read-only surfaces
+remain read-only.
+
+Browser/computer-use verification is not authority. It must not approve,
+publish, merge, commit/reject Augnes state, execute Codex, or treat visual
+inspection as a durable Core decision.
+
+### Dogfood Evaluation Surface
+
+Dogfood episode capture should be a later evaluation surface for the full
+ChatGPT -> Codex -> PR -> ChatGPT review -> user merge loop. Episodes should
+capture handoff source, expected-vs-actual review, verification evidence,
+proof-only closeout status, skipped checks, PR refs, ChatGPT review, and user
+decision.
+
+Dogfood notes are evaluation guidance unless Augnes Core records a durable
+decision. They do not become committed state by appearing in a report.
+
 ## Why Strengthen Codex Through Harness Surfaces
 
 Codex can do better work when its operating environment is explicit and
@@ -164,111 +203,22 @@ repeatable. The recommended strengthening surfaces are:
 These surfaces should improve consistency and evidence quality. They must not
 grant Codex approval, publication, merge, or Augnes commit/reject authority.
 
-## Staged PR Roadmap
+## Canonical Roadmap Summary
 
-### PR 0: Strategy And Protocol Docs
+The canonical staged roadmap for this strategy line is
+`docs/CODEX_AGENT_HARNESS_ROADMAP_V0_1.md`. This strategy document should not
+maintain a competing PR sequence.
 
-Status: this documentation-only baseline.
+In summary, the roadmap starts with the current documentation-only baseline,
+then adds a root `AGENTS.md`, repo-local Codex skills, a deterministic
+closeout/evidence checklist helper, a local `augnes-operator` plugin scaffold,
+plugin hooks, Codex MCP / Augnes bridge usage docs, a read-only ChatGPT
+operator Work Contract Card, a browser/computer-use verification runbook, and
+dogfood episode capture.
 
-- Add the AI surface maximization strategy.
-- Add the Codex Agent Harness roadmap.
-- Add the ChatGPT/Codex/Augnes review protocol.
-- Do not modify runtime behavior, database schema, routes, tools, hooks, or
-  package scripts.
-
-Acceptance criteria:
-
-- New docs explain the ChatGPT -> Augnes -> Codex -> ChatGPT -> user workflow.
-- Authority boundaries are explicit.
-- Future harness surfaces are documented as design targets only.
-- `npm run typecheck` passes.
-
-### PR 1: AGENTS.md Operating Contract
-
-- Add or update repo-local Codex operating instructions.
-- Encode docs-only PR rules, skipped-check reporting, proof-only closeout
-  preference, and authority boundary language.
-- Avoid runtime code changes.
-
-Acceptance criteria:
-
-- Codex can read one repo-local contract before implementation.
-- Instructions do not grant new authority.
-- Existing typecheck remains green.
-
-### PR 2: Codex Skill Skeletons
-
-- Add narrowly scoped skills for Augnes context intake, proof-only closeout,
-  PR body preparation, and review packet generation.
-- Skills should call existing helpers or document existing manual checks.
-- No new runtime routes or DB schema.
-
-Acceptance criteria:
-
-- Skills reference existing Augnes docs and helper commands.
-- Skills preserve proof-only and skipped-check policies.
-- No package script changes unless explicitly approved in a later non-docs PR.
-
-### PR 3: Personal Plugin / Harness Packaging
-
-- Package the Codex harness conventions as an installable local plugin or
-  equivalent Codex-facing bundle.
-- Include skills and stable metadata.
-- Keep installation separate from runtime behavior.
-
-Acceptance criteria:
-
-- Plugin metadata is valid.
-- Plugin does not execute Augnes, GitHub publication, or merge actions.
-- Any generated cache or installation artifacts are intentionally scoped.
-
-### PR 4: Hook Design Before Hook Enforcement
-
-- Document proposed Codex hooks for docs-only boundary checks, proof-only
-  closeout prompts, skipped-check enforcement, and PR body linting.
-- Do not add enforcement until the design is reviewed.
-
-Acceptance criteria:
-
-- Hook triggers, inputs, outputs, failure modes, and bypass rules are specified.
-- Hooks cannot approve, publish, merge, or commit/reject state.
-- Hooks identify false-positive and local-development risks.
-
-### PR 5: Hook Implementation
-
-- Implement approved local hooks only after PR 4 is accepted.
-- Keep hooks focused on Codex workflow quality and safety.
-
-Acceptance criteria:
-
-- Hooks are testable locally.
-- Hooks fail with actionable messages.
-- Hooks do not mutate runtime state or call external publication routes.
-
-### PR 6: MCP Config And Bridge Runbook Hardening
-
-- Add stable MCP setup guidance for ChatGPT Developer Mode, MCP Inspector, and
-  Codex-readable bridge context.
-- Keep public profile read-only and bridge tools explicitly gated.
-
-Acceptance criteria:
-
-- Config examples are safe by default.
-- Tool authority boundaries are documented next to each recommended use.
-- No secrets are committed.
-
-### PR 7: Proof-Only Closeout Dogfood
-
-- Dogfood the full loop on a bounded work item.
-- Capture evidence rows, proof-only completion, Evidence Pack review, Session
-  Trace gaps, ChatGPT review notes, and final user/Core decisions.
-
-Acceptance criteria:
-
-- Proof records are visible without legacy `external.*` state markers.
-- Skipped checks include concrete reasons.
-- ChatGPT review does not claim authority it does not have.
-- User/Core durable decisions remain separate from proof.
+Each future slice must preserve that ChatGPT does not execute Codex, Codex does
+not commit/reject Augnes state, Codex does not approve/publish/merge, and
+durable approval remains user/Core gated.
 
 ## Future PR Acceptance Criteria
 
@@ -309,8 +259,8 @@ forbids:
 - adding bridge tools that approve, publish, merge, or commit/reject state
 - changing database schema as part of docs-only protocol work
 - changing runtime routes, app tools, hooks, or package scripts in docs-only PRs
+- implementing plugins or creating `AGENTS.md` in the current docs-only PR
 - using legacy action records as durable accepted project facts
 - creating external publication side effects without explicit Core gates
 - treating missing runtime evidence as if it were recorded
 - hiding skipped checks behind generic `N/A` language
-

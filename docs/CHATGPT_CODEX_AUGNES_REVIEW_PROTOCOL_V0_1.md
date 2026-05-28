@@ -12,7 +12,8 @@ Use this loop:
 
 ```text
 1. ChatGPT drafts or reviews from Augnes context.
-2. Augnes records committed state, pending proposals, proof, and evidence.
+2. Augnes keeps committed state, pending proposals, proof-only action records,
+   evidence rows, and Core-gated durable decisions distinct.
 3. Codex implements, tests, records proof when available, and opens a PR.
 4. ChatGPT reviews the PR result against the handoff and Augnes evidence.
 5. The user decides whether to merge or make Core-gated durable approvals.
@@ -115,6 +116,8 @@ For documentation-only PRs, Codex must not modify:
 - app tools
 - hooks
 - package scripts
+- plugin implementation
+- `AGENTS.md` creation
 
 ## Proof And Evidence Protocol
 
@@ -125,7 +128,8 @@ Evidence must remain explicit:
 - A completion proof exists only if proof-only closeout succeeded.
 - A skipped check must include the check name and concrete reason.
 - A ChatGPT review is review guidance, not committed state.
-- A PR is code review state, not Augnes approval.
+- Proof is not approval.
+- A PR is code review state, not Augnes approval or merge authority.
 
 Preferred Codex closeout path:
 
@@ -183,59 +187,22 @@ publication behavior, merge behavior, or Augnes commit/reject authority.
 For docs-only PRs, the statement should explicitly say that the PR is
 documentation-only and does not modify those runtime surfaces.
 
-## Staged PR Roadmap
+## Roadmap Alignment
 
-### PR 0: Protocol Baseline
+The canonical staged roadmap for this protocol line is
+`docs/CODEX_AGENT_HARNESS_ROADMAP_V0_1.md`. This protocol should not maintain a
+competing PR roadmap.
 
-- Add this protocol and related strategy/roadmap docs.
-- No runtime behavior changes.
-- Verify with `npm run typecheck`.
+Protocol adoption happens inside that canonical sequence: the current baseline
+documents the review contract, future `AGENTS.md` and `.agents/skills` slices
+can teach Codex to follow it, the closeout/evidence checklist helper can check
+it, the ChatGPT Work Contract Card can render it read-only, browser/computer-use
+verification can validate operator surfaces, and dogfood episode capture can
+measure whether the loop works in practice.
 
-### PR 1: ChatGPT Review Template
-
-- Add a reusable ChatGPT review prompt/template grounded in this protocol.
-- Include expected-vs-actual comparison and skipped-check language.
-- Keep it documentation-only unless separately approved.
-
-Acceptance criteria:
-
-- Template distinguishes review from approval.
-- Template includes proof/evidence gap handling.
-- No runtime changes.
-
-### PR 2: Codex PR Body Template
-
-- Add or update a Codex PR body helper/template.
-- Include authority boundary and skipped checks as required sections.
-
-Acceptance criteria:
-
-- Template supports docs-only and runtime PRs.
-- Template does not imply merge or approval authority.
-- Typecheck passes.
-
-### PR 3: Handoff Review Dogfood
-
-- Run the protocol on one bounded Augnes task.
-- Capture ChatGPT handoff, Codex result, evidence/proof status, review
-  outcome, and user decision.
-
-Acceptance criteria:
-
-- Missing runtime or proof gaps are visible.
-- Review outcome uses the protocol status vocabulary.
-- User/Core decisions remain separate.
-
-### PR 4: Protocol Refinement
-
-- Adjust the protocol based on dogfood findings.
-- Keep changes documentation-only unless a separate implementation PR is
-  approved.
-
-Acceptance criteria:
-
-- Changes cite the specific friction they address.
-- Authority boundaries do not regress.
+All adoption slices must preserve that ChatGPT does not execute Codex, Codex
+does not commit/reject Augnes state, Codex does not approve/publish/merge, and
+durable approval remains user/Core gated.
 
 ## Future PR Acceptance Criteria
 
@@ -272,4 +239,4 @@ This protocol forbids:
 - PRs that hide runtime, work ID, or evidence API gaps
 - documentation-only PRs that modify runtime behavior, database schema, API
   routes, app tools, hooks, or package scripts
-
+- documentation-only PRs that implement plugins or create `AGENTS.md`
