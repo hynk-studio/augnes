@@ -1,0 +1,14 @@
+# Example-only Codex MCP config for the local Augnes bridge.
+# This file is inert documentation and is not automatically active.
+# Review and adapt the shape for your local Codex installation before use.
+# Do not commit secrets or credentials in a real local config.
+# Enabling a local bridge config does not grant Codex commit/reject, publish,
+# approve, retry, replay, merge, auto-merge, or external posting authority.
+# Proof is not approval. A PR is not merge authority.
+
+# If your Codex build supports URL-based MCP server entries, adapt locally:
+#
+# [mcp_servers.augnes_local_bridge]
+# url = "http://localhost:8787/mcp"
+#
+# Keep the endpoint local. Do not replace it with a hosted URL in repo files.
