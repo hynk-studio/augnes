@@ -63,7 +63,9 @@ clear forbidden actions, including:
 - `gh pr merge`
 - GitHub API merge or auto-merge mutations
 - force pushes
-- auto-merge enablement
+- positive auto-merge enablement; safe negated boundary text such as
+  `Codex must never enable auto-merge` is not denied merely for naming the
+  boundary
 - remote merge, publish, approval, retry, or replay calls without explicit
   future Core-gated scope
 - legacy `npm run codex:record-completion` unless explicitly allowed by
@@ -71,13 +73,16 @@ clear forbidden actions, including:
 - approval/publication/retry/replay commands unless
   `AUGNES_ALLOW_CORE_GATED_ACTUATION=true`
 - direct secret reads such as `cat .env` or `printenv GITHUB_TOKEN`
-- proof/evidence recording commands when `CODEX_WORK_ID` is absent, except
-  dry-run or preflight paths
+- proof/evidence recording commands when `CODEX_WORK_ID` is absent from both
+  the environment and an inline Bash assignment, except dry-run or preflight
+  paths
 
 It allows local checks such as `npm run typecheck`, `npm run smoke:*`, and
 `npm run codex:closeout-preflight`. It allows proof-only closeout and evidence
-recording commands only when `CODEX_WORK_ID` is present, but the hook does not
-record proof or evidence itself. Non-deny reminders are returned through
+recording commands when `CODEX_WORK_ID` is present in the hook environment or
+as an inline command assignment such as `CODEX_WORK_ID=AG-123 npm run
+codex:record-completion-proof`, but the hook does not record proof or evidence
+itself. Non-deny reminders are returned through
 `hookSpecificOutput.additionalContext`.
 
 ### PostToolUse

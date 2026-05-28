@@ -64,10 +64,17 @@ const malformedSessionStartJson = JSON.parse(malformedSessionStart.stdout);
 assert.match(malformedSessionStartJson.systemMessage, /malformed/);
 assertHookContext(malformedSessionStartJson, "SessionStart", /Read AGENTS\.md/);
 
-assertPreToolDenies("gh pr merge 262", /merge PRs/);
+assertPreToolDenies("gh pr merge 262 --auto", /merge PRs/);
+assertPreToolDenies("gh api graphql -f query='mutation { enablePullRequestAutoMerge(input: {}) { clientMutationId } }'", /auto-merge mutation/);
+assertPreToolDenies("curl https://api.github.com/repos/Aurna-code/augnes/pulls/123/merge", /remote merge/);
+assertPreToolDenies('node -e "fetch(\\"/api/publication-readiness-checks/123/publish/github-pr-comment\\")"', /remote merge/);
+assertPreToolDenies("enable auto-merge for this PR", /enable auto-merge/);
+assertPreToolDenies("Codex enabled auto-merge", /enable auto-merge/);
 assertPreToolDenies("git push --force origin branch", /force-pushing/);
 assertPreToolDenies("cat .env", /secret reads/);
 assertPreToolDenies("npm run codex:record-completion", /legacy codex:record-completion/);
+assertPreToolDenies("npm run codex:record-completion-proof", /requires CODEX_WORK_ID/);
+assertPreToolDenies("npm run codex:record-evidence", /requires CODEX_WORK_ID/);
 
 assertPreToolAllows("npm run codex:closeout-preflight");
 assertPreToolAllows("npm run typecheck");
@@ -76,6 +83,21 @@ assertHookContext(proofOnlyPreTool.json, "PreToolUse", /proof-only closeout/);
 
 const evidencePreTool = assertPreToolAllows("npm run codex:record-evidence", { CODEX_WORK_ID: "AG-123" });
 assertHookContext(evidencePreTool.json, "PreToolUse", /evidence rows/);
+
+const inlineProofPreTool = assertPreToolAllows("CODEX_WORK_ID=AG-123 npm run codex:record-completion-proof");
+assertHookContext(inlineProofPreTool.json, "PreToolUse", /proof-only closeout/);
+
+const inlineEvidencePreTool = assertPreToolAllows("CODEX_WORK_ID=AG-123 npm run codex:record-evidence");
+assertHookContext(inlineEvidencePreTool.json, "PreToolUse", /evidence rows/);
+
+const envInlineProofPreTool = assertPreToolAllows("env CODEX_WORK_ID=AG-123 npm run codex:record-completion-proof");
+assertHookContext(envInlineProofPreTool.json, "PreToolUse", /proof-only closeout/);
+
+assertPreToolAllows('echo "Codex must never enable auto-merge."');
+assertPreToolAllows('grep "never enable auto-merge" docs/CODEX_AUGNES_OPERATOR_HOOKS_V0_1.md');
+assertPreToolAllowsInput("apply_patch", { patch: '*** Begin Patch\n*** Update File: docs/example.md\n+Codex must never enable auto-merge.\n*** End Patch' });
+assertPreToolAllowsInput("Write", { file_path: "docs/example.md", content: "This PR does not enable auto-merge." });
+assertPreToolAllowsInput("Edit", { file_path: "docs/example.md", old_string: "old", new_string: "No Codex auto-merge authority is granted." });
 
 const postTypecheckPass = runHook("post_tool_use_review.mjs", {
   hook_event_name: "PostToolUse",
@@ -162,17 +184,21 @@ function assertPreToolDenies(command, reasonPattern) {
 }
 
 function assertPreToolAllows(command, env = {}) {
+  return assertPreToolAllowsInput("Bash", { command }, env, command);
+}
+
+function assertPreToolAllowsInput(toolName, toolInput, env = {}, label = JSON.stringify(toolInput)) {
   const result = runHook(
     "pre_tool_use_policy.mjs",
     {
       hook_event_name: "PreToolUse",
-      tool_name: "Bash",
-      tool_input: { command },
+      tool_name: toolName,
+      tool_input: toolInput,
     },
     env,
   );
   assert.equal(result.status, 0);
-  assert.notEqual(result.json.hookSpecificOutput?.permissionDecision, "deny", `${command} should not be denied`);
+  assert.notEqual(result.json.hookSpecificOutput?.permissionDecision, "deny", `${label} should not be denied`);
   return result;
 }
 

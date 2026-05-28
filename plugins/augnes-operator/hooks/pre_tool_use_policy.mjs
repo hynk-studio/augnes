@@ -43,7 +43,7 @@ function findDenial(toolNameValue, text) {
     return "Denied: force-pushing is outside the Augnes operator hook policy.";
   }
 
-  if (/\b(enable|enabled|enabling)\s+auto-merge\b/i.test(text) || /\bauto-merge\s+(enable|enabled|on)\b/i.test(text)) {
+  if (looksLikeUnsafeAutoMergeEnablement(text)) {
     return "Denied: Codex must not enable auto-merge.";
   }
 
@@ -66,7 +66,7 @@ function findDenial(toolNameValue, text) {
     return "Denied: direct secret reads are not allowed by the Augnes operator hook policy.";
   }
 
-  if (looksLikeProofOrEvidenceRecording(text) && !process.env.CODEX_WORK_ID && !looksLikeDryRunOrPreflight(text)) {
+  if (looksLikeProofOrEvidenceRecording(text) && !hasCodexWorkId(text) && !looksLikeDryRunOrPreflight(text)) {
     return "Denied: proof/evidence recording requires CODEX_WORK_ID unless this is only a dry-run or preflight.";
   }
 
@@ -102,6 +102,35 @@ function looksLikeForbiddenRemoteMutation(text) {
   return (remoteToolPattern.test(text) || fetchPattern.test(text)) && mutationTarget.test(text);
 }
 
+function looksLikeUnsafeAutoMergeEnablement(text) {
+  const clauses = splitClauses(text);
+  return clauses.some((clause) => hasPositiveAutoMergeEnablement(clause) && !isNegatedAutoMergeBoundary(clause));
+}
+
+function hasPositiveAutoMergeEnablement(clause) {
+  const unsafePatterns = [
+    /\b(enable|enabled|enabling|enables)\s+auto-merge\b/i,
+    /\bauto-merge\s+(enable|enabled|on)\b/i,
+    /\bcodex\b.{0,80}\benabled\s+auto-merge\b/i,
+  ];
+  return unsafePatterns.some((pattern) => pattern.test(clause));
+}
+
+function isNegatedAutoMergeBoundary(clause) {
+  const negatedAction =
+    /\b(must\s+never|never|must\s+not|may\s+not|does\s+not|do\s+not|doesn't|cannot|can't|can\s+not|should\s+not|will\s+not|is\s+not|not)\b.{0,80}\b(enable|enabled|enabling|enables)\s+auto-merge\b/i;
+  const negatedAuthority =
+    /\b(no|not|does\s+not|do\s+not|doesn't|must\s+not|may\s+not|never|cannot|can't|can\s+not|should\s+not|without)\b.{0,80}\b(codex\b.{0,80})?auto-merge\b.{0,80}\b(authority|grant|granted|enable|enabled|enables)\b/i;
+  return negatedAction.test(clause) || negatedAuthority.test(clause);
+}
+
+function splitClauses(text) {
+  return text
+    .split(/[\n.;!?]/)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+}
+
 function looksLikeCoreGatedActuation(text) {
   if (looksLikeDryRunOrPreflight(text)) return false;
   return (
@@ -121,6 +150,14 @@ function looksLikeSecretRead(text) {
 
 function looksLikeProofOrEvidenceRecording(text) {
   return /\bnpm\s+run\s+codex:(record-completion-proof|record-evidence)\b/i.test(text);
+}
+
+function hasCodexWorkId(text) {
+  return Boolean(process.env.CODEX_WORK_ID) || commandHasInlineCodexWorkId(text);
+}
+
+function commandHasInlineCodexWorkId(text) {
+  return /(?:^|\s)(?:env\s+)?CODEX_WORK_ID=(?:"[^"\s]+"|'[^'\s]+'|[^\s]+)/i.test(text);
 }
 
 function looksLikeDryRunOrPreflight(text) {
