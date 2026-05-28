@@ -170,6 +170,13 @@ Do not mix them with production/current Augnes state, and do not commit temp
 DB, log, or PID files. Proof is not approval. Evidence is not approval. PR is
 not merge authority. Durable approval remains user/Core gated.
 
+Use demo/runtime labels such as `runtime_backed_dogfood` in the episode report
+or PR body, not as `CODEX_RESULT_KIND` for proof recording. For proof-only
+closeout, choose one of the helper-accepted result kinds documented in
+`apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md`, such as
+`documentation` for docs-only dogfood or `verification` for a verification-only
+slice.
+
 ## Relationship To AGENTS.md
 
 `AGENTS.md` is the root Codex operating contract. This capture workflow follows

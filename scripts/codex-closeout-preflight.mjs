@@ -1,4 +1,13 @@
 const knownFlags = new Set(["--strict", "--json", "--help"]);
+const proofHelperResultKinds = new Set([
+  "implementation",
+  "verification",
+  "documentation",
+  "screenshot",
+  "handoff",
+  "review",
+  "other",
+]);
 
 const args = process.argv.slice(2);
 const unknownFlag = args.find((arg) => arg.startsWith("--") && !knownFlags.has(arg));
@@ -89,11 +98,11 @@ addRequiredCheck({
   warn: "CODEX_RESULT_STATUS is missing.",
 });
 
-addRequiredCheck({
+const resultKindIssue = validateResultKind(summary.result_kind);
+checks.push({
   id: "result_kind",
-  value: summary.result_kind,
-  pass: "Result kind is present.",
-  warn: "CODEX_RESULT_KIND is missing.",
+  status: resultKindIssue === null ? "pass" : strict ? "fail" : "warn",
+  message: resultKindIssue ?? "Result kind is present and accepted by codex:record-completion-proof.",
 });
 
 checks.push({
@@ -279,6 +288,19 @@ function validateSkippedChecks(entries) {
   }
 
   return issues;
+}
+
+function validateResultKind(resultKind) {
+  if (!resultKind) {
+    return "CODEX_RESULT_KIND is missing.";
+  }
+
+  if (proofHelperResultKinds.has(resultKind)) {
+    return null;
+  }
+
+  const accepted = Array.from(proofHelperResultKinds).join(", ");
+  return `CODEX_RESULT_KIND=${resultKind} is not accepted by codex:record-completion-proof. Use one of: ${accepted}. Use runtime_backed_dogfood as a dogfood report label, not a proof result kind.`;
 }
 
 function findDocsOnlyForbiddenFiles(files) {

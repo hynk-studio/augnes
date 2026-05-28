@@ -356,6 +356,23 @@ try {
     "missing required env should fail before route calls",
   );
 
+  const callsAfterMissingSummary = workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests;
+  const unsupportedDogfoodKind = await runProofHelper({
+    AUGNES_API_BASE_URL: apiBaseUrl,
+    CODEX_SCOPE: scope,
+    CODEX_WORK_ID: workId,
+    CODEX_RESULT_SUMMARY: "Dogfood report label should not be accepted as proof result kind.",
+    CODEX_RESULT_STATUS: "completed",
+    CODEX_RESULT_KIND: "runtime_backed_dogfood",
+  });
+  assert.notEqual(unsupportedDogfoodKind.status, 0);
+  assert.match(unsupportedDogfoodKind.stderr, /Invalid CODEX_RESULT_KIND: runtime_backed_dogfood/);
+  assert.equal(
+    workItemGets + actionProofPosts + workEventPosts + forbiddenLegacyActionRecordPosts + unexpectedRequests,
+    callsAfterMissingSummary,
+    "unsupported result kind should fail before route calls",
+  );
+
   console.log(
     JSON.stringify(
       {
@@ -389,6 +406,7 @@ try {
         invalid_action_proof_failed_without_writes: true,
         unknown_work_failed_before_write: true,
         invalid_env_failed_before_route_calls: true,
+        unsupported_result_kind_failed_before_route_calls: true,
         github_calls: 0,
         openai_calls: 0,
         limitation:

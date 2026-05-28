@@ -182,6 +182,13 @@ Allowed `CODEX_RESULT_KIND` values:
 - `review`
 - `other`
 
+Dogfood episode labels are separate from proof result kinds. For example,
+`runtime_backed_dogfood` may appear in a PR body, episode report, or result
+summary, but `codex:record-completion-proof` will reject it as
+`CODEX_RESULT_KIND`. Use the closest accepted kind for proof recording, such as
+`documentation` for a docs-only dogfood slice or `verification` for a pure
+verification slice.
+
 Preserve the real result status. Failed, blocked, partial, and needs-review work must not be dressed up as completed.
 
 The compatibility helper checks that `CODEX_WORK_ID` exists, then records

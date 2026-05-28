@@ -62,7 +62,7 @@ The helper prints one JSON object to stdout:
     "scope": "project:augnes",
     "work_id": "AG-123",
     "result_status": "completed",
-    "result_kind": "tooling",
+    "result_kind": "documentation",
     "files_changed": ["scripts/codex-closeout-preflight.mjs"],
     "related_pr": "https://github.com/Aurna-code/augnes/pull/123",
     "related_state_keys": ["coordination.codex_harness"]
@@ -104,12 +104,30 @@ Run an advisory preflight:
 CODEX_SCOPE=project:augnes \
 CODEX_WORK_ID=AG-123 \
 CODEX_RESULT_STATUS=completed \
-CODEX_RESULT_KIND=tooling \
+CODEX_RESULT_KIND=documentation \
 CODEX_RESULT_SUMMARY="Added a deterministic closeout preflight helper." \
 CODEX_FILES_CHANGED='["scripts/codex-closeout-preflight.mjs","package.json"]' \
 CODEX_AUTHORITY_BOUNDARY_STATEMENT="This helper is local and non-mutating; proof is not approval and PR is not merge authority." \
 npm run codex:closeout-preflight
 ```
+
+## Result Kind Compatibility
+
+`CODEX_RESULT_KIND` should use the same values accepted by
+`npm run codex:record-completion-proof`:
+
+- `implementation`
+- `verification`
+- `documentation`
+- `screenshot`
+- `handoff`
+- `review`
+- `other`
+
+Dogfood labels such as `runtime_backed_dogfood` may be useful in PR bodies,
+episode reports, or result summaries, but they are not proof result kinds. In
+default mode the preflight helper warns when `CODEX_RESULT_KIND` is outside the
+proof-helper set; in `--strict` mode it fails.
 
 Run a stricter local check:
 
