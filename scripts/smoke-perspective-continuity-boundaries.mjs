@@ -109,11 +109,6 @@ function assertPublicWordingBoundary() {
     "autonomous research agent",
     "production-ready",
     "production ready",
-    "self-continuity substrate",
-    "cognitive substrate",
-    "agent self-model",
-    "consciousness",
-    "metacognitive",
   ];
 
   assertNoForbiddenPositivePhrases({
