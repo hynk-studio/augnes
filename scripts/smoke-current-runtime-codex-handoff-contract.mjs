@@ -6,15 +6,18 @@ import path from "node:path";
 const runbookPath = "docs/CURRENT_RUNTIME_CODEX_HANDOFF_CONTRACT_V0_1.md";
 const templatePath = "docs/templates/current-runtime-codex-handoff-contract.md";
 const readinessRunbookPath = "docs/CURRENT_RUNTIME_DOGFOOD_READINESS_RUNBOOK_V0_1.md";
+const readinessSmokePath = "scripts/smoke-current-runtime-dogfood-readiness.mjs";
 const smokePath = "scripts/smoke-current-runtime-codex-handoff-contract.mjs";
 const packagePath = "package.json";
 const packageScriptName = "smoke:current-runtime-codex-handoff-contract";
 const packageScriptCommand = "node scripts/smoke-current-runtime-codex-handoff-contract.mjs";
+const strictPrScope = process.env.AUGNES_SMOKE_STRICT_PR_SCOPE === "1";
 
 const allowedChangedFiles = [
   runbookPath,
   templatePath,
   smokePath,
+  readinessSmokePath,
   packagePath,
   readinessRunbookPath,
 ];
@@ -50,7 +53,9 @@ assert.equal(
   packageScriptCommand,
   "package.json must expose the current-runtime Codex handoff contract smoke script",
 );
-assertPackageJsonDeltaIsOnlyHandoffSmokeScript(packageJson);
+if (strictPrScope) {
+  assertPackageJsonDeltaIsOnlyHandoffSmokeScript(packageJson);
+}
 
 assertRunbook(runbook);
 assertTemplate(template);
@@ -58,16 +63,22 @@ assertNoSecretLikePlaceholders(runbook, "runbook");
 assertNoSecretLikePlaceholders(template, "template");
 assertNoSecretLikePlaceholders(smoke, "smoke");
 assertNoRuntimeOpenAiGithubOrNetworkCalls(smoke);
+assertNoActiveMcpConfigFilesAdded([]);
 
-const changedFiles = collectChangedFiles();
-assertChangedFilesWithinAllowed(changedFiles);
-assertNoForbiddenSurfacesChanged(changedFiles);
-assertNoGeneratedReportsAdded(changedFiles);
+if (strictPrScope) {
+  const changedFiles = collectChangedFiles();
+  assertChangedFilesWithinAllowed(changedFiles);
+  assertNoForbiddenSurfacesChanged(changedFiles);
+  assertNoActiveMcpConfigFilesAdded(changedFiles);
+  assertNoGeneratedReportsAdded(changedFiles);
+}
 
 console.log(
   JSON.stringify(
     {
       smoke: "current-runtime-codex-handoff-contract",
+      strict_pr_scope: strictPrScope,
+      reusable_regression_mode: !strictPrScope,
       runbook_present: true,
       template_present: true,
       package_script_present: true,
@@ -83,9 +94,10 @@ console.log(
       no_merge_authority: true,
       secret_like_placeholders_absent: true,
       smoke_runtime_openai_github_network_calls_absent: true,
-      generated_reports_added: false,
-      changed_files_within_scope: true,
-      package_json_delta_limited_to_script: true,
+      active_mcp_config_files_added: false,
+      generated_reports_added: strictPrScope ? false : "not_checked",
+      changed_files_within_scope: strictPrScope ? true : "not_checked",
+      package_json_delta_limited_to_script: strictPrScope ? true : "not_checked",
     },
     null,
     2,
@@ -277,6 +289,30 @@ function assertNoForbiddenSurfacesChanged(changedFiles) {
       forbiddenPathPatterns.some((pattern) => pattern.test(filePath)),
       false,
       `forbidden runtime/schema/API/MCP/App/plugin/hook/UI surface changed: ${filePath}`,
+    );
+  }
+}
+
+function assertNoActiveMcpConfigFilesAdded(changedFiles) {
+  const activeMcpConfigPaths = [
+    ".codex/config.toml",
+    ".codex/hooks.json",
+    ".mcp.json",
+    "mcp.json",
+    "plugins/augnes-operator/.mcp.json",
+    "plugins/augnes-operator/mcp.json",
+    "plugins/augnes-operator/apps",
+  ];
+
+  for (const configPath of activeMcpConfigPaths) {
+    assert.equal(existsSync(configPath), false, `${configPath} must not be added`);
+  }
+
+  for (const filePath of changedFiles) {
+    assert.equal(
+      activeMcpConfigPaths.some((configPath) => filePath === configPath || filePath.startsWith(`${configPath}/`)),
+      false,
+      `active MCP config file must not be changed: ${filePath}`,
     );
   }
 }
