@@ -30,6 +30,7 @@ assert.match(server, /work_contract_card/, "server must return Work Contract Car
 assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
 assert.match(widget, /renderCodexHandoffPreview/, "widget must implement Codex Handoff Preview rendering");
+assert.match(widget, /renderCopyableHandoffPacket/, "widget must implement a bounded copy affordance renderer");
 assert.match(runbook, /Data Source/i, "runbook must explain the data source");
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
@@ -39,6 +40,8 @@ const forbiddenUiPhrases = [
   "Run Codex",
   "Start Codex",
   "Execute Codex",
+  "Launch Codex",
+  "Send to Codex",
   "Merge PR",
   "Enable auto-merge",
   "Approve publication",
@@ -46,7 +49,11 @@ const forbiddenUiPhrases = [
   "Commit state",
   "Record proof",
   "Record evidence",
+  "Retry",
+  "Replay",
+  "Post externally",
 ];
+const allowedCopyLabels = ["Copy Codex Handoff", "Copy Handoff Preview"];
 for (const phrase of forbiddenUiPhrases) {
   assert.doesNotMatch(uiText, new RegExp(escapeRegExp(phrase), "g"), `UI text must not include ${phrase}`);
 }
@@ -84,6 +91,7 @@ assertNoNetworkCalls(extractFunction(server, "describeWorkContractCard"), "descr
 assertNoNetworkCalls(extractFunction(server, "describeCodexHandoffPreview"), "describeCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
 assertNoNetworkCalls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
+assertNoNetworkCalls(extractFunction(widget, "renderCopyableHandoffPacket"), "renderCopyableHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoNetworkCalls(widget, "console-widget");
@@ -97,6 +105,7 @@ const renderSource = [
   extractFunction(widget, "createTextList"),
   extractFunction(widget, "createCodeList"),
   extractFunction(widget, "createPreBlock"),
+  extractFunction(widget, "renderCopyableHandoffPacket"),
   extractFunction(widget, "nonEmptyText"),
   extractFunction(widget, "safeArray"),
   extractFunction(widget, "safeCount"),
@@ -111,8 +120,10 @@ assertNoForbiddenControls(extractFunction(widget, "renderWorkContractCard"), "re
 assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
+assertSafeCopyAffordanceSource(extractFunction(widget, "renderCopyableHandoffPacket"));
 
-const renderedFallbackText = renderFallbackCard(renderSource);
+const renderedFallback = renderFallbackCard(renderSource);
+const renderedFallbackText = renderedFallback.text;
 for (const expectedFallback of [
   "No expected files are listed in the work brief.",
   "No expected checks are listed in the work brief.",
@@ -129,9 +140,12 @@ for (const expectedPreviewText of [
   "Stop conditions",
   "Copyable handoff packet",
   "This is a preview/copy packet, not an execution action.",
+  "Copy Codex Handoff",
+  "Copy action only. The packet is for a separate Codex session; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, merge, or enable auto-merge.",
 ]) {
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedPreviewText)), `fallback preview must include: ${expectedPreviewText}`);
 }
+await assertRenderedCopyAffordance(renderedFallback);
 
 console.log(
   JSON.stringify(
@@ -144,6 +158,8 @@ console.log(
       handoff_preview_present: true,
       handoff_preview_stop_conditions_present: true,
       handoff_preview_copyable_packet_present: true,
+      safe_copy_affordance_present: true,
+      safe_copy_affordance_local_only: true,
       forbidden_ui_text_absent: true,
       bridge_write_tools_unchanged: true,
       work_brief_read_only_widget_card: true,
@@ -234,12 +250,40 @@ function assertNoNetworkCalls(source, label) {
     /\bEventSource\b/,
     /\bapi\.github\.com\b/,
     /\bapi\.openai\.com\b/,
+    /\/api\/(?:actions|evidence|observe|plan|work|state|publication|delivery)\b/,
+    /\brecord-proof\b/,
+    /\brecord-evidence\b/,
     /\bopenai\b.{0,20}\(/i,
     /\bgithub\b.{0,20}\(/i,
   ];
   for (const pattern of forbiddenPatterns) {
     assert.doesNotMatch(source, pattern, `${label} must not contain direct network or provider calls: ${pattern}`);
   }
+}
+
+function assertSafeCopyAffordanceSource(source) {
+  assert.match(source, /document\.createElement\("button"\)/, "copy affordance must use a normal button element");
+  assert.match(source, /copyButton\.type\s*=\s*"button"/, "copy affordance button must not submit a form");
+  assert.match(
+    source,
+    /copyButton\.textContent\s*=\s*"Copy Codex Handoff"|copyButton\.textContent\s*=\s*"Copy Handoff Preview"/,
+    "copy affordance label must be allowed",
+  );
+  assert.match(source, /navigator\.clipboard\?\.writeText/, "copy affordance must use navigator.clipboard.writeText");
+  assert.match(source, /status\.textContent\s*=\s*"Handoff copied\."/ , "copy success status must be local UI text");
+  assert.match(
+    source,
+    /status\.textContent\s*=\s*"Copy unavailable\. Select and copy the packet text manually\."/,
+    "copy failure status must tell the user to manually copy the visible packet",
+  );
+  assert.doesNotMatch(source, /\bfetch\s*\(/, "copy affordance must not call fetch");
+  assert.doesNotMatch(source, /\bXMLHttpRequest\b/, "copy affordance must not use XMLHttpRequest");
+  assert.doesNotMatch(source, /\bWebSocket\b/, "copy affordance must not use WebSocket");
+  assert.doesNotMatch(source, /\bEventSource\b/, "copy affordance must not use EventSource");
+  assert.doesNotMatch(source, /\brpcRequest\b|\brpcNotify\b|\bpostMessage\b/, "copy affordance must not call bridge/runtime messaging");
+  assert.doesNotMatch(source, /\bdispatchEvent\b|\bCustomEvent\b/, "copy affordance must not dispatch execution events");
+  assert.doesNotMatch(source, /\bwindow\.open\b|\blocation\./, "copy affordance must not navigate");
+  assert.doesNotMatch(source, /\bsubmit\s*\(/, "copy affordance must not submit forms");
 }
 
 function assertNoForbiddenControls(source, label) {
@@ -271,6 +315,9 @@ function renderFallbackCard(source) {
       this.className = "";
       this.innerHTML = "";
       this.open = false;
+      this.type = "";
+      this.attributes = {};
+      this.listeners = {};
     }
 
     append(...children) {
@@ -280,6 +327,15 @@ function renderFallbackCard(source) {
     appendChild(child) {
       this.children.push(child);
       return child;
+    }
+
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    }
+
+    addEventListener(name, handler) {
+      this.listeners[name] ??= [];
+      this.listeners[name].push(handler);
     }
   }
 
@@ -292,6 +348,16 @@ function renderFallbackCard(source) {
     Number,
     Array,
     String,
+    Error,
+    Promise,
+  };
+  context.navigator = {
+    clipboard: {
+      async writeText(text) {
+        context.__clipboardWriteCount = (context.__clipboardWriteCount ?? 0) + 1;
+        context.__copiedText = text;
+      },
+    },
   };
   vm.createContext(context);
   vm.runInContext(source, context);
@@ -323,7 +389,31 @@ function renderFallbackCard(source) {
     })`,
     context,
   );
-  return collectText(output).replace(/\s+/g, " ").trim();
+  return {
+    context,
+    tree: output,
+    text: collectText(output).replace(/\s+/g, " ").trim(),
+  };
+}
+
+async function assertRenderedCopyAffordance(renderedFallback) {
+  const buttons = collectNodes(renderedFallback.tree, (node) => node.tag === "button");
+  assert.equal(buttons.length, 1, "fallback render must include exactly one safe copy button");
+  assert.ok(allowedCopyLabels.includes(buttons[0].textContent), "copy button label must be allowed");
+  assert.equal(buttons[0].type, "button", "copy button must be type=button");
+  assert.ok(buttons[0].listeners.click?.length === 1, "copy button must have one local click handler");
+  const statusNodes = collectNodes(
+    renderedFallback.tree,
+    (node) => node.attributes?.["aria-live"] === "polite" && node.textContent.includes("Copy action only."),
+  );
+  assert.equal(statusNodes.length, 1, "copy affordance must expose one aria-live local status node");
+  const preBlocks = collectNodes(renderedFallback.tree, (node) => node.tag === "pre");
+  assert.ok(preBlocks.some((node) => node.textContent.includes("Codex Handoff Preview")), "packet preformatted text must remain visible");
+
+  await buttons[0].listeners.click[0]();
+  assert.equal(renderedFallback.context.__clipboardWriteCount, 1, "copy button must call clipboard once");
+  assert.match(renderedFallback.context.__copiedText, /Codex Handoff Preview/, "copy button must copy the handoff packet");
+  assert.equal(statusNodes[0].textContent, "Handoff copied.", "copy success must update local status only");
 }
 
 function collectText(node) {
@@ -331,6 +421,15 @@ function collectText(node) {
   const ownText = [node.textContent, node.innerHTML].filter(Boolean).join(" ");
   const childText = Array.isArray(node.children) ? node.children.map(collectText).join(" ") : "";
   return `${ownText} ${childText}`;
+}
+
+function collectNodes(node, predicate, matches = []) {
+  if (!node || typeof node !== "object") return matches;
+  if (predicate(node)) matches.push(node);
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) collectNodes(child, predicate, matches);
+  }
+  return matches;
 }
 
 function escapeRegExp(value) {

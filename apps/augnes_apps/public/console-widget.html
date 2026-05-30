@@ -285,6 +285,31 @@
         color: var(--muted);
       }
 
+      .copy-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .copy-button {
+        appearance: none;
+        border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--border));
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--accent) 88%, canvastext 12%);
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        min-height: 36px;
+        padding: 7px 12px;
+      }
+
+      .copy-button:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--accent) 70%, canvastext);
+        outline-offset: 2px;
+      }
+
       .error-box {
         border-color: color-mix(in srgb, var(--bad) 40%, var(--border));
         color: var(--bad);
@@ -552,6 +577,36 @@
         const pre = document.createElement("pre");
         pre.textContent = text;
         return pre;
+      }
+
+      function renderCopyableHandoffPacket(preview) {
+        const root = el("div", { className: "stack" });
+        const packetText = preview.copyable_handoff_text;
+        const status = el("div", {
+          className: "status-box",
+          text:
+            "Copy action only. The packet is for a separate Codex session; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, merge, or enable auto-merge.",
+        });
+        status.setAttribute("aria-live", "polite");
+        const copyRow = el("div", { className: "copy-row" });
+        const copyButton = document.createElement("button");
+        copyButton.type = "button";
+        copyButton.className = "copy-button";
+        copyButton.textContent = "Copy Codex Handoff";
+        copyButton.addEventListener("click", async () => {
+          try {
+            if (!navigator.clipboard?.writeText) {
+              throw new Error("Clipboard unavailable.");
+            }
+            await navigator.clipboard.writeText(packetText);
+            status.textContent = "Handoff copied.";
+          } catch {
+            status.textContent = "Copy unavailable. Select and copy the packet text manually.";
+          }
+        });
+        copyRow.appendChild(copyButton);
+        root.append(status, copyRow, createPreBlock(packetText));
+        return root;
       }
 
       function nonEmptyText(value, fallback) {
@@ -906,7 +961,7 @@
         ].filter(Boolean)), { badge: "scope" }));
         root.appendChild(createSection("Forbidden actions", createTextList(preview.forbidden_actions), { badge: "no writes" }));
         root.appendChild(createSection("Stop conditions", createTextList(preview.stop_conditions), { badge: "stop" }));
-        root.appendChild(createSection("Copyable handoff packet", createPreBlock(preview.copyable_handoff_text), { badge: "preview only" }));
+        root.appendChild(createSection("Copyable handoff packet", renderCopyableHandoffPacket(preview), { badge: "preview only" }));
         root.appendChild(createSection("Preview boundary", createTextList(preview.boundary_text), { badge: "read-only" }));
         return root;
       }
