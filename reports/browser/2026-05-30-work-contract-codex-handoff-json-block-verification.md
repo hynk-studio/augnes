@@ -2,7 +2,7 @@
 
 ## Related PR
 
-- PR: pending
+- PR: https://github.com/hynk-studio/augnes/pull/279
 - Work ID: `AG-BROWSER-JSON` local fixture for rendered-widget verification only
 - Handoff ID: none
 - Related state keys: `coordination.work_contract_card`
@@ -21,6 +21,8 @@
 ## Environment
 
 - Repository branch: `codex/handoff-json-block-preflight`
+- Source commit before report creation: `1fa6a6b` (`origin/main` base at branch creation; widget changes were verified from the local working tree before commit `6e810d1`)
+- Verification PR: https://github.com/hynk-studio/augnes/pull/279
 - Browser or runtime: Playwright-managed Chromium / Chrome for Testing
 - Local runtime availability: not used
 - ChatGPT Developer Mode tunnel/session availability: not used

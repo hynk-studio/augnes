@@ -249,6 +249,12 @@ const demoDbJsonDefault = runHelper({ packet: packetWithJson(demoDbJson) });
 assert.notEqual(demoDbJsonDefault.status, 0);
 assertCheck(demoDbJsonDefault.json, "demo_db_refs", "fail");
 
+const demoDbFallbackJson = cloneJson(demoDbJson);
+demoDbFallbackJson.runtime.local_dev_fallback = true;
+const demoDbFallbackDefault = runHelper({ packet: packetWithJson(demoDbFallbackJson) });
+assert.notEqual(demoDbFallbackDefault.status, 0);
+assertCheck(demoDbFallbackDefault.json, "demo_db_refs", "fail");
+
 const rawDbJson = cloneJson(completeJson);
 rawDbJson.runtime.endpoint_label = "/tmp/local-current.db";
 const rawDbJsonDefault = runHelper({ packet: packetWithJson(rawDbJson) });
@@ -392,6 +398,12 @@ const demoDbRef = runHelper({
 assert.notEqual(demoDbRef.status, 0);
 assertCheck(demoDbRef.json, "demo_db_refs", "fail");
 
+const excludedDemoDbRef = runHelper({
+  packet: `${completePacket}\nDemo DB refs excluded: /tmp/augnes-runtime-dogfood.db is non-current and must not be mixed with current runtime refs.\n`,
+});
+assert.equal(excludedDemoDbRef.status, 0, excludedDemoDbRef.stderr);
+assertCheck(excludedDemoDbRef.json, "demo_db_refs", "pass");
+
 const localFallbackDb = runHelper({
   packet: `${completePacket}\nRaw DB path fallback only if local operator explicitly supplies it: /tmp/local-current.db\nLocal-current DB path, if explicitly supplied: /tmp/local-current.db\nThis is local-dev fallback only.\n`,
 });
@@ -439,6 +451,7 @@ console.log(
         "missing JSON expected files/checks warns by default and fails strict",
         "unsafe forbidden Run Codex label in JSON fails",
         "demo DB ref in JSON fails when used as current runtime",
+        "demo DB ref in JSON still fails when local_dev_fallback is true",
         "raw DB path in JSON fails unless explicitly labeled local-dev fallback",
         "secret-like token pattern in JSON fails",
         "--file input works with JSON block",
@@ -455,6 +468,7 @@ console.log(
         "forbidden Run Codex label fails",
         "forbidden merge/auto-merge labels fail",
         "demo DB ref used as current runtime fails",
+        "demo DB ref mentioned as explicitly excluded non-current text passes",
         "local-dev DB path explicitly labeled fallback does not fail default",
         "secret-like token pattern fails",
         "empty input fails",

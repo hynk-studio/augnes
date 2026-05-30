@@ -5,6 +5,8 @@ const strict = process.argv.includes("--strict");
 const jsonBlockBegin = "BEGIN_AUGNES_CODEX_HANDOFF_JSON";
 const jsonBlockEnd = "END_AUGNES_CODEX_HANDOFF_JSON";
 const knownJsonSchemas = new Set(["augnes.codex_handoff_preview.v0_1"]);
+const demoDbPathPattern = /\/tmp\/augnes-(?:runtime-dogfood|browser-verification|demo)\.db\b/;
+const demoDbExclusionPattern = /Demo DB refs excluded|Do not use demo DB refs|must not be mixed with current runtime refs|non-current|non_current/i;
 
 const parsedArgs = parseArgs(process.argv.slice(2));
 
@@ -738,6 +740,10 @@ function findRawDbFinding(text) {
   if (labeledFallback) {
     return { status: "pass", message: "Raw DB path reference is explicitly labeled as local-dev fallback." };
   }
+  const onlyExcludedDemoDbRefs = rawDbRefs.every((ref) => demoDbPathPattern.test(ref)) && demoDbExclusionPattern.test(text);
+  if (onlyExcludedDemoDbRefs) {
+    return { status: "pass", message: "Raw DB path references are demo DB refs mentioned only as excluded/non-current refs." };
+  }
   return { status: "fail", message: `Raw DB path appears as normal input without local-dev fallback labeling: ${rawDbRefs.join(", ")}` };
 }
 
@@ -746,7 +752,7 @@ function findDemoDbFinding(text) {
   if (demoDbRefs.length === 0) {
     return { status: "pass", message: "No demo DB refs detected as current runtime refs." };
   }
-  const explicitlyExcluded = /Demo DB refs excluded|Do not use demo DB refs|must not be mixed with current runtime refs|non-current|non_current|local_dev_fallback/i.test(text);
+  const explicitlyExcluded = demoDbExclusionPattern.test(text);
   if (explicitlyExcluded) {
     return { status: "pass", message: "Demo DB refs are mentioned only as excluded/non-current refs." };
   }
