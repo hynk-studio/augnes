@@ -320,6 +320,14 @@ preflight plus the pure target preview checker for local read-only JSON review;
 it adds no route, persistent import, relay, proof/evidence write, session
 binding, Codex execution, or authority expansion.
 
+The read-only target preview route slice is tracked separately in
+`docs/AG_WORK_RESUME_TARGET_PREVIEW_ROUTE_V0_1.md`. It accepts an already built
+packet plus explicit Local B runtime/repo/mapping context, runs strict packet
+preflight by default, and returns deterministic target preview JSON without
+runtime discovery, persistence, import, relay behavior, proof/evidence writes,
+work-item creation, mapping-record creation, session binding, Codex execution,
+or authority expansion.
+
 Future only:
 
 - Persistent import.
