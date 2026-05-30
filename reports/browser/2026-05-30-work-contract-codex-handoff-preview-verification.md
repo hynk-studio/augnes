@@ -2,7 +2,7 @@
 
 ## Related PR
 
-- PR: draft pending
+- PR: https://github.com/hynk-studio/augnes/pull/275
 - Work ID: AG-PREVIEW local fixture for rendered-widget verification only
 - Handoff ID: none
 - Related state keys: coordination.work_contract_card
@@ -21,7 +21,8 @@
 ## Environment
 
 - Repository branch: codex/work-contract-card-codex-handoff-preview
-- Commit: 762d22c with local changes under verification
+- Source commit before report creation: 762d22c
+- Verification PR: https://github.com/hynk-studio/augnes/pull/275
 - Node/npm versions: Node v25.9.0, npm 11.12.1
 - Operating system: Darwin 25.5.0 arm64
 - Browser or runtime: Codex in-app Browser against local static HTTP server
