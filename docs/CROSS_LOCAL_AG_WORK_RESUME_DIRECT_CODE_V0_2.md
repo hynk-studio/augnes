@@ -307,6 +307,13 @@ read-only packet previews over provided objects only; it adds no route,
 runtime call, import, Direct Resume Code route, relay, proof/evidence write,
 session binding, or authority expansion.
 
+The Target Local B preview/gap checker slice is tracked separately in
+`docs/AG_WORK_RESUME_TARGET_PREVIEW_V0_1.md`. It compares a validated packet
+against explicitly supplied local runtime/repo/mapping context only; it adds no
+route, persistent import, relay, proof/evidence write, session binding,
+work-item creation, mapping-record creation, Codex execution, or authority
+expansion.
+
 Future only:
 
 - Persistent import.
