@@ -18,6 +18,11 @@ const preflightLibPath = path.join(
   "lib",
   "ag-work-resume-packet-preflight.ts",
 );
+const preflightCorePath = path.join(
+  rootDir,
+  "lib",
+  "ag-work-resume-packet-preflight-core.mjs",
+);
 const routeDocsPath = path.join(
   rootDir,
   "docs",
@@ -32,13 +37,17 @@ const packagePath = path.join(rootDir, "package.json");
 
 assert.ok(existsSync(routePath), "target preview route must exist");
 assert.ok(existsSync(preflightLibPath), "pure packet preflight library must exist");
+assert.ok(existsSync(preflightCorePath), "pure packet preflight core must exist");
 assert.ok(existsSync(routeDocsPath), "target preview route docs must exist");
 
 const routeSource = readFileSync(routePath, "utf8");
 assertNoForbiddenRouteCalls(routeSource);
 
 const preflightLibSource = readFileSync(preflightLibPath, "utf8");
-assertNoForbiddenPreflightCoreCalls(preflightLibSource);
+assertNoForbiddenPreflightWrapperCalls(preflightLibSource);
+
+const preflightCoreSource = readFileSync(preflightCorePath, "utf8");
+assertNoForbiddenPreflightCoreCalls(preflightCoreSource);
 
 const routeDocs = readFileSync(routeDocsPath, "utf8");
 for (const pattern of [
@@ -251,6 +260,7 @@ console.log(
       smoke: "ag-work-resume-target-preview-route",
       cases: [
         "route source guard forbids DB/runtime/network/shell/persistence calls",
+        "pure preflight wrapper delegates to side-effect-free core",
         "pure preflight core guard forbids DB/fs/child_process/network/runtime helpers",
         "package script is present",
         "docs guard mentions read-only route and forbidden authority changes",
@@ -554,7 +564,6 @@ function assertNoForbiddenRouteCalls(sourceText) {
 
 function assertNoForbiddenPreflightCoreCalls(sourceText) {
   const forbiddenPatterns = [
-    /^import\s+.*from\s+["'][^"']+["']/m,
     /from ["'][^"']*(?:db|database|runtime|work|state|handoff)[^"']*["']/i,
     /from ["']node:child_process["']/,
     /from ["']node:fs["']/,
@@ -579,6 +588,41 @@ function assertNoForbiddenPreflightCoreCalls(sourceText) {
       sourceText,
       pattern,
       `pure preflight core must stay local and side-effect-free: ${pattern}`,
+    );
+  }
+}
+
+function assertNoForbiddenPreflightWrapperCalls(sourceText) {
+  assert.match(
+    sourceText,
+    /from ["']\.\/ag-work-resume-packet-preflight-core\.mjs["']/,
+    "preflight TypeScript wrapper must delegate to the pure mjs core",
+  );
+  const forbiddenPatterns = [
+    /from ["'][^"']*(?:db|database|runtime|state|handoff)[^"']*["']/i,
+    /from ["']node:child_process["']/,
+    /from ["']node:fs["']/,
+    /from ["']fs["']/,
+    /from ["']node:https?["']/,
+    /from ["']node:net["']/,
+    /\bfetch\s*\(/,
+    /\bXMLHttpRequest\b/,
+    /\bWebSocket\b/,
+    /\bEventSource\b/,
+    /\bopenDatabase\s*\(/,
+    /\bbuildWorkBrief\s*\(/,
+    /\bbuildStateBrief\s*\(/,
+    /\bcreateHandoff\s*\(/,
+    /\bspawn(?:Sync)?\s*\(/,
+    /\bexec(?:File|Sync)?\s*\(/,
+    /\breadFile(?:Sync)?\s*\(/,
+    /\bwriteFile(?:Sync)?\s*\(/,
+  ];
+  for (const pattern of forbiddenPatterns) {
+    assert.doesNotMatch(
+      sourceText,
+      pattern,
+      `pure preflight wrapper must stay local and side-effect-free: ${pattern}`,
     );
   }
 }

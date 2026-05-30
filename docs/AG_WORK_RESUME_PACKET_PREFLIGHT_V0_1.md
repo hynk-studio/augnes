@@ -13,6 +13,11 @@ content, mutate files, import or persist resume context, create work events,
 bind sessions, record evidence, record proof, approve, publish, retry, replay,
 externally post, merge, or mutate committed state.
 
+Implementation note: the CLI delegates packet checks to the side-effect-free
+core in `lib/ag-work-resume-packet-preflight-core.mjs`. Route code imports the
+typed wrapper in `lib/ag-work-resume-packet-preflight.ts`, so local CLI and
+route preflight behavior share one validation implementation.
+
 ## Relationship To Cross-Local Resume Design
 
 `docs/CROSS_LOCAL_AG_WORK_RESUME_DIRECT_CODE_V0_2.md` defines the packet-first

@@ -15,7 +15,9 @@ control, not Codex execution authority, and not approval.
 
 - Packet preflight: `ag:resume-preflight` remains the validation contract for
   AG Resume Packet v0.2. This route runs strict packet preflight by default
-  before relying on the supplied packet.
+  before relying on the supplied packet. The route and CLI share the same pure
+  preflight core in `lib/ag-work-resume-packet-preflight-core.mjs`; the route
+  imports the typed wrapper in `lib/ag-work-resume-packet-preflight.ts`.
 - Packet builder preview:
   `docs/AG_WORK_RESUME_PACKET_BUILDER_PREVIEW_V0_1.md` describes the pure
   builder that can create sanitized packet previews from explicit Local A
