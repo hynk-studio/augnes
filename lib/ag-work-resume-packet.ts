@@ -6,8 +6,8 @@ export const AG_WORK_RESUME_PACKET_SCHEMA_V0_2 =
 
 const PACKET_KIND = "ag_work_resume_packet" as const;
 const CANONICALIZATION = "augnes-json-c14n-v0_1" as const;
-const DEFAULT_MAX_RECENT_WORK_EVENTS = 10;
-const DEFAULT_MAX_FOREIGN_EVIDENCE_REFS = 20;
+const MAX_RECENT_WORK_EVENTS = 10;
+const MAX_FOREIGN_EVIDENCE_REFS = 20;
 
 const FIXED_SAFETY_BOUNDARIES = [
   "Resume packet is read-only context.",
@@ -201,11 +201,13 @@ export function buildAgWorkResumePacketPreview(
   const notes: RedactionNoteSet = new Set();
   const maxRecentWorkEvents = clampPositiveInteger(
     input.max_recent_work_events,
-    DEFAULT_MAX_RECENT_WORK_EVENTS,
+    MAX_RECENT_WORK_EVENTS,
+    MAX_RECENT_WORK_EVENTS,
   );
   const maxForeignEvidenceRefs = clampPositiveInteger(
     input.max_foreign_evidence_refs,
-    DEFAULT_MAX_FOREIGN_EVIDENCE_REFS,
+    MAX_FOREIGN_EVIDENCE_REFS,
+    MAX_FOREIGN_EVIDENCE_REFS,
   );
   const scope = safeRequiredString(
     input.workBrief.work.scope || input.workBrief.scope,
@@ -584,11 +586,15 @@ function truncate(value: string, maxLength: number) {
   return `${value.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
-function clampPositiveInteger(value: number | undefined, fallback: number) {
+function clampPositiveInteger(
+  value: number | undefined,
+  fallback: number,
+  hardMax: number,
+) {
   if (!Number.isInteger(value) || value === undefined || value <= 0) {
     return fallback;
   }
-  return value;
+  return Math.min(value, hardMax);
 }
 
 function canonicalize(value: unknown): string {

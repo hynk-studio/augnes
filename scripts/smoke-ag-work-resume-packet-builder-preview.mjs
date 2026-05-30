@@ -128,6 +128,27 @@ assert.match(packet.integrity.redaction_report_hash, /^sha256:[a-f0-9]{64}$/);
 assertNoUnsafeContent(packet);
 assertStrictPreflightPass(packet);
 
+const oversizedInput = buildFixtureInput();
+oversizedInput.max_recent_work_events = 99;
+oversizedInput.max_foreign_evidence_refs = 99;
+oversizedInput.foreign_evidence_refs = Array.from(
+  { length: 25 },
+  (_, index) => `evidence:foreign-public-safe-${index + 1}`,
+);
+const oversizedPacket = buildAgWorkResumePacketPreview(oversizedInput);
+
+assert.equal(oversizedPacket.bounds.max_recent_work_events, 10);
+assert.equal(oversizedPacket.bounds.max_foreign_evidence_refs, 20);
+assert.deepEqual(
+  oversizedPacket.continuity.recent_work_events.map((event) => event.id),
+  oversizedInput.workBrief.recent_events.slice(0, 10).map((event) => event.id),
+);
+assert.deepEqual(
+  oversizedPacket.continuity.foreign_evidence_refs,
+  oversizedInput.foreign_evidence_refs.slice(0, 20),
+);
+assertStrictPreflightPass(oversizedPacket);
+
 const unsafePacket = buildAgWorkResumePacketPreview(buildUnsafeFixtureInput());
 const unsafePacketJson = JSON.stringify(unsafePacket);
 for (const unsafeText of [
@@ -180,9 +201,11 @@ console.log(
         "redaction flags are false",
         "bounds are enforced",
         "recent_work_events is bounded to 10",
+        "oversized bounds are capped to preflight hard maxima",
         "foreign refs stay foreign",
         "unsafe endpoint/tunnel/secret/local-path values are omitted",
         "happy-path packet passes strict preflight",
+        "oversized packet passes strict preflight after cap",
         "sanitized unsafe fixture packet passes strict preflight",
       ],
     },
