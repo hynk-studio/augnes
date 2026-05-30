@@ -35,7 +35,8 @@ The preview auto-fills, when available:
 - evidence, proof-only closeout, and browser verification recommendations
 - forbidden actions
 - stop conditions
-- a copyable handoff packet preview
+- a copyable handoff packet preview with human-readable text plus a structured
+  JSON block
 
 User/Core still confirms the current runtime endpoint, the work item, whether
 the work is safe for implementation, evidence recording authorization,
@@ -56,6 +57,21 @@ the visible packet text. The control copies only the existing generated handoff
 packet text from `preview.copyable_handoff_text` so the user can paste it into
 a separate Codex session.
 
+The copied packet includes the existing human-readable sections and a delimited
+structured JSON block:
+
+```text
+BEGIN_AUGNES_CODEX_HANDOFF_JSON
+...
+END_AUGNES_CODEX_HANDOFF_JSON
+```
+
+The JSON block uses schema `augnes.codex_handoff_preview.v0_1` and carries the
+same conservative handoff fields as the visible text. It is included so
+`codex:handoff-preflight` can validate structured fields before falling back to
+text heuristics. Users should not edit the JSON block unless they intentionally
+know what they are changing; copy the whole packet as-is whenever possible.
+
 The copy control is local browser/DOM convenience only. It does not execute
 Codex, call runtime write routes, record evidence, record proof, approve,
 publish, retry, replay, externally post, merge, enable auto-merge, or
@@ -66,13 +82,21 @@ If clipboard copy is unavailable or fails, the widget shows local status text
 and the user can manually copy the still-visible packet text. Raw DB paths
 remain local-dev fallback only and should not be normal user-facing input.
 
+The widget may show a local text hint that copied packets can be validated with
+`codex:handoff-preflight` before a separate Codex session starts. The hint is
+text only; it does not add a command button, run a command, call the runtime,
+call Codex, call GitHub or OpenAI, record proof or evidence, mutate state,
+approve, publish, retry, replay, externally post, merge, or enable auto-merge.
+
 ## Handoff Packet Preflight
 
 After copying the packet, a user/operator may run
 `npm run codex:handoff-preflight` before using it in a separate Codex session.
-The preflight validates copied packet context, stop conditions, and authority
-boundaries only. It does not execute Codex, call the runtime, record proof,
-record evidence, or mutate Augnes state.
+The preflight reads the structured JSON block first when it is present, then
+falls back to the existing text heuristics when no JSON block is present. It
+validates copied packet context, stop conditions, and authority boundaries
+only. It does not execute Codex, call the runtime, record proof, record
+evidence, or mutate Augnes state.
 
 ## Data Source
 
@@ -116,6 +140,7 @@ The Codex Handoff Preview displays:
 - forbidden actions
 - stop conditions
 - copyable handoff packet text
+- structured JSON block inside the copyable handoff packet
 - preview authority boundary text
 
 Expected checks are derived from work brief Codex handoff fields such as

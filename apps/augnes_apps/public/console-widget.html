@@ -588,6 +588,11 @@
             "Copy action only. The packet is for a separate Codex session; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, merge, or enable auto-merge.",
         });
         status.setAttribute("aria-live", "polite");
+        const preflightHint = el("div", {
+          className: "status-box",
+          text:
+            "After copying, validate locally with codex:handoff-preflight. Copy this packet into a file or stdin before using it in a separate Codex session. Default mode checks copied packets; strict mode requires concrete current-runtime confirmation.",
+        });
         const copyRow = el("div", { className: "copy-row" });
         const copyButton = document.createElement("button");
         copyButton.type = "button";
@@ -605,7 +610,7 @@
           }
         });
         copyRow.appendChild(copyButton);
-        root.append(status, copyRow, createPreBlock(packetText));
+        root.append(status, preflightHint, copyRow, createPreBlock(packetText));
         return root;
       }
 
@@ -731,35 +736,99 @@
         const readinessReasons = safeArray(preview.readiness_reasons).length
           ? safeArray(preview.readiness_reasons)
           : ["Evidence/proof/browser choices need user/Core confirmation."];
+        const fallbackRuntimeLabel = nonEmptyText(preview.runtime_endpoint_label, "provided by current Augnes runtime");
+        const fallbackScope = nonEmptyText(preview.scope || card.scope, "No scope listed.");
+        const fallbackWorkId = nonEmptyText(preview.work_id || card.work_id, "No work ID listed.");
+        const fallbackWorkTitle = nonEmptyText(preview.work_title || card.work_title, "No work title listed.");
+        const fallbackWorkStatus = nonEmptyText(preview.work_status || card.work_status, "No status listed.");
+        const fallbackWorkNextAction = nonEmptyText(preview.work_next_action || card.current_or_next_step, "No current or next step is listed in the work brief.");
+        const fallbackExpectedFiles = safeArray(preview.expected_files).length ? safeArray(preview.expected_files) : card.expected_files;
+        const fallbackExpectedChecks = safeArray(preview.expected_checks).length ? safeArray(preview.expected_checks) : card.expected_checks;
+        const fallbackRelatedStateKeys = safeArray(preview.related_state_keys).length ? safeArray(preview.related_state_keys) : card.related_state_keys;
+        const fallbackEvidenceRecording = nonEmptyText(preview.evidence_recording, "needs_user_core_confirmation");
+        const fallbackProofOnlyCloseout = nonEmptyText(preview.proof_only_closeout, "needs_user_core_confirmation");
+        const fallbackBrowserVerification = nonEmptyText(preview.browser_verification, "needs_user_core_confirmation");
+        const fallbackReadinessStatus = nonEmptyText(preview.readiness_status, "needs_user_core_input");
+        const fallbackTaskProfile = nonEmptyText(preview.task_profile, "unknown");
+        const fallbackRuntimeForCommand =
+          fallbackRuntimeLabel === "provided by current Augnes runtime" ? "<provided-current-runtime>" : fallbackRuntimeLabel;
+        const fallbackJson = JSON.stringify(
+          {
+            schema: "augnes.codex_handoff_preview.v0_1",
+            packet_kind: "codex_handoff_preview",
+            readiness_status: fallbackReadinessStatus,
+            readiness_reasons: readinessReasons,
+            task_profile: fallbackTaskProfile,
+            runtime: {
+              endpoint_label: fallbackRuntimeLabel,
+              requires_user_core_confirmation: fallbackRuntimeLabel === "provided by current Augnes runtime",
+            },
+            work: {
+              scope: fallbackScope,
+              work_id: fallbackWorkId,
+              title: fallbackWorkTitle,
+              status: fallbackWorkStatus,
+              next_action: fallbackWorkNextAction,
+              related_state_keys: fallbackRelatedStateKeys,
+            },
+            authorization: {
+              evidence_recording: fallbackEvidenceRecording,
+              proof_only_closeout: fallbackProofOnlyCloseout,
+              browser_verification: fallbackBrowserVerification,
+            },
+            expected_scope: {
+              files: fallbackExpectedFiles,
+              checks: fallbackExpectedChecks,
+            },
+            forbidden_actions: forbiddenActions,
+            stop_conditions: stopConditions,
+            authority_boundaries: boundaryText,
+            copy_packet: {
+              preview_only: true,
+              does_not_execute_codex: true,
+              does_not_record_evidence: true,
+              does_not_record_proof: true,
+              does_not_mutate_state: true,
+              does_not_merge: true,
+            },
+          },
+          null,
+          2
+        );
         const packetText = nonEmptyText(
           preview.copyable_handoff_text,
           [
             "Codex Handoff Preview",
             "This is a preview/copy packet, not an execution action.",
             "",
-            `AUGNES_API_BASE_URL=<provided-current-runtime> CODEX_SCOPE=${card.scope} CODEX_WORK_ID=${card.work_id} npm run codex:read-brief`,
+            `AUGNES_API_BASE_URL=${fallbackRuntimeForCommand} CODEX_SCOPE=${fallbackScope} CODEX_WORK_ID=${fallbackWorkId} npm run codex:read-brief`,
             "",
             "Authority boundaries",
             ...boundaryText.map((item) => `- ${item}`),
+            "",
+            "Structured JSON",
+            "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
+            fallbackJson,
+            "END_AUGNES_CODEX_HANDOFF_JSON",
           ].join("\n")
         );
 
         return {
-          readiness_status: nonEmptyText(preview.readiness_status, "needs_user_core_input"),
+          readiness_status: fallbackReadinessStatus,
           readiness_reasons: readinessReasons,
-          task_profile: nonEmptyText(preview.task_profile, "unknown"),
-          runtime_endpoint_label: nonEmptyText(preview.runtime_endpoint_label, "provided by current Augnes runtime"),
-          scope: nonEmptyText(preview.scope || card.scope, "No scope listed."),
-          work_id: nonEmptyText(preview.work_id || card.work_id, "No work ID listed."),
-          work_title: nonEmptyText(preview.work_title || card.work_title, "No work title listed."),
-          work_status: nonEmptyText(preview.work_status || card.work_status, "No status listed."),
-          work_next_action: nonEmptyText(preview.work_next_action || card.current_or_next_step, "No current or next step is listed in the work brief."),
-          expected_files: safeArray(preview.expected_files).length ? safeArray(preview.expected_files) : card.expected_files,
-          expected_checks: safeArray(preview.expected_checks).length ? safeArray(preview.expected_checks) : card.expected_checks,
-          related_state_keys: safeArray(preview.related_state_keys).length ? safeArray(preview.related_state_keys) : card.related_state_keys,
-          evidence_recording: nonEmptyText(preview.evidence_recording, "needs_user_core_confirmation"),
-          proof_only_closeout: nonEmptyText(preview.proof_only_closeout, "needs_user_core_confirmation"),
-          browser_verification: nonEmptyText(preview.browser_verification, "needs_user_core_confirmation"),
+          task_profile: fallbackTaskProfile,
+          runtime_endpoint_label: fallbackRuntimeLabel,
+          scope: fallbackScope,
+          work_id: fallbackWorkId,
+          work_title: fallbackWorkTitle,
+          work_status: fallbackWorkStatus,
+          work_next_action: fallbackWorkNextAction,
+          expected_files: fallbackExpectedFiles,
+          expected_checks: fallbackExpectedChecks,
+          related_state_keys: fallbackRelatedStateKeys,
+          evidence_recording: fallbackEvidenceRecording,
+          proof_only_closeout: fallbackProofOnlyCloseout,
+          browser_verification: fallbackBrowserVerification,
           forbidden_actions: forbiddenActions,
           stop_conditions: stopConditions,
           copyable_handoff_text: packetText,

@@ -19,9 +19,19 @@ The Work Contract Card renders a read-only Codex Handoff Preview and a
 run this helper locally to catch missing or ambiguous fields before using the
 packet in a separate Codex session.
 
-The copied packet remains plain text. The preflight reads that text and reports
-local findings. It does not call the widget, the bridge, the Augnes runtime, or
-any external service.
+The copied packet remains human-readable text and now also includes a
+machine-readable JSON block delimited by:
+
+```text
+BEGIN_AUGNES_CODEX_HANDOFF_JSON
+...
+END_AUGNES_CODEX_HANDOFF_JSON
+```
+
+The preflight reads the JSON block first when it is present, then reports local
+findings. If no JSON block is present, it falls back to the original text
+heuristics for existing copied packets. It does not call the widget, the
+bridge, the Augnes runtime, or any external service.
 
 ## Relationship To Current Runtime Codex Handoff Contract
 
@@ -46,6 +56,26 @@ item context.
 
 Raw DB paths remain local-dev fallback only and should not become normal
 user-facing input. Demo DB refs must not be used as current-runtime refs.
+
+## Structured JSON Block
+
+The structured block uses schema `augnes.codex_handoff_preview.v0_1` and
+captures the same conservative values as the readable packet: readiness,
+runtime label, work item fields, authorization settings, expected files and
+checks, forbidden actions, stop conditions, authority boundaries, and explicit
+copy-packet no-execution/no-proof/no-evidence/no-state-mutation/no-merge
+booleans.
+
+Users should normally copy the whole packet and should not edit the JSON unless
+they intentionally know which field they are changing. The JSON block is a
+local validation aid only. It is not runtime proof, not evidence, not approval,
+not a state record, and not execution authority.
+
+If JSON delimiters are present but the JSON is malformed, empty, duplicated, or
+out of order, the helper fails in both default and strict mode. If the JSON
+schema is unknown, default mode warns and strict mode fails. The helper still
+scans the whole copied packet for unsafe labels, write commands, secret-like
+tokens, raw DB misuse, and demo DB misuse.
 
 ## Relationship To `codex:read-brief`
 
@@ -94,6 +124,8 @@ The helper prints one JSON object to stdout:
   "ok": true,
   "strict": false,
   "summary": {
+    "input_mode": "json_block",
+    "schema": "augnes.codex_handoff_preview.v0_1",
     "has_runtime": true,
     "has_scope": true,
     "has_work_id": true,
@@ -124,6 +156,7 @@ Default mode is advisory for incomplete copied packets:
 - missing expected files/checks warn
 - evidence/proof/browser settings that need user/Core confirmation warn
 - missing optional work-context fields warn
+- unknown JSON schema warns
 
 Strict mode is for a packet that is expected to be ready before Codex starts:
 
@@ -131,6 +164,7 @@ Strict mode is for a packet that is expected to be ready before Codex starts:
 - missing expected files/checks fail
 - ambiguous evidence/proof/browser authorization fails
 - missing authority boundaries or stop conditions fail
+- unknown JSON schema fails
 
 Both modes fail obvious unsafe content such as execution labels, merge/approval
 labels, write shell commands, demo DB refs used as current runtime refs, raw DB
@@ -155,6 +189,42 @@ Stdin input:
 ```bash
 cat copied-handoff.txt | npm run codex:handoff-preflight -- --json
 ```
+
+Structured JSON block excerpt:
+
+```text
+BEGIN_AUGNES_CODEX_HANDOFF_JSON
+{
+  "schema": "augnes.codex_handoff_preview.v0_1",
+  "packet_kind": "codex_handoff_preview",
+  "runtime": {
+    "endpoint_label": "provided by current Augnes runtime",
+    "requires_user_core_confirmation": true
+  },
+  "work": {
+    "scope": "project:augnes",
+    "work_id": "AG-123",
+    "title": "Example work",
+    "status": "ready",
+    "next_action": "Run local preflight before Codex starts.",
+    "related_state_keys": []
+  },
+  "copy_packet": {
+    "preview_only": true,
+    "does_not_execute_codex": true,
+    "does_not_record_evidence": true,
+    "does_not_record_proof": true,
+    "does_not_mutate_state": true,
+    "does_not_merge": true
+  }
+}
+END_AUGNES_CODEX_HANDOFF_JSON
+```
+
+Text-only fallback remains supported for previously copied packets that do not
+include the delimiters. In fallback mode the helper sets
+`summary.input_mode` to `text` and uses the existing section and field
+heuristics.
 
 ## Authority Boundaries
 

@@ -373,6 +373,10 @@ const CODEX_HANDOFF_PREVIEW_STOP_CONDITIONS = [
   "Evidence or proof recording is requested without explicit user/Core authorization.",
 ] as const;
 
+const CODEX_HANDOFF_JSON_SCHEMA = "augnes.codex_handoff_preview.v0_1" as const;
+const CODEX_HANDOFF_JSON_BEGIN = "BEGIN_AUGNES_CODEX_HANDOFF_JSON" as const;
+const CODEX_HANDOFF_JSON_END = "END_AUGNES_CODEX_HANDOFF_JSON" as const;
+
 type WorkContractCard = {
   card_type: "work_contract_card";
   title: "Work Contract Card";
@@ -440,6 +444,46 @@ type CodexHandoffPreview = {
   stop_conditions: readonly string[];
   copyable_handoff_text: string;
   boundary_text: readonly string[];
+};
+
+type CodexHandoffJsonBlock = {
+  schema: typeof CODEX_HANDOFF_JSON_SCHEMA;
+  packet_kind: "codex_handoff_preview";
+  readiness_status: CodexHandoffPreview["readiness_status"];
+  readiness_reasons: string[];
+  task_profile: CodexHandoffPreview["task_profile"];
+  runtime: {
+    endpoint_label: string;
+    requires_user_core_confirmation: boolean;
+  };
+  work: {
+    scope: string | null;
+    work_id: string | null;
+    title: string | null;
+    status: string | null;
+    next_action: string | null;
+    related_state_keys: string[];
+  };
+  authorization: {
+    evidence_recording: CodexHandoffPreview["evidence_recording"];
+    proof_only_closeout: CodexHandoffPreview["proof_only_closeout"];
+    browser_verification: CodexHandoffPreview["browser_verification"];
+  };
+  expected_scope: {
+    files: string[];
+    checks: string[];
+  };
+  forbidden_actions: readonly string[];
+  stop_conditions: readonly string[];
+  authority_boundaries: readonly string[];
+  copy_packet: {
+    preview_only: true;
+    does_not_execute_codex: true;
+    does_not_record_evidence: true;
+    does_not_record_proof: true;
+    does_not_mutate_state: true;
+    does_not_merge: true;
+  };
 };
 
 function nonEmptyString(value: unknown): string | null {
@@ -526,11 +570,66 @@ function formatStatus(value: string | null, fallback = "missing"): string {
   return value ?? fallback;
 }
 
+function runtimeEndpointNeedsConfirmation(label: string): boolean {
+  const normalized = label.trim().toLowerCase();
+  return (
+    normalized === "provided by current augnes runtime" ||
+    normalized === "provided by local operator" ||
+    /^<[^>]+>$/.test(label.trim()) ||
+    normalized.includes("provided-current-runtime")
+  );
+}
+
+function buildStructuredHandoffJsonBlock(
+  preview: Omit<CodexHandoffPreview, "copyable_handoff_text">
+): CodexHandoffJsonBlock {
+  return {
+    schema: CODEX_HANDOFF_JSON_SCHEMA,
+    packet_kind: "codex_handoff_preview",
+    readiness_status: preview.readiness_status,
+    readiness_reasons: preview.readiness_reasons,
+    task_profile: preview.task_profile,
+    runtime: {
+      endpoint_label: preview.runtime_endpoint_label,
+      requires_user_core_confirmation: runtimeEndpointNeedsConfirmation(preview.runtime_endpoint_label),
+    },
+    work: {
+      scope: preview.scope,
+      work_id: preview.work_id,
+      title: preview.work_title,
+      status: preview.work_status,
+      next_action: preview.work_next_action,
+      related_state_keys: preview.related_state_keys,
+    },
+    authorization: {
+      evidence_recording: preview.evidence_recording,
+      proof_only_closeout: preview.proof_only_closeout,
+      browser_verification: preview.browser_verification,
+    },
+    expected_scope: {
+      files: preview.expected_files,
+      checks: preview.expected_checks,
+    },
+    forbidden_actions: preview.forbidden_actions,
+    stop_conditions: preview.stop_conditions,
+    authority_boundaries: preview.boundary_text,
+    copy_packet: {
+      preview_only: true,
+      does_not_execute_codex: true,
+      does_not_record_evidence: true,
+      does_not_record_proof: true,
+      does_not_mutate_state: true,
+      does_not_merge: true,
+    },
+  };
+}
+
 function buildCopyableHandoffText(preview: Omit<CodexHandoffPreview, "copyable_handoff_text">): string {
   const runtimeForCommand =
     preview.runtime_endpoint_label === "provided by current Augnes runtime"
       ? "<provided-current-runtime>"
       : preview.runtime_endpoint_label;
+  const structuredJson = JSON.stringify(buildStructuredHandoffJsonBlock(preview), null, 2);
 
   return [
     "Codex Handoff Preview",
@@ -575,6 +674,11 @@ function buildCopyableHandoffText(preview: Omit<CodexHandoffPreview, "copyable_h
     "",
     "Authority boundaries",
     listForPacket([...preview.boundary_text], "No boundary text listed."),
+    "",
+    "Structured JSON",
+    CODEX_HANDOFF_JSON_BEGIN,
+    structuredJson,
+    CODEX_HANDOFF_JSON_END,
   ].join("\n");
 }
 
