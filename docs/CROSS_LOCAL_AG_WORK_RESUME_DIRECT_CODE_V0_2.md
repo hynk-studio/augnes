@@ -328,6 +328,13 @@ runtime discovery, persistence, import, relay behavior, proof/evidence writes,
 work-item creation, mapping-record creation, session binding, Codex execution,
 or authority expansion.
 
+The Cockpit Operator tab target preview panel slice is tracked separately in
+`docs/AG_WORK_RESUME_TARGET_PREVIEW_COCKPIT_PANEL_V0_1.md`. It is a read-only
+UI surface over the existing target preview route and does not add import,
+persistence, work-item or mapping creation, proof/evidence writes, session
+binding, Codex execution, approval, publish, retry, replay, merge, or state
+mutation controls.
+
 Future only:
 
 - Persistent import.

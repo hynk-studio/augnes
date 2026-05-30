@@ -64,6 +64,7 @@
     "smoke:ag-work-resume-target-preview": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-target-preview.mjs",
     "smoke:ag-work-resume-target-preview-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-target-preview-helper.mjs",
     "smoke:ag-work-resume-target-preview-route": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-target-preview-route.mjs",
+    "smoke:ag-work-resume-target-preview-cockpit-panel": "node scripts/smoke-ag-work-resume-target-preview-cockpit-panel.mjs",
     "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",
