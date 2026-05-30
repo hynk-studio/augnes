@@ -49,6 +49,23 @@ replay, externally post, merge, or enable auto-merge. Evidence is not approval.
 Proof is not approval. A PR is not merge authority. Durable approval remains
 user/Core gated.
 
+## Copy Codex Handoff Affordance
+
+The Codex Handoff Preview includes a single `Copy Codex Handoff` control near
+the visible packet text. The control copies only the existing generated handoff
+packet text from `preview.copyable_handoff_text` so the user can paste it into
+a separate Codex session.
+
+The copy control is local browser/DOM convenience only. It does not execute
+Codex, call runtime write routes, record evidence, record proof, approve,
+publish, retry, replay, externally post, merge, enable auto-merge, or
+commit/reject Augnes state. Copying the packet does not mutate Augnes state and
+does not turn the preview into a Codex execution surface.
+
+If clipboard copy is unavailable or fails, the widget shows local status text
+and the user can manually copy the still-visible packet text. Raw DB paths
+remain local-dev fallback only and should not be normal user-facing input.
+
 ## Data Source
 
 The card is rendered from existing `augnes_get_work_brief` structured content.
@@ -145,9 +162,11 @@ The visible Codex Handoff Preview boundary text includes:
 - Durable approval remains user/Core gated.
 - Raw DB paths are local-dev fallback only and should not be normal user-facing input.
 
-The widget renderer adds no form, button, or action affordance for execution,
-approval, publication, retry, replay, external posting, state commit/reject,
-proof recording, evidence recording, merge, or auto-merge.
+The widget renderer adds no form or action affordance for execution, approval,
+publication, retry, replay, external posting, state commit/reject, proof
+recording, evidence recording, merge, or auto-merge. The only button in the
+Codex Handoff Preview is the local `Copy Codex Handoff` convenience control,
+which copies packet text and does not call runtime write routes.
 
 ## ChatGPT App Bridge Tools
 
@@ -225,7 +244,8 @@ be performed when a browser or ChatGPT Developer Mode surface is available. Use
 `docs/templates/codex-browser-verification-report.md` and confirm that the Work
 Contract Card and Codex Handoff Preview render, missing-data fallback text is
 visible, boundary text is visible, the copyable handoff packet is inspectable,
-and no unauthorized controls are visible.
+the copy affordance is visible, clicking it only changes local copy/status
+behavior, and no unauthorized controls are visible.
 
 If no browser/computer-use surface is available, report a concrete skipped
 reason such as `browser verification skipped: no browser runtime available` or
