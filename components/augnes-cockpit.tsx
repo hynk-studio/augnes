@@ -636,6 +636,80 @@ type CopyTarget = "codex" | "actionTemplate";
 type WorkCopyTarget = "workCodex" | "workEvent";
 type CockpitTab = "overview" | "work" | "perspective" | "bridge" | "operator";
 
+type AgResumeTargetPreviewPanelResult = {
+  httpStatus: number;
+  body: AgResumeTargetPreviewRouteResponse;
+};
+
+type AgResumeTargetPreviewRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  strict?: boolean;
+  preflight?: AgResumeTargetPreviewPreflight | null;
+  preview?: AgResumeTargetPreview | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeTargetPreviewPreflight = {
+  ran?: boolean;
+  ok?: boolean | null;
+  strict?: boolean;
+  status?: string;
+  warnings?: string[];
+  failures?: string[];
+};
+
+type AgResumeTargetPreview = {
+  ok_to_continue?: boolean;
+  status?: string;
+  packet_summary?: {
+    foreign_refs?: AgResumeTargetForeignRefs | null;
+  };
+  gaps?: AgResumeTargetFinding[];
+  conflicts?: AgResumeTargetConflict[];
+  warnings?: AgResumeTargetFinding[];
+  recommendations?: AgResumeTargetRecommendation[];
+  authority_boundary?: {
+    read_only?: string;
+    boundaries?: string[];
+    durable_approval?: string;
+  } | null;
+};
+
+type AgResumeTargetForeignRefs = {
+  foreign_action_ref_ids?: string[];
+  foreign_evidence_refs?: string[];
+  foreign_session_refs?: string[];
+  foreign_evidence_pack_ref?: string | null;
+  local_proof_records_created?: boolean;
+  local_evidence_records_created?: boolean;
+  local_sessions_bound?: boolean;
+  note?: string;
+};
+
+type AgResumeTargetFinding = {
+  id?: string;
+  severity?: string;
+  title?: string;
+  detail?: string;
+  fields?: string[];
+  refs?: string[];
+};
+
+type AgResumeTargetConflict = AgResumeTargetFinding & {
+  differences?: {
+    field?: string;
+    packet_value?: string | null;
+    local_value?: string | null;
+  }[];
+};
+
+type AgResumeTargetRecommendation = {
+  id?: string;
+  text?: string;
+};
+
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
 const COCKPIT_TABS: { id: CockpitTab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -2801,6 +2875,7 @@ function OperatorTab({
           />
         </aside>
         <section className="operator-main-stack">
+          <AgResumeTargetPreviewPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -2930,6 +3005,462 @@ function OperatorHandoffSnapshot({
         </BoundaryNote>
       </div>
     </section>
+  );
+}
+
+function AgResumeTargetPreviewPanel() {
+  const [agResumePacketInput, setAgResumePacketInput] = useState("");
+  const [agResumeLocalContextInput, setAgResumeLocalContextInput] = useState("");
+  const [
+    agResumeTargetPreviewResult,
+    setAgResumeTargetPreviewResult,
+  ] = useState<AgResumeTargetPreviewPanelResult | null>(null);
+  const [
+    agResumeTargetPreviewError,
+    setAgResumeTargetPreviewError,
+  ] = useState<string | null>(null);
+  const [agResumeStrictTargetPreview, setAgResumeStrictTargetPreview] =
+    useState(false);
+  const [agResumeSkipPreflight, setAgResumeSkipPreflight] = useState(false);
+  const [agResumeTargetPreviewBusy, setAgResumeTargetPreviewBusy] =
+    useState(false);
+
+  async function handleAgResumeTargetPreviewSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setAgResumeTargetPreviewError(null);
+    setAgResumeTargetPreviewResult(null);
+
+    let packet: Record<string, unknown>;
+    let local: Record<string, unknown> | null;
+    try {
+      packet = parseAgResumeObjectInput(
+        "AG Resume Packet JSON",
+        agResumePacketInput,
+      );
+      local = parseAgResumeObjectInput(
+        "Explicit Local B context JSON",
+        agResumeLocalContextInput,
+        { allowEmpty: true },
+      );
+    } catch (error) {
+      setAgResumeTargetPreviewError(
+        error instanceof Error ? error.message : String(error),
+      );
+      return;
+    }
+
+    setAgResumeTargetPreviewBusy(true);
+    try {
+      const response = await fetch("/api/ag-work-resume/target-preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          packet,
+          local,
+          strict: agResumeStrictTargetPreview,
+          skip_preflight: agResumeSkipPreflight,
+        }),
+      });
+      const bodyText = await response.text();
+      const parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error("Target preview route returned a non-object JSON response.");
+      }
+
+      const body = parsedBody as AgResumeTargetPreviewRouteResponse;
+      setAgResumeTargetPreviewResult({
+        httpStatus: response.status,
+        body,
+      });
+
+      if (!response.ok && body.error) {
+        setAgResumeTargetPreviewError(body.error);
+      }
+    } catch (error) {
+      setAgResumeTargetPreviewError(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setAgResumeTargetPreviewBusy(false);
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-target-preview-panel"
+      aria-label="AG Resume Target Preview"
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Target Preview"
+        description="Read-only Local B review for an already built AG Resume Packet and explicit local context."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>Read-only target preview.</li>
+          <li>Uses an already built packet and explicit Local B context.</li>
+          <li>
+            No import/persist/work item/mapping/proof/evidence/session/Codex
+            execution/approval/publish/retry/replay/merge/state mutation.
+          </li>
+          <li>
+            ok_to_continue means user/Core review only. OK only for user/Core
+            review. This is not Codex execution authority.
+          </li>
+          <li>
+            Foreign refs remain foreign until user/Core confirms mapping and
+            separate authority choices.
+          </li>
+        </ul>
+      </BoundaryNote>
+      <form
+        className="observe-form"
+        onSubmit={handleAgResumeTargetPreviewSubmit}
+      >
+        <span>AG Resume Packet JSON</span>
+        <textarea
+          value={agResumePacketInput}
+          onChange={(event) => setAgResumePacketInput(event.target.value)}
+          rows={10}
+          spellCheck={false}
+          aria-label="AG Resume Packet JSON"
+          placeholder='{"schema":"augnes.ag_work_resume_packet.v0_2","packet_id":"..."}'
+        />
+        <span>Explicit Local B context JSON</span>
+        <textarea
+          value={agResumeLocalContextInput}
+          onChange={(event) =>
+            setAgResumeLocalContextInput(event.target.value)
+          }
+          rows={8}
+          spellCheck={false}
+          aria-label="Explicit Local B context JSON"
+          placeholder='Leave empty to send local: null, or paste {"runtime":{},"repo":{},"known_local_work_mappings":[]}'
+        />
+        <div className="form-row">
+          <label>
+            <input
+              type="checkbox"
+              checked={agResumeStrictTargetPreview}
+              onChange={(event) =>
+                setAgResumeStrictTargetPreview(event.target.checked)
+              }
+            />{" "}
+            strict
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={agResumeSkipPreflight}
+              onChange={(event) => setAgResumeSkipPreflight(event.target.checked)}
+            />{" "}
+            skip_preflight
+          </label>
+        </div>
+        {agResumeSkipPreflight ? (
+          <BoundaryNote>
+            Preflight is skipped only for local/operator debugging. Run
+            ag:resume-preflight before relying on the preview.
+          </BoundaryNote>
+        ) : null}
+        <div className="form-row">
+          <button
+            type="submit"
+            disabled={agResumeTargetPreviewBusy || !agResumePacketInput.trim()}
+          >
+            {agResumeTargetPreviewBusy
+              ? "Previewing target"
+              : "Run read-only target preview"}
+          </button>
+          {agResumeTargetPreviewError ? (
+            <span className="notice error">{agResumeTargetPreviewError}</span>
+          ) : null}
+        </div>
+      </form>
+      {agResumeTargetPreviewResult ? (
+        <AgResumeTargetPreviewResults result={agResumeTargetPreviewResult} />
+      ) : (
+        <EmptyState
+          label="No target preview yet."
+          description="Paste packet JSON and optional Local B context JSON to inspect a read-only route response."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeTargetPreviewResults({
+  result,
+}: {
+  result: AgResumeTargetPreviewPanelResult;
+}) {
+  const { body } = result;
+  const preview = body.preview ?? null;
+  const preflight = body.preflight ?? null;
+  const foreignRefs = preview?.packet_summary?.foreign_refs ?? null;
+
+  return (
+    <div aria-label="AG Resume Target Preview Result">
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>target-preview route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>preview.status</h3>
+          <p>{preview?.status ?? "none"}</p>
+          <small>read-only target result</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>preview.ok_to_continue</h3>
+          <p>{formatAgResumeBoolean(preview?.ok_to_continue)}</p>
+          <small>
+            {preview?.ok_to_continue
+              ? "OK only for user/Core review. This is not Codex execution authority."
+              : "Not OK for user/Core review."}
+          </small>
+        </section>
+      </div>
+      {body.recommended_next_step ? (
+        <BoundaryNote tone="green">
+          recommended_next_step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>Preflight</h3>
+          <div className="meta-row">
+            <span>ran: {formatAgResumeBoolean(preflight?.ran)}</span>
+            <span>ok: {formatAgResumeBoolean(preflight?.ok)}</span>
+            <span>status: {preflight?.status ?? "unknown"}</span>
+            <span>strict: {formatAgResumeBoolean(preflight?.strict)}</span>
+          </div>
+          <AgResumeStringList
+            title="Warnings"
+            items={preflight?.warnings ?? []}
+            emptyLabel="No preflight warnings."
+          />
+          <AgResumeStringList
+            title="Failures"
+            items={preflight?.failures ?? []}
+            emptyLabel="No preflight failures."
+          />
+        </section>
+        <AgResumeFindingList
+          title="Gaps"
+          items={preview?.gaps ?? []}
+          emptyLabel="No target gaps."
+        />
+        <AgResumeConflictList
+          title="Conflicts"
+          items={preview?.conflicts ?? []}
+          emptyLabel="No target conflicts."
+        />
+        <AgResumeFindingList
+          title="Warnings"
+          items={preview?.warnings ?? []}
+          emptyLabel="No target warnings."
+        />
+        <AgResumeRecommendationList
+          recommendations={preview?.recommendations ?? []}
+        />
+        <AgResumeForeignRefsPanel foreignRefs={foreignRefs} />
+        <section className="evidence-pack-card">
+          <h3>Authority Boundary</h3>
+          {preview?.authority_boundary?.read_only ? (
+            <p>{preview.authority_boundary.read_only}</p>
+          ) : null}
+          <AgResumeStringList
+            title="Boundaries"
+            items={preview?.authority_boundary?.boundaries ?? []}
+            emptyLabel="No route boundary list returned."
+          />
+          {preview?.authority_boundary?.durable_approval ? (
+            <p>{preview.authority_boundary.durable_approval}</p>
+          ) : null}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function AgResumeFindingList({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: AgResumeTargetFinding[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {items.length === 0 ? (
+        <EmptyState label={emptyLabel} />
+      ) : (
+        <ul className="compact-list">
+          {items.map((item, index) => (
+            <li key={item.id ?? `${title}-${index}`}>
+              <strong>{item.title ?? item.id ?? "Untitled finding"}</strong>
+              {item.severity ? <span>{item.severity}</span> : null}
+              {item.detail ? <p>{item.detail}</p> : null}
+              {item.fields?.length ? (
+                <code>fields: {item.fields.join(", ")}</code>
+              ) : null}
+              {item.refs?.length ? <code>refs: {item.refs.join(", ")}</code> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function AgResumeConflictList({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: AgResumeTargetConflict[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {items.length === 0 ? (
+        <EmptyState label={emptyLabel} />
+      ) : (
+        <ul className="compact-list">
+          {items.map((item, index) => (
+            <li key={item.id ?? `${title}-${index}`}>
+              <strong>{item.title ?? item.id ?? "Untitled conflict"}</strong>
+              {item.detail ? <p>{item.detail}</p> : null}
+              {item.fields?.length ? (
+                <code>fields: {item.fields.join(", ")}</code>
+              ) : null}
+              {item.refs?.length ? <code>refs: {item.refs.join(", ")}</code> : null}
+              {item.differences?.length ? (
+                <ul className="boundary-list">
+                  {item.differences.map((difference, differenceIndex) => (
+                    <li key={`${item.id ?? "conflict"}-${differenceIndex}`}>
+                      {difference.field ?? "field"}: packet=
+                      {difference.packet_value ?? "null"}, local=
+                      {difference.local_value ?? "null"}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function AgResumeRecommendationList({
+  recommendations,
+}: {
+  recommendations: AgResumeTargetRecommendation[];
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Recommendations</h3>
+      {recommendations.length === 0 ? (
+        <EmptyState label="No recommendations." />
+      ) : (
+        <ul className="compact-list">
+          {recommendations.map((recommendation, index) => (
+            <li key={recommendation.id ?? `recommendation-${index}`}>
+              <strong>{recommendation.id ?? "recommendation"}</strong>
+              {recommendation.text ? <p>{recommendation.text}</p> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function AgResumeForeignRefsPanel({
+  foreignRefs,
+}: {
+  foreignRefs: AgResumeTargetForeignRefs | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>packet_summary.foreign_refs</h3>
+      <div className="meta-row">
+        <span>
+          local proof records created:{" "}
+          {formatAgResumeBoolean(foreignRefs?.local_proof_records_created)}
+        </span>
+        <span>
+          local evidence records created:{" "}
+          {formatAgResumeBoolean(foreignRefs?.local_evidence_records_created)}
+        </span>
+        <span>
+          local sessions bound:{" "}
+          {formatAgResumeBoolean(foreignRefs?.local_sessions_bound)}
+        </span>
+      </div>
+      <AgResumeStringList
+        title="Foreign action refs"
+        items={foreignRefs?.foreign_action_ref_ids ?? []}
+        emptyLabel="No foreign action refs."
+      />
+      <AgResumeStringList
+        title="Foreign evidence refs"
+        items={foreignRefs?.foreign_evidence_refs ?? []}
+        emptyLabel="No foreign evidence refs."
+      />
+      <AgResumeStringList
+        title="Foreign session refs"
+        items={foreignRefs?.foreign_session_refs ?? []}
+        emptyLabel="No foreign session refs."
+      />
+      <p>
+        foreign_evidence_pack_ref:{" "}
+        {foreignRefs?.foreign_evidence_pack_ref ?? "none"}
+      </p>
+      {foreignRefs?.note ? <p>{foreignRefs.note}</p> : null}
+    </section>
+  );
+}
+
+function AgResumeStringList({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: string[];
+  emptyLabel: string;
+}) {
+  return (
+    <div>
+      <h4>{title}</h4>
+      {items.length === 0 ? (
+        <EmptyState label={emptyLabel} />
+      ) : (
+        <ul className="boundary-list">
+          {items.map((item, index) => (
+            <li key={`${title}-${index}`}>{item}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -7264,6 +7795,56 @@ function EmptyState({
       {description ? <span>{description}</span> : null}
     </div>
   );
+}
+
+function parseAgResumeObjectInput(
+  label: string,
+  value: string,
+): Record<string, unknown>;
+function parseAgResumeObjectInput(
+  label: string,
+  value: string,
+  options: { allowEmpty: true },
+): Record<string, unknown> | null;
+function parseAgResumeObjectInput(
+  label: string,
+  value: string,
+  options?: { allowEmpty: true },
+) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    if (options?.allowEmpty) return null;
+    throw new Error(`${label} is required.`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmedValue);
+  } catch (error) {
+    throw new Error(
+      `${label} is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  if (!isAgResumeRecord(parsed)) {
+    throw new Error(`${label} must be a JSON object.`);
+  }
+
+  return parsed;
+}
+
+function isAgResumeRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function formatAgResumeBoolean(value: boolean | null | undefined) {
+  if (value === true) return "true";
+  if (value === false) return "false";
+  if (value === null) return "null";
+  return "unknown";
 }
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {
