@@ -314,6 +314,12 @@ route, persistent import, relay, proof/evidence write, session binding,
 work-item creation, mapping-record creation, Codex execution, or authority
 expansion.
 
+The local target preview helper slice is tracked separately in
+`docs/AG_WORK_RESUME_TARGET_PREVIEW_HELPER_V0_1.md`. It wraps strict packet
+preflight plus the pure target preview checker for local read-only JSON review;
+it adds no route, persistent import, relay, proof/evidence write, session
+binding, Codex execution, or authority expansion.
+
 Future only:
 
 - Persistent import.
