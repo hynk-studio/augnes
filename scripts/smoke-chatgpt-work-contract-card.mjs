@@ -31,6 +31,11 @@ assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff 
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
 assert.match(widget, /renderCodexHandoffPreview/, "widget must implement Codex Handoff Preview rendering");
 assert.match(widget, /renderCopyableHandoffPacket/, "widget must implement a bounded copy affordance renderer");
+assert.match(server, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block begin delimiter");
+assert.match(server, /END_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block end delimiter");
+assert.match(widget, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet must include JSON block begin delimiter");
+assert.match(widget, /END_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet must include JSON block end delimiter");
+assert.match(widget, /After copying, validate locally with codex:handoff-preflight\./, "widget must include local preflight hint text");
 assert.match(runbook, /Data Source/i, "runbook must explain the data source");
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
@@ -141,6 +146,9 @@ for (const expectedPreviewText of [
   "Copyable handoff packet",
   "This is a preview/copy packet, not an execution action.",
   "Copy Codex Handoff",
+  "After copying, validate locally with codex:handoff-preflight.",
+  "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
+  "END_AUGNES_CODEX_HANDOFF_JSON",
   "Copy action only. The packet is for a separate Codex session; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, merge, or enable auto-merge.",
 ]) {
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedPreviewText)), `fallback preview must include: ${expectedPreviewText}`);
@@ -160,6 +168,9 @@ console.log(
       handoff_preview_copyable_packet_present: true,
       safe_copy_affordance_present: true,
       safe_copy_affordance_local_only: true,
+      handoff_json_block_present: true,
+      handoff_json_block_parseable: true,
+      handoff_preflight_hint_present: true,
       forbidden_ui_text_absent: true,
       bridge_write_tools_unchanged: true,
       work_brief_read_only_widget_card: true,
@@ -414,6 +425,29 @@ async function assertRenderedCopyAffordance(renderedFallback) {
   assert.equal(renderedFallback.context.__clipboardWriteCount, 1, "copy button must call clipboard once");
   assert.match(renderedFallback.context.__copiedText, /Codex Handoff Preview/, "copy button must copy the handoff packet");
   assert.equal(statusNodes[0].textContent, "Handoff copied.", "copy success must update local status only");
+  assert.match(renderedFallback.context.__copiedText, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON begin delimiter");
+  assert.match(renderedFallback.context.__copiedText, /END_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON end delimiter");
+
+  const jsonBlock = extractEmbeddedHandoffJson(renderedFallback.context.__copiedText);
+  assert.equal(jsonBlock.schema, "augnes.codex_handoff_preview.v0_1", "embedded handoff JSON schema must match v0.1");
+  assert.equal(jsonBlock.packet_kind, "codex_handoff_preview", "embedded handoff JSON kind must identify the packet");
+  assert.equal(jsonBlock.copy_packet.preview_only, true, "embedded JSON must mark packet preview-only");
+  assert.equal(jsonBlock.copy_packet.does_not_execute_codex, true, "embedded JSON must mark no Codex execution");
+  assert.equal(jsonBlock.copy_packet.does_not_record_proof, true, "embedded JSON must mark no proof recording");
+  assert.equal(jsonBlock.copy_packet.does_not_record_evidence, true, "embedded JSON must mark no evidence recording");
+  assert.equal(jsonBlock.copy_packet.does_not_mutate_state, true, "embedded JSON must mark no state mutation");
+  assert.equal(jsonBlock.copy_packet.does_not_merge, true, "embedded JSON must mark no merge authority");
+}
+
+function extractEmbeddedHandoffJson(text) {
+  const begin = "BEGIN_AUGNES_CODEX_HANDOFF_JSON";
+  const end = "END_AUGNES_CODEX_HANDOFF_JSON";
+  const beginIndex = text.indexOf(begin);
+  const endIndex = text.indexOf(end);
+  assert.notEqual(beginIndex, -1, "copied packet must include JSON begin delimiter");
+  assert.notEqual(endIndex, -1, "copied packet must include JSON end delimiter");
+  assert.ok(endIndex > beginIndex, "copied packet JSON delimiters must be ordered");
+  return JSON.parse(text.slice(beginIndex + begin.length, endIndex).trim());
 }
 
 function collectText(node) {

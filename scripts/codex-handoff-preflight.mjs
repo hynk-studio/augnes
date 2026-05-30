@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 
 const knownFlags = new Set(["--strict", "--json", "--help", "--file"]);
 const strict = process.argv.includes("--strict");
+const jsonBlockBegin = "BEGIN_AUGNES_CODEX_HANDOFF_JSON";
+const jsonBlockEnd = "END_AUGNES_CODEX_HANDOFF_JSON";
+const knownJsonSchemas = new Set(["augnes.codex_handoff_preview.v0_1"]);
+const demoDbPathPattern = /\/tmp\/augnes-(?:runtime-dogfood|browser-verification|demo)\.db\b/;
+const demoDbExclusionPattern = /Demo DB refs excluded|Do not use demo DB refs|must not be mixed with current runtime refs|non-current|non_current/i;
 
 const parsedArgs = parseArgs(process.argv.slice(2));
 
@@ -33,12 +38,27 @@ if (inputResult.error) {
 
 const packet = inputResult.packet.trim();
 const checks = [];
+const jsonBlockResult = extractHandoffJsonBlock(packet);
 
-addCoreChecks(packet, checks);
-addAuthorityChecks(packet, checks);
-addUnsafeInputChecks(packet, checks);
+let summary;
+if (jsonBlockResult.error) {
+  checks.push({ id: "json_block", status: "fail", message: jsonBlockResult.error });
+  addUnsafeInputChecks(packet, checks);
+  summary = { ...buildSummary(packet, { inputMode: "json_block" }), schema: null };
+} else if (jsonBlockResult.value) {
+  checks.push({ id: "json_block", status: "pass", message: "Structured Codex handoff JSON block is present and parseable." });
+  addJsonSchemaCheck(jsonBlockResult.value, checks);
+  addJsonCoreChecks(packet, jsonBlockResult.value, checks);
+  addJsonAuthorityChecks(jsonBlockResult.value, checks);
+  addUnsafeInputChecks(packet, checks);
+  summary = buildJsonSummary(packet, jsonBlockResult.value);
+} else {
+  addCoreChecks(packet, checks);
+  addAuthorityChecks(packet, checks);
+  addUnsafeInputChecks(packet, checks);
+  summary = buildSummary(packet, { inputMode: "text" });
+}
 
-const summary = buildSummary(packet);
 const hasFail = checks.some((check) => check.status === "fail");
 const hasWarn = checks.some((check) => check.status === "warn");
 const output = {
@@ -122,6 +142,142 @@ function readPacketInput(filePath) {
 
   if (!clean(stdinText)) return { error: "Missing handoff packet input", exitCode: 2 };
   return { packet: stdinText };
+}
+
+function extractHandoffJsonBlock(text) {
+  const beginMatches = [...text.matchAll(new RegExp(escapeRegExp(jsonBlockBegin), "g"))];
+  const endMatches = [...text.matchAll(new RegExp(escapeRegExp(jsonBlockEnd), "g"))];
+
+  if (beginMatches.length === 0 && endMatches.length === 0) return { value: null };
+  if (beginMatches.length !== 1 || endMatches.length !== 1) {
+    return { error: "Expected exactly one structured Codex handoff JSON block." };
+  }
+
+  const beginIndex = beginMatches[0].index;
+  const endIndex = endMatches[0].index;
+  if (beginIndex === undefined || endIndex === undefined || endIndex <= beginIndex) {
+    return { error: "Structured Codex handoff JSON delimiters are out of order." };
+  }
+
+  const jsonText = text.slice(beginIndex + jsonBlockBegin.length, endIndex).trim();
+  if (!jsonText) return { error: "Structured Codex handoff JSON block is empty." };
+
+  try {
+    const value = JSON.parse(jsonText);
+    if (!isRecord(value)) return { error: "Structured Codex handoff JSON block must contain a JSON object." };
+    return { value };
+  } catch (error) {
+    return { error: `Structured Codex handoff JSON block is malformed: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+function addJsonSchemaCheck(packetJson, checks) {
+  const schema = jsonString(packetJson.schema);
+  const known = Boolean(schema && knownJsonSchemas.has(schema));
+  checks.push({
+    id: "json_schema",
+    status: known ? "pass" : strict ? "fail" : "warn",
+    message: known
+      ? `Structured JSON schema is recognized: ${schema}.`
+      : schema
+        ? `Structured JSON schema is unknown: ${schema}.`
+        : "Structured JSON schema is missing.",
+  });
+}
+
+function addJsonCoreChecks(packetText, packetJson, checks) {
+  const runtime = jsonRecord(packetJson.runtime);
+  const runtimeValue = jsonString(runtime?.endpoint_label);
+  const runtimeNeedsConfirmation = runtime?.requires_user_core_confirmation === true;
+  const runtimeIsPlaceholder = runtimeValue ? isPlaceholder(runtimeValue) || runtimeNeedsConfirmation : false;
+  checks.push({
+    id: "runtime_reference",
+    status: runtimeValue ? runtimeIsPlaceholder ? strict ? "fail" : "warn" : "pass" : strict ? "fail" : "warn",
+    message: runtimeValue
+      ? runtimeIsPlaceholder
+        ? "Current runtime reference needs user/Core confirmation before Codex starts."
+        : "Current runtime reference is present."
+      : "Current runtime reference is missing.",
+  });
+
+  const work = jsonRecord(packetJson.work);
+  addJsonFieldCheck({
+    checks,
+    id: "scope",
+    value: jsonString(work?.scope),
+    presentMessage: "CODEX_SCOPE is present.",
+    missingMessage: "CODEX_SCOPE is missing.",
+    placeholderMessage: "CODEX_SCOPE is a placeholder; user/Core must provide scope before Codex starts.",
+  });
+  addJsonFieldCheck({
+    checks,
+    id: "work_id",
+    value: jsonString(work?.work_id),
+    presentMessage: "CODEX_WORK_ID is present.",
+    missingMessage: "CODEX_WORK_ID is missing.",
+    placeholderMessage: "CODEX_WORK_ID is a placeholder; user/Core must provide a real work ID before Codex starts.",
+  });
+
+  const hasStartCommand = /\bnpm\s+run\s+codex:read-brief\b/.test(packetText);
+  checks.push({
+    id: "start_command",
+    status: hasStartCommand ? "pass" : strict ? "fail" : "warn",
+    message: hasStartCommand
+      ? "Start command uses npm run codex:read-brief."
+      : "Start command using npm run codex:read-brief is missing.",
+  });
+
+  addJsonPresenceCheck(checks, "work_title", jsonString(work?.title), "Work title is present.", "Work title is missing.");
+  addJsonPresenceCheck(checks, "work_status", jsonString(work?.status), "Work status is present.", "Work status is missing.");
+  addJsonPresenceCheck(checks, "work_next_action", jsonString(work?.next_action), "Work next action is present.", "Work next action is missing.");
+
+  const expectedScope = jsonRecord(packetJson.expected_scope);
+  addJsonArrayCheck(checks, "expected_files", jsonStringArray(expectedScope?.files), "Expected files");
+  addJsonArrayCheck(checks, "expected_checks", jsonStringArray(expectedScope?.checks), "Expected checks");
+
+  const authorization = jsonRecord(packetJson.authorization);
+  addJsonAuthorizationCheck(checks, "evidence_authorization", "Evidence recording", jsonString(authorization?.evidence_recording));
+  addJsonAuthorizationCheck(checks, "proof_authorization", "Proof-only closeout", jsonString(authorization?.proof_only_closeout));
+  addJsonAuthorizationCheck(checks, "browser_verification", "Browser verification", jsonString(authorization?.browser_verification));
+
+  addJsonArrayCheck(checks, "forbidden_actions", jsonStringArray(packetJson.forbidden_actions), "Forbidden actions");
+  addJsonArrayCheck(checks, "stop_conditions", jsonStringArray(packetJson.stop_conditions), "Stop conditions");
+}
+
+function addJsonAuthorityChecks(packetJson, checks) {
+  const boundaryText = jsonStringArray(packetJson.authority_boundaries).join("\n");
+  addJsonArrayCheck(checks, "authority_boundaries", jsonStringArray(packetJson.authority_boundaries), "Authority boundaries");
+
+  const copyPacket = jsonRecord(packetJson.copy_packet);
+  const authorityPatterns = [
+    ["authority_read_only", /read-only|preview\/copy packet|preview\/copy/i, copyPacket?.preview_only === true, "Read-only or preview/copy packet boundary is present."],
+    ["authority_no_execute", /cannot execute Codex|not an execution action|does not execute Codex/i, copyPacket?.does_not_execute_codex === true, "No Codex execution boundary is present."],
+    ["authority_no_commit_reject", /cannot commit or reject|does not commit\/reject|commit\/reject/i, copyPacket?.does_not_mutate_state === true, "No commit/reject state boundary is present."],
+    ["authority_no_publish", /cannot approve, publish, retry, replay, or externally post|does not approve, publish, retry, replay|No approve\/publish\/retry\/replay/i, false, "No approve/publish/retry/replay/external-posting boundary is present."],
+    ["authority_no_merge", /cannot merge or enable auto-merge|does not merge|No merge\/auto-merge/i, copyPacket?.does_not_merge === true, "No merge/auto-merge boundary is present."],
+    ["authority_evidence_not_approval", /Evidence is not approval/i, false, "Evidence is not approval boundary is present."],
+    ["authority_proof_not_approval", /Proof is not approval/i, false, "Proof is not approval boundary is present."],
+    ["authority_pr_not_merge", /PR is not merge authority/i, false, "PR is not merge authority boundary is present."],
+    ["authority_user_core_gated", /Durable approval remains user\/Core gated/i, false, "User/Core durable approval boundary is present."],
+  ];
+
+  for (const [id, pattern, booleanBoundary, pass] of authorityPatterns) {
+    const present = pattern.test(boundaryText) || Boolean(booleanBoundary);
+    addPresenceCheck({
+      checks,
+      id,
+      present,
+      pass,
+      warn: `${pass.replace(" is present.", "")} is missing.`,
+    });
+  }
+
+  addJsonBooleanTrueCheck(checks, "copy_packet_preview_only", copyPacket?.preview_only, "Copy packet preview-only flag is true.");
+  addJsonBooleanTrueCheck(checks, "copy_packet_no_execute", copyPacket?.does_not_execute_codex, "Copy packet no-execute flag is true.");
+  addJsonBooleanTrueCheck(checks, "copy_packet_no_evidence", copyPacket?.does_not_record_evidence, "Copy packet no-evidence flag is true.");
+  addJsonBooleanTrueCheck(checks, "copy_packet_no_proof", copyPacket?.does_not_record_proof, "Copy packet no-proof flag is true.");
+  addJsonBooleanTrueCheck(checks, "copy_packet_no_mutate", copyPacket?.does_not_mutate_state, "Copy packet no-state-mutation flag is true.");
+  addJsonBooleanTrueCheck(checks, "copy_packet_no_merge", copyPacket?.does_not_merge, "Copy packet no-merge flag is true.");
 }
 
 function addCoreChecks(text, checks) {
@@ -339,10 +495,72 @@ function addAuthorizationCheck(checks, text, id, label) {
   });
 }
 
-function buildSummary(text) {
+function addJsonFieldCheck({ checks, id, value, presentMessage, missingMessage, placeholderMessage }) {
+  const status = value ? placeholderStatus(value) : strict ? "fail" : "warn";
+  checks.push({
+    id,
+    status,
+    message: value ? status === "pass" ? presentMessage : placeholderMessage : missingMessage,
+  });
+}
+
+function addJsonPresenceCheck(checks, id, value, pass, warn) {
+  checks.push({
+    id,
+    status: value ? "pass" : strict ? "fail" : "warn",
+    message: value ? pass : warn,
+  });
+}
+
+function addJsonArrayCheck(checks, id, items, label) {
+  checks.push({
+    id,
+    status: items.length > 0 ? "pass" : strict ? "fail" : "warn",
+    message: items.length > 0 ? `${label} are listed.` : `${label} are missing.`,
+  });
+}
+
+function addJsonAuthorizationCheck(checks, id, label, value) {
+  const ambiguous = !value || /needs_user_core_confirmation|user\/Core confirmation|needs confirmation|ambiguous/i.test(value);
+  checks.push({
+    id,
+    status: ambiguous ? strict ? "fail" : "warn" : "pass",
+    message: !value
+      ? `${label} setting is missing.`
+      : ambiguous
+        ? `${label} needs user/Core confirmation before Codex starts.`
+        : `${label} setting is explicit.`,
+  });
+}
+
+function addJsonBooleanTrueCheck(checks, id, value, pass) {
+  checks.push({
+    id,
+    status: value === true ? "pass" : "fail",
+    message: value === true ? pass : `${pass.replace(" is true.", "")} must be true.`,
+  });
+}
+
+function buildJsonSummary(text, packetJson) {
+  const runtime = jsonRecord(packetJson.runtime);
+  const work = jsonRecord(packetJson.work);
+  return {
+    input_mode: "json_block",
+    schema: jsonString(packetJson.schema),
+    has_runtime: Boolean(jsonString(runtime?.endpoint_label)),
+    has_scope: Boolean(jsonString(work?.scope)),
+    has_work_id: Boolean(jsonString(work?.work_id)),
+    has_start_command: /\bnpm\s+run\s+codex:read-brief\b/.test(text),
+    readiness_status: jsonString(packetJson.readiness_status),
+    task_profile: jsonString(packetJson.task_profile),
+  };
+}
+
+function buildSummary(text, options = {}) {
   const runtimeValue = extractFieldValue(text, "AUGNES_API_BASE_URL");
   const hasRuntimePhrase = /provided by (?:current Augnes runtime|local operator)/i.test(text);
   return {
+    input_mode: options.inputMode ?? "text",
     has_runtime: Boolean(runtimeValue) || hasRuntimePhrase,
     has_scope: Boolean(extractFieldValue(text, "CODEX_SCOPE")),
     has_work_id: Boolean(extractFieldValue(text, "CODEX_WORK_ID")),
@@ -473,6 +691,8 @@ function isPlaceholder(value) {
   const normalized = value.toLowerCase();
   return (
     /^<[^>]+>$/.test(value) ||
+    normalized.includes("provided by current augnes runtime") ||
+    normalized.includes("provided by local operator") ||
     normalized.includes("provided-current-runtime") ||
     normalized.includes("provided-work-id") ||
     normalized.includes("provided-scope") ||
@@ -516,9 +736,13 @@ function findRawDbFinding(text) {
   if (rawDbRefs.length === 0) {
     return { status: "pass", message: "No raw DB path references detected." };
   }
-  const labeledFallback = /local-dev fallback|local-current DB path|Raw DB path fallback only/i.test(text);
+  const labeledFallback = /local-current DB path|Raw DB path fallback only|local_dev_fallback/i.test(text);
   if (labeledFallback) {
     return { status: "pass", message: "Raw DB path reference is explicitly labeled as local-dev fallback." };
+  }
+  const onlyExcludedDemoDbRefs = rawDbRefs.every((ref) => demoDbPathPattern.test(ref)) && demoDbExclusionPattern.test(text);
+  if (onlyExcludedDemoDbRefs) {
+    return { status: "pass", message: "Raw DB path references are demo DB refs mentioned only as excluded/non-current refs." };
   }
   return { status: "fail", message: `Raw DB path appears as normal input without local-dev fallback labeling: ${rawDbRefs.join(", ")}` };
 }
@@ -528,7 +752,7 @@ function findDemoDbFinding(text) {
   if (demoDbRefs.length === 0) {
     return { status: "pass", message: "No demo DB refs detected as current runtime refs." };
   }
-  const explicitlyExcluded = /Demo DB refs excluded|Do not use demo DB refs|must not be mixed with current runtime refs/i.test(text);
+  const explicitlyExcluded = demoDbExclusionPattern.test(text);
   if (explicitlyExcluded) {
     return { status: "pass", message: "Demo DB refs are mentioned only as excluded/non-current refs." };
   }
@@ -554,6 +778,7 @@ function buildMalformedOutput(message) {
       has_scope: false,
       has_work_id: false,
       has_start_command: false,
+      input_mode: "none",
       readiness_status: null,
       task_profile: null,
     },
@@ -566,6 +791,23 @@ function clean(value) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function jsonRecord(value) {
+  return isRecord(value) ? value : null;
+}
+
+function jsonString(value) {
+  return clean(typeof value === "string" ? value : null);
+}
+
+function jsonStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(jsonString).filter(Boolean);
 }
 
 function stripBullet(value) {
