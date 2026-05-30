@@ -263,6 +263,7 @@ Stop or fail closed when:
   authorization, import authority, local work item creation authority, merge
   authority, or publication authority
 - packet is expired
+- `expires_at` is malformed
 - local B later detects a conflicting local work item or Git state
 
 ## Security And Privacy Rules

@@ -112,6 +112,7 @@ The helper reports these checks in deterministic order:
 - `schema`
 - `packet_kind`
 - `packet_id`
+- `expires_at`
 - `issuer_runtime`
 - `issuer_runtime_instance_id`
 - `source_work_scope`
@@ -154,6 +155,10 @@ The helper reports these checks in deterministic order:
 Additional integrity checks may be reported for optional hash fields, and the
 helper may report extra authority-boundary checks when they preserve the same
 read-only packet semantics.
+
+`expires_at` may be `null` for no expiration. When it is present as a timestamp,
+it must be a UTC ISO value such as `2026-05-30T00:00:00.000Z`; malformed or
+already-expired packet timestamps fail closed.
 
 ## Examples
 

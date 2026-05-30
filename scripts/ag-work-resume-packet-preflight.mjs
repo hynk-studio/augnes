@@ -178,6 +178,7 @@ function addCorePacketChecks(packet, checks) {
   });
 
   addRequiredStringCheck(checks, "packet_id", jsonString(packet.packet_id), "Packet id is present.", "Packet id is missing.", "Packet id is a placeholder.");
+  addExpiresAtCheck(checks, packet.expires_at);
 
   const issuer = jsonRecord(packet.issuer);
   const issuerRuntime = jsonString(issuer?.runtime);
@@ -373,6 +374,31 @@ function addOptionalHashCheck(checks, id, value, presentMessage) {
         : "Integrity hash is malformed."
       : "Optional integrity hash is missing.",
   });
+}
+
+function addExpiresAtCheck(checks, value) {
+  if (value === null) {
+    checks.push({ id: "expires_at", status: "pass", message: "Packet has no expiration." });
+    return;
+  }
+  if (value === undefined) {
+    checks.push({ id: "expires_at", status: "warn", message: "Packet expiration is missing." });
+    return;
+  }
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) {
+    checks.push({ id: "expires_at", status: "fail", message: "Packet expiration must be null or an ISO UTC timestamp." });
+    return;
+  }
+  const expiresAtMs = Date.parse(value);
+  if (!Number.isFinite(expiresAtMs)) {
+    checks.push({ id: "expires_at", status: "fail", message: "Packet expiration timestamp is invalid." });
+    return;
+  }
+  if (expiresAtMs <= Date.now()) {
+    checks.push({ id: "expires_at", status: "fail", message: "Packet is expired." });
+    return;
+  }
+  checks.push({ id: "expires_at", status: "pass", message: "Packet expiration is in the future." });
 }
 
 function addRequiredTrueCheck(checks, id, value, passMessage) {

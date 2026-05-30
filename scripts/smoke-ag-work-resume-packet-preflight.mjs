@@ -139,6 +139,7 @@ assert.equal(completeDefault.status, 0, completeDefault.stderr);
 assert.equal(completeDefault.json.ok, true);
 assert.equal(completeDefault.json.summary.schema, "augnes.ag_work_resume_packet.v0_2");
 assertCheck(completeDefault.json, "schema", "pass");
+assertCheck(completeDefault.json, "expires_at", "pass");
 assertCheck(completeDefault.json, "target_no_execute_codex", "pass");
 assertCheck(completeDefault.json, "redaction_no_secrets", "pass");
 
@@ -190,6 +191,27 @@ const missingIntegrityStrict = runHelper({ packet: missingIntegrity, args: ["--s
 assert.equal(missingIntegrityStrict.status, 0, missingIntegrityStrict.stderr);
 assertCheck(missingIntegrityStrict.json, "integrity_payload_hash", "warn");
 assertCheck(missingIntegrityStrict.json, "integrity_redaction_report_hash", "warn");
+
+const futureExpiresAt = clonePacket(completePacket);
+futureExpiresAt.expires_at = "2999-01-01T00:00:00.000Z";
+const futureExpiresAtStrict = runHelper({ packet: futureExpiresAt, args: ["--strict"] });
+assert.equal(futureExpiresAtStrict.status, 0, futureExpiresAtStrict.stderr);
+assertCheck(futureExpiresAtStrict.json, "expires_at", "pass");
+
+const expiredPacket = clonePacket(completePacket);
+expiredPacket.expires_at = "2000-01-01T00:00:00.000Z";
+const expiredDefault = runHelper({ packet: expiredPacket });
+assert.notEqual(expiredDefault.status, 0);
+assertCheck(expiredDefault.json, "expires_at", "fail");
+const expiredStrict = runHelper({ packet: expiredPacket, args: ["--strict"] });
+assert.notEqual(expiredStrict.status, 0);
+assertCheck(expiredStrict.json, "expires_at", "fail");
+
+const malformedExpiresAt = clonePacket(completePacket);
+malformedExpiresAt.expires_at = "tomorrow";
+const malformedExpiresAtDefault = runHelper({ packet: malformedExpiresAt });
+assert.notEqual(malformedExpiresAtDefault.status, 0);
+assertCheck(malformedExpiresAtDefault.json, "expires_at", "fail");
 
 for (const [field, checkId] of [
   ["secrets_included", "redaction_no_secrets"],
@@ -286,6 +308,10 @@ console.log(
         "target policy may_record_evidence true fails both modes",
         "target policy may_record_proof true fails both modes",
         "missing optional integrity hashes warn even in strict mode",
+        "expires_at null passes",
+        "future expires_at passes strict mode",
+        "expired expires_at fails both modes",
+        "malformed expires_at fails",
         "redaction secrets_included true fails both modes",
         "redaction tunnel_urls_included true fails both modes",
         "packet containing OPENAI_API_KEY=sk-... fails",
