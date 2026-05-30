@@ -213,9 +213,9 @@ git diff --check
   - Concrete reason: task explicitly forbids calling OpenAI.
   - Impact: none for local text preflight.
 
-- Check: GitHub calls before normal PR publishing.
-  - Concrete reason: task forbids GitHub calls except normal branch push / draft PR creation.
-  - Impact: no GitHub issue/comment/review metadata was fetched for this report.
+- Check: GitHub issue/comment/review/API mutation.
+  - Concrete reason: this report used only read-only git repository sync/inspection before the normal branch push and draft PR creation.
+  - Impact: no GitHub issue comments, reviews, PR comments, approvals, merges, auto-merge changes, releases, external posts, or GitHub API mutations were performed.
 
 ## Codex Result Summary
 
@@ -289,7 +289,7 @@ git diff --check
 - Forbidden labels: preflight catches forbidden `Run Codex` and `Merge PR` labels as failures in default mode.
 - Missing work ID: preflight catches missing `CODEX_WORK_ID`; default mode warns and strict mode fails.
 - Runtime calls: preflight avoids runtime calls. The helper is local text validation and smoke coverage reports helper runtime calls absent.
-- OpenAI/GitHub calls: preflight does not call OpenAI or GitHub. This episode made no GitHub calls except the later normal PR publishing flow.
+- OpenAI/GitHub calls: preflight does not call OpenAI or GitHub. This episode used read-only git sync/inspection for repo setup and made no GitHub issue/comment/review/API mutation before normal branch push and draft PR creation.
 - Proof/evidence boundaries: packet and preflight preserve that proof and evidence are separate from approval and require explicit authorization before any recording.
 - Approval/merge boundaries: packet and preflight preserve that PRs are not merge authority, proof is not approval, evidence is not approval, and durable approval remains user/Core gated.
 - Runtime-state safety: no runtime state, DB schema, API route, MCP/App tool schema, plugin/hook behavior, package scripts, dependencies, or secret handling changed.
@@ -318,7 +318,7 @@ git diff --check
 - Successful parts: local copied-packet preflight flow, strict stop behavior, negative missing-work-ID case, negative forbidden-label case, requested smoke/typecheck verification, and report-only diff.
 - Failed parts: none for the requested report-only task.
 - Partial parts: strict representative packet failed because no concrete runtime endpoint was supplied; this is expected for the no-runtime dogfood and should be treated as safety behavior.
-- Skipped parts: runtime calls, `codex:read-brief`, proof/evidence recording, live browser/Developer Mode operation, screenshots/media artifacts, OpenAI calls, and GitHub calls before normal PR creation.
+- Skipped parts: runtime calls, `codex:read-brief`, proof/evidence recording, live browser/Developer Mode operation, screenshots/media artifacts, OpenAI calls, and GitHub issue/comment/review/API mutations before normal PR creation.
 - Final user/Core/GitHub state if known: no user merge or durable approval decision is known at report creation time.
 
 ## Authority Boundaries
