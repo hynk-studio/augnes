@@ -66,6 +66,14 @@ If clipboard copy is unavailable or fails, the widget shows local status text
 and the user can manually copy the still-visible packet text. Raw DB paths
 remain local-dev fallback only and should not be normal user-facing input.
 
+## Handoff Packet Preflight
+
+After copying the packet, a user/operator may run
+`npm run codex:handoff-preflight` before using it in a separate Codex session.
+The preflight validates copied packet context, stop conditions, and authority
+boundaries only. It does not execute Codex, call the runtime, record proof,
+record evidence, or mutate Augnes state.
+
 ## Data Source
 
 The card is rendered from existing `augnes_get_work_brief` structured content.
