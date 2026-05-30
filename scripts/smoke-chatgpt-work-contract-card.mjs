@@ -27,19 +27,25 @@ for (const text of [server, widget, runbook]) {
 }
 
 assert.match(server, /work_contract_card/, "server must return Work Contract Card structured content");
+assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
+assert.match(widget, /renderCodexHandoffPreview/, "widget must implement Codex Handoff Preview rendering");
 assert.match(runbook, /Data Source/i, "runbook must explain the data source");
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
-assert.match(runbook, /Browser and computer-use verification remains PR 8/i, "runbook must keep browser verification in PR 8");
+assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
 
 const uiText = `${server}\n${widget}`;
 const forbiddenUiPhrases = [
   "Run Codex",
+  "Start Codex",
+  "Execute Codex",
   "Merge PR",
   "Enable auto-merge",
   "Approve publication",
   "Publish now",
   "Commit state",
+  "Record proof",
+  "Record evidence",
 ];
 for (const phrase of forbiddenUiPhrases) {
   assert.doesNotMatch(uiText, new RegExp(escapeRegExp(phrase), "g"), `UI text must not include ${phrase}`);
@@ -63,6 +69,7 @@ const workBriefBlock = extractToolBlock(server, "augnes_get_work_brief");
 assert.match(workBriefBlock, /annotations:\s*bridgeReadAnnotations/, "augnes_get_work_brief must remain read-only annotated");
 assert.match(workBriefBlock, /_meta:\s*widgetToolMeta/, "augnes_get_work_brief must be widget-backed for the card");
 assert.match(workBriefBlock, /work_contract_card/, "augnes_get_work_brief must carry card structured content");
+assert.match(workBriefBlock, /codex_handoff_preview/, "augnes_get_work_brief must carry handoff preview structured content");
 
 if (server.includes('"augnes_get_work_contract_card"')) {
   const cardToolBlock = extractToolBlock(server, "augnes_get_work_contract_card");
@@ -71,9 +78,14 @@ if (server.includes('"augnes_get_work_contract_card"')) {
 }
 
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractCard"), "buildWorkContractCard");
+assertNoNetworkCalls(extractFunction(server, "buildCodexHandoffPreview"), "buildCodexHandoffPreview");
+assertNoNetworkCalls(extractFunction(server, "buildCopyableHandoffText"), "buildCopyableHandoffText");
 assertNoNetworkCalls(extractFunction(server, "describeWorkContractCard"), "describeWorkContractCard");
+assertNoNetworkCalls(extractFunction(server, "describeCodexHandoffPreview"), "describeCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
+assertNoNetworkCalls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
+assertNoNetworkCalls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoNetworkCalls(widget, "console-widget");
 
 const renderSource = [
@@ -84,16 +96,21 @@ const renderSource = [
   extractFunction(widget, "createSection"),
   extractFunction(widget, "createTextList"),
   extractFunction(widget, "createCodeList"),
+  extractFunction(widget, "createPreBlock"),
   extractFunction(widget, "nonEmptyText"),
   extractFunction(widget, "safeArray"),
   extractFunction(widget, "safeCount"),
   extractFunction(widget, "createCodeListWithFallback"),
   extractFunction(widget, "normalizeWorkContractCard"),
+  extractFunction(widget, "normalizeCodexHandoffPreview"),
+  extractFunction(widget, "renderCodexHandoffPreview"),
   extractFunction(widget, "renderWorkContractCard"),
 ].join("\n\n");
 
 assertNoForbiddenControls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
+assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
+assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 
 const renderedFallbackText = renderFallbackCard(renderSource);
 for (const expectedFallback of [
@@ -106,6 +123,15 @@ for (const expectedFallback of [
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedFallback)), `fallback render must include: ${expectedFallback}`);
 }
 assertBoundaryText(renderedFallbackText);
+for (const expectedPreviewText of [
+  "Codex Handoff Preview",
+  "Readiness reasons",
+  "Stop conditions",
+  "Copyable handoff packet",
+  "This is a preview/copy packet, not an execution action.",
+]) {
+  assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedPreviewText)), `fallback preview must include: ${expectedPreviewText}`);
+}
 
 console.log(
   JSON.stringify(
@@ -115,6 +141,9 @@ console.log(
       docs_present: true,
       package_script_present: true,
       boundary_text_present: true,
+      handoff_preview_present: true,
+      handoff_preview_stop_conditions_present: true,
+      handoff_preview_copyable_packet_present: true,
       forbidden_ui_text_absent: true,
       bridge_write_tools_unchanged: true,
       work_brief_read_only_widget_card: true,
@@ -137,6 +166,15 @@ function assertBoundaryText(text) {
     /Proof is not approval\./,
     /A PR is not merge authority\./,
     /Durable approval remains user\/Core gated\./,
+    /This preview is read-only\./,
+    /This preview cannot execute Codex\./,
+    /This preview cannot record evidence\./,
+    /This preview cannot record proof\./,
+    /This preview cannot commit or reject Augnes state\./,
+    /This preview cannot approve, publish, retry, replay, or externally post\./,
+    /This preview cannot merge or enable auto-merge\./,
+    /Evidence is not approval\./,
+    /Raw DB paths are local-dev fallback only and should not be normal user-facing input\./,
   ];
 
   for (const pattern of requiredPatterns) {
