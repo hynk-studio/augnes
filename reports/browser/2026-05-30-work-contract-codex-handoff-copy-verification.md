@@ -2,7 +2,7 @@
 
 ## Related PR
 
-- PR: pending
+- PR: https://github.com/hynk-studio/augnes/pull/276
 - Work ID: not provided
 - Handoff ID: not provided
 - Related state keys: `coordination.work_contract_card`
@@ -21,12 +21,14 @@
 ## Environment
 
 - Repository branch: `codex/work-contract-card-copy-handoff`
-- Commit: pending
+- Source commit before report creation: `9786334`
+- Verification PR: https://github.com/hynk-studio/augnes/pull/276
 - Node/npm versions: Node v24.13.0, npm 11.6.2
 - Operating system: Linux
 - Browser or runtime: Playwright-managed Chromium / Chrome for Testing 149.0.7827.3
 - Local runtime availability: not used for static widget fixture
 - ChatGPT Developer Mode tunnel/session availability: not used
+- Local user-home paths are written with `~` in this report.
 
 ## Local Startup
 
@@ -42,15 +44,15 @@
 
 ## Commands Run
 
-- Command: `bash /home/hynk1/.codex/skills/playwright/scripts/playwright_cli.sh open http://127.0.0.1:4177/apps/augnes_apps/public/console-widget.html --browser chromium`
+- Command: `bash ~/.codex/skills/playwright/scripts/playwright_cli.sh open http://127.0.0.1:4177/apps/augnes_apps/public/console-widget.html --browser chromium`
 - Result: passed
 - Notes: opened static widget page; favicon 404 was the only console error.
 
-- Command: `bash /home/hynk1/.codex/skills/playwright/scripts/playwright_cli.sh run-code --filename /tmp/augnes-widget-copy-verify.js`
+- Command: `bash ~/.codex/skills/playwright/scripts/playwright_cli.sh run-code --filename /tmp/augnes-widget-copy-verify.js`
 - Result: passed
 - Notes: returned `buttonCount: 1`, `buttonVisible: true`, `packetVisible: true`, `preIncludesPacket: true`, `visibleForbiddenLabels: []`, `statusText: "Handoff copied."`, and `copyNetworkCalls: []`.
 
-- Command: `bash /home/hynk1/.codex/skills/playwright/scripts/playwright_cli.sh requests`
+- Command: `bash ~/.codex/skills/playwright/scripts/playwright_cli.sh requests`
 - Result: passed
 - Notes: after the copy click, Playwright reported no dynamic network requests; only the static widget request was present.
 
