@@ -341,6 +341,38 @@ const WORK_CONTRACT_CARD_BOUNDARY_TEXT = [
   "Durable approval remains user/Core gated.",
 ] as const;
 
+const CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT = [
+  "This preview is read-only.",
+  "This preview cannot execute Codex.",
+  "This preview cannot record evidence.",
+  "This preview cannot record proof.",
+  "This preview cannot commit or reject Augnes state.",
+  "This preview cannot approve, publish, retry, replay, or externally post.",
+  "This preview cannot merge or enable auto-merge.",
+  "Evidence is not approval.",
+  "Proof is not approval.",
+  "A PR is not merge authority.",
+  "Durable approval remains user/Core gated.",
+  "Raw DB paths are local-dev fallback only and should not be normal user-facing input.",
+] as const;
+
+const CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS = [
+  "No Codex execution from this card.",
+  "No commit/reject state.",
+  "No approve/publish/retry/replay/external posting.",
+  "No merge/auto-merge.",
+  "No proof/evidence recording controls.",
+] as const;
+
+const CODEX_HANDOFF_PREVIEW_STOP_CONDITIONS = [
+  "codex:read-brief fails.",
+  "Work ID is missing or unknown.",
+  "Scope is missing or ambiguous.",
+  "Expected scope or forbidden surfaces are ambiguous.",
+  "Forbidden surfaces are required to complete the task.",
+  "Evidence or proof recording is requested without explicit user/Core authorization.",
+] as const;
+
 type WorkContractCard = {
   card_type: "work_contract_card";
   title: "Work Contract Card";
@@ -386,6 +418,30 @@ type WorkContractCard = {
   };
 };
 
+type CodexHandoffPreview = {
+  preview_type: "codex_handoff_preview";
+  title: "Codex Handoff Preview";
+  readiness_status: "ready" | "needs_user_core_input" | "blocked";
+  readiness_reasons: string[];
+  task_profile: "docs" | "tooling" | "ui" | "runtime_high_risk" | "unknown";
+  runtime_endpoint_label: string;
+  scope: string | null;
+  work_id: string | null;
+  work_title: string | null;
+  work_status: string | null;
+  work_next_action: string | null;
+  related_state_keys: string[];
+  expected_files: string[];
+  expected_checks: string[];
+  evidence_recording: "recommended" | "needs_user_core_confirmation" | "not_applicable";
+  proof_only_closeout: "recommended" | "needs_user_core_confirmation" | "not_applicable";
+  browser_verification: "required" | "not_required" | "needs_user_core_confirmation";
+  forbidden_actions: readonly string[];
+  stop_conditions: readonly string[];
+  copyable_handoff_text: string;
+  boundary_text: readonly string[];
+};
+
 function nonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
@@ -403,6 +459,123 @@ function firstStringArray(...values: unknown[]): string[] {
     if (items.length > 0) return items;
   }
   return [];
+}
+
+function booleanFromUnknown(...values: unknown[]): boolean | null {
+  for (const value of values) {
+    if (typeof value === "boolean") return value;
+    const text = nonEmptyString(value)?.toLowerCase();
+    if (!text) continue;
+    if (["yes", "true", "allowed", "recommended"].includes(text)) return true;
+    if (["no", "false", "not_allowed", "not applicable", "not_applicable"].includes(text)) return false;
+  }
+  return null;
+}
+
+function handoffSettingFromBoolean(value: boolean | null): CodexHandoffPreview["evidence_recording"] {
+  if (value === true) return "recommended";
+  if (value === false) return "not_applicable";
+  return "needs_user_core_confirmation";
+}
+
+function runtimeEndpointLabelFromBrief(brief: WorkBrief, codexHandoff: Record<string, unknown>): string {
+  const explicitEndpoint =
+    nonEmptyString(codexHandoff.augnes_api_base_url) ??
+    nonEmptyString(codexHandoff.runtime_endpoint) ??
+    nonEmptyString((brief as WorkBrief & Record<string, unknown>).runtime_endpoint);
+  const origin = explicitEndpoint ? safeOrigin(explicitEndpoint) : undefined;
+  return origin ?? "provided by current Augnes runtime";
+}
+
+function inferTaskProfile(
+  expectedFiles: string[],
+  expectedChecks: string[],
+  nextStep: string | null
+): CodexHandoffPreview["task_profile"] {
+  const fileText = expectedFiles.join("\n").toLowerCase();
+  const haystack = [fileText, expectedChecks.join("\n"), nextStep ?? ""].join("\n").toLowerCase();
+  if (!haystack.trim()) return "unknown";
+  if (/\b(database|migration|secret|hook|plugin)\b/.test(haystack) || /\/api\//.test(haystack) || /app tool schema|mcp\/app tool schema|runtime behavior|schema change/.test(haystack)) {
+    return "runtime_high_risk";
+  }
+  if (/apps\/augnes_apps\/public|console-widget|work contract card|work_contract_card|widget|cockpit|component|\.tsx\b|\.jsx\b/.test(haystack)) {
+    return "ui";
+  }
+  if (/^docs\//m.test(fileText) || /^reports\//m.test(fileText) || /^readme\.md$/m.test(fileText) || /docs-only|documentation/.test(haystack)) {
+    if (expectedFiles.length > 0 && expectedFiles.every((filePath) => /^(docs\/|reports\/|README\.md$)/i.test(filePath))) {
+      return "docs";
+    }
+  }
+  if (/^scripts\//m.test(fileText) || /smoke|helper|package\.json|tooling/.test(haystack)) return "tooling";
+  return "unknown";
+}
+
+function browserVerificationForProfile(
+  taskProfile: CodexHandoffPreview["task_profile"]
+): CodexHandoffPreview["browser_verification"] {
+  if (taskProfile === "ui") return "required";
+  if (taskProfile === "docs" || taskProfile === "tooling") return "not_required";
+  return "needs_user_core_confirmation";
+}
+
+function listForPacket(items: string[], fallback: string): string {
+  return items.length ? items.map((item) => `  - ${item}`).join("\n") : `  - ${fallback}`;
+}
+
+function formatStatus(value: string | null, fallback = "missing"): string {
+  return value ?? fallback;
+}
+
+function buildCopyableHandoffText(preview: Omit<CodexHandoffPreview, "copyable_handoff_text">): string {
+  const runtimeForCommand =
+    preview.runtime_endpoint_label === "provided by current Augnes runtime"
+      ? "<provided-current-runtime>"
+      : preview.runtime_endpoint_label;
+
+  return [
+    "Codex Handoff Preview",
+    "This is a preview/copy packet, not an execution action.",
+    "",
+    "Readiness",
+    `- Status: ${preview.readiness_status}`,
+    listForPacket(preview.readiness_reasons, "Required fields are present."),
+    "",
+    "Current runtime",
+    `- AUGNES_API_BASE_URL: ${preview.runtime_endpoint_label}`,
+    `- CODEX_SCOPE: ${formatStatus(preview.scope)}`,
+    `- CODEX_WORK_ID: ${formatStatus(preview.work_id)}`,
+    "",
+    "Copyable start command preview",
+    `AUGNES_API_BASE_URL=${runtimeForCommand} CODEX_SCOPE=${formatStatus(preview.scope, "<provided-scope>")} CODEX_WORK_ID=${formatStatus(preview.work_id, "<provided-work-id>")} npm run codex:read-brief`,
+    "",
+    "Work item",
+    `- Title: ${formatStatus(preview.work_title, "No work title listed.")}`,
+    `- Status: ${formatStatus(preview.work_status, "No work status listed.")}`,
+    `- Next action: ${formatStatus(preview.work_next_action, "No next action listed.")}`,
+    `- Task profile: ${preview.task_profile}`,
+    "",
+    "Authorization",
+    `- Evidence recording: ${preview.evidence_recording}`,
+    `- Proof-only closeout: ${preview.proof_only_closeout}`,
+    `- Browser verification: ${preview.browser_verification}`,
+    "",
+    "Expected scope",
+    "- Expected files:",
+    listForPacket(preview.expected_files, "No expected files are listed in the work brief."),
+    "- Expected checks:",
+    listForPacket(preview.expected_checks, "No expected checks are listed in the work brief."),
+    "- Related state keys:",
+    listForPacket(preview.related_state_keys, "No related state keys are listed in the work brief."),
+    "",
+    "Forbidden actions",
+    listForPacket([...preview.forbidden_actions], "No forbidden actions listed."),
+    "",
+    "Stop conditions",
+    listForPacket([...preview.stop_conditions], "No stop conditions listed."),
+    "",
+    "Authority boundaries",
+    listForPacket([...preview.boundary_text], "No boundary text listed."),
+  ].join("\n");
 }
 
 function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
@@ -485,10 +658,93 @@ function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
   };
 }
 
+function buildCodexHandoffPreview(brief: WorkBrief, card: WorkContractCard): CodexHandoffPreview {
+  const codexHandoff = brief.codex_handoff as typeof brief.codex_handoff & Record<string, unknown>;
+  const workLinks = brief.work.links as Record<string, unknown>;
+  const scope = nonEmptyString(card.scope);
+  const workId = nonEmptyString(card.work_id);
+  const workTitle = nonEmptyString(card.work_title);
+  const workStatus = nonEmptyString(card.work_status);
+  const workNextAction = nonEmptyString(card.current_or_next_step);
+  const taskProfile = inferTaskProfile(card.expected_files, card.expected_checks, workNextAction);
+  const evidenceRecording = handoffSettingFromBoolean(
+    booleanFromUnknown(
+      codexHandoff.evidence_recording_allowed,
+      codexHandoff.evidence_allowed,
+      codexHandoff.record_evidence,
+      workLinks.evidence_recording_allowed
+    )
+  );
+  const proofOnlyCloseout = handoffSettingFromBoolean(
+    booleanFromUnknown(
+      codexHandoff.proof_only_closeout_allowed,
+      codexHandoff.proof_recording_allowed,
+      codexHandoff.record_proof,
+      workLinks.proof_only_closeout_allowed
+    )
+  );
+  const browserVerification = browserVerificationForProfile(taskProfile);
+  const readinessReasons: string[] = [];
+  const blockingReasons: string[] = [];
+
+  if (!scope) blockingReasons.push("Scope is missing.");
+  if (!workId) blockingReasons.push("Work ID is missing.");
+  if (workStatus && /blocked/i.test(workStatus)) blockingReasons.push("Work item status is blocked.");
+  if (taskProfile === "unknown") readinessReasons.push("Task profile needs user/Core confirmation.");
+  if (card.expected_files.length === 0) readinessReasons.push("Expected files are not listed in the work brief.");
+  if (card.expected_checks.length === 0) readinessReasons.push("Expected checks are not listed in the work brief.");
+  if (evidenceRecording === "needs_user_core_confirmation") {
+    readinessReasons.push("Evidence recording needs user/Core confirmation.");
+  }
+  if (proofOnlyCloseout === "needs_user_core_confirmation") {
+    readinessReasons.push("Proof-only closeout needs user/Core confirmation.");
+  }
+  if (browserVerification === "needs_user_core_confirmation") {
+    readinessReasons.push("Browser verification needs user/Core confirmation.");
+  }
+
+  const readinessStatus =
+    blockingReasons.length > 0 ? "blocked" : readinessReasons.length > 0 ? "needs_user_core_input" : "ready";
+  const previewWithoutPacket = {
+    preview_type: "codex_handoff_preview",
+    title: "Codex Handoff Preview",
+    readiness_status: readinessStatus,
+    readiness_reasons: blockingReasons.length > 0 ? blockingReasons : readinessReasons.length > 0 ? readinessReasons : ["Required handoff fields are present in the work brief."],
+    task_profile: taskProfile,
+    runtime_endpoint_label: runtimeEndpointLabelFromBrief(brief, codexHandoff),
+    scope,
+    work_id: workId,
+    work_title: workTitle,
+    work_status: workStatus,
+    work_next_action: workNextAction,
+    related_state_keys: card.related_state_keys,
+    expected_files: card.expected_files,
+    expected_checks: card.expected_checks,
+    evidence_recording: evidenceRecording,
+    proof_only_closeout: proofOnlyCloseout,
+    browser_verification: browserVerification,
+    forbidden_actions: CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS,
+    stop_conditions: CODEX_HANDOFF_PREVIEW_STOP_CONDITIONS,
+    boundary_text: CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT,
+  } satisfies Omit<CodexHandoffPreview, "copyable_handoff_text">;
+
+  return {
+    ...previewWithoutPacket,
+    copyable_handoff_text: buildCopyableHandoffText(previewWithoutPacket),
+  };
+}
+
 function describeWorkContractCard(card: WorkContractCard): string {
   return [
     `Work Contract Card for ${card.work_id}: ${card.work_title}. Status ${card.work_status}, priority ${card.priority}, ${card.recent_events_count} recent event(s), ${card.linked_proof_action_ids_count} linked action ID(s).`,
     WORK_CONTRACT_CARD_BOUNDARY_TEXT.join(" "),
+  ].join(" ");
+}
+
+function describeCodexHandoffPreview(preview: CodexHandoffPreview): string {
+  return [
+    `Codex Handoff Preview for ${preview.work_id ?? "unknown work"} is ${preview.readiness_status}. Task profile ${preview.task_profile}; browser verification ${preview.browser_verification}.`,
+    CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT.join(" "),
   ].join(" ");
 }
 
@@ -1091,16 +1347,20 @@ export function createMcpAppServer(
       try {
         const brief = await stateRuntimeAdapter.getWorkBrief(resolvedScope, workId);
         const workContractCard = buildWorkContractCard(brief);
+        const codexHandoffPreview = buildCodexHandoffPreview(brief, workContractCard);
         const structuredContent = sanitizePayload({
           profile: config.appProfile,
           panel: "work_contract_card",
           brief,
           work_contract_card: workContractCard,
+          codex_handoff_preview: codexHandoffPreview,
           boundaries: workContractCard.boundaries,
         });
         return {
           structuredContent,
-          content: narrative(`${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)}`),
+          content: narrative(
+            `${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)} ${describeCodexHandoffPreview(codexHandoffPreview)}`
+          ),
           _meta: structuredContent,
         };
       } catch (error) {

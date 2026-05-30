@@ -548,6 +548,12 @@
         return pre;
       }
 
+      function createPreBlock(text) {
+        const pre = document.createElement("pre");
+        pre.textContent = text;
+        return pre;
+      }
+
       function nonEmptyText(value, fallback) {
         return typeof value === "string" && value.trim() ? value.trim() : fallback;
       }
@@ -627,6 +633,82 @@
             "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief."
           ),
           authority_boundary_text: boundaries,
+        };
+      }
+
+      function normalizeCodexHandoffPreview(data, card) {
+        const preview = data?.codex_handoff_preview || {};
+        const boundaryText = safeArray(preview.boundary_text).length
+          ? safeArray(preview.boundary_text)
+          : [
+              "This preview is read-only.",
+              "This preview cannot execute Codex.",
+              "This preview cannot record evidence.",
+              "This preview cannot record proof.",
+              "This preview cannot commit or reject Augnes state.",
+              "This preview cannot approve, publish, retry, replay, or externally post.",
+              "This preview cannot merge or enable auto-merge.",
+              "Evidence is not approval.",
+              "Proof is not approval.",
+              "A PR is not merge authority.",
+              "Durable approval remains user/Core gated.",
+              "Raw DB paths are local-dev fallback only and should not be normal user-facing input.",
+            ];
+        const forbiddenActions = safeArray(preview.forbidden_actions).length
+          ? safeArray(preview.forbidden_actions)
+          : [
+              "No Codex execution from this card.",
+              "No commit/reject state.",
+              "No approve/publish/retry/replay/external posting.",
+              "No merge/auto-merge.",
+              "No proof/evidence recording controls.",
+            ];
+        const stopConditions = safeArray(preview.stop_conditions).length
+          ? safeArray(preview.stop_conditions)
+          : [
+              "codex:read-brief fails.",
+              "Work ID is missing or unknown.",
+              "Scope is missing or ambiguous.",
+              "Expected scope or forbidden surfaces are ambiguous.",
+              "Forbidden surfaces are required to complete the task.",
+              "Evidence or proof recording is requested without explicit user/Core authorization.",
+            ];
+        const readinessReasons = safeArray(preview.readiness_reasons).length
+          ? safeArray(preview.readiness_reasons)
+          : ["Evidence/proof/browser choices need user/Core confirmation."];
+        const packetText = nonEmptyText(
+          preview.copyable_handoff_text,
+          [
+            "Codex Handoff Preview",
+            "This is a preview/copy packet, not an execution action.",
+            "",
+            `AUGNES_API_BASE_URL=<provided-current-runtime> CODEX_SCOPE=${card.scope} CODEX_WORK_ID=${card.work_id} npm run codex:read-brief`,
+            "",
+            "Authority boundaries",
+            ...boundaryText.map((item) => `- ${item}`),
+          ].join("\n")
+        );
+
+        return {
+          readiness_status: nonEmptyText(preview.readiness_status, "needs_user_core_input"),
+          readiness_reasons: readinessReasons,
+          task_profile: nonEmptyText(preview.task_profile, "unknown"),
+          runtime_endpoint_label: nonEmptyText(preview.runtime_endpoint_label, "provided by current Augnes runtime"),
+          scope: nonEmptyText(preview.scope || card.scope, "No scope listed."),
+          work_id: nonEmptyText(preview.work_id || card.work_id, "No work ID listed."),
+          work_title: nonEmptyText(preview.work_title || card.work_title, "No work title listed."),
+          work_status: nonEmptyText(preview.work_status || card.work_status, "No status listed."),
+          work_next_action: nonEmptyText(preview.work_next_action || card.current_or_next_step, "No current or next step is listed in the work brief."),
+          expected_files: safeArray(preview.expected_files).length ? safeArray(preview.expected_files) : card.expected_files,
+          expected_checks: safeArray(preview.expected_checks).length ? safeArray(preview.expected_checks) : card.expected_checks,
+          related_state_keys: safeArray(preview.related_state_keys).length ? safeArray(preview.related_state_keys) : card.related_state_keys,
+          evidence_recording: nonEmptyText(preview.evidence_recording, "needs_user_core_confirmation"),
+          proof_only_closeout: nonEmptyText(preview.proof_only_closeout, "needs_user_core_confirmation"),
+          browser_verification: nonEmptyText(preview.browser_verification, "needs_user_core_confirmation"),
+          forbidden_actions: forbiddenActions,
+          stop_conditions: stopConditions,
+          copyable_handoff_text: packetText,
+          boundary_text: boundaryText,
         };
       }
 
@@ -791,6 +873,44 @@
         return root;
       }
 
+      function renderCodexHandoffPreview(data, card) {
+        const preview = normalizeCodexHandoffPreview(data, card);
+        const root = el("div", { className: "stack" });
+
+        root.appendChild(createMetricGrid([
+          ["Readiness", preview.readiness_status],
+          ["Task profile", preview.task_profile],
+          ["Current runtime", preview.runtime_endpoint_label],
+          ["Evidence recording", preview.evidence_recording],
+          ["Proof-only closeout", preview.proof_only_closeout],
+          ["Browser verification", preview.browser_verification],
+        ]));
+        root.appendChild(createSection("Readiness reasons", createTextList(preview.readiness_reasons), { badge: preview.readiness_status }));
+        root.appendChild(createSection("Work item", createMetricGrid([
+          ["Scope", preview.scope],
+          ["Work ID", preview.work_id],
+          ["Title", preview.work_title],
+          ["Status", preview.work_status],
+          ["Next action", preview.work_next_action],
+        ]), { badge: "work-centered" }));
+        root.appendChild(createSection("Expected scope", createTextList([
+          "Expected files:",
+          ...safeArray(preview.expected_files).map((item) => `- ${item}`),
+          safeArray(preview.expected_files).length ? "" : "No expected files are listed in the work brief.",
+          "Expected checks:",
+          ...safeArray(preview.expected_checks).map((item) => `- ${item}`),
+          safeArray(preview.expected_checks).length ? "" : "No expected checks are listed in the work brief.",
+          "Related state keys:",
+          ...safeArray(preview.related_state_keys).map((item) => `- ${item}`),
+          safeArray(preview.related_state_keys).length ? "" : "No related state keys are listed in the work brief.",
+        ].filter(Boolean)), { badge: "scope" }));
+        root.appendChild(createSection("Forbidden actions", createTextList(preview.forbidden_actions), { badge: "no writes" }));
+        root.appendChild(createSection("Stop conditions", createTextList(preview.stop_conditions), { badge: "stop" }));
+        root.appendChild(createSection("Copyable handoff packet", createPreBlock(preview.copyable_handoff_text), { badge: "preview only" }));
+        root.appendChild(createSection("Preview boundary", createTextList(preview.boundary_text), { badge: "read-only" }));
+        return root;
+      }
+
       function renderWorkContractCard(data) {
         const card = normalizeWorkContractCard(data);
         const root = el("div", { className: "stack" });
@@ -816,6 +936,7 @@
           card.skipped_check_expectation_summary,
         ]), { badge: "read-only" }));
         root.appendChild(createSection("Authority boundary", createTextList(card.authority_boundary_text), { badge: "no writes" }));
+        root.appendChild(createSection("Codex Handoff Preview", renderCodexHandoffPreview(data, card), { badge: "copy packet" }));
         return root;
       }
 

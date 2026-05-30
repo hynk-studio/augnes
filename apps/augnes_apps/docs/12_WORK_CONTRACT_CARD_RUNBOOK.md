@@ -9,12 +9,52 @@ Codex worker is expected to honor before implementation and closeout.
 The card is decision support only. It does not create authority, record proof,
 record evidence, mutate runtime state, or dispatch execution.
 
+## Codex Handoff Preview
+
+The Codex Handoff Preview is a read-only section inside the Work Contract Card.
+It turns the current Augnes work item into a copy-friendly handoff packet so a
+normal user can review the scope without filling raw templates or thinking in
+database paths.
+
+The preview relates to
+`docs/CURRENT_RUNTIME_CODEX_HANDOFF_CONTRACT_V0_1.md`: it shows the same
+current-runtime handoff fields, but it is generated from the existing work
+brief / card context. It can help a user/Core reviewer confirm what Codex
+would receive before a separate Codex session starts.
+
+The preview auto-fills, when available:
+
+- readiness status and reasons
+- work item scope, work ID, title, status, and next action
+- current runtime label as `provided by current Augnes runtime` unless an
+  endpoint label is already present
+- task profile
+- related state keys
+- expected files
+- expected checks
+- evidence, proof-only closeout, and browser verification recommendations
+- forbidden actions
+- stop conditions
+- a copyable handoff packet preview
+
+User/Core still confirms the current runtime endpoint, the work item, whether
+the work is safe for implementation, evidence recording authorization,
+proof-only closeout authorization, browser verification expectations, and any
+future publication/approval/retry/replay/external-posting decision. Raw DB
+paths are local-dev fallback only and should not be normal user-facing input.
+
+The preview is not a handoff execution surface. It cannot execute Codex, record
+evidence, record proof, commit or reject Augnes state, approve, publish, retry,
+replay, externally post, merge, or enable auto-merge. Evidence is not approval.
+Proof is not approval. A PR is not merge authority. Durable approval remains
+user/Core gated.
+
 ## Data Source
 
 The card is rendered from existing `augnes_get_work_brief` structured content.
 The tool still returns the original `structuredContent.brief` payload, and the
-server adds a derived `structuredContent.work_contract_card` object plus widget
-panel metadata.
+server adds a derived `structuredContent.work_contract_card` object, a derived
+`structuredContent.codex_handoff_preview` object, and widget panel metadata.
 
 No new bridge write tool is added. No new API route, database schema, MCP
 configuration, hook, plugin behavior, dependency, secret handling, or external
@@ -40,6 +80,19 @@ When available, the card displays:
 - skipped-check expectation summary
 - authority boundary text
 
+The Codex Handoff Preview displays:
+
+- readiness: ready, blocked, or needs user/Core input
+- work item: scope, work ID, title, status, and next action
+- current runtime label
+- authorization recommendations for evidence recording, proof-only closeout,
+  and browser verification
+- expected files, expected checks, and related state keys
+- forbidden actions
+- stop conditions
+- copyable handoff packet text
+- preview authority boundary text
+
 Expected checks are derived from work brief Codex handoff fields such as
 `suggested_verification` when present. Expected files are displayed only when
 the work brief or future compatible handoff shape includes them.
@@ -58,6 +111,8 @@ Fallback examples:
   remain separate from approval.
 - Skipped checks must be reported with concrete reasons; no per-check skipped
   expectation is listed in the work brief.
+- Evidence/proof/browser choices need user/Core confirmation.
+- The current runtime is shown as provided by current Augnes runtime.
 
 The card does not reconstruct missing Augnes runtime output, fabricate IDs, or
 turn absent handoff fields into implied project facts.
@@ -74,6 +129,21 @@ The visible card boundary text includes:
 - Proof is not approval.
 - A PR is not merge authority.
 - Durable approval remains user/Core gated.
+
+The visible Codex Handoff Preview boundary text includes:
+
+- This preview is read-only.
+- This preview cannot execute Codex.
+- This preview cannot record evidence.
+- This preview cannot record proof.
+- This preview cannot commit or reject Augnes state.
+- This preview cannot approve, publish, retry, replay, or externally post.
+- This preview cannot merge or enable auto-merge.
+- Evidence is not approval.
+- Proof is not approval.
+- A PR is not merge authority.
+- Durable approval remains user/Core gated.
+- Raw DB paths are local-dev fallback only and should not be normal user-facing input.
 
 The widget renderer adds no form, button, or action affordance for execution,
 approval, publication, retry, replay, external posting, state commit/reject,
@@ -102,9 +172,12 @@ The card is a human-facing summary of the work contract. It can help a user or
 reviewer see the work ID, expected checks, related state keys, proof links, and
 authority limits before handing work to Codex or reviewing a Codex result.
 
-It is not a handoff delivery mechanism and is not a result-review record. Codex
-still performs repo work in its own session, reports changed files and checks,
-and opens PRs through normal GitHub workflow without gaining merge authority.
+The preview adds the next UX layer: current Augnes work item to Codex handoff
+preview to user/Core scope and authority confirmation to a separate structured
+Codex packet. It is not a handoff delivery mechanism and is not a result-review
+record. Codex still performs repo work in its own session, reports changed
+files and checks, and opens PRs through normal GitHub workflow without gaining
+merge authority.
 
 ## Closeout Preflight And Plugin Hooks
 
@@ -123,10 +196,14 @@ Run:
 
 ```bash
 npm run typecheck
+npm --prefix apps/augnes_apps run typecheck
 npm run smoke:chatgpt-work-contract-card
-npm run smoke:augnes-operator-plugin-scaffold
-npm run smoke:augnes-operator-plugin-hooks
-npm run smoke:codex-mcp-augnes-bridge-docs
+npm run smoke:current-runtime-codex-handoff-contract
+npm run smoke:current-runtime-dogfood-readiness
+npm run smoke:codex-closeout-preflight
+npm run smoke:codex-record-completion-proof-helper
+npm run smoke:dogfood-episode-template
+git diff --check
 ```
 
 When a cheap app-level regression is appropriate, also run:
@@ -141,11 +218,20 @@ Run closeout preflight in advisory mode with PR-specific `CODEX_*` fields:
 npm run codex:closeout-preflight
 ```
 
-## PR 8 Boundary
+## Browser Verification
 
-Browser and computer-use verification remains PR 8. This runbook does not add a
-browser/computer-use validation implementation, screenshot capture flow, report
-template, or UI automation helper.
+Rendered widget behavior changed, so browser/computer-use verification should
+be performed when a browser or ChatGPT Developer Mode surface is available. Use
+`docs/templates/codex-browser-verification-report.md` and confirm that the Work
+Contract Card and Codex Handoff Preview render, missing-data fallback text is
+visible, boundary text is visible, the copyable handoff packet is inspectable,
+and no unauthorized controls are visible.
+
+If no browser/computer-use surface is available, report a concrete skipped
+reason such as `browser verification skipped: no browser runtime available` or
+`browser verification skipped: no ChatGPT Developer Mode tunnel/session
+available`. Do not fabricate screenshots, browser observations, evidence IDs,
+or proof IDs.
 
 ## Non-Goals And Forbidden Changes
 
