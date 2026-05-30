@@ -35,6 +35,10 @@ Before a future Codex run starts, the user/Core must provide:
 - Whether the work item requires user/Core approval before any publication,
   approval, retry, replay, or external posting.
 
+Prefer `docs/templates/current-runtime-codex-handoff-contract.md` for the
+user-facing handoff packet. It keeps the handoff centered on a current runtime
+endpoint and current work item; raw DB path is local-dev fallback only.
+
 Use `docs/templates/current-runtime-work-item-intake.md` to collect these
 inputs before starting implementation.
 
