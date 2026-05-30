@@ -382,7 +382,7 @@ function addExpiresAtCheck(checks, value) {
     return;
   }
   if (value === undefined) {
-    checks.push({ id: "expires_at", status: "warn", message: "Packet expiration is missing." });
+    checks.push({ id: "expires_at", status: strict ? "fail" : "warn", message: "Packet expiration is missing." });
     return;
   }
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) {

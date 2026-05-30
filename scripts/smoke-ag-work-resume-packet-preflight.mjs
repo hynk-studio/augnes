@@ -198,6 +198,15 @@ const futureExpiresAtStrict = runHelper({ packet: futureExpiresAt, args: ["--str
 assert.equal(futureExpiresAtStrict.status, 0, futureExpiresAtStrict.stderr);
 assertCheck(futureExpiresAtStrict.json, "expires_at", "pass");
 
+const missingExpiresAt = clonePacket(completePacket);
+delete missingExpiresAt.expires_at;
+const missingExpiresAtDefault = runHelper({ packet: missingExpiresAt });
+assert.equal(missingExpiresAtDefault.status, 0, missingExpiresAtDefault.stderr);
+assertCheck(missingExpiresAtDefault.json, "expires_at", "warn");
+const missingExpiresAtStrict = runHelper({ packet: missingExpiresAt, args: ["--strict"] });
+assert.notEqual(missingExpiresAtStrict.status, 0);
+assertCheck(missingExpiresAtStrict.json, "expires_at", "fail");
+
 const expiredPacket = clonePacket(completePacket);
 expiredPacket.expires_at = "2000-01-01T00:00:00.000Z";
 const expiredDefault = runHelper({ packet: expiredPacket });
@@ -310,6 +319,7 @@ console.log(
         "missing optional integrity hashes warn even in strict mode",
         "expires_at null passes",
         "future expires_at passes strict mode",
+        "missing expires_at warns default and fails strict",
         "expired expires_at fails both modes",
         "malformed expires_at fails",
         "redaction secrets_included true fails both modes",
