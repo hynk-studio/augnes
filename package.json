@@ -60,6 +60,7 @@
     "smoke:codex-closeout-preflight": "node scripts/smoke-codex-closeout-preflight.mjs",
     "smoke:codex-handoff-preflight": "node scripts/smoke-codex-handoff-preflight.mjs",
     "smoke:ag-work-resume-packet-preflight": "node scripts/smoke-ag-work-resume-packet-preflight.mjs",
+    "smoke:ag-work-resume-packet-builder-preview": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-packet-builder-preview.mjs",
     "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",

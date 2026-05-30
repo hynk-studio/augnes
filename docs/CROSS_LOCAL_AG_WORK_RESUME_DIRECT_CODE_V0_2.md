@@ -301,6 +301,12 @@ Future:
 - Target Local B preview for gaps and conflicts.
 - Dogfood with real current-runtime work mapping.
 
+The pure packet builder preview slice is tracked separately in
+`docs/AG_WORK_RESUME_PACKET_BUILDER_PREVIEW_V0_1.md`. It builds sanitized
+read-only packet previews over provided objects only; it adds no route,
+runtime call, import, Direct Resume Code route, relay, proof/evidence write,
+session binding, or authority expansion.
+
 Future only:
 
 - Persistent import.
