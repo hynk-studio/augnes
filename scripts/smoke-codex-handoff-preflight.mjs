@@ -101,6 +101,9 @@ const completeDefault = runHelper({ packet: completePacket });
 assert.equal(completeDefault.status, 0, completeDefault.stderr);
 assert.equal(completeDefault.json.ok, true);
 assertCheck(completeDefault.json, "work_id", "pass");
+assertCheck(completeDefault.json, "work_title", "pass");
+assertCheck(completeDefault.json, "work_status", "pass");
+assertCheck(completeDefault.json, "work_next_action", "pass");
 assertCheck(completeDefault.json, "evidence_authorization", "pass");
 assertCheck(completeDefault.json, "proof_authorization", "pass");
 assertCheck(completeDefault.json, "browser_verification", "pass");
@@ -110,6 +113,54 @@ const completeStrict = runHelper({ packet: completePacket, args: ["--strict"] })
 assert.equal(completeStrict.status, 0, completeStrict.stderr);
 assert.equal(completeStrict.json.ok, true);
 assert.ok(completeStrict.json.checks.every((check) => check.status === "pass"), "complete strict packet must be all pass");
+
+const readinessOnlyWorkContextPacket = completePacket
+  .replace(
+    "Readiness\n- Status: ready\n",
+    "Readiness\n- Title: Readiness title only\n- Status: ready\n- Next action: Readiness next action only.\n",
+  )
+  .replace(
+    `Work item
+- Title: Safe Codex handoff packet preflight
+- Status: ready
+- Next action: Validate the copied handoff packet locally before Codex starts.
+`,
+    "Work item\n",
+  );
+const readinessOnlyWorkContextDefault = runHelper({ packet: readinessOnlyWorkContextPacket });
+assert.equal(readinessOnlyWorkContextDefault.status, 0, readinessOnlyWorkContextDefault.stderr);
+assertCheck(readinessOnlyWorkContextDefault.json, "work_title", "warn");
+assertCheck(readinessOnlyWorkContextDefault.json, "work_status", "warn");
+assertCheck(readinessOnlyWorkContextDefault.json, "work_next_action", "warn");
+const readinessOnlyWorkContextStrict = runHelper({ packet: readinessOnlyWorkContextPacket, args: ["--strict"] });
+assert.notEqual(readinessOnlyWorkContextStrict.status, 0);
+assertCheck(readinessOnlyWorkContextStrict.json, "work_title", "fail");
+assertCheck(readinessOnlyWorkContextStrict.json, "work_status", "fail");
+assertCheck(readinessOnlyWorkContextStrict.json, "work_next_action", "fail");
+
+const explicitWorkFieldsPacket = completePacket
+  .replace(
+    "\n\nReadiness\n",
+    "\n\nWork title: Explicit safe Codex handoff packet preflight\nWork status: ready\nWork next action: Validate explicit work-prefixed fields before Codex starts.\n\nReadiness\n",
+  )
+  .replace(
+    `Work item
+- Title: Safe Codex handoff packet preflight
+- Status: ready
+- Next action: Validate the copied handoff packet locally before Codex starts.
+`,
+    "Work item\n",
+  );
+const explicitWorkFieldsDefault = runHelper({ packet: explicitWorkFieldsPacket });
+assert.equal(explicitWorkFieldsDefault.status, 0, explicitWorkFieldsDefault.stderr);
+assertCheck(explicitWorkFieldsDefault.json, "work_title", "pass");
+assertCheck(explicitWorkFieldsDefault.json, "work_status", "pass");
+assertCheck(explicitWorkFieldsDefault.json, "work_next_action", "pass");
+const explicitWorkFieldsStrict = runHelper({ packet: explicitWorkFieldsPacket, args: ["--strict"] });
+assert.equal(explicitWorkFieldsStrict.status, 0, explicitWorkFieldsStrict.stderr);
+assertCheck(explicitWorkFieldsStrict.json, "work_title", "pass");
+assertCheck(explicitWorkFieldsStrict.json, "work_status", "pass");
+assertCheck(explicitWorkFieldsStrict.json, "work_next_action", "pass");
 
 const missingWorkIdPacket = completePacket
   .replace(/- CODEX_WORK_ID: AG-276\n/g, "")
@@ -207,6 +258,8 @@ console.log(
       cases: [
         "complete copied handoff packet passes default mode",
         "complete copied handoff packet passes strict mode",
+        "readiness title/status/next action do not satisfy work item context",
+        "explicit top-level Work title/status/next action fields pass",
         "missing CODEX_WORK_ID warns by default and fails strict",
         "placeholder CODEX_WORK_ID warns by default and fails strict",
         "missing evidence/proof/browser authorization warns by default and fails strict",

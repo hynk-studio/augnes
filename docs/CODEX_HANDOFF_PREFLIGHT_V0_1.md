@@ -39,6 +39,11 @@ fields:
 - stop conditions
 - authority boundaries
 
+Work title, status, and next action are validated from the `Work item` section
+or from explicit top-level `Work title`, `Work status`, and `Work next action`
+fields. Readiness-section fields such as `Status: ready` do not satisfy work
+item context.
+
 Raw DB paths remain local-dev fallback only and should not become normal
 user-facing input. Demo DB refs must not be used as current-runtime refs.
 

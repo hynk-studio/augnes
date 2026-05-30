@@ -170,21 +170,21 @@ function addCoreChecks(text, checks) {
   addPresenceCheck({
     checks,
     id: "work_title",
-    present: hasLineField(text, ["Title", "Work title"]),
+    present: hasWorkItemField(text, ["Title", "Work title"], ["Work title"]),
     pass: "Work title is present.",
     warn: "Work title is missing.",
   });
   addPresenceCheck({
     checks,
     id: "work_status",
-    present: hasLineField(text, ["Status", "Work status"]),
+    present: hasWorkItemField(text, ["Status", "Work status"], ["Work status"]),
     pass: "Work status is present.",
     warn: "Work status is missing.",
   });
   addPresenceCheck({
     checks,
     id: "work_next_action",
-    present: hasLineField(text, ["Next action", "Work next action"]),
+    present: hasWorkItemField(text, ["Next action", "Work next action"], ["Work next action"]),
     pass: "Work next action is present.",
     warn: "Work next action is missing.",
   });
@@ -369,13 +369,39 @@ function extractLineFieldValue(text, label) {
   return match ? clean(stripBullet(match[1])) : null;
 }
 
+function extractSectionLineFieldValue(text, sectionName, label) {
+  const section = sectionText(text, sectionName);
+  return section ? extractLineFieldValue(section, label) : null;
+}
+
+function extractTopLevelLineFieldValue(text, label) {
+  let currentSection = null;
+
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (isKnownPacketSectionHeading(trimmed)) {
+      currentSection = trimmed;
+      continue;
+    }
+    if (currentSection) continue;
+
+    const value = extractLineFieldValue(line, label);
+    if (value) return value;
+  }
+
+  return null;
+}
+
 function extractReadinessStatus(text) {
   const readinessSection = sectionText(text, "Readiness");
   return extractLineFieldValue(readinessSection || text, "Status");
 }
 
-function hasLineField(text, labels) {
-  return labels.some((label) => Boolean(extractLineFieldValue(text, label)));
+function hasWorkItemField(text, workItemLabels, explicitTopLevelLabels) {
+  return (
+    workItemLabels.some((label) => Boolean(extractSectionLineFieldValue(text, "Work item", label))) ||
+    explicitTopLevelLabels.some((label) => Boolean(extractTopLevelLineFieldValue(text, label)))
+  );
 }
 
 function sectionText(text, heading) {
@@ -385,7 +411,7 @@ function sectionText(text, heading) {
   const sectionLines = [];
   for (let index = start + 1; index < lines.length; index += 1) {
     const line = lines[index];
-    if (/^[A-Z][A-Za-z0-9 /-]+$/.test(line.trim()) && line.trim() !== heading) break;
+    if (isSectionHeading(line.trim()) && line.trim() !== heading) break;
     sectionLines.push(line);
   }
   return sectionLines.join("\n");
@@ -413,10 +439,28 @@ function itemsAfterListLabel(text, label) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     if (/^[-*]\s+[A-Z][A-Za-z0-9 /-]+\s*:\s*$/.test(trimmed)) break;
-    if (/^[A-Z][A-Za-z0-9 /-]+$/.test(trimmed)) break;
+    if (isSectionHeading(trimmed)) break;
     if (/^[-*]\s+/.test(trimmed)) items.push(stripBullet(trimmed));
   }
   return items.filter(Boolean);
+}
+
+function isSectionHeading(line) {
+  return /^[A-Z][A-Za-z0-9 /-]+$/.test(line);
+}
+
+function isKnownPacketSectionHeading(line) {
+  return [
+    "readiness",
+    "current runtime",
+    "copyable start command preview",
+    "work item",
+    "authorization",
+    "expected scope",
+    "forbidden actions",
+    "stop conditions",
+    "authority boundaries",
+  ].includes(line.toLowerCase());
 }
 
 function placeholderStatus(value) {
