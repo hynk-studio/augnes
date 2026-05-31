@@ -506,7 +506,7 @@ function selectProposalRecordRow(db: Database.Database, proposalId: string) {
   return row as Record<string, unknown>;
 }
 
-function parseProposalRecordRow(
+export function parseProposalRecordRow(
   row: Record<string, unknown>,
 ): AgWorkResumeMappingProposalRecord {
   return {

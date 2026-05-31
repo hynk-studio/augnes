@@ -222,11 +222,18 @@ Durable approval remains user/Core gated.
 - No bridge tool.
 - No localStorage, sessionStorage, indexedDB, telemetry, or analytics.
 
+## Read Surface
+
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_V0_1.md` documents the first
+read-only helper and route for listing/fetching proposal records. It performs
+no writes and still grants no confirmed mapping, import, proof/evidence,
+session, Codex, approval, publish, retry, replay, or merge authority.
+
 ## Future Note
 
-A read route or Cockpit UI for reviewing proposal records can be separately
-scoped later. Confirmed mapping remains Stage C and must use a separate
-user/Core-gated design and implementation.
+Cockpit UI for reviewing proposal records can be separately scoped later.
+Confirmed mapping remains Stage C and must use a separate user/Core-gated
+design and implementation.
 
 ## Verification
 

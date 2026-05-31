@@ -2,12 +2,26 @@ import {
   createAgWorkResumeMappingProposalRecord,
   type AgWorkResumeMappingProposalRecordCreateResult,
 } from "@/lib/ag-work-resume-mapping-proposal-record";
+import {
+  readAgWorkResumeMappingProposalRecords,
+  type AgWorkResumeMappingProposalRecordReadInput,
+} from "@/lib/ag-work-resume-mapping-proposal-record-read";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROUTE_ID = "ag_work_resume_mapping_proposal_records.v0_1";
+const READ_ROUTE_ID = "ag_work_resume_mapping_proposal_record_read.v0_1";
+const READ_QUERY_PARAMS = new Set([
+  "proposal_id",
+  "foreign_scope",
+  "foreign_work_id",
+  "candidate_local_scope",
+  "candidate_local_work_id",
+  "status",
+  "limit",
+]);
 
 type RouteBody = {
   packet: Record<string, unknown>;
@@ -58,6 +72,48 @@ export async function POST(request: Request) {
     },
     { status: statusForResult(result) },
   );
+}
+
+export function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const input = parseReadQuery(searchParams);
+  if ("error" in input) return badReadRequest(input.error);
+
+  const result = readAgWorkResumeMappingProposalRecords(input);
+
+  return NextResponse.json(
+    {
+      ok: result.ok,
+      route: READ_ROUTE_ID,
+      result,
+      recommended_next_step:
+        "User/Core may review proposal records. This read route is not mapping confirmation, import authorization, proof/evidence authorization, session binding, Codex execution authority, or merge/publish authority.",
+    },
+    { status: statusForReadResult(result.status) },
+  );
+}
+
+function parseReadQuery(
+  searchParams: URLSearchParams,
+): AgWorkResumeMappingProposalRecordReadInput | { error: string } {
+  for (const key of searchParams.keys()) {
+    if (!READ_QUERY_PARAMS.has(key)) {
+      return { error: `Unsupported read query parameter: ${key}.` };
+    }
+    if (searchParams.getAll(key).length > 1) {
+      return { error: `Read query parameter must not be repeated: ${key}.` };
+    }
+  }
+
+  return {
+    proposal_id: searchParams.get("proposal_id"),
+    foreign_scope: searchParams.get("foreign_scope"),
+    foreign_work_id: searchParams.get("foreign_work_id"),
+    candidate_local_scope: searchParams.get("candidate_local_scope"),
+    candidate_local_work_id: searchParams.get("candidate_local_work_id"),
+    status: searchParams.get("status"),
+    limit: searchParams.get("limit"),
+  };
 }
 
 function acceptsJson(request: Request) {
@@ -201,6 +257,26 @@ function badRequest(error: string) {
     },
     { status: 400 },
   );
+}
+
+function badReadRequest(error: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      route: READ_ROUTE_ID,
+      error,
+      recommended_next_step:
+        "Stop. Provide supported AG Resume mapping proposal record read query parameters only.",
+    },
+    { status: 400 },
+  );
+}
+
+function statusForReadResult(status: string) {
+  if (status === "fetched" || status === "listed") return 200;
+  if (status === "not_found") return 404;
+  if (status === "invalid_input") return 400;
+  return 500;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
