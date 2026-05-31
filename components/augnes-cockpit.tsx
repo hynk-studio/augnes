@@ -710,6 +710,120 @@ type AgResumeTargetRecommendation = {
   text?: string;
 };
 
+type AgResumeMappingProposalPanelResult = {
+  httpStatus: number;
+  body: AgResumeMappingProposalRouteResponse;
+};
+
+type AgResumeMappingProposalRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  strict?: boolean;
+  preview?: AgResumeMappingProposalPreview | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeMappingProposalPreview = {
+  status?: string;
+  ok_for_user_core_review?: boolean;
+  packet_summary?: {
+    packet_id?: string;
+    packet_foreign_work?: AgResumeMappingProposalWorkSummary | null;
+    git?: {
+      remote?: string;
+      base_branch?: string;
+      base_commit?: string;
+      working_branch?: string;
+      head_commit?: string;
+      related_pr?: string | null;
+    } | null;
+    expected_files?: string[];
+    expected_checks?: string[];
+    preflight_assumption?: string;
+  } | null;
+  candidate_summaries?: AgResumeMappingProposalCandidateSummary[];
+  selected_candidate_summary?: AgResumeMappingProposalCandidateSummary | null;
+  comparison?: {
+    match_confidence_label?: string;
+    advisory_only?: boolean;
+    fields?: AgResumeMappingProposalDifference[];
+    related_state_keys_overlap?: string[];
+    repo?: {
+      remote_matches?: string;
+      base_commit_reachable?: string;
+      dirty_worktree?: string;
+      expected_files?: string;
+    } | null;
+  } | null;
+  gaps?: AgResumeMappingProposalFinding[];
+  conflicts?: AgResumeMappingProposalFinding[];
+  questions?: AgResumeMappingProposalQuestion[];
+  recommendations?: AgResumeTargetRecommendation[];
+  foreign_refs_summary?: AgResumeTargetForeignRefs | null;
+  authority_boundary?: {
+    read_only?: boolean;
+    proposal_only?: boolean;
+    creates_mapping_record?: boolean;
+    creates_import_record?: boolean;
+    creates_work_item?: boolean;
+    records_proof?: boolean;
+    records_evidence?: boolean;
+    binds_session?: boolean;
+    executes_codex?: boolean;
+    approval_authority?: boolean;
+    publish_retry_replay_authority?: boolean;
+    merge_authority?: boolean;
+    state_mutation?: boolean;
+    durable_approval?: string;
+    statement?: string;
+  } | null;
+  next_step?: string;
+};
+
+type AgResumeMappingProposalWorkSummary = {
+  scope?: string;
+  work_id?: string;
+  title?: string;
+  status?: string;
+  priority?: string | null;
+  summary?: string | null;
+  next_action?: string;
+  related_state_keys?: string[];
+};
+
+type AgResumeMappingProposalCandidateSummary = AgResumeMappingProposalWorkSummary & {
+  candidate_id?: string;
+  local_scope?: string;
+  local_work_id?: string;
+  source?: string;
+  work_brief_available?: boolean;
+  codex_read_brief_available?: boolean;
+  repo_match?: {
+    remote_matches?: boolean | null;
+    base_commit_reachable?: boolean | null;
+    expected_files_present?: string[];
+    expected_files_missing?: string[];
+    dirty_worktree?: boolean | null;
+  };
+};
+
+type AgResumeMappingProposalDifference = {
+  field?: string;
+  packet_value?: string | string[] | boolean | null;
+  candidate_value?: string | string[] | boolean | null;
+  label?: string;
+};
+
+type AgResumeMappingProposalFinding = AgResumeTargetFinding & {
+  differences?: AgResumeMappingProposalDifference[];
+};
+
+type AgResumeMappingProposalQuestion = {
+  id?: string;
+  text?: string;
+};
+
 const SAFE_AG_RESUME_EXAMPLE_PACKET = {
   schema: "augnes.ag_work_resume_packet.v0_2",
   packet_kind: "ag_work_resume_packet",
@@ -890,6 +1004,189 @@ const SAFE_AG_RESUME_EXAMPLE_LOCAL_CONTEXT = {
       confirmed_by: "user/Core safe fixture",
     },
   ],
+} as const;
+
+const SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET = {
+  schema: "augnes.ag_work_resume_packet.v0_2",
+  packet_kind: "ag_work_resume_packet",
+  packet_id: "ag-resume-packet:fixture-mapping-proposal-001",
+  created_at: "2026-05-31T00:00:00.000Z",
+  expires_at: null,
+  issuer: {
+    runtime: "augnes",
+    runtime_instance_id: "runtime:fixture-mapping-proposal",
+    source_local_label: "Local A mapping proposal fixture",
+    created_by_surface: "cockpit-panel-fixture",
+    export_event_id: null,
+  },
+  integrity: {
+    canonicalization: "augnes-json-c14n-v0_1",
+    payload_hash: "sha256:fixture-mapping-proposal-payload",
+    redaction_report_hash: "sha256:fixture-mapping-proposal-redaction",
+    signature: null,
+  },
+  source_work: {
+    scope: "project:augnes",
+    work_id: "AG-FIXTURE-MAPPING-PROPOSAL-001",
+    title: "Safe mapping proposal fixture",
+    status: "in_progress",
+    priority: "now",
+    summary:
+      "Synthetic public-safe packet for read-only mapping proposal review.",
+    next_action: "Review the read-only mapping proposal preview result.",
+    related_state_keys: ["coordination.ag_resume_mapping"],
+  },
+  git: {
+    remote: "https://github.com/hynk-studio/augnes.git",
+    base_branch: "main",
+    base_commit: "ad55e01234567890ad55e01234567890ad55e012",
+    working_branch: "codex/ag-resume-mapping-proposal-cockpit-panel",
+    head_commit: "ad55e01234567890ad55e01234567890ad55e012",
+    related_pr: null,
+    dirty_worktree: false,
+  },
+  handoff: {
+    handoff_id: "handoff:fixture-mapping-proposal",
+    status: "ready_for_review",
+    expected_files: [
+      "components/augnes-cockpit.tsx",
+      "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_COCKPIT_PANEL_V0_1.md",
+      "scripts/smoke-ag-work-resume-mapping-proposal-preview-cockpit-panel.mjs",
+    ],
+    expected_checks: [
+      "npm run smoke:ag-work-resume-mapping-proposal-preview-cockpit-panel",
+    ],
+    expected_execution_surfaces: ["Codex CLI after user/Core review"],
+    forbidden_surfaces: [
+      "ChatGPT execution",
+      "MCP write bridge",
+      "external posting",
+    ],
+    stop_conditions: [
+      "Mapping confirmation is requested",
+      "Mapping proposal preview reports conflict or blocked",
+    ],
+    safety_boundaries: [
+      "Read-only mapping proposal preview",
+      "Proposal-only review metadata",
+      "Foreign refs remain foreign",
+    ],
+  },
+  continuity: {
+    recent_work_events: [
+      {
+        id: "work-event:fixture-mapping-proposal-1",
+        actor: "codex",
+        event_type: "verification",
+        summary: "Synthetic public-safe mapping proposal fixture.",
+        result_status: "completed",
+        result_kind: "browser_verification",
+        related_pr: null,
+        related_state_keys: ["coordination.ag_resume_mapping"],
+        created_at: "2026-05-31T00:01:00.000Z",
+      },
+    ],
+    foreign_action_refs: [
+      {
+        id: "action:foreign-fixture-mapping-proposal-1",
+        title: "Foreign proof-only mapping fixture reference",
+        status: "completed",
+        proof_marker_type: "proof_only",
+        created_at: "2026-05-31T00:01:00.000Z",
+        ref_kind: "foreign_action_ref",
+      },
+    ],
+    foreign_evidence_refs: ["evidence:foreign-fixture-mapping-proposal-1"],
+    foreign_session_refs: ["session:foreign-fixture-mapping-proposal-1"],
+    foreign_evidence_pack_ref: "evidence-pack:foreign-fixture-mapping-proposal-1",
+    proof_marker_note: "state_key:null action records are proof-only",
+  },
+  target_runtime_policy: {
+    preview_only_by_default: true,
+    may_map_to_existing_local_work_item:
+      "requires explicit user/Core approval",
+    may_create_local_work_item: false,
+    may_record_evidence:
+      "requires explicit user/Core approval and known local work_id",
+    may_record_proof:
+      "requires explicit user/Core approval and known local work_id",
+    may_bind_session: false,
+    may_commit_or_reject_state: false,
+    may_execute_codex: false,
+    may_merge: false,
+    may_publish_or_replay: false,
+  },
+  redaction: {
+    raw_db_paths_included: false,
+    secrets_included: false,
+    tunnel_urls_included: false,
+    local_absolute_paths_included: false,
+    screenshots_or_media_included: false,
+    raw_openai_responses_included: false,
+    notes: [],
+  },
+  bounds: {
+    max_recent_work_events: 10,
+    max_foreign_evidence_refs: 20,
+    summaries_only: true,
+    raw_logs_included: false,
+  },
+} as const;
+
+const SAFE_AG_RESUME_MAPPING_EXAMPLE_CANDIDATES = [
+  {
+    candidate_id: "local-candidate-mapping-safe-1",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-MAPPING-PROPOSAL-001",
+    title: "Safe mapping proposal fixture",
+    status: "in_progress",
+    next_action: "Review the read-only mapping proposal preview result.",
+    related_state_keys: ["coordination.ag_resume_mapping"],
+    summary: "Synthetic public-safe Local B candidate for read-only review.",
+    priority: "now",
+    source: "fixture",
+    work_brief_available: true,
+    codex_read_brief_available: true,
+    repo_match: {
+      remote_matches: true,
+      base_commit_reachable: true,
+      expected_files_present:
+        SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET.handoff.expected_files,
+      expected_files_missing: [],
+      dirty_worktree: false,
+    },
+  },
+] as const;
+
+const SAFE_AG_RESUME_MAPPING_CONFLICTING_CANDIDATES = [
+  {
+    ...SAFE_AG_RESUME_MAPPING_EXAMPLE_CANDIDATES[0],
+    candidate_id: "local-candidate-mapping-conflict-1",
+    local_work_id: "AG-FIXTURE-MAPPING-CONFLICT-001",
+    title: "Conflicting local mapping fixture",
+    status: "blocked",
+    next_action: "Resolve a different local task before mapping review.",
+    repo_match: {
+      ...SAFE_AG_RESUME_MAPPING_EXAMPLE_CANDIDATES[0].repo_match,
+      remote_matches: false,
+    },
+  },
+] as const;
+
+const SAFE_AG_RESUME_MAPPING_PREFLIGHT_FAILING_PACKET = {
+  ...SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET,
+  packet_id: "ag-resume-packet:fixture-mapping-policy-blocked-001",
+  source_work: {
+    ...SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET.source_work,
+    work_id: "AG-FIXTURE-MAPPING-POLICY-BLOCKED-001",
+    title: "Safe mapping proposal blocked policy fixture",
+    summary:
+      "Synthetic public-safe packet that fails mapping preview through target policy.",
+  },
+  target_runtime_policy: {
+    ...SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET.target_runtime_policy,
+    may_execute_codex: true,
+  },
 } as const;
 
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
@@ -3058,6 +3355,7 @@ function OperatorTab({
         </aside>
         <section className="operator-main-stack">
           <AgResumeTargetPreviewPanel />
+          <AgResumeMappingProposalPreviewPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -3708,6 +4006,488 @@ function AgResumeTargetPreviewPanel() {
   );
 }
 
+function AgResumeMappingProposalPreviewPanel() {
+  const [
+    agResumeMappingPacketInput,
+    setAgResumeMappingPacketInput,
+  ] = useState("");
+  const [
+    agResumeMappingCandidatesInput,
+    setAgResumeMappingCandidatesInput,
+  ] = useState("");
+  const [
+    agResumeMappingSelectedCandidateId,
+    setAgResumeMappingSelectedCandidateId,
+  ] = useState("");
+  const [
+    agResumeMappingStrictPreview,
+    setAgResumeMappingStrictPreview,
+  ] = useState(false);
+  const [
+    agResumeMappingProposalResult,
+    setAgResumeMappingProposalResult,
+  ] = useState<AgResumeMappingProposalPanelResult | null>(null);
+  const [
+    agResumeMappingPacketError,
+    setAgResumeMappingPacketError,
+  ] = useState<string | null>(null);
+  const [
+    agResumeMappingCandidatesError,
+    setAgResumeMappingCandidatesError,
+  ] = useState<string | null>(null);
+  const [
+    agResumeMappingRouteError,
+    setAgResumeMappingRouteError,
+  ] = useState<string | null>(null);
+  const [
+    agResumeMappingProposalBusy,
+    setAgResumeMappingProposalBusy,
+  ] = useState(false);
+  const agResumeMappingRouteRequestIdRef = useRef(0);
+
+  function clearAgResumeMappingResultState() {
+    setAgResumeMappingPacketError(null);
+    setAgResumeMappingCandidatesError(null);
+    setAgResumeMappingRouteError(null);
+    setAgResumeMappingProposalResult(null);
+  }
+
+  function loadSafeAgResumeMappingExamplePacket() {
+    setAgResumeMappingPacketInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET),
+    );
+    clearAgResumeMappingResultState();
+  }
+
+  function loadSafeAgResumeMappingExampleCandidates() {
+    setAgResumeMappingCandidatesInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_MAPPING_EXAMPLE_CANDIDATES),
+    );
+    setAgResumeMappingSelectedCandidateId(
+      SAFE_AG_RESUME_MAPPING_EXAMPLE_CANDIDATES[0].candidate_id,
+    );
+    clearAgResumeMappingResultState();
+  }
+
+  function loadNoCandidateAgResumeMappingExample() {
+    setAgResumeMappingPacketInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET),
+    );
+    setAgResumeMappingCandidatesInput("");
+    setAgResumeMappingSelectedCandidateId("");
+    clearAgResumeMappingResultState();
+  }
+
+  function loadConflictingAgResumeMappingCandidateExample() {
+    setAgResumeMappingPacketInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET),
+    );
+    setAgResumeMappingCandidatesInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_MAPPING_CONFLICTING_CANDIDATES),
+    );
+    setAgResumeMappingSelectedCandidateId(
+      SAFE_AG_RESUME_MAPPING_CONFLICTING_CANDIDATES[0].candidate_id,
+    );
+    clearAgResumeMappingResultState();
+  }
+
+  function loadPreflightFailingAgResumeMappingPacket() {
+    setAgResumeMappingPacketInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_MAPPING_PREFLIGHT_FAILING_PACKET),
+    );
+    clearAgResumeMappingResultState();
+  }
+
+  function clearAgResumeMappingProposalInputs() {
+    agResumeMappingRouteRequestIdRef.current += 1;
+    setAgResumeMappingPacketInput("");
+    setAgResumeMappingCandidatesInput("");
+    setAgResumeMappingSelectedCandidateId("");
+    setAgResumeMappingStrictPreview(false);
+    setAgResumeMappingPacketError(null);
+    setAgResumeMappingCandidatesError(null);
+    setAgResumeMappingRouteError(null);
+    setAgResumeMappingProposalResult(null);
+    setAgResumeMappingProposalBusy(false);
+  }
+
+  async function handleAgResumeMappingProposalPreviewSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setAgResumeMappingPacketError(null);
+    setAgResumeMappingCandidatesError(null);
+    setAgResumeMappingRouteError(null);
+    setAgResumeMappingProposalResult(null);
+
+    let packet: Record<string, unknown>;
+    let candidates: unknown[];
+    try {
+      packet = parseAgResumeObjectInput(
+        "Mapping proposal packet JSON",
+        agResumeMappingPacketInput,
+      );
+    } catch (error) {
+      setAgResumeMappingPacketError(
+        `Mapping packet error: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return;
+    }
+
+    try {
+      candidates = parseAgResumeArrayInput(
+        "Local B candidate work items JSON",
+        agResumeMappingCandidatesInput,
+        { allowEmpty: true },
+      );
+    } catch (error) {
+      setAgResumeMappingCandidatesError(
+        `Mapping candidates error: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return;
+    }
+
+    const selectedCandidateId = agResumeMappingSelectedCandidateId.trim() || null;
+    const requestId = agResumeMappingRouteRequestIdRef.current + 1;
+    agResumeMappingRouteRequestIdRef.current = requestId;
+    setAgResumeMappingProposalBusy(true);
+
+    try {
+      const response = await fetch(
+        "/api/ag-work-resume/mapping-proposal-preview",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            packet,
+            candidates,
+            selected_candidate_id: selectedCandidateId,
+            strict: agResumeMappingStrictPreview,
+            source: {
+              reviewed_by_surface: "cockpit",
+              reviewed_at: new Date().toISOString(),
+            },
+          }),
+        },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (error) {
+        throw new Error(
+          `Mapping proposal route returned a non-JSON response: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error("Mapping proposal route returned a non-object JSON response.");
+      }
+
+      if (agResumeMappingRouteRequestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeMappingProposalRouteResponse;
+      setAgResumeMappingProposalResult({
+        httpStatus: response.status,
+        body,
+      });
+
+      if (!response.ok && body.error) {
+        setAgResumeMappingRouteError(
+          `Mapping proposal route error: ${body.error}`,
+        );
+      }
+    } catch (error) {
+      if (agResumeMappingRouteRequestIdRef.current === requestId) {
+        setAgResumeMappingRouteError(
+          `Mapping proposal route error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    } finally {
+      if (agResumeMappingRouteRequestIdRef.current === requestId) {
+        setAgResumeMappingProposalBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-mapping-proposal-preview-panel"
+      aria-label="AG Resume Mapping Proposal Preview"
+      aria-busy={agResumeMappingProposalBusy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Mapping Proposal Preview"
+        description="Read-only proposal review over an already built AG Resume Packet and explicit Local B candidate work items."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>Read-only and proposal-only mapping proposal preview.</li>
+          <li>Not mapping confirmation, not import authorization, and not persistence.</li>
+          <li>
+            Not proof/evidence authorization, not Codex execution authority,
+            and not merge/publish authority.
+          </li>
+          <li>Durable approval remains user/Core gated.</li>
+          <li>
+            This panel does not run packet preflight; packet preflight should
+            already have run.
+          </li>
+        </ul>
+      </BoundaryNote>
+      <form
+        className="observe-form"
+        onSubmit={handleAgResumeMappingProposalPreviewSubmit}
+      >
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-mapping-safe-fixtures-heading">
+            Mapping safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Mapping safe fixtures are synthetic, public-safe, local React state
+            only, and not persisted.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeAgResumeMappingExamplePacket}
+              disabled={agResumeMappingProposalBusy}
+            >
+              Load safe mapping example packet
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeAgResumeMappingExampleCandidates}
+              disabled={agResumeMappingProposalBusy}
+            >
+              Load safe mapping example candidates
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-edge-fixtures-heading"
+        >
+          <h3 id="ag-resume-mapping-edge-fixtures-heading">
+            Mapping error/edge fixture controls
+          </h3>
+          <BoundaryNote>
+            Edge fixtures are local-only and synthetic. They preview
+            needs_candidate, conflict, and blocked states without write
+            authority.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadNoCandidateAgResumeMappingExample}
+              disabled={agResumeMappingProposalBusy}
+            >
+              Load no-candidate example
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadConflictingAgResumeMappingCandidateExample}
+              disabled={agResumeMappingProposalBusy}
+            >
+              Load conflicting candidate example
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadPreflightFailingAgResumeMappingPacket}
+              disabled={agResumeMappingProposalBusy}
+            >
+              Load preflight-failing mapping packet
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-inputs-heading"
+        >
+          <h3 id="ag-resume-mapping-inputs-heading">
+            Mapping proposal input controls
+          </h3>
+          <label htmlFor="ag-resume-mapping-packet-json-input">
+            Mapping proposal packet JSON
+          </label>
+          <p id="ag-resume-mapping-packet-json-help" className="notice">
+            Paste an already built and preflighted AG Resume Packet. This panel does not run packet preflight.
+          </p>
+          <textarea
+            id="ag-resume-mapping-packet-json-input"
+            value={agResumeMappingPacketInput}
+            onChange={(event) => setAgResumeMappingPacketInput(event.target.value)}
+            rows={10}
+            spellCheck={false}
+            aria-describedby={
+              agResumeMappingPacketError
+                ? "ag-resume-mapping-packet-json-help ag-resume-mapping-packet-error"
+                : "ag-resume-mapping-packet-json-help"
+            }
+            aria-invalid={agResumeMappingPacketError ? true : undefined}
+            placeholder='{"schema":"augnes.ag_work_resume_packet.v0_2","packet_id":"..."}'
+          />
+          {agResumeMappingPacketError ? (
+            <span
+              id="ag-resume-mapping-packet-error"
+              className="notice error"
+              role="alert"
+            >
+              {agResumeMappingPacketError}
+            </span>
+          ) : null}
+          <label htmlFor="ag-resume-mapping-candidates-json-input">
+            Local B candidate work items JSON
+          </label>
+          <p id="ag-resume-mapping-candidates-json-help" className="notice">
+            Paste explicit Local B candidate work items. This panel does not discover local work items.
+          </p>
+          <textarea
+            id="ag-resume-mapping-candidates-json-input"
+            value={agResumeMappingCandidatesInput}
+            onChange={(event) =>
+              setAgResumeMappingCandidatesInput(event.target.value)
+            }
+            rows={8}
+            spellCheck={false}
+            aria-describedby={
+              agResumeMappingCandidatesError
+                ? "ag-resume-mapping-candidates-json-help ag-resume-mapping-candidates-error"
+                : "ag-resume-mapping-candidates-json-help"
+            }
+            aria-invalid={agResumeMappingCandidatesError ? true : undefined}
+            placeholder='Leave empty to send [], or paste [{"candidate_id":"..."}]'
+          />
+          {agResumeMappingCandidatesError ? (
+            <span
+              id="ag-resume-mapping-candidates-error"
+              className="notice error"
+              role="alert"
+            >
+              {agResumeMappingCandidatesError}
+            </span>
+          ) : null}
+          <label htmlFor="ag-resume-mapping-selected-candidate-id-input">
+            Selected candidate id
+          </label>
+          <p
+            id="ag-resume-mapping-selected-candidate-id-help"
+            className="notice"
+          >
+            Leave empty to let the preview report needs_candidate when multiple candidates exist.
+          </p>
+          <input
+            id="ag-resume-mapping-selected-candidate-id-input"
+            value={agResumeMappingSelectedCandidateId}
+            onChange={(event) =>
+              setAgResumeMappingSelectedCandidateId(event.target.value)
+            }
+            aria-describedby="ag-resume-mapping-selected-candidate-id-help"
+            placeholder="local-candidate-mapping-safe-1"
+          />
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-options-heading"
+        >
+          <h3 id="ag-resume-mapping-options-heading">
+            Mapping proposal options
+          </h3>
+          <div className="evidence-pack-grid">
+            <div className="evidence-pack-card">
+              <input
+                id="ag-resume-mapping-strict-preview-input"
+                type="checkbox"
+                checked={agResumeMappingStrictPreview}
+                onChange={(event) =>
+                  setAgResumeMappingStrictPreview(event.target.checked)
+                }
+              />{" "}
+              <label htmlFor="ag-resume-mapping-strict-preview-input">
+                Strict mapping proposal preview
+              </label>
+              <p>
+                request field: <code>strict</code>
+              </p>
+              <p>
+                Treat repo gaps such as dirty worktree or missing expected files more conservatively.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-action-controls-heading"
+        >
+          <h3 id="ag-resume-mapping-action-controls-heading">
+            Mapping proposal action controls
+          </h3>
+          <BoundaryNote>
+            The preview action calls only the read-only mapping proposal route.
+            Fixture buttons only update local React state.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearAgResumeMappingProposalInputs}
+            >
+              Clear mapping proposal inputs
+            </button>
+            <button
+              type="submit"
+              disabled={
+                agResumeMappingProposalBusy ||
+                !agResumeMappingPacketInput.trim()
+              }
+            >
+              {agResumeMappingProposalBusy
+                ? "Previewing mapping proposal"
+                : "Run read-only mapping proposal preview"}
+            </button>
+            {agResumeMappingRouteError ? (
+              <span
+                id="ag-resume-mapping-route-error"
+                className="notice error"
+                role="alert"
+              >
+                {agResumeMappingRouteError}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </form>
+      {agResumeMappingProposalResult ? (
+        <AgResumeMappingProposalPreviewResults
+          result={agResumeMappingProposalResult}
+        />
+      ) : (
+        <EmptyState
+          label="No mapping proposal preview yet."
+          description="Paste packet JSON and explicit Local B candidate work items to inspect a read-only route response."
+        />
+      )}
+    </section>
+  );
+}
+
 function AgResumePacketValidationResults({
   result,
 }: {
@@ -3870,6 +4650,377 @@ function AgResumeTargetPreviewResults({
         </section>
       </div>
     </div>
+  );
+}
+
+function AgResumeMappingProposalPreviewResults({
+  result,
+}: {
+  result: AgResumeMappingProposalPanelResult;
+}) {
+  const { body } = result;
+  const preview = body.preview ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-mapping-proposal-preview-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-mapping-proposal-preview-result-heading">
+        Mapping proposal preview result
+      </h3>
+      <BoundaryNote tone="green">
+        ok_for_user_core_review means review only. It is not mapping confirmation, import authorization, or Codex execution authority.
+      </BoundaryNote>
+      <BoundaryNote>
+        Foreign refs remain foreign until a separate reconciliation authority gate exists.
+      </BoundaryNote>
+      <BoundaryNote>
+        This panel does not create mapping records, import records, work items, proof/evidence records, session bindings, or Codex executions.
+      </BoundaryNote>
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>mapping-proposal-preview route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Preview status</h3>
+          <p>{preview?.status ?? "none"}</p>
+          <small>preview.status - read-only mapping proposal result</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>OK for user/Core review</h3>
+          <p>{formatAgResumeBoolean(preview?.ok_for_user_core_review)}</p>
+          <small>preview.ok_for_user_core_review - review only</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Match confidence</h3>
+          <p>{preview?.comparison?.match_confidence_label ?? "none"}</p>
+          <small>Advisory only; not a mapping decision.</small>
+        </section>
+      </div>
+      {body.recommended_next_step ? (
+        <BoundaryNote tone="green">
+          recommended_next_step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      {preview?.next_step ? (
+        <BoundaryNote>preview.next_step: {preview.next_step}</BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <AgResumeMappingWorkSummaryCard
+          title="Packet foreign work"
+          work={preview?.packet_summary?.packet_foreign_work ?? null}
+        />
+        <AgResumeMappingCandidateSummaryCard
+          candidate={preview?.selected_candidate_summary ?? null}
+        />
+        <AgResumeMappingComparisonPanel comparison={preview?.comparison ?? null} />
+        <AgResumeMappingFindingList
+          title="Gaps"
+          items={preview?.gaps ?? []}
+          emptyLabel="No mapping proposal gaps."
+        />
+        <AgResumeMappingFindingList
+          title="Conflicts"
+          items={preview?.conflicts ?? []}
+          emptyLabel="No mapping proposal conflicts."
+        />
+        <AgResumeMappingQuestionList questions={preview?.questions ?? []} />
+        <AgResumeRecommendationList
+          recommendations={preview?.recommendations ?? []}
+        />
+        <AgResumeForeignRefsPanel
+          foreignRefs={preview?.foreign_refs_summary ?? null}
+        />
+        <AgResumeMappingAuthorityBoundary
+          authorityBoundary={preview?.authority_boundary ?? null}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AgResumeMappingWorkSummaryCard({
+  title,
+  work,
+}: {
+  title: string;
+  work: AgResumeMappingProposalWorkSummary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {work ? (
+        <>
+          <p>{work.title ?? "Untitled work"}</p>
+          <div className="meta-row">
+            <span>scope: {work.scope ?? "unknown"}</span>
+            <span>work_id: {work.work_id ?? "unknown"}</span>
+            <span>status: {work.status ?? "unknown"}</span>
+          </div>
+          {work.next_action ? <p>next_action: {work.next_action}</p> : null}
+          <AgResumeStringList
+            title="Related state keys"
+            items={work.related_state_keys ?? []}
+            emptyLabel="No related state keys."
+          />
+        </>
+      ) : (
+        <EmptyState label="No packet foreign work summary returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingCandidateSummaryCard({
+  candidate,
+}: {
+  candidate: AgResumeMappingProposalCandidateSummary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Selected candidate summary</h3>
+      {candidate ? (
+        <>
+          <p>{candidate.title ?? "Untitled candidate"}</p>
+          <div className="meta-row">
+            <span>candidate_id: {candidate.candidate_id ?? "unknown"}</span>
+            <span>local_scope: {candidate.local_scope ?? "unknown"}</span>
+            <span>local_work_id: {candidate.local_work_id ?? "unknown"}</span>
+            <span>status: {candidate.status ?? "unknown"}</span>
+          </div>
+          {candidate.next_action ? (
+            <p>next_action: {candidate.next_action}</p>
+          ) : null}
+          <div className="meta-row">
+            <span>
+              work brief available:{" "}
+              {formatAgResumeBoolean(candidate.work_brief_available)}
+            </span>
+            <span>
+              codex:read-brief available:{" "}
+              {formatAgResumeBoolean(candidate.codex_read_brief_available)}
+            </span>
+          </div>
+        </>
+      ) : (
+        <EmptyState label="No selected candidate summary returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingComparisonPanel({
+  comparison,
+}: {
+  comparison: AgResumeMappingProposalPreview["comparison"] | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Comparison</h3>
+      {comparison ? (
+        <>
+          <div className="meta-row">
+            <span>
+              match_confidence_label:{" "}
+              {comparison.match_confidence_label ?? "unknown"}
+            </span>
+            <span>
+              advisory_only: {formatAgResumeBoolean(comparison.advisory_only)}
+            </span>
+          </div>
+          <AgResumeStringList
+            title="Related state key overlap"
+            items={comparison.related_state_keys_overlap ?? []}
+            emptyLabel="No related state key overlap."
+          />
+          <div className="meta-row">
+            <span>
+              repo.remote_matches:{" "}
+              {comparison.repo?.remote_matches ?? "not_supplied"}
+            </span>
+            <span>
+              repo.base_commit_reachable:{" "}
+              {comparison.repo?.base_commit_reachable ?? "not_supplied"}
+            </span>
+            <span>
+              repo.dirty_worktree:{" "}
+              {comparison.repo?.dirty_worktree ?? "not_supplied"}
+            </span>
+            <span>
+              repo.expected_files:{" "}
+              {comparison.repo?.expected_files ?? "not_supplied"}
+            </span>
+          </div>
+          <ul className="compact-list">
+            {(comparison.fields ?? []).map((difference, index) => (
+              <li key={`${difference.field ?? "field"}-${index}`}>
+                <strong>{difference.field ?? "field"}</strong>
+                <p>
+                  {difference.label ?? "unknown"}: packet=
+                  {formatAgResumeMappingValue(difference.packet_value)},
+                  candidate=
+                  {formatAgResumeMappingValue(difference.candidate_value)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <EmptyState label="No comparison returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingFindingList({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: AgResumeMappingProposalFinding[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {items.length === 0 ? (
+        <EmptyState label={emptyLabel} />
+      ) : (
+        <ul className="compact-list">
+          {items.map((item, index) => (
+            <li key={item.id ?? `${title}-${index}`}>
+              <strong>{item.title ?? item.id ?? "Untitled mapping finding"}</strong>
+              {item.severity ? <span>{item.severity}</span> : null}
+              {item.detail ? <p>{item.detail}</p> : null}
+              {item.fields?.length ? (
+                <code>fields: {item.fields.join(", ")}</code>
+              ) : null}
+              {item.refs?.length ? <code>refs: {item.refs.join(", ")}</code> : null}
+              {item.differences?.length ? (
+                <ul className="boundary-list">
+                  {item.differences.map((difference, differenceIndex) => (
+                    <li key={`${item.id ?? "mapping-finding"}-${differenceIndex}`}>
+                      {difference.field ?? "field"}: packet=
+                      {formatAgResumeMappingValue(difference.packet_value)},
+                      candidate=
+                      {formatAgResumeMappingValue(difference.candidate_value)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingQuestionList({
+  questions,
+}: {
+  questions: AgResumeMappingProposalQuestion[];
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Questions</h3>
+      {questions.length === 0 ? (
+        <EmptyState label="No mapping proposal questions." />
+      ) : (
+        <ul className="compact-list">
+          {questions.map((question, index) => (
+            <li key={question.id ?? `question-${index}`}>
+              <strong>{question.id ?? "question"}</strong>
+              {question.text ? <p>{question.text}</p> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingAuthorityBoundary({
+  authorityBoundary,
+}: {
+  authorityBoundary: AgResumeMappingProposalPreview["authority_boundary"] | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Authority Boundary</h3>
+      {authorityBoundary ? (
+        <>
+          <p>{authorityBoundary.statement ?? "No boundary statement returned."}</p>
+          <div className="meta-row">
+            <span>
+              read_only: {formatAgResumeBoolean(authorityBoundary.read_only)}
+            </span>
+            <span>
+              proposal_only:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_only)}
+            </span>
+            <span>
+              creates_mapping_record:{" "}
+              {formatAgResumeBoolean(authorityBoundary.creates_mapping_record)}
+            </span>
+            <span>
+              creates_import_record:{" "}
+              {formatAgResumeBoolean(authorityBoundary.creates_import_record)}
+            </span>
+            <span>
+              creates_work_item:{" "}
+              {formatAgResumeBoolean(authorityBoundary.creates_work_item)}
+            </span>
+            <span>
+              records_proof:{" "}
+              {formatAgResumeBoolean(authorityBoundary.records_proof)}
+            </span>
+            <span>
+              records_evidence:{" "}
+              {formatAgResumeBoolean(authorityBoundary.records_evidence)}
+            </span>
+            <span>
+              binds_session:{" "}
+              {formatAgResumeBoolean(authorityBoundary.binds_session)}
+            </span>
+            <span>
+              executes_codex:{" "}
+              {formatAgResumeBoolean(authorityBoundary.executes_codex)}
+            </span>
+            <span>
+              approval_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_authority)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+            <span>
+              state_mutation:{" "}
+              {formatAgResumeBoolean(authorityBoundary.state_mutation)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No authority boundary returned." />
+      )}
+    </section>
   );
 }
 
@@ -8420,6 +9571,36 @@ function isAgResumeRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function parseAgResumeArrayInput(
+  label: string,
+  value: string,
+  options: { allowEmpty: true },
+) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    if (options.allowEmpty) return [];
+    throw new Error(`${label} is required.`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmedValue);
+  } catch (error) {
+    throw new Error(
+      `${label} is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${label} must be a JSON array.`);
+  }
+
+  return parsed;
+}
+
 function isAgResumeFieldError(error: string | null, fieldLabel: string) {
   return Boolean(error?.startsWith(`${fieldLabel} `));
 }
@@ -8433,6 +9614,16 @@ function formatAgResumeBoolean(value: boolean | null | undefined) {
 
 function formatAgResumeExampleJson(value: unknown) {
   return JSON.stringify(value, null, 2);
+}
+
+function formatAgResumeMappingValue(
+  value: string | string[] | boolean | null | undefined,
+) {
+  if (Array.isArray(value)) return value.join(", ") || "[]";
+  if (value === true) return "true";
+  if (value === false) return "false";
+  if (value === null) return "null";
+  return value ?? "unknown";
 }
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {
