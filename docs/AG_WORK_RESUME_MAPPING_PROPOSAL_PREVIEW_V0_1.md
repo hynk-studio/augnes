@@ -18,6 +18,10 @@ start Codex, approve, publish, retry, replay, merge, or mutate committed state.
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` defines future
   gated stages. This helper implements Stage A mapping proposal preview only:
   read-only, no persistence, and no mapping/import authority.
+- Local helper:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_HELPER_V0_1.md` documents the
+  local `ag:resume-mapping-preview` wrapper around this pure function. It
+  remains read-only and proposal-only.
 - Packet preflight: `ag:resume-preflight` remains the validation contract for
   packet shape, redaction, target policy, and unsafe content. Mapping proposal
   preview assumes a packet has already passed preflight, while still blocking
@@ -164,9 +168,17 @@ confirmation, not import, not persistence, not proof/evidence authorization,
 not Codex execution authority, and not merge/publish authority. Durable
 approval remains user/Core gated.
 
-## Future Work
+## Local Helper
 
-A later PR may add a local helper around this pure function.
+`ag:resume-mapping-preview` is the local helper around this pure function. It
+reads combined JSON from an environment variable, file, or stdin, assumes
+packet preflight already ran, and does not import, persist, create mappings,
+record proof/evidence, bind sessions, or start Codex.
+
+Earlier plan: a later PR may add a local helper around this pure function.
+This slice is that local helper.
+
+## Future Work
 
 A later PR may add a read-only route after user/Core scopes that surface.
 
@@ -203,11 +215,14 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-mapping-proposal-preview-helper
 npm run smoke:ag-work-resume-mapping-proposal-preview
 npm run smoke:ag-work-resume-mapping-import-authority-gate
 npm run smoke:ag-work-resume-target-preview
 npm run smoke:ag-work-resume-packet-builder-preview
 npm run smoke:ag-work-resume-packet-preflight
+node --check scripts/ag-work-resume-mapping-proposal-preview.mjs
+node --check scripts/smoke-ag-work-resume-mapping-proposal-preview-helper.mjs
 node --check scripts/smoke-ag-work-resume-mapping-proposal-preview.mjs
 git diff --check
 ```
