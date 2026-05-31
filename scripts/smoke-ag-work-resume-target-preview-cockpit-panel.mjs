@@ -23,6 +23,12 @@ const browserReportPath = path.join(
   "browser",
   "2026-05-31-ag-work-resume-copied-packet-validation-cockpit-panel-verification.md",
 );
+const errorBrowserReportPath = path.join(
+  rootDir,
+  "reports",
+  "browser",
+  "2026-05-31-ag-work-resume-error-state-cockpit-panel-verification.md",
+);
 
 assert.ok(existsSync(componentPath), "Cockpit component must exist");
 assert.ok(existsSync(docsPath), "Cockpit target preview panel docs must exist");
@@ -30,11 +36,16 @@ assert.ok(
   existsSync(browserReportPath),
   "copied-packet validation browser verification report must exist",
 );
+assert.ok(
+  existsSync(errorBrowserReportPath),
+  "error-state browser verification report must exist",
+);
 
 const componentSource = readFileSync(componentPath, "utf8");
 const docsSource = readFileSync(docsPath, "utf8");
 const designDocSource = readFileSync(designDocPath, "utf8");
 const browserReportSource = readFileSync(browserReportPath, "utf8");
+const errorBrowserReportSource = readFileSync(errorBrowserReportPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
@@ -61,6 +72,23 @@ const fixtureSource = [
     componentSource,
     "SAFE_AG_RESUME_EXAMPLE_LOCAL_CONTEXT",
   ),
+].join("\n");
+const malformedPacketFixtureValue = extractConstStringValue(
+  componentSource,
+  "SAFE_AG_RESUME_MALFORMED_PACKET_JSON",
+);
+const malformedLocalFixtureValue = extractConstStringValue(
+  componentSource,
+  "SAFE_AG_RESUME_MALFORMED_LOCAL_CONTEXT_JSON",
+);
+const preflightFailingFixtureSource = extractConstObjectBlock(
+  componentSource,
+  "SAFE_AG_RESUME_PREFLIGHT_FAILING_PACKET",
+);
+const errorFixtureSource = [
+  malformedPacketFixtureValue,
+  malformedLocalFixtureValue,
+  preflightFailingFixtureSource,
 ].join("\n");
 const resultsSource = extractFunctionBlock(
   componentSource,
@@ -102,6 +130,10 @@ for (const label of [
   "Load safe example packet",
   "Load safe example Local B context",
   "Clear AG resume inputs",
+  "Load malformed packet JSON",
+  "Load malformed Local B context JSON",
+  "Load preflight-failing packet example",
+  "Error fixtures are local-only and synthetic",
   "Validate pasted packet only",
   "Packet validation uses local: null and always runs strict preflight",
   "Run read-only target preview",
@@ -239,6 +271,9 @@ for (const label of [
   "Load safe example packet",
   "Load safe example Local B context",
   "Clear AG resume inputs",
+  "Load malformed packet JSON",
+  "Load malformed Local B context JSON",
+  "Load preflight-failing packet example",
   "Validate pasted packet only",
 ]) {
   const matchingBlocks = buttonBlocks.filter((buttonBlock) =>
@@ -255,6 +290,9 @@ for (const label of [
 for (const handlerName of [
   "loadSafeAgResumeExamplePacket",
   "loadSafeAgResumeExampleLocalContext",
+  "loadMalformedAgResumePacketJson",
+  "loadMalformedAgResumeLocalContextJson",
+  "loadPreflightFailingAgResumePacketExample",
   "clearAgResumeInputs",
 ]) {
   const handlerSource = extractFunctionBlock(componentSource, handlerName);
@@ -296,6 +334,59 @@ for (const buttonBlock of buttonBlocks) {
       `panel action labels must not include "${forbiddenLabel}"`,
     );
   }
+}
+
+assert.match(
+  malformedPacketFixtureValue,
+  /augnes\.ag_work_resume_packet\.v0_2/,
+  "malformed packet fixture must mention the packet schema",
+);
+assert.throws(
+  () => JSON.parse(malformedPacketFixtureValue),
+  SyntaxError,
+  "malformed packet fixture must be deliberately invalid JSON",
+);
+assert.match(
+  malformedLocalFixtureValue,
+  /runtime_available/,
+  "malformed Local B fixture must mention runtime_available",
+);
+assert.throws(
+  () => JSON.parse(malformedLocalFixtureValue),
+  SyntaxError,
+  "malformed Local B fixture must be deliberately invalid JSON",
+);
+assert.match(
+  componentSource,
+  /SAFE_AG_RESUME_PREFLIGHT_FAILING_PACKET/,
+  "component must include a named preflight-failing packet fixture",
+);
+assert.match(
+  preflightFailingFixtureSource,
+  /may_execute_codex:\s*true|secrets_included:\s*true|schema:\s*"[^"]+"|expected_checks:\s*\[\s*\]|expires_at:\s*"[^"]+"/,
+  "preflight-failing fixture must include a safe strict-preflight failure cause",
+);
+
+for (const forbiddenErrorFixtureToken of [
+  "sk-",
+  "ghp_",
+  "github_pat_",
+  "OPENAI_API_KEY",
+  "GITHUB_TOKEN",
+  "BEGIN PRIVATE KEY",
+  "/tmp/augnes",
+  ".db",
+  "/Users/",
+  "/home/",
+  "trycloudflare.com",
+  "ngrok",
+  "loca.lt",
+]) {
+  assert.doesNotMatch(
+    errorFixtureSource,
+    new RegExp(escapeRegExp(forbiddenErrorFixtureToken), "i"),
+    `error fixtures must not include ${forbiddenErrorFixtureToken}`,
+  );
 }
 
 assert.match(
@@ -428,6 +519,9 @@ for (const docsPattern of [
   /Load safe example packet/i,
   /Load safe example Local B context/i,
   /Clear AG resume inputs/i,
+  /Load malformed packet JSON/i,
+  /Load malformed Local B context JSON/i,
+  /Load preflight-failing packet example/i,
   /Validate pasted packet only/i,
   /local: null/i,
   /strict: true/i,
@@ -437,6 +531,13 @@ for (const docsPattern of [
   /does not require or parse\s+`Explicit Local B context JSON`/i,
   /context_only.*expected.*packet-only validation/is,
   /read-only packet review/i,
+  /synthetic, public-safe, local UI state only, and not\s+persisted/is,
+  /Error fixture buttons do not call routes/i,
+  /fail locally before any route call/i,
+  /fails locally before the route\s+call/is,
+  /Copied-packet validation ignores Local B context/i,
+  /safe\s+policy\/redaction\/schema failure/i,
+  /not through fake secrets, fake\s+tokens, raw DB paths, local absolute paths, tunnel URLs/is,
   /does not map,\s*import,\s*persist/is,
   /create work items,\s*create mapping records,\s*record\s+proof\/evidence,\s*bind sessions/is,
   /execute Codex,\s*approve,\s*publish,\s*retry,\s*replay,\s*merge,\s*mutate state/is,
@@ -474,6 +575,21 @@ for (const reportPattern of [
   );
 }
 
+for (const errorReportPattern of [
+  /malformed packet JSON local parse failure/i,
+  /malformed Local B context JSON local parse failure/i,
+  /copied-packet validation ignores malformed Local B context/i,
+  /preflight-failing packet shows preflight failure/i,
+  /clear resets error\/result states/i,
+  /no unauthorized controls/i,
+]) {
+  assert.match(
+    errorBrowserReportSource,
+    errorReportPattern,
+    `error-state browser report must mention ${errorReportPattern}`,
+  );
+}
+
 assert.match(
   designDocSource,
   /AG_WORK_RESUME_TARGET_PREVIEW_COCKPIT_PANEL_V0_1\.md/,
@@ -489,9 +605,13 @@ console.log(
         "Operator tab panel source is present",
         "panel exposes packet/local JSON textareas and strict/skip_preflight controls",
         "panel exposes local-only safe fixture buttons",
+        "panel exposes local-only error-state fixture buttons",
         "panel exposes copied-packet validation without Local B context",
         "safe fixture buttons are type button and do not fetch or persist",
+        "error fixture buttons are type button and do not fetch or persist",
         "safe fixtures pass static public-safe guards",
+        "malformed error fixtures are invalid JSON and public-safe",
+        "preflight-failing fixture is valid object-like source with a safe failure cause",
         "panel parses JSON locally before posting either route action",
         "validation action sends local null, strict true, and skip_preflight false",
         "validation action ignores full-preview checkbox state",
@@ -503,6 +623,7 @@ console.log(
         "panel action labels do not expose forbidden authority controls",
         "docs capture read-only boundary and browser verification expectation",
         "browser verification report exists for copied-packet validation",
+        "browser verification report exists for error-state regressions",
         "cross-local design doc points to the Cockpit panel slice",
       ],
     },
@@ -650,6 +771,28 @@ function extractConstObjectBlock(source, constName) {
   }
 
   assert.fail(`${constName} object was not closed`);
+}
+
+function extractConstStringValue(source, constName) {
+  const match = source.match(
+    new RegExp(`const\\s+${constName}\\s*=\\s*([\\s\\S]*?);`),
+  );
+  assert.ok(match, `${constName} must exist`);
+
+  const literal = match[1].trim();
+  const quote = literal[0];
+  assert.ok(
+    quote === "`" || quote === '"' || quote === "'",
+    `${constName} must be a string literal`,
+  );
+  const endIndex = literal.lastIndexOf(quote);
+  assert.ok(endIndex > 0, `${constName} string literal must be closed`);
+
+  return literal
+    .slice(1, endIndex)
+    .replaceAll("\\`", "`")
+    .replaceAll('\\"', '"')
+    .replaceAll("\\'", "'");
 }
 
 function findFunctionBodyBrace(source, firstParen) {

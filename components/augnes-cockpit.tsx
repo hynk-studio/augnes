@@ -829,6 +829,28 @@ const SAFE_AG_RESUME_EXAMPLE_PACKET = {
   },
 } as const;
 
+const SAFE_AG_RESUME_MALFORMED_PACKET_JSON =
+  `{ "schema": "augnes.ag_work_resume_packet.v0_2", "packet_id": `;
+
+const SAFE_AG_RESUME_MALFORMED_LOCAL_CONTEXT_JSON =
+  `{ "runtime": { "runtime_available": true, `;
+
+const SAFE_AG_RESUME_PREFLIGHT_FAILING_PACKET = {
+  ...SAFE_AG_RESUME_EXAMPLE_PACKET,
+  packet_id: "ag-resume-packet:fixture-preflight-fail-001",
+  source_work: {
+    ...SAFE_AG_RESUME_EXAMPLE_PACKET.source_work,
+    work_id: "AG-FIXTURE-PREFLIGHT-FAIL-001",
+    title: "Safe preflight-failing packet fixture",
+    summary:
+      "Synthetic public-safe packet that fails strict preflight by policy.",
+  },
+  target_runtime_policy: {
+    ...SAFE_AG_RESUME_EXAMPLE_PACKET.target_runtime_policy,
+    may_execute_codex: true,
+  },
+} as const;
+
 const SAFE_AG_RESUME_EXAMPLE_LOCAL_CONTEXT = {
   runtime: {
     runtime_available: true,
@@ -3196,12 +3218,16 @@ function AgResumeTargetPreviewPanel() {
     useState(false);
   const agResumeRouteRequestIdRef = useRef(0);
 
-  function loadSafeAgResumeExamplePacket() {
-    setAgResumePacketInput(formatAgResumeExampleJson(SAFE_AG_RESUME_EXAMPLE_PACKET));
+  function clearAgResumePanelResults() {
     setAgResumePacketValidationError(null);
     setAgResumePacketValidationResult(null);
     setAgResumeTargetPreviewError(null);
     setAgResumeTargetPreviewResult(null);
+  }
+
+  function loadSafeAgResumeExamplePacket() {
+    setAgResumePacketInput(formatAgResumeExampleJson(SAFE_AG_RESUME_EXAMPLE_PACKET));
+    clearAgResumePanelResults();
   }
 
   function loadSafeAgResumeExampleLocalContext() {
@@ -3210,6 +3236,23 @@ function AgResumeTargetPreviewPanel() {
     );
     setAgResumeTargetPreviewError(null);
     setAgResumeTargetPreviewResult(null);
+  }
+
+  function loadMalformedAgResumePacketJson() {
+    setAgResumePacketInput(SAFE_AG_RESUME_MALFORMED_PACKET_JSON);
+    clearAgResumePanelResults();
+  }
+
+  function loadMalformedAgResumeLocalContextJson() {
+    setAgResumeLocalContextInput(SAFE_AG_RESUME_MALFORMED_LOCAL_CONTEXT_JSON);
+    clearAgResumePanelResults();
+  }
+
+  function loadPreflightFailingAgResumePacketExample() {
+    setAgResumePacketInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_PREFLIGHT_FAILING_PACKET),
+    );
+    clearAgResumePanelResults();
   }
 
   function clearAgResumeInputs() {
@@ -3420,6 +3463,36 @@ function AgResumeTargetPreviewPanel() {
             onClick={clearAgResumeInputs}
           >
             Clear AG resume inputs
+          </button>
+        </div>
+        <BoundaryNote>
+          Error fixtures are local-only and synthetic. They are for checking
+          safe failure states, not for import or execution.
+        </BoundaryNote>
+        <div className="action-controls" aria-label="Error-state fixture controls">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={loadMalformedAgResumePacketJson}
+            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+          >
+            Load malformed packet JSON
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={loadMalformedAgResumeLocalContextJson}
+            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+          >
+            Load malformed Local B context JSON
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={loadPreflightFailingAgResumePacketExample}
+            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+          >
+            Load preflight-failing packet example
           </button>
         </div>
         <span>AG Resume Packet JSON</span>

@@ -109,6 +109,42 @@ The request shape is:
 }
 ```
 
+## Error-State Fixtures
+
+The panel includes local-only error-state fixtures:
+
+- `Load malformed packet JSON`
+- `Load malformed Local B context JSON`
+- `Load preflight-failing packet example`
+
+Error fixtures are synthetic, public-safe, local UI state only, and not
+persisted. Error fixture buttons do not call routes, write runtime state,
+import or persist packets, create work items, create mapping records, record
+proof/evidence, bind sessions, or store anything in `localStorage`,
+`sessionStorage`, or `indexedDB`.
+
+`Load malformed packet JSON` populates the AG Resume Packet textarea with
+deliberately malformed JSON. Copied-packet validation and full preview both
+fail locally before any route call when this fixture is submitted.
+
+`Load malformed Local B context JSON` populates the Local B context textarea
+with deliberately malformed JSON. Full preview fails locally before the route
+call when the packet is valid and the Local B context fixture is malformed.
+Copied-packet validation ignores Local B context and still sends `local: null`,
+`strict: true`, and `skip_preflight: false`.
+
+`Load preflight-failing packet example` populates the packet textarea with valid
+JSON that is public-safe but fails strict packet preflight through safe
+policy/redaction/schema failure conditions, not through fake secrets, fake
+tokens, raw DB paths, local absolute paths, tunnel URLs, raw OpenAI response
+text, or screenshots/media references.
+
+Packet validation failures are read-only packet review results. They do not
+imply mapping, import, persistence, work item creation, mapping record
+creation, proof/evidence recording, session binding, Codex execution,
+approval, publish, retry, replay, external posting, merge, or state mutation
+authority.
+
 ## Display Contract
 
 The panel displays:
@@ -149,6 +185,13 @@ the target preview workflow requires.
   `skip_preflight: false`.
 - Copied-packet validation always runs strict preflight and ignores the
   skip-preflight checkbox.
+- Error fixture buttons are synthetic, public-safe, local state only, and not
+  persisted.
+- Error fixture buttons do not call routes.
+- Malformed packet JSON and malformed Local B context JSON fail in local
+  browser parsing before route calls.
+- Preflight-failing packet examples are valid JSON and fail as read-only
+  validation results without granting authority.
 - No DB/schema changes.
 - No runtime discovery.
 - No route-side DB reads.
