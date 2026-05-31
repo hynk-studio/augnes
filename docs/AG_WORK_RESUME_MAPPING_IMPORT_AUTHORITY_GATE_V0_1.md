@@ -208,6 +208,11 @@ PRs:
   Stage C confirmed mapping record design; it is design-only and adds no
   schema, migration, writer, helper, route, UI, import, proof/evidence,
   session, Codex, approval, publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_DESIGN_V0_1.md` documents
+  the design-only DB/schema contract for future confirmed mapping rows; it
+  adds no schema implementation, migration, runtime behavior, writer/helper,
+  route, UI, import, proof/evidence, session, Codex, approval, publish, retry,
+  replay, or merge authority.
 - **Stage D: imported resume context record**. Future write stage requiring
   explicit user/Core action and schema. It writes bounded review metadata only.
 - **Stage E: optional local work item creation**. Future-only and only if ever

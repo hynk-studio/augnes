@@ -237,6 +237,12 @@ Design only:
 
 No schema/migration is added in this PR.
 
+The design-only DB/schema contract for these future rows is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_DESIGN_V0_1.md`; it adds no
+schema implementation, migration, runtime behavior, writer/helper/route/UI,
+confirmed mapping rows, import, proof/evidence, session binding, Codex
+execution, or approval/publish/retry/replay/merge authority.
+
 Future implementation must use a transaction and side-effect guards. The
 guards must prove the only intended write is the confirmed mapping row or its
 future lifecycle fields, and that no proposal creation, import, imported
@@ -317,7 +323,8 @@ relay, or runtime contract in this PR.
 ## Future PR Sequence
 
 1. Confirmed mapping design only: this PR.
-2. Confirmed mapping DB/schema design.
+2. Confirmed mapping DB/schema design:
+   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_DESIGN_V0_1.md`.
 3. Confirmed mapping DB/schema implementation.
 4. Confirmed mapping writer/helper.
 5. Confirmed mapping route.
