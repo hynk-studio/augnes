@@ -85,7 +85,8 @@ before any implementation exists.
   items, or imported context.
 - **imported resume context**: future Stage D review metadata derived from a
   validated packet and a confirmed mapping. It is explicitly separate from
-  confirmed mapping.
+  confirmed mapping and is documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`.
 
 ## Confirmed Mapping Record Shape
 
@@ -361,8 +362,9 @@ relay, or runtime contract in this PR.
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md`.
 7. Confirmed mapping read-only Cockpit review panel:
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md`.
-8. Confirmed mapping lifecycle/control UI, only if separately approved.
-9. Imported resume context design as Stage D.
+8. Confirmed mapping Cockpit review/control UI, only if separately approved.
+9. Imported resume context design as Stage D:
+   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`.
 10. Proof/evidence/session/Codex gates remain separate.
 
 Each future PR must restate the authority boundary and prove it does not grant
@@ -381,6 +383,7 @@ npm run typecheck
 npm run smoke:ag-work-resume-confirmed-mapping-read
 npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-record-design
+npm run smoke:ag-work-resume-imported-context-record-design
 npm run smoke:ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel
 npm run smoke:ag-work-resume-mapping-proposal-lifecycle-action-route
 npm run smoke:ag-work-resume-mapping-proposal-lifecycle-action

@@ -35,6 +35,10 @@ merge authority.
   `POST` route path and adds no route implementation behavior.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`.
+- Stage D imported context record design:
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents a
+  future review metadata record after confirmed mapping. This route does not
+  create imported context records.
 
 This route adds no Cockpit UI and no schema/migration.
 

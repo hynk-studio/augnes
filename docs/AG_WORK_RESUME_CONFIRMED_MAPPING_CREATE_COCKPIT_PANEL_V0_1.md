@@ -34,6 +34,10 @@ replay, or merge authority.
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` keeps proposal
   records, confirmed mappings, imports, imported context, proof/evidence,
   session binding, and Codex continuation separate.
+- Stage D imported context record design:
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents the
+  future imported resume context review metadata record. This create panel does
+  not create or mutate imported context.
 
 ## Cockpit Location
 
@@ -222,6 +226,8 @@ The browser report for this slice is:
 
 ## Future Note
 
-Read-only review, import, imported resume context, lifecycle mutation,
-proof/evidence recording, session binding, Codex continuation, approval,
-publish, retry, replay, and merge remain separate user/Core-gated designs.
+Read-only review, imported resume context as documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`, lifecycle
+mutation, proof/evidence recording, session binding, Codex continuation,
+approval, publish, retry, replay, and merge remain separate user/Core-gated
+designs.
