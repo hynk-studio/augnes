@@ -142,6 +142,11 @@ execution state.
 A future read helper or read route also remains separately gated unless it is
 explicitly scoped. This schema PR does not expose application-level reads.
 
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_WRITER_V0_1.md` documents the
+first Stage B proposal-only writer over this table. It still does not confirm
+mappings, import packet context, record proof/evidence, bind sessions, start
+Codex, approve, publish, retry, replay, or merge.
+
 ## Verification
 
 Run:
