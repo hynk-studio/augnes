@@ -22,6 +22,9 @@ merge authority.
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 - Stage C writer/helper:
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`.
+- Stage C read helper/route:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md` documents read-only
+  confirmed mapping identity metadata access over this same route path.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`.
 
@@ -65,6 +68,15 @@ The route:
   `created`
 
 The route creates confirmed mapping identity association rows only.
+
+## Read Route Pairing
+
+`GET /api/ag-work-resume/confirmed-mappings` is separately documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md`. The GET handler reads
+confirmed mapping identity metadata only and does not change POST creation
+behavior, create/update/delete confirmed mappings, import context, record
+proof/evidence, bind sessions, execute Codex, or grant approval, publish,
+retry, replay, or merge authority.
 
 ## Status Mapping
 
@@ -141,6 +153,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-read
 npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-writer
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema

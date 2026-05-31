@@ -456,9 +456,18 @@ function assertSourceGuards() {
 
   const allowedFiles = new Set([
     "lib/ag-work-resume-confirmed-mapping.ts",
+    "lib/ag-work-resume-confirmed-mapping-read.ts",
     "scripts/ag-work-resume-confirmed-mapping-create.mjs",
+    "scripts/ag-work-resume-confirmed-mapping-read.mjs",
+    "app/api/ag-work-resume/confirmed-mappings/route.ts",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema-design.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-record-design.mjs",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_DESIGN_V0_1.md",
@@ -472,15 +481,20 @@ function assertSourceGuards() {
       allowedFiles.has(file),
       `changed file is outside confirmed mapping writer/helper slice: ${file}`,
     );
-    assert.equal(file.startsWith("app/"), false, `no app route change: ${file}`);
+    assert.ok(
+      file === "app/api/ag-work-resume/confirmed-mappings/route.ts" ||
+        !file.startsWith("app/"),
+      `app changes limited to confirmed mapping route in this follow-up: ${file}`,
+    );
     assert.equal(file.startsWith("components/"), false, `no component change: ${file}`);
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
     assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
     assert.ok(
       file === "lib/ag-work-resume-confirmed-mapping.ts" ||
+        file === "lib/ag-work-resume-confirmed-mapping-read.ts" ||
         !file.startsWith("lib/"),
-      `lib changes limited to confirmed mapping writer core: ${file}`,
+      `lib changes limited to confirmed mapping writer/read cores: ${file}`,
     );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
   }

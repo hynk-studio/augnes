@@ -362,7 +362,19 @@ function assertNoUnexpectedChangedFiles() {
     ...gitLines(["ls-files", "--others", "--exclude-standard"]),
   ]);
   const allowedFiles = new Set([
+    "app/api/ag-work-resume/confirmed-mappings/route.ts",
+    "lib/ag-work-resume-confirmed-mapping-read.ts",
+    "scripts/ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema-design.mjs",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_WRITER_V0_1.md",
@@ -380,14 +392,13 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-mapping-proposal-record-read.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-record-writer.mjs",
   ]);
-  const forbiddenPrefixes = [
-    "app/",
-    "apps/",
-    "components/",
-    "lib/",
-    "migrations/",
-    "reports/browser/",
-  ];
+  const allowedAppFiles = new Set([
+    "app/api/ag-work-resume/confirmed-mappings/route.ts",
+  ]);
+  const allowedLibFiles = new Set([
+    "lib/ag-work-resume-confirmed-mapping-read.ts",
+  ]);
+  const forbiddenPrefixes = ["apps/", "components/", "migrations/", "reports/browser/"];
 
   for (const file of changedFiles) {
     assert.ok(
@@ -395,7 +406,9 @@ function assertNoUnexpectedChangedFiles() {
       `changed file is outside the design-only confirmed mapping slice: ${file}`,
     );
     assert.ok(
-      !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)) &&
+        (!file.startsWith("app/") || allowedAppFiles.has(file)) &&
+        (!file.startsWith("lib/") || allowedLibFiles.has(file)),
       `design-only confirmed mapping slice must not touch runtime/UI/schema/browser report files: ${file}`,
     );
   }
@@ -419,10 +432,14 @@ function assertNoForbiddenImplementationCode() {
   const implementationFiles = changedFiles.filter((file) =>
     forbiddenImplementationPrefixes.some((prefix) => file.startsWith(prefix)),
   );
+  const allowedImplementationFiles = new Set([
+    "app/api/ag-work-resume/confirmed-mappings/route.ts",
+    "lib/ag-work-resume-confirmed-mapping-read.ts",
+  ]);
   assert.deepEqual(
-    implementationFiles,
+    implementationFiles.filter((file) => !allowedImplementationFiles.has(file)),
     [],
-    "no runtime, route, schema, App, component, or library implementation files may change",
+    "no runtime, route, schema, App, component, or library implementation files may change outside the confirmed mapping read slice",
   );
 
   const forbiddenCodePatterns = [
@@ -437,6 +454,12 @@ function assertNoForbiddenImplementationCode() {
   ];
   const guardOnlySmokeFiles = new Set([
     "scripts/smoke-ag-work-resume-confirmed-mapping-record-design.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema-design.mjs",
+    "scripts/ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-route.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel.mjs",
@@ -446,7 +469,11 @@ function assertNoForbiddenImplementationCode() {
   for (const file of changedFiles.filter((changedFile) =>
     /\.(?:mjs|js|ts|tsx|jsx|sql)$/.test(changedFile),
   )) {
-    if (guardOnlySmokeFiles.has(file)) {
+    if (
+      guardOnlySmokeFiles.has(file) ||
+      file === "app/api/ag-work-resume/confirmed-mappings/route.ts" ||
+      file === "lib/ag-work-resume-confirmed-mapping-read.ts"
+    ) {
       continue;
     }
     const source = readFileSync(path.join(rootDir, file), "utf8");
