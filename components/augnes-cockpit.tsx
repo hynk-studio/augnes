@@ -829,6 +829,71 @@ type AgResumeMappingProposalRecordReadPanelResult = {
   body: AgResumeMappingProposalRecordReadRouteResponse;
 };
 
+type AgResumeMappingProposalLifecycleActionPanelResult = {
+  httpStatus: number;
+  requestBody: AgResumeMappingProposalLifecycleActionRequestBody;
+  body: AgResumeMappingProposalLifecycleActionRouteResponse;
+};
+
+type AgResumeMappingProposalLifecycleActionRequestBody = {
+  proposal_id: string;
+  action: AgResumeMappingProposalLifecycleAction;
+  reviewed_by: string;
+  review_note: string;
+  reviewed_at?: string;
+  replacement_proposal_id?: string;
+};
+
+type AgResumeMappingProposalLifecycleAction =
+  | "withdraw"
+  | "reject"
+  | "supersede"
+  | "expire";
+
+type AgResumeMappingProposalLifecycleActionRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeMappingProposalLifecycleActionResult | null;
+  authority_boundary?: AgResumeMappingProposalLifecycleActionAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeMappingProposalLifecycleActionResult = {
+  ok?: boolean;
+  status?: string;
+  action?: AgResumeMappingProposalLifecycleAction | null;
+  proposal_id?: string | null;
+  before_record?: AgResumeMappingProposalRecord | null;
+  record?: AgResumeMappingProposalRecord | null;
+  updated_fields?: string[];
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeMappingProposalLifecycleActionAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeMappingProposalLifecycleActionAuthorityBoundary = {
+  proposal_lifecycle_updated?: boolean;
+  proposal_review_metadata_only?: boolean;
+  proposal_record_created?: boolean;
+  proposal_record_deleted?: boolean;
+  confirmed_mapping_created?: boolean;
+  import_record_created?: boolean;
+  imported_context_created?: boolean;
+  work_item_created?: boolean;
+  work_event_created?: boolean;
+  proof_recorded?: boolean;
+  evidence_recorded?: boolean;
+  session_bound?: boolean;
+  codex_executed?: boolean;
+  approval_granted?: boolean;
+  publish_retry_replay_authority?: boolean;
+  merge_authority?: boolean;
+  durable_approval?: string;
+  statement?: string;
+};
+
 type AgResumeMappingProposalRecordReadRouteResponse = {
   ok?: boolean;
   route?: string;
@@ -1311,6 +1376,20 @@ const SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE = {
   candidate_local_work_id: "AG-FIXTURE-MAPPING-PROPOSAL-001",
   status: "proposed",
   limit: "20",
+} as const;
+
+const SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE = {
+  proposal_ids: {
+    withdraw: "ag-resume-mapping-proposal:14dbaabfa7e8585b16181284",
+    reject: "ag-resume-mapping-proposal:0cd4f4bf115f41014c5d8491",
+    expire: "ag-resume-mapping-proposal:a6c8a67d51a1426f135947d8",
+    supersede: "ag-resume-mapping-proposal:94ac2e457834768783757a54",
+  },
+  replacement_proposal_id:
+    "ag-resume-mapping-proposal:c7188476bb0f24138b263d32",
+  reviewed_by: "user-core:cockpit-lifecycle-fixture",
+  review_note: "Synthetic Cockpit lifecycle review metadata fixture.",
+  reviewed_at: "2026-05-31T04:00:00.000Z",
 } as const;
 
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
@@ -3481,6 +3560,7 @@ function OperatorTab({
           <AgResumeTargetPreviewPanel />
           <AgResumeMappingProposalPreviewPanel />
           <AgResumeMappingProposalRecordReviewPanel />
+          <AgResumeMappingProposalLifecycleActionPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -5011,6 +5091,617 @@ function AgResumeMappingProposalRecordReviewPanel() {
           label="No proposal record read yet."
           description="Enter one supported lookup filter to read proposal review metadata."
         />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingProposalLifecycleActionPanel() {
+  const [proposalId, setProposalId] = useState("");
+  const [action, setAction] = useState("");
+  const [reviewedBy, setReviewedBy] = useState<string>(
+    SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE.reviewed_by,
+  );
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewedAt, setReviewedAt] = useState("");
+  const [replacementProposalId, setReplacementProposalId] = useState("");
+  const [result, setResult] =
+    useState<AgResumeMappingProposalLifecycleActionPanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function loadSafeLifecycleActionFixture(
+    nextAction: AgResumeMappingProposalLifecycleAction,
+  ) {
+    setProposalId(
+      SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE.proposal_ids[
+        nextAction
+      ],
+    );
+    setAction(nextAction);
+    setReviewedBy(
+      SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE.reviewed_by,
+    );
+    setReviewNote(
+      `${SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE.review_note} Action: ${nextAction}.`,
+    );
+    setReviewedAt(
+      SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE.reviewed_at,
+    );
+    setReplacementProposalId(
+      nextAction === "supersede"
+        ? SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE.replacement_proposal_id
+        : "",
+    );
+    clearResultState();
+  }
+
+  function clearLifecycleActionInputs() {
+    requestIdRef.current += 1;
+    setProposalId("");
+    setAction("");
+    setReviewedBy(
+      SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE.reviewed_by,
+    );
+    setReviewNote("");
+    setReviewedAt("");
+    setReplacementProposalId("");
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleLifecycleActionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let requestBody: AgResumeMappingProposalLifecycleActionRequestBody;
+    try {
+      requestBody = buildMappingProposalLifecycleActionRequestBody({
+        proposalId,
+        action,
+        reviewedBy,
+        reviewNote,
+        reviewedAt,
+        replacementProposalId,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(
+        "/api/ag-work-resume/mapping-proposal-records/lifecycle-actions",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(requestBody),
+        },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Mapping proposal lifecycle action route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Mapping proposal lifecycle action route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body =
+        parsedBody as AgResumeMappingProposalLifecycleActionRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        requestBody,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "lifecycle action failed";
+        setError(`Mapping proposal lifecycle action route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Mapping proposal lifecycle action route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-mapping-proposal-lifecycle-action-panel"
+      aria-label="AG Resume Mapping Proposal Lifecycle Actions"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Mapping Proposal Lifecycle Actions"
+        description="Bounded Cockpit controls for existing proposal review metadata."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>
+            Lifecycle updates are proposal review metadata only on existing
+            Stage B proposal records.
+          </li>
+          <li>
+            The action submits JSON only to the existing POST lifecycle action
+            route.
+          </li>
+          <li>
+            No proposal creation, replacement proposal creation, confirmed
+            mapping, import, proof/evidence, session binding, Codex execution,
+            approval, publish, retry, replay, or merge authority.
+          </li>
+          <li>Durable approval remains user/Core gated.</li>
+        </ul>
+      </BoundaryNote>
+      <form className="observe-form" onSubmit={handleLifecycleActionSubmit}>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-proposal-lifecycle-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-mapping-proposal-lifecycle-safe-fixtures-heading">
+            Proposal lifecycle safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe lifecycle values into
+            local React state only. They do not create rows, update rows, call
+            routes, or persist browser state.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => loadSafeLifecycleActionFixture("withdraw")}
+              disabled={busy}
+            >
+              Load safe withdraw action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => loadSafeLifecycleActionFixture("reject")}
+              disabled={busy}
+            >
+              Load safe reject action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => loadSafeLifecycleActionFixture("supersede")}
+              disabled={busy}
+            >
+              Load safe supersede action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => loadSafeLifecycleActionFixture("expire")}
+              disabled={busy}
+            >
+              Load safe expire action
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-proposal-lifecycle-inputs-heading"
+        >
+          <h3 id="ag-resume-mapping-proposal-lifecycle-inputs-heading">
+            Proposal lifecycle action inputs
+          </h3>
+          <label htmlFor="ag-resume-mapping-proposal-lifecycle-proposal-id-input">
+            proposal_id
+          </label>
+          <p
+            id="ag-resume-mapping-proposal-lifecycle-proposal-id-help"
+            className="notice"
+          >
+            Existing active proposal record to move through withdraw, reject,
+            supersede, or expire review metadata.
+          </p>
+          <input
+            id="ag-resume-mapping-proposal-lifecycle-proposal-id-input"
+            value={proposalId}
+            onChange={(event) => setProposalId(event.target.value)}
+            aria-describedby="ag-resume-mapping-proposal-lifecycle-proposal-id-help"
+            placeholder="ag-resume-mapping-proposal:..."
+          />
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Lifecycle action</h3>
+              <label htmlFor="ag-resume-mapping-proposal-lifecycle-action-input">
+                action
+              </label>
+              <select
+                id="ag-resume-mapping-proposal-lifecycle-action-input"
+                value={action}
+                onChange={(event) => setAction(event.target.value)}
+                aria-describedby="ag-resume-mapping-proposal-lifecycle-action-help"
+              >
+                <option value="">Select lifecycle action</option>
+                <option value="withdraw">withdraw</option>
+                <option value="reject">reject</option>
+                <option value="supersede">supersede</option>
+                <option value="expire">expire</option>
+              </select>
+              <p
+                id="ag-resume-mapping-proposal-lifecycle-action-help"
+                className="notice"
+              >
+                Allowed actions only move proposal lifecycle/review metadata.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Review metadata</h3>
+              <label htmlFor="ag-resume-mapping-proposal-lifecycle-reviewed-by-input">
+                reviewed_by
+              </label>
+              <input
+                id="ag-resume-mapping-proposal-lifecycle-reviewed-by-input"
+                value={reviewedBy}
+                onChange={(event) => setReviewedBy(event.target.value)}
+                aria-describedby="ag-resume-mapping-proposal-lifecycle-review-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-mapping-proposal-lifecycle-review-note-input">
+                review_note
+              </label>
+              <textarea
+                id="ag-resume-mapping-proposal-lifecycle-review-note-input"
+                value={reviewNote}
+                onChange={(event) => setReviewNote(event.target.value)}
+                aria-describedby="ag-resume-mapping-proposal-lifecycle-review-help"
+                rows={4}
+                placeholder="Reason for the proposal lifecycle action"
+              />
+              <p
+                id="ag-resume-mapping-proposal-lifecycle-review-help"
+                className="notice"
+              >
+                reviewed_by and review_note are required proposal review
+                metadata.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Optional fields</h3>
+              <label htmlFor="ag-resume-mapping-proposal-lifecycle-reviewed-at-input">
+                reviewed_at
+              </label>
+              <input
+                id="ag-resume-mapping-proposal-lifecycle-reviewed-at-input"
+                value={reviewedAt}
+                onChange={(event) => setReviewedAt(event.target.value)}
+                aria-describedby="ag-resume-mapping-proposal-lifecycle-optional-help"
+                placeholder="2026-05-31T04:00:00.000Z"
+              />
+              <label htmlFor="ag-resume-mapping-proposal-lifecycle-replacement-proposal-id-input">
+                replacement_proposal_id
+              </label>
+              <input
+                id="ag-resume-mapping-proposal-lifecycle-replacement-proposal-id-input"
+                value={replacementProposalId}
+                onChange={(event) =>
+                  setReplacementProposalId(event.target.value)
+                }
+                aria-describedby="ag-resume-mapping-proposal-lifecycle-optional-help"
+                placeholder="ag-resume-mapping-proposal:..."
+              />
+              <p
+                id="ag-resume-mapping-proposal-lifecycle-optional-help"
+                className="notice"
+              >
+                reviewed_at must be ISO UTC when supplied.
+                replacement_proposal_id is allowed only for supersede and does
+                not create or update a replacement row.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-proposal-lifecycle-action-controls-heading"
+        >
+          <h3 id="ag-resume-mapping-proposal-lifecycle-action-controls-heading">
+            Proposal lifecycle action controls
+          </h3>
+          <BoundaryNote>
+            The action button calls only the existing POST lifecycle action
+            route with JSON. It does not call proposal writer, read, import,
+            work, proof/evidence, session, Codex, approval, publication,
+            bridge, MCP/App, Direct Resume Code, or relay routes.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearLifecycleActionInputs}
+            >
+              Clear lifecycle action inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy ? "Applying lifecycle action" : "Apply lifecycle action"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-mapping-proposal-lifecycle-action-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeMappingProposalLifecycleActionResults result={result} />
+      ) : (
+        <EmptyState
+          label="No proposal lifecycle action yet."
+          description="Enter an existing proposal_id, action, reviewer, and review note to update proposal review metadata."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingProposalLifecycleActionResults({
+  result,
+}: {
+  result: AgResumeMappingProposalLifecycleActionPanelResult;
+}) {
+  const { body } = result;
+  const actionResult = body.result ?? null;
+  const authorityBoundary =
+    body.authority_boundary ?? actionResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-mapping-proposal-lifecycle-action-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-mapping-proposal-lifecycle-action-result-heading">
+        Mapping proposal lifecycle action result
+      </h3>
+      <BoundaryNote tone="green">
+        Lifecycle action results are proposal review metadata only. They are not
+        confirmed mappings, imports, proof/evidence authorization, session
+        bindings, Codex execution authority, approval, publish, retry, replay,
+        or merge authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>
+          route recommended_next_step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      {actionResult?.recommended_next_step ? (
+        <BoundaryNote>
+          lifecycle recommended_next_step: {actionResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>mapping-proposal-records lifecycle POST route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Lifecycle status</h3>
+          <p>{actionResult?.status ?? body.error ?? "unknown"}</p>
+          <small>updated/invalid_input/not_found/not_active/db_error</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Action</h3>
+          <p>{actionResult?.action ?? result.requestBody.action}</p>
+          <small>withdraw/reject/supersede/expire</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Proposal id</h3>
+          <p>{actionResult?.proposal_id ?? result.requestBody.proposal_id}</p>
+          <small>existing proposal review metadata row</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Before/after status</h3>
+          <p>
+            {actionResult?.before_record?.status ?? "unknown"} {"->"}{" "}
+            {actionResult?.record?.status ?? "unknown"}
+          </p>
+          <small>proposal lifecycle status only</small>
+        </section>
+      </div>
+      <AgResumeStringList
+        title="Updated fields"
+        items={actionResult?.updated_fields ?? []}
+        emptyLabel="No lifecycle fields updated."
+      />
+      <AgResumeStringList
+        title="Warnings"
+        items={actionResult?.warnings ?? []}
+        emptyLabel="No lifecycle action warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={actionResult?.failures ?? []}
+        emptyLabel="No lifecycle action failures."
+      />
+      <AgResumeMappingProposalLifecycleActionAuthorityBoundary
+        authorityBoundary={authorityBoundary}
+      />
+      <div className="evidence-pack-grid">
+        <AgResumeMappingProposalLifecycleRecordSnapshot
+          title="Before proposal record"
+          record={actionResult?.before_record ?? null}
+        />
+        <AgResumeMappingProposalLifecycleRecordSnapshot
+          title="After proposal record"
+          record={actionResult?.record ?? null}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AgResumeMappingProposalLifecycleRecordSnapshot({
+  title,
+  record,
+}: {
+  title: string;
+  record: AgResumeMappingProposalRecord | null;
+}) {
+  return (
+    <section className="evidence-pack-card evidence-pack-card-wide">
+      <h3>{title}</h3>
+      {record ? (
+        <div className="meta-row">
+          <span>proposal_id: {record.proposal_id ?? "unknown"}</span>
+          <span>status: {record.status ?? "unknown"}</span>
+          <span>reviewed_by: {record.reviewed_by ?? "none"}</span>
+          <span>reviewed_at: {record.reviewed_at ?? "none"}</span>
+          <span>review_note: {record.review_note ?? "none"}</span>
+          <span>
+            superseded_by_proposal_id:{" "}
+            {record.superseded_by_proposal_id ?? "none"}
+          </span>
+          <span>updated_at: {record.updated_at ?? "unknown"}</span>
+        </div>
+      ) : (
+        <EmptyState label={`No ${title.toLowerCase()} returned.`} />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingProposalLifecycleActionAuthorityBoundary({
+  authorityBoundary,
+}: {
+  authorityBoundary: AgResumeMappingProposalLifecycleActionAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Lifecycle Authority Boundary</h3>
+      {authorityBoundary ? (
+        <>
+          <p>
+            {authorityBoundary.statement ??
+              "No lifecycle authority boundary statement returned."}
+          </p>
+          <div className="meta-row">
+            <span>
+              proposal_lifecycle_updated:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.proposal_lifecycle_updated,
+              )}
+            </span>
+            <span>
+              proposal_review_metadata_only:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.proposal_review_metadata_only,
+              )}
+            </span>
+            <span>
+              proposal_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_created)}
+            </span>
+            <span>
+              proposal_record_deleted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_deleted)}
+            </span>
+            <span>
+              confirmed_mapping_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_created)}
+            </span>
+            <span>
+              import_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.import_record_created)}
+            </span>
+            <span>
+              imported_context_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_created)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              evidence_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.evidence_recorded)}
+            </span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No lifecycle authority boundary returned." />
       )}
     </section>
   );
@@ -10629,6 +11320,91 @@ function buildMappingProposalRecordReadSearchParams({
     searchParams.set("limit", trimmedLimit);
   }
   return searchParams;
+}
+
+function buildMappingProposalLifecycleActionRequestBody({
+  proposalId,
+  action,
+  reviewedBy,
+  reviewNote,
+  reviewedAt,
+  replacementProposalId,
+}: {
+  proposalId: string;
+  action: string;
+  reviewedBy: string;
+  reviewNote: string;
+  reviewedAt: string;
+  replacementProposalId: string;
+}): AgResumeMappingProposalLifecycleActionRequestBody {
+  const trimmedProposalId = proposalId.trim();
+  const trimmedAction = action.trim();
+  const normalizedAction = normalizeMappingProposalLifecycleAction(trimmedAction);
+  const trimmedReviewedBy = reviewedBy.trim();
+  const trimmedReviewNote = reviewNote.trim();
+  const trimmedReviewedAt = reviewedAt.trim();
+  const trimmedReplacementProposalId = replacementProposalId.trim();
+
+  if (!trimmedProposalId) {
+    throw new Error("proposal_id is required for lifecycle action.");
+  }
+  if (!trimmedAction) {
+    throw new Error("action is required for lifecycle action.");
+  }
+  if (!normalizedAction) {
+    throw new Error("action must be one of: withdraw, reject, supersede, expire.");
+  }
+  if (!trimmedReviewedBy) {
+    throw new Error("reviewed_by is required for lifecycle action.");
+  }
+  if (!trimmedReviewNote) {
+    throw new Error("review_note is required for lifecycle action.");
+  }
+  if (trimmedReplacementProposalId && normalizedAction !== "supersede") {
+    throw new Error("replacement_proposal_id is allowed only for supersede.");
+  }
+  if (trimmedReviewedAt) {
+    const parsedReviewedAt = Date.parse(trimmedReviewedAt);
+    if (
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
+        trimmedReviewedAt,
+      ) ||
+      !Number.isFinite(parsedReviewedAt) ||
+      new Date(parsedReviewedAt).toISOString() !== trimmedReviewedAt
+    ) {
+      throw new Error(
+        "reviewed_at must be an ISO UTC timestamp with millisecond precision.",
+      );
+    }
+  }
+
+  const requestBody: AgResumeMappingProposalLifecycleActionRequestBody = {
+    proposal_id: trimmedProposalId,
+    action: normalizedAction,
+    reviewed_by: trimmedReviewedBy,
+    review_note: trimmedReviewNote,
+  };
+  if (trimmedReviewedAt) {
+    requestBody.reviewed_at = trimmedReviewedAt;
+  }
+  if (normalizedAction === "supersede" && trimmedReplacementProposalId) {
+    requestBody.replacement_proposal_id = trimmedReplacementProposalId;
+  }
+  return requestBody;
+}
+
+function normalizeMappingProposalLifecycleAction(
+  value: string,
+): AgResumeMappingProposalLifecycleAction | null {
+  if (
+    value === "withdraw" ||
+    value === "reject" ||
+    value === "supersede" ||
+    value === "expire"
+  ) {
+    return value;
+  }
+  return null;
 }
 
 function isAgResumeFieldError(error: string | null, fieldLabel: string) {

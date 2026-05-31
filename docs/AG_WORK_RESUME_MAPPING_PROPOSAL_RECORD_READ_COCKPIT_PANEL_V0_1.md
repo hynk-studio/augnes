@@ -37,6 +37,11 @@ merge/publish authority.
   documents the separately scoped helper for existing proposal lifecycle/review
   metadata updates. This panel still does not call it and exposes no lifecycle
   controls.
+- Stage B lifecycle action Cockpit panel:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`
+  documents the separate adjacent Operator panel that calls only the lifecycle
+  action route. This read panel still calls only the GET proposal record read
+  route and exposes no lifecycle controls.
 - Stage A mapping proposal preview panel:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_COCKPIT_PANEL_V0_1.md`
   remains a preview-only surface. This panel reads persisted Stage B proposal

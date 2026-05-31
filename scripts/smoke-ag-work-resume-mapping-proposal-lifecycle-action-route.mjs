@@ -478,20 +478,25 @@ function assertSourceGuards() {
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-route.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-actions-design.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel.mjs",
+    "components/augnes-cockpit.tsx",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTIONS_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
+    "reports/browser/2026-05-31-ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel-verification.md",
     "package.json",
   ]);
   const forbiddenFiles = changedFiles.filter(
     (file) =>
       !allowedFiles.has(file) ||
-      file.startsWith("components/") ||
+      (file.startsWith("components/") && !allowedFiles.has(file)) ||
       file.startsWith("migrations/") ||
       file === "lib/db/schema.sql" ||
       file.startsWith("apps/") ||
-      file.startsWith("reports/browser/"),
+      (file.startsWith("reports/browser/") && !allowedFiles.has(file)),
   );
   assert.deepEqual(
     forbiddenFiles,

@@ -41,6 +41,15 @@ schema, migration, proposal creation, replacement proposal creation, confirmed
 mapping, import, proof/evidence, session, Codex, approval, publish, retry,
 replay, or merge authority.
 
+## Cockpit Surface
+
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`
+documents the later bounded Cockpit Operator panel over the existing route.
+That panel does not change this helper contract, create proposal rows, create
+replacement proposal rows, confirm mappings, import context, record
+proof/evidence, bind sessions, execute Codex, approve, publish, retry, replay,
+or merge.
+
 ## Core API
 
 `lib/ag-work-resume-mapping-proposal-lifecycle-action.ts` exports
