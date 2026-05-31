@@ -270,6 +270,12 @@ shared writer core and still adds no Cockpit UI, schema/migration, import,
 proof/evidence, session binding, Codex execution, approval, publish, retry,
 replay, or merge authority.
 
+The read-only confirmed mapping helper/route is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md`. It reads confirmed
+mapping identity metadata only and grants no create/update/delete, import,
+proof/evidence/session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 ## Future Writer/Helper/Route Contract Sketch
 
 Design only. A future writer/helper/route input could include:
@@ -351,9 +357,11 @@ relay, or runtime contract in this PR.
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`.
 5. Confirmed mapping route:
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md`.
-6. Confirmed mapping Cockpit review/control UI, only if separately approved.
-7. Imported resume context design as Stage D.
-8. Proof/evidence/session/Codex gates remain separate.
+6. Confirmed mapping read helper/route:
+   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md`.
+7. Confirmed mapping Cockpit review/control UI, only if separately approved.
+8. Imported resume context design as Stage D.
+9. Proof/evidence/session/Codex gates remain separate.
 
 Each future PR must restate the authority boundary and prove it does not grant
 unscoped downstream authority.
@@ -368,6 +376,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-read
 npm run smoke:ag-work-resume-confirmed-mapping-record-design
 npm run smoke:ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel
 npm run smoke:ag-work-resume-mapping-proposal-lifecycle-action-route

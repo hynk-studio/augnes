@@ -397,9 +397,15 @@ function assertSourceGuards() {
   const changedFiles = gitChangedFiles();
   const allowedFiles = new Set([
     "app/api/ag-work-resume/confirmed-mappings/route.ts",
+    "lib/ag-work-resume-confirmed-mapping-read.ts",
+    "scripts/ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema-design.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-record-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
@@ -416,13 +422,17 @@ function assertSourceGuards() {
     assert.ok(
       file === "app/api/ag-work-resume/confirmed-mappings/route.ts" ||
         !file.startsWith("app/"),
-      `app changes limited to confirmed mapping create route: ${file}`,
+      `app changes limited to confirmed mapping route: ${file}`,
     );
     assert.equal(file.startsWith("components/"), false, `no component change: ${file}`);
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
     assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
-    assert.equal(file.startsWith("lib/"), false, `no lib change in route slice: ${file}`);
+    assert.ok(
+      file === "lib/ag-work-resume-confirmed-mapping-read.ts" ||
+        !file.startsWith("lib/"),
+      `lib changes limited to confirmed mapping read core in this follow-up: ${file}`,
+    );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
   }
 }

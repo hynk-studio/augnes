@@ -34,6 +34,11 @@ merge authority.
   still adds no Cockpit UI, schema/migration, import, proof/evidence, session
   binding, Codex execution, approval, publish, retry, replay, or merge
   authority.
+- Stage C read helper/route:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md` documents read-only
+  access to confirmed mapping identity metadata. It creates, updates, and
+  deletes no confirmed mapping rows and grants no import, proof/evidence,
+  session, Codex, approval, publish, retry, replay, or merge authority.
 
 This writer is the first write boundary for confirmed mapping rows. It adds no
 route/UI and no schema/migration.
@@ -253,6 +258,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-read
 npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-writer
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema

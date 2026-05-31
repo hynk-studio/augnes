@@ -2,12 +2,17 @@ import {
   createAgWorkResumeConfirmedMapping,
   type AgWorkResumeConfirmedMappingCreateResult,
 } from "@/lib/ag-work-resume-confirmed-mapping";
+import {
+  readAgWorkResumeConfirmedMappings,
+  type AgWorkResumeConfirmedMappingReadInput,
+} from "@/lib/ag-work-resume-confirmed-mapping-read";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROUTE_ID = "ag_work_resume_confirmed_mappings.v0_1";
+const READ_ROUTE_ID = "ag_work_resume_confirmed_mapping_read.v0_1";
 const SUPPORTED_BODY_FIELDS = new Set([
   "source_proposal_id",
   "foreign_scope",
@@ -20,6 +25,18 @@ const SUPPORTED_BODY_FIELDS = new Set([
   "confirmed_by",
   "confirmation_reason",
   "confirmed_at",
+]);
+const READ_QUERY_PARAMS = new Set([
+  "mapping_id",
+  "foreign_scope",
+  "foreign_work_id",
+  "local_scope",
+  "local_work_id",
+  "source_proposal_id",
+  "packet_id",
+  "packet_hash",
+  "status",
+  "limit",
 ]);
 
 type ConfirmedMappingRouteBody = {
@@ -69,6 +86,56 @@ export async function POST(request: Request) {
     },
     { status: statusForResult(result) },
   );
+}
+
+export function GET(request: Request) {
+  if (request.body !== null) {
+    return badReadRequest("GET confirmed mapping reads do not accept a body.");
+  }
+
+  const { searchParams } = new URL(request.url);
+  const input = parseReadQuery(searchParams);
+  if ("error" in input) return badReadRequest(input.error);
+
+  const result = readAgWorkResumeConfirmedMappings(input);
+
+  return NextResponse.json(
+    {
+      ok: result.ok,
+      route: READ_ROUTE_ID,
+      result,
+      authority_boundary: result.authority_boundary,
+      recommended_next_step:
+        "User/Core may review confirmed mapping identity metadata. This read route is not import authorization, proof/evidence authorization, session binding, Codex execution authority, or merge/publish authority.",
+    },
+    { status: statusForReadResult(result.status) },
+  );
+}
+
+function parseReadQuery(
+  searchParams: URLSearchParams,
+): AgWorkResumeConfirmedMappingReadInput | { error: string } {
+  for (const key of searchParams.keys()) {
+    if (!READ_QUERY_PARAMS.has(key)) {
+      return { error: `Unsupported read query parameter: ${key}.` };
+    }
+    if (searchParams.getAll(key).length > 1) {
+      return { error: `Read query parameter must not be repeated: ${key}.` };
+    }
+  }
+
+  return {
+    mapping_id: searchParams.get("mapping_id"),
+    foreign_scope: searchParams.get("foreign_scope"),
+    foreign_work_id: searchParams.get("foreign_work_id"),
+    local_scope: searchParams.get("local_scope"),
+    local_work_id: searchParams.get("local_work_id"),
+    source_proposal_id: searchParams.get("source_proposal_id"),
+    packet_id: searchParams.get("packet_id"),
+    packet_hash: searchParams.get("packet_hash"),
+    status: searchParams.get("status"),
+    limit: searchParams.get("limit"),
+  };
 }
 
 function acceptsJson(request: Request) {
@@ -131,6 +198,13 @@ function statusForResult(result: AgWorkResumeConfirmedMappingCreateResult) {
   return 500;
 }
 
+function statusForReadResult(status: string) {
+  if (status === "fetched" || status === "listed") return 200;
+  if (status === "invalid_input") return 400;
+  if (status === "not_found") return 404;
+  return 500;
+}
+
 function badRequest(error: string) {
   return NextResponse.json(
     {
@@ -139,6 +213,19 @@ function badRequest(error: string) {
       error,
       recommended_next_step:
         "Stop. Provide valid AG Resume confirmed mapping creation JSON.",
+    },
+    { status: 400 },
+  );
+}
+
+function badReadRequest(error: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      route: READ_ROUTE_ID,
+      error,
+      recommended_next_step:
+        "Stop. Provide supported AG Resume confirmed mapping read query parameters only.",
     },
     { status: 400 },
   );

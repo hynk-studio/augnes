@@ -423,20 +423,32 @@ function assertNoUnexpectedChangedFiles() {
   ]);
   const allowedFiles = new Set([
     "lib/db/schema.sql",
+    "lib/ag-work-resume-confirmed-mapping-read.ts",
+    "app/api/ag-work-resume/confirmed-mappings/route.ts",
+    "scripts/ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema-design.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-record-design.mjs",
     "package.json",
   ]);
-  const forbiddenPrefixes = [
-    "app/",
-    "apps/",
-    "components/",
-    "migrations/",
-    "reports/browser/",
-  ];
+  const allowedAppFiles = new Set([
+    "app/api/ag-work-resume/confirmed-mappings/route.ts",
+  ]);
+  const allowedLibFiles = new Set([
+    "lib/db/schema.sql",
+    "lib/ag-work-resume-confirmed-mapping-read.ts",
+  ]);
+  const forbiddenPrefixes = ["apps/", "components/", "migrations/", "reports/browser/"];
 
   for (const file of changedFiles) {
     assert.ok(
@@ -444,12 +456,13 @@ function assertNoUnexpectedChangedFiles() {
       `changed file is outside confirmed mapping schema slice: ${file}`,
     );
     assert.ok(
-      !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)) &&
+        (!file.startsWith("app/") || allowedAppFiles.has(file)),
       `confirmed mapping schema slice must not touch forbidden path: ${file}`,
     );
     assert.ok(
-      file === "lib/db/schema.sql" || !file.startsWith("lib/"),
-      `no lib runtime files may change outside lib/db/schema.sql: ${file}`,
+      allowedLibFiles.has(file) || !file.startsWith("lib/"),
+      `lib changes limited to schema/read core in this follow-up: ${file}`,
     );
   }
 }

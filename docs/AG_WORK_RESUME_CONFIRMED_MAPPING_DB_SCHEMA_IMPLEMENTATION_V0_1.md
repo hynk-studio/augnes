@@ -39,6 +39,13 @@ identity after explicit user/Core confirmation.
   association rows only and still adds no Cockpit UI, schema/migration,
   import, proof/evidence, session binding, Codex execution, approval, publish,
   retry, replay, or merge authority.
+- Confirmed mapping read helper/route:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md` documents read-only
+  access to confirmed mapping identity metadata. It reads only from
+  `ag_work_resume_confirmed_mappings`, creates/updates/deletes no rows, and
+  still adds no Cockpit UI, schema/migration, import, proof/evidence, session
+  binding, Codex execution, approval, publish, retry, replay, or merge
+  authority.
 
 ## Implemented Table
 
@@ -165,6 +172,12 @@ The JSON create route is documented in
 remains separately gated. Stage D imported resume context remains after
 confirmed mapping and requires separate design and authority review.
 
+The confirmed mapping read helper/route is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md`. It reads mapping
+identity metadata only and grants no create/update/delete, import,
+proof/evidence/session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 ## Browser Verification
 
 browser verification skipped: no rendered UI/operator surface changed in this schema-only confirmed mapping slice
@@ -175,6 +188,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-read
 npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema-design
