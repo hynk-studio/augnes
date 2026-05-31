@@ -223,10 +223,12 @@ local storage persistence, telemetry, analytics, or committed-state mutation.
 
 ## Future Note
 
-A later PR may add a Cockpit or ChatGPT App read-only surface only after
-user/Core scopes that surface. Any persistence, import, mapping confirmation,
-proof/evidence recording, session binding, or Codex continuation remains
-future-only and separately gated.
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_COCKPIT_PANEL_V0_1.md` documents
+the Cockpit Operator tab read-only panel over this route.
+
+Any persistence, import, mapping confirmation, proof/evidence recording,
+session binding, or Codex continuation remains future-only and separately
+gated.
 
 ## Verification
 
