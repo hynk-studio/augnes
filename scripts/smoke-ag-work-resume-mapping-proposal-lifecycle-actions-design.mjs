@@ -326,7 +326,7 @@ console.log(
         "DB behavior is scoped to future ag_work_resume_mapping_proposals lifecycle/review fields only",
         "authority boundary and non-goals forbid mapping/import/proof/evidence/session/Codex/approval/publish/retry/replay/merge behavior",
         "existing Stage B docs point to the lifecycle design doc",
-        "source guard limits changed files to docs, package.json, and this static smoke",
+        "source guard limits changed files to scoped lifecycle docs, scripts, package wiring, and helper core follow-up files",
         "implementation guard rejects route/UI/runtime/schema/app/browser-persistence/network/tool changes",
       ],
     },
@@ -343,12 +343,22 @@ function assertNoUnexpectedChangedFiles() {
   ]);
   const allowedFiles = new Set([
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTIONS_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_COCKPIT_PANEL_V0_1.md",
     "package.json",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-actions-design.mjs",
+    "lib/ag-work-resume-mapping-proposal-lifecycle-action.ts",
+    "scripts/ag-work-resume-mapping-proposal-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
+  ]);
+  const allowedLifecycleHelperFiles = new Set([
+    "lib/ag-work-resume-mapping-proposal-lifecycle-action.ts",
+    "scripts/ag-work-resume-mapping-proposal-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md",
   ]);
   const forbiddenPrefixes = [
     "app/",
@@ -364,6 +374,7 @@ function assertNoUnexpectedChangedFiles() {
       allowedFiles.has(file),
       `changed file is outside the design-only lifecycle slice: ${file}`,
     );
+    if (allowedLifecycleHelperFiles.has(file)) continue;
     assert.ok(
       !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       `design-only lifecycle slice must not touch runtime/UI/schema/browser report files: ${file}`,
@@ -386,20 +397,25 @@ function assertNoImplementationSqlOrRuntimeCode() {
     "lib/",
     "migrations/",
   ];
+  const allowedImplementationFiles = new Set([
+    "lib/ag-work-resume-mapping-proposal-lifecycle-action.ts",
+  ]);
   const implementationFiles = changedFiles.filter((file) =>
-    implementationPrefixes.some((prefix) => file.startsWith(prefix)),
+    implementationPrefixes.some((prefix) => file.startsWith(prefix)) &&
+    !allowedImplementationFiles.has(file),
   );
   assert.deepEqual(
     implementationFiles,
     [],
-    "no implementation files may change in this lifecycle design slice",
+    "no unscoped implementation files may change in this lifecycle design/helper sequence",
   );
 
-  for (const file of implementationFiles) {
+  for (const file of changedFiles.filter((changedFile) =>
+    allowedImplementationFiles.has(changedFile),
+  )) {
     const source = readFileSync(path.join(rootDir, file), "utf8");
     for (const forbiddenSql of [
       /INSERT\s+INTO/i,
-      /\bUPDATE\b/i,
       /\bDELETE\b/i,
       /\bDROP\b/i,
     ]) {
@@ -409,10 +425,23 @@ function assertNoImplementationSqlOrRuntimeCode() {
         `implementation code must not include lifecycle SQL write ${forbiddenSql}`,
       );
     }
+    for (const forbiddenRuntime of [
+      /fetch\s*\(/i,
+      /localStorage|sessionStorage|indexedDB/i,
+      /createConfirmedMapping|createImportRecord|recordEvidence|recordProof/i,
+      /bindSession|executeCodex|runCodex/i,
+    ]) {
+      assert.doesNotMatch(
+        source,
+        forbiddenRuntime,
+        `scoped lifecycle helper implementation must not include ${forbiddenRuntime}`,
+      );
+    }
   }
 
   const forbiddenRouteOrReportFiles = changedFiles.filter(
     (file) =>
+      !allowedImplementationFiles.has(file) &&
       file.includes("mapping-proposal-lifecycle") &&
       (file.startsWith("app/") ||
         file.startsWith("components/") ||

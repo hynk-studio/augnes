@@ -29,6 +29,12 @@ merge/publish authority.
   documents design-only future withdraw, reject, supersede, and expire
   semantics. This reader still performs no lifecycle mutation, confirmation,
   import, proof/evidence recording, session binding, or Codex execution.
+- Stage B lifecycle action helper:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md`
+  documents the separately scoped helper for existing proposal lifecycle/review
+  metadata updates. This reader remains read-only and still does not perform
+  lifecycle mutation, confirmation, import, proof/evidence recording, session
+  binding, or Codex execution.
 - Stage A mapping proposal preview:
   the preview helper, preview route, and Cockpit panel remain proposal-preview
   surfaces. This reader adds no Cockpit UI and does not change preview behavior.
