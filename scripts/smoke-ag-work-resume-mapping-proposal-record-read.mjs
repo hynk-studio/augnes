@@ -356,7 +356,13 @@ function assertSourceGuards() {
   assert.doesNotMatch(getBlock, /INSERT\s+INTO|\bUPDATE\b|\bDELETE\b|\bDROP\b/i);
 
   const changedFiles = gitChangedFiles();
+  const allowedScopedFollowUpFiles = new Set([
+    "components/augnes-cockpit.tsx",
+    "reports/browser/2026-05-31-ag-work-resume-mapping-proposal-record-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-mapping-proposal-record-read-cockpit-panel.mjs",
+  ]);
   for (const file of changedFiles) {
+    if (allowedScopedFollowUpFiles.has(file)) continue;
     assert.equal(file.includes("components/"), false, `no Cockpit component change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App or ChatGPT app change: ${file}`);
     assert.equal(/cockpit/i.test(file) && !file.startsWith("docs/"), false, `no Cockpit code change: ${file}`);
