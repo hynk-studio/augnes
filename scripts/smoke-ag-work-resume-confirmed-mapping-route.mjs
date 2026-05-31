@@ -399,10 +399,12 @@ function assertSourceGuards() {
     "app/api/ag-work-resume/confirmed-mappings/route.ts",
     "components/augnes-cockpit.tsx",
     "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md",
     "lib/ag-work-resume-confirmed-mapping-read.ts",
     "scripts/ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-read-cockpit-panel.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema-design.mjs",
@@ -410,6 +412,7 @@ function assertSourceGuards() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_CREATE_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
@@ -437,8 +440,10 @@ function assertSourceGuards() {
     assert.ok(
       file ===
         "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md" ||
+        file ===
+          "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md" ||
         !file.startsWith("reports/browser/"),
-      `browser reports limited to confirmed mapping read Cockpit panel verification: ${file}`,
+      `browser reports limited to confirmed mapping Cockpit panel verification: ${file}`,
     );
     assert.ok(
       file === "lib/ag-work-resume-confirmed-mapping-read.ts" ||

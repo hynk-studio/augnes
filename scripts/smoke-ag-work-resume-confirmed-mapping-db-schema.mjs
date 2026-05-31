@@ -427,9 +427,11 @@ function assertNoUnexpectedChangedFiles() {
     "app/api/ag-work-resume/confirmed-mappings/route.ts",
     "components/augnes-cockpit.tsx",
     "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md",
     "scripts/ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-read-cockpit-panel.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
@@ -437,6 +439,7 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_CREATE_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
@@ -455,6 +458,7 @@ function assertNoUnexpectedChangedFiles() {
   const allowedUiFollowUpFiles = new Set([
     "components/augnes-cockpit.tsx",
     "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md",
   ]);
   const forbiddenPrefixes = ["apps/", "components/", "migrations/", "reports/browser/"];
 

@@ -834,6 +834,26 @@ type AgResumeConfirmedMappingReadPanelResult = {
   body: AgResumeConfirmedMappingReadRouteResponse;
 };
 
+type AgResumeConfirmedMappingCreatePanelResult = {
+  httpStatus: number;
+  requestBody: AgResumeConfirmedMappingCreateRequestBody;
+  body: AgResumeConfirmedMappingCreateRouteResponse;
+};
+
+type AgResumeConfirmedMappingCreateRequestBody = {
+  source_proposal_id: string;
+  foreign_scope?: string;
+  foreign_work_id?: string;
+  local_scope?: string;
+  local_work_id?: string;
+  packet_id?: string;
+  packet_hash?: string;
+  source_runtime_instance_id?: string;
+  confirmed_by: string;
+  confirmation_reason: string;
+  confirmed_at?: string;
+};
+
 type AgResumeMappingProposalLifecycleActionPanelResult = {
   httpStatus: number;
   requestBody: AgResumeMappingProposalLifecycleActionRequestBody;
@@ -1092,6 +1112,44 @@ type AgResumeConfirmedMappingReadAuthorityBoundary = {
 
 type AgResumeConfirmedMappingRecordAuthorityBoundary =
   AgResumeConfirmedMappingReadAuthorityBoundary;
+
+type AgResumeConfirmedMappingCreateRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeConfirmedMappingCreateResult | null;
+  authority_boundary?: AgResumeConfirmedMappingCreateAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeConfirmedMappingCreateResult = {
+  ok?: boolean;
+  status?: string;
+  mapping_id?: string | null;
+  record?: AgResumeConfirmedMappingRecord | null;
+  source_proposal?: AgResumeMappingProposalRecord | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeConfirmedMappingCreateAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeConfirmedMappingCreateAuthorityBoundary =
+  AgResumeConfirmedMappingReadAuthorityBoundary;
+
+type AgResumeConfirmedMappingCreateFixture = {
+  source_proposal_id: string;
+  foreign_scope: string;
+  foreign_work_id: string;
+  local_scope: string;
+  local_work_id: string;
+  packet_id: string;
+  packet_hash: string;
+  source_runtime_instance_id: string;
+  confirmed_by: string;
+  confirmation_reason: string;
+  confirmed_at: string;
+};
 
 const SAFE_AG_RESUME_EXAMPLE_PACKET = {
   schema: "augnes.ag_work_resume_packet.v0_2",
@@ -1494,6 +1552,59 @@ const SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE = {
     "sha256:981e73c0f39746851e319aa5a5d2b53adf94870084718b403ecc50d8bc1f6835",
   status: "active",
   limit: "20",
+} as const;
+
+const SAFE_AG_RESUME_CONFIRMED_MAPPING_CREATE_FIXTURE = {
+  proposed: {
+    source_proposal_id: "ag-resume-mapping-proposal:0102d1483462498cff97c354",
+    foreign_scope: "project:foreign",
+    foreign_work_id: "AG-FIXTURE-CONFIRMED-CREATE-PROPOSED-001",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-CONFIRMED-CREATE-LOCAL-PROPOSED-001",
+    packet_id:
+      "resume-packet:preview:project-foreign:AG-FIXTURE-CONFIRMED-CREATE-PROPOSED-001",
+    packet_hash:
+      "sha256:641d5ee85e2e12c0a81d27b928d5d260f52dac893642423766cca2da3e62d912",
+    source_runtime_instance_id:
+      "runtime-instance:confirmed-mapping-create-proposed",
+    confirmed_by: "user-core:confirmed-mapping-create-proposed",
+    confirmation_reason: "User/Core confirmed synthetic create fixture proposed.",
+    confirmed_at: "2026-06-01T00:10:00.000Z",
+  },
+  needs_review: {
+    source_proposal_id: "ag-resume-mapping-proposal:3babfff29022a5e82728a4f8",
+    foreign_scope: "project:foreign",
+    foreign_work_id: "AG-FIXTURE-CONFIRMED-CREATE-NEEDS-REVIEW-001",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-CONFIRMED-CREATE-LOCAL-NEEDS-REVIEW-001",
+    packet_id:
+      "resume-packet:preview:project-foreign:AG-FIXTURE-CONFIRMED-CREATE-NEEDS-REVIEW-001",
+    packet_hash:
+      "sha256:42cf8c32fefbf55c1d37add7336a92ef420a7ddad434094f3b8c91bc4b601c85",
+    source_runtime_instance_id:
+      "runtime-instance:confirmed-mapping-create-needs-review",
+    confirmed_by: "user-core:confirmed-mapping-create-needs-review",
+    confirmation_reason:
+      "User/Core confirmed synthetic create fixture needs-review.",
+    confirmed_at: "2026-06-01T00:11:00.000Z",
+  },
+  missing_local: {
+    source_proposal_id: "ag-resume-mapping-proposal:0c46a5f39aeea5585e11ecc9",
+    foreign_scope: "project:foreign",
+    foreign_work_id: "AG-FIXTURE-CONFIRMED-CREATE-MISSING-LOCAL-001",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-CONFIRMED-CREATE-LOCAL-MISSING-LOCAL-001",
+    packet_id:
+      "resume-packet:preview:project-foreign:AG-FIXTURE-CONFIRMED-CREATE-MISSING-LOCAL-001",
+    packet_hash:
+      "sha256:8e06accca81d4d25bffcee19d527dfdf89a61258cdaf65ccdd58d09eaf8bf0f3",
+    source_runtime_instance_id:
+      "runtime-instance:confirmed-mapping-create-missing-local",
+    confirmed_by: "user-core:confirmed-mapping-create-missing-local",
+    confirmation_reason:
+      "User/Core confirmed synthetic create fixture missing-local.",
+    confirmed_at: "2026-06-01T00:12:00.000Z",
+  },
 } as const;
 
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
@@ -3665,6 +3776,7 @@ function OperatorTab({
           <AgResumeMappingProposalPreviewPanel />
           <AgResumeMappingProposalRecordReviewPanel />
           <AgResumeMappingProposalLifecycleActionPanel />
+          <AgResumeConfirmedMappingCreatePanel />
           <AgResumeConfirmedMappingReadPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
@@ -5581,6 +5693,685 @@ function AgResumeMappingProposalLifecycleActionPanel() {
           label="No proposal lifecycle action yet."
           description="Enter an existing proposal_id, action, reviewer, and review note to update proposal review metadata."
         />
+      )}
+    </section>
+  );
+}
+
+function AgResumeConfirmedMappingCreatePanel() {
+  const [sourceProposalId, setSourceProposalId] = useState("");
+  const [foreignScope, setForeignScope] = useState("");
+  const [foreignWorkId, setForeignWorkId] = useState("");
+  const [localScope, setLocalScope] = useState("");
+  const [localWorkId, setLocalWorkId] = useState("");
+  const [packetId, setPacketId] = useState("");
+  const [packetHash, setPacketHash] = useState("");
+  const [sourceRuntimeInstanceId, setSourceRuntimeInstanceId] = useState("");
+  const [confirmedBy, setConfirmedBy] = useState("");
+  const [confirmationReason, setConfirmationReason] = useState("");
+  const [confirmedAt, setConfirmedAt] = useState("");
+  const [result, setResult] =
+    useState<AgResumeConfirmedMappingCreatePanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearCreateResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function applyConfirmedMappingCreateFixture({
+    fixture,
+    includeOptionalFields,
+  }: {
+    fixture: AgResumeConfirmedMappingCreateFixture;
+    includeOptionalFields: boolean;
+  }) {
+    setSourceProposalId(fixture.source_proposal_id);
+    setForeignScope(includeOptionalFields ? fixture.foreign_scope : "");
+    setForeignWorkId(includeOptionalFields ? fixture.foreign_work_id : "");
+    setLocalScope(includeOptionalFields ? fixture.local_scope : "");
+    setLocalWorkId(includeOptionalFields ? fixture.local_work_id : "");
+    setPacketId(includeOptionalFields ? fixture.packet_id : "");
+    setPacketHash(includeOptionalFields ? fixture.packet_hash : "");
+    setSourceRuntimeInstanceId(
+      includeOptionalFields ? fixture.source_runtime_instance_id : "",
+    );
+    setConfirmedBy(fixture.confirmed_by);
+    setConfirmationReason(fixture.confirmation_reason);
+    setConfirmedAt(fixture.confirmed_at);
+    clearCreateResultState();
+  }
+
+  function loadSafeProposedCreateFixture() {
+    applyConfirmedMappingCreateFixture({
+      fixture: SAFE_AG_RESUME_CONFIRMED_MAPPING_CREATE_FIXTURE.proposed,
+      includeOptionalFields: false,
+    });
+  }
+
+  function loadSafeMatchingIdentityCreateFixture() {
+    applyConfirmedMappingCreateFixture({
+      fixture: SAFE_AG_RESUME_CONFIRMED_MAPPING_CREATE_FIXTURE.proposed,
+      includeOptionalFields: true,
+    });
+  }
+
+  function loadSafeNeedsReviewCreateFixture() {
+    applyConfirmedMappingCreateFixture({
+      fixture: SAFE_AG_RESUME_CONFIRMED_MAPPING_CREATE_FIXTURE.needs_review,
+      includeOptionalFields: false,
+    });
+  }
+
+  function loadSafeLocalWorkMissingCreateFixture() {
+    applyConfirmedMappingCreateFixture({
+      fixture: SAFE_AG_RESUME_CONFIRMED_MAPPING_CREATE_FIXTURE.missing_local,
+      includeOptionalFields: false,
+    });
+  }
+
+  function clearConfirmedMappingCreateInputs() {
+    requestIdRef.current += 1;
+    setSourceProposalId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId("");
+    setPacketHash("");
+    setSourceRuntimeInstanceId("");
+    setConfirmedBy("");
+    setConfirmationReason("");
+    setConfirmedAt("");
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleConfirmedMappingCreateSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let requestBody: AgResumeConfirmedMappingCreateRequestBody;
+    try {
+      requestBody = buildConfirmedMappingCreateRequestBody({
+        sourceProposalId,
+        foreignScope,
+        foreignWorkId,
+        localScope,
+        localWorkId,
+        packetId,
+        packetHash,
+        sourceRuntimeInstanceId,
+        confirmedBy,
+        confirmationReason,
+        confirmedAt,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch("/api/ag-work-resume/confirmed-mappings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Confirmed mapping create route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Confirmed mapping create route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeConfirmedMappingCreateRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        requestBody,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "create failed";
+        setError(`Confirmed mapping create route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Confirmed mapping create route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-confirmed-mapping-create-panel"
+      aria-label="AG Resume Confirmed Mapping Create"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Confirmed Mapping Create"
+        description="Bounded create controls for Stage C confirmed mapping identity association rows."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>
+            Creates only confirmed mapping foreign/local identity association
+            rows through the existing POST confirmed mappings route.
+          </li>
+          <li>
+            Not import, not imported resume context, not proof/evidence, not
+            session binding, not Codex execution, and not approval, publish,
+            retry, replay, or merge authority.
+          </li>
+          <li>
+            No lifecycle mutation controls, no delete controls, no Direct
+            Resume Code, no relay, and no MCP/App or bridge controls.
+          </li>
+          <li>Durable approval remains user/Core gated.</li>
+        </ul>
+      </BoundaryNote>
+      <form className="observe-form" onSubmit={handleConfirmedMappingCreateSubmit}>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-confirmed-mapping-create-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-confirmed-mapping-create-safe-fixtures-heading">
+            Confirmed mapping create safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe create fields into local
+            React state only. They do not create rows, call routes, persist
+            browser state, or grant import/proof/session/Codex authority.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeProposedCreateFixture}
+              disabled={busy}
+            >
+              Load safe proposed create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeMatchingIdentityCreateFixture}
+              disabled={busy}
+            >
+              Load safe matching identity fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeNeedsReviewCreateFixture}
+              disabled={busy}
+            >
+              Load safe needs_review create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeLocalWorkMissingCreateFixture}
+              disabled={busy}
+            >
+              Load safe local work missing fixture
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-confirmed-mapping-create-inputs-heading"
+        >
+          <h3 id="ag-resume-confirmed-mapping-create-inputs-heading">
+            Confirmed mapping create inputs
+          </h3>
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Required proposal source</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-create-source-proposal-id-input">
+                source_proposal_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-source-proposal-id-input"
+                value={sourceProposalId}
+                onChange={(event) => setSourceProposalId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-source-proposal-id-help"
+                placeholder="ag-resume-mapping-proposal:..."
+              />
+              <p
+                id="ag-resume-confirmed-mapping-create-source-proposal-id-help"
+                className="notice"
+              >
+                Required. Must reference an existing proposed or needs_review
+                Stage B mapping proposal row.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Optional foreign identity override</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-create-foreign-scope-input">
+                foreign_scope
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-foreign-scope-input"
+                value={foreignScope}
+                onChange={(event) => setForeignScope(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-foreign-help"
+                placeholder="project:source"
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-create-foreign-work-id-input">
+                foreign_work_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-foreign-work-id-input"
+                value={foreignWorkId}
+                onChange={(event) => setForeignWorkId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-foreign-help"
+                placeholder="AG-..."
+              />
+              <p id="ag-resume-confirmed-mapping-create-foreign-help" className="notice">
+                Optional. When supplied, the route/core must still verify these
+                fields match the reviewed proposal.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Optional local identity override</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-create-local-scope-input">
+                local_scope
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-local-scope-input"
+                value={localScope}
+                onChange={(event) => setLocalScope(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-local-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-create-local-work-id-input">
+                local_work_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-local-work-id-input"
+                value={localWorkId}
+                onChange={(event) => setLocalWorkId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-local-help"
+                placeholder="AG-..."
+              />
+              <p id="ag-resume-confirmed-mapping-create-local-help" className="notice">
+                Optional. The route/core still requires the resolved local work
+                identity to exist.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Optional packet identity override</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-create-packet-id-input">
+                packet_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-packet-id-input"
+                value={packetId}
+                onChange={(event) => setPacketId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-packet-help"
+                placeholder="resume-packet:..."
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-create-packet-hash-input">
+                packet_hash
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-packet-hash-input"
+                value={packetHash}
+                onChange={(event) => setPacketHash(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-packet-help"
+                placeholder="sha256:..."
+              />
+              <p id="ag-resume-confirmed-mapping-create-packet-help" className="notice">
+                Optional. Supplied packet identity fields must match the source
+                proposal row.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Optional runtime source</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-create-source-runtime-instance-id-input">
+                source_runtime_instance_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-source-runtime-instance-id-input"
+                value={sourceRuntimeInstanceId}
+                onChange={(event) =>
+                  setSourceRuntimeInstanceId(event.target.value)
+                }
+                aria-describedby="ag-resume-confirmed-mapping-create-source-runtime-instance-id-help"
+                placeholder="runtime-instance:..."
+              />
+              <p
+                id="ag-resume-confirmed-mapping-create-source-runtime-instance-id-help"
+                className="notice"
+              >
+                Optional. When supplied, the route/core verifies it matches the
+                reviewed source proposal metadata.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Confirmation metadata</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-create-confirmed-by-input">
+                confirmed_by
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-confirmed-by-input"
+                value={confirmedBy}
+                onChange={(event) => setConfirmedBy(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-confirmation-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-create-confirmation-reason-input">
+                confirmation_reason
+              </label>
+              <textarea
+                id="ag-resume-confirmed-mapping-create-confirmation-reason-input"
+                value={confirmationReason}
+                onChange={(event) => setConfirmationReason(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-confirmation-help"
+                placeholder="User/Core confirmed this existing local work match."
+                rows={4}
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-create-confirmed-at-input">
+                confirmed_at
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-create-confirmed-at-input"
+                value={confirmedAt}
+                onChange={(event) => setConfirmedAt(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-create-confirmation-help"
+                placeholder="2026-06-01T00:00:00.000Z"
+              />
+              <p
+                id="ag-resume-confirmed-mapping-create-confirmation-help"
+                className="notice"
+              >
+                confirmed_by and confirmation_reason are required. confirmed_at
+                is optional, but must be ISO UTC with millisecond precision when
+                supplied.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-confirmed-mapping-create-action-controls-heading"
+        >
+          <h3 id="ag-resume-confirmed-mapping-create-action-controls-heading">
+            Confirmed mapping create controls
+          </h3>
+          <BoundaryNote>
+            The create action calls only the existing POST confirmed mappings
+            route with supported JSON fields. It does not call the GET read
+            route, proposal writer/read/lifecycle routes, import, work,
+            proof/evidence, session, Codex, approval, publication, bridge,
+            MCP/App, Direct Resume Code, or relay routes.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearConfirmedMappingCreateInputs}
+            >
+              Clear confirmed mapping create inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy ? "Creating confirmed mapping" : "Create confirmed mapping"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-confirmed-mapping-create-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeConfirmedMappingCreateResults result={result} />
+      ) : (
+        <EmptyState
+          label="No confirmed mapping create result yet."
+          description="Enter one source proposal id and confirmation metadata to create a confirmed mapping identity association."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeConfirmedMappingCreateResults({
+  result,
+}: {
+  result: AgResumeConfirmedMappingCreatePanelResult;
+}) {
+  const { body } = result;
+  const createResult = body.result ?? null;
+  const record = createResult?.record ?? null;
+  const sourceProposalId =
+    record?.source_proposal_id ??
+    createResult?.source_proposal?.proposal_id ??
+    result.requestBody.source_proposal_id;
+  const routeAuthorityBoundary =
+    body.authority_boundary ?? createResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-confirmed-mapping-create-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-confirmed-mapping-create-result-heading">
+        Confirmed mapping create result
+      </h3>
+      <BoundaryNote tone="green">
+        Confirmed mapping creation is a foreign/local identity association only.
+        It is not import, imported resume context, proof/evidence
+        authorization, session binding, Codex execution authority, approval,
+        publish, retry, replay, or merge authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>route recommended_next_step: {body.recommended_next_step}</BoundaryNote>
+      ) : null}
+      {createResult?.recommended_next_step ? (
+        <BoundaryNote>
+          writer recommended_next_step: {createResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>confirmed-mappings POST route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Writer status</h3>
+          <p>{createResult?.status ?? body.error ?? "unknown"}</p>
+          <small>
+            created/invalid_input/proposal_not_found/proposal_not_active/
+            local_work_not_found/proposal_mismatch/duplicate_active_mapping/db_error
+          </small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>mapping_id</h3>
+          <p>{createResult?.mapping_id ?? record?.mapping_id ?? "none"}</p>
+          <small>created confirmed mapping id or duplicate mapping id</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>source_proposal_id</h3>
+          <p>{sourceProposalId}</p>
+          <small>source Stage B proposal row</small>
+        </section>
+      </div>
+      <section className="evidence-pack-card">
+        <h3>Submitted create fields</h3>
+        <div className="meta-row">
+          <span>source_proposal_id: {result.requestBody.source_proposal_id}</span>
+          <span>foreign_scope: {result.requestBody.foreign_scope ?? "omitted"}</span>
+          <span>foreign_work_id: {result.requestBody.foreign_work_id ?? "omitted"}</span>
+          <span>local_scope: {result.requestBody.local_scope ?? "omitted"}</span>
+          <span>local_work_id: {result.requestBody.local_work_id ?? "omitted"}</span>
+          <span>packet_id: {result.requestBody.packet_id ?? "omitted"}</span>
+          <span>packet_hash: {result.requestBody.packet_hash ?? "omitted"}</span>
+          <span>
+            source_runtime_instance_id:{" "}
+            {result.requestBody.source_runtime_instance_id ?? "omitted"}
+          </span>
+          <span>confirmed_by: {result.requestBody.confirmed_by}</span>
+          <span>confirmed_at: {result.requestBody.confirmed_at ?? "route now"}</span>
+        </div>
+      </section>
+      {record ? (
+        <div className="evidence-pack-grid">
+          <AgResumeConfirmedMappingCard record={record} />
+        </div>
+      ) : (
+        <EmptyState
+          label="No confirmed mapping record returned."
+          description="The route did not create a confirmed mapping record for this request."
+        />
+      )}
+      <AgResumeStringList
+        title="Warnings"
+        items={createResult?.warnings ?? []}
+        emptyLabel="No confirmed mapping create warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={createResult?.failures ?? []}
+        emptyLabel="No confirmed mapping create failures."
+      />
+      <AgResumeConfirmedMappingCreateAuthorityBoundary
+        title="Create Authority Boundary"
+        authorityBoundary={routeAuthorityBoundary}
+      />
+    </div>
+  );
+}
+
+function AgResumeConfirmedMappingCreateAuthorityBoundary({
+  title,
+  authorityBoundary,
+}: {
+  title: string;
+  authorityBoundary: AgResumeConfirmedMappingCreateAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {authorityBoundary ? (
+        <>
+          <p>{authorityBoundary.statement ?? "No create boundary statement returned."}</p>
+          <div className="meta-row">
+            <span>
+              confirmed_mapping_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_created)}
+            </span>
+            <span>
+              proposal_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_created)}
+            </span>
+            <span>
+              proposal_record_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_updated)}
+            </span>
+            <span>
+              proposal_record_deleted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_deleted)}
+            </span>
+            <span>
+              import_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.import_record_created)}
+            </span>
+            <span>
+              imported_context_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_created)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              evidence_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.evidence_recorded)}
+            </span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No create authority boundary returned." />
       )}
     </section>
   );
@@ -12355,6 +13146,87 @@ function buildConfirmedMappingReadSearchParams({
     searchParams.set("limit", trimmedLimit);
   }
   return searchParams;
+}
+
+function buildConfirmedMappingCreateRequestBody({
+  sourceProposalId,
+  foreignScope,
+  foreignWorkId,
+  localScope,
+  localWorkId,
+  packetId,
+  packetHash,
+  sourceRuntimeInstanceId,
+  confirmedBy,
+  confirmationReason,
+  confirmedAt,
+}: {
+  sourceProposalId: string;
+  foreignScope: string;
+  foreignWorkId: string;
+  localScope: string;
+  localWorkId: string;
+  packetId: string;
+  packetHash: string;
+  sourceRuntimeInstanceId: string;
+  confirmedBy: string;
+  confirmationReason: string;
+  confirmedAt: string;
+}): AgResumeConfirmedMappingCreateRequestBody {
+  const trimmedSourceProposalId = sourceProposalId.trim();
+  const trimmedForeignScope = foreignScope.trim();
+  const trimmedForeignWorkId = foreignWorkId.trim();
+  const trimmedLocalScope = localScope.trim();
+  const trimmedLocalWorkId = localWorkId.trim();
+  const trimmedPacketId = packetId.trim();
+  const trimmedPacketHash = packetHash.trim();
+  const trimmedSourceRuntimeInstanceId = sourceRuntimeInstanceId.trim();
+  const trimmedConfirmedBy = confirmedBy.trim();
+  const trimmedConfirmationReason = confirmationReason.trim();
+  const trimmedConfirmedAt = confirmedAt.trim();
+
+  if (!trimmedSourceProposalId) {
+    throw new Error("source_proposal_id is required for confirmed mapping create.");
+  }
+  if (!trimmedConfirmedBy) {
+    throw new Error("confirmed_by is required for confirmed mapping create.");
+  }
+  if (!trimmedConfirmationReason) {
+    throw new Error(
+      "confirmation_reason is required for confirmed mapping create.",
+    );
+  }
+  if (trimmedConfirmedAt) {
+    const parsedConfirmedAt = Date.parse(trimmedConfirmedAt);
+    if (
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
+        trimmedConfirmedAt,
+      ) ||
+      !Number.isFinite(parsedConfirmedAt) ||
+      new Date(parsedConfirmedAt).toISOString() !== trimmedConfirmedAt
+    ) {
+      throw new Error(
+        "confirmed_at must be an ISO UTC timestamp with millisecond precision.",
+      );
+    }
+  }
+
+  const requestBody: AgResumeConfirmedMappingCreateRequestBody = {
+    source_proposal_id: trimmedSourceProposalId,
+    confirmed_by: trimmedConfirmedBy,
+    confirmation_reason: trimmedConfirmationReason,
+  };
+  if (trimmedForeignScope) requestBody.foreign_scope = trimmedForeignScope;
+  if (trimmedForeignWorkId) requestBody.foreign_work_id = trimmedForeignWorkId;
+  if (trimmedLocalScope) requestBody.local_scope = trimmedLocalScope;
+  if (trimmedLocalWorkId) requestBody.local_work_id = trimmedLocalWorkId;
+  if (trimmedPacketId) requestBody.packet_id = trimmedPacketId;
+  if (trimmedPacketHash) requestBody.packet_hash = trimmedPacketHash;
+  if (trimmedSourceRuntimeInstanceId) {
+    requestBody.source_runtime_instance_id = trimmedSourceRuntimeInstanceId;
+  }
+  if (trimmedConfirmedAt) requestBody.confirmed_at = trimmedConfirmedAt;
+  return requestBody;
 }
 
 function buildMappingProposalLifecycleActionRequestBody({

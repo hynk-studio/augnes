@@ -43,6 +43,11 @@ merge authority.
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md` documents
   the separately scoped Operator panel. It calls only the confirmed mappings
   `GET` route and does not call this writer or the `POST` route.
+- Stage C Cockpit create panel:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_CREATE_COCKPIT_PANEL_V0_1.md`
+  documents the separately scoped Operator panel over the existing `POST`
+  route. It calls this writer only through that route and adds no writer
+  behavior.
 
 This writer is the first write boundary for confirmed mapping rows. It adds no
 route/UI and no schema/migration.
@@ -262,6 +267,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-read
 npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-route

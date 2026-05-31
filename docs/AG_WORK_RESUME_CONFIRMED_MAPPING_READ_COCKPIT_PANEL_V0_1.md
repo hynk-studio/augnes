@@ -30,6 +30,10 @@ authority, and not approval, publish, retry, replay, or merge authority.
 - Stage C reader:
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md` documents the shared
   reader core, helper, and `GET` route used by this panel.
+- Stage C create panel:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_CREATE_COCKPIT_PANEL_V0_1.md`
+  documents the separately scoped Operator panel that calls only the `POST`
+  create route. This read panel remains read-only and does not call `POST`.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` keeps proposal
   records, confirmed mappings, imports, imported context, proof/evidence,
@@ -37,8 +41,9 @@ authority, and not approval, publish, retry, replay, or merge authority.
 
 ## Cockpit Location
 
-The panel lives in the Cockpit Operator tab after the AG Resume Mapping
-Proposal Lifecycle Actions panel and before the coordination event timeline.
+The panel lives in the Cockpit Operator tab after the separately scoped AG
+Resume Confirmed Mapping Create panel and before the coordination event
+timeline.
 
 ## Inputs
 
