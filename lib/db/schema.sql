@@ -308,6 +308,63 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_ag_mapping_proposals_active_unique
   )
   WHERE status IN ('proposed', 'needs_review');
 
+CREATE TABLE IF NOT EXISTS ag_work_resume_confirmed_mappings (
+  mapping_id TEXT PRIMARY KEY,
+  record_kind TEXT NOT NULL CHECK (
+    record_kind = 'ag_work_resume_confirmed_mapping'
+  ),
+  schema TEXT NOT NULL CHECK (
+    schema = 'augnes.ag_work_resume_confirmed_mapping.v0_1'
+  ),
+  status TEXT NOT NULL CHECK (
+    status IN ('active', 'superseded', 'withdrawn', 'revoked')
+  ),
+  foreign_scope TEXT NOT NULL,
+  foreign_work_id TEXT NOT NULL,
+  local_scope TEXT NOT NULL,
+  local_work_id TEXT NOT NULL,
+  source_proposal_id TEXT NOT NULL,
+  packet_id TEXT NOT NULL,
+  packet_hash TEXT NOT NULL,
+  source_runtime_instance_id TEXT,
+  confirmed_by TEXT NOT NULL,
+  confirmed_at TEXT NOT NULL,
+  confirmation_reason TEXT NOT NULL,
+  supersedes_mapping_id TEXT,
+  superseded_by_mapping_id TEXT,
+  revoked_by TEXT,
+  revoked_at TEXT,
+  revocation_reason TEXT,
+  authority_boundary TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_active_foreign
+  ON ag_work_resume_confirmed_mappings(foreign_scope, foreign_work_id)
+  WHERE status = 'active';
+
+CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_foreign_time
+  ON ag_work_resume_confirmed_mappings(foreign_scope, foreign_work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_local_time
+  ON ag_work_resume_confirmed_mappings(local_scope, local_work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_source_proposal
+  ON ag_work_resume_confirmed_mappings(source_proposal_id);
+
+CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_packet_hash
+  ON ag_work_resume_confirmed_mappings(packet_id, packet_hash);
+
+CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_status_time
+  ON ag_work_resume_confirmed_mappings(status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_supersedes
+  ON ag_work_resume_confirmed_mappings(supersedes_mapping_id);
+
+CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_superseded_by
+  ON ag_work_resume_confirmed_mappings(superseded_by_mapping_id);
+
 CREATE TABLE IF NOT EXISTS handoffs (
   handoff_id TEXT PRIMARY KEY,
   scope TEXT NOT NULL DEFAULT 'project:augnes',

@@ -567,8 +567,17 @@ function assertProtectedCounts(targetDbPath, before) {
 function assertNoForbiddenTablesOrRows(targetDbPath) {
   const db = new Database(targetDbPath);
   try {
+    assert.equal(
+      tableExists(db, "ag_work_resume_confirmed_mappings"),
+      true,
+      "confirmed mapping schema table should exist after schema foundation",
+    );
+    assert.equal(
+      countRows(targetDbPath, "ag_work_resume_confirmed_mappings"),
+      0,
+      "proposal record writer smoke must not create confirmed mapping rows",
+    );
     for (const table of [
-      "ag_work_resume_confirmed_mappings",
       "ag_work_resume_imports",
       "ag_work_resume_imported_contexts",
     ]) {
