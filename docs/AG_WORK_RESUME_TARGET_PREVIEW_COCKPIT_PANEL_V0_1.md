@@ -237,6 +237,9 @@ the target preview workflow requires.
 - The panel is implemented in `components/augnes-cockpit.tsx`.
 - The route remains the existing read-only
   `/api/ag-work-resume/target-preview` route.
+- Future real-packet mapping/import is governed by
+  `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`; this panel
+  remains read-only and does not implement that design.
 - This slice does not modify route behavior, database/schema behavior,
   MCP/App tool schema, bridge behavior, ChatGPT widgets, hooks, plugins,
   skills, package runtime wiring, or secret handling.
