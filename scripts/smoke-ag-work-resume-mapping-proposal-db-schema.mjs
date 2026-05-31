@@ -434,6 +434,7 @@ function assertNoUnexpectedChangedFiles() {
     .filter(Boolean);
   const allowedScopedFollowUpFiles = new Set([
     "app/api/ag-work-resume/mapping-proposal-records/route.ts",
+    "components/augnes-cockpit.tsx",
     "lib/ag-work-resume-mapping-proposal-record.ts",
     "lib/ag-work-resume-mapping-proposal-record-read.ts",
   ]);

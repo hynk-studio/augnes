@@ -824,6 +824,120 @@ type AgResumeMappingProposalQuestion = {
   text?: string;
 };
 
+type AgResumeMappingProposalRecordReadPanelResult = {
+  httpStatus: number;
+  body: AgResumeMappingProposalRecordReadRouteResponse;
+};
+
+type AgResumeMappingProposalRecordReadRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeMappingProposalRecordReadResult | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeMappingProposalRecordReadResult = {
+  ok?: boolean;
+  status?: string;
+  record?: AgResumeMappingProposalRecord | null;
+  records?: AgResumeMappingProposalRecord[];
+  filters?: {
+    proposal_id?: string | null;
+    foreign_scope?: string | null;
+    foreign_work_id?: string | null;
+    candidate_local_scope?: string | null;
+    candidate_local_work_id?: string | null;
+    status?: string | null;
+  };
+  limit?: number | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeMappingProposalRecordReadAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeMappingProposalRecord = {
+  proposal_id?: string;
+  record_kind?: string;
+  schema?: string;
+  status?: string;
+  foreign_scope?: string;
+  foreign_work_id?: string;
+  foreign_title?: string;
+  foreign_status?: string | null;
+  foreign_next_action?: string | null;
+  candidate_local_scope?: string;
+  candidate_local_work_id?: string;
+  candidate_title?: string;
+  candidate_status?: string | null;
+  candidate_next_action?: string | null;
+  packet_id?: string;
+  packet_hash?: string;
+  source_runtime_instance_id?: string | null;
+  source_packet_created_at?: string | null;
+  proposal_preview_id?: string;
+  proposal_preview_hash?: string;
+  match_confidence_label?: string | null;
+  comparison_summary?: unknown[];
+  gaps_summary?: unknown[];
+  conflicts_summary?: unknown[];
+  questions_summary?: unknown[];
+  foreign_refs_summary?: Record<string, unknown>;
+  repo_context_summary?: Record<string, unknown>;
+  redaction_summary?: Record<string, unknown>;
+  proposed_by?: string;
+  proposed_at?: string;
+  proposal_reason?: string;
+  expires_at?: string | null;
+  supersedes_proposal_id?: string | null;
+  superseded_by_proposal_id?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  review_note?: string | null;
+  authority_boundary?: AgResumeMappingProposalRecordAuthorityBoundary | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type AgResumeMappingProposalRecordAuthorityBoundary = {
+  proposal_record_created?: boolean;
+  confirmed_mapping_created?: boolean;
+  import_record_created?: boolean;
+  work_item_created?: boolean;
+  work_event_created?: boolean;
+  proof_recorded?: boolean;
+  evidence_recorded?: boolean;
+  session_bound?: boolean;
+  codex_executed?: boolean;
+  approval_granted?: boolean;
+  publish_retry_replay_authority?: boolean;
+  merge_authority?: boolean;
+  durable_approval?: string;
+  statement?: string;
+};
+
+type AgResumeMappingProposalRecordReadAuthorityBoundary = {
+  read_only?: boolean;
+  proposal_review_metadata_only?: boolean;
+  proposal_record_created?: boolean;
+  proposal_record_updated?: boolean;
+  proposal_record_deleted?: boolean;
+  confirmed_mapping_created?: boolean;
+  import_record_created?: boolean;
+  work_item_created?: boolean;
+  work_event_created?: boolean;
+  proof_recorded?: boolean;
+  evidence_recorded?: boolean;
+  session_bound?: boolean;
+  codex_executed?: boolean;
+  approval_granted?: boolean;
+  publish_retry_replay_authority?: boolean;
+  merge_authority?: boolean;
+  durable_approval?: string;
+  statement?: string;
+};
+
 const SAFE_AG_RESUME_EXAMPLE_PACKET = {
   schema: "augnes.ag_work_resume_packet.v0_2",
   packet_kind: "ag_work_resume_packet",
@@ -1187,6 +1301,16 @@ const SAFE_AG_RESUME_MAPPING_PREFLIGHT_FAILING_PACKET = {
     ...SAFE_AG_RESUME_MAPPING_EXAMPLE_PACKET.target_runtime_policy,
     may_execute_codex: true,
   },
+} as const;
+
+const SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE = {
+  proposal_id: "ag-resume-mapping-proposal:fixture-cockpit-read-001",
+  foreign_scope: "project:augnes",
+  foreign_work_id: "AG-FIXTURE-MAPPING-PROPOSAL-001",
+  candidate_local_scope: "project:augnes",
+  candidate_local_work_id: "AG-FIXTURE-MAPPING-PROPOSAL-001",
+  status: "proposed",
+  limit: "20",
 } as const;
 
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
@@ -3356,6 +3480,7 @@ function OperatorTab({
         <section className="operator-main-stack">
           <AgResumeTargetPreviewPanel />
           <AgResumeMappingProposalPreviewPanel />
+          <AgResumeMappingProposalRecordReviewPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -4484,6 +4609,829 @@ function AgResumeMappingProposalPreviewPanel() {
           description="Paste packet JSON and explicit Local B candidate work items to inspect a read-only route response."
         />
       )}
+    </section>
+  );
+}
+
+function AgResumeMappingProposalRecordReviewPanel() {
+  const [proposalId, setProposalId] = useState("");
+  const [foreignScope, setForeignScope] = useState("");
+  const [foreignWorkId, setForeignWorkId] = useState("");
+  const [candidateLocalScope, setCandidateLocalScope] = useState("");
+  const [candidateLocalWorkId, setCandidateLocalWorkId] = useState("");
+  const [status, setStatus] = useState("");
+  const [limit, setLimit] = useState<string>(
+    SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.limit,
+  );
+  const [result, setResult] =
+    useState<AgResumeMappingProposalRecordReadPanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function loadSafeProposalIdFixture() {
+    setProposalId(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.proposal_id);
+    setForeignScope("");
+    setForeignWorkId("");
+    setCandidateLocalScope("");
+    setCandidateLocalWorkId("");
+    setStatus("");
+    setLimit("");
+    clearResultState();
+  }
+
+  function loadSafeForeignWorkFixture() {
+    setProposalId("");
+    setForeignScope(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.foreign_scope);
+    setForeignWorkId(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.foreign_work_id);
+    setCandidateLocalScope("");
+    setCandidateLocalWorkId("");
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeCandidateWorkFixture() {
+    setProposalId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setCandidateLocalScope(
+      SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.candidate_local_scope,
+    );
+    setCandidateLocalWorkId(
+      SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.candidate_local_work_id,
+    );
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeStatusFixture() {
+    setProposalId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setCandidateLocalScope("");
+    setCandidateLocalWorkId("");
+    setStatus(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.status);
+    setLimit(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function clearInputs() {
+    requestIdRef.current += 1;
+    setProposalId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setCandidateLocalScope("");
+    setCandidateLocalWorkId("");
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_MAPPING_PROPOSAL_RECORD_REVIEW_FIXTURE.limit);
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let searchParams: URLSearchParams;
+    try {
+      searchParams = buildMappingProposalRecordReadSearchParams({
+        proposalId,
+        foreignScope,
+        foreignWorkId,
+        candidateLocalScope,
+        candidateLocalWorkId,
+        status,
+        limit,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(
+        `/api/ag-work-resume/mapping-proposal-records?${searchParams.toString()}`,
+        { method: "GET" },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Mapping proposal record read route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Mapping proposal record read route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeMappingProposalRecordReadRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "read failed";
+        setError(`Mapping proposal record read route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Mapping proposal record read route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-mapping-proposal-record-review-panel"
+      aria-label="AG Resume Mapping Proposal Record Review"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Mapping Proposal Record Review"
+        description="Read-only review over stored Stage B mapping proposal records."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>Read-only proposal record review metadata.</li>
+          <li>
+            Reads only through the existing GET mapping proposal records route.
+          </li>
+          <li>
+            No create/write affordance, update route, lifecycle mutation,
+            confirmed mapping, import, proof/evidence, session binding, Codex
+            execution, approval, publish, retry, replay, or merge authority.
+          </li>
+          <li>Durable approval remains user/Core gated.</li>
+        </ul>
+      </BoundaryNote>
+      <form className="observe-form" onSubmit={handleSubmit}>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-record-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-mapping-record-safe-fixtures-heading">
+            Proposal record safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe lookup filters into local
+            React state only. They do not create rows, update rows, call routes,
+            or persist browser state.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeProposalIdFixture}
+              disabled={busy}
+            >
+              Load safe proposal id lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeForeignWorkFixture}
+              disabled={busy}
+            >
+              Load safe foreign work lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeCandidateWorkFixture}
+              disabled={busy}
+            >
+              Load safe candidate work lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeStatusFixture}
+              disabled={busy}
+            >
+              Load safe status lookup
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-record-inputs-heading"
+        >
+          <h3 id="ag-resume-mapping-record-inputs-heading">
+            Proposal record lookup inputs
+          </h3>
+          <label htmlFor="ag-resume-mapping-record-proposal-id-input">
+            proposal_id
+          </label>
+          <p id="ag-resume-mapping-record-proposal-id-help" className="notice">
+            Fetches one proposal record. Leave every list filter and limit empty
+            when using proposal_id.
+          </p>
+          <input
+            id="ag-resume-mapping-record-proposal-id-input"
+            value={proposalId}
+            onChange={(event) => setProposalId(event.target.value)}
+            aria-describedby="ag-resume-mapping-record-proposal-id-help"
+            placeholder="ag-resume-mapping-proposal:..."
+          />
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Foreign work filter</h3>
+              <label htmlFor="ag-resume-mapping-record-foreign-scope-input">
+                foreign_scope
+              </label>
+              <input
+                id="ag-resume-mapping-record-foreign-scope-input"
+                value={foreignScope}
+                onChange={(event) => setForeignScope(event.target.value)}
+                aria-describedby="ag-resume-mapping-record-foreign-filter-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-mapping-record-foreign-work-id-input">
+                foreign_work_id
+              </label>
+              <input
+                id="ag-resume-mapping-record-foreign-work-id-input"
+                value={foreignWorkId}
+                onChange={(event) => setForeignWorkId(event.target.value)}
+                aria-describedby="ag-resume-mapping-record-foreign-filter-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-mapping-record-foreign-filter-help"
+                className="notice"
+              >
+                Both foreign_scope and foreign_work_id are required for this
+                list filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Candidate local work filter</h3>
+              <label htmlFor="ag-resume-mapping-record-candidate-local-scope-input">
+                candidate_local_scope
+              </label>
+              <input
+                id="ag-resume-mapping-record-candidate-local-scope-input"
+                value={candidateLocalScope}
+                onChange={(event) => setCandidateLocalScope(event.target.value)}
+                aria-describedby="ag-resume-mapping-record-candidate-filter-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-mapping-record-candidate-local-work-id-input">
+                candidate_local_work_id
+              </label>
+              <input
+                id="ag-resume-mapping-record-candidate-local-work-id-input"
+                value={candidateLocalWorkId}
+                onChange={(event) => setCandidateLocalWorkId(event.target.value)}
+                aria-describedby="ag-resume-mapping-record-candidate-filter-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-mapping-record-candidate-filter-help"
+                className="notice"
+              >
+                Both candidate_local_scope and candidate_local_work_id are
+                required for this list filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Status and limit filter</h3>
+              <label htmlFor="ag-resume-mapping-record-status-input">
+                status
+              </label>
+              <select
+                id="ag-resume-mapping-record-status-input"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                aria-describedby="ag-resume-mapping-record-status-limit-help"
+              >
+                <option value="">Any status filter omitted</option>
+                <option value="proposed">proposed</option>
+                <option value="needs_review">needs_review</option>
+                <option value="superseded">superseded</option>
+                <option value="withdrawn">withdrawn</option>
+                <option value="rejected">rejected</option>
+                <option value="expired">expired</option>
+              </select>
+              <label htmlFor="ag-resume-mapping-record-limit-input">
+                limit
+              </label>
+              <input
+                id="ag-resume-mapping-record-limit-input"
+                value={limit}
+                onChange={(event) => setLimit(event.target.value)}
+                aria-describedby="ag-resume-mapping-record-status-limit-help"
+                inputMode="numeric"
+                placeholder="20"
+              />
+              <p
+                id="ag-resume-mapping-record-status-limit-help"
+                className="notice"
+              >
+                Limit applies to list reads only. The route caps large positive
+                values.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-mapping-record-action-controls-heading"
+        >
+          <h3 id="ag-resume-mapping-record-action-controls-heading">
+            Proposal record read controls
+          </h3>
+          <BoundaryNote>
+            The read action calls only the existing GET proposal records route.
+            It does not call POST and does not expose write controls.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearInputs}
+            >
+              Clear proposal record inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy ? "Reading proposal records" : "Read proposal records"}
+            </button>
+            {error ? (
+              <span
+                id="ag-resume-mapping-record-read-error"
+                className="notice error"
+                role="alert"
+              >
+                {error}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </form>
+      {result ? (
+        <AgResumeMappingProposalRecordReadResults result={result} />
+      ) : (
+        <EmptyState
+          label="No proposal record read yet."
+          description="Enter one supported lookup filter to read proposal review metadata."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingProposalRecordReadResults({
+  result,
+}: {
+  result: AgResumeMappingProposalRecordReadPanelResult;
+}) {
+  const { body } = result;
+  const readResult = body.result ?? null;
+  const records = readResult?.records ?? [];
+
+  return (
+    <div
+      aria-labelledby="ag-resume-mapping-proposal-record-read-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-mapping-proposal-record-read-result-heading">
+        Mapping proposal record read result
+      </h3>
+      <BoundaryNote tone="green">
+        Proposal record reads are review metadata only. They are not confirmed
+        mappings, imports, proof/evidence authorization, session bindings,
+        Codex execution authority, or merge/publish authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>route recommended_next_step: {body.recommended_next_step}</BoundaryNote>
+      ) : null}
+      {readResult?.recommended_next_step ? (
+        <BoundaryNote>
+          reader recommended_next_step: {readResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>mapping-proposal-records GET route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Read status</h3>
+          <p>{readResult?.status ?? body.error ?? "unknown"}</p>
+          <small>fetched/listed/not_found/invalid_input/db_error</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Record count</h3>
+          <p>{records.length}</p>
+          <small>proposal review metadata records</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Limit</h3>
+          <p>{readResult?.limit ?? "single fetch or unavailable"}</p>
+          <small>bounded list reads only</small>
+        </section>
+      </div>
+      <AgResumeMappingProposalRecordReadFilters filters={readResult?.filters ?? null} />
+      <AgResumeStringList
+        title="Warnings"
+        items={readResult?.warnings ?? []}
+        emptyLabel="No proposal record read warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={readResult?.failures ?? []}
+        emptyLabel="No proposal record read failures."
+      />
+      <AgResumeMappingProposalRecordReadAuthorityBoundary
+        authorityBoundary={readResult?.authority_boundary ?? null}
+      />
+      {records.length === 0 ? (
+        <EmptyState
+          label="No proposal records returned."
+          description="The read route found no proposal review metadata for the supplied filter."
+        />
+      ) : (
+        <div className="evidence-pack-grid">
+          {records.map((record, index) => (
+            <AgResumeMappingProposalRecordCard
+              key={record.proposal_id ?? `proposal-record-${index}`}
+              record={record}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgResumeMappingProposalRecordReadFilters({
+  filters,
+}: {
+  filters: AgResumeMappingProposalRecordReadResult["filters"] | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Applied filters</h3>
+      <div className="meta-row">
+        <span>proposal_id: {filters?.proposal_id ?? "none"}</span>
+        <span>foreign_scope: {filters?.foreign_scope ?? "none"}</span>
+        <span>foreign_work_id: {filters?.foreign_work_id ?? "none"}</span>
+        <span>
+          candidate_local_scope: {filters?.candidate_local_scope ?? "none"}
+        </span>
+        <span>
+          candidate_local_work_id: {filters?.candidate_local_work_id ?? "none"}
+        </span>
+        <span>status: {filters?.status ?? "none"}</span>
+      </div>
+    </section>
+  );
+}
+
+function AgResumeMappingProposalRecordReadAuthorityBoundary({
+  authorityBoundary,
+}: {
+  authorityBoundary: AgResumeMappingProposalRecordReadAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Read Authority Boundary</h3>
+      {authorityBoundary ? (
+        <>
+          <p>{authorityBoundary.statement ?? "No read boundary statement returned."}</p>
+          <div className="meta-row">
+            <span>read_only: {formatAgResumeBoolean(authorityBoundary.read_only)}</span>
+            <span>
+              proposal_review_metadata_only:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_review_metadata_only)}
+            </span>
+            <span>
+              proposal_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_created)}
+            </span>
+            <span>
+              proposal_record_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_updated)}
+            </span>
+            <span>
+              proposal_record_deleted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_deleted)}
+            </span>
+            <span>
+              confirmed_mapping_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_created)}
+            </span>
+            <span>
+              import_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.import_record_created)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              evidence_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.evidence_recorded)}
+            </span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No read authority boundary returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeMappingProposalRecordCard({
+  record,
+}: {
+  record: AgResumeMappingProposalRecord;
+}) {
+  return (
+    <article className="evidence-pack-card evidence-pack-card-wide">
+      <div className="card-topline">
+        <div>
+          <h3>{record.proposal_id ?? "unknown proposal_id"}</h3>
+          <p>{record.proposal_reason ?? "No proposal reason returned."}</p>
+        </div>
+        <StatusBadge label={record.status ?? "unknown"} />
+      </div>
+      <div className="meta-row">
+        <span>record_kind: {record.record_kind ?? "unknown"}</span>
+        <span>schema: {record.schema ?? "unknown"}</span>
+        <span>created_at: {record.created_at ?? "unknown"}</span>
+        <span>updated_at: {record.updated_at ?? "unknown"}</span>
+      </div>
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>Foreign work</h3>
+          <p>{record.foreign_title ?? "Untitled foreign work"}</p>
+          <div className="meta-row">
+            <span>foreign_scope: {record.foreign_scope ?? "unknown"}</span>
+            <span>foreign_work_id: {record.foreign_work_id ?? "unknown"}</span>
+            <span>foreign_status: {record.foreign_status ?? "unknown"}</span>
+          </div>
+          {record.foreign_next_action ? (
+            <p>foreign_next_action: {record.foreign_next_action}</p>
+          ) : null}
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Candidate local work</h3>
+          <p>{record.candidate_title ?? "Untitled candidate work"}</p>
+          <div className="meta-row">
+            <span>
+              candidate_local_scope:{" "}
+              {record.candidate_local_scope ?? "unknown"}
+            </span>
+            <span>
+              candidate_local_work_id:{" "}
+              {record.candidate_local_work_id ?? "unknown"}
+            </span>
+            <span>
+              candidate_status: {record.candidate_status ?? "unknown"}
+            </span>
+          </div>
+          {record.candidate_next_action ? (
+            <p>candidate_next_action: {record.candidate_next_action}</p>
+          ) : null}
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Proposal metadata</h3>
+          <div className="meta-row">
+            <span>packet_id: {record.packet_id ?? "unknown"}</span>
+            <span>proposal_preview_id: {record.proposal_preview_id ?? "unknown"}</span>
+            <span>
+              match_confidence_label:{" "}
+              {record.match_confidence_label ?? "none"}
+            </span>
+            <span>proposed_by: {record.proposed_by ?? "unknown"}</span>
+            <span>proposed_at: {record.proposed_at ?? "unknown"}</span>
+            <span>expires_at: {record.expires_at ?? "none"}</span>
+          </div>
+        </section>
+        <AgResumeUnknownList
+          title="comparison_summary"
+          items={record.comparison_summary ?? []}
+          emptyLabel="No comparison summary."
+        />
+        <AgResumeUnknownList
+          title="gaps_summary"
+          items={record.gaps_summary ?? []}
+          emptyLabel="No gaps summary."
+        />
+        <AgResumeUnknownList
+          title="conflicts_summary"
+          items={record.conflicts_summary ?? []}
+          emptyLabel="No conflicts summary."
+        />
+        <AgResumeUnknownList
+          title="questions_summary"
+          items={record.questions_summary ?? []}
+          emptyLabel="No questions summary."
+        />
+        <AgResumeJsonSummaryCard
+          title="foreign_refs_summary"
+          value={record.foreign_refs_summary ?? {}}
+        />
+        <AgResumeJsonSummaryCard
+          title="repo_context_summary"
+          value={record.repo_context_summary ?? {}}
+        />
+        <AgResumeJsonSummaryCard
+          title="redaction_summary"
+          value={record.redaction_summary ?? {}}
+        />
+        <AgResumeMappingProposalRecordAuthorityBoundary
+          authorityBoundary={record.authority_boundary ?? null}
+        />
+      </div>
+    </article>
+  );
+}
+
+function AgResumeMappingProposalRecordAuthorityBoundary({
+  authorityBoundary,
+}: {
+  authorityBoundary: AgResumeMappingProposalRecordAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Record Authority Boundary</h3>
+      {authorityBoundary ? (
+        <>
+          <p>{authorityBoundary.statement ?? "No record boundary statement returned."}</p>
+          <div className="meta-row">
+            <span>
+              proposal_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_created)}
+            </span>
+            <span>
+              confirmed_mapping_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_created)}
+            </span>
+            <span>
+              import_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.import_record_created)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              evidence_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.evidence_recorded)}
+            </span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No record authority boundary returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeUnknownList({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string;
+  items: unknown[];
+  emptyLabel: string;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {items.length === 0 ? (
+        <EmptyState label={emptyLabel} />
+      ) : (
+        <ul className="compact-list">
+          {items.map((item, index) => (
+            <li key={`${title}-${index}`}>
+              <code>{formatAgResumeJsonValue(item)}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function AgResumeJsonSummaryCard({
+  title,
+  value,
+}: {
+  title: string;
+  value: unknown;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      <code>{formatAgResumeJsonValue(value)}</code>
     </section>
   );
 }
@@ -9601,6 +10549,88 @@ function parseAgResumeArrayInput(
   return parsed;
 }
 
+function buildMappingProposalRecordReadSearchParams({
+  proposalId,
+  foreignScope,
+  foreignWorkId,
+  candidateLocalScope,
+  candidateLocalWorkId,
+  status,
+  limit,
+}: {
+  proposalId: string;
+  foreignScope: string;
+  foreignWorkId: string;
+  candidateLocalScope: string;
+  candidateLocalWorkId: string;
+  status: string;
+  limit: string;
+}) {
+  const trimmedProposalId = proposalId.trim();
+  const trimmedForeignScope = foreignScope.trim();
+  const trimmedForeignWorkId = foreignWorkId.trim();
+  const trimmedCandidateLocalScope = candidateLocalScope.trim();
+  const trimmedCandidateLocalWorkId = candidateLocalWorkId.trim();
+  const trimmedStatus = status.trim();
+  const trimmedLimit = limit.trim();
+  const hasForeignFilter = Boolean(trimmedForeignScope || trimmedForeignWorkId);
+  const hasCandidateFilter = Boolean(
+    trimmedCandidateLocalScope || trimmedCandidateLocalWorkId,
+  );
+  const hasListFilter = Boolean(
+    hasForeignFilter || hasCandidateFilter || trimmedStatus,
+  );
+
+  if (trimmedProposalId) {
+    if (hasListFilter || trimmedLimit) {
+      throw new Error(
+        "proposal_id fetch must not be combined with list filters or limit.",
+      );
+    }
+    return new URLSearchParams({ proposal_id: trimmedProposalId });
+  }
+
+  if (Boolean(trimmedForeignScope) !== Boolean(trimmedForeignWorkId)) {
+    throw new Error("foreign_scope and foreign_work_id must be supplied together.");
+  }
+
+  if (Boolean(trimmedCandidateLocalScope) !== Boolean(trimmedCandidateLocalWorkId)) {
+    throw new Error(
+      "candidate_local_scope and candidate_local_work_id must be supplied together.",
+    );
+  }
+
+  if (!hasListFilter) {
+    throw new Error(
+      "At least one proposal record read filter is required: proposal_id, foreign work, candidate local work, or status.",
+    );
+  }
+
+  if (trimmedLimit) {
+    const parsedLimit = Number(trimmedLimit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+      throw new Error("limit must be a positive integer.");
+    }
+  }
+
+  const searchParams = new URLSearchParams();
+  if (trimmedForeignScope && trimmedForeignWorkId) {
+    searchParams.set("foreign_scope", trimmedForeignScope);
+    searchParams.set("foreign_work_id", trimmedForeignWorkId);
+  }
+  if (trimmedCandidateLocalScope && trimmedCandidateLocalWorkId) {
+    searchParams.set("candidate_local_scope", trimmedCandidateLocalScope);
+    searchParams.set("candidate_local_work_id", trimmedCandidateLocalWorkId);
+  }
+  if (trimmedStatus) {
+    searchParams.set("status", trimmedStatus);
+  }
+  if (trimmedLimit) {
+    searchParams.set("limit", trimmedLimit);
+  }
+  return searchParams;
+}
+
 function isAgResumeFieldError(error: string | null, fieldLabel: string) {
   return Boolean(error?.startsWith(`${fieldLabel} `));
 }
@@ -9614,6 +10644,15 @@ function formatAgResumeBoolean(value: boolean | null | undefined) {
 
 function formatAgResumeExampleJson(value: unknown) {
   return JSON.stringify(value, null, 2);
+}
+
+function formatAgResumeJsonValue(value: unknown) {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 function formatAgResumeMappingValue(

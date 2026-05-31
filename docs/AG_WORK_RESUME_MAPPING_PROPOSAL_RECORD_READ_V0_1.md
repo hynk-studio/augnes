@@ -27,6 +27,10 @@ merge/publish authority.
 - Stage A mapping proposal preview:
   the preview helper, preview route, and Cockpit panel remain proposal-preview
   surfaces. This reader adds no Cockpit UI and does not change preview behavior.
+- Stage B Cockpit proposal record review:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_COCKPIT_PANEL_V0_1.md`
+  documents the later read-only Cockpit panel over this route. The panel does
+  not change the reader route and does not add write authority.
 
 ## Shared Reader Core
 
@@ -181,9 +185,11 @@ Helper exit codes:
 
 Durable approval remains user/Core gated.
 
-## Non-Goals
+## Original Reader Slice Non-Goals
 
-- No Cockpit UI.
+- The original reader/helper/route slice added no Cockpit UI. A later
+  read-only Cockpit panel is documented separately in
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_COCKPIT_PANEL_V0_1.md`.
 - No ChatGPT App card.
 - No MCP/App tool schema change.
 - No bridge tool.
