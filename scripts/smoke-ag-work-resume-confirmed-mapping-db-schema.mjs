@@ -401,10 +401,8 @@ function assertDocs() {
 
 function assertNoConfirmedMappingRuntimeSurfaces() {
   for (const relativePath of [
-    "lib/ag-work-resume-confirmed-mapping.ts",
     "lib/ag-work-resume-confirmed-mapping-record.ts",
     "lib/ag-work-resume-confirmed-mapping-record-read.ts",
-    "scripts/ag-work-resume-confirmed-mapping-create.mjs",
     "scripts/ag-work-resume-confirmed-mapping-record-create.mjs",
     "scripts/ag-work-resume-confirmed-mapping-record-read.mjs",
     "app/api/ag-work-resume/confirmed-mappings/route.ts",

@@ -260,6 +260,12 @@ A future writer/helper PR should validate:
 - duplicate active mapping does not exist unless a supersession path is
   explicitly designed
 
+The first writer/helper implementation is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`. It creates confirmed
+mapping identity association rows only and still adds no route/UI, import,
+proof/evidence, session binding, Codex execution, approval, publish, retry,
+replay, or merge authority.
+
 Future route/UI work should remain separately gated. Stage D imported resume
 context remains after confirmed mapping and requires its own design and
 authority review.
