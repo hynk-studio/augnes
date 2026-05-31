@@ -545,10 +545,13 @@ function assertSourceGuards() {
   const changedFiles = gitChangedFiles();
   const allowedFiles = new Set([
     "lib/ag-work-resume-mapping-proposal-lifecycle-action.ts",
+    "app/api/ag-work-resume/mapping-proposal-records/lifecycle-actions/route.ts",
     "scripts/ag-work-resume-mapping-proposal-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-actions-design.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-route.mjs",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTIONS_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_V0_1.md",
@@ -559,7 +562,9 @@ function assertSourceGuards() {
   const forbiddenFiles = changedFiles.filter(
     (file) =>
       !allowedFiles.has(file) ||
-      file.startsWith("app/") ||
+      (file.startsWith("app/") &&
+        file !==
+          "app/api/ag-work-resume/mapping-proposal-records/lifecycle-actions/route.ts") ||
       file.startsWith("components/") ||
       file.startsWith("migrations/") ||
       file === "lib/db/schema.sql" ||
@@ -590,6 +595,7 @@ function assertDocsGuard() {
     /Non-Goals/i,
     /Verification/i,
     /Browser Verification/i,
+    /AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1\.md/i,
     /updates existing proposal lifecycle and review metadata only/i,
     /does not create replacement proposal rows/i,
     /does not update replacement proposal rows/i,

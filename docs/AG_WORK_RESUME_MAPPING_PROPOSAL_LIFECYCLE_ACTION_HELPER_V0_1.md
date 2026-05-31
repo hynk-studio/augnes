@@ -32,6 +32,15 @@ create replacement proposal rows. It does not update replacement proposal rows.
 It does not implement same-tuple transactional replacement creation or
 bidirectional supersession repair. Those remain future separately gated work.
 
+## Route Surface
+
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md`
+documents the JSON route over this shared core. The route delegates to
+`applyAgWorkResumeMappingProposalLifecycleAction` and adds no Cockpit UI, DB
+schema, migration, proposal creation, replacement proposal creation, confirmed
+mapping, import, proof/evidence, session, Codex, approval, publish, retry,
+replay, or merge authority.
+
 ## Core API
 
 `lib/ag-work-resume-mapping-proposal-lifecycle-action.ts` exports

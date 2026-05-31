@@ -326,7 +326,7 @@ console.log(
         "DB behavior is scoped to future ag_work_resume_mapping_proposals lifecycle/review fields only",
         "authority boundary and non-goals forbid mapping/import/proof/evidence/session/Codex/approval/publish/retry/replay/merge behavior",
         "existing Stage B docs point to the lifecycle design doc",
-        "source guard limits changed files to scoped lifecycle docs, scripts, package wiring, and helper core follow-up files",
+        "source guard limits changed files to scoped lifecycle docs, scripts, package wiring, helper core, and route follow-up files",
         "implementation guard rejects route/UI/runtime/schema/app/browser-persistence/network/tool changes",
       ],
     },
@@ -351,14 +351,22 @@ function assertNoUnexpectedChangedFiles() {
     "package.json",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-actions-design.mjs",
     "lib/ag-work-resume-mapping-proposal-lifecycle-action.ts",
+    "app/api/ag-work-resume/mapping-proposal-records/lifecycle-actions/route.ts",
     "scripts/ag-work-resume-mapping-proposal-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-route.mjs",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md",
   ]);
   const allowedLifecycleHelperFiles = new Set([
     "lib/ag-work-resume-mapping-proposal-lifecycle-action.ts",
     "scripts/ag-work-resume-mapping-proposal-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
     "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md",
+  ]);
+  const allowedLifecycleRouteFiles = new Set([
+    "app/api/ag-work-resume/mapping-proposal-records/lifecycle-actions/route.ts",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-route.mjs",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md",
   ]);
   const forbiddenPrefixes = [
     "app/",
@@ -374,6 +382,7 @@ function assertNoUnexpectedChangedFiles() {
       allowedFiles.has(file),
       `changed file is outside the design-only lifecycle slice: ${file}`,
     );
+    if (allowedLifecycleRouteFiles.has(file)) continue;
     if (allowedLifecycleHelperFiles.has(file)) continue;
     assert.ok(
       !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
@@ -399,6 +408,12 @@ function assertNoImplementationSqlOrRuntimeCode() {
   ];
   const allowedImplementationFiles = new Set([
     "lib/ag-work-resume-mapping-proposal-lifecycle-action.ts",
+    "app/api/ag-work-resume/mapping-proposal-records/lifecycle-actions/route.ts",
+  ]);
+  const allowedLifecycleRouteFiles = new Set([
+    "app/api/ag-work-resume/mapping-proposal-records/lifecycle-actions/route.ts",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-route.mjs",
+    "docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md",
   ]);
   const implementationFiles = changedFiles.filter((file) =>
     implementationPrefixes.some((prefix) => file.startsWith(prefix)) &&
@@ -430,6 +445,7 @@ function assertNoImplementationSqlOrRuntimeCode() {
       /localStorage|sessionStorage|indexedDB/i,
       /createConfirmedMapping|createImportRecord|recordEvidence|recordProof/i,
       /bindSession|executeCodex|runCodex/i,
+      /components\//i,
     ]) {
       assert.doesNotMatch(
         source,
@@ -442,6 +458,7 @@ function assertNoImplementationSqlOrRuntimeCode() {
   const forbiddenRouteOrReportFiles = changedFiles.filter(
     (file) =>
       !allowedImplementationFiles.has(file) &&
+      !allowedLifecycleRouteFiles.has(file) &&
       file.includes("mapping-proposal-lifecycle") &&
       (file.startsWith("app/") ||
         file.startsWith("components/") ||

@@ -43,6 +43,12 @@ schema, migration, replacement proposal creation, confirmed mapping, import,
 proof/evidence, session, Codex, approval, publish, retry, replay, or merge
 authority.
 
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md`
+documents the subsequent JSON route over the shared core. The route adds no
+Cockpit UI, schema, migration, proposal creation, replacement proposal
+creation, confirmed mapping, import, proof/evidence, session, Codex, approval,
+publish, retry, replay, or merge authority.
+
 ## Definitions
 
 - **active proposal statuses**: `proposed` and `needs_review`. These statuses
