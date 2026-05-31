@@ -22,6 +22,10 @@ start Codex, approve, publish, retry, replay, merge, or mutate committed state.
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_HELPER_V0_1.md` documents the
   local `ag:resume-mapping-preview` wrapper around this pure function. It
   remains read-only and proposal-only.
+- Read-only route:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_ROUTE_V0_1.md` documents the
+  `POST /api/ag-work-resume/mapping-proposal-preview` route. It remains
+  read-only and proposal-only.
 - Packet preflight: `ag:resume-preflight` remains the validation contract for
   packet shape, redaction, target policy, and unsafe content. Mapping proposal
   preview assumes a packet has already passed preflight, while still blocking
@@ -180,7 +184,11 @@ This slice is that local helper.
 
 ## Future Work
 
-A later PR may add a read-only route after user/Core scopes that surface.
+Earlier plan: a later PR may add a read-only route after user/Core scopes that
+surface. This slice is that read-only route.
+
+A later PR may add Cockpit or ChatGPT App read-only surfaces after user/Core
+scopes that surface.
 
 Only much later, after user/Core approval, may a persistence/schema design be
 considered for mapping or imported context records.
