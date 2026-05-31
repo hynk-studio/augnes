@@ -83,6 +83,7 @@
     "smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel": "node scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
     "smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel": "node scripts/smoke-ag-work-resume-confirmed-mapping-read-cockpit-panel.mjs",
     "smoke:ag-work-resume-imported-context-record-design": "node scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
+    "smoke:ag-work-resume-imported-context-db-schema-design": "node scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-read-cockpit-panel": "node scripts/smoke-ag-work-resume-mapping-proposal-record-read-cockpit-panel.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-design": "node scripts/smoke-ag-work-resume-mapping-proposal-record-design.mjs",
     "smoke:ag-work-resume-mapping-proposal-db-schema-design": "node scripts/smoke-ag-work-resume-mapping-proposal-db-schema-design.mjs",
