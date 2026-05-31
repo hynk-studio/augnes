@@ -266,7 +266,15 @@ mapping identity association rows only and still adds no route/UI, import,
 proof/evidence, session binding, Codex execution, approval, publish, retry,
 replay, or merge authority.
 
-Future route/UI work should remain separately gated. Stage D imported resume
+The JSON create route over that writer is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md`. It creates confirmed
+mapping identity association rows only and still adds no Cockpit UI,
+schema/migration, import, proof/evidence, session binding, Codex execution,
+approval, publish, retry, replay, or merge authority.
+
+Future route/UI work should remain separately gated. The JSON create route is
+the only route documented here; future Cockpit UI work remains separately
+gated. Stage D imported resume
 context remains after confirmed mapping and requires its own design and
 authority review.
 

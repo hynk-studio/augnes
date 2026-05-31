@@ -223,6 +223,11 @@ PRs:
   identity association rows only and still adds no route/UI, import,
   proof/evidence, session binding, Codex execution, approval, publish, retry,
   replay, or merge authority.
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md` documents the JSON
+  route over that shared writer core; it creates confirmed mapping identity
+  association rows only and still adds no Cockpit UI, schema/migration,
+  import, proof/evidence, session binding, Codex execution, approval, publish,
+  retry, replay, or merge authority.
 - **Stage D: imported resume context record**. Future write stage requiring
   explicit user/Core action and schema. It writes bounded review metadata only.
 - **Stage E: optional local work item creation**. Future-only and only if ever

@@ -33,6 +33,12 @@ identity after explicit user/Core confirmation.
   mapping identity association rows only and still adds no route/UI, import,
   proof/evidence, session binding, Codex execution, approval, publish, retry,
   replay, or merge authority.
+- Confirmed mapping route:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md` documents the JSON
+  route over the shared writer core. It creates confirmed mapping identity
+  association rows only and still adds no Cockpit UI, schema/migration,
+  import, proof/evidence, session binding, Codex execution, approval, publish,
+  retry, replay, or merge authority.
 
 ## Implemented Table
 
@@ -154,9 +160,10 @@ proposal existence, active proposal status, packet id/hash, local work
 existence, duplicate active mapping policy, explicit user/Core actor, and
 confirmation reason.
 
-Future route/UI work remains separately gated. Stage D imported resume context
-remains after confirmed mapping and requires separate design and authority
-review.
+The JSON create route is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md`. Future Cockpit UI work
+remains separately gated. Stage D imported resume context remains after
+confirmed mapping and requires separate design and authority review.
 
 ## Browser Verification
 
@@ -168,6 +175,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema-design
 npm run smoke:ag-work-resume-confirmed-mapping-record-design
