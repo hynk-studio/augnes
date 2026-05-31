@@ -29,6 +29,12 @@ const errorBrowserReportPath = path.join(
   "browser",
   "2026-05-31-ag-work-resume-error-state-cockpit-panel-verification.md",
 );
+const accessibilityBrowserReportPath = path.join(
+  rootDir,
+  "reports",
+  "browser",
+  "2026-05-31-ag-work-resume-accessibility-keyboard-cockpit-panel-verification.md",
+);
 
 assert.ok(existsSync(componentPath), "Cockpit component must exist");
 assert.ok(existsSync(docsPath), "Cockpit target preview panel docs must exist");
@@ -40,12 +46,20 @@ assert.ok(
   existsSync(errorBrowserReportPath),
   "error-state browser verification report must exist",
 );
+assert.ok(
+  existsSync(accessibilityBrowserReportPath),
+  "accessibility and keyboard browser verification report must exist",
+);
 
 const componentSource = readFileSync(componentPath, "utf8");
 const docsSource = readFileSync(docsPath, "utf8");
 const designDocSource = readFileSync(designDocPath, "utf8");
 const browserReportSource = readFileSync(browserReportPath, "utf8");
 const errorBrowserReportSource = readFileSync(errorBrowserReportPath, "utf8");
+const accessibilityBrowserReportSource = readFileSync(
+  accessibilityBrowserReportPath,
+  "utf8",
+);
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
@@ -140,6 +154,62 @@ for (const label of [
 ]) {
   assert.match(panelSource, new RegExp(escapeRegExp(label)), `panel must show ${label}`);
 }
+
+for (const accessibilityToken of [
+  'htmlFor="ag-resume-packet-json-input"',
+  'htmlFor="ag-resume-local-context-json-input"',
+  'id="ag-resume-packet-json-input"',
+  'id="ag-resume-local-context-json-input"',
+  'id="ag-resume-packet-json-help"',
+  'id="ag-resume-local-context-json-help"',
+  "Paste one already built AG Resume Packet JSON object.",
+  "Invalid JSON is rejected locally before route calls.",
+  "Optional explicit Local B context JSON object.",
+  "Empty input sends",
+  "aria-describedby",
+  "aria-invalid",
+  "isAgResumeFieldError",
+  'role="alert"',
+  "Packet validation error:",
+  "Target preview error:",
+  "aria-busy",
+]) {
+  assert.match(
+    panelSource,
+    new RegExp(escapeRegExp(accessibilityToken)),
+    `panel must include accessibility token ${accessibilityToken}`,
+  );
+}
+
+for (const [groupLabel, headingId] of [
+  ["Safe example fixture controls", "ag-resume-safe-fixtures-heading"],
+  ["Error-state fixture controls", "ag-resume-error-fixtures-heading"],
+  ["Target preview options", "ag-resume-target-preview-options-heading"],
+  ["Copied-packet validation controls", "ag-resume-validation-controls-heading"],
+  ["Full target preview controls", "ag-resume-full-preview-controls-heading"],
+]) {
+  assert.match(
+    panelSource,
+    new RegExp(`role="group"[\\s\\S]*?aria-labelledby="${headingId}"`),
+    `${groupLabel} must be a labelled control group`,
+  );
+  assert.match(
+    panelSource,
+    new RegExp(`id="${headingId}"[\\s\\S]*?${escapeRegExp(groupLabel)}`),
+    `${groupLabel} heading must be visible`,
+  );
+}
+
+assert.doesNotMatch(
+  panelSource,
+  /role="button"/,
+  "panel must use native buttons instead of role=button controls",
+);
+assert.doesNotMatch(
+  panelSource,
+  /onKeyDown|onKeyUp|onKeyPress/,
+  "panel must not add custom keyboard shortcut handlers",
+);
 
 for (const componentToken of [
   "Copied packet validation",
@@ -497,6 +567,32 @@ for (const displayToken of [
   );
 }
 
+assert.match(
+  packetValidationResultsSource,
+  /aria-labelledby="ag-resume-validation-result-heading"/,
+  "copied-packet validation results must be labelled by a visible heading",
+);
+assert.match(
+  packetValidationResultsSource,
+  /aria-live="polite"/,
+  "copied-packet validation results must announce updates politely",
+);
+assert.match(
+  resultsSource,
+  /aria-labelledby="ag-resume-target-preview-result-heading"/,
+  "full target preview results must be labelled by a visible heading",
+);
+assert.match(
+  resultsSource,
+  /aria-live="polite"/,
+  "full target preview results must announce updates politely",
+);
+assert.match(
+  resultsSource,
+  /Full target preview result/,
+  "full target preview result heading must be visible",
+);
+
 for (const boundaryText of [
   "Read-only target preview.",
   "Uses an already built packet and explicit Local B context.",
@@ -533,6 +629,18 @@ for (const docsPattern of [
   /read-only packet review/i,
   /synthetic, public-safe, local UI state only, and not\s+persisted/is,
   /Error fixture buttons do not call routes/i,
+  /Accessibility And Keyboard Behavior/i,
+  /explicit `label` \/ `htmlFor` associations/i,
+  /helper text via `aria-describedby`/i,
+  /aria-invalid/i,
+  /role="alert"/i,
+  /aria-live="polite"/i,
+  /grouped with accessible labels/i,
+  /native `button` elements/i,
+  /native checkbox inputs/i,
+  /native textarea/i,
+  /no custom keyboard shortcuts/i,
+  /Keyboard navigation and activation/i,
   /fail locally before any route call/i,
   /fails locally before the route\s+call/is,
   /Copied-packet validation ignores Local B context/i,
@@ -590,6 +698,22 @@ for (const errorReportPattern of [
   );
 }
 
+for (const accessibilityReportPattern of [
+  /keyboard navigation/i,
+  /labels\/helper text/i,
+  /error announcement/i,
+  /copied-packet validation by keyboard/i,
+  /full preview by keyboard/i,
+  /clear by keyboard/i,
+  /no unauthorized controls/i,
+]) {
+  assert.match(
+    accessibilityBrowserReportSource,
+    accessibilityReportPattern,
+    `accessibility browser report must mention ${accessibilityReportPattern}`,
+  );
+}
+
 assert.match(
   designDocSource,
   /AG_WORK_RESUME_TARGET_PREVIEW_COCKPIT_PANEL_V0_1\.md/,
@@ -607,6 +731,9 @@ console.log(
         "panel exposes local-only safe fixture buttons",
         "panel exposes local-only error-state fixture buttons",
         "panel exposes copied-packet validation without Local B context",
+        "panel associates textareas with labels, helper text, invalid state, and alert errors",
+        "panel groups controls with accessible labels and uses live result regions",
+        "panel preserves native keyboard controls without custom shortcut handlers",
         "safe fixture buttons are type button and do not fetch or persist",
         "error fixture buttons are type button and do not fetch or persist",
         "safe fixtures pass static public-safe guards",
@@ -624,6 +751,7 @@ console.log(
         "docs capture read-only boundary and browser verification expectation",
         "browser verification report exists for copied-packet validation",
         "browser verification report exists for error-state regressions",
+        "browser verification report exists for accessibility and keyboard regressions",
         "cross-local design doc points to the Cockpit panel slice",
       ],
     },

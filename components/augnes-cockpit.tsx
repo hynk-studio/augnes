@@ -3217,6 +3217,22 @@ function AgResumeTargetPreviewPanel() {
   const [agResumeTargetPreviewBusy, setAgResumeTargetPreviewBusy] =
     useState(false);
   const agResumeRouteRequestIdRef = useRef(0);
+  const agResumePacketInputError = [
+    agResumePacketValidationError,
+    agResumeTargetPreviewError,
+  ].find((error) => isAgResumeFieldError(error, "AG Resume Packet JSON"));
+  const agResumeLocalContextInputError = isAgResumeFieldError(
+    agResumeTargetPreviewError,
+    "Explicit Local B context JSON",
+  )
+    ? agResumeTargetPreviewError
+    : null;
+  const agResumePacketInputErrorId =
+    agResumePacketInputError === agResumePacketValidationError
+      ? "ag-resume-packet-validation-error"
+      : agResumePacketInputError
+        ? "ag-resume-target-preview-error"
+        : null;
 
   function clearAgResumePanelResults() {
     setAgResumePacketValidationError(null);
@@ -3408,6 +3424,11 @@ function AgResumeTargetPreviewPanel() {
     <section
       className="cockpit-surface-card ag-resume-target-preview-panel"
       aria-label="AG Resume Target Preview"
+      aria-busy={
+        agResumeTargetPreviewBusy || agResumePacketValidationBusy
+          ? true
+          : undefined
+      }
     >
       <PanelHeader
         eyebrow="AG resume"
@@ -3436,166 +3457,243 @@ function AgResumeTargetPreviewPanel() {
         className="observe-form"
         onSubmit={handleAgResumeTargetPreviewSubmit}
       >
-        <BoundaryNote>
-          Safe example fixtures are synthetic, public-safe, local UI state only,
-          and not persisted.
-        </BoundaryNote>
-        <div className="action-controls" aria-label="Safe example fixture controls">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={loadSafeAgResumeExamplePacket}
-            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
-          >
-            Load safe example packet
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={loadSafeAgResumeExampleLocalContext}
-            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
-          >
-            Load safe example Local B context
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={clearAgResumeInputs}
-          >
-            Clear AG resume inputs
-          </button>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-safe-fixtures-heading">
+            Safe example fixture controls
+          </h3>
+          <BoundaryNote>
+            Safe example fixtures are synthetic, public-safe, local UI state only,
+            and not persisted.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeAgResumeExamplePacket}
+              disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+            >
+              Load safe example packet
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeAgResumeExampleLocalContext}
+              disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+            >
+              Load safe example Local B context
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearAgResumeInputs}
+            >
+              Clear AG resume inputs
+            </button>
+          </div>
         </div>
-        <BoundaryNote>
-          Error fixtures are local-only and synthetic. They are for checking
-          safe failure states, not for import or execution.
-        </BoundaryNote>
-        <div className="action-controls" aria-label="Error-state fixture controls">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={loadMalformedAgResumePacketJson}
-            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
-          >
-            Load malformed packet JSON
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={loadMalformedAgResumeLocalContextJson}
-            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
-          >
-            Load malformed Local B context JSON
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={loadPreflightFailingAgResumePacketExample}
-            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
-          >
-            Load preflight-failing packet example
-          </button>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-error-fixtures-heading"
+        >
+          <h3 id="ag-resume-error-fixtures-heading">
+            Error-state fixture controls
+          </h3>
+          <BoundaryNote>
+            Error fixtures are local-only and synthetic. They are for checking
+            safe failure states, not for import or execution.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadMalformedAgResumePacketJson}
+              disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+            >
+              Load malformed packet JSON
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadMalformedAgResumeLocalContextJson}
+              disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+            >
+              Load malformed Local B context JSON
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadPreflightFailingAgResumePacketExample}
+              disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
+            >
+              Load preflight-failing packet example
+            </button>
+          </div>
         </div>
-        <span>AG Resume Packet JSON</span>
+        <label htmlFor="ag-resume-packet-json-input">
+          AG Resume Packet JSON
+        </label>
+        <p id="ag-resume-packet-json-help" className="notice">
+          Paste one already built AG Resume Packet JSON object. Invalid JSON is rejected locally before route calls.
+        </p>
         <textarea
+          id="ag-resume-packet-json-input"
           value={agResumePacketInput}
           onChange={(event) => setAgResumePacketInput(event.target.value)}
           rows={10}
           spellCheck={false}
-          aria-label="AG Resume Packet JSON"
+          aria-describedby={
+            agResumePacketInputErrorId
+              ? `ag-resume-packet-json-help ${agResumePacketInputErrorId}`
+              : "ag-resume-packet-json-help"
+          }
+          aria-invalid={agResumePacketInputError ? true : undefined}
           placeholder='{"schema":"augnes.ag_work_resume_packet.v0_2","packet_id":"..."}'
         />
-        <span>Explicit Local B context JSON</span>
+        <label htmlFor="ag-resume-local-context-json-input">
+          Explicit Local B context JSON
+        </label>
+        <p id="ag-resume-local-context-json-help" className="notice">
+          Optional explicit Local B context JSON object. Empty input sends
+          local: null.
+        </p>
         <textarea
+          id="ag-resume-local-context-json-input"
           value={agResumeLocalContextInput}
           onChange={(event) =>
             setAgResumeLocalContextInput(event.target.value)
           }
           rows={8}
           spellCheck={false}
-          aria-label="Explicit Local B context JSON"
+          aria-describedby={
+            agResumeLocalContextInputError
+              ? "ag-resume-local-context-json-help ag-resume-target-preview-error"
+              : "ag-resume-local-context-json-help"
+          }
+          aria-invalid={agResumeLocalContextInputError ? true : undefined}
           placeholder='Leave empty to send local: null, or paste {"runtime":{},"repo":{},"known_local_work_mappings":[]}'
         />
-        <div className="evidence-pack-grid" aria-label="Target preview options">
-          <label className="evidence-pack-card">
-            <span>
-              <input
-                type="checkbox"
-                checked={agResumeStrictTargetPreview}
-                onChange={(event) =>
-                  setAgResumeStrictTargetPreview(event.target.checked)
-                }
-              />{" "}
-              Strict target preview
-            </span>
-            <p>
-              request field: <code>strict</code>
-            </p>
-            <p>Treat dirty worktree / repo gaps more conservatively.</p>
-          </label>
-          <label className="evidence-pack-card">
-            <span>
-            <input
-              type="checkbox"
-              checked={agResumeSkipPreflight}
-              onChange={(event) => setAgResumeSkipPreflight(event.target.checked)}
-            />{" "}
-            Skip packet preflight
-            </span>
-            <p>
-              request field: <code>skip_preflight</code>
-            </p>
-            <p>Debug only; not recommended before relying on a preview.</p>
-          </label>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-target-preview-options-heading"
+        >
+          <h3 id="ag-resume-target-preview-options-heading">
+            Target preview options
+          </h3>
+          <div className="evidence-pack-grid">
+            <label className="evidence-pack-card">
+              <span>
+                <input
+                  type="checkbox"
+                  checked={agResumeStrictTargetPreview}
+                  onChange={(event) =>
+                    setAgResumeStrictTargetPreview(event.target.checked)
+                  }
+                />{" "}
+                Strict target preview
+              </span>
+              <p>
+                request field: <code>strict</code>
+              </p>
+              <p>Treat dirty worktree / repo gaps more conservatively.</p>
+            </label>
+            <label className="evidence-pack-card">
+              <span>
+                <input
+                  type="checkbox"
+                  checked={agResumeSkipPreflight}
+                  onChange={(event) =>
+                    setAgResumeSkipPreflight(event.target.checked)
+                  }
+                />{" "}
+                Skip packet preflight
+              </span>
+              <p>
+                request field: <code>skip_preflight</code>
+              </p>
+              <p>Debug only; not recommended before relying on a preview.</p>
+            </label>
+          </div>
         </div>
         {agResumeSkipPreflight ? (
           <BoundaryNote>
             Debug only; run ag:resume-preflight before relying on this preview.
           </BoundaryNote>
         ) : null}
-        <BoundaryNote>
-          Packet validation uses local: null and always runs strict preflight.
-          It does not map, import, persist, or authorize implementation.
-        </BoundaryNote>
-        <div className="form-row">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={handleAgResumePacketValidation}
-            disabled={
-              agResumeTargetPreviewBusy ||
-              agResumePacketValidationBusy ||
-              !agResumePacketInput.trim()
-            }
-          >
-            {agResumePacketValidationBusy
-              ? "Validating pasted packet"
-              : "Validate pasted packet only"}
-          </button>
-          {agResumePacketValidationError ? (
-            <span className="notice error">{agResumePacketValidationError}</span>
-          ) : null}
+        <div
+          role="group"
+          aria-labelledby="ag-resume-validation-controls-heading"
+        >
+          <h3 id="ag-resume-validation-controls-heading">
+            Copied-packet validation controls
+          </h3>
+          <BoundaryNote>
+            Packet validation uses local: null and always runs strict preflight.
+            It does not map, import, persist, or authorize implementation.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleAgResumePacketValidation}
+              disabled={
+                agResumeTargetPreviewBusy ||
+                agResumePacketValidationBusy ||
+                !agResumePacketInput.trim()
+              }
+            >
+              {agResumePacketValidationBusy
+                ? "Validating pasted packet"
+                : "Validate pasted packet only"}
+            </button>
+            {agResumePacketValidationError ? (
+              <span
+                id="ag-resume-packet-validation-error"
+                className="notice error"
+                role="alert"
+              >
+                Packet validation error: {agResumePacketValidationError}
+              </span>
+            ) : null}
+          </div>
         </div>
         {agResumePacketValidationResult ? (
           <AgResumePacketValidationResults
             result={agResumePacketValidationResult}
           />
         ) : null}
-        <div className="form-row">
-          <button
-            type="submit"
-            disabled={
-              agResumeTargetPreviewBusy ||
-              agResumePacketValidationBusy ||
-              !agResumePacketInput.trim()
-            }
-          >
-            {agResumeTargetPreviewBusy
-              ? "Previewing target"
-              : "Run read-only target preview"}
-          </button>
-          {agResumeTargetPreviewError ? (
-            <span className="notice error">{agResumeTargetPreviewError}</span>
-          ) : null}
+        <div
+          role="group"
+          aria-labelledby="ag-resume-full-preview-controls-heading"
+        >
+          <h3 id="ag-resume-full-preview-controls-heading">
+            Full target preview controls
+          </h3>
+          <div className="form-row">
+            <button
+              type="submit"
+              disabled={
+                agResumeTargetPreviewBusy ||
+                agResumePacketValidationBusy ||
+                !agResumePacketInput.trim()
+              }
+            >
+              {agResumeTargetPreviewBusy
+                ? "Previewing target"
+                : "Run read-only target preview"}
+            </button>
+            {agResumeTargetPreviewError ? (
+              <span
+                id="ag-resume-target-preview-error"
+                className="notice error"
+                role="alert"
+              >
+                Target preview error: {agResumeTargetPreviewError}
+              </span>
+            ) : null}
+          </div>
         </div>
       </form>
       {agResumeTargetPreviewResult ? (
@@ -3622,9 +3720,10 @@ function AgResumePacketValidationResults({
   return (
     <div
       className="evidence-pack-card"
-      aria-label="Copied packet validation result"
+      aria-labelledby="ag-resume-validation-result-heading"
+      aria-live="polite"
     >
-      <h3>Copied packet validation</h3>
+      <h3 id="ag-resume-validation-result-heading">Copied packet validation</h3>
       <p>
         Validation is read-only packet review, not mapping, import,
         persistence, or execution authority.
@@ -3678,7 +3777,13 @@ function AgResumeTargetPreviewResults({
   const foreignRefs = preview?.packet_summary?.foreign_refs ?? null;
 
   return (
-    <div aria-label="AG Resume Target Preview Result">
+    <div
+      aria-labelledby="ag-resume-target-preview-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-target-preview-result-heading">
+        Full target preview result
+      </h3>
       <div className="evidence-pack-grid">
         <section className="evidence-pack-card">
           <h3>HTTP Status</h3>
@@ -8313,6 +8418,10 @@ function parseAgResumeObjectInput(
 
 function isAgResumeRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isAgResumeFieldError(error: string | null, fieldLabel: string) {
+  return Boolean(error?.startsWith(`${fieldLabel} `));
 }
 
 function formatAgResumeBoolean(value: boolean | null | undefined) {
