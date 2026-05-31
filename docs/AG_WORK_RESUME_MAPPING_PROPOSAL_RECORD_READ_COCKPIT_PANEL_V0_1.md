@@ -191,3 +191,9 @@ The browser report for this slice is:
 Mapping confirmation, import, lifecycle mutation, proof/evidence recording,
 session binding, and Codex continuation remain separate future
 user/Core-gated designs. This panel output is review metadata only.
+
+The Stage C confirmed mapping record design is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md`; it is
+design-only and adds no schema, migration, writer, helper, route, UI, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.

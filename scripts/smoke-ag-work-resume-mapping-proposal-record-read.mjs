@@ -360,6 +360,9 @@ function assertSourceGuards() {
     "components/augnes-cockpit.tsx",
     "reports/browser/2026-05-31-ag-work-resume-mapping-proposal-record-read-cockpit-panel-verification.md",
     "scripts/smoke-ag-work-resume-mapping-proposal-record-read-cockpit-panel.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-route.mjs",
+    "scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel.mjs",
   ]);
   for (const file of changedFiles) {
     if (allowedScopedFollowUpFiles.has(file)) continue;
