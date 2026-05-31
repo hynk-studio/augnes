@@ -371,4 +371,10 @@ adds no write route, record writer, proposal record creation behavior,
 confirmed mapping, import, proof/evidence, session binding, Codex execution, or
 authority to approve, publish, or merge.
 
+The first Stage B proposal-only writer is documented in
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_WRITER_V0_1.md`; it creates only
+proposal records and still does not confirm mappings, import packet context,
+record proof/evidence, bind sessions, execute Codex, approve, publish, retry,
+replay, or merge.
+
 This design document itself does not authorize implementation.
