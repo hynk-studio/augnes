@@ -360,4 +360,9 @@ If user/Core approves a follow-up, the next PR could define DB/schema design for
 mapping proposal records while still adding no route writes. Another valid next
 step is to continue Stage A real-packet dogfood without persistence.
 
+Stage B DB/schema design is documented in
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_DB_SCHEMA_DESIGN_V0_1.md`; current Stage
+A surfaces and Stage B record design remain non-implementation, and no schema
+or migration is added by current docs.
+
 This design document itself does not authorize implementation.
