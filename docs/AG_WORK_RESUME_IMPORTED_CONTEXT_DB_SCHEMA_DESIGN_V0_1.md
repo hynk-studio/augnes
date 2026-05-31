@@ -263,6 +263,12 @@ context rows during migration, and grants no writer/helper/route/UI,
 proof/evidence, session, Codex, approval, publish, retry, replay, or merge
 authority.
 
+The separately gated writer/helper is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`. It creates only imported
+context review metadata rows from active confirmed mappings and still grants no
+route/UI, proof/evidence, session, Codex, approval, publish, retry, replay, or
+merge authority.
+
 This design document itself does not authorize implementation.
 
 ## Browser Verification
