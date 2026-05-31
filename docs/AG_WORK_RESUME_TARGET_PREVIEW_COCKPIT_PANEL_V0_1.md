@@ -145,6 +145,35 @@ creation, proof/evidence recording, session binding, Codex execution,
 approval, publish, retry, replay, external posting, merge, or state mutation
 authority.
 
+## Accessibility And Keyboard Behavior
+
+The panel uses explicit `label` / `htmlFor` associations for:
+
+- `AG Resume Packet JSON`
+- `Explicit Local B context JSON`
+
+Both textareas include helper text via `aria-describedby`. Packet JSON parse
+errors mark the packet textarea with `aria-invalid`; Local B context parse
+errors mark the Local B textarea with `aria-invalid`. Error messages are
+announced with `role="alert"` and retain visible error text. Copied-packet
+validation results and full target preview results are announced with
+`aria-live="polite"` and labelled result headings.
+
+The safe fixture controls, error-state fixture controls, target preview
+options, copied-packet validation controls, and full target preview controls
+are grouped with accessible labels. Buttons remain native `button` elements,
+checkboxes remain native checkbox inputs, and textareas remain native textarea
+elements. The slice adds no custom keyboard shortcuts or `role="button"`
+controls. Keyboard navigation and activation must continue to support loading
+fixtures, entering/editing textarea content, toggling strict and
+skip-preflight checkboxes, running copied-packet validation, running the full
+read-only target preview, inspecting result sections, and clearing inputs.
+
+Accessibility and keyboard coverage does not change route behavior or
+authority. It does not add runtime discovery, persistence, import, mapping,
+proof/evidence recording, session binding, Codex execution, approval, publish,
+retry, replay, external posting, merge, or committed-state mutation.
+
 ## Display Contract
 
 The panel displays:
