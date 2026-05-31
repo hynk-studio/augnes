@@ -123,6 +123,7 @@ for (const token of [
   "foreign_refs_summary TEXT NOT NULL DEFAULT '{}'",
   "redaction_report TEXT NOT NULL DEFAULT '{}'",
   "created_by TEXT NOT NULL",
+  "import_reason TEXT NOT NULL",
   "created_at TEXT NOT NULL",
   "updated_at TEXT NOT NULL",
   "authority_boundary TEXT NOT NULL DEFAULT '{}'",
@@ -136,6 +137,7 @@ for (const token of [
 for (const pattern of [
   /CREATE TABLE IF NOT EXISTS ag_work_resume_imported_contexts/i,
   /status IN \('review_metadata', 'superseded', 'withdrawn', 'revoked'\)/i,
+  /import_reason` records why user\/Core created or imported this bounded review\s+metadata/is,
   /plain text for design review/i,
   /not executed by\s+this PR and is not schema implementation/is,
 ]) {
@@ -318,8 +320,8 @@ console.log(
         "lifecycle/status rules are documented",
         "authority boundary and non-goals are documented",
         "related docs point to imported context DB/schema design doc",
-        "source guard limits changed files to docs, package.json, new smoke script, and guard-only compatibility scripts",
-        "forbidden code guard rejects runtime/schema/app/network/storage/proof/session/Codex implementation changes",
+        "source guard allows only the Stage D schema foundation, docs, package.json, new smoke script, and guard-only compatibility scripts",
+        "forbidden code guard rejects runtime/app/network/storage/proof/session/Codex implementation changes outside schema.sql",
       ],
     },
     null,
@@ -334,9 +336,12 @@ function assertNoUnexpectedChangedFiles() {
     ...gitLines(["ls-files", "--others", "--exclude-standard"]),
   ]);
   const allowedFiles = new Set([
+    "lib/db/schema.sql",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     schemaDesignDocRelativePath,
     ...pointerDocRelativePaths,
     "package.json",
+    "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
@@ -359,10 +364,10 @@ function assertNoUnexpectedChangedFiles() {
       allowedFiles.has(file),
       `changed file is outside the design-only imported context schema slice: ${file}`,
     );
-    assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.ok(
-      !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
-      `design-only imported context schema slice must not touch runtime/UI/schema/browser files: ${file}`,
+      file === "lib/db/schema.sql" ||
+        !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      `imported context schema follow-up must not touch runtime/UI/browser files outside schema.sql: ${file}`,
     );
   }
 }
@@ -377,16 +382,17 @@ function assertNoForbiddenImplementationCode() {
   ];
   const implementationFiles = changedFiles.filter(
     (file) =>
-      /^(app|apps|components|lib|migrations)\//.test(file) ||
-      file === "lib/db/schema.sql",
+      /^(app|apps|components|migrations)\//.test(file) ||
+      (file.startsWith("lib/") && file !== "lib/db/schema.sql"),
   );
   assert.deepEqual(
     implementationFiles,
     [],
-    "no runtime, route, schema, App, component, library, migration, or browser files may change",
+    "no runtime, route, App, component, library, migration, or browser files may change outside schema.sql",
   );
 
   const guardOnlySmokeFiles = new Set([
+    "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
@@ -409,6 +415,7 @@ function assertNoForbiddenImplementationCode() {
   for (const file of changedFiles.filter((changedFile) =>
     /\.(?:mjs|js|ts|tsx|jsx|sql)$/.test(changedFile),
   )) {
+    if (file === "lib/db/schema.sql") continue;
     if (guardOnlySmokeFiles.has(file)) continue;
     const source = readFileSync(path.join(rootDir, file), "utf8");
     for (const pattern of forbiddenPatterns) {

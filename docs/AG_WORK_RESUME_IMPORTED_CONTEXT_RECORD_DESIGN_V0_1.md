@@ -113,6 +113,7 @@ contract in this PR.
     "proof_payloads_included": false
   },
   "created_by": "user-core:reviewer",
+  "import_reason": "User/Core selected this bounded packet summary for local review.",
   "created_at": "2026-06-01T00:00:00.000Z",
   "authority_boundary": {
     "review_metadata_only": true,
@@ -129,8 +130,11 @@ contract in this PR.
 
 `import_id` is not `mapping_id`, not `proposal_id`, and not a proof/evidence
 id. `mapping_id` is required traceability to an existing active confirmed
-mapping. `packet_id`, `packet_hash`, and `source_runtime_instance_id` are
-packet identity fields for review traceability only.
+mapping. `import_reason` records why user/Core created or imported this
+bounded review metadata. It is review context only and does not grant
+approval, publish, retry, replay, merge, proof/evidence, session, Codex, work
+item, or committed state authority. Packet identity fields for review traceability only:
+`packet_id`, `packet_hash`, and `source_runtime_instance_id`.
 
 ## Constraints
 
@@ -213,7 +217,8 @@ or revoke a confirmed mapping. Confirmed mapping lifecycle remains separate.
 1. Imported context design only: this PR.
 2. Imported context DB/schema design:
    `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md`.
-3. Imported context schema implementation.
+3. Imported context schema implementation:
+   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 4. Imported context writer/helper.
 5. Imported context route.
 6. Imported context read helper/route.
@@ -233,6 +238,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-imported-context-db-schema
 npm run smoke:ag-work-resume-imported-context-db-schema-design
 npm run smoke:ag-work-resume-imported-context-record-design
 npm run smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel

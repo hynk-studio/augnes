@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS ag_work_resume_imported_contexts (
   foreign_refs_summary TEXT NOT NULL DEFAULT '{}',
   redaction_report TEXT NOT NULL DEFAULT '{}',
   created_by TEXT NOT NULL,
+  import_reason TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   authority_boundary TEXT NOT NULL DEFAULT '{}'
@@ -93,9 +94,14 @@ Field notes:
 - `foreign_refs_summary TEXT NOT NULL DEFAULT '{}'`
 - `redaction_report TEXT NOT NULL DEFAULT '{}'`
 - `created_by TEXT NOT NULL`
+- `import_reason TEXT NOT NULL`
 - `created_at TEXT NOT NULL`
 - `updated_at TEXT NOT NULL`
 - `authority_boundary TEXT NOT NULL DEFAULT '{}'`
+
+`import_reason` records why user/Core created or imported this bounded review
+metadata. It is audit context only, not proof/evidence, session binding,
+approval, publish, retry, replay, merge, or committed-state authority.
 
 JSON text fields:
 
@@ -250,6 +256,13 @@ one is separately designed.
 Future route, read, and UI work remain separately gated. Proof/evidence,
 session, and Codex gates remain separate.
 
+The schema foundation implementation is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md`. It
+creates the imported context table and indexes only, creates no imported
+context rows during migration, and grants no writer/helper/route/UI,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 This design document itself does not authorize implementation.
 
 ## Browser Verification
@@ -262,6 +275,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-imported-context-db-schema
 npm run smoke:ag-work-resume-imported-context-db-schema-design
 npm run smoke:ag-work-resume-imported-context-record-design
 npm run smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel

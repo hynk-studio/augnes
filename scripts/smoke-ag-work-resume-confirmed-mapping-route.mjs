@@ -396,6 +396,7 @@ function assertSourceGuards() {
 
   const changedFiles = gitChangedFiles();
   const allowedFiles = new Set([
+    "lib/db/schema.sql",
     "app/api/ag-work-resume/confirmed-mappings/route.ts",
     "components/augnes-cockpit.tsx",
     "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md",
@@ -420,8 +421,10 @@ function assertSourceGuards() {
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "package.json",
+    "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
   ]);
@@ -451,10 +454,10 @@ function assertSourceGuards() {
     );
     assert.ok(
       file === "lib/ag-work-resume-confirmed-mapping-read.ts" ||
+        file === "lib/db/schema.sql" ||
         !file.startsWith("lib/"),
-      `lib changes limited to confirmed mapping read core in this follow-up: ${file}`,
+      `lib changes limited to confirmed mapping read core or imported context schema.sql in this follow-up: ${file}`,
     );
-    assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
   }
 }
 
@@ -666,10 +669,19 @@ function assertNoForbiddenTablesOrRows(targetDbPath) {
   try {
     for (const table of [
       "ag_work_resume_imports",
-      "ag_work_resume_imported_contexts",
     ]) {
       assert.equal(tableExists(db, table), false, `${table} must not be created`);
     }
+    assert.equal(
+      tableExists(db, "ag_work_resume_imported_contexts"),
+      true,
+      "imported context schema table may exist after Stage D schema foundation",
+    );
+    assert.equal(
+      countRows(targetDbPath, "ag_work_resume_imported_contexts"),
+      0,
+      "confirmed mapping route smoke must not create imported context rows",
+    );
     for (const table of [
       "sessions",
       "work_events",

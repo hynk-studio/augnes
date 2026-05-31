@@ -455,6 +455,7 @@ function assertSourceGuards() {
   }
 
   const allowedFiles = new Set([
+    "lib/db/schema.sql",
     "lib/ag-work-resume-confirmed-mapping.ts",
     "lib/ag-work-resume-confirmed-mapping-read.ts",
     "components/augnes-cockpit.tsx",
@@ -481,8 +482,10 @@ function assertSourceGuards() {
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "package.json",
+    "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
   ]);
@@ -514,10 +517,10 @@ function assertSourceGuards() {
     assert.ok(
       file === "lib/ag-work-resume-confirmed-mapping.ts" ||
         file === "lib/ag-work-resume-confirmed-mapping-read.ts" ||
+        file === "lib/db/schema.sql" ||
         !file.startsWith("lib/"),
-      `lib changes limited to confirmed mapping writer/read cores: ${file}`,
+      `lib changes limited to confirmed mapping writer/read cores or imported context schema.sql: ${file}`,
     );
-    assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
   }
 }
 
@@ -797,10 +800,19 @@ function assertNoForbiddenTablesOrRows(targetDbPath) {
   try {
     for (const table of [
       "ag_work_resume_imports",
-      "ag_work_resume_imported_contexts",
     ]) {
       assert.equal(tableExists(db, table), false, `${table} must not be created`);
     }
+    assert.equal(
+      tableExists(db, "ag_work_resume_imported_contexts"),
+      true,
+      "imported context schema table may exist after Stage D schema foundation",
+    );
+    assert.equal(
+      countRows(targetDbPath, "ag_work_resume_imported_contexts"),
+      0,
+      "confirmed mapping writer smoke must not create imported context rows",
+    );
     for (const table of [
       "sessions",
       "work_events",
