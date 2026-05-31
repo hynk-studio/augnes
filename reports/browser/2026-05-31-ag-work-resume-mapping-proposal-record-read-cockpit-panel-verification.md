@@ -124,6 +124,16 @@
   with browser keypress events after the high-level fill/type helper reported an
   unavailable virtual clipboard; no product behavior was changed.
 
+- Command: focused narrow-viewport local validation alert polish check
+- Result: passed
+- Notes: At a `319px` browser viewport, triggered the `limit must be a
+  positive integer.` local validation with status `proposed` and limit `2.5`.
+  Confirmed the preserved `#ag-resume-mapping-record-read-error.notice.error`
+  `role="alert"` renders below the Clear/Read button row, is readable, and is
+  no longer squeezed beside the submit button. The local dev server log was
+  flushed immediately before the click and produced no new request after the
+  validation error.
+
 - Command: focused browser network inspection through local logging proxy
 - Result: passed
 - Notes: The focused panel interactions produced exactly five API calls. Every

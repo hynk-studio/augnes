@@ -4992,16 +4992,16 @@ function AgResumeMappingProposalRecordReviewPanel() {
             <button type="submit" disabled={busy}>
               {busy ? "Reading proposal records" : "Read proposal records"}
             </button>
-            {error ? (
-              <span
-                id="ag-resume-mapping-record-read-error"
-                className="notice error"
-                role="alert"
-              >
-                {error}
-              </span>
-            ) : null}
           </div>
+          {error ? (
+            <span
+              id="ag-resume-mapping-record-read-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
         </div>
       </form>
       {result ? (
