@@ -432,6 +432,11 @@ function assertNoUnexpectedChangedFiles() {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+  const allowedScopedFollowUpFiles = new Set([
+    "app/api/ag-work-resume/mapping-proposal-records/route.ts",
+    "lib/ag-work-resume-mapping-proposal-record.ts",
+    "lib/ag-work-resume-mapping-proposal-record-read.ts",
+  ]);
   const forbiddenPrefixes = [
     "app/",
     "apps/",
@@ -440,6 +445,7 @@ function assertNoUnexpectedChangedFiles() {
     "app/api/",
   ];
   for (const file of changedFiles) {
+    if (allowedScopedFollowUpFiles.has(file)) continue;
     assert.ok(
       !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       `smoke guard: route/UI/runtime file changed unexpectedly: ${file}`,

@@ -169,6 +169,10 @@ PRs:
   first Stage B proposal record writer; it creates proposal-only rows and
   still grants no confirmed mapping, import, proof/evidence, session, Codex,
   approval, publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_READ_V0_1.md` documents the
+  first Stage B proposal record read helper and route; it performs no writes
+  and still grants no confirmed mapping, import, proof/evidence, session,
+  Codex, approval, publish, retry, replay, or merge authority.
 - **Stage C: confirmed mapping record**. Future write stage requiring explicit
   user/Core action for one foreign scope/work_id and one existing local
   scope/work_id.
