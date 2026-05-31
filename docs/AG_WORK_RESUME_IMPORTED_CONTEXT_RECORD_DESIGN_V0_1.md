@@ -219,7 +219,8 @@ or revoke a confirmed mapping. Confirmed mapping lifecycle remains separate.
    `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md`.
 3. Imported context schema implementation:
    `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
-4. Imported context writer/helper.
+4. Imported context writer/helper:
+   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`.
 5. Imported context route.
 6. Imported context read helper/route.
 7. Cockpit review UI, only if separately approved.
