@@ -39,6 +39,10 @@ merge authority.
   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents a
   future review metadata record after confirmed mapping. This route does not
   create imported context records.
+- Stage D imported context DB/schema design:
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md` documents
+  the future imported context table contract only. This route does not
+  implement imported context schema or create imported context rows.
 
 This route adds no Cockpit UI and no schema/migration.
 

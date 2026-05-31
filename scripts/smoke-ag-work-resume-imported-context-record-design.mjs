@@ -344,9 +344,11 @@ function assertNoUnexpectedChangedFiles() {
   ]);
   const allowedFiles = new Set([
     designDocRelativePath,
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
     ...pointerDocRelativePaths,
     "package.json",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",

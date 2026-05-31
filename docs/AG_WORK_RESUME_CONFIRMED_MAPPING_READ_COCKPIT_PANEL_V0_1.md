@@ -42,6 +42,10 @@ authority, and not approval, publish, retry, replay, or merge authority.
   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents the
   future imported resume context review metadata record. This read panel does
   not import context or create imported context records.
+- Stage D imported context DB/schema design:
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md` documents
+  the future imported context table contract only. This read panel does not
+  implement imported context schema or read imported context rows.
 
 ## Cockpit Location
 

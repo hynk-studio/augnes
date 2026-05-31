@@ -254,6 +254,11 @@ PRs:
   schema, migration, writer/helper, route, UI, import rows, proof/evidence,
   session binding, Codex execution, approval, publish, retry, replay, or merge
   authority.
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md` documents
+  the Stage D imported context DB/schema design; it is design-only and adds no
+  schema implementation, migration, runtime behavior, writer/helper, route,
+  UI, imported context rows, proof/evidence, session binding, Codex execution,
+  approval, publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and
@@ -347,7 +352,9 @@ A possible future persisted imported resume context record shape, not
 implemented in this PR, might include:
 
 The fuller Stage D design-only contract is documented in
-`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`.
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`. The future
+Stage D DB/schema design is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md`.
 
 ```json
 {

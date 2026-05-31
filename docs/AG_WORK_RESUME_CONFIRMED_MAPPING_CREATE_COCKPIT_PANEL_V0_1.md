@@ -38,6 +38,10 @@ replay, or merge authority.
   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents the
   future imported resume context review metadata record. This create panel does
   not create or mutate imported context.
+- Stage D imported context DB/schema design:
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md` documents
+  the future imported context table contract only. This create panel does not
+  implement imported context schema or create imported context rows.
 
 ## Cockpit Location
 

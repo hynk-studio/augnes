@@ -32,6 +32,13 @@ Confirmed mapping does not import packet content. Imported context, if ever
 implemented, would be a separate user/Core-gated write that records bounded
 review metadata derived from that mapped packet context.
 
+The design-only DB/schema contract for future imported context rows is
+documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md`. That schema
+design remains non-implementation and adds no schema, migration, runtime
+behavior, writer/helper/route/UI, proof/evidence, session, Codex, approval,
+publish, retry, replay, or merge authority.
+
 Imported context is not proof/evidence. It is not committed state authority.
 It is not approval. It does not authorize publish, retry, replay, or merge. It
 does not bind sessions. It does not start or continue Codex. Any future Codex
@@ -204,7 +211,8 @@ or revoke a confirmed mapping. Confirmed mapping lifecycle remains separate.
 ## Future PR Sequence
 
 1. Imported context design only: this PR.
-2. Imported context DB/schema design.
+2. Imported context DB/schema design:
+   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md`.
 3. Imported context schema implementation.
 4. Imported context writer/helper.
 5. Imported context route.
@@ -225,6 +233,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-imported-context-db-schema-design
 npm run smoke:ag-work-resume-imported-context-record-design
 npm run smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
