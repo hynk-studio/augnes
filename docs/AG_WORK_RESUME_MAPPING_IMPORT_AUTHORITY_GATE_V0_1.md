@@ -189,6 +189,12 @@ PRs:
   metadata updates; it adds no route, UI, schema, migration, replacement
   proposal creation, confirmed mapping, import, proof/evidence, session, Codex,
   approval, publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_ROUTE_V0_1.md`
+  documents the JSON route over that shared lifecycle core; it updates existing
+  proposal lifecycle/review metadata only and adds no Cockpit UI, schema,
+  migration, proposal creation, replacement proposal creation, confirmed
+  mapping, import, proof/evidence, session, Codex, approval, publish, retry,
+  replay, or merge authority.
 - **Stage C: confirmed mapping record**. Future write stage requiring explicit
   user/Core action for one foreign scope/work_id and one existing local
   scope/work_id.
