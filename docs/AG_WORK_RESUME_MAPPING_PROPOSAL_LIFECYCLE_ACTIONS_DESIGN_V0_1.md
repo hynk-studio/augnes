@@ -34,6 +34,15 @@ proposal; it would not perform the downstream work.
 This design establishes the boundary for future work so any later lifecycle
 implementation can be reviewed against explicit non-authority rules.
 
+## Implemented Helper Slice
+
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md`
+documents the first bounded lifecycle action core and local helper. That helper
+updates existing proposal lifecycle/review metadata only; it adds no route, UI,
+schema, migration, replacement proposal creation, confirmed mapping, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 ## Definitions
 
 - **active proposal statuses**: `proposed` and `needs_review`. These statuses

@@ -28,6 +28,12 @@ authority, and not merge/publish authority.
   documents design-only future withdraw, reject, supersede, and expire
   semantics. This writer still only inserts proposal rows and does not update,
   withdraw, reject, supersede, expire, confirm, or import.
+- Stage B lifecycle action helper:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md`
+  documents the separately scoped helper for existing proposal lifecycle/review
+  metadata updates. This writer remains proposal creation only and still does
+  not confirm mappings, import context, record proof/evidence, bind sessions,
+  execute Codex, approve, publish, retry, replay, or merge.
 - Stage A mapping proposal preview route and panel:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_ROUTE_V0_1.md` and
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_COCKPIT_PANEL_V0_1.md`

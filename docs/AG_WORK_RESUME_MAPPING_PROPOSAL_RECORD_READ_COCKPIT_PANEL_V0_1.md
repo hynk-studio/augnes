@@ -32,6 +32,11 @@ merge/publish authority.
   documents design-only future withdraw, reject, supersede, and expire
   semantics. This panel still exposes no lifecycle controls and performs no
   create/update/delete behavior.
+- Stage B lifecycle action helper:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md`
+  documents the separately scoped helper for existing proposal lifecycle/review
+  metadata updates. This panel still does not call it and exposes no lifecycle
+  controls.
 - Stage A mapping proposal preview panel:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_COCKPIT_PANEL_V0_1.md`
   remains a preview-only surface. This panel reads persisted Stage B proposal
