@@ -144,6 +144,10 @@ PRs:
   local helper for this Stage A mapping proposal preview only; it remains
   preview-only and does not create mappings, imports, proof/evidence, sessions,
   work items, routes, or Codex execution authority.
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_ROUTE_V0_1.md` documents the
+  read-only route for this Stage A mapping proposal preview only; it remains
+  preview-only and does not create mappings, imports, proof/evidence, sessions,
+  work items, persistence, or Codex execution authority.
 - **Stage B: mapping proposal record**. Future write stage only if user/Core
   approves a schema and record class. A proposal record is still not a
   confirmed mapping.
