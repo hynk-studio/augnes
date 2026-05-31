@@ -405,7 +405,6 @@ function assertNoConfirmedMappingRuntimeSurfaces() {
     "lib/ag-work-resume-confirmed-mapping-record-read.ts",
     "scripts/ag-work-resume-confirmed-mapping-record-create.mjs",
     "scripts/ag-work-resume-confirmed-mapping-record-read.mjs",
-    "app/api/ag-work-resume/confirmed-mappings/route.ts",
     "app/api/ag-work-resume/confirmed-mapping-records/route.ts",
   ]) {
     assert.equal(

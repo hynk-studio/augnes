@@ -28,6 +28,12 @@ merge authority.
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` keeps confirmed
   mapping, import, proof/evidence, session binding, and Codex continuation as
   separate user/Core-gated stages.
+- Stage C route:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md` documents the JSON
+  route over this shared writer core. The route delegates to the core and
+  still adds no Cockpit UI, schema/migration, import, proof/evidence, session
+  binding, Codex execution, approval, publish, retry, replay, or merge
+  authority.
 
 This writer is the first write boundary for confirmed mapping rows. It adds no
 route/UI and no schema/migration.
@@ -247,6 +253,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-writer
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema-design

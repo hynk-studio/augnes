@@ -444,7 +444,6 @@ function assertSourceGuards() {
   }
 
   for (const forbiddenPath of [
-    "app/api/ag-work-resume/confirmed-mappings/route.ts",
     "app/api/ag-work-resume/confirmed-mapping-records/route.ts",
     "components/ag-work-resume-confirmed-mapping.tsx",
   ]) {

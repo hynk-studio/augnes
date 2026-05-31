@@ -264,6 +264,12 @@ existing local work, and still adds no route/UI, import, proof/evidence,
 session binding, Codex execution, approval, publish, retry, replay, or merge
 authority.
 
+The JSON route over that writer is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md`. It delegates to the
+shared writer core and still adds no Cockpit UI, schema/migration, import,
+proof/evidence, session binding, Codex execution, approval, publish, retry,
+replay, or merge authority.
+
 ## Future Writer/Helper/Route Contract Sketch
 
 Design only. A future writer/helper/route input could include:
@@ -343,7 +349,8 @@ relay, or runtime contract in this PR.
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 4. Confirmed mapping writer/helper:
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`.
-5. Confirmed mapping route.
+5. Confirmed mapping route:
+   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md`.
 6. Confirmed mapping Cockpit review/control UI, only if separately approved.
 7. Imported resume context design as Stage D.
 8. Proof/evidence/session/Codex gates remain separate.
