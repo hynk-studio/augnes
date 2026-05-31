@@ -17,13 +17,24 @@ const designDocPath = path.join(
   "CROSS_LOCAL_AG_WORK_RESUME_DIRECT_CODE_V0_2.md",
 );
 const packagePath = path.join(rootDir, "package.json");
+const browserReportPath = path.join(
+  rootDir,
+  "reports",
+  "browser",
+  "2026-05-31-ag-work-resume-copied-packet-validation-cockpit-panel-verification.md",
+);
 
 assert.ok(existsSync(componentPath), "Cockpit component must exist");
 assert.ok(existsSync(docsPath), "Cockpit target preview panel docs must exist");
+assert.ok(
+  existsSync(browserReportPath),
+  "copied-packet validation browser verification report must exist",
+);
 
 const componentSource = readFileSync(componentPath, "utf8");
 const docsSource = readFileSync(docsPath, "utf8");
 const designDocSource = readFileSync(designDocPath, "utf8");
+const browserReportSource = readFileSync(browserReportPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
@@ -36,6 +47,14 @@ const panelSource = extractFunctionBlock(
   componentSource,
   "AgResumeTargetPreviewPanel",
 );
+const validationHandlerSource = extractFunctionBlock(
+  componentSource,
+  "handleAgResumePacketValidation",
+);
+const fullPreviewHandlerSource = extractFunctionBlock(
+  componentSource,
+  "handleAgResumeTargetPreviewSubmit",
+);
 const fixtureSource = [
   extractConstObjectBlock(componentSource, "SAFE_AG_RESUME_EXAMPLE_PACKET"),
   extractConstObjectBlock(
@@ -47,7 +66,12 @@ const resultsSource = extractFunctionBlock(
   componentSource,
   "AgResumeTargetPreviewResults",
 );
+const packetValidationResultsSource = extractFunctionBlock(
+  componentSource,
+  "AgResumePacketValidationResults",
+);
 const displaySource = [
+  packetValidationResultsSource,
   resultsSource,
   extractFunctionBlock(componentSource, "AgResumeFindingList"),
   extractFunctionBlock(componentSource, "AgResumeConflictList"),
@@ -58,6 +82,9 @@ const displaySource = [
 for (const token of [
   "agResumePacketInput",
   "agResumeLocalContextInput",
+  "agResumePacketValidationResult",
+  "agResumePacketValidationError",
+  "agResumePacketValidationBusy",
   "agResumeTargetPreviewResult",
   "agResumeTargetPreviewError",
 ]) {
@@ -75,9 +102,23 @@ for (const label of [
   "Load safe example packet",
   "Load safe example Local B context",
   "Clear AG resume inputs",
+  "Validate pasted packet only",
+  "Packet validation uses local: null and always runs strict preflight",
   "Run read-only target preview",
 ]) {
   assert.match(panelSource, new RegExp(escapeRegExp(label)), `panel must show ${label}`);
+}
+
+for (const componentToken of [
+  "Copied packet validation",
+  "Validation is read-only packet review",
+  "context_only is expected for packet-only validation",
+]) {
+  assert.match(
+    componentSource,
+    new RegExp(escapeRegExp(componentToken)),
+    `component source must include ${componentToken}`,
+  );
 }
 
 assert.match(
@@ -92,19 +133,45 @@ assert.match(
   "panel route call must send application/json",
 );
 assert.match(
-  panelSource,
+  fullPreviewHandlerSource,
   /body:\s*JSON\.stringify\(\{\s*packet,\s*local,\s*strict:\s*agResumeStrictTargetPreview,\s*skip_preflight:\s*agResumeSkipPreflight,\s*\}\)/s,
   "panel route call must send packet, local, strict, and skip_preflight",
 );
 assert.ok(
-  panelSource.indexOf("parseAgResumeObjectInput") <
-    panelSource.indexOf('fetch("/api/ag-work-resume/target-preview"'),
+  fullPreviewHandlerSource.indexOf("parseAgResumeObjectInput") <
+    fullPreviewHandlerSource.indexOf('fetch("/api/ag-work-resume/target-preview"'),
   "panel must parse JSON locally before route call",
 );
 assert.match(
-  panelSource,
+  fullPreviewHandlerSource,
   /allowEmpty:\s*true/,
   "empty Local B context input must be allowed and sent as local null",
+);
+
+assert.ok(
+  validationHandlerSource.indexOf("parseAgResumeObjectInput") <
+    validationHandlerSource.indexOf('fetch("/api/ag-work-resume/target-preview"'),
+  "validation handler must parse packet JSON locally before the route call",
+);
+assert.match(
+  validationHandlerSource,
+  /"AG Resume Packet JSON"/,
+  "validation handler must parse the packet JSON input",
+);
+assert.doesNotMatch(
+  validationHandlerSource,
+  /agResumeLocalContextInput|Explicit Local B context JSON/,
+  "validation handler must not parse or depend on Local B context input",
+);
+assert.match(
+  validationHandlerSource,
+  /body:\s*JSON\.stringify\(\{\s*packet,\s*local:\s*null,\s*strict:\s*true,\s*skip_preflight:\s*false,\s*\}\)/s,
+  "validation handler must send local null, strict true, and skip_preflight false",
+);
+assert.doesNotMatch(
+  validationHandlerSource,
+  /agResumeSkipPreflight|agResumeStrictTargetPreview/,
+  "validation handler must ignore full-preview checkbox state",
 );
 
 const routeStrings = [
@@ -127,6 +194,16 @@ for (const forbiddenSource of [
   "/api/proof",
   "/api/evidence",
   "/api/session",
+  "/api/sessions",
+  "/api/publication",
+  "/api/approval",
+  "/api/codex",
+  "/api/ag-work-resume/direct",
+  "/api/ag-work-resume/resolve",
+  "/api/ag-work-resume/import",
+  "/api/ag-work-resume/relay",
+  "telemetry",
+  "analytics",
 ]) {
   assert.doesNotMatch(
     panelSource,
@@ -137,8 +214,8 @@ for (const forbiddenSource of [
 
 assert.equal(
   [...panelSource.matchAll(/\bfetch\(/g)].length,
-  1,
-  "panel must have exactly one fetch call",
+  2,
+  "panel must have exactly two fetch calls for the two read-only route actions",
 );
 
 const buttonBlocks = [...panelSource.matchAll(/<button[\s\S]*?<\/button>/g)].map(
@@ -162,6 +239,7 @@ for (const label of [
   "Load safe example packet",
   "Load safe example Local B context",
   "Clear AG resume inputs",
+  "Validate pasted packet only",
 ]) {
   const matchingBlocks = buttonBlocks.filter((buttonBlock) =>
     buttonBlock.includes(label),
@@ -210,6 +288,8 @@ for (const buttonBlock of buttonBlocks) {
     "bind session",
     "import",
     "persist",
+    "direct resume code",
+    "relay",
   ]) {
     assert.ok(
       !normalizedButton.includes(forbiddenLabel),
@@ -289,6 +369,17 @@ for (const displayToken of [
   "Route ok",
   "Preview status",
   "preview.status",
+  "Copied packet validation",
+  "HTTP status:",
+  "route ok:",
+  "preflight ran:",
+  "preflight ok:",
+  "preflight status:",
+  "Preflight warnings",
+  "Preflight failures",
+  "route recommended_next_step",
+  "Validation is read-only packet review",
+  "context_only is expected for packet-only validation",
   "OK to continue",
   "preview.ok_to_continue",
   "OK only for user/Core review. This is not Codex execution authority.",
@@ -337,10 +428,24 @@ for (const docsPattern of [
   /Load safe example packet/i,
   /Load safe example Local B context/i,
   /Clear AG resume inputs/i,
+  /Validate pasted packet only/i,
+  /local: null/i,
+  /strict: true/i,
+  /skip_preflight: false/i,
+  /always runs strict preflight/i,
+  /ignores the\s+skip-preflight checkbox/i,
+  /does not require or parse\s+`Explicit Local B context JSON`/i,
+  /context_only.*expected.*packet-only validation/is,
+  /read-only packet review/i,
+  /does not map,\s*import,\s*persist/is,
+  /create work items,\s*create mapping records,\s*record\s+proof\/evidence,\s*bind sessions/is,
+  /execute Codex,\s*approve,\s*publish,\s*retry,\s*replay,\s*merge,\s*mutate state/is,
+  /Direct Resume Code routes/i,
+  /relay packet data/i,
   /synthetic, public-safe, and not persisted/i,
   /fixture buttons update local React state only/i,
   /fixture buttons.*do not call routes/is,
-  /preview button calls only\s+`\/api\/ag-work-resume\/target-preview`/i,
+  /validation button and the read-only full preview\s+button call only `\/api\/ag-work-resume\/target-preview`/i,
   /Invalid JSON is rejected in\s+the browser before any route call/i,
   /Empty input sends\s+`local: null`/i,
   /No DB\/schema changes/i,
@@ -354,6 +459,19 @@ for (const docsPattern of [
   /Browser verification/i,
 ]) {
   assert.match(docsSource, docsPattern, `docs must mention ${docsPattern}`);
+}
+
+for (const reportPattern of [
+  /Validate pasted packet only/i,
+  /context_only expected/i,
+  /strict preflight pass/i,
+  /no unauthorized controls/i,
+]) {
+  assert.match(
+    browserReportSource,
+    reportPattern,
+    `browser report must mention ${reportPattern}`,
+  );
 }
 
 assert.match(
@@ -371,15 +489,20 @@ console.log(
         "Operator tab panel source is present",
         "panel exposes packet/local JSON textareas and strict/skip_preflight controls",
         "panel exposes local-only safe fixture buttons",
+        "panel exposes copied-packet validation without Local B context",
         "safe fixture buttons are type button and do not fetch or persist",
         "safe fixtures pass static public-safe guards",
-        "panel parses JSON locally before posting",
+        "panel parses JSON locally before posting either route action",
+        "validation action sends local null, strict true, and skip_preflight false",
+        "validation action ignores full-preview checkbox state",
         "empty Local B input is allowed as local null",
         "panel posts only to /api/ag-work-resume/target-preview",
-        "preview action remains the only submit button and only fetch call",
+        "preview action remains the only submit button",
         "panel displays route status, preflight, preview, foreign refs, and authority boundary",
+        "panel displays copied-packet validation status and context_only expectation",
         "panel action labels do not expose forbidden authority controls",
         "docs capture read-only boundary and browser verification expectation",
+        "browser verification report exists for copied-packet validation",
         "cross-local design doc points to the Cockpit panel slice",
       ],
     },

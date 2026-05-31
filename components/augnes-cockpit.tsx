@@ -3,7 +3,7 @@
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { TemporalPreviewResponse } from "@/lib/temporal-interpretation/types";
 import type { ReactNode } from "react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 const SCOPE = "project:augnes";
 const CANONICAL_MESSAGE =
@@ -3172,6 +3172,16 @@ function AgResumeTargetPreviewPanel() {
   const [agResumePacketInput, setAgResumePacketInput] = useState("");
   const [agResumeLocalContextInput, setAgResumeLocalContextInput] = useState("");
   const [
+    agResumePacketValidationResult,
+    setAgResumePacketValidationResult,
+  ] = useState<AgResumeTargetPreviewPanelResult | null>(null);
+  const [
+    agResumePacketValidationError,
+    setAgResumePacketValidationError,
+  ] = useState<string | null>(null);
+  const [agResumePacketValidationBusy, setAgResumePacketValidationBusy] =
+    useState(false);
+  const [
     agResumeTargetPreviewResult,
     setAgResumeTargetPreviewResult,
   ] = useState<AgResumeTargetPreviewPanelResult | null>(null);
@@ -3184,9 +3194,12 @@ function AgResumeTargetPreviewPanel() {
   const [agResumeSkipPreflight, setAgResumeSkipPreflight] = useState(false);
   const [agResumeTargetPreviewBusy, setAgResumeTargetPreviewBusy] =
     useState(false);
+  const agResumeRouteRequestIdRef = useRef(0);
 
   function loadSafeAgResumeExamplePacket() {
     setAgResumePacketInput(formatAgResumeExampleJson(SAFE_AG_RESUME_EXAMPLE_PACKET));
+    setAgResumePacketValidationError(null);
+    setAgResumePacketValidationResult(null);
     setAgResumeTargetPreviewError(null);
     setAgResumeTargetPreviewResult(null);
   }
@@ -3200,12 +3213,81 @@ function AgResumeTargetPreviewPanel() {
   }
 
   function clearAgResumeInputs() {
+    agResumeRouteRequestIdRef.current += 1;
     setAgResumePacketInput("");
     setAgResumeLocalContextInput("");
+    setAgResumePacketValidationError(null);
+    setAgResumePacketValidationResult(null);
+    setAgResumePacketValidationBusy(false);
     setAgResumeTargetPreviewError(null);
     setAgResumeTargetPreviewResult(null);
+    setAgResumeTargetPreviewBusy(false);
     setAgResumeStrictTargetPreview(false);
     setAgResumeSkipPreflight(false);
+  }
+
+  async function handleAgResumePacketValidation() {
+    setAgResumePacketValidationError(null);
+    setAgResumePacketValidationResult(null);
+
+    let packet: Record<string, unknown>;
+    try {
+      packet = parseAgResumeObjectInput(
+        "AG Resume Packet JSON",
+        agResumePacketInput,
+      );
+    } catch (error) {
+      setAgResumePacketValidationError(
+        error instanceof Error ? error.message : String(error),
+      );
+      return;
+    }
+
+    const requestId = agResumeRouteRequestIdRef.current + 1;
+    agResumeRouteRequestIdRef.current = requestId;
+    setAgResumePacketValidationBusy(true);
+    try {
+      const response = await fetch("/api/ag-work-resume/target-preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          packet,
+          local: null,
+          strict: true,
+          skip_preflight: false,
+        }),
+      });
+      const bodyText = await response.text();
+      const parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Packet validation route returned a non-object JSON response.",
+        );
+      }
+
+      if (agResumeRouteRequestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeTargetPreviewRouteResponse;
+      setAgResumePacketValidationResult({
+        httpStatus: response.status,
+        body,
+      });
+
+      if (!response.ok && body.error) {
+        setAgResumePacketValidationError(body.error);
+      }
+    } catch (error) {
+      if (agResumeRouteRequestIdRef.current === requestId) {
+        setAgResumePacketValidationError(
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    } finally {
+      if (agResumeRouteRequestIdRef.current === requestId) {
+        setAgResumePacketValidationBusy(false);
+      }
+    }
   }
 
   async function handleAgResumeTargetPreviewSubmit(
@@ -3234,6 +3316,8 @@ function AgResumeTargetPreviewPanel() {
       return;
     }
 
+    const requestId = agResumeRouteRequestIdRef.current + 1;
+    agResumeRouteRequestIdRef.current = requestId;
     setAgResumeTargetPreviewBusy(true);
     try {
       const response = await fetch("/api/ag-work-resume/target-preview", {
@@ -3253,6 +3337,8 @@ function AgResumeTargetPreviewPanel() {
         throw new Error("Target preview route returned a non-object JSON response.");
       }
 
+      if (agResumeRouteRequestIdRef.current !== requestId) return;
+
       const body = parsedBody as AgResumeTargetPreviewRouteResponse;
       setAgResumeTargetPreviewResult({
         httpStatus: response.status,
@@ -3263,11 +3349,15 @@ function AgResumeTargetPreviewPanel() {
         setAgResumeTargetPreviewError(body.error);
       }
     } catch (error) {
-      setAgResumeTargetPreviewError(
-        error instanceof Error ? error.message : String(error),
-      );
+      if (agResumeRouteRequestIdRef.current === requestId) {
+        setAgResumeTargetPreviewError(
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     } finally {
-      setAgResumeTargetPreviewBusy(false);
+      if (agResumeRouteRequestIdRef.current === requestId) {
+        setAgResumeTargetPreviewBusy(false);
+      }
     }
   }
 
@@ -3312,7 +3402,7 @@ function AgResumeTargetPreviewPanel() {
             type="button"
             className="secondary-button"
             onClick={loadSafeAgResumeExamplePacket}
-            disabled={agResumeTargetPreviewBusy}
+            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
           >
             Load safe example packet
           </button>
@@ -3320,7 +3410,7 @@ function AgResumeTargetPreviewPanel() {
             type="button"
             className="secondary-button"
             onClick={loadSafeAgResumeExampleLocalContext}
-            disabled={agResumeTargetPreviewBusy}
+            disabled={agResumeTargetPreviewBusy || agResumePacketValidationBusy}
           >
             Load safe example Local B context
           </button>
@@ -3328,7 +3418,6 @@ function AgResumeTargetPreviewPanel() {
             type="button"
             className="secondary-button"
             onClick={clearAgResumeInputs}
-            disabled={agResumeTargetPreviewBusy}
           >
             Clear AG resume inputs
           </button>
@@ -3390,10 +3479,42 @@ function AgResumeTargetPreviewPanel() {
             Debug only; run ag:resume-preflight before relying on this preview.
           </BoundaryNote>
         ) : null}
+        <BoundaryNote>
+          Packet validation uses local: null and always runs strict preflight.
+          It does not map, import, persist, or authorize implementation.
+        </BoundaryNote>
+        <div className="form-row">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleAgResumePacketValidation}
+            disabled={
+              agResumeTargetPreviewBusy ||
+              agResumePacketValidationBusy ||
+              !agResumePacketInput.trim()
+            }
+          >
+            {agResumePacketValidationBusy
+              ? "Validating pasted packet"
+              : "Validate pasted packet only"}
+          </button>
+          {agResumePacketValidationError ? (
+            <span className="notice error">{agResumePacketValidationError}</span>
+          ) : null}
+        </div>
+        {agResumePacketValidationResult ? (
+          <AgResumePacketValidationResults
+            result={agResumePacketValidationResult}
+          />
+        ) : null}
         <div className="form-row">
           <button
             type="submit"
-            disabled={agResumeTargetPreviewBusy || !agResumePacketInput.trim()}
+            disabled={
+              agResumeTargetPreviewBusy ||
+              agResumePacketValidationBusy ||
+              !agResumePacketInput.trim()
+            }
           >
             {agResumeTargetPreviewBusy
               ? "Previewing target"
@@ -3413,6 +3534,63 @@ function AgResumeTargetPreviewPanel() {
         />
       )}
     </section>
+  );
+}
+
+function AgResumePacketValidationResults({
+  result,
+}: {
+  result: AgResumeTargetPreviewPanelResult;
+}) {
+  const { body } = result;
+  const preview = body.preview ?? null;
+  const preflight = body.preflight ?? null;
+
+  return (
+    <div
+      className="evidence-pack-card"
+      aria-label="Copied packet validation result"
+    >
+      <h3>Copied packet validation</h3>
+      <p>
+        Validation is read-only packet review, not mapping, import,
+        persistence, or execution authority.
+      </p>
+      <div className="meta-row">
+        <span>HTTP status: {result.httpStatus}</span>
+        <span>route ok: {formatAgResumeBoolean(body.ok)}</span>
+        <span>preflight ran: {formatAgResumeBoolean(preflight?.ran)}</span>
+        <span>preflight ok: {formatAgResumeBoolean(preflight?.ok)}</span>
+        <span>preflight status: {preflight?.status ?? "unknown"}</span>
+        <span>preview.status: {preview?.status ?? "none"}</span>
+      </div>
+      {preview?.status === "context_only" ? (
+        <BoundaryNote tone="green">
+          context_only is expected for packet-only validation because Local B
+          context is sent as null.
+        </BoundaryNote>
+      ) : (
+        <BoundaryNote>
+          context_only is expected for packet-only validation when Local B
+          context is sent as null.
+        </BoundaryNote>
+      )}
+      {body.recommended_next_step ? (
+        <BoundaryNote tone="green">
+          route recommended_next_step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <AgResumeStringList
+        title="Preflight warnings"
+        items={preflight?.warnings ?? []}
+        emptyLabel="No preflight warnings."
+      />
+      <AgResumeStringList
+        title="Preflight failures"
+        items={preflight?.failures ?? []}
+        emptyLabel="No preflight failures."
+      />
+    </div>
   );
 }
 
