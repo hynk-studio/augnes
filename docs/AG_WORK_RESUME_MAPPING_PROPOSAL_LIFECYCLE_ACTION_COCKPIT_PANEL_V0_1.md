@@ -206,3 +206,13 @@ imported-context surfaces remain untouched or absent.
 The browser report for this slice is:
 
 `reports/browser/2026-05-31-ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel-verification.md`
+
+## Stage C Design Pointer
+
+This Cockpit lifecycle panel slice itself added no confirmed mapping design or
+implementation. The separate Stage C confirmed mapping record design is
+documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md`; it is
+design-only and adds no schema, migration, writer, helper, route, UI, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.

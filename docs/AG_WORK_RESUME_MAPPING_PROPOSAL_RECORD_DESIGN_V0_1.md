@@ -45,6 +45,10 @@ any schema, migration, route, UI control, persistence path, or writer exists.
   rules but implements nothing.
 - **Stage C: confirmed mapping record**. Future confirmed mapping record stage,
   requiring separate user/Core-gated design and explicit action.
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md` documents the
+  Stage C confirmed mapping record design as design-only; it adds no schema,
+  migration, writer, helper, route, UI, import, proof/evidence, session,
+  Codex, approval, publish, retry, replay, or merge authority.
 - **Stage D: imported resume context**. Future imported resume context stage,
   requiring separate user/Core-gated design and explicit action.
 - **Proof/evidence/session/Codex gates**. Proof/evidence recording, session
@@ -376,5 +380,11 @@ The first Stage B proposal-only writer is documented in
 proposal records and still does not confirm mappings, import packet context,
 record proof/evidence, bind sessions, execute Codex, approve, publish, retry,
 replay, or merge.
+
+The Stage C confirmed mapping record design is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md`; it remains
+design-only and does not add schema, migration, writer, helper, route, UI,
+import, proof/evidence, session, Codex, approval, publish, retry, replay, and
+grants no merge authority.
 
 This design document itself does not authorize implementation.

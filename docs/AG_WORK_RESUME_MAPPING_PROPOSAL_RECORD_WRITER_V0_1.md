@@ -246,6 +246,12 @@ Cockpit UI for reviewing proposal records can be separately scoped later.
 Confirmed mapping remains Stage C and must use a separate user/Core-gated
 design and implementation.
 
+The Stage C confirmed mapping record design is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md`; it is
+design-only and adds no schema, migration, writer, helper, route, UI, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 ## Verification
 
 Run:

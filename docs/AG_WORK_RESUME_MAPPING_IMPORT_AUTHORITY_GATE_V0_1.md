@@ -204,6 +204,10 @@ PRs:
 - **Stage C: confirmed mapping record**. Future write stage requiring explicit
   user/Core action for one foreign scope/work_id and one existing local
   scope/work_id.
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md` documents the
+  Stage C confirmed mapping record design; it is design-only and adds no
+  schema, migration, writer, helper, route, UI, import, proof/evidence,
+  session, Codex, approval, publish, retry, replay, or merge authority.
 - **Stage D: imported resume context record**. Future write stage requiring
   explicit user/Core action and schema. It writes bounded review metadata only.
 - **Stage E: optional local work item creation**. Future-only and only if ever
@@ -260,6 +264,9 @@ foreign refs, record proof/evidence, bind sessions, or execute Codex.
 
 A possible future persisted confirmed mapping record shape, not implemented in
 this PR, might include:
+
+The fuller Stage C design-only contract is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md`.
 
 ```json
 {

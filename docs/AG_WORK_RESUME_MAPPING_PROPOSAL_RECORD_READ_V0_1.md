@@ -214,6 +214,15 @@ Durable approval remains user/Core gated.
 - No relay.
 - No localStorage, sessionStorage, indexedDB, telemetry, or analytics.
 
+## Stage C Design Pointer
+
+The Stage C confirmed mapping record design is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md`; it is
+design-only and adds no schema, migration, writer, helper, route, UI, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority. This read route/helper slice remains read-only proposal review
+metadata.
+
 ## Verification
 
 Run:

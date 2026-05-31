@@ -279,6 +279,15 @@ Durable approval remains user/Core gated.
 - No relay.
 - No telemetry, analytics, or browser persistence.
 
+## Stage C Design Pointer
+
+This helper slice itself added no confirmed mapping design or implementation.
+The separate Stage C confirmed mapping record design is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md`; it is
+design-only and adds no schema, migration, writer, helper, route, UI, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 ## Verification
 
 Run:

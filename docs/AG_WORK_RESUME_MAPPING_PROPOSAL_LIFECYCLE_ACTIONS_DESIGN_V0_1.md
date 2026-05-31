@@ -261,6 +261,10 @@ Durable approval remains user/Core gated.
 3. Lifecycle route: future, separately approved.
 4. Cockpit lifecycle controls: future, separately approved, if ever allowed.
 5. Stage C confirmed mapping design: future, separately approved.
+   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md` documents
+   the Stage C confirmed mapping record design as design-only; it adds no
+   schema, migration, writer, helper, route, UI, import, proof/evidence,
+   session, Codex, approval, publish, retry, replay, or merge authority.
 
 Each future PR must restate the authority boundary and prove the requested
 surface grants no unscoped downstream authority.
