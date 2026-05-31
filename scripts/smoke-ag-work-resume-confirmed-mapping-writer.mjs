@@ -492,6 +492,9 @@ function assertSourceGuards() {
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
+    "app/api/ag-work-resume/imported-contexts/route.ts",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
   ]);
   const changedFiles = gitChangedFiles();
   for (const file of changedFiles) {
@@ -501,8 +504,9 @@ function assertSourceGuards() {
     );
     assert.ok(
       file === "app/api/ag-work-resume/confirmed-mappings/route.ts" ||
+        file === "app/api/ag-work-resume/imported-contexts/route.ts" ||
         !file.startsWith("app/"),
-      `app changes limited to confirmed mapping route in this follow-up: ${file}`,
+      `app changes limited to confirmed mapping route or imported context create route follow-up: ${file}`,
     );
     assert.ok(
       file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),

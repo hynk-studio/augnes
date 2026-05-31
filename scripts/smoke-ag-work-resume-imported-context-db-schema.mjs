@@ -64,7 +64,7 @@ try {
   const schemaSource = readFileSync(schemaPath, "utf8");
   assertSchemaSource(schemaSource);
   assertDocs();
-  assertNoImportedContextRouteOrUiSurfaces();
+  assertNoImportedContextReadOrUiSurfaces();
 
   runNpmScript("db:reset", tempDbPath);
   inspectMigratedDatabase(tempDbPath, "reset");
@@ -396,16 +396,15 @@ function assertDocs() {
   }
 }
 
-function assertNoImportedContextRouteOrUiSurfaces() {
+function assertNoImportedContextReadOrUiSurfaces() {
   for (const relativePath of [
     "lib/ag-work-resume-imported-context-read.ts",
     "scripts/ag-work-resume-imported-context-read.mjs",
-    "app/api/ag-work-resume/imported-contexts/route.ts",
   ]) {
     assert.equal(
       existsSync(path.join(rootDir, relativePath)),
       false,
-      `${relativePath} must not exist in imported context writer/helper slice`,
+      `${relativePath} must not exist in imported context schema/create-route slice`,
     );
   }
 }
@@ -434,6 +433,9 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
+    "app/api/ag-work-resume/imported-contexts/route.ts",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "package.json",
   ]);
   const forbiddenPrefixes = [
@@ -456,8 +458,9 @@ function assertNoUnexpectedChangedFiles() {
       `lib changes limited to schema.sql or imported context writer core in this slice: ${file}`,
     );
     assert.ok(
-      !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
-      `imported context schema slice must not touch forbidden path: ${file}`,
+      file === "app/api/ag-work-resume/imported-contexts/route.ts" ||
+        !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      `imported context schema follow-up must not touch forbidden path outside create route: ${file}`,
     );
   }
 }

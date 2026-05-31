@@ -221,7 +221,8 @@ or revoke a confirmed mapping. Confirmed mapping lifecycle remains separate.
    `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 4. Imported context writer/helper:
    `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`.
-5. Imported context route.
+5. Imported context route:
+   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md`.
 6. Imported context read helper/route.
 7. Cockpit review UI, only if separately approved.
 8. Proof/evidence/session/Codex gates remain separate.

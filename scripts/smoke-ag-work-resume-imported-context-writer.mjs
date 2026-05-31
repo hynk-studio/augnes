@@ -497,7 +497,6 @@ function assertSourceGuards() {
   }
 
   for (const forbiddenPath of [
-    "app/api/ag-work-resume/imported-contexts/route.ts",
     "components/ag-work-resume-imported-context.tsx",
     "lib/ag-work-resume-imported-context-read.ts",
     "scripts/ag-work-resume-imported-context-read.mjs",
@@ -524,6 +523,9 @@ function assertSourceGuards() {
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
+    "app/api/ag-work-resume/imported-contexts/route.ts",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
   ]);
   const changedFiles = gitChangedFiles();
   for (const file of changedFiles) {
@@ -531,7 +533,11 @@ function assertSourceGuards() {
       allowedFiles.has(file),
       `changed file is outside imported context writer/helper slice: ${file}`,
     );
-    assert.equal(file.startsWith("app/"), false, `no app/api change: ${file}`);
+    assert.ok(
+      file === "app/api/ag-work-resume/imported-contexts/route.ts" ||
+        !file.startsWith("app/"),
+      `app changes limited to imported context create route follow-up: ${file}`,
+    );
     assert.equal(file.startsWith("components/"), false, `no component change: ${file}`);
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
