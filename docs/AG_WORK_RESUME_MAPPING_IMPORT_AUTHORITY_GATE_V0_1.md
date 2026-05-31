@@ -154,6 +154,9 @@ PRs:
 - **Stage B: mapping proposal record**. Future write stage only if user/Core
   approves a schema and record class. A proposal record is still not a
   confirmed mapping.
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_DESIGN_V0_1.md` documents the
+  Stage B mapping proposal record design; current Stage A surfaces remain
+  read-only and do not implement proposal records.
 - **Stage C: confirmed mapping record**. Future write stage requiring explicit
   user/Core action for one foreign scope/work_id and one existing local
   scope/work_id.

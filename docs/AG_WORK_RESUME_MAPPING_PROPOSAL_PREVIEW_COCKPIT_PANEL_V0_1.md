@@ -19,6 +19,9 @@ execution authority, and not merge/publish authority.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` defines the
   future gated mapping/import stages. This panel remains Stage A preview-only.
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_RECORD_DESIGN_V0_1.md` documents the
+  Stage B mapping proposal record design; current Stage A surfaces remain
+  read-only and do not implement proposal records.
 - Pure mapping proposal preview:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_V0_1.md` documents the pure
   deterministic proposal helper that returns review metadata only.
