@@ -390,6 +390,7 @@ CREATE TABLE IF NOT EXISTS ag_work_resume_imported_contexts (
   foreign_refs_summary TEXT NOT NULL DEFAULT '{}',
   redaction_report TEXT NOT NULL DEFAULT '{}',
   created_by TEXT NOT NULL,
+  import_reason TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   authority_boundary TEXT NOT NULL DEFAULT '{}'

@@ -123,6 +123,7 @@ for (const token of [
   "foreign_refs_summary TEXT NOT NULL DEFAULT '{}'",
   "redaction_report TEXT NOT NULL DEFAULT '{}'",
   "created_by TEXT NOT NULL",
+  "import_reason TEXT NOT NULL",
   "created_at TEXT NOT NULL",
   "updated_at TEXT NOT NULL",
   "authority_boundary TEXT NOT NULL DEFAULT '{}'",
@@ -136,6 +137,7 @@ for (const token of [
 for (const pattern of [
   /CREATE TABLE IF NOT EXISTS ag_work_resume_imported_contexts/i,
   /status IN \('review_metadata', 'superseded', 'withdrawn', 'revoked'\)/i,
+  /import_reason` records why user\/Core created or imported this bounded review\s+metadata/is,
   /plain text for design review/i,
   /not executed by\s+this PR and is not schema implementation/is,
 ]) {

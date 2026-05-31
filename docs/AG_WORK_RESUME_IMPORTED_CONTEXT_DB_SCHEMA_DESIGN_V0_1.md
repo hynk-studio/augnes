@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS ag_work_resume_imported_contexts (
   foreign_refs_summary TEXT NOT NULL DEFAULT '{}',
   redaction_report TEXT NOT NULL DEFAULT '{}',
   created_by TEXT NOT NULL,
+  import_reason TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   authority_boundary TEXT NOT NULL DEFAULT '{}'
@@ -93,9 +94,14 @@ Field notes:
 - `foreign_refs_summary TEXT NOT NULL DEFAULT '{}'`
 - `redaction_report TEXT NOT NULL DEFAULT '{}'`
 - `created_by TEXT NOT NULL`
+- `import_reason TEXT NOT NULL`
 - `created_at TEXT NOT NULL`
 - `updated_at TEXT NOT NULL`
 - `authority_boundary TEXT NOT NULL DEFAULT '{}'`
+
+`import_reason` records why user/Core created or imported this bounded review
+metadata. It is audit context only, not proof/evidence, session binding,
+approval, publish, retry, replay, merge, or committed-state authority.
 
 JSON text fields:
 

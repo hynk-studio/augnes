@@ -126,6 +126,7 @@ function assertSchemaSource(source) {
     /foreign_refs_summary TEXT NOT NULL DEFAULT '\{\}'/i,
     /redaction_report TEXT NOT NULL DEFAULT '\{\}'/i,
     /authority_boundary TEXT NOT NULL DEFAULT '\{\}'/i,
+    /import_reason TEXT NOT NULL/i,
     /created_at TEXT NOT NULL DEFAULT\s+\(strftime\('%Y-%m-%dT%H:%M:%fZ', 'now'\)\)/i,
     /updated_at TEXT NOT NULL DEFAULT\s+\(strftime\('%Y-%m-%dT%H:%M:%fZ', 'now'\)\)/i,
   ]) {
@@ -194,6 +195,7 @@ function assertColumns(db) {
     "foreign_refs_summary",
     "redaction_report",
     "created_by",
+    "import_reason",
     "created_at",
     "updated_at",
     "authority_boundary",
@@ -296,6 +298,10 @@ function assertFixtureInsertRollsBack(db) {
     assert.equal(row.foreign_refs_summary, "{}");
     assert.equal(row.redaction_report, "{}");
     assert.equal(row.authority_boundary, "{}");
+    assert.equal(
+      row.import_reason,
+      "User/Core schema smoke reason for bounded imported context review metadata.",
+    );
     assertIsoTimestamp(row.created_at, "created_at");
     assertIsoTimestamp(row.updated_at, "updated_at");
     assert.equal(
@@ -351,6 +357,8 @@ function assertDocs() {
     /idx_ag_imported_contexts_packet_hash/i,
     /idx_ag_imported_contexts_status_time/i,
     /idx_ag_imported_contexts_created_by_time/i,
+    /import_reason TEXT NOT NULL/i,
+    /import_reason` records why user\/Core created or imported this bounded review\s+metadata/is,
     /JSON text fields/i,
     /does not add a DB foreign key/i,
     /future writer.*mapping exists/is,
@@ -486,6 +494,7 @@ function insertImportedContext(db, overrides = {}) {
     packet_hash: "sha256:fixture",
     imported_summary: "Schema smoke direct DB insert fixture, not runtime writer behavior.",
     created_by: "user-core:schema-smoke",
+    import_reason: "User/Core schema smoke reason for bounded imported context review metadata.",
     ...overrides,
   };
   db.prepare(
@@ -503,7 +512,8 @@ function insertImportedContext(db, overrides = {}) {
         packet_id,
         packet_hash,
         imported_summary,
-        created_by
+        created_by,
+        import_reason
       )
       VALUES (
         @import_id,
@@ -518,7 +528,8 @@ function insertImportedContext(db, overrides = {}) {
         @packet_id,
         @packet_hash,
         @imported_summary,
-        @created_by
+        @created_by,
+        @import_reason
       )
     `,
   ).run(record);
@@ -580,6 +591,7 @@ function requiredColumns() {
     "foreign_refs_summary",
     "redaction_report",
     "created_by",
+    "import_reason",
     "created_at",
     "updated_at",
     "authority_boundary",

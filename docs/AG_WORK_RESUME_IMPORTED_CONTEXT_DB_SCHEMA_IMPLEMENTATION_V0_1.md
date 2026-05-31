@@ -59,9 +59,14 @@ Implemented columns, in order:
 - `foreign_refs_summary TEXT NOT NULL DEFAULT '{}'`
 - `redaction_report TEXT NOT NULL DEFAULT '{}'`
 - `created_by TEXT NOT NULL`
+- `import_reason TEXT NOT NULL`
 - `created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`
 - `updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`
 - `authority_boundary TEXT NOT NULL DEFAULT '{}'`
+
+`import_reason` records why user/Core created or imported this bounded review
+metadata. It is audit context only, not proof/evidence, session binding,
+approval, publish, retry, replay, merge, or committed-state authority.
 
 Implemented status values:
 
