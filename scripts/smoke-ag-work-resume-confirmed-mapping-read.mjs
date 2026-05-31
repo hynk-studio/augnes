@@ -440,13 +440,17 @@ function assertSourceGuards() {
     "lib/ag-work-resume-confirmed-mapping-read.ts",
     "scripts/ag-work-resume-confirmed-mapping-read.mjs",
     "app/api/ag-work-resume/confirmed-mappings/route.ts",
+    "components/augnes-cockpit.tsx",
+    "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md",
     "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-record-design.mjs",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
@@ -464,10 +468,18 @@ function assertSourceGuards() {
         !file.startsWith("app/"),
       `app changes limited to confirmed mapping route: ${file}`,
     );
-    assert.equal(file.startsWith("components/"), false, `no component change: ${file}`);
+    assert.ok(
+      file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),
+      `component changes limited to confirmed mapping read Cockpit panel: ${file}`,
+    );
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
-    assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
+    assert.ok(
+      file ===
+        "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md" ||
+        !file.startsWith("reports/browser/"),
+      `browser reports limited to confirmed mapping read Cockpit panel verification: ${file}`,
+    );
     assert.ok(
       file === "lib/ag-work-resume-confirmed-mapping-read.ts" ||
         !file.startsWith("lib/"),

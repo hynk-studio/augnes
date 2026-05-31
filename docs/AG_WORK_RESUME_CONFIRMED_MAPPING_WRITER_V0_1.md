@@ -39,6 +39,10 @@ merge authority.
   access to confirmed mapping identity metadata. It creates, updates, and
   deletes no confirmed mapping rows and grants no import, proof/evidence,
   session, Codex, approval, publish, retry, replay, or merge authority.
+- Stage C Cockpit read panel:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md` documents
+  the separately scoped Operator panel. It calls only the confirmed mappings
+  `GET` route and does not call this writer or the `POST` route.
 
 This writer is the first write boundary for confirmed mapping rows. It adds no
 route/UI and no schema/migration.
@@ -259,6 +263,7 @@ Run:
 ```bash
 npm run typecheck
 npm run smoke:ag-work-resume-confirmed-mapping-read
+npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-writer
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema

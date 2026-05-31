@@ -11,9 +11,11 @@ user/Core confirmation. Reads are not import, not imported resume context, not
 proof/evidence, not session binding, not Codex execution authority, and not
 approval, publish, retry, replay, or merge authority.
 
-This slice adds no Cockpit UI, no schema/migration, no lifecycle mutation, no
-writer behavior change, no ChatGPT App/MCP/App schema, no bridge tool, no
-Direct Resume Code, no relay, and no telemetry/analytics/browser persistence.
+This helper/route slice added no Cockpit UI, no schema/migration, no lifecycle
+mutation, no writer behavior change, no ChatGPT App/MCP/App schema, no bridge
+tool, no Direct Resume Code, no relay, and no telemetry/analytics/browser
+persistence. The separately scoped Cockpit read panel is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md`.
 
 ## Relationship To Existing Pieces
 
@@ -25,6 +27,9 @@ Direct Resume Code, no relay, and no telemetry/analytics/browser persistence.
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`.
 - Stage C create route:
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md`.
+- Stage C Cockpit read panel:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md` documents
+  the read-only Operator panel that calls only this `GET` route.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`.
 
@@ -213,6 +218,7 @@ Run:
 ```bash
 npm run typecheck
 npm run smoke:ag-work-resume-confirmed-mapping-read
+npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-writer
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema

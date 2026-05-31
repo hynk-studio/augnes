@@ -829,6 +829,11 @@ type AgResumeMappingProposalRecordReadPanelResult = {
   body: AgResumeMappingProposalRecordReadRouteResponse;
 };
 
+type AgResumeConfirmedMappingReadPanelResult = {
+  httpStatus: number;
+  body: AgResumeConfirmedMappingReadRouteResponse;
+};
+
 type AgResumeMappingProposalLifecycleActionPanelResult = {
   httpStatus: number;
   requestBody: AgResumeMappingProposalLifecycleActionRequestBody;
@@ -1002,6 +1007,91 @@ type AgResumeMappingProposalRecordReadAuthorityBoundary = {
   durable_approval?: string;
   statement?: string;
 };
+
+type AgResumeConfirmedMappingReadRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeConfirmedMappingReadResult | null;
+  authority_boundary?: AgResumeConfirmedMappingReadAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeConfirmedMappingReadResult = {
+  ok?: boolean;
+  status?: string;
+  record?: AgResumeConfirmedMappingRecord | null;
+  records?: AgResumeConfirmedMappingRecord[];
+  filters?: {
+    mapping_id?: string | null;
+    foreign_scope?: string | null;
+    foreign_work_id?: string | null;
+    local_scope?: string | null;
+    local_work_id?: string | null;
+    source_proposal_id?: string | null;
+    packet_id?: string | null;
+    packet_hash?: string | null;
+    status?: string | null;
+  };
+  limit?: number | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeConfirmedMappingReadAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeConfirmedMappingRecord = {
+  mapping_id?: string;
+  record_kind?: string;
+  schema?: string;
+  status?: string;
+  foreign_scope?: string;
+  foreign_work_id?: string;
+  local_scope?: string;
+  local_work_id?: string;
+  source_proposal_id?: string;
+  packet_id?: string;
+  packet_hash?: string;
+  source_runtime_instance_id?: string | null;
+  confirmed_by?: string;
+  confirmed_at?: string;
+  confirmation_reason?: string;
+  supersedes_mapping_id?: string | null;
+  superseded_by_mapping_id?: string | null;
+  revoked_by?: string | null;
+  revoked_at?: string | null;
+  revocation_reason?: string | null;
+  authority_boundary?: AgResumeConfirmedMappingRecordAuthorityBoundary | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type AgResumeConfirmedMappingReadAuthorityBoundary = {
+  read_only?: boolean;
+  mapping_identity_metadata_only?: boolean;
+  confirmed_mapping_created?: boolean;
+  confirmed_mapping_updated?: boolean;
+  confirmed_mapping_deleted?: boolean;
+  proposal_record_created?: boolean;
+  proposal_record_updated?: boolean;
+  proposal_record_deleted?: boolean;
+  import_record_created?: boolean;
+  imported_context_created?: boolean;
+  work_item_created?: boolean;
+  work_event_created?: boolean;
+  proof_recorded?: boolean;
+  evidence_recorded?: boolean;
+  session_bound?: boolean;
+  codex_executed?: boolean;
+  approval_granted?: boolean;
+  publish_retry_replay_authority?: boolean;
+  merge_authority?: boolean;
+  durable_approval?: string;
+  statement?: string;
+};
+
+type AgResumeConfirmedMappingRecordAuthorityBoundary =
+  AgResumeConfirmedMappingReadAuthorityBoundary;
 
 const SAFE_AG_RESUME_EXAMPLE_PACKET = {
   schema: "augnes.ag_work_resume_packet.v0_2",
@@ -1390,6 +1480,20 @@ const SAFE_AG_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_FIXTURE = {
   reviewed_by: "user-core:cockpit-lifecycle-fixture",
   review_note: "Synthetic Cockpit lifecycle review metadata fixture.",
   reviewed_at: "2026-05-31T04:00:00.000Z",
+} as const;
+
+const SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE = {
+  mapping_id: "ag-resume-confirmed-mapping:c62fdbea64f359c7af3e6417",
+  foreign_scope: "project:foreign",
+  foreign_work_id: "AG-FIXTURE-CONFIRMED-MAPPING-001",
+  local_scope: "project:augnes",
+  local_work_id: "AG-FIXTURE-CONFIRMED-MAPPING-LOCAL-001",
+  source_proposal_id: "ag-resume-mapping-proposal:47af8e7ac4e69aa7acae9894",
+  packet_id: "resume-packet:preview:project-foreign:AG-FIXTURE-CONFIRMED-MAPPING-001",
+  packet_hash:
+    "sha256:981e73c0f39746851e319aa5a5d2b53adf94870084718b403ecc50d8bc1f6835",
+  status: "active",
+  limit: "20",
 } as const;
 
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
@@ -3561,6 +3665,7 @@ function OperatorTab({
           <AgResumeMappingProposalPreviewPanel />
           <AgResumeMappingProposalRecordReviewPanel />
           <AgResumeMappingProposalLifecycleActionPanel />
+          <AgResumeConfirmedMappingReadPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -5478,6 +5583,833 @@ function AgResumeMappingProposalLifecycleActionPanel() {
         />
       )}
     </section>
+  );
+}
+
+function AgResumeConfirmedMappingReadPanel() {
+  const [mappingId, setMappingId] = useState("");
+  const [foreignScope, setForeignScope] = useState("");
+  const [foreignWorkId, setForeignWorkId] = useState("");
+  const [localScope, setLocalScope] = useState("");
+  const [localWorkId, setLocalWorkId] = useState("");
+  const [sourceProposalId, setSourceProposalId] = useState("");
+  const [packetId, setPacketId] = useState("");
+  const [packetHash, setPacketHash] = useState("");
+  const [status, setStatus] = useState("");
+  const [limit, setLimit] = useState<string>(
+    SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.limit,
+  );
+  const [result, setResult] =
+    useState<AgResumeConfirmedMappingReadPanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function loadSafeMappingIdFixture() {
+    setMappingId(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.mapping_id);
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setSourceProposalId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setLimit("");
+    clearResultState();
+  }
+
+  function loadSafeConfirmedForeignWorkFixture() {
+    setMappingId("");
+    setForeignScope(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.foreign_scope);
+    setForeignWorkId(
+      SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.foreign_work_id,
+    );
+    setLocalScope("");
+    setLocalWorkId("");
+    setSourceProposalId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeConfirmedLocalWorkFixture() {
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.local_scope);
+    setLocalWorkId(
+      SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.local_work_id,
+    );
+    setSourceProposalId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeConfirmedSourceProposalFixture() {
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setSourceProposalId(
+      SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.source_proposal_id,
+    );
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeConfirmedPacketFixture() {
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setSourceProposalId("");
+    setPacketId(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.packet_id);
+    setPacketHash(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.packet_hash);
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeConfirmedStatusFixture() {
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setSourceProposalId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.status);
+    setLimit(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function clearConfirmedMappingInputs() {
+    requestIdRef.current += 1;
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setSourceProposalId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setLimit(SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE.limit);
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleConfirmedMappingReadSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let searchParams: URLSearchParams;
+    try {
+      searchParams = buildConfirmedMappingReadSearchParams({
+        mappingId,
+        foreignScope,
+        foreignWorkId,
+        localScope,
+        localWorkId,
+        sourceProposalId,
+        packetId,
+        packetHash,
+        status,
+        limit,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(
+        `/api/ag-work-resume/confirmed-mappings?${searchParams.toString()}`,
+        { method: "GET" },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Confirmed mapping read route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Confirmed mapping read route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeConfirmedMappingReadRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "read failed";
+        setError(`Confirmed mapping read route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Confirmed mapping read route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-confirmed-mapping-read-panel"
+      aria-label="AG Resume Confirmed Mapping Review"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Confirmed Mapping Review"
+        description="Read-only review over Stage C confirmed mapping identity metadata."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>Read-only confirmed mapping identity metadata only.</li>
+          <li>Calls only the existing GET confirmed mappings route.</li>
+          <li>
+            Not import, not imported resume context, not proof/evidence, not
+            session binding, not Codex, and not approval, publish, retry,
+            replay, or merge authority.
+          </li>
+          <li>
+            No create/update/delete controls, no lifecycle controls, and no
+            writer route call.
+          </li>
+          <li>Durable approval remains user/Core gated.</li>
+        </ul>
+      </BoundaryNote>
+      <form className="observe-form" onSubmit={handleConfirmedMappingReadSubmit}>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-confirmed-mapping-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-confirmed-mapping-safe-fixtures-heading">
+            Confirmed mapping safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe lookup filters into local
+            React state only. They do not create rows, update rows, call routes,
+            or persist browser state.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeMappingIdFixture}
+              disabled={busy}
+            >
+              Load safe mapping id lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeConfirmedForeignWorkFixture}
+              disabled={busy}
+            >
+              Load safe foreign work lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeConfirmedLocalWorkFixture}
+              disabled={busy}
+            >
+              Load safe local work lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeConfirmedSourceProposalFixture}
+              disabled={busy}
+            >
+              Load safe source proposal lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeConfirmedPacketFixture}
+              disabled={busy}
+            >
+              Load safe packet lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeConfirmedStatusFixture}
+              disabled={busy}
+            >
+              Load safe status lookup
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-confirmed-mapping-inputs-heading"
+        >
+          <h3 id="ag-resume-confirmed-mapping-inputs-heading">
+            Confirmed mapping lookup inputs
+          </h3>
+          <label htmlFor="ag-resume-confirmed-mapping-mapping-id-input">
+            mapping_id
+          </label>
+          <p id="ag-resume-confirmed-mapping-mapping-id-help" className="notice">
+            Fetches one confirmed mapping. Leave every list filter and limit
+            empty when using mapping_id.
+          </p>
+          <input
+            id="ag-resume-confirmed-mapping-mapping-id-input"
+            value={mappingId}
+            onChange={(event) => setMappingId(event.target.value)}
+            aria-describedby="ag-resume-confirmed-mapping-mapping-id-help"
+            placeholder="ag-resume-confirmed-mapping:..."
+          />
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Foreign work filter</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-foreign-scope-input">
+                foreign_scope
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-foreign-scope-input"
+                value={foreignScope}
+                onChange={(event) => setForeignScope(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-foreign-filter-help"
+                placeholder="project:source"
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-foreign-work-id-input">
+                foreign_work_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-foreign-work-id-input"
+                value={foreignWorkId}
+                onChange={(event) => setForeignWorkId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-foreign-filter-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-confirmed-mapping-foreign-filter-help"
+                className="notice"
+              >
+                Both foreign_scope and foreign_work_id are required for this
+                list filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Local work filter</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-local-scope-input">
+                local_scope
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-local-scope-input"
+                value={localScope}
+                onChange={(event) => setLocalScope(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-local-filter-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-local-work-id-input">
+                local_work_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-local-work-id-input"
+                value={localWorkId}
+                onChange={(event) => setLocalWorkId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-local-filter-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-confirmed-mapping-local-filter-help"
+                className="notice"
+              >
+                Both local_scope and local_work_id are required for this list
+                filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Source proposal filter</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-source-proposal-id-input">
+                source_proposal_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-source-proposal-id-input"
+                value={sourceProposalId}
+                onChange={(event) => setSourceProposalId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-source-proposal-help"
+                placeholder="ag-resume-mapping-proposal:..."
+              />
+              <p
+                id="ag-resume-confirmed-mapping-source-proposal-help"
+                className="notice"
+              >
+                Lists confirmed mappings derived from one Stage B proposal row.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Packet filter</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-packet-id-input">
+                packet_id
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-packet-id-input"
+                value={packetId}
+                onChange={(event) => setPacketId(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-packet-filter-help"
+                placeholder="ag-resume-packet:..."
+              />
+              <label htmlFor="ag-resume-confirmed-mapping-packet-hash-input">
+                packet_hash
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-packet-hash-input"
+                value={packetHash}
+                onChange={(event) => setPacketHash(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-packet-filter-help"
+                placeholder="sha256:..."
+              />
+              <p
+                id="ag-resume-confirmed-mapping-packet-filter-help"
+                className="notice"
+              >
+                Both packet_id and packet_hash are required for this list
+                filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Status and limit filter</h3>
+              <label htmlFor="ag-resume-confirmed-mapping-status-input">
+                status
+              </label>
+              <select
+                id="ag-resume-confirmed-mapping-status-input"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-status-limit-help"
+              >
+                <option value="">Any status filter omitted</option>
+                <option value="active">active</option>
+                <option value="superseded">superseded</option>
+                <option value="withdrawn">withdrawn</option>
+                <option value="revoked">revoked</option>
+              </select>
+              <label htmlFor="ag-resume-confirmed-mapping-limit-input">
+                limit
+              </label>
+              <input
+                id="ag-resume-confirmed-mapping-limit-input"
+                value={limit}
+                onChange={(event) => setLimit(event.target.value)}
+                aria-describedby="ag-resume-confirmed-mapping-status-limit-help"
+                inputMode="numeric"
+                placeholder="20"
+              />
+              <p
+                id="ag-resume-confirmed-mapping-status-limit-help"
+                className="notice"
+              >
+                Limit applies to list reads only. The route caps large positive
+                values.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-confirmed-mapping-action-controls-heading"
+        >
+          <h3 id="ag-resume-confirmed-mapping-action-controls-heading">
+            Confirmed mapping read controls
+          </h3>
+          <BoundaryNote>
+            The read action calls only the existing GET confirmed mappings
+            route. It does not call the writer route and does not expose create,
+            update, delete, lifecycle, import, proof/evidence, session, Codex,
+            approval, publication, bridge, MCP/App, Direct Resume Code, or
+            relay controls.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearConfirmedMappingInputs}
+            >
+              Clear confirmed mapping inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy ? "Reading confirmed mappings" : "Read confirmed mappings"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-confirmed-mapping-read-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeConfirmedMappingReadResults result={result} />
+      ) : (
+        <EmptyState
+          label="No confirmed mapping read yet."
+          description="Enter one supported lookup filter to read confirmed mapping identity metadata."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeConfirmedMappingReadResults({
+  result,
+}: {
+  result: AgResumeConfirmedMappingReadPanelResult;
+}) {
+  const { body } = result;
+  const readResult = body.result ?? null;
+  const records = readResult?.records ?? [];
+  const routeAuthorityBoundary =
+    body.authority_boundary ?? readResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-confirmed-mapping-read-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-confirmed-mapping-read-result-heading">
+        Confirmed mapping read result
+      </h3>
+      <BoundaryNote tone="green">
+        Confirmed mapping reads are mapping identity metadata only. They are not
+        imports, imported resume context, proof/evidence authorization, session
+        bindings, Codex execution authority, or merge/publish authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>route recommended_next_step: {body.recommended_next_step}</BoundaryNote>
+      ) : null}
+      {readResult?.recommended_next_step ? (
+        <BoundaryNote>
+          reader recommended_next_step: {readResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>confirmed-mappings GET route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Read status</h3>
+          <p>{readResult?.status ?? body.error ?? "unknown"}</p>
+          <small>fetched/listed/not_found/invalid_input/db_error</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Record count</h3>
+          <p>{records.length}</p>
+          <small>confirmed mapping identity metadata records</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Limit</h3>
+          <p>{readResult?.limit ?? "single fetch or unavailable"}</p>
+          <small>bounded list reads only</small>
+        </section>
+      </div>
+      <AgResumeConfirmedMappingReadFilters filters={readResult?.filters ?? null} />
+      <AgResumeStringList
+        title="Warnings"
+        items={readResult?.warnings ?? []}
+        emptyLabel="No confirmed mapping read warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={readResult?.failures ?? []}
+        emptyLabel="No confirmed mapping read failures."
+      />
+      <AgResumeConfirmedMappingReadAuthorityBoundary
+        title="Read Authority Boundary"
+        authorityBoundary={routeAuthorityBoundary}
+      />
+      {records.length === 0 ? (
+        <EmptyState
+          label="No confirmed mappings returned."
+          description="The read route found no confirmed mapping identity metadata for the supplied filter."
+        />
+      ) : (
+        <div className="evidence-pack-grid">
+          {records.map((record, index) => (
+            <AgResumeConfirmedMappingCard
+              key={record.mapping_id ?? `confirmed-mapping-${index}`}
+              record={record}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgResumeConfirmedMappingReadFilters({
+  filters,
+}: {
+  filters: AgResumeConfirmedMappingReadResult["filters"] | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Applied filters</h3>
+      <div className="meta-row">
+        <span>mapping_id: {filters?.mapping_id ?? "none"}</span>
+        <span>foreign_scope: {filters?.foreign_scope ?? "none"}</span>
+        <span>foreign_work_id: {filters?.foreign_work_id ?? "none"}</span>
+        <span>local_scope: {filters?.local_scope ?? "none"}</span>
+        <span>local_work_id: {filters?.local_work_id ?? "none"}</span>
+        <span>source_proposal_id: {filters?.source_proposal_id ?? "none"}</span>
+        <span>packet_id: {filters?.packet_id ?? "none"}</span>
+        <span>packet_hash: {filters?.packet_hash ?? "none"}</span>
+        <span>status: {filters?.status ?? "none"}</span>
+      </div>
+    </section>
+  );
+}
+
+function AgResumeConfirmedMappingReadAuthorityBoundary({
+  title,
+  authorityBoundary,
+}: {
+  title: string;
+  authorityBoundary: AgResumeConfirmedMappingReadAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {authorityBoundary ? (
+        <>
+          <p>{authorityBoundary.statement ?? "No read boundary statement returned."}</p>
+          <div className="meta-row">
+            <span>read_only: {formatAgResumeBoolean(authorityBoundary.read_only)}</span>
+            <span>
+              mapping_identity_metadata_only:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.mapping_identity_metadata_only,
+              )}
+            </span>
+            <span>
+              confirmed_mapping_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_created)}
+            </span>
+            <span>
+              confirmed_mapping_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_updated)}
+            </span>
+            <span>
+              confirmed_mapping_deleted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_deleted)}
+            </span>
+            <span>
+              proposal_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_created)}
+            </span>
+            <span>
+              proposal_record_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_updated)}
+            </span>
+            <span>
+              proposal_record_deleted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_deleted)}
+            </span>
+            <span>
+              import_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.import_record_created)}
+            </span>
+            <span>
+              imported_context_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_created)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              evidence_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.evidence_recorded)}
+            </span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No read authority boundary returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeConfirmedMappingCard({
+  record,
+}: {
+  record: AgResumeConfirmedMappingRecord;
+}) {
+  return (
+    <article className="evidence-pack-card evidence-pack-card-wide">
+      <div className="card-topline">
+        <div>
+          <h3>{record.mapping_id ?? "unknown mapping_id"}</h3>
+          <p>{record.confirmation_reason ?? "No confirmation reason returned."}</p>
+        </div>
+        <StatusBadge label={record.status ?? "unknown"} />
+      </div>
+      <div className="meta-row">
+        <span>record_kind: {record.record_kind ?? "unknown"}</span>
+        <span>schema: {record.schema ?? "unknown"}</span>
+        <span>created_at: {record.created_at ?? "unknown"}</span>
+        <span>updated_at: {record.updated_at ?? "unknown"}</span>
+      </div>
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>Foreign identity</h3>
+          <div className="meta-row">
+            <span>foreign_scope: {record.foreign_scope ?? "unknown"}</span>
+            <span>foreign_work_id: {record.foreign_work_id ?? "unknown"}</span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Local identity</h3>
+          <div className="meta-row">
+            <span>local_scope: {record.local_scope ?? "unknown"}</span>
+            <span>local_work_id: {record.local_work_id ?? "unknown"}</span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Source proposal</h3>
+          <div className="meta-row">
+            <span>source_proposal_id: {record.source_proposal_id ?? "unknown"}</span>
+            <span>
+              source_runtime_instance_id:{" "}
+              {record.source_runtime_instance_id ?? "none"}
+            </span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Packet identity</h3>
+          <div className="meta-row">
+            <span>packet_id: {record.packet_id ?? "unknown"}</span>
+            <span>packet_hash: {record.packet_hash ?? "unknown"}</span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Confirmation metadata</h3>
+          <div className="meta-row">
+            <span>confirmed_by: {record.confirmed_by ?? "unknown"}</span>
+            <span>confirmed_at: {record.confirmed_at ?? "unknown"}</span>
+            <span>
+              confirmation_reason: {record.confirmation_reason ?? "unknown"}
+            </span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Lifecycle metadata</h3>
+          <div className="meta-row">
+            <span>
+              supersedes_mapping_id: {record.supersedes_mapping_id ?? "none"}
+            </span>
+            <span>
+              superseded_by_mapping_id:{" "}
+              {record.superseded_by_mapping_id ?? "none"}
+            </span>
+            <span>revoked_by: {record.revoked_by ?? "none"}</span>
+            <span>revoked_at: {record.revoked_at ?? "none"}</span>
+            <span>revocation_reason: {record.revocation_reason ?? "none"}</span>
+          </div>
+        </section>
+        <AgResumeConfirmedMappingReadAuthorityBoundary
+          title="Record Authority Boundary"
+          authorityBoundary={record.authority_boundary ?? null}
+        />
+      </div>
+    </article>
   );
 }
 
@@ -11312,6 +12244,109 @@ function buildMappingProposalRecordReadSearchParams({
   if (trimmedCandidateLocalScope && trimmedCandidateLocalWorkId) {
     searchParams.set("candidate_local_scope", trimmedCandidateLocalScope);
     searchParams.set("candidate_local_work_id", trimmedCandidateLocalWorkId);
+  }
+  if (trimmedStatus) {
+    searchParams.set("status", trimmedStatus);
+  }
+  if (trimmedLimit) {
+    searchParams.set("limit", trimmedLimit);
+  }
+  return searchParams;
+}
+
+function buildConfirmedMappingReadSearchParams({
+  mappingId,
+  foreignScope,
+  foreignWorkId,
+  localScope,
+  localWorkId,
+  sourceProposalId,
+  packetId,
+  packetHash,
+  status,
+  limit,
+}: {
+  mappingId: string;
+  foreignScope: string;
+  foreignWorkId: string;
+  localScope: string;
+  localWorkId: string;
+  sourceProposalId: string;
+  packetId: string;
+  packetHash: string;
+  status: string;
+  limit: string;
+}) {
+  const trimmedMappingId = mappingId.trim();
+  const trimmedForeignScope = foreignScope.trim();
+  const trimmedForeignWorkId = foreignWorkId.trim();
+  const trimmedLocalScope = localScope.trim();
+  const trimmedLocalWorkId = localWorkId.trim();
+  const trimmedSourceProposalId = sourceProposalId.trim();
+  const trimmedPacketId = packetId.trim();
+  const trimmedPacketHash = packetHash.trim();
+  const trimmedStatus = status.trim();
+  const trimmedLimit = limit.trim();
+  const hasForeignFilter = Boolean(trimmedForeignScope || trimmedForeignWorkId);
+  const hasLocalFilter = Boolean(trimmedLocalScope || trimmedLocalWorkId);
+  const hasPacketFilter = Boolean(trimmedPacketId || trimmedPacketHash);
+  const hasListFilter = Boolean(
+    hasForeignFilter ||
+      hasLocalFilter ||
+      trimmedSourceProposalId ||
+      hasPacketFilter ||
+      trimmedStatus,
+  );
+
+  if (trimmedMappingId) {
+    if (hasListFilter || trimmedLimit) {
+      throw new Error(
+        "mapping_id fetch must not be combined with list filters or limit.",
+      );
+    }
+    return new URLSearchParams({ mapping_id: trimmedMappingId });
+  }
+
+  if (Boolean(trimmedForeignScope) !== Boolean(trimmedForeignWorkId)) {
+    throw new Error("foreign_scope and foreign_work_id must be supplied together.");
+  }
+
+  if (Boolean(trimmedLocalScope) !== Boolean(trimmedLocalWorkId)) {
+    throw new Error("local_scope and local_work_id must be supplied together.");
+  }
+
+  if (Boolean(trimmedPacketId) !== Boolean(trimmedPacketHash)) {
+    throw new Error("packet_id and packet_hash must be supplied together.");
+  }
+
+  if (!hasListFilter) {
+    throw new Error(
+      "At least one confirmed mapping read filter is required: mapping_id, foreign work, local work, source proposal, packet identity, or status.",
+    );
+  }
+
+  if (trimmedLimit) {
+    const parsedLimit = Number(trimmedLimit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+      throw new Error("limit must be a positive integer.");
+    }
+  }
+
+  const searchParams = new URLSearchParams();
+  if (trimmedForeignScope && trimmedForeignWorkId) {
+    searchParams.set("foreign_scope", trimmedForeignScope);
+    searchParams.set("foreign_work_id", trimmedForeignWorkId);
+  }
+  if (trimmedLocalScope && trimmedLocalWorkId) {
+    searchParams.set("local_scope", trimmedLocalScope);
+    searchParams.set("local_work_id", trimmedLocalWorkId);
+  }
+  if (trimmedSourceProposalId) {
+    searchParams.set("source_proposal_id", trimmedSourceProposalId);
+  }
+  if (trimmedPacketId && trimmedPacketHash) {
+    searchParams.set("packet_id", trimmedPacketId);
+    searchParams.set("packet_hash", trimmedPacketHash);
   }
   if (trimmedStatus) {
     searchParams.set("status", trimmedStatus);

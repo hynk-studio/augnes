@@ -25,6 +25,10 @@ merge authority.
 - Stage C read helper/route:
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md` documents read-only
   confirmed mapping identity metadata access over this same route path.
+- Stage C Cockpit read panel:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md` documents
+  the separately scoped Operator panel that calls only the `GET` side of this
+  route path.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`.
 
@@ -154,6 +158,7 @@ Run:
 ```bash
 npm run typecheck
 npm run smoke:ag-work-resume-confirmed-mapping-read
+npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-route
 npm run smoke:ag-work-resume-confirmed-mapping-writer
 npm run smoke:ag-work-resume-confirmed-mapping-db-schema
