@@ -137,6 +137,9 @@ PRs:
 
 - **Stage A: mapping proposal preview**. Read-only. No persistence. It may
   compare a packet to candidate local work and surface questions.
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_V0_1.md` documents the
+  Stage A mapping proposal preview only; it does not add persistence or
+  mapping/import authority.
 - **Stage B: mapping proposal record**. Future write stage only if user/Core
   approves a schema and record class. A proposal record is still not a
   confirmed mapping.
