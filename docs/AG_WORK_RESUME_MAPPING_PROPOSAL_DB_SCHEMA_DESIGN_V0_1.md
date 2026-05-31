@@ -418,4 +418,11 @@ migration for `ag_work_resume_mapping_proposals` while still adding no write
 route. Another valid next step is to continue Stage A real-packet dogfood
 without persistence.
 
+The Stage B schema foundation now exists in `lib/db/schema.sql` and is
+documented in
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_DB_SCHEMA_IMPLEMENTATION_V0_1.md`. It
+adds no write route, record writer, proposal record creation behavior,
+confirmed mapping, import, proof/evidence, session binding, Codex execution,
+or authority to approve, publish, or merge.
+
 This design document itself does not authorize implementation.

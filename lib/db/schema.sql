@@ -219,6 +219,95 @@ CREATE TABLE IF NOT EXISTS work_events (
 CREATE INDEX IF NOT EXISTS idx_work_events_scope_work_time
   ON work_events(scope, work_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS ag_work_resume_mapping_proposals (
+  proposal_id TEXT PRIMARY KEY,
+  record_kind TEXT NOT NULL CHECK (
+    record_kind = 'ag_work_resume_mapping_proposal'
+  ),
+  schema TEXT NOT NULL CHECK (
+    schema = 'augnes.ag_work_resume_mapping_proposal.v0_1'
+  ),
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'proposed',
+      'needs_review',
+      'superseded',
+      'withdrawn',
+      'rejected',
+      'expired'
+    )
+  ),
+  foreign_scope TEXT NOT NULL,
+  foreign_work_id TEXT NOT NULL,
+  foreign_title TEXT NOT NULL,
+  foreign_status TEXT,
+  foreign_next_action TEXT,
+  candidate_local_scope TEXT NOT NULL,
+  candidate_local_work_id TEXT NOT NULL,
+  candidate_title TEXT NOT NULL,
+  candidate_status TEXT,
+  candidate_next_action TEXT,
+  packet_id TEXT NOT NULL,
+  packet_hash TEXT NOT NULL,
+  source_runtime_instance_id TEXT,
+  source_packet_created_at TEXT,
+  proposal_preview_id TEXT NOT NULL,
+  proposal_preview_hash TEXT NOT NULL,
+  match_confidence_label TEXT,
+  comparison_summary TEXT NOT NULL DEFAULT '[]',
+  gaps_summary TEXT NOT NULL DEFAULT '[]',
+  conflicts_summary TEXT NOT NULL DEFAULT '[]',
+  questions_summary TEXT NOT NULL DEFAULT '[]',
+  foreign_refs_summary TEXT NOT NULL DEFAULT '{}',
+  repo_context_summary TEXT NOT NULL DEFAULT '{}',
+  redaction_summary TEXT NOT NULL DEFAULT '{}',
+  proposed_by TEXT NOT NULL,
+  proposed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  proposal_reason TEXT NOT NULL,
+  expires_at TEXT,
+  supersedes_proposal_id TEXT,
+  superseded_by_proposal_id TEXT,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_note TEXT,
+  authority_boundary TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_foreign_work_time
+  ON ag_work_resume_mapping_proposals(foreign_scope, foreign_work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_candidate_time
+  ON ag_work_resume_mapping_proposals(candidate_local_scope, candidate_local_work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_status_time
+  ON ag_work_resume_mapping_proposals(status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_packet_hash
+  ON ag_work_resume_mapping_proposals(packet_id, packet_hash);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_preview_hash
+  ON ag_work_resume_mapping_proposals(proposal_preview_id, proposal_preview_hash);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_expires_at
+  ON ag_work_resume_mapping_proposals(expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_supersedes
+  ON ag_work_resume_mapping_proposals(supersedes_proposal_id);
+
+CREATE INDEX IF NOT EXISTS idx_ag_mapping_proposals_superseded_by
+  ON ag_work_resume_mapping_proposals(superseded_by_proposal_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ag_mapping_proposals_active_unique
+  ON ag_work_resume_mapping_proposals(
+    foreign_scope,
+    foreign_work_id,
+    candidate_local_scope,
+    candidate_local_work_id
+  )
+  WHERE status IN ('proposed', 'needs_review');
+
 CREATE TABLE IF NOT EXISTS handoffs (
   handoff_id TEXT PRIMARY KEY,
   scope TEXT NOT NULL DEFAULT 'project:augnes',
