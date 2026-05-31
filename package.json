@@ -72,6 +72,7 @@
     "smoke:ag-work-resume-mapping-proposal-preview-cockpit-panel": "node scripts/smoke-ag-work-resume-mapping-proposal-preview-cockpit-panel.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-design": "node scripts/smoke-ag-work-resume-mapping-proposal-record-design.mjs",
     "smoke:ag-work-resume-mapping-proposal-db-schema-design": "node scripts/smoke-ag-work-resume-mapping-proposal-db-schema-design.mjs",
+    "smoke:ag-work-resume-mapping-proposal-db-schema": "node scripts/smoke-ag-work-resume-mapping-proposal-db-schema.mjs",
     "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",

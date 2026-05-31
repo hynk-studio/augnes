@@ -365,4 +365,10 @@ Stage B DB/schema design is documented in
 A surfaces and Stage B record design remain non-implementation, and no schema
 or migration is added by current docs.
 
+The Stage B schema foundation is documented in
+`docs/AG_WORK_RESUME_MAPPING_PROPOSAL_DB_SCHEMA_IMPLEMENTATION_V0_1.md`; it
+adds no write route, record writer, proposal record creation behavior,
+confirmed mapping, import, proof/evidence, session binding, Codex execution, or
+authority to approve, publish, or merge.
+
 This design document itself does not authorize implementation.

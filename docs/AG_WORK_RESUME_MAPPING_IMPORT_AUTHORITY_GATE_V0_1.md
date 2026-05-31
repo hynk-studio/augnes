@@ -161,6 +161,10 @@ PRs:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_DB_SCHEMA_DESIGN_V0_1.md`; current
   Stage A surfaces and Stage B record design remain non-implementation; no
   schema or migration is added by current docs.
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
+  documents the Stage B schema foundation; it creates no proposal records and
+  grants no write route, confirmed mapping, import, proof/evidence, session,
+  Codex, approval, publish, or merge authority.
 - **Stage C: confirmed mapping record**. Future write stage requiring explicit
   user/Core action for one foreign scope/work_id and one existing local
   scope/work_id.
