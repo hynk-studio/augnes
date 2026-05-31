@@ -2,7 +2,7 @@
 
 ## Related PR
 
-- PR: draft PR pending
+- PR: #302
 - Work ID: none; proposal record read verification used safe synthetic fixture data only
 - Handoff ID: none
 - Related state keys: coordination.ag_resume_mapping
@@ -92,6 +92,72 @@
 - Command: Browser no unauthorized controls scan
 - Result: passed
 - Notes: The panel exposed only fixture buttons, clear, and the read-only proposal record read button. No unauthorized controls appeared for confirm mapping, create mapping, import context, create work item/event, record proof/evidence, bind session, execute/run/start Codex, approve, publish, retry, replay, merge, Direct Resume Code, relay, withdraw, reject, supersede, expire, persistence, or state mutation.
+
+## Additional Focused Pass For PR #302
+
+- Date: 2026-05-31 KST
+- Branch: `codex/ag-resume-mapping-proposal-record-cockpit-panel`
+- Local runtime DB: `/tmp/augnes-pr302-focused-verification.db`
+- Network capture artifact: `/tmp/augnes-pr302-network-log.ndjson`
+- Screenshot artifact: `/tmp/augnes-pr302-focused-panel.png`
+- Seeded synthetic proposal id: `ag-resume-mapping-proposal:e368e40b16531815077b4a38`
+- Seed method: existing `scripts/ag-work-resume-mapping-proposal-record-create.mjs`
+  writer helper, using stdin JSON before browser testing. The Cockpit panel did
+  not seed, create, update, or mutate the row.
+
+- Command: focused browser panel placement check
+- Result: passed
+- Notes: Opened Cockpit, clicked the Operator tab, and confirmed the
+  `AG Resume Mapping Proposal Record Review` panel rendered after the
+  `AG Resume Mapping Proposal Preview` panel. The read-only boundary copy was
+  visible.
+
+- Command: focused browser success/not-found/local-validation/clear flows
+- Result: passed
+- Notes: Exercised status list lookup, `foreign_scope + foreign_work_id` list
+  lookup, `candidate_local_scope + candidate_local_work_id` list lookup,
+  `proposal_id` single fetch, `proposal_id` not found, missing all filters,
+  `proposal_id` combined with status, `proposal_id` combined with limit,
+  `foreign_scope` without `foreign_work_id`, `candidate_local_work_id` without
+  `candidate_local_scope`, limit `0`, non-integer limit `2.5`, clear after a
+  success state, and clear after an error state. Long text values were entered
+  with browser keypress events after the high-level fill/type helper reported an
+  unavailable virtual clipboard; no product behavior was changed.
+
+- Command: focused browser network inspection through local logging proxy
+- Result: passed
+- Notes: The focused panel interactions produced exactly five API calls. Every
+  call was `GET /api/ag-work-resume/mapping-proposal-records`, request body
+  length was `0`, and no read call sent a JSON `Content-Type` header. No `POST`
+  occurred. No calls appeared for work, evidence, proof, session, Codex,
+  import, Direct Resume Code, relay, approval, publication, bridge, or MCP/App
+  routes.
+
+  Captured read calls:
+
+  - `GET /api/ag-work-resume/mapping-proposal-records?status=proposed&limit=20`
+  - `GET /api/ag-work-resume/mapping-proposal-records?foreign_scope=project%3Aaugnes&foreign_work_id=AG-FIXTURE-MAPPING-PROPOSAL-001&limit=20`
+  - `GET /api/ag-work-resume/mapping-proposal-records?candidate_local_scope=project%3Aaugnes&candidate_local_work_id=AG-FIXTURE-MAPPING-PROPOSAL-001&limit=20`
+  - `GET /api/ag-work-resume/mapping-proposal-records?proposal_id=ag-resume-mapping-proposal%3Ae368e40b16531815077b4a38`
+  - `GET /api/ag-work-resume/mapping-proposal-records?proposal_id=ag-resume-mapping-proposal%3Anot-found-pr302`
+
+- Command: focused isolated DB side-effect proof after browser interactions
+- Result: passed
+- Notes: `ag_work_resume_mapping_proposals` row count remained `1`; the seeded
+  proposal row remained present with status `proposed`, the same foreign and
+  candidate work identifiers, the same proposal reason, and the same
+  `created_at` / `updated_at` from writer creation
+  (`2026-05-31T09:24:37.336Z`). Full row hash after browser reads:
+  `sha256:8aa614967174ab003992d2616e9e02ebc020a4ff4701b4d3cb38329bdeb6f571`.
+  Protected table counts matched the pre-browser snapshot:
+  `sessions=1`, `work_items=5`, `work_events=6`, `action_records=0`,
+  `verification_evidence_records=0`. Confirmed mapping/import/imported-context
+  tables remained absent:
+  `ag_work_resume_mappings=false`,
+  `ag_work_resume_mapping_records=false`,
+  `ag_work_resume_confirmed_mappings=false`,
+  `ag_work_resume_imports=false`,
+  `ag_work_resume_imported_contexts=false`.
 
 ## Tool/API Outputs Compared
 
