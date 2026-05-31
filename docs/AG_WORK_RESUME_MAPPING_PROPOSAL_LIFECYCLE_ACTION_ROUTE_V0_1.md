@@ -22,6 +22,10 @@ authority, and not approval, publish, retry, replay, or merge authority.
 - Lifecycle action core/helper:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_HELPER_V0_1.md`
   documents the shared core and local helper this route delegates to.
+- Lifecycle action Cockpit panel:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`
+  documents the later bounded Cockpit Operator panel that calls this existing
+  route. The route contract itself remains unchanged.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` keeps proposal
   lifecycle metadata, confirmed mappings, imports, proof/evidence, session
@@ -112,7 +116,7 @@ or Codex helpers. The route performs no fetch/network calls.
 ## Authority Boundary
 
 - Existing proposal lifecycle/review metadata update only.
-- No Cockpit UI.
+- No Cockpit UI was added by this route slice.
 - No DB schema or migration.
 - No proposal creation.
 - No replacement proposal creation.
