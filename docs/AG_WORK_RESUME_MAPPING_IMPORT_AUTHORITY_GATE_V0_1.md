@@ -218,6 +218,11 @@ PRs:
   mapping table and indexes only and still adds no writer/helper/route/UI,
   import, proof/evidence, session, Codex, approval, publish, retry, replay, or
   merge authority.
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md` documents the first
+  Stage C confirmed mapping writer/helper; it creates confirmed mapping
+  identity association rows only and still adds no route/UI, import,
+  proof/evidence, session binding, Codex execution, approval, publish, retry,
+  replay, or merge authority.
 - **Stage D: imported resume context record**. Future write stage requiring
   explicit user/Core action and schema. It writes bounded review metadata only.
 - **Stage E: optional local work item creation**. Future-only and only if ever

@@ -27,6 +27,12 @@ identity after explicit user/Core confirmation.
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` keeps mapping,
   import, proof/evidence, session binding, and Codex continuation as separate
   user/Core-gated stages.
+- Confirmed mapping writer/helper:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md` documents the first
+  Stage C writer/helper built on this schema foundation. It creates confirmed
+  mapping identity association rows only and still adds no route/UI, import,
+  proof/evidence, session binding, Codex execution, approval, publish, retry,
+  replay, or merge authority.
 
 ## Implemented Table
 
@@ -142,9 +148,11 @@ Durable approval remains user/Core gated.
 
 ## Future Work
 
-A future writer/helper PR must validate source proposal existence, active
-proposal status, packet id/hash, local work existence, duplicate active
-mapping policy, explicit user/Core actor, and confirmation reason.
+The first writer/helper PR is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`. It validates source
+proposal existence, active proposal status, packet id/hash, local work
+existence, duplicate active mapping policy, explicit user/Core actor, and
+confirmation reason.
 
 Future route/UI work remains separately gated. Stage D imported resume context
 remains after confirmed mapping and requires separate design and authority

@@ -257,6 +257,13 @@ context, work, proof/evidence, session, Codex execution, bridge, MCP/App,
 approval, publish, retry, replay, merge, telemetry, analytics, or browser
 persistence writes occurred.
 
+The first confirmed mapping writer/helper implementation is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`. It creates one
+confirmed mapping identity association row from an active Stage B proposal and
+existing local work, and still adds no route/UI, import, proof/evidence,
+session binding, Codex execution, approval, publish, retry, replay, or merge
+authority.
+
 ## Future Writer/Helper/Route Contract Sketch
 
 Design only. A future writer/helper/route input could include:
@@ -334,7 +341,8 @@ relay, or runtime contract in this PR.
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_DESIGN_V0_1.md`.
 3. Confirmed mapping DB/schema implementation:
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
-4. Confirmed mapping writer/helper.
+4. Confirmed mapping writer/helper:
+   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md`.
 5. Confirmed mapping route.
 6. Confirmed mapping Cockpit review/control UI, only if separately approved.
 7. Imported resume context design as Stage D.
