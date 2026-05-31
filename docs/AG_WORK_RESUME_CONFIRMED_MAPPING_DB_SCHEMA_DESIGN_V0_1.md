@@ -243,6 +243,13 @@ should not add a writer, helper, route, Cockpit UI, ChatGPT App card, MCP/App
 schema, bridge tool, import table, proof/evidence/session behavior, Codex
 execution behavior, or approval/publish/retry/replay/merge behavior.
 
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
+documents the schema foundation implementation. That implementation creates
+the `ag_work_resume_confirmed_mappings` table and indexes only; it creates no
+rows in normal runtime and grants no writer/helper/route/UI, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 A future writer/helper PR should validate:
 
 - source proposal exists

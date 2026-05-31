@@ -243,6 +243,13 @@ schema implementation, migration, runtime behavior, writer/helper/route/UI,
 confirmed mapping rows, import, proof/evidence, session binding, Codex
 execution, or approval/publish/retry/replay/merge authority.
 
+The schema foundation implementation is documented in
+`docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md`; it
+adds the future confirmed mapping table and indexes only, creates no rows in
+normal runtime, and still grants no writer/helper/route/UI, import,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 Future implementation must use a transaction and side-effect guards. The
 guards must prove the only intended write is the confirmed mapping row or its
 future lifecycle fields, and that no proposal creation, import, imported
@@ -325,7 +332,8 @@ relay, or runtime contract in this PR.
 1. Confirmed mapping design only: this PR.
 2. Confirmed mapping DB/schema design:
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_DESIGN_V0_1.md`.
-3. Confirmed mapping DB/schema implementation.
+3. Confirmed mapping DB/schema implementation:
+   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 4. Confirmed mapping writer/helper.
 5. Confirmed mapping route.
 6. Confirmed mapping Cockpit review/control UI, only if separately approved.
