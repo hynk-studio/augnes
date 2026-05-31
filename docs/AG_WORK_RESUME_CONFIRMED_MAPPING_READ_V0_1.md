@@ -30,6 +30,10 @@ persistence. The separately scoped Cockpit read panel is documented in
 - Stage C Cockpit read panel:
   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md` documents
   the read-only Operator panel that calls only this `GET` route.
+- Stage C Cockpit create panel:
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_CREATE_COCKPIT_PANEL_V0_1.md`
+  documents the separately scoped Operator panel that calls only the existing
+  `POST` create route and does not call this `GET` read route.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`.
 
@@ -217,6 +221,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-read
 npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-route

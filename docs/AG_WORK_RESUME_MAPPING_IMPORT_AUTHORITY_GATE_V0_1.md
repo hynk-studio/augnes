@@ -67,8 +67,11 @@ real-packet mapping/import workflow is implemented.
   record and is not durable authority.
 - **confirmed mapping**: a future persisted mapping record that requires
   explicit user/Core action. It connects one foreign scope/work_id to one
-  existing local scope/work_id, subject to schema and route design that do not
-  exist in this PR.
+  existing local scope/work_id. Existing Stage C slices provide the bounded
+  confirmed mapping record, schema, writer, route, read, and Cockpit surfaces
+  documented below; they still do not import context, record proof/evidence,
+  bind sessions, execute Codex, or grant approval, publish, retry, replay, or
+  merge authority.
 - **imported resume context**: a future bounded review record derived from a
   validated packet and confirmed mapping. Imported context is not proof, not
   evidence, not approval, and not source of truth.
@@ -239,6 +242,11 @@ PRs:
   no create/update/delete, lifecycle mutation, import, imported resume context,
   proof/evidence, session binding, Codex execution, approval, publish, retry,
   replay, or merge authority.
+  `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_CREATE_COCKPIT_PANEL_V0_1.md`
+  documents the bounded Cockpit Operator create panel over the existing POST
+  route; it creates confirmed mapping identity association rows only and still
+  grants no import, imported resume context, proof/evidence, session binding,
+  Codex execution, approval, publish, retry, replay, or merge authority.
 - **Stage D: imported resume context record**. Future write stage requiring
   explicit user/Core action and schema. It writes bounded review metadata only.
 - **Stage E: optional local work item creation**. Future-only and only if ever
