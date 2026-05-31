@@ -70,6 +70,7 @@
     "smoke:ag-work-resume-mapping-proposal-preview-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-mapping-proposal-preview-helper.mjs",
     "smoke:ag-work-resume-mapping-proposal-preview-route": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-mapping-proposal-preview-route.mjs",
     "smoke:ag-work-resume-mapping-proposal-preview-cockpit-panel": "node scripts/smoke-ag-work-resume-mapping-proposal-preview-cockpit-panel.mjs",
+    "smoke:ag-work-resume-mapping-proposal-lifecycle-actions-design": "node scripts/smoke-ag-work-resume-mapping-proposal-lifecycle-actions-design.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-read-cockpit-panel": "node scripts/smoke-ag-work-resume-mapping-proposal-record-read-cockpit-panel.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-design": "node scripts/smoke-ag-work-resume-mapping-proposal-record-design.mjs",
     "smoke:ag-work-resume-mapping-proposal-db-schema-design": "node scripts/smoke-ag-work-resume-mapping-proposal-db-schema-design.mjs",

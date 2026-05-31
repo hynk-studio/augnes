@@ -24,6 +24,11 @@ merge/publish authority.
 - DB/schema implementation:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
   documents the table this reader selects from.
+- Stage B lifecycle actions design:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTIONS_DESIGN_V0_1.md`
+  documents design-only future withdraw, reject, supersede, and expire
+  semantics. This reader still performs no lifecycle mutation, confirmation,
+  import, proof/evidence recording, session binding, or Codex execution.
 - Stage A mapping proposal preview:
   the preview helper, preview route, and Cockpit panel remain proposal-preview
   surfaces. This reader adds no Cockpit UI and does not change preview behavior.

@@ -23,6 +23,11 @@ authority, and not merge/publish authority.
 - DB/schema implementation:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
   documents the table and active-proposal partial unique index used here.
+- Stage B lifecycle actions design:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTIONS_DESIGN_V0_1.md`
+  documents design-only future withdraw, reject, supersede, and expire
+  semantics. This writer still only inserts proposal rows and does not update,
+  withdraw, reject, supersede, expire, confirm, or import.
 - Stage A mapping proposal preview route and panel:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_ROUTE_V0_1.md` and
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_COCKPIT_PANEL_V0_1.md`

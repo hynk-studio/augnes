@@ -27,6 +27,11 @@ merge/publish authority.
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md` keeps proposal
   records, confirmed mappings, imports, proof/evidence, session binding, and
   Codex continuation separate.
+- Stage B lifecycle actions design:
+  `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_LIFECYCLE_ACTIONS_DESIGN_V0_1.md`
+  documents design-only future withdraw, reject, supersede, and expire
+  semantics. This panel still exposes no lifecycle controls and performs no
+  create/update/delete behavior.
 - Stage A mapping proposal preview panel:
   `docs/AG_WORK_RESUME_MAPPING_PROPOSAL_PREVIEW_COCKPIT_PANEL_V0_1.md`
   remains a preview-only surface. This panel reads persisted Stage B proposal
