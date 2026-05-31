@@ -20,8 +20,31 @@ state.
   the browser before any route call.
 - `Explicit Local B context JSON`: optional JSON object. Empty input sends
   `local: null`.
-- `strict`: boolean checkbox passed through as `strict`.
-- `skip_preflight`: boolean checkbox passed through as `skip_preflight`.
+- `Strict target preview`: boolean checkbox passed through as `strict`.
+  Help copy: `Treat dirty worktree / repo gaps more conservatively.`
+- `Skip packet preflight`: boolean checkbox passed through as
+  `skip_preflight`. Help copy:
+  `Debug only; not recommended before relying on a preview.`
+  When checked, the panel also warns:
+  `Debug only; run ag:resume-preflight before relying on this preview.`
+
+## Safe Example Fixtures
+
+The panel includes local UI affordances for public-safe examples:
+
+- `Load safe example packet`
+- `Load safe example Local B context`
+- `Clear AG resume inputs`
+
+The fixture buttons update local React state only. They do not call routes,
+write to runtime state, import or persist packets, create work items, create
+mapping records, record proof/evidence, bind sessions, or store anything in
+`localStorage`, `sessionStorage`, or `indexedDB`.
+
+The fixtures are synthetic, public-safe, and not persisted. They must contain
+no secrets, local absolute paths, raw DB paths, tunnel URLs, real tokens,
+screenshots/media, or raw OpenAI responses. When both fixtures are loaded, the
+preview remains a read-only route call through the normal preview button.
 
 The request shape is:
 
@@ -39,8 +62,9 @@ The request shape is:
 The panel displays:
 
 - route HTTP status and `ok`
-- `preview.status`
-- `preview.ok_to_continue` with visible text:
+- Preview status, with raw `preview.status` meaning still visible
+- OK to continue, with raw `preview.ok_to_continue` meaning still visible and
+  visible text:
   `OK only for user/Core review. This is not Codex execution authority.`
 - `recommended_next_step`
 - preflight `ran`, `ok`, `status`, warnings, and failures
@@ -55,8 +79,17 @@ authority choices.
 
 - Read-only Operator tab surface.
 - Uses an already built packet and explicit Local B context.
+- Safe fixture buttons are synthetic, public-safe, local state only, and not
+  persisted.
+- Safe fixture buttons do not call routes.
+- The read-only preview button calls only `/api/ag-work-resume/target-preview`.
+- No DB/schema changes.
+- No runtime discovery.
+- No route-side DB reads.
 - No import/persist/work item/mapping/proof/evidence/session/Codex
   execution/approval/publish/retry/replay/merge/state mutation.
+- No Direct Resume Code route.
+- No relay.
 - `ok_to_continue` means user/Core review only.
 - Copy or display controls, if added later, may copy only displayed data and
   must not call write routes.

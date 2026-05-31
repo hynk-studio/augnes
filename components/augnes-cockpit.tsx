@@ -710,6 +710,166 @@ type AgResumeTargetRecommendation = {
   text?: string;
 };
 
+const SAFE_AG_RESUME_EXAMPLE_PACKET = {
+  schema: "augnes.ag_work_resume_packet.v0_2",
+  packet_kind: "ag_work_resume_packet",
+  packet_id: "ag-resume-packet:fixture-target-preview-001",
+  created_at: "2026-05-30T00:00:00.000Z",
+  expires_at: null,
+  issuer: {
+    runtime: "augnes",
+    runtime_instance_id: "runtime:fixture-target-preview",
+    source_local_label: "Local A safe fixture",
+    created_by_surface: "cockpit-panel-fixture",
+    export_event_id: null,
+  },
+  integrity: {
+    canonicalization: "augnes-json-c14n-v0_1",
+    payload_hash: "sha256:fixture-target-preview-payload",
+    redaction_report_hash: "sha256:fixture-target-preview-redaction",
+    signature: null,
+  },
+  source_work: {
+    scope: "project:augnes",
+    work_id: "AG-FIXTURE-TARGET-PREVIEW-001",
+    title: "Safe target preview fixture",
+    status: "in_progress",
+    priority: "now",
+    summary: "Synthetic public-safe packet for read-only panel verification.",
+    next_action: "Review the read-only target preview result.",
+    related_state_keys: ["coordination.ag_resume_packet"],
+  },
+  git: {
+    remote: "https://github.com/hynk-studio/augnes.git",
+    base_branch: "main",
+    base_commit: "0f7038af9bcd4ca0d7a6f190b5772fa88c764b40",
+    working_branch: "codex/ag-resume-target-preview-cockpit-fixtures",
+    head_commit: "0f7038af9bcd4ca0d7a6f190b5772fa88c764b40",
+    related_pr: null,
+    dirty_worktree: false,
+  },
+  handoff: {
+    handoff_id: "handoff:fixture-target-preview",
+    status: "ready_for_review",
+    expected_files: [
+      "components/augnes-cockpit.tsx",
+      "docs/AG_WORK_RESUME_TARGET_PREVIEW_COCKPIT_PANEL_V0_1.md",
+      "scripts/smoke-ag-work-resume-target-preview-cockpit-panel.mjs",
+    ],
+    expected_checks: ["npm run smoke:ag-work-resume-target-preview-cockpit-panel"],
+    expected_execution_surfaces: ["Codex CLI after user/Core review"],
+    forbidden_surfaces: ["ChatGPT execution", "MCP write bridge", "external posting"],
+    stop_conditions: [
+      "Local mapping is missing",
+      "Target preview reports conflict or blocked",
+    ],
+    safety_boundaries: [
+      "Read-only target preview",
+      "Foreign refs remain foreign",
+    ],
+  },
+  continuity: {
+    recent_work_events: [
+      {
+        id: "work-event:fixture-target-preview-1",
+        actor: "codex",
+        event_type: "verification",
+        summary: "Synthetic public-safe browser fixture.",
+        result_status: "completed",
+        result_kind: "browser_verification",
+        related_pr: null,
+        related_state_keys: ["coordination.ag_resume_packet"],
+        created_at: "2026-05-30T00:01:00.000Z",
+      },
+    ],
+    foreign_action_refs: [
+      {
+        id: "action:foreign-fixture-target-preview-1",
+        title: "Foreign proof-only fixture reference",
+        status: "completed",
+        proof_marker_type: "proof_only",
+        created_at: "2026-05-30T00:01:00.000Z",
+        ref_kind: "foreign_action_ref",
+      },
+    ],
+    foreign_evidence_refs: ["evidence:foreign-fixture-target-preview-1"],
+    foreign_session_refs: ["session:foreign-fixture-target-preview-1"],
+    foreign_evidence_pack_ref: "evidence-pack:foreign-fixture-target-preview-1",
+    proof_marker_note: "state_key:null action records are proof-only",
+  },
+  target_runtime_policy: {
+    preview_only_by_default: true,
+    may_map_to_existing_local_work_item:
+      "requires explicit user/Core approval",
+    may_create_local_work_item: false,
+    may_record_evidence:
+      "requires explicit user/Core approval and known local work_id",
+    may_record_proof:
+      "requires explicit user/Core approval and known local work_id",
+    may_bind_session: false,
+    may_commit_or_reject_state: false,
+    may_execute_codex: false,
+    may_merge: false,
+    may_publish_or_replay: false,
+  },
+  redaction: {
+    raw_db_paths_included: false,
+    secrets_included: false,
+    tunnel_urls_included: false,
+    local_absolute_paths_included: false,
+    screenshots_or_media_included: false,
+    raw_openai_responses_included: false,
+    notes: [],
+  },
+  bounds: {
+    max_recent_work_events: 10,
+    max_foreign_evidence_refs: 20,
+    summaries_only: true,
+    raw_logs_included: false,
+  },
+} as const;
+
+const SAFE_AG_RESUME_EXAMPLE_LOCAL_CONTEXT = {
+  runtime: {
+    runtime_available: true,
+    scope: "project:augnes",
+    work_item: {
+      work_id: "LOCAL-FIXTURE-TARGET-PREVIEW-001",
+      scope: "project:augnes",
+      title: "Local target preview fixture",
+      status: "in_progress",
+      next_action: "Review the read-only target preview result.",
+      related_state_keys: ["coordination.ag_resume_packet"],
+    },
+    work_brief_available: true,
+    codex_read_brief_command_available: true,
+    evidence_recording_authorized: false,
+    proof_recording_authorized: false,
+    session_binding_authorized: false,
+  },
+  repo: {
+    repo_available: true,
+    remote: "https://github.com/hynk-studio/augnes.git",
+    base_branch: "main",
+    base_commit_reachable: true,
+    current_branch: "codex/ag-resume-target-preview-cockpit-fixtures",
+    head_commit: "0f7038af9bcd4ca0d7a6f190b5772fa88c764b40",
+    dirty_worktree: false,
+    expected_files_present: SAFE_AG_RESUME_EXAMPLE_PACKET.handoff.expected_files,
+    expected_files_missing: [],
+  },
+  known_local_work_mappings: [
+    {
+      foreign_scope: "project:augnes",
+      foreign_work_id: "AG-FIXTURE-TARGET-PREVIEW-001",
+      local_scope: "project:augnes",
+      local_work_id: "LOCAL-FIXTURE-TARGET-PREVIEW-001",
+      mapping_status: "confirmed",
+      confirmed_by: "user/Core safe fixture",
+    },
+  ],
+} as const;
+
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
 const COCKPIT_TABS: { id: CockpitTab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -3025,6 +3185,29 @@ function AgResumeTargetPreviewPanel() {
   const [agResumeTargetPreviewBusy, setAgResumeTargetPreviewBusy] =
     useState(false);
 
+  function loadSafeAgResumeExamplePacket() {
+    setAgResumePacketInput(formatAgResumeExampleJson(SAFE_AG_RESUME_EXAMPLE_PACKET));
+    setAgResumeTargetPreviewError(null);
+    setAgResumeTargetPreviewResult(null);
+  }
+
+  function loadSafeAgResumeExampleLocalContext() {
+    setAgResumeLocalContextInput(
+      formatAgResumeExampleJson(SAFE_AG_RESUME_EXAMPLE_LOCAL_CONTEXT),
+    );
+    setAgResumeTargetPreviewError(null);
+    setAgResumeTargetPreviewResult(null);
+  }
+
+  function clearAgResumeInputs() {
+    setAgResumePacketInput("");
+    setAgResumeLocalContextInput("");
+    setAgResumeTargetPreviewError(null);
+    setAgResumeTargetPreviewResult(null);
+    setAgResumeStrictTargetPreview(false);
+    setAgResumeSkipPreflight(false);
+  }
+
   async function handleAgResumeTargetPreviewSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -3120,6 +3303,36 @@ function AgResumeTargetPreviewPanel() {
         className="observe-form"
         onSubmit={handleAgResumeTargetPreviewSubmit}
       >
+        <BoundaryNote>
+          Safe example fixtures are synthetic, public-safe, local UI state only,
+          and not persisted.
+        </BoundaryNote>
+        <div className="action-controls" aria-label="Safe example fixture controls">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={loadSafeAgResumeExamplePacket}
+            disabled={agResumeTargetPreviewBusy}
+          >
+            Load safe example packet
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={loadSafeAgResumeExampleLocalContext}
+            disabled={agResumeTargetPreviewBusy}
+          >
+            Load safe example Local B context
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={clearAgResumeInputs}
+            disabled={agResumeTargetPreviewBusy}
+          >
+            Clear AG resume inputs
+          </button>
+        </div>
         <span>AG Resume Packet JSON</span>
         <textarea
           value={agResumePacketInput}
@@ -3140,30 +3353,41 @@ function AgResumeTargetPreviewPanel() {
           aria-label="Explicit Local B context JSON"
           placeholder='Leave empty to send local: null, or paste {"runtime":{},"repo":{},"known_local_work_mappings":[]}'
         />
-        <div className="form-row">
-          <label>
-            <input
-              type="checkbox"
-              checked={agResumeStrictTargetPreview}
-              onChange={(event) =>
-                setAgResumeStrictTargetPreview(event.target.checked)
-              }
-            />{" "}
-            strict
+        <div className="evidence-pack-grid" aria-label="Target preview options">
+          <label className="evidence-pack-card">
+            <span>
+              <input
+                type="checkbox"
+                checked={agResumeStrictTargetPreview}
+                onChange={(event) =>
+                  setAgResumeStrictTargetPreview(event.target.checked)
+                }
+              />{" "}
+              Strict target preview
+            </span>
+            <p>
+              request field: <code>strict</code>
+            </p>
+            <p>Treat dirty worktree / repo gaps more conservatively.</p>
           </label>
-          <label>
+          <label className="evidence-pack-card">
+            <span>
             <input
               type="checkbox"
               checked={agResumeSkipPreflight}
               onChange={(event) => setAgResumeSkipPreflight(event.target.checked)}
             />{" "}
-            skip_preflight
+            Skip packet preflight
+            </span>
+            <p>
+              request field: <code>skip_preflight</code>
+            </p>
+            <p>Debug only; not recommended before relying on a preview.</p>
           </label>
         </div>
         {agResumeSkipPreflight ? (
           <BoundaryNote>
-            Preflight is skipped only for local/operator debugging. Run
-            ag:resume-preflight before relying on the preview.
+            Debug only; run ag:resume-preflight before relying on this preview.
           </BoundaryNote>
         ) : null}
         <div className="form-row">
@@ -3216,17 +3440,17 @@ function AgResumeTargetPreviewResults({
           <small>{body.route ?? "route unknown"}</small>
         </section>
         <section className="evidence-pack-card">
-          <h3>preview.status</h3>
+          <h3>Preview status</h3>
           <p>{preview?.status ?? "none"}</p>
-          <small>read-only target result</small>
+          <small>preview.status - read-only target result</small>
         </section>
         <section className="evidence-pack-card">
-          <h3>preview.ok_to_continue</h3>
+          <h3>OK to continue</h3>
           <p>{formatAgResumeBoolean(preview?.ok_to_continue)}</p>
           <small>
             {preview?.ok_to_continue
-              ? "OK only for user/Core review. This is not Codex execution authority."
-              : "Not OK for user/Core review."}
+              ? "preview.ok_to_continue - OK only for user/Core review. This is not Codex execution authority."
+              : "preview.ok_to_continue - Not OK for user/Core review."}
           </small>
         </section>
       </div>
@@ -7845,6 +8069,10 @@ function formatAgResumeBoolean(value: boolean | null | undefined) {
   if (value === false) return "false";
   if (value === null) return "null";
   return "unknown";
+}
+
+function formatAgResumeExampleJson(value: unknown) {
+  return JSON.stringify(value, null, 2);
 }
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {
