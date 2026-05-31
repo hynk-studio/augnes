@@ -28,6 +28,52 @@ state.
   When checked, the panel also warns:
   `Debug only; run ag:resume-preflight before relying on this preview.`
 
+## Copied Packet Validation
+
+The panel includes a read-only copied-packet validation affordance:
+
+- `Validate pasted packet only`
+
+This button parses only `AG Resume Packet JSON` in local React/browser state.
+It does not require or parse `Explicit Local B context JSON`.
+
+It calls the existing read-only route:
+
+`POST /api/ag-work-resume/target-preview`
+
+The validation request always sends:
+
+```json
+{
+  "packet": {},
+  "local": null,
+  "strict": true,
+  "skip_preflight": false
+}
+```
+
+Copied-packet validation always runs strict preflight. It ignores the
+skip-preflight checkbox. `context_only` is expected for packet-only validation
+when the packet passes and `local: null` is sent.
+
+The validation result section is visually distinct from the full target preview
+result and displays:
+
+- HTTP status
+- route `ok`
+- preflight `ran`, `ok`, `status`, warnings, and failures
+- route `recommended_next_step`
+- `preview.status`, when returned
+- text that `context_only` is expected for packet-only validation because
+  Local B context is sent as null
+- text that validation is read-only packet review, not mapping, import,
+  persistence, or execution authority
+
+Copied-packet validation is read-only packet review only. It does not map,
+import, persist, create work items, create mapping records, record
+proof/evidence, bind sessions, execute Codex, approve, publish, retry, replay,
+merge, mutate state, call Direct Resume Code routes, or relay packet data.
+
 ## Safe Example Fixtures
 
 The panel includes local UI affordances for public-safe examples:
@@ -45,6 +91,12 @@ The fixtures are synthetic, public-safe, and not persisted. They must contain
 no secrets, local absolute paths, raw DB paths, tunnel URLs, real tokens,
 screenshots/media, or raw OpenAI responses. When both fixtures are loaded, the
 preview remains a read-only route call through the normal preview button.
+
+Loading the safe example packet may clear old copied-packet validation and full
+preview results. Loading the safe Local B context may clear old full-preview
+results. Clearing AG resume inputs clears packet and Local B textareas,
+copied-packet validation result/error state, full-preview result/error state,
+and local checkbox state. These controls do not call routes or persistence.
 
 The request shape is:
 
@@ -75,6 +127,15 @@ The panel displays:
 Foreign refs remain foreign until user/Core confirms mapping and separate
 authority choices.
 
+The existing full preview button remains:
+
+- `Run read-only target preview`
+
+It is the only workflow in this panel that uses explicit Local B context. It
+continues to send the pasted packet, parsed Local B context or `local: null`,
+the `strict` checkbox value, and the `skip_preflight` checkbox value exactly as
+the target preview workflow requires.
+
 ## Authority Boundary
 
 - Read-only Operator tab surface.
@@ -82,7 +143,12 @@ authority choices.
 - Safe fixture buttons are synthetic, public-safe, local state only, and not
   persisted.
 - Safe fixture buttons do not call routes.
-- The read-only preview button calls only `/api/ag-work-resume/target-preview`.
+- The read-only copied-packet validation button and the read-only full preview
+  button call only `/api/ag-work-resume/target-preview`.
+- Copied-packet validation sends `local: null`, `strict: true`, and
+  `skip_preflight: false`.
+- Copied-packet validation always runs strict preflight and ignores the
+  skip-preflight checkbox.
 - No DB/schema changes.
 - No runtime discovery.
 - No route-side DB reads.
