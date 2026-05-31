@@ -250,6 +250,13 @@ one is separately designed.
 Future route, read, and UI work remain separately gated. Proof/evidence,
 session, and Codex gates remain separate.
 
+The schema foundation implementation is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md`. It
+creates the imported context table and indexes only, creates no imported
+context rows during migration, and grants no writer/helper/route/UI,
+proof/evidence, session, Codex, approval, publish, retry, replay, or merge
+authority.
+
 This design document itself does not authorize implementation.
 
 ## Browser Verification
@@ -262,6 +269,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-imported-context-db-schema
 npm run smoke:ag-work-resume-imported-context-db-schema-design
 npm run smoke:ag-work-resume-imported-context-record-design
 npm run smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel

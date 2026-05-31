@@ -213,7 +213,8 @@ or revoke a confirmed mapping. Confirmed mapping lifecycle remains separate.
 1. Imported context design only: this PR.
 2. Imported context DB/schema design:
    `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md`.
-3. Imported context schema implementation.
+3. Imported context schema implementation:
+   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 4. Imported context writer/helper.
 5. Imported context route.
 6. Imported context read helper/route.
@@ -233,6 +234,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-imported-context-db-schema
 npm run smoke:ag-work-resume-imported-context-db-schema-design
 npm run smoke:ag-work-resume-imported-context-record-design
 npm run smoke:ag-work-resume-confirmed-mapping-create-cockpit-panel

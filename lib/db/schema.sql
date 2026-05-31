@@ -365,6 +365,54 @@ CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_supersedes
 CREATE INDEX IF NOT EXISTS idx_ag_confirmed_mappings_superseded_by
   ON ag_work_resume_confirmed_mappings(superseded_by_mapping_id);
 
+CREATE TABLE IF NOT EXISTS ag_work_resume_imported_contexts (
+  import_id TEXT PRIMARY KEY,
+  record_kind TEXT NOT NULL CHECK (
+    record_kind = 'ag_work_resume_imported_context'
+  ),
+  schema TEXT NOT NULL CHECK (
+    schema = 'augnes.ag_work_resume_imported_context.v0_1'
+  ),
+  status TEXT NOT NULL CHECK (
+    status IN ('review_metadata', 'superseded', 'withdrawn', 'revoked')
+  ),
+  mapping_id TEXT NOT NULL,
+  foreign_scope TEXT NOT NULL,
+  foreign_work_id TEXT NOT NULL,
+  local_scope TEXT NOT NULL,
+  local_work_id TEXT NOT NULL,
+  packet_id TEXT NOT NULL,
+  packet_hash TEXT NOT NULL,
+  source_runtime_instance_id TEXT,
+  imported_summary TEXT NOT NULL,
+  imported_expected_files TEXT NOT NULL DEFAULT '[]',
+  imported_expected_checks TEXT NOT NULL DEFAULT '[]',
+  foreign_refs_summary TEXT NOT NULL DEFAULT '{}',
+  redaction_report TEXT NOT NULL DEFAULT '{}',
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  authority_boundary TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_mapping_time
+  ON ag_work_resume_imported_contexts(mapping_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_foreign_time
+  ON ag_work_resume_imported_contexts(foreign_scope, foreign_work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_local_time
+  ON ag_work_resume_imported_contexts(local_scope, local_work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_packet_hash
+  ON ag_work_resume_imported_contexts(packet_id, packet_hash);
+
+CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_status_time
+  ON ag_work_resume_imported_contexts(status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_created_by_time
+  ON ag_work_resume_imported_contexts(created_by, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS handoffs (
   handoff_id TEXT PRIMARY KEY,
   scope TEXT NOT NULL DEFAULT 'project:augnes',

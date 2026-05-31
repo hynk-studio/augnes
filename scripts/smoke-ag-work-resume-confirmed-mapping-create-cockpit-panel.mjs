@@ -517,6 +517,7 @@ function assertChangedFilesGuard() {
     ...gitLines(["ls-files", "--others", "--exclude-standard"]),
   ]);
   const allowedFiles = new Set([
+    "lib/db/schema.sql",
     "components/augnes-cockpit.tsx",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_CREATE_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md",
@@ -526,6 +527,7 @@ function assertChangedFilesGuard() {
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "package.json",
     "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md",
@@ -536,6 +538,7 @@ function assertChangedFilesGuard() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-record-design.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
   ]);
@@ -547,8 +550,10 @@ function assertChangedFilesGuard() {
     assert.equal(file.startsWith("app/"), false, `no app/api change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
-    assert.equal(file.startsWith("lib/"), false, `no lib runtime change: ${file}`);
-    assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
+    assert.ok(
+      file === "lib/db/schema.sql" || !file.startsWith("lib/"),
+      `lib changes limited to schema.sql in imported context schema follow-up: ${file}`,
+    );
   }
 }
 

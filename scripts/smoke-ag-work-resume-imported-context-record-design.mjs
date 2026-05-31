@@ -328,7 +328,7 @@ console.log(
         "authority boundary and non-goals forbid runtime, schema, route, UI, MCP/App, browser persistence, proof/evidence, session, Codex, and merge authority",
         "future PR sequence keeps DB/schema, writer/helper, route, read, UI, and proof/evidence/session/Codex gates separate",
         "pointer docs link to the Stage D imported context record design",
-        "source guard limits changed files to Stage D docs/package/smoke and narrow guard compatibility files",
+        "source guard limits changed files to Stage D schema foundation docs/package/smoke and narrow guard compatibility files",
       ],
     },
     null,
@@ -343,10 +343,13 @@ function assertNoUnexpectedChangedFiles() {
     ...gitLines(["ls-files", "--others", "--exclude-standard"]),
   ]);
   const allowedFiles = new Set([
+    "lib/db/schema.sql",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     designDocRelativePath,
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
     ...pointerDocRelativePaths,
     "package.json",
+    "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
@@ -370,10 +373,10 @@ function assertNoUnexpectedChangedFiles() {
       allowedFiles.has(file),
       `changed file is outside the design-only imported context slice: ${file}`,
     );
-    assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.ok(
-      !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
-      `design-only imported context slice must not touch runtime/UI/schema/browser files: ${file}`,
+      file === "lib/db/schema.sql" ||
+        !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      `imported context schema follow-up must not touch runtime/UI/browser files outside schema.sql: ${file}`,
     );
   }
 }
