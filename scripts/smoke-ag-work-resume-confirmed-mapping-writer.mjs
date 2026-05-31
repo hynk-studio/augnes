@@ -456,6 +456,7 @@ function assertSourceGuards() {
 
   const allowedFiles = new Set([
     "lib/db/schema.sql",
+    "lib/ag-work-resume-imported-context.ts",
     "lib/ag-work-resume-confirmed-mapping.ts",
     "lib/ag-work-resume-confirmed-mapping-read.ts",
     "components/augnes-cockpit.tsx",
@@ -483,8 +484,11 @@ function assertSourceGuards() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "package.json",
+    "scripts/ag-work-resume-imported-context-create.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
@@ -518,8 +522,9 @@ function assertSourceGuards() {
       file === "lib/ag-work-resume-confirmed-mapping.ts" ||
         file === "lib/ag-work-resume-confirmed-mapping-read.ts" ||
         file === "lib/db/schema.sql" ||
+        file === "lib/ag-work-resume-imported-context.ts" ||
         !file.startsWith("lib/"),
-      `lib changes limited to confirmed mapping writer/read cores or imported context schema.sql: ${file}`,
+      `lib changes limited to confirmed mapping writer/read cores, imported context schema.sql, or imported context writer core: ${file}`,
     );
   }
 }

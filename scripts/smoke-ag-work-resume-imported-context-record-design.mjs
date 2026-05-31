@@ -330,7 +330,7 @@ console.log(
         "authority boundary and non-goals forbid runtime, schema, route, UI, MCP/App, browser persistence, proof/evidence, session, Codex, and merge authority",
         "future PR sequence keeps DB/schema, writer/helper, route, read, UI, and proof/evidence/session/Codex gates separate",
         "pointer docs link to the Stage D imported context record design",
-        "source guard limits changed files to Stage D schema foundation docs/package/smoke and narrow guard compatibility files",
+        "source guard limits changed files to Stage D schema/writer docs/package/smoke and narrow guard compatibility files",
       ],
     },
     null,
@@ -346,11 +346,15 @@ function assertNoUnexpectedChangedFiles() {
   ]);
   const allowedFiles = new Set([
     "lib/db/schema.sql",
+    "lib/ag-work-resume-imported-context.ts",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     designDocRelativePath,
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
     ...pointerDocRelativePaths,
     "package.json",
+    "scripts/ag-work-resume-imported-context-create.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
@@ -377,8 +381,9 @@ function assertNoUnexpectedChangedFiles() {
     );
     assert.ok(
       file === "lib/db/schema.sql" ||
+        file === "lib/ag-work-resume-imported-context.ts" ||
         !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
-      `imported context schema follow-up must not touch runtime/UI/browser files outside schema.sql: ${file}`,
+      `imported context follow-up must not touch runtime/UI/browser files outside schema.sql or writer core: ${file}`,
     );
   }
 }

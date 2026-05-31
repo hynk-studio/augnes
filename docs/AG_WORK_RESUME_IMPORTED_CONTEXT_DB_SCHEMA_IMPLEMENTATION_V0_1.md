@@ -177,6 +177,14 @@ Those future slices must restate the authority boundary and prove that imported
 context remains review metadata only unless user/Core separately approves a
 more specific behavior.
 
+The Stage D imported context writer/helper is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`. It creates only
+imported context review metadata rows from active confirmed mappings, validates
+actor/reason and redaction metadata, and adds no route, read route, Cockpit UI,
+proof/evidence recording, session binding, Codex execution, work item/event
+creation, confirmed mapping/proposal mutation, or approval, publish, retry,
+replay, or merge authority.
+
 Proof/evidence, session, and Codex gates remain separate.
 
 ## Browser Verification
