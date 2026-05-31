@@ -335,6 +335,10 @@ persistence, work-item or mapping creation, proof/evidence writes, session
 binding, Codex execution, approval, publish, retry, replay, merge, or state
 mutation controls.
 
+Future real-packet mapping/import remains governed by
+`docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`; current surfaces
+remain read-only and do not implement that design.
+
 Future only:
 
 - Persistent import.
