@@ -359,9 +359,11 @@ relay, or runtime contract in this PR.
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md`.
 6. Confirmed mapping read helper/route:
    `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md`.
-7. Confirmed mapping Cockpit review/control UI, only if separately approved.
-8. Imported resume context design as Stage D.
-9. Proof/evidence/session/Codex gates remain separate.
+7. Confirmed mapping read-only Cockpit review panel:
+   `docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_COCKPIT_PANEL_V0_1.md`.
+8. Confirmed mapping lifecycle/control UI, only if separately approved.
+9. Imported resume context design as Stage D.
+10. Proof/evidence/session/Codex gates remain separate.
 
 Each future PR must restate the authority boundary and prove it does not grant
 unscoped downstream authority.
@@ -377,6 +379,7 @@ Run:
 ```bash
 npm run typecheck
 npm run smoke:ag-work-resume-confirmed-mapping-read
+npm run smoke:ag-work-resume-confirmed-mapping-read-cockpit-panel
 npm run smoke:ag-work-resume-confirmed-mapping-record-design
 npm run smoke:ag-work-resume-mapping-proposal-lifecycle-action-cockpit-panel
 npm run smoke:ag-work-resume-mapping-proposal-lifecycle-action-route
