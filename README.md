@@ -1,10 +1,5 @@
 # Augnes
 
-> **Status:** Augnes is under active Augnes-on-Augnes dogfooding.
-> We use Augnes itself to plan, hand off, review, and refine Augnes development,
-> continuously improving its temporal perspective, cross-session continuity, and
-> practical usability.
-
 ## What it is
 
 Augnes is a local runtime for AI-assisted project work. It keeps proposed
@@ -175,6 +170,9 @@ curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq '.age
    MCP Inspector.
 
 ## Augnes-on-Augnes evaluation
+
+Augnes is being evaluated through its own development workflow as bounded
+dogfooding and research practice.
 
 The repo-local dogfooding docs are:
 
