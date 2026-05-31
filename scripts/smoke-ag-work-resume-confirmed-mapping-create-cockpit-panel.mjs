@@ -523,6 +523,8 @@ function assertChangedFilesGuard() {
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_READ_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_WRITER_V0_1.md",
+    "docs/AG_WORK_RESUME_CONFIRMED_MAPPING_RECORD_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "package.json",
     "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md",
@@ -532,6 +534,8 @@ function assertChangedFilesGuard() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-db-schema.mjs",
+    "scripts/smoke-ag-work-resume-confirmed-mapping-record-design.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
   ]);
   for (const file of changedFiles) {
     assert.ok(

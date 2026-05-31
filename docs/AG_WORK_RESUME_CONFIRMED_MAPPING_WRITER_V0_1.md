@@ -48,6 +48,10 @@ merge authority.
   documents the separately scoped Operator panel over the existing `POST`
   route. It calls this writer only through that route and adds no writer
   behavior.
+- Stage D imported context record design:
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents the
+  future imported resume context review metadata record. This writer does not
+  import context or create imported context records.
 
 This writer is the first write boundary for confirmed mapping rows. It adds no
 route/UI and no schema/migration.

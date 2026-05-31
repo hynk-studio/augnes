@@ -249,6 +249,11 @@ PRs:
   Codex execution, approval, publish, retry, replay, or merge authority.
 - **Stage D: imported resume context record**. Future write stage requiring
   explicit user/Core action and schema. It writes bounded review metadata only.
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents the
+  Stage D imported resume context record design; it is design-only and adds no
+  schema, migration, writer/helper, route, UI, import rows, proof/evidence,
+  session binding, Codex execution, approval, publish, retry, replay, or merge
+  authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and
@@ -341,10 +346,20 @@ not approve or merge anything.
 A possible future persisted imported resume context record shape, not
 implemented in this PR, might include:
 
+The fuller Stage D design-only contract is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`.
+
 ```json
 {
-  "import_id": "ag-resume-import:example",
-  "mapping_id": "ag-resume-mapping:example",
+  "import_id": "ag-resume-imported-context:example",
+  "record_kind": "ag_work_resume_imported_context",
+  "schema": "augnes.ag_work_resume_imported_context.v0_1",
+  "status": "review_metadata",
+  "mapping_id": "ag-resume-confirmed-mapping:example",
+  "foreign_scope": "project:source",
+  "foreign_work_id": "AG-FOREIGN-1",
+  "local_scope": "project:augnes",
+  "local_work_id": "AG-LOCAL-1",
   "packet_id": "resume-packet:example",
   "packet_hash": "sha256:example",
   "source_runtime_instance_id": "runtime-instance:source",
@@ -354,17 +369,21 @@ implemented in this PR, might include:
   "foreign_refs_summary": {},
   "redaction_report": {
     "secrets_included": false,
-    "raw_db_paths_included": false
+    "raw_db_paths_included": false,
+    "session_payloads_included": false,
+    "proof_payloads_included": false
   },
   "created_by": "user-core",
   "created_at": "2026-05-31T00:00:00.000Z",
-  "status": "review_metadata",
   "authority_boundary": {
     "review_metadata_only": true,
-    "not_proof_evidence": true,
-    "not_committed_state_authority": true,
-    "not_approval": true,
-    "does_not_start_codex": true
+    "confirmed_mapping_required": true,
+    "proof_recorded": false,
+    "evidence_recorded": false,
+    "session_bound": false,
+    "codex_executed": false,
+    "approval_granted": false,
+    "merge_authority": false
   }
 }
 ```

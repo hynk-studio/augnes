@@ -36,6 +36,10 @@ persistence. The separately scoped Cockpit read panel is documented in
   `POST` create route and does not call this `GET` read route.
 - Mapping/import authority gate:
   `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`.
+- Stage D imported context record design:
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md` documents a
+  future review metadata record after confirmed mapping. This read helper/route
+  does not create imported context records.
 
 ## Shared Reader Core
 
