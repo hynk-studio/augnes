@@ -69,6 +69,12 @@ It is design-only and defines the future helper contract for one separately
 approved candidate-to-evidence recording attempt. It does not implement the
 writer/helper or create bridge/evidence/action rows.
 
+The proof/evidence recording route gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and defines a future POST invocation boundary over the
+writer/helper. It does not implement the route, add UI/Cockpit controls,
+change schema, mutate source rows, or authorize recording.
+
 ## Proposed Table
 
 Proposed table name:

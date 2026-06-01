@@ -142,6 +142,13 @@ implement a writer/helper, route/UI, bridge row creation, verification evidence
 row creation, action record creation, candidate mutation, session binding,
 Codex continuation, or approval/publish/retry/replay/merge authority.
 
+The proof/evidence recording route gate is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and defines a future POST invocation boundary over the
+writer/helper. It does not implement the route, add UI/Cockpit controls,
+weaken helper validation, create bridge/evidence/action rows, bind sessions,
+continue Codex, or grant approval/publish/retry/replay/merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

@@ -79,6 +79,13 @@ route/UI, bridge row creation, verification evidence row creation, action
 record creation, session binding, Codex continuation, or approval/publish/retry/replay/merge
 authority.
 
+Proof/evidence recording route gate design pointer:
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`
+defines a future POST route invocation boundary over the writer/helper. It is
+not route implementation, not UI/Cockpit authority, not proof/evidence
+recording authority, not session binding, not Codex continuation, and not
+approval/publish/retry/replay/merge authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:

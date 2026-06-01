@@ -586,8 +586,9 @@ Later PRs should proceed in this order:
 3. Local CLI/script boundary PR only if it remains a thin explicit caller for
    the helper and does not create new authority.
 4. Read-surface PR showing evidence/bridge links without candidate mutation.
-5. Route design PR, then route implementation PR, only after helper behavior is
-   proven.
+5. Route gate design PR, tracked in
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`,
+   then route implementation PR, only after helper behavior is proven.
 6. UI design PR, then UI implementation PR, only after route behavior is
    approved.
 
@@ -595,6 +596,12 @@ The future local script boundary must require explicit inputs and approval
 payload. It must print one JSON result, must not start servers, must not open
 Browser, must not bind sessions, must not continue Codex, and must not create a
 package script that runs recording without explicit per-attempt arguments.
+
+The proof/evidence recording route invocation gate is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and does not add route implementation, UI/Cockpit controls,
+schema/migration, writer/helper changes, bridge rows, verification evidence
+rows, action records, or approval/publish/retry/replay/merge authority.
 
 ## Smoke Expectations
 

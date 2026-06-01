@@ -369,10 +369,12 @@ function assertNoUnexpectedChangedFiles() {
     bridgeTableMigrationPolicySmokeRelativePath,
     bridgeTableSchemaSmokeRelativePath,
     reviewMetadataCloseoutSmokeRelativePath,
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
     "lib/ag-work-resume-proof-evidence-recording.ts",
     "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
@@ -475,6 +477,7 @@ function assertNoForbiddenImplementationCode() {
       file !== reviewMetadataCloseoutSmokeRelativePath &&
       file !== "scripts/ag-work-resume-proof-evidence-recording-create.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
