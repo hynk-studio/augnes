@@ -130,10 +130,15 @@ the approved option.
 
 Future Sidecar descriptor, fixture, or harness work must prove:
 
+- no calls to `createAgWorkResumeProofEvidenceRecordingFromCandidate`
+- no calls to or wrappers around
+  `npm run ag:resume-proof-evidence-recording-create`
+- no dependency on AG Resume proof/evidence recording writer/helper outputs
 - no bridge-table rows
 - no `verification_evidence_records` rows
 - no `action_records` rows
 - no proof/evidence/readiness writes
+- no QP evidence or `z_t` commits
 - no AG Resume reconciliation/import/mapping/proposal/approval/publication/
   delivery mutation
 - no package-script collisions with `ag:resume-*`
