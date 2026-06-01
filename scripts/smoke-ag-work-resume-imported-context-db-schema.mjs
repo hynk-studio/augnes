@@ -64,7 +64,7 @@ try {
   const schemaSource = readFileSync(schemaPath, "utf8");
   assertSchemaSource(schemaSource);
   assertDocs();
-  assertNoImportedContextRuntimeSurfaces();
+  assertNoImportedContextRouteOrUiSurfaces();
 
   runNpmScript("db:reset", tempDbPath);
   inspectMigratedDatabase(tempDbPath, "reset");
@@ -86,7 +86,7 @@ try {
         constraints_passed: true,
         fixture_insert_rolled_back: true,
         migration_idempotency_passed: true,
-        no_runtime_writer_surface_passed: true,
+        no_route_read_ui_surface_passed: true,
         docs_guard_passed: true,
         source_guard_passed: true,
       },
@@ -396,18 +396,16 @@ function assertDocs() {
   }
 }
 
-function assertNoImportedContextRuntimeSurfaces() {
+function assertNoImportedContextRouteOrUiSurfaces() {
   for (const relativePath of [
-    "lib/ag-work-resume-imported-context.ts",
     "lib/ag-work-resume-imported-context-read.ts",
-    "scripts/ag-work-resume-imported-context-create.mjs",
     "scripts/ag-work-resume-imported-context-read.mjs",
     "app/api/ag-work-resume/imported-contexts/route.ts",
   ]) {
     assert.equal(
       existsSync(path.join(rootDir, relativePath)),
       false,
-      `${relativePath} must not exist in schema-only slice`,
+      `${relativePath} must not exist in imported context writer/helper slice`,
     );
   }
 }
@@ -423,7 +421,11 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
+    "lib/ag-work-resume-imported-context.ts",
+    "scripts/ag-work-resume-imported-context-create.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
@@ -448,8 +450,10 @@ function assertNoUnexpectedChangedFiles() {
       `changed file is outside imported context schema slice: ${file}`,
     );
     assert.ok(
-      file === "lib/db/schema.sql" || !file.startsWith("lib/"),
-      `lib changes limited to schema.sql in this slice: ${file}`,
+      file === "lib/db/schema.sql" ||
+        file === "lib/ag-work-resume-imported-context.ts" ||
+        !file.startsWith("lib/"),
+      `lib changes limited to schema.sql or imported context writer core in this slice: ${file}`,
     );
     assert.ok(
       !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
