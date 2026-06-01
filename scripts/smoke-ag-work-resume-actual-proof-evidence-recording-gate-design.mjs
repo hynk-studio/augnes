@@ -8,6 +8,8 @@ const schemaIntegrationPolicyPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md";
 const bridgeDesignPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md";
+const bridgeMigrationPolicyPath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md";
 const closeoutPath =
   "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md";
 const authorityGatePath =
@@ -24,6 +26,7 @@ for (const path of [
   designPath,
   schemaIntegrationPolicyPath,
   bridgeDesignPath,
+  bridgeMigrationPolicyPath,
   closeoutPath,
   authorityGatePath,
   sessionCodexGatePath,
@@ -232,12 +235,14 @@ const allowedChangedFiles = new Set([
   designPath,
   schemaIntegrationPolicyPath,
   bridgeDesignPath,
+  bridgeMigrationPolicyPath,
   closeoutPath,
   authorityGatePath,
   sessionCodexGatePath,
   reconciliationDesignPath,
   lifecycleDocPath,
   "package.json",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
   "scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs",

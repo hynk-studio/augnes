@@ -41,11 +41,20 @@ This bridge-table schema design follows and preserves these controlling docs:
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`
 - `docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`
 
 Those docs remain controlling for review-metadata, mapping/import,
 proof/evidence/session/Codex, reconciliation, candidate lifecycle, recording
 gate, and schema/integration policy boundaries. This document only designs a
 future bridge-table schema.
+
+The bridge-table migration/DDL policy is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`.
+It is design-only and documents future DDL/migration expectations without
+modifying `lib/db/schema.sql`, adding migration files, creating the bridge
+table, recording proof/evidence, creating evidence/action rows, binding
+sessions, continuing Codex, or granting approval/publish/retry/replay/merge
+authority.
 
 ## Proposed Table
 

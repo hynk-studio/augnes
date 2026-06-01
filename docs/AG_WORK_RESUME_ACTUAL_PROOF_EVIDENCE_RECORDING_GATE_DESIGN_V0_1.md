@@ -284,6 +284,13 @@ It is design-only and does not add schema/migration, modify
 `lib/db/schema.sql`, create bridge rows, create verification evidence rows,
 create action records, or authorize actual proof/evidence recording.
 
+The bridge-table migration/DDL policy is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`.
+It is design-only and documents future CREATE TABLE/index/constraint policy
+without adding schema/migration, modifying `lib/db/schema.sql`, adding
+migration files, creating the bridge table, creating verification evidence
+rows, creating action records, or authorizing actual proof/evidence recording.
+
 ## Future Route/Helper/UI Implementation Sequence
 
 Later PRs should stay split and reviewable:
