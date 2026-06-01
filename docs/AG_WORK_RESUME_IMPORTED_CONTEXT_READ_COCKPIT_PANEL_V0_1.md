@@ -35,10 +35,15 @@ Related documents:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The panel does not call that writer route. It only submits
 query parameters to the existing GET route and renders the route result.
+Future proof/evidence reconciliation, session binding, and Codex continuation
+gates are documented as design-only in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md` and
+remain outside this read-only panel.
 
 ## Allowed UI
 

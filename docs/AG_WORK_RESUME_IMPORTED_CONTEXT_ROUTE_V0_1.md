@@ -32,6 +32,12 @@ schema/migration, read route behavior, proof/evidence, session, Codex, work
 item/event, confirmed mapping/proposal mutation, approval, publish, retry,
 replay, or merge authority.
 
+The future proof/evidence/session/Codex gate contract is design-only in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`.
+It keeps imported context review metadata separate from proof/evidence
+reconciliation, session binding, Codex continuation, approval, publish, retry,
+replay, and merge authority.
+
 ## Route
 
 Endpoint:

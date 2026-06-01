@@ -33,12 +33,19 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
 This read helper/route only reads imported context rows already present in
 `ag_work_resume_imported_contexts`; it does not join proposal, confirmed
 mapping, work, proof/evidence, session, or Codex tables.
+
+The future proof/evidence/session/Codex gate contract is design-only in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`.
+It does not change this read helper/GET route and does not authorize
+proof/evidence recording, session binding, Codex continuation, approval,
+publish, retry, replay, or merge.
 
 ## Read Filters
 

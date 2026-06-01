@@ -56,6 +56,12 @@ does not change this writer/helper core, schema, read route behavior,
 proof/evidence, session, Codex, work, confirmed mapping/proposal, approval,
 publish, retry, replay, or merge behavior.
 
+The future proof/evidence/session/Codex gate contract is design-only in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`.
+It defines separate future gates and does not change this writer/helper or
+authorize proof/evidence recording, session binding, Codex continuation,
+approval, publish, retry, replay, or merge.
+
 ## Core API
 
 Core module:
