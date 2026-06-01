@@ -47,12 +47,6 @@ for (const path of [
   assert.equal(existsSync(path), true, `Missing required input: ${path}`);
 }
 
-assert.equal(
-  existsSync(futureRoutePath),
-  false,
-  "route gate design PR must not add the future route implementation",
-);
-
 const design = readFileSync(routeDesignPath, "utf8");
 const pointerDocs = [
   writerHelperGatePath,
@@ -198,6 +192,8 @@ const allowedChangedFiles = new Set([
   lifecycleDocPath,
   packagePath,
   smokePath,
+  futureRoutePath,
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
@@ -220,8 +216,7 @@ assert.deepEqual(
 assert.deepEqual(
   changedFiles.filter(
     (file) =>
-      file.startsWith("app/") ||
-      file.startsWith("app/api/") ||
+      (file.startsWith("app/") && file !== futureRoutePath) ||
       file.startsWith("components/") ||
       file.startsWith("pages/") ||
       file.startsWith("public/") ||
@@ -240,15 +235,16 @@ console.log(
   JSON.stringify(
     {
       smoke: "ag-work-resume-proof-evidence-recording-route-gate-design",
-      route_gate_design_doc_exists: true,
-      design_only_boundary: true,
-      proposed_route_path:
+  route_gate_design_doc_exists: true,
+  design_only_boundary: true,
+  route_implementation_allowed_after_design: existsSync(futureRoutePath),
+  proposed_route_path:
         "POST /api/ag-work-resume/proof-evidence-recordings",
       application_json_required: true,
       unsupported_fields_rejected: true,
       exact_user_core_approval_required: true,
       helper_only_future_delegation: true,
-      no_route_implementation_files_added: true,
+      route_gate_design_boundary_preserved: true,
       no_ui_cockpit_files_added: true,
       no_runtime_schema_migration_route_ui_browser_files_changed: true,
     },

@@ -216,6 +216,8 @@ const allowedChangedFiles = new Set([
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
   "lib/ag-work-resume-proof-evidence-recording.ts",
   "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+  "app/api/ag-work-resume/proof-evidence-recordings/route.ts",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
@@ -240,8 +242,6 @@ assert.deepEqual(
 );
 
 const forbiddenChangedPrefixes = [
-  "app/",
-  "app/api/",
   "components/",
   "pages/",
   "public/",
@@ -251,6 +251,8 @@ const forbiddenChangedPrefixes = [
   "reports/browser/",
 ];
 const runtimeSchemaOrBrowserChanged = changedFiles.filter((file) =>
+  (file.startsWith("app/") &&
+    file !== "app/api/ag-work-resume/proof-evidence-recordings/route.ts") ||
   forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
   (file.startsWith("lib/") &&
     file !== "lib/ag-work-resume-proof-evidence-recording.ts"),

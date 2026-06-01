@@ -800,6 +800,8 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
+    "app/api/ag-work-resume/proof-evidence-recordings/route.ts",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
     smokeRelativePath,
     "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
@@ -824,8 +826,8 @@ function assertNoUnexpectedChangedFiles() {
 function assertNoWriterRouteUiChanges() {
   const forbiddenFiles = gitChangedFiles().filter(
     (file) =>
-      file.startsWith("app/") ||
-      file.startsWith("app/api/") ||
+      (file.startsWith("app/") &&
+        file !== "app/api/ag-work-resume/proof-evidence-recordings/route.ts") ||
       file.startsWith("components/") ||
       file.startsWith("pages/") ||
       file.startsWith("public/") ||
