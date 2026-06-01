@@ -48,6 +48,14 @@ creates no imported context rows, proof/evidence records, session rows, work
 items, work events, confirmed mapping rows, proposal rows, route, writer,
 helper, UI, Codex, approval, publish, retry, replay, or merge behavior.
 
+The later read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing GET reconciliation candidates route and adds no
+schema/migration, row creation, create/update/delete controls, lifecycle,
+proof/evidence/session behavior, Codex authority, work item/event creation,
+imported context/confirmed mapping/proposal mutation, approval, publish,
+retry, replay, or merge authority.
+
 ## Implemented Table
 
 Implemented table name:

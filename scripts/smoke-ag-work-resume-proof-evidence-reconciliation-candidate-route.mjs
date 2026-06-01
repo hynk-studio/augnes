@@ -653,6 +653,10 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
+    "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-writer.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",
@@ -673,10 +677,18 @@ function assertNoUnexpectedChangedFiles() {
         !file.startsWith("app/"),
       `app changes limited to candidate create route: ${file}`,
     );
-    assert.equal(file.startsWith("components/"), false, `no component change: ${file}`);
+    assert.ok(
+      file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),
+      `component changes limited to reconciliation candidate read Cockpit panel: ${file}`,
+    );
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
-    assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
+    assert.ok(
+      file ===
+        "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" ||
+        !file.startsWith("reports/browser/"),
+      `browser report changes limited to reconciliation candidate read Cockpit panel: ${file}`,
+    );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.ok(
       file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||

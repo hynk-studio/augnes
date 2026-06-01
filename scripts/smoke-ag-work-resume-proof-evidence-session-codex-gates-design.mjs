@@ -345,6 +345,10 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
+    "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     schemaRelativePath,
     candidateWriterCoreRelativePath,
     "package.json",
@@ -370,6 +374,9 @@ function assertNoUnexpectedChangedFiles() {
         file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" &&
         file !==
           "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+        file !== "components/augnes-cockpit.tsx" &&
+        file !==
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `gate follow-up must not touch runtime/UI/app/browser files: ${file}`,
@@ -403,6 +410,11 @@ function assertNoForbiddenImplementationCode() {
       file !==
         "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs" &&
+      file !== "components/augnes-cockpit.tsx" &&
+      file !==
+        "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
+      file !==
+        "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs" &&
       !file.startsWith("scripts/smoke-ag-work-resume-imported-context"),
   );
   assert.deepEqual(

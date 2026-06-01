@@ -71,6 +71,14 @@ POST create route, and does not record proof/evidence, bind sessions, execute
 Codex, create work items/events, mutate imported contexts, confirmed mappings,
 or proposals, or grant approval, publish, retry, replay, or merge authority.
 
+The candidate read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing GET route and renders candidate review metadata;
+it adds no create/update/delete, lifecycle, proof/evidence/session, Codex,
+work item/event creation, imported context/confirmed mapping/proposal
+mutation, schema/migration, approval, publish, retry, replay, or merge
+authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

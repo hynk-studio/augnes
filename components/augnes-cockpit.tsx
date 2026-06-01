@@ -839,6 +839,11 @@ type AgResumeImportedContextReadPanelResult = {
   body: AgResumeImportedContextReadRouteResponse;
 };
 
+type AgResumeReconciliationCandidateReadPanelResult = {
+  httpStatus: number;
+  body: AgResumeReconciliationCandidateReadRouteResponse;
+};
+
 type AgResumeImportedContextCreatePanelResult = {
   httpStatus: number;
   requestBody: AgResumeImportedContextCreateRequestBody;
@@ -1238,6 +1243,86 @@ type AgResumeImportedContextAuthorityBoundary = {
   evidence_recorded?: boolean;
   session_bound?: boolean;
   codex_executed?: boolean;
+  approval_granted?: boolean;
+  publish_retry_replay_authority?: boolean;
+  merge_authority?: boolean;
+  durable_approval?: string;
+  statement?: string;
+};
+
+type AgResumeReconciliationCandidateReadRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeReconciliationCandidateReadResult | null;
+  authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeReconciliationCandidateReadResult = {
+  ok?: boolean;
+  status?: string;
+  record?: AgResumeReconciliationCandidateRecord | null;
+  records?: AgResumeReconciliationCandidateRecord[];
+  filters?: {
+    candidate_id?: string | null;
+    import_id?: string | null;
+    mapping_id?: string | null;
+    foreign_ref_type?: string | null;
+    foreign_ref_id?: string | null;
+    local_target_scope?: string | null;
+    local_target_work_id?: string | null;
+    status?: string | null;
+    proposed_by?: string | null;
+    reviewed_by?: string | null;
+  };
+  limit?: number | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeReconciliationCandidateRecord = {
+  candidate_id?: string;
+  record_kind?: string;
+  schema?: string;
+  status?: string;
+  import_id?: string;
+  mapping_id?: string;
+  foreign_ref_type?: string;
+  foreign_ref_id?: string;
+  local_target_scope?: string;
+  local_target_work_id?: string;
+  summary?: string;
+  redaction_status?: Record<string, unknown>;
+  proposed_by?: string;
+  proposed_reason?: string;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  review_note?: string | null;
+  supersedes_candidate_id?: string | null;
+  superseded_by_candidate_id?: string | null;
+  authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type AgResumeReconciliationCandidateAuthorityBoundary = {
+  read_only?: boolean;
+  review_metadata_only?: boolean;
+  reconciliation_candidate_created?: boolean;
+  reconciliation_candidate_updated?: boolean;
+  reconciliation_candidate_deleted?: boolean;
+  proof_recorded?: boolean;
+  evidence_recorded?: boolean;
+  session_bound?: boolean;
+  codex_executed?: boolean;
+  work_item_created?: boolean;
+  work_event_created?: boolean;
+  imported_context_updated?: boolean;
+  confirmed_mapping_updated?: boolean;
+  proposal_record_updated?: boolean;
   approval_granted?: boolean;
   publish_retry_replay_authority?: boolean;
   merge_authority?: boolean;
@@ -1718,6 +1803,22 @@ const SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE = {
     "sha256:ebe5b5082fa668ec7f4abf939ed86878f7962daf70ea7eed9af7585433a3e490",
   status: "review_metadata",
   created_by: "user-core:imported-context-read-cockpit-panel",
+  limit: "20",
+} as const;
+
+const SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE = {
+  candidate_id:
+    "ag-resume-proof-evidence-reconciliation-candidate:7ed3b08fd4a64228a218ac62",
+  import_id: "ag-resume-imported-context:4be2de9f0a3e4e399f638bd0",
+  mapping_id: "ag-resume-confirmed-mapping:51b31dc1d4914502b23c6a3b",
+  foreign_ref_type: "proof",
+  foreign_ref_id: "proof:foreign-public-safe:reconciliation-candidate-read-001",
+  local_target_scope: "project:augnes",
+  local_target_work_id:
+    "AG-FIXTURE-RECONCILIATION-CANDIDATE-READ-LOCAL-001",
+  status: "proposed",
+  proposed_by: "user-core:reconciliation-candidate-read-cockpit-panel",
+  reviewed_by: "user-core:reconciliation-candidate-reviewer-cockpit-panel",
   limit: "20",
 } as const;
 
@@ -4051,6 +4152,7 @@ function OperatorTab({
           <AgResumeConfirmedMappingReadPanel />
           <AgResumeImportedContextCreatePanel />
           <AgResumeImportedContextReadPanel />
+          <AgResumeReconciliationCandidateReadPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -9032,6 +9134,929 @@ function AgResumeImportedContextCard({
           </div>
         </section>
         <AgResumeImportedContextAuthorityBoundary
+          title="Record Authority Boundary"
+          authorityBoundary={record.authority_boundary ?? null}
+        />
+      </div>
+    </article>
+  );
+}
+
+function AgResumeReconciliationCandidateReadPanel() {
+  const [candidateId, setCandidateId] = useState("");
+  const [importId, setImportId] = useState("");
+  const [mappingId, setMappingId] = useState("");
+  const [foreignRefType, setForeignRefType] = useState("");
+  const [foreignRefId, setForeignRefId] = useState("");
+  const [localTargetScope, setLocalTargetScope] = useState("");
+  const [localTargetWorkId, setLocalTargetWorkId] = useState("");
+  const [status, setStatus] = useState("");
+  const [proposedBy, setProposedBy] = useState("");
+  const [reviewedBy, setReviewedBy] = useState("");
+  const [limit, setLimit] = useState<string>(
+    SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit,
+  );
+  const [result, setResult] =
+    useState<AgResumeReconciliationCandidateReadPanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function loadSafeReconciliationCandidateIdFixture() {
+    setCandidateId(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.candidate_id,
+    );
+    setImportId("");
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus("");
+    setProposedBy("");
+    setReviewedBy("");
+    setLimit("");
+    clearResultState();
+  }
+
+  function loadSafeReconciliationCandidateImportFixture() {
+    setCandidateId("");
+    setImportId(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.import_id);
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus("");
+    setProposedBy("");
+    setReviewedBy("");
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeReconciliationCandidateMappingFixture() {
+    setCandidateId("");
+    setImportId("");
+    setMappingId(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.mapping_id,
+    );
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus("");
+    setProposedBy("");
+    setReviewedBy("");
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeReconciliationCandidateForeignRefFixture() {
+    setCandidateId("");
+    setImportId("");
+    setMappingId("");
+    setForeignRefType(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.foreign_ref_type,
+    );
+    setForeignRefId(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.foreign_ref_id,
+    );
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus("");
+    setProposedBy("");
+    setReviewedBy("");
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeReconciliationCandidateLocalTargetFixture() {
+    setCandidateId("");
+    setImportId("");
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.local_target_scope,
+    );
+    setLocalTargetWorkId(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.local_target_work_id,
+    );
+    setStatus("");
+    setProposedBy("");
+    setReviewedBy("");
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeReconciliationCandidateStatusFixture() {
+    setCandidateId("");
+    setImportId("");
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.status);
+    setProposedBy("");
+    setReviewedBy("");
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeReconciliationCandidateProposedByFixture() {
+    setCandidateId("");
+    setImportId("");
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus("");
+    setProposedBy(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.proposed_by,
+    );
+    setReviewedBy("");
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeReconciliationCandidateReviewedByFixture() {
+    setCandidateId("");
+    setImportId("");
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus("");
+    setProposedBy("");
+    setReviewedBy(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.reviewed_by,
+    );
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function clearReconciliationCandidateInputs() {
+    requestIdRef.current += 1;
+    setCandidateId("");
+    setImportId("");
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setStatus("");
+    setProposedBy("");
+    setReviewedBy("");
+    setLimit(SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE.limit);
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleReconciliationCandidateReadSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let searchParams: URLSearchParams;
+    try {
+      searchParams = buildReconciliationCandidateReadSearchParams({
+        candidateId,
+        importId,
+        mappingId,
+        foreignRefType,
+        foreignRefId,
+        localTargetScope,
+        localTargetWorkId,
+        status,
+        proposedBy,
+        reviewedBy,
+        limit,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(
+        `/api/ag-work-resume/proof-evidence-reconciliation-candidates?${searchParams.toString()}`,
+        { method: "GET" },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Reconciliation candidate read route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Reconciliation candidate read route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body =
+        parsedBody as AgResumeReconciliationCandidateReadRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "read failed";
+        setError(`Reconciliation candidate read route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Reconciliation candidate read route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-reconciliation-candidate-read-panel"
+      aria-label="AG Resume Proof Evidence Reconciliation Candidate Review"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Reconciliation Candidate Review"
+        description="Read-only review over proof/evidence reconciliation candidate metadata."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>Read-only reconciliation candidate review metadata only.</li>
+          <li>Candidate rows are not proof/evidence.</li>
+          <li>Calls only the existing GET reconciliation candidates route.</li>
+          <li>Not proof/evidence recording, not session binding, and not Codex.</li>
+          <li>
+            Not work item/event creation and not imported context/confirmed
+            mapping/proposal mutation.
+          </li>
+          <li>
+            Not approval, publish, retry, replay, or merge authority. Durable
+            approval remains user/Core gated.
+          </li>
+          <li>
+            No create, update, delete, lifecycle, proof/evidence, session,
+            Codex, work, approval, bridge, MCP/App, Direct Resume Code, relay,
+            or browser persistence controls.
+          </li>
+        </ul>
+      </BoundaryNote>
+      <form
+        className="observe-form"
+        onSubmit={handleReconciliationCandidateReadSubmit}
+      >
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-safe-fixtures-heading">
+            Reconciliation candidate safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe lookup filters into local
+            React state only. They do not create rows, update rows, call routes,
+            or persist browser state.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateIdFixture}
+              disabled={busy}
+            >
+              Load safe candidate lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateImportFixture}
+              disabled={busy}
+            >
+              Load safe import lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateMappingFixture}
+              disabled={busy}
+            >
+              Load safe mapping lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateForeignRefFixture}
+              disabled={busy}
+            >
+              Load safe foreign ref lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateLocalTargetFixture}
+              disabled={busy}
+            >
+              Load safe local target lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateStatusFixture}
+              disabled={busy}
+            >
+              Load safe status lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateProposedByFixture}
+              disabled={busy}
+            >
+              Load safe proposer lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateReviewedByFixture}
+              disabled={busy}
+            >
+              Load safe reviewer lookup
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-inputs-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-inputs-heading">
+            Reconciliation candidate lookup inputs
+          </h3>
+          <label htmlFor="ag-resume-reconciliation-candidate-candidate-id-input">
+            candidate_id
+          </label>
+          <p
+            id="ag-resume-reconciliation-candidate-candidate-id-help"
+            className="notice"
+          >
+            Fetches one reconciliation candidate. Leave every list filter and
+            limit empty when using candidate_id.
+          </p>
+          <input
+            id="ag-resume-reconciliation-candidate-candidate-id-input"
+            value={candidateId}
+            onChange={(event) => setCandidateId(event.target.value)}
+            aria-describedby="ag-resume-reconciliation-candidate-candidate-id-help"
+            placeholder="ag-resume-proof-evidence-reconciliation-candidate:..."
+          />
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Import filter</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-import-id-input">
+                import_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-import-id-input"
+                value={importId}
+                onChange={(event) => setImportId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-import-mapping-help"
+                placeholder="ag-resume-imported-context:..."
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-mapping-id-input">
+                mapping_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-mapping-id-input"
+                value={mappingId}
+                onChange={(event) => setMappingId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-import-mapping-help"
+                placeholder="ag-resume-confirmed-mapping:..."
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-import-mapping-help"
+                className="notice"
+              >
+                Lists candidate review metadata for one imported context or
+                confirmed mapping identity.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Foreign ref filter</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-foreign-ref-type-input">
+                foreign_ref_type
+              </label>
+              <select
+                id="ag-resume-reconciliation-candidate-foreign-ref-type-input"
+                value={foreignRefType}
+                onChange={(event) => setForeignRefType(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-foreign-ref-help"
+              >
+                <option value="">Any foreign ref type filter omitted</option>
+                <option value="proof">proof</option>
+                <option value="evidence">evidence</option>
+                <option value="action">action</option>
+                <option value="session">session</option>
+                <option value="git">git</option>
+                <option value="evidence_pack">evidence_pack</option>
+                <option value="handoff">handoff</option>
+                <option value="other">other</option>
+              </select>
+              <label htmlFor="ag-resume-reconciliation-candidate-foreign-ref-id-input">
+                foreign_ref_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-foreign-ref-id-input"
+                value={foreignRefId}
+                onChange={(event) => setForeignRefId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-foreign-ref-help"
+                placeholder="proof:foreign-public-safe:..."
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-foreign-ref-help"
+                className="notice"
+              >
+                Both foreign_ref_type and foreign_ref_id are required for this
+                list filter. Foreign refs remain foreign until separately
+                reconciled.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Local target filter</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-local-target-scope-input">
+                local_target_scope
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-local-target-scope-input"
+                value={localTargetScope}
+                onChange={(event) => setLocalTargetScope(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-local-target-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-local-target-work-id-input">
+                local_target_work_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-local-target-work-id-input"
+                value={localTargetWorkId}
+                onChange={(event) => setLocalTargetWorkId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-local-target-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-local-target-help"
+                className="notice"
+              >
+                Both local_target_scope and local_target_work_id are required
+                for this list filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Status, actor, and limit filter</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-status-input">
+                status
+              </label>
+              <select
+                id="ag-resume-reconciliation-candidate-status-input"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-status-actor-limit-help"
+              >
+                <option value="">Any status filter omitted</option>
+                <option value="proposed">proposed</option>
+                <option value="accepted_for_future_recording">
+                  accepted_for_future_recording
+                </option>
+                <option value="rejected">rejected</option>
+                <option value="deferred">deferred</option>
+                <option value="superseded">superseded</option>
+                <option value="withdrawn">withdrawn</option>
+                <option value="revoked">revoked</option>
+              </select>
+              <label htmlFor="ag-resume-reconciliation-candidate-proposed-by-input">
+                proposed_by
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-proposed-by-input"
+                value={proposedBy}
+                onChange={(event) => setProposedBy(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-status-actor-limit-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-reviewed-by-input">
+                reviewed_by
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-reviewed-by-input"
+                value={reviewedBy}
+                onChange={(event) => setReviewedBy(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-status-actor-limit-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-limit-input">
+                limit
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-limit-input"
+                value={limit}
+                onChange={(event) => setLimit(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-status-actor-limit-help"
+                inputMode="numeric"
+                placeholder="20"
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-status-actor-limit-help"
+                className="notice"
+              >
+                Limit applies to list reads only. The route defaults to 20 and
+                caps large positive values.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-action-controls-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-action-controls-heading">
+            Reconciliation candidate read controls
+          </h3>
+          <BoundaryNote>
+            The read action calls only the existing GET reconciliation
+            candidates route. It does not call a writer route and does not
+            expose create, update, delete, lifecycle, proof/evidence, session,
+            Codex, work, approval, bridge, MCP/App, Direct Resume Code, or
+            relay controls.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearReconciliationCandidateInputs}
+            >
+              Clear reconciliation candidate inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy
+                ? "Reading reconciliation candidates"
+                : "Read reconciliation candidates"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-reconciliation-candidate-read-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeReconciliationCandidateReadResults result={result} />
+      ) : (
+        <EmptyState
+          label="No reconciliation candidate read yet."
+          description="Enter one supported lookup filter to read reconciliation candidate review metadata."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeReconciliationCandidateReadResults({
+  result,
+}: {
+  result: AgResumeReconciliationCandidateReadPanelResult;
+}) {
+  const { body } = result;
+  const readResult = body.result ?? null;
+  const records = readResult?.records ?? [];
+  const routeAuthorityBoundary =
+    body.authority_boundary ?? readResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-reconciliation-candidate-read-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-reconciliation-candidate-read-result-heading">
+        Reconciliation candidate read result
+      </h3>
+      <BoundaryNote tone="green">
+        Reconciliation candidate reads expose review metadata only. Candidate
+        rows are not proof/evidence, proof/evidence recording, session binding,
+        Codex execution, work item/event creation, imported context/confirmed
+        mapping/proposal mutation, or approval, publish, retry, replay, or
+        merge authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>
+          route recommended_next_step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      {readResult?.recommended_next_step ? (
+        <BoundaryNote>
+          reader recommended_next_step: {readResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>proof-evidence-reconciliation-candidates GET route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Reader status</h3>
+          <p>{readResult?.status ?? body.error ?? "unknown"}</p>
+          <small>fetched/listed/not_found/invalid_input/db_error</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Record count</h3>
+          <p>{records.length}</p>
+          <small>reconciliation candidate review metadata records</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Limit</h3>
+          <p>{readResult?.limit ?? "single fetch or unavailable"}</p>
+          <small>bounded list reads only</small>
+        </section>
+      </div>
+      <AgResumeReconciliationCandidateReadFilters
+        filters={readResult?.filters ?? null}
+      />
+      <AgResumeStringList
+        title="Warnings"
+        items={readResult?.warnings ?? []}
+        emptyLabel="No reconciliation candidate read warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={readResult?.failures ?? []}
+        emptyLabel="No reconciliation candidate read failures."
+      />
+      <AgResumeReconciliationCandidateAuthorityBoundary
+        title="Read Authority Boundary"
+        authorityBoundary={routeAuthorityBoundary}
+      />
+      {records.length === 0 ? (
+        <EmptyState
+          label="No reconciliation candidates returned."
+          description="The read route found no reconciliation candidate review metadata for the supplied filter."
+        />
+      ) : (
+        <div className="evidence-pack-grid">
+          {records.map((record, index) => (
+            <AgResumeReconciliationCandidateCard
+              key={record.candidate_id ?? `reconciliation-candidate-${index}`}
+              record={record}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgResumeReconciliationCandidateReadFilters({
+  filters,
+}: {
+  filters: AgResumeReconciliationCandidateReadResult["filters"] | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Applied filters</h3>
+      <div className="meta-row">
+        <span>candidate_id: {filters?.candidate_id ?? "none"}</span>
+        <span>import_id: {filters?.import_id ?? "none"}</span>
+        <span>mapping_id: {filters?.mapping_id ?? "none"}</span>
+        <span>foreign_ref_type: {filters?.foreign_ref_type ?? "none"}</span>
+        <span>foreign_ref_id: {filters?.foreign_ref_id ?? "none"}</span>
+        <span>
+          local_target_scope: {filters?.local_target_scope ?? "none"}
+        </span>
+        <span>
+          local_target_work_id: {filters?.local_target_work_id ?? "none"}
+        </span>
+        <span>status: {filters?.status ?? "none"}</span>
+        <span>proposed_by: {filters?.proposed_by ?? "none"}</span>
+        <span>reviewed_by: {filters?.reviewed_by ?? "none"}</span>
+      </div>
+    </section>
+  );
+}
+
+function AgResumeReconciliationCandidateAuthorityBoundary({
+  title,
+  authorityBoundary,
+}: {
+  title: string;
+  authorityBoundary: AgResumeReconciliationCandidateAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {authorityBoundary ? (
+        <>
+          <p>
+            {authorityBoundary.statement ??
+              "No reconciliation candidate authority boundary statement returned."}
+          </p>
+          <div className="meta-row">
+            <span>read_only: {formatAgResumeBoolean(authorityBoundary.read_only)}</span>
+            <span>
+              review_metadata_only:{" "}
+              {formatAgResumeBoolean(authorityBoundary.review_metadata_only)}
+            </span>
+            <span>
+              reconciliation_candidate_created:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.reconciliation_candidate_created,
+              )}
+            </span>
+            <span>
+              reconciliation_candidate_updated:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.reconciliation_candidate_updated,
+              )}
+            </span>
+            <span>
+              reconciliation_candidate_deleted:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.reconciliation_candidate_deleted,
+              )}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              evidence_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.evidence_recorded)}
+            </span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              imported_context_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_updated)}
+            </span>
+            <span>
+              confirmed_mapping_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_updated)}
+            </span>
+            <span>
+              proposal_record_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_updated)}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No reconciliation candidate authority boundary returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeReconciliationCandidateCard({
+  record,
+}: {
+  record: AgResumeReconciliationCandidateRecord;
+}) {
+  return (
+    <article className="evidence-pack-card evidence-pack-card-wide">
+      <div className="card-topline">
+        <div>
+          <h3>{record.candidate_id ?? "unknown candidate_id"}</h3>
+          <p>{record.summary ?? "No reconciliation candidate summary returned."}</p>
+        </div>
+        <StatusBadge label={record.status ?? "unknown"} />
+      </div>
+      <div className="meta-row">
+        <span>record_kind: {record.record_kind ?? "unknown"}</span>
+        <span>schema: {record.schema ?? "unknown"}</span>
+        <span>import_id: {record.import_id ?? "unknown"}</span>
+        <span>mapping_id: {record.mapping_id ?? "unknown"}</span>
+        <span>created_at: {record.created_at ?? "unknown"}</span>
+        <span>updated_at: {record.updated_at ?? "unknown"}</span>
+      </div>
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>Foreign ref identity</h3>
+          <div className="meta-row">
+            <span>foreign_ref_type: {record.foreign_ref_type ?? "unknown"}</span>
+            <span>foreign_ref_id: {record.foreign_ref_id ?? "unknown"}</span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Local target identity</h3>
+          <div className="meta-row">
+            <span>
+              local_target_scope: {record.local_target_scope ?? "unknown"}
+            </span>
+            <span>
+              local_target_work_id: {record.local_target_work_id ?? "unknown"}
+            </span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Redaction status</h3>
+          <pre>{formatAgResumeExampleJson(record.redaction_status ?? {})}</pre>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Proposal metadata</h3>
+          <div className="meta-row">
+            <span>proposed_by: {record.proposed_by ?? "unknown"}</span>
+            <span>proposed_reason: {record.proposed_reason ?? "unknown"}</span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Review metadata</h3>
+          <div className="meta-row">
+            <span>reviewed_by: {record.reviewed_by ?? "none"}</span>
+            <span>reviewed_at: {record.reviewed_at ?? "none"}</span>
+            <span>review_note: {record.review_note ?? "none"}</span>
+            <span>
+              supersedes_candidate_id:{" "}
+              {record.supersedes_candidate_id ?? "none"}
+            </span>
+            <span>
+              superseded_by_candidate_id:{" "}
+              {record.superseded_by_candidate_id ?? "none"}
+            </span>
+          </div>
+        </section>
+        <AgResumeReconciliationCandidateAuthorityBoundary
           title="Record Authority Boundary"
           authorityBoundary={record.authority_boundary ?? null}
         />
@@ -15087,6 +16112,118 @@ function buildImportedContextReadSearchParams({
   }
   if (trimmedCreatedBy) {
     searchParams.set("created_by", trimmedCreatedBy);
+  }
+  if (trimmedLimit) {
+    searchParams.set("limit", trimmedLimit);
+  }
+  return searchParams;
+}
+
+function buildReconciliationCandidateReadSearchParams({
+  candidateId,
+  importId,
+  mappingId,
+  foreignRefType,
+  foreignRefId,
+  localTargetScope,
+  localTargetWorkId,
+  status,
+  proposedBy,
+  reviewedBy,
+  limit,
+}: {
+  candidateId: string;
+  importId: string;
+  mappingId: string;
+  foreignRefType: string;
+  foreignRefId: string;
+  localTargetScope: string;
+  localTargetWorkId: string;
+  status: string;
+  proposedBy: string;
+  reviewedBy: string;
+  limit: string;
+}) {
+  const trimmedCandidateId = candidateId.trim();
+  const trimmedImportId = importId.trim();
+  const trimmedMappingId = mappingId.trim();
+  const trimmedForeignRefType = foreignRefType.trim();
+  const trimmedForeignRefId = foreignRefId.trim();
+  const trimmedLocalTargetScope = localTargetScope.trim();
+  const trimmedLocalTargetWorkId = localTargetWorkId.trim();
+  const trimmedStatus = status.trim();
+  const trimmedProposedBy = proposedBy.trim();
+  const trimmedReviewedBy = reviewedBy.trim();
+  const trimmedLimit = limit.trim();
+  const hasForeignRefFilter = Boolean(trimmedForeignRefType || trimmedForeignRefId);
+  const hasLocalTargetFilter = Boolean(
+    trimmedLocalTargetScope || trimmedLocalTargetWorkId,
+  );
+  const hasListFilter = Boolean(
+    trimmedImportId ||
+      trimmedMappingId ||
+      hasForeignRefFilter ||
+      hasLocalTargetFilter ||
+      trimmedStatus ||
+      trimmedProposedBy ||
+      trimmedReviewedBy,
+  );
+
+  if (trimmedCandidateId) {
+    if (hasListFilter || trimmedLimit) {
+      throw new Error(
+        "candidate_id fetch must not be combined with list filters or limit.",
+      );
+    }
+    return new URLSearchParams({ candidate_id: trimmedCandidateId });
+  }
+
+  if (Boolean(trimmedForeignRefType) !== Boolean(trimmedForeignRefId)) {
+    throw new Error("foreign_ref_type and foreign_ref_id must be supplied together.");
+  }
+
+  if (Boolean(trimmedLocalTargetScope) !== Boolean(trimmedLocalTargetWorkId)) {
+    throw new Error(
+      "local_target_scope and local_target_work_id must be supplied together.",
+    );
+  }
+
+  if (!hasListFilter) {
+    throw new Error(
+      "At least one reconciliation candidate read filter is required: candidate_id, import_id, mapping_id, foreign ref, local target, status, proposed_by, or reviewed_by.",
+    );
+  }
+
+  if (trimmedLimit) {
+    const parsedLimit = Number(trimmedLimit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+      throw new Error("limit must be a positive integer.");
+    }
+  }
+
+  const searchParams = new URLSearchParams();
+  if (trimmedImportId) {
+    searchParams.set("import_id", trimmedImportId);
+  }
+  if (trimmedMappingId) {
+    searchParams.set("mapping_id", trimmedMappingId);
+  }
+  if (trimmedForeignRefType && trimmedForeignRefId) {
+    searchParams.set("foreign_ref_type", trimmedForeignRefType);
+    searchParams.set("foreign_ref_id", trimmedForeignRefId);
+  }
+  if (trimmedLocalTargetScope && trimmedLocalTargetWorkId) {
+    searchParams.set("local_target_scope", trimmedLocalTargetScope);
+    searchParams.set("local_target_work_id", trimmedLocalTargetWorkId);
+  }
+  if (trimmedStatus) {
+    searchParams.set("status", trimmedStatus);
+  }
+  if (trimmedProposedBy) {
+    searchParams.set("proposed_by", trimmedProposedBy);
+  }
+  if (trimmedReviewedBy) {
+    searchParams.set("reviewed_by", trimmedReviewedBy);
   }
   if (trimmedLimit) {
     searchParams.set("limit", trimmedLimit);
