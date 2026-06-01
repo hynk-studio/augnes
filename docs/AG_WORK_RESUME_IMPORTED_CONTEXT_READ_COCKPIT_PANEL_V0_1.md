@@ -37,6 +37,7 @@ Related documents:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The panel does not call that writer route. It only submits
@@ -48,6 +49,10 @@ remain outside this read-only panel.
 The proof/evidence reconciliation design in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md` is
 design-only and does not add proof/evidence recording or read-panel behavior.
+The candidate DB/schema design in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
+adds no schema implementation, migration, runtime behavior, or read-panel
+behavior.
 
 ## Allowed UI
 

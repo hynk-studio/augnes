@@ -11,10 +11,14 @@ const smokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs";
 const reconciliationSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
+const candidateSchemaSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs";
 const designDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md";
 const reconciliationDesignDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md";
+const candidateSchemaDesignDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
@@ -303,8 +307,10 @@ function assertNoUnexpectedChangedFiles() {
   const allowedFiles = new Set([
     designDocRelativePath,
     reconciliationDesignDocRelativePath,
+    candidateSchemaDesignDocRelativePath,
     smokeRelativePath,
     reconciliationSmokeRelativePath,
+    candidateSchemaSmokeRelativePath,
     "package.json",
     ...pointerDocRelativePaths,
   ]);
@@ -338,6 +344,7 @@ function assertNoForbiddenImplementationCode() {
       file !== "package.json" &&
       file !== smokeRelativePath &&
       file !== reconciliationSmokeRelativePath &&
+      file !== candidateSchemaSmokeRelativePath &&
       !file.startsWith("scripts/smoke-ag-work-resume-imported-context"),
   );
   assert.deepEqual(

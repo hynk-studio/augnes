@@ -8,19 +8,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, "..");
 const smokePath = fileURLToPath(import.meta.url);
 const smokeRelativePath =
-  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
-const candidateSchemaSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs";
+const reconciliationSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
 const gateSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs";
 const designDocRelativePath =
-  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md";
-const candidateSchemaDesignDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md";
+const reconciliationDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md";
+const gateDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
-  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
+  reconciliationDocRelativePath,
+  gateDocRelativePath,
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
@@ -33,6 +36,7 @@ for (const file of [
   smokePath,
   designDocPath,
   packagePath,
+  path.join(rootDir, reconciliationSmokeRelativePath),
   path.join(rootDir, gateSmokeRelativePath),
   ...pointerDocRelativePaths.map((relativePath) => path.join(rootDir, relativePath)),
 ]) {
@@ -46,36 +50,25 @@ const designDoc = readFileSync(designDocPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
-  packageJson.scripts?.["smoke:ag-work-resume-proof-evidence-reconciliation-design"],
-  "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
-  "package.json must expose proof/evidence reconciliation design smoke",
+  packageJson.scripts?.[
+    "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design"
+  ],
+  "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",
+  "package.json must expose candidate DB/schema design smoke",
 );
 
 const statusSection = extractSection(designDoc, "Status");
 for (const pattern of [
   /design-only/i,
+  /no schema implementation/i,
+  /no migration/i,
   /adds no runtime behavior/i,
-  /adds no schema or migration/i,
-  /adds no writer, helper, route, or UI/i,
-  /creates no proof\/evidence records/i,
-  /no reconciliation candidate records/i,
-  /no session records/i,
-  /no Codex records/i,
-  /no proof\/evidence writer/i,
-  /no proof\/evidence schema/i,
-  /no\s+session binding/is,
-  /no Codex behavior/i,
-  /no app\/api changes/i,
-  /no components changes/i,
-  /no lib runtime changes/i,
-  /no `lib\/db\/schema\.sql` changes/i,
-  /no migrations/i,
-  /no\s+ChatGPT App\/MCP\/App schema changes/is,
-  /no bridge tools/i,
-  /no Direct Resume Code/i,
-  /no relay/i,
-  /no telemetry\/analytics\/browser persistence/i,
-  /no browser report/i,
+  /no\s+runtime behavior/is,
+  /writer, helper, route, or UI/i,
+  /creates no\s+proof\/evidence records/is,
+  /no reconciliation candidate rows/i,
+  /no session bindings/i,
+  /no Codex records or actions/i,
   /no session authority, no Codex authority, no approval/i,
   /publish, retry, replay, merge/i,
 ]) {
@@ -84,129 +77,137 @@ for (const pattern of [
 
 const purposeSection = extractSection(designDoc, "Purpose");
 for (const pattern of [
-  /Imported context foreign refs need reconciliation/i,
-  /before they can become local\s+proof\/evidence/is,
-  /outside the local Augnes proof and\s+evidence ledgers/is,
-  /foreign proof ref or foreign evidence ref/i,
-  /not a local proof record/i,
-  /not a local evidence\s+record/is,
-  /Imported context is review metadata only/i,
-  /foreign_refs_summary/i,
-  /bounded summaries for local review/i,
-  /does not\s+import raw payloads/is,
-  /does not create local proof\/evidence/i,
+  /Candidate schema must be designed separately before implementation/i,
+  /between imported context review\s+metadata and any future local proof\/evidence recording/is,
+  /preserve\s+the distinction between a review candidate and a local proof or evidence\s+record/is,
+  /AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1\.md/,
+  /Reconciliation candidates remain review metadata only/i,
   /Foreign refs remain foreign until explicitly reconciled/i,
-  /no imported context ref is\s+automatically converted into local proof\/evidence/is,
+  /must not\s+automatically convert imported context foreign refs into local proof\/evidence/is,
 ]) {
   assert.match(purposeSection, pattern, `purpose must include ${pattern}`);
 }
 
-const definitionsSection = extractSection(designDoc, "Definitions");
-for (const pattern of [
-  /imported context row.*ag_work_resume_imported_contexts/is,
-  /foreign proof ref.*remains foreign/is,
-  /foreign evidence ref.*remains\s+foreign/is,
-  /local proof record.*separately authorized proof path/is,
-  /local evidence record.*separately authorized evidence path/is,
-  /reconciliation candidate.*future review-only object/is,
-  /reconciliation decision.*future explicit user\/Core decision/is,
-  /actor\/reason.*explicit user\/Core actor and written reason/is,
-  /redaction report.*secrets, raw DB paths, raw\s+session payloads, and raw proof payloads/is,
-  /review-only summary.*without becoming a local proof\/evidence payload/is,
-  /proof\/evidence authority boundary.*do not record proof\/evidence/is,
-]) {
-  assert.match(definitionsSection, pattern, `definitions must include ${pattern}`);
-}
-
-const modelSection = extractSection(designDoc, "Reconciliation Model");
-for (const pattern of [
-  /Candidate discovery is read-only/i,
-  /discovery does not create\s+proof\/evidence records/is,
-  /Candidate review does not create proof\/evidence/i,
-  /review remains metadata/i,
-  /explicit user\/Core reconciliation decision is required/i,
-  /actor,\s+reason,\s+source imported context/is,
-  /Future local proof\/evidence creation remains separately authorized/i,
-  /would not automatically create local proof or\s+evidence/is,
-  /Rejected candidates remain review metadata only/i,
-  /There is no automatic conversion from imported context refs/i,
-  /foreign refs remain foreign until explicitly reconciled/i,
-]) {
-  assert.match(modelSection, pattern, `model must include ${pattern}`);
-}
-
-const checksSection = extractSection(designDoc, "Required Future Checks");
-for (const pattern of [
-  /imported context exists/i,
-  /imported context status is allowed for reconciliation/i,
-  /redaction report is safe/i,
-  /foreign refs are bounded summaries, not raw payloads/i,
-  /local target work identity is confirmed/i,
-  /actor is required/i,
-  /reason is required/i,
-  /no raw secrets/i,
-  /no raw DB paths/i,
-  /no raw session payloads/i,
-  /no raw proof payloads/i,
-  /no session binding/i,
-  /no Codex execution/i,
-  /no merge, publish, retry, or replay authority/i,
-]) {
-  assert.match(checksSection, pattern, `future checks must include ${pattern}`);
-}
-
-const shapeSection = extractSection(designDoc, "Future Non-Implemented Record Shape");
+const tableSection = extractSection(designDoc, "Proposed Table");
 for (const token of [
+  "ag_work_resume_proof_evidence_reconciliation_candidates",
   "candidate_id",
+  "TEXT PRIMARY KEY",
+  "record_kind",
+  "TEXT CHECK record_kind = ag_work_resume_proof_evidence_reconciliation_candidate",
+  "schema",
+  "TEXT CHECK schema = augnes.ag_work_resume_proof_evidence_reconciliation_candidate.v0_1",
+  "status",
+  "TEXT CHECK status IN proposed, accepted_for_future_recording, rejected, deferred, superseded, withdrawn, revoked",
   "import_id",
+  "mapping_id",
   "foreign_ref_type",
+  "TEXT NOT NULL CHECK foreign_ref_type IN proof, evidence, action, session, git, evidence_pack, handoff, other",
   "foreign_ref_id",
   "local_target_scope",
   "local_target_work_id",
   "summary",
   "redaction_status",
+  "TEXT NOT NULL DEFAULT '{}'",
   "proposed_by",
   "proposed_reason",
+  "reviewed_by",
+  "reviewed_at",
+  "review_note",
+  "supersedes_candidate_id",
+  "superseded_by_candidate_id",
   "authority_boundary",
+  "created_at",
+  "updated_at",
 ]) {
-  assert.match(shapeSection, new RegExp(escapeRegExp(token)), `shape must include ${token}`);
+  assert.match(tableSection, new RegExp(escapeRegExp(token)), `table must include ${token}`);
 }
 for (const pattern of [
-  /reconciliation candidate shape is design-only/i,
-  /not a\s+schema, migration, runtime model, writer contract, helper contract, route\s+contract, UI contract, or proof\/evidence recording contract/is,
-  /`candidate_id` is not a proof id, not an evidence id/i,
-  /`import_id` traces the candidate back to\s+review metadata only/is,
-  /not a local record to trust automatically/i,
+  /State JSON text fields/i,
+  /redaction_status/i,
+  /authority_boundary/i,
+  /No schema is implemented in this PR/i,
 ]) {
-  assert.match(shapeSection, pattern, `shape section must include ${pattern}`);
+  assert.match(tableSection, pattern, `table JSON/schema statement must include ${pattern}`);
+}
+
+const indexesSection = extractSection(designDoc, "Proposed Indexes");
+for (const index of [
+  "import_id, created_at DESC",
+  "mapping_id, created_at DESC",
+  "foreign_ref_type, foreign_ref_id",
+  "local_target_scope, local_target_work_id, created_at DESC",
+  "status, created_at DESC",
+  "proposed_by, created_at DESC",
+  "reviewed_by, reviewed_at DESC",
+  "supersedes_candidate_id",
+  "superseded_by_candidate_id",
+]) {
+  assert.match(indexesSection, new RegExp(escapeRegExp(index)), `index must include ${index}`);
+}
+assert.match(indexesSection, /No index is added by this PR/i);
+
+const constraintsSection = extractSection(designDoc, "Constraints And FK Policy");
+for (const pattern of [
+  /foreign key from `import_id` to\s+`ag_work_resume_imported_contexts\(import_id\)`/is,
+  /foreign key from `mapping_id` to\s+`ag_work_resume_confirmed_mappings\(mapping_id\)`/is,
+  /imported context exists/i,
+  /imported context status is allowed for reconciliation/i,
+  /`mapping_id` matches the imported context/i,
+  /local target work identity exists/i,
+  /redaction status is safe/i,
+  /foreign ref is a bounded summary, not a raw payload/i,
+  /actor is present/i,
+  /reason is present/i,
+  /No schema is implemented in this PR/i,
+  /No FK is added in this PR/i,
+  /No writer\s+validation is implemented in this PR/is,
+]) {
+  assert.match(constraintsSection, pattern, `constraints/FK policy must include ${pattern}`);
+}
+
+const lifecycleSection = extractSection(designDoc, "Status And Lifecycle Model");
+for (const pattern of [
+  /`proposed` is review metadata candidate state/i,
+  /`accepted_for_future_recording`.*not proof\/evidence recording/is,
+  /`rejected` is inactive and non-recording/i,
+  /`deferred` is inactive or waiting and non-recording/i,
+  /`superseded` is inactive and non-recording/i,
+  /`withdrawn` is inactive and non-recording/i,
+  /`revoked` is inactive and non-recording/i,
+  /No status creates proof\/evidence/i,
+  /No status binds a session/i,
+  /No status\s+executes Codex/is,
+  /No status grants approval, publish, retry, replay, merge/i,
+  /Lifecycle changes, if ever implemented, require separate design/i,
+]) {
+  assert.match(lifecycleSection, pattern, `status/lifecycle must include ${pattern}`);
 }
 
 const authoritySection = extractSection(designDoc, "Authority Boundary");
 for (const pattern of [
+  /Candidate rows are review metadata only/i,
   /no proof\/evidence recording/i,
   /no session binding/i,
   /no Codex execution/i,
   /no work item creation/i,
   /no work event creation/i,
+  /no imported context mutation/i,
   /no confirmed mapping mutation/i,
   /no proposal mutation/i,
-  /no imported context mutation/i,
   /no approval, publish, retry, replay, merge/i,
-  /no committed state authority/i,
   /Durable approval remains user\/Core gated/i,
-  /foreign refs remain\s+foreign until explicitly reconciled/is,
-  /reconciliation candidate is review\s+metadata only/is,
 ]) {
   assert.match(authoritySection, pattern, `authority boundary must include ${pattern}`);
 }
 
 const nonGoalsSection = extractSection(designDoc, "Non-Goals");
 for (const pattern of [
-  /No schema or migration/i,
+  /No schema implementation/i,
+  /No migration/i,
   /No writer, helper, route, or UI/i,
   /No proof\/evidence implementation/i,
-  /No proof\/evidence writer/i,
-  /No proof\/evidence schema/i,
+  /No proof\/evidence recording/i,
   /No session implementation/i,
   /No session binding/i,
   /No Codex implementation/i,
@@ -215,36 +216,31 @@ for (const pattern of [
   /No Direct Resume Code/i,
   /No relay/i,
   /No telemetry, analytics, localStorage, sessionStorage, indexedDB, or browser\s+persistence/is,
-  /No browser report/i,
-  /No approval, publish, retry, replay, merge/i,
 ]) {
   assert.match(nonGoalsSection, pattern, `non-goals must include ${pattern}`);
 }
 
-const futureSection = extractSection(designDoc, "Future PR Sequence");
+const implementationSection = extractSection(designDoc, "Future Implementation Notes");
 for (const pattern of [
-  /Proof\/evidence reconciliation design only: this PR/i,
-  /Reconciliation candidate DB\/schema design/i,
-  /AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1\.md/i,
-  /Reconciliation candidate writer\/helper, separately approved/i,
-  /Proof\/evidence actual recording design, separately approved/i,
+  /future schema implementation PR should add the candidate table and indexes\s+only/is,
+  /future candidate writer\/helper should validate imported context, mapping,\s+local work, redaction, actor\/reason, and duplicate candidate policy/is,
+  /Future actual proof\/evidence recording remains separately approved/i,
   /Session\/Codex gates remain separate/i,
-  /foreign refs remain foreign until explicitly reconciled/i,
-  /actor and reason are\s+required/is,
 ]) {
-  assert.match(futureSection, pattern, `future sequence must include ${pattern}`);
+  assert.match(implementationSection, pattern, `future implementation notes must include ${pattern}`);
 }
 
 const browserSection = extractSection(designDoc, "Browser Verification");
 assert.match(
   browserSection,
-  /browser verification skipped: no rendered UI\/operator surface changed in this design-only proof\/evidence reconciliation slice/,
+  /browser verification skipped: no rendered UI\/operator surface changed in this design-only proof\/evidence reconciliation candidate schema slice/,
   "browser verification skip reason must match",
 );
 
 const verificationSection = extractSection(designDoc, "Verification");
 for (const command of [
   "npm run typecheck",
+  "npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design",
   "npm run smoke:ag-work-resume-proof-evidence-reconciliation-design",
   "npm run smoke:ag-work-resume-proof-evidence-session-codex-gates-design",
   "npm run smoke:ag-work-resume-imported-context-create-cockpit-panel",
@@ -255,7 +251,7 @@ for (const command of [
   "npm run smoke:ag-work-resume-mapping-import-authority-gate",
   "git diff --check",
   "git diff --cached --check",
-  "node --check scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
+  "node --check scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",
 ]) {
   assert.match(
     verificationSection,
@@ -268,8 +264,8 @@ for (const relativePath of pointerDocRelativePaths) {
   const source = readFileSync(path.join(rootDir, relativePath), "utf8");
   assert.match(
     source,
-    /AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1\.md/,
-    `${relativePath} must point to proof/evidence reconciliation design`,
+    /AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1\.md/,
+    `${relativePath} must point to candidate DB/schema design`,
   );
 }
 
@@ -279,20 +275,23 @@ assertNoForbiddenImplementationCode();
 console.log(
   JSON.stringify(
     {
-      smoke: "ag-work-resume-proof-evidence-reconciliation-design",
+      smoke: "ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design",
       cases: [
-        "design doc exists",
+        "schema design doc exists",
         "package script exists",
-        "doc says design-only",
-        "doc forbids runtime/schema/writer/helper/route/UI",
-        "doc says foreign refs remain foreign until explicitly reconciled",
-        "doc says no automatic proof/evidence recording",
-        "doc requires actor and reason",
-        "doc forbids session/Codex/merge authority",
-        "related docs point to proof/evidence reconciliation design",
-        "changed files are limited to docs, package.json, new reconciliation smoke, and gate-smoke pointer compatibility",
+        "doc says design-only/no schema implementation/no migration",
+        "table name and fields documented",
+        "JSON text fields documented",
+        "status CHECK values documented",
+        "lookup indexes documented",
+        "FK policy discussion present",
+        "imported context validation discussion present",
+        "status/lifecycle rules documented",
+        "authority boundary and non-goals documented",
+        "related docs point to candidate schema design doc",
+        "source guard limits changed files to docs, package, new smoke, and prior design-smoke compatibility",
         "no app/components/lib/schema/migration/apps/browser report files changed",
-        "no implementation code changed for proof/evidence/session/Codex behavior",
+        "no implementation code changed",
       ],
     },
     null,
@@ -304,9 +303,8 @@ function assertNoUnexpectedChangedFiles() {
   const changedFiles = gitChangedFiles();
   const allowedFiles = new Set([
     designDocRelativePath,
-    candidateSchemaDesignDocRelativePath,
     smokeRelativePath,
-    candidateSchemaSmokeRelativePath,
+    reconciliationSmokeRelativePath,
     gateSmokeRelativePath,
     "package.json",
     ...pointerDocRelativePaths,
@@ -323,12 +321,12 @@ function assertNoUnexpectedChangedFiles() {
   for (const file of changedFiles) {
     assert.ok(
       allowedFiles.has(file),
-      `changed file is outside the design-only reconciliation slice: ${file}`,
+      `changed file is outside the candidate DB/schema design slice: ${file}`,
     );
     assert.equal(
       forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
-      `design-only reconciliation slice must not touch runtime/UI/schema/app/browser files: ${file}`,
+      `candidate DB/schema design slice must not touch runtime/UI/schema/app/browser files: ${file}`,
     );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
   }
@@ -340,13 +338,13 @@ function assertNoForbiddenImplementationCode() {
       !file.startsWith("docs/") &&
       file !== "package.json" &&
       file !== smokeRelativePath &&
-      file !== candidateSchemaSmokeRelativePath &&
+      file !== reconciliationSmokeRelativePath &&
       file !== gateSmokeRelativePath,
   );
   assert.deepEqual(
     implementationFiles,
     [],
-    `design-only reconciliation slice must not change implementation code: ${implementationFiles.join(", ")}`,
+    `candidate DB/schema design slice must not change implementation code: ${implementationFiles.join(", ")}`,
   );
 }
 

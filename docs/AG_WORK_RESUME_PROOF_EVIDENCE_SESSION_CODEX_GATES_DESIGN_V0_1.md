@@ -46,6 +46,12 @@ candidates only; it adds no runtime behavior, schema/migration,
 writer/helper/route/UI, proof/evidence recording, session binding, Codex
 behavior, approval, publish, retry, replay, or merge authority.
 
+The future reconciliation candidate DB/schema contract is design-only in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`.
+It documents possible future candidate table shape and indexes only, with no
+schema/migration implementation and no downstream proof/evidence/session/Codex
+authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
@@ -221,10 +227,12 @@ not approval/publish/retry/replay/merge authority.
 1. Proof/evidence/session/Codex gate design only: this PR.
 2. Proof/evidence reconciliation design:
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`.
-3. Proof/evidence schema/design or integration design, separately approved.
-4. Session binding design, separately approved.
-5. Codex continuation design, separately approved.
-6. Runtime implementations only after separate user/Core approval.
+3. Reconciliation candidate DB/schema design:
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`.
+4. Proof/evidence schema/design or integration design, separately approved.
+5. Session binding design, separately approved.
+6. Codex continuation design, separately approved.
+7. Runtime implementations only after separate user/Core approval.
 
 Each future PR must restate the authority boundary, name actor and reason
 requirements, identify side effects, include fail-closed checks, and verify
