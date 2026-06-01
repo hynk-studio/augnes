@@ -34,6 +34,7 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
@@ -46,6 +47,11 @@ The future proof/evidence/session/Codex gate contract is design-only in
 It does not change this read helper/GET route and does not authorize
 proof/evidence recording, session binding, Codex continuation, approval,
 publish, retry, replay, or merge.
+
+The proof/evidence reconciliation design is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`. It keeps
+foreign refs foreign until explicitly reconciled and does not change this
+read helper/GET route.
 
 ## Read Filters
 
