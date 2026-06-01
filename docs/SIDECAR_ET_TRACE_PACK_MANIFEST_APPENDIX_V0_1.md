@@ -152,10 +152,12 @@ Fixture-boundary design pointer:
   changes, proof/evidence/readiness writes, QP evidence, `z_t` commits, AG
   Resume bridge behavior, or CI enforcement.
 - `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
-  records the docs-only exact first descriptor subset proposal and deferred
-  descriptor set before any fixture import. It does not import fixtures,
-  manifest JSON, harness scripts, helper logic, package scripts, runtime
-  computation, schema/API changes, proof/evidence/readiness writes, QP
+  records the exact first descriptor subset proposal, deferred descriptor set,
+  and first two-file fixture import slice. It imports only the approved
+  `example` and `grounded/quiet probes` fixture files plus a focused local
+  validation smoke; it does not import manifest JSON, report/compare/suite/
+  matrix behavior, helper logic, package scripts beyond the approved smoke,
+  runtime computation, schema/API changes, proof/evidence/readiness writes, QP
   evidence, `z_t` commits, AG Resume bridge/writer/helper behavior, or CI
   enforcement.
 

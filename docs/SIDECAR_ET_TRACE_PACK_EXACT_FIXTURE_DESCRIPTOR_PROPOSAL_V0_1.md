@@ -30,12 +30,23 @@ Current original-repo snapshot for this proposal:
 | repo | `hynk-studio/augnes` |
 | remote | `https://github.com/hynk-studio/augnes.git` |
 | base branch | `main` |
-| original `origin/main` SHA | `1a4c3dcf88d2c77933ab18defb65b845344b0444` |
-| comparison time | 2026-06-02 02:18 KST |
-| target branch | `codex/sidecar-et-exact-fixture-descriptor-proposal` |
+| original `origin/main` SHA | `c55d13696dfd4d5125becf7c1dc3b667399ac77a` |
+| comparison time | 2026-06-02 02:40 KST, refreshed after PR #349 |
+| target branch | `codex/sidecar-et-first-fixture-import` |
 
 Runtime `PerspectiveSnapshot.research_diagnostics.sidecar_e_t` remains a
 structured placeholder with `computed=false`.
+
+First implementation slice status:
+
+- imported `fixtures/sidecar-et-trace-pack.example.json`
+- imported `fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json`
+- added `npm run smoke:sidecar-et-trace-pack-fixture-descriptors`
+- did not import manifest JSON
+- did not add report, compare, suite, or matrix behavior
+- did not add runtime computation, helper logic, API/schema/Cockpit changes, AG
+  Resume writer/helper calls, bridge-table rows, QP evidence, `z_t` commits,
+  proof/evidence/readiness writes, or CI enforcement
 
 ## 2. Proposed First Descriptor Subset
 
@@ -49,6 +60,10 @@ Recommend only these two descriptor ids for any first future review subset:
 The proposed subset is a descriptor proposal only. It does not approve copying
 lab fixture rows, manifest entries, report output, compare logic, package
 scripts, or helper functions into the original repo.
+
+The first implementation slice imports only these two approved fixture files
+and one focused descriptor validation smoke. It does not change the deferred
+descriptor set or authorize any additional fixture pack.
 
 ## 3. Deferred Descriptor Set
 
