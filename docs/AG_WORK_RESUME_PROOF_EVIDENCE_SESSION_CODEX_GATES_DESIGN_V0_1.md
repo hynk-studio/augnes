@@ -66,6 +66,14 @@ proof/evidence, bind sessions, execute Codex, create work items/events, mutate
 imported contexts, confirmed mappings, or proposals, add routes/UI, or grant
 approval, publish, retry, replay, or merge authority.
 
+The reconciliation candidate create route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
+It delegates to the writer core and creates reconciliation candidate review
+metadata rows only. It adds no Cockpit UI, read route, schema/migration,
+proof/evidence recording, session binding, Codex behavior, work item/event
+creation, imported context/confirmed mapping/proposal mutation, approval,
+publish, retry, replay, or merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
@@ -247,10 +255,12 @@ not approval/publish/retry/replay/merge authority.
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 5. Reconciliation candidate writer/helper:
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
-6. Proof/evidence schema/design or integration design, separately approved.
-7. Session binding design, separately approved.
-8. Codex continuation design, separately approved.
-9. Runtime implementations only after separate user/Core approval.
+6. Reconciliation candidate create route:
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
+7. Proof/evidence schema/design or integration design, separately approved.
+8. Session binding design, separately approved.
+9. Codex continuation design, separately approved.
+10. Runtime implementations only after separate user/Core approval.
 
 Each future PR must restate the authority boundary, name actor and reason
 requirements, identify side effects, include fail-closed checks, and verify
@@ -267,6 +277,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-route
 npm run smoke:ag-work-resume-proof-evidence-session-codex-gates-design
 npm run smoke:ag-work-resume-imported-context-create-cockpit-panel
 npm run smoke:ag-work-resume-imported-context-read-cockpit-panel

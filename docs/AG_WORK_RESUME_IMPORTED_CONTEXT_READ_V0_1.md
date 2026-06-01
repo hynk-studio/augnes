@@ -70,6 +70,13 @@ it creates candidate review metadata only and does not change this imported
 context read helper/GET route, record proof/evidence, bind sessions, execute
 Codex, create work items/events, mutate imported contexts, confirmed mappings,
 or proposals, or grant approval, publish, retry, replay, or merge authority.
+The candidate create route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`;
+it delegates to the candidate writer core and creates reconciliation candidate
+review metadata rows only. It does not change this imported context read
+helper/GET route, add Cockpit UI, record proof/evidence, bind sessions, execute
+Codex, create work items/events, mutate imported contexts, confirmed mappings,
+or proposals, or grant approval, publish, retry, replay, or merge authority.
 
 ## Read Filters
 

@@ -83,6 +83,13 @@ bounded foreign ref summaries. It does not change this imported context
 writer/helper, record proof/evidence, bind sessions, execute Codex, create
 work items/events, mutate imported contexts, confirmed mappings, or proposals,
 add routes/UI, or grant approval, publish, retry, replay, or merge authority.
+The candidate create route in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`
+delegates to the candidate writer core and creates reconciliation candidate
+review metadata rows only. It does not change this imported context
+writer/helper, add Cockpit UI, record proof/evidence, bind sessions, execute
+Codex, create work items/events, mutate imported contexts, confirmed mappings,
+or proposals, or grant approval, publish, retry, replay, or merge authority.
 
 ## Core API
 

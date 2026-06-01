@@ -31,6 +31,7 @@ This writer follows:
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`
 
 The schema implementation creates only the candidate table and indexes. This
 writer adds the first bounded row creation path for that table, but still does
@@ -38,6 +39,12 @@ not add any route, Cockpit UI, proof/evidence recording, session binding,
 Codex execution, work item/event creation, imported context mutation,
 confirmed mapping mutation, proposal mutation, approval, publish, retry,
 replay, or merge authority.
+
+The later JSON route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
+It delegates to this shared writer core and preserves the same review metadata
+authority boundary. The writer core remains independent of HTTP route
+behavior.
 
 ## Core API
 
@@ -281,6 +288,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-route
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-writer
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design

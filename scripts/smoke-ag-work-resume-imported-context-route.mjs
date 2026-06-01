@@ -501,6 +501,9 @@ function assertSourceGuards() {
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
   ]);
   for (const file of changedFiles) {
     assert.ok(
@@ -509,8 +512,10 @@ function assertSourceGuards() {
     );
     assert.ok(
       file === "app/api/ag-work-resume/imported-contexts/route.ts" ||
+        file ===
+          "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" ||
         !file.startsWith("app/"),
-      `app changes limited to imported context create route: ${file}`,
+      `app changes limited to imported context route or reconciliation candidate route: ${file}`,
     );
     assert.ok(
       file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),

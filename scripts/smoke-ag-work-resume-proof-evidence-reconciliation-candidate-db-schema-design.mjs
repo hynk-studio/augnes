@@ -310,7 +310,7 @@ console.log(
         "status/lifecycle rules documented",
         "authority boundary and non-goals documented",
         "related docs point to candidate schema design doc",
-        "source guard accepts only docs, package, schema foundation, schema smoke, and design-smoke compatibility",
+        "source guard accepts only docs, package, schema foundation, schema smoke, writer/helper, route, and design-smoke compatibility",
         "no app/components/runtime/migration/apps/browser report files changed",
         "no implementation code changed outside the schema foundation",
       ],
@@ -334,6 +334,9 @@ function assertNoUnexpectedChangedFiles() {
     gateSmokeRelativePath,
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     schemaRelativePath,
     writerCoreRelativePath,
     "package.json",
@@ -356,6 +359,8 @@ function assertNoUnexpectedChangedFiles() {
     assert.equal(
       file !== schemaRelativePath &&
         file !== writerCoreRelativePath &&
+        file !==
+          "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `candidate DB/schema follow-up must not touch runtime/UI/app/browser files: ${file}`,
@@ -383,7 +388,10 @@ function assertNoForbiddenImplementationCode() {
       file !== reconciliationSmokeRelativePath &&
       file !== gateSmokeRelativePath &&
       file !== "scripts/smoke-ag-work-resume-imported-context-route.mjs" &&
-      file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+      file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs" &&
+      file !==
+        "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
   );
   assert.deepEqual(
     implementationFiles,

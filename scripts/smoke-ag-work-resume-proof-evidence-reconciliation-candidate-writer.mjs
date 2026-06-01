@@ -634,6 +634,9 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     "package.json",
   ]);
   const forbiddenPrefixes = [
@@ -656,9 +659,11 @@ function assertNoUnexpectedChangedFiles() {
     );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.equal(
-      forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      file !==
+        "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+        forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
-      `candidate writer/helper must not touch forbidden path: ${file}`,
+      `candidate writer/helper follow-up must not touch forbidden path except candidate create route: ${file}`,
     );
   }
 }

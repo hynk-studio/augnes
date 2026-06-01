@@ -56,6 +56,14 @@ recording, session binding, Codex behavior, work item/event creation, imported
 context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
 or merge authority.
 
+The candidate create route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
+It delegates to the writer core and creates reconciliation candidate review
+metadata rows only, with no Cockpit UI, read route, schema/migration,
+proof/evidence recording, session binding, Codex behavior, work item/event
+creation, imported context/confirmed mapping/proposal mutation, approval,
+publish, retry, replay, or merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is
@@ -241,8 +249,10 @@ metadata only and is not proof/evidence authority.
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 4. Reconciliation candidate writer/helper:
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
-5. Proof/evidence actual recording design, separately approved.
-6. Session/Codex gates remain separate.
+5. Reconciliation candidate create route:
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
+6. Proof/evidence actual recording design, separately approved.
+7. Session/Codex gates remain separate.
 
 Each future PR must restate that imported context remains review metadata only,
 foreign refs remain foreign until explicitly reconciled, actor and reason are
@@ -259,6 +269,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-route
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-design
 npm run smoke:ag-work-resume-proof-evidence-session-codex-gates-design
 npm run smoke:ag-work-resume-imported-context-create-cockpit-panel
