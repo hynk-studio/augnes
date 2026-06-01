@@ -347,6 +347,12 @@ PRs:
   work item/event creation, imported context/confirmed mapping/proposal
   mutation, schema/migration, approval, publish, retry, replay, or merge
   authority.
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`
+  documents the bounded Cockpit Operator create panel for reconciliation
+  candidate review metadata; it calls only the existing POST route and grants
+  no update/delete, lifecycle, proof/evidence/session, Codex, work item/event
+  creation, imported context/confirmed mapping/proposal mutation,
+  schema/migration, approval, publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

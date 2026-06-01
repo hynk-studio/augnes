@@ -28,11 +28,17 @@ adds no create/update/delete, lifecycle, proof/evidence/session, Codex, work
 item/event creation, imported context/confirmed mapping/proposal mutation,
 schema/migration, approval, publish, retry, replay, or merge authority.
 
+The later bounded Cockpit Operator create panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing POST reconciliation candidates route and does not
+change this read helper/GET route behavior.
+
 ## Relationship To Writer Route Schema And Design
 
 This read slice follows:
 
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`

@@ -10,6 +10,11 @@ const componentPath = path.join(rootDir, "components", "augnes-cockpit.tsx");
 const docsPath = path.join(
   rootDir,
   "docs",
+  "AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md",
+);
+const readPanelDocsPath = path.join(
+  rootDir,
+  "docs",
   "AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
 );
 const readDocsPath = path.join(
@@ -26,11 +31,6 @@ const writerDocsPath = path.join(
   rootDir,
   "docs",
   "AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md",
-);
-const schemaDocsPath = path.join(
-  rootDir,
-  "docs",
-  "AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
 );
 const reconciliationDocsPath = path.join(
   rootDir,
@@ -52,16 +52,16 @@ const browserReportPath = path.join(
   rootDir,
   "reports",
   "browser",
-  "2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+  "2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
 );
 
 for (const file of [
   componentPath,
   docsPath,
+  readPanelDocsPath,
   readDocsPath,
   routeDocsPath,
   writerDocsPath,
-  schemaDocsPath,
   reconciliationDocsPath,
   gatesDocsPath,
   gateDocsPath,
@@ -73,10 +73,10 @@ for (const file of [
 
 const componentSource = readFileSync(componentPath, "utf8");
 const docsSource = readFileSync(docsPath, "utf8");
+const readPanelDocsSource = readFileSync(readPanelDocsPath, "utf8");
 const readDocsSource = readFileSync(readDocsPath, "utf8");
 const routeDocsSource = readFileSync(routeDocsPath, "utf8");
 const writerDocsSource = readFileSync(writerDocsPath, "utf8");
-const schemaDocsSource = readFileSync(schemaDocsPath, "utf8");
 const reconciliationDocsSource = readFileSync(reconciliationDocsPath, "utf8");
 const gatesDocsSource = readFileSync(gatesDocsPath, "utf8");
 const gateDocsSource = readFileSync(gateDocsPath, "utf8");
@@ -85,32 +85,28 @@ const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
   packageJson.scripts?.[
-    "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel"
+    "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel"
   ],
-  "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
-  "package.json must expose the reconciliation candidate read Cockpit panel smoke",
+  "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
+  "package.json must expose the reconciliation candidate create Cockpit panel smoke",
 );
 
 const panelSource = extractFunctionBlock(
   componentSource,
-  "AgResumeReconciliationCandidateReadPanel",
+  "AgResumeReconciliationCandidateCreatePanel",
 );
 const submitHandlerSource = extractFunctionBlock(
   panelSource,
-  "handleReconciliationCandidateReadSubmit",
+  "handleReconciliationCandidateCreateSubmit",
 );
-const queryBuilderSource = extractFunctionBlock(
+const requestBuilderSource = extractFunctionBlock(
   componentSource,
-  "buildReconciliationCandidateReadSearchParams",
+  "buildReconciliationCandidateCreateRequestBody",
 );
 const resultSource = [
   extractFunctionBlock(
     componentSource,
-    "AgResumeReconciliationCandidateReadResults",
-  ),
-  extractFunctionBlock(
-    componentSource,
-    "AgResumeReconciliationCandidateReadFilters",
+    "AgResumeReconciliationCandidateCreateResults",
   ),
   extractFunctionBlock(
     componentSource,
@@ -120,61 +116,65 @@ const resultSource = [
 ].join("\n");
 const fixtureSource = extractConstAssignment(
   componentSource,
-  "SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE",
+  "SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE",
 );
 
 assert.match(
   componentSource,
-  /<AgResumeImportedContextReadPanel \/>[\s\S]*<AgResumeReconciliationCandidateCreatePanel \/>[\s\S]*<AgResumeReconciliationCandidateReadPanel \/>[\s\S]*<CoordinationEventTimeline\b/,
-  "Operator tab must render the reconciliation candidate read panel near AG Resume imported context surfaces before the event timeline",
+  /<AgResumeImportedContextReadPanel \/>[\s\S]*<AgResumeReconciliationCandidateCreatePanel \/>[\s\S]*<AgResumeReconciliationCandidateReadPanel \/>/,
+  "Operator tab must render reconciliation candidate create near candidate read surfaces",
 );
 
 for (const token of [
-  "AG Resume Reconciliation Candidate Review",
-  "Read-only review over proof/evidence reconciliation candidate metadata.",
-  "Read-only reconciliation candidate review metadata only.",
+  "AG Resume Reconciliation Candidate Create",
+  "Bounded create controls for proof/evidence reconciliation candidate review metadata.",
+  "Creates only reconciliation candidate review metadata through the",
+  "existing POST reconciliation candidates route",
+  "Reconciliation candidates are review metadata only.",
   "Candidate rows are not proof/evidence.",
-  "Calls only the existing GET reconciliation candidates route.",
   "Not proof/evidence recording",
   "not session binding",
   "not Codex",
   "Not work item/event creation",
   "not imported context/confirmed\n            mapping/proposal mutation",
   "Not approval, publish, retry, replay, or merge authority.",
-  "Durable\n            approval remains user/Core gated.",
-  "candidateId",
   "importId",
   "mappingId",
   "foreignRefType",
   "foreignRefId",
   "localTargetScope",
   "localTargetWorkId",
-  "status",
+  "summary",
+  "redactionStatusJson",
   "proposedBy",
-  "reviewedBy",
-  "limit",
-  "Reconciliation candidate read route error",
+  "proposedReason",
+  "createdAt",
+  "Reconciliation candidate create route error",
 ]) {
   assert.match(panelSource, new RegExp(escapeRegExp(token)), `panel must include ${token}`);
 }
 
 assert.match(
   submitHandlerSource,
-  /fetch\(\s*`\/api\/ag-work-resume\/proof-evidence-reconciliation-candidates\?\$\{searchParams\.toString\(\)\}`/,
-  "panel must call the existing reconciliation candidates GET route",
+  /fetch\(\s*"\/api\/ag-work-resume\/proof-evidence-reconciliation-candidates"/,
+  "panel must call the existing reconciliation candidates POST route",
 );
-assert.match(submitHandlerSource, /method:\s*"GET"/, "panel route call must use GET");
-assert.doesNotMatch(submitHandlerSource, /method:\s*"POST"/, "panel must not POST");
-assert.doesNotMatch(submitHandlerSource, /JSON\.stringify/, "panel must not build a write body");
-assert.doesNotMatch(
+assert.match(submitHandlerSource, /method:\s*"POST"/, "panel route call must use POST");
+assert.doesNotMatch(submitHandlerSource, /method:\s*"GET"/, "create panel must not GET");
+assert.match(
   submitHandlerSource,
-  /headers\s*:/,
-  "panel GET must not set request headers",
+  /headers:\s*\{\s*"content-type":\s*"application\/json"\s*\}/,
+  "panel POST must set JSON content type",
 );
-assert.doesNotMatch(
-  panelSource,
-  /content-type/i,
-  "panel GET must not set JSON content type",
+assert.match(
+  submitHandlerSource,
+  /body:\s*JSON\.stringify\(requestBody\)/,
+  "panel POST must send a JSON body built from supported fields",
+);
+assert.equal(
+  [...panelSource.matchAll(/\bfetch\(/g)].length,
+  1,
+  "reconciliation candidate create panel must have exactly one route fetch",
 );
 
 const routeStrings = [
@@ -182,16 +182,8 @@ const routeStrings = [
 ].map((match) => match[1]);
 assert.deepEqual(
   [...new Set(routeStrings)],
-  [
-    "/api/ag-work-resume/proof-evidence-reconciliation-candidates?${searchParams.toString()}",
-  ],
-  "panel must not reference any API route except reconciliation candidates GET",
-);
-
-assert.equal(
-  [...panelSource.matchAll(/\bfetch\(/g)].length,
-  1,
-  "reconciliation candidate read panel must have exactly one route fetch",
+  ["/api/ag-work-resume/proof-evidence-reconciliation-candidates"],
+  "panel must not reference any API route except reconciliation candidates POST",
 );
 
 for (const forbiddenRoute of [
@@ -219,6 +211,7 @@ for (const forbiddenRoute of [
     `panel API route strings must not reference ${forbiddenRoute}`,
   );
 }
+
 for (const forbiddenStorage of [
   "localStorage",
   "sessionStorage",
@@ -234,33 +227,23 @@ for (const forbiddenStorage of [
 }
 
 for (const accessibilityToken of [
-  'htmlFor="ag-resume-reconciliation-candidate-candidate-id-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-import-id-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-mapping-id-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-foreign-ref-type-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-foreign-ref-id-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-local-target-scope-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-local-target-work-id-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-status-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-proposed-by-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-reviewed-by-input"',
-  'htmlFor="ag-resume-reconciliation-candidate-limit-input"',
-  'id="ag-resume-reconciliation-candidate-candidate-id-input"',
-  'id="ag-resume-reconciliation-candidate-import-id-input"',
-  'id="ag-resume-reconciliation-candidate-mapping-id-input"',
-  'id="ag-resume-reconciliation-candidate-foreign-ref-type-input"',
-  'id="ag-resume-reconciliation-candidate-foreign-ref-id-input"',
-  'id="ag-resume-reconciliation-candidate-local-target-scope-input"',
-  'id="ag-resume-reconciliation-candidate-local-target-work-id-input"',
-  'id="ag-resume-reconciliation-candidate-status-input"',
-  'id="ag-resume-reconciliation-candidate-proposed-by-input"',
-  'id="ag-resume-reconciliation-candidate-reviewed-by-input"',
-  'id="ag-resume-reconciliation-candidate-limit-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-import-id-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-mapping-id-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-foreign-ref-type-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-foreign-ref-id-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-local-target-scope-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-local-target-work-id-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-summary-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-redaction-status-json-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-proposed-by-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-proposed-reason-input"',
+  'htmlFor="ag-resume-reconciliation-candidate-create-created-at-input"',
   "aria-describedby",
   'role="alert"',
   "aria-busy",
   "<input",
   "<select",
+  "<textarea",
   "<button",
 ]) {
   assert.match(
@@ -272,16 +255,16 @@ for (const accessibilityToken of [
 
 for (const [groupLabel, headingId] of [
   [
-    "Reconciliation candidate safe fixture controls",
-    "ag-resume-reconciliation-candidate-safe-fixtures-heading",
+    "Reconciliation candidate create safe fixture controls",
+    "ag-resume-reconciliation-candidate-create-safe-fixtures-heading",
   ],
   [
-    "Reconciliation candidate lookup inputs",
-    "ag-resume-reconciliation-candidate-inputs-heading",
+    "Reconciliation candidate create inputs",
+    "ag-resume-reconciliation-candidate-create-inputs-heading",
   ],
   [
-    "Reconciliation candidate read controls",
-    "ag-resume-reconciliation-candidate-action-controls-heading",
+    "Reconciliation candidate create controls",
+    "ag-resume-reconciliation-candidate-create-action-controls-heading",
   ],
 ]) {
   assert.match(
@@ -296,56 +279,71 @@ for (const [groupLabel, headingId] of [
   );
 }
 
+assert.match(resultSource, /aria-live="polite"/, "result section must use aria-live polite");
 assert.match(
   resultSource,
-  /aria-live="polite"/,
-  "result section must use aria-live polite",
-);
-assert.match(
-  resultSource,
-  /aria-labelledby="ag-resume-reconciliation-candidate-read-result-heading"/,
+  /aria-labelledby="ag-resume-reconciliation-candidate-create-result-heading"/,
   "result section must have a stable labelled heading",
 );
 
-for (const queryToken of [
-  "candidate_id fetch must not be combined with list filters or limit.",
-  "foreign_ref_type and foreign_ref_id must be supplied together.",
-  "local_target_scope and local_target_work_id must be supplied together.",
-  "At least one reconciliation candidate read filter is required",
-  "limit must be a positive integer.",
-  'searchParams.set("import_id"',
-  'searchParams.set("mapping_id"',
-  'searchParams.set("foreign_ref_type"',
-  'searchParams.set("foreign_ref_id"',
-  'searchParams.set("local_target_scope"',
-  'searchParams.set("local_target_work_id"',
-  'searchParams.set("status"',
-  'searchParams.set("proposed_by"',
-  'searchParams.set("reviewed_by"',
-  'searchParams.set("limit"',
+for (const requestToken of [
+  "import_id is required for reconciliation candidate create.",
+  "foreign_ref_type is required for reconciliation candidate create.",
+  "foreign_ref_type must be one of proof, evidence, action, session, git, evidence_pack, handoff, or other.",
+  "foreign_ref_id is required for reconciliation candidate create.",
+  "local_target_scope is required for reconciliation candidate create.",
+  "local_target_work_id is required for reconciliation candidate create.",
+  "summary is required for reconciliation candidate create.",
+  "redaction_status JSON",
+  "proposed_by is required for reconciliation candidate create.",
+  "proposed_reason is required for reconciliation candidate create.",
+  "created_at must be an ISO UTC timestamp with millisecond precision.",
+  "redaction_status must explicitly set safe: true",
+  "redaction_status must explicitly set",
+  "secrets_included",
+  "raw_db_paths_included",
+  "session_payloads_included",
+  "proof_payloads_included",
+  "import_id",
+  "mapping_id",
+  "foreign_ref_type",
+  "foreign_ref_id",
+  "local_target_scope",
+  "local_target_work_id",
+  "redaction_status",
+  "proposed_by",
+  "proposed_reason",
+  "created_at",
 ]) {
   assert.match(
-    queryBuilderSource,
-    new RegExp(escapeRegExp(queryToken)),
-    `query builder must include ${queryToken}`,
+    requestBuilderSource,
+    new RegExp(escapeRegExp(requestToken)),
+    `request builder must include ${requestToken}`,
   );
 }
-assert.doesNotMatch(queryBuilderSource, /\bfetch\(/, "query builder must not fetch");
-assert.doesNotMatch(queryBuilderSource, /\/api\//, "query builder must not call routes");
+assert.doesNotMatch(requestBuilderSource, /\bfetch\(/, "request builder must not fetch");
+assert.doesNotMatch(requestBuilderSource, /\/api\//, "request builder must not call routes");
+assert.doesNotMatch(
+  requestBuilderSource,
+  /\b(db|now)\b/,
+  "request builder must not include db or now in route body",
+);
 
 for (const fixtureToken of [
-  "SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE",
-  "ag-resume-proof-evidence-reconciliation-candidate:",
+  "SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE",
   "ag-resume-imported-context:",
   "ag-resume-confirmed-mapping:",
   "proof",
-  "proof:foreign-public-safe:reconciliation-candidate-read-001",
+  "evidence",
+  "action",
+  "git",
+  "proof:foreign-public-safe:reconciliation-candidate-create-001",
   "project:augnes",
-  "AG-FIXTURE-RECONCILIATION-CANDIDATE-READ-LOCAL-001",
-  "proposed",
-  "user-core:reconciliation-candidate-read-cockpit-panel",
-  "user-core:reconciliation-candidate-reviewer-cockpit-panel",
-  "20",
+  "AG-FIXTURE-RECONCILIATION-CANDIDATE-CREATE-LOCAL-001",
+  "redaction_status_json",
+  "safe",
+  "user-core:reconciliation-candidate-create-cockpit-panel",
+  "2026-06-01T06:00:00.000Z",
 ]) {
   assert.match(
     fixtureSource,
@@ -355,15 +353,12 @@ for (const fixtureToken of [
 }
 
 for (const localFunctionName of [
-  "loadSafeReconciliationCandidateIdFixture",
-  "loadSafeReconciliationCandidateImportFixture",
-  "loadSafeReconciliationCandidateMappingFixture",
-  "loadSafeReconciliationCandidateForeignRefFixture",
-  "loadSafeReconciliationCandidateLocalTargetFixture",
-  "loadSafeReconciliationCandidateStatusFixture",
-  "loadSafeReconciliationCandidateProposedByFixture",
-  "loadSafeReconciliationCandidateReviewedByFixture",
-  "clearReconciliationCandidateInputs",
+  "loadSafeReconciliationCandidateDerivedMappingFixture",
+  "loadSafeReconciliationCandidateExplicitMappingFixture",
+  "loadSafeReconciliationCandidateMissingImportFixture",
+  "loadSafeReconciliationCandidateInactiveImportFixture",
+  "loadSafeReconciliationCandidateMismatchFixture",
+  "clearReconciliationCandidateCreateInputs",
 ]) {
   const source = extractFunctionBlock(panelSource, localFunctionName);
   assert.doesNotMatch(source, /\bfetch\(/, `${localFunctionName} must not fetch`);
@@ -372,26 +367,22 @@ for (const localFunctionName of [
 }
 
 for (const buttonLabel of [
-  "Load safe candidate lookup",
-  "Load safe import lookup",
-  "Load safe mapping lookup",
-  "Load safe foreign ref lookup",
-  "Load safe local target lookup",
-  "Load safe status lookup",
-  "Load safe proposer lookup",
-  "Load safe reviewer lookup",
-  "Clear reconciliation candidate inputs",
-  "Read reconciliation candidates",
+  "Load safe derived mapping create fixture",
+  "Load safe explicit mapping create fixture",
+  "Load safe missing import create fixture",
+  "Load safe inactive import create fixture",
+  "Load safe mismatch create fixture",
+  "Clear reconciliation candidate create inputs",
+  "Create reconciliation candidate",
 ]) {
   assert.match(
     panelSource,
-    new RegExp(`>\\s*${escapeRegExp(buttonLabel)}\\s*<|\\?\\s*"Reading reconciliation candidates"\\s*:\\s*"Read reconciliation candidates"`),
+    new RegExp(`>\\s*${escapeRegExp(buttonLabel)}\\s*<|\\?\\s*"Creating reconciliation candidate"\\s*:\\s*"Create reconciliation candidate"`),
     `panel must include button label ${buttonLabel}`,
   );
 }
 
 for (const forbiddenLabel of [
-  "Create candidate",
   "Record evidence",
   "Record proof",
   "Bind session",
@@ -413,14 +404,19 @@ for (const forbiddenLabel of [
 for (const resultToken of [
   "HTTP Status",
   "Route ok",
-  "Reader status",
-  "Record count",
-  "Applied filters",
+  "Writer status",
+  "Candidate id",
+  "Import id",
+  "Mapping id",
+  "Foreign ref",
+  "Local target",
+  "Summary",
+  "Redaction status",
+  "Proposer",
   "Warnings",
   "Failures",
-  "Read Authority Boundary",
+  "Create Authority Boundary",
   "Record Authority Boundary",
-  "review_metadata_only",
   "candidate_id",
   "import_id",
   "mapping_id",
@@ -432,12 +428,6 @@ for (const resultToken of [
   "redaction_status",
   "proposed_by",
   "proposed_reason",
-  "reviewed_by",
-  "reviewed_at",
-  "review_note",
-  "status",
-  "created_at",
-  "updated_at",
   "proof_recorded",
   "evidence_recorded",
   "session_bound",
@@ -459,78 +449,74 @@ for (const resultToken of [
 }
 
 for (const docsToken of [
-  "AG Work Resume Proof Evidence Reconciliation Candidate Read Cockpit Panel v0.1",
-  "read-only Cockpit Operator panel",
-  "GET /api/ag-work-resume/proof-evidence-reconciliation-candidates",
-  "read-only reconciliation candidate review metadata only",
+  "AG Work Resume Proof Evidence Reconciliation Candidate Create Cockpit Panel v0.1",
+  "POST /api/ag-work-resume/proof-evidence-reconciliation-candidates",
+  "Reconciliation candidates are review metadata only",
   "Candidate rows are not proof/evidence",
-  "candidate_id",
-  "import_id",
-  "mapping_id",
-  "foreign_ref_type",
-  "foreign_ref_id",
-  "local_target_scope",
-  "local_target_work_id",
-  "status",
-  "proposed_by",
-  "reviewed_by",
-  "limit",
-  "Load safe candidate lookup",
-  "Read reconciliation candidates",
-  "Candidate cards render",
+  "The create action sends exactly one route request",
+  "JSON `Content-Type` header",
+  "does not include `db` or `now`",
+  "Local Validation",
+  "Redaction Validation",
+  "safe",
+  "secrets_included",
+  "raw_db_paths_included",
+  "session_payloads_included",
+  "proof_payloads_included",
+  "Output Rendering",
   "role=\"alert\"",
   "aria-live=\"polite\"",
-  "No create controls",
-  "No update route",
-  "No delete route",
-  "No lifecycle mutation",
+  "No schema or migration",
+  "No read route behavior change",
   "No proof/evidence recording",
   "No session binding",
   "No Codex execution",
-  "No schema or migration",
-  "No ChatGPT App, MCP/App schema, or bridge tool changes",
-  "No telemetry, analytics, localStorage, sessionStorage, or indexedDB",
-  "No approval, publish, retry, replay, merge",
+  "No work item or work event creation",
+  "No imported context mutation",
+  "No confirmed mapping mutation",
+  "No proposal mutation",
+  "No approve, publish, retry, replay, merge",
   "Browser Verification Requirement",
-  "network proof",
-  "DB side-effect proof",
 ]) {
   assert.match(docsSource, new RegExp(escapeRegExp(docsToken)), `docs must include ${docsToken}`);
 }
 
 for (const pointerDocs of [
+  readPanelDocsSource,
   readDocsSource,
   routeDocsSource,
   writerDocsSource,
-  schemaDocsSource,
   reconciliationDocsSource,
   gatesDocsSource,
   gateDocsSource,
 ]) {
   assert.match(
     pointerDocs,
-    /AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1\.md/,
-    "pointer docs must link to the reconciliation candidate read Cockpit panel doc",
+    /AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1\.md/,
+    "pointer docs must link to the reconciliation candidate create Cockpit panel doc",
   );
 }
 
 for (const reportToken of [
-  "AG Resume proof/evidence reconciliation candidate read Cockpit panel",
+  "AG Resume proof/evidence reconciliation candidate create Cockpit panel",
   "Codex in-app Browser",
-  "GET /api/ag-work-resume/proof-evidence-reconciliation-candidates",
-  "candidate_id",
-  "import_id",
-  "mapping_id",
-  "foreign_ref_type",
-  "local_target_scope",
-  "status",
-  "proposed_by",
-  "reviewed_by",
+  "POST /api/ag-work-resume/proof-evidence-reconciliation-candidates",
+  "create from active imported context",
+  "omitted mapping_id derives",
+  "explicit matching mapping_id",
+  "missing required local validation",
+  "malformed created_at local validation",
+  "unsafe redaction local validation",
+  "imported_context_not_found",
+  "imported_context_not_allowed",
+  "imported_context_mismatch",
+  "duplicate_candidate",
   "network proof",
-  "request body length was `0`",
-  "no read call sent a JSON `Content-Type` header",
+  "JSON content-type",
+  "supported body fields only",
+  "no GET read route call",
   "DB side-effect proof",
-  "ag_work_resume_proof_evidence_reconciliation_candidates",
+  "exactly one candidate row created",
   "No unauthorized controls",
   "Result: passed",
 ]) {
@@ -543,7 +529,7 @@ for (const reportToken of [
 
 assertChangedFilesGuard();
 
-console.log("PASS ag work resume proof/evidence reconciliation candidate read cockpit panel smoke");
+console.log("PASS ag work resume proof/evidence reconciliation candidate create cockpit panel smoke");
 
 function assertChangedFilesGuard() {
   const changedFiles = new Set([
@@ -558,12 +544,10 @@ function assertChangedFilesGuard() {
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
-    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
@@ -580,7 +564,7 @@ function assertChangedFilesGuard() {
   for (const file of changedFiles) {
     assert.ok(
       allowedFiles.has(file),
-      `changed file is outside reconciliation candidate read Cockpit panel slice: ${file}`,
+      `changed file is outside reconciliation candidate create Cockpit panel slice: ${file}`,
     );
     assert.equal(file.startsWith("app/"), false, `no app/api change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
@@ -592,11 +576,9 @@ function assertChangedFilesGuard() {
     );
     assert.ok(
       file ===
-        "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" ||
-        file ===
-          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" ||
+        "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" ||
         !file.startsWith("reports/browser/"),
-      `browser report changes limited to reconciliation candidate read Cockpit panel: ${file}`,
+      `browser report changes limited to reconciliation candidate create Cockpit panel: ${file}`,
     );
   }
 }
@@ -615,7 +597,7 @@ function extractFunctionBlock(source, functionName) {
   const signature = `function ${functionName}`;
   const start = source.indexOf(signature);
   assert.notEqual(start, -1, `${functionName} must exist`);
-  const bodyStartMatch = source.slice(start).match(/\)\s*\{/);
+  const bodyStartMatch = source.slice(start).match(/\)\s*(?::[^{]+)?\{/);
   assert.ok(bodyStartMatch, `${functionName} must have a body`);
   const openBrace =
     start + bodyStartMatch.index + bodyStartMatch[0].lastIndexOf("{");
@@ -652,17 +634,19 @@ function findMatchingBrace(source, openBrace) {
       continue;
     }
 
-    if (char === "\"" || char === "'" || char === "`") {
+    if (char === '"' || char === "'" || char === "`") {
       quote = char;
       continue;
     }
+
     if (char === "{") depth += 1;
     if (char === "}") {
       depth -= 1;
       if (depth === 0) return index;
     }
   }
-  assert.fail("No matching brace found");
+
+  throw new Error("No matching brace found");
 }
 
 function escapeRegExp(value) {

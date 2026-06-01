@@ -88,6 +88,14 @@ lifecycle, proof/evidence/session, Codex, work item/event creation, imported
 context/confirmed mapping/proposal mutation, schema/migration, approval,
 publish, retry, replay, or merge authority.
 
+The reconciliation candidate bounded Cockpit Operator create panel is
+documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing POST route to create candidate review metadata and
+adds no update/delete, lifecycle, proof/evidence/session, Codex, work
+item/event creation, imported context/confirmed mapping/proposal mutation,
+schema/migration, approval, publish, retry, replay, or merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
