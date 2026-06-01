@@ -493,6 +493,10 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
+    "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     "package.json",
   ]);
   const forbiddenPrefixes = [
@@ -518,6 +522,9 @@ function assertNoUnexpectedChangedFiles() {
     assert.equal(
       file !==
         "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+        file !== "components/augnes-cockpit.tsx" &&
+        file !==
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `candidate schema follow-up must not touch forbidden path except candidate create route: ${file}`,
@@ -550,7 +557,12 @@ function assertNoRuntimeImplementationCode() {
       file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs" &&
       file !==
         "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
-      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs" &&
+      file !== "components/augnes-cockpit.tsx" &&
+      file !==
+        "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
+      file !==
+        "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
   );
   assert.deepEqual(
     [...new Set(runtimeFiles)],

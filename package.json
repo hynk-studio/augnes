@@ -101,6 +101,7 @@
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-writer": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-writer.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-route": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-read": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
+    "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-read-cockpit-panel": "node scripts/smoke-ag-work-resume-mapping-proposal-record-read-cockpit-panel.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-design": "node scripts/smoke-ag-work-resume-mapping-proposal-record-design.mjs",
     "smoke:ag-work-resume-mapping-proposal-db-schema-design": "node scripts/smoke-ag-work-resume-mapping-proposal-db-schema-design.mjs",

@@ -54,6 +54,14 @@ record proof/evidence, bind sessions, execute Codex, create work items/events,
 mutate imported contexts, confirmed mappings, or proposals, or grant approval,
 publish, retry, replay, or merge authority.
 
+The later read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing GET route, renders candidate review metadata, and
+adds no writer behavior, create/update/delete controls, lifecycle mutation,
+proof/evidence/session behavior, Codex authority, work item/event creation,
+imported context/confirmed mapping/proposal mutation, approval, publish,
+retry, replay, or merge authority.
+
 ## Core API
 
 Core module:

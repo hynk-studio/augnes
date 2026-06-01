@@ -21,6 +21,13 @@ browser report, ChatGPT App/MCP/App schema, or bridge tool was added by this
 read helper/route slice. The existing POST create route is preserved but not
 changed by this read slice.
 
+The later read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md`.
+It calls only this existing GET route, renders candidate review metadata, and
+adds no create/update/delete, lifecycle, proof/evidence/session, Codex, work
+item/event creation, imported context/confirmed mapping/proposal mutation,
+schema/migration, approval, publish, retry, replay, or merge authority.
+
 ## Relationship To Writer Route Schema And Design
 
 This read slice follows:

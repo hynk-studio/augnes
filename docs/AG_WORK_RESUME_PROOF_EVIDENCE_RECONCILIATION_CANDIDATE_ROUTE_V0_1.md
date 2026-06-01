@@ -39,6 +39,13 @@ The later read-only GET route is documented in
 It lists or fetches candidate review metadata only and preserves this existing
 POST create route behavior.
 
+The later read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing GET route and grants no create/update/delete,
+lifecycle, proof/evidence/session, Codex, work item/event creation, imported
+context/confirmed mapping/proposal mutation, schema/migration, approval,
+publish, retry, replay, or merge authority.
+
 ## Route
 
 Endpoint:

@@ -508,6 +508,9 @@ function assertSourceGuards() {
     "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
   ]);
   for (const file of changedFiles) {
     assert.ok(
@@ -532,6 +535,8 @@ function assertSourceGuards() {
         "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md" ||
         file ===
           "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md" ||
+        file ===
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" ||
         !file.startsWith("reports/browser/"),
       `browser report changes limited to imported context Cockpit panels: ${file}`,
     );

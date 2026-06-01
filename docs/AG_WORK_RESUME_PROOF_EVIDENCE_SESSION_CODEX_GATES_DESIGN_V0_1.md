@@ -81,6 +81,13 @@ proof/evidence, bind sessions, execute Codex, create work items/events, mutate
 imported contexts, confirmed mappings, or proposals, or grant approval,
 publish, retry, replay, or merge authority.
 
+The reconciliation candidate read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing GET route and adds no create/update/delete,
+lifecycle, proof/evidence/session, Codex, work item/event creation, imported
+context/confirmed mapping/proposal mutation, schema/migration, approval,
+publish, retry, replay, or merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
