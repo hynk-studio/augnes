@@ -49,6 +49,13 @@ the POST create route, schema, proof/evidence, session, Codex, work,
 confirmed mapping/proposal, approval, publish, retry, replay, or merge
 behavior.
 
+The later bounded POST create Cockpit panel is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`. It calls
+only the existing imported contexts POST route with supported JSON fields and
+does not change this writer/helper core, schema, read route behavior,
+proof/evidence, session, Codex, work, confirmed mapping/proposal, approval,
+publish, retry, replay, or merge behavior.
+
 ## Core API
 
 Core module:
@@ -233,7 +240,10 @@ proof/evidence/session/Codex/merge authority.
 - Read helper/GET route is separately documented in
   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md` and changes no writer
   behavior.
-- No Cockpit UI.
+- No Cockpit UI in this writer/helper slice. Read and bounded create Cockpit
+  panels are separately documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md` and
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`.
 - No app changes.
 - No components changes.
 - No migrations.

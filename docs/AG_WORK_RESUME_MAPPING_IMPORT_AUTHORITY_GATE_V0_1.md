@@ -289,6 +289,12 @@ PRs:
   proof/evidence, session binding, Codex execution, work item/event creation,
   confirmed mapping/proposal mutation, schema/migration, approval, publish,
   retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
+  documents the later bounded Cockpit Operator create panel; it calls only the
+  existing POST imported context route with supported JSON fields and adds no
+  schema/migration, read route behavior, proof/evidence, session binding,
+  Codex execution, work item/event creation, confirmed mapping/proposal
+  mutation, approval, publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and
