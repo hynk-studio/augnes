@@ -99,11 +99,13 @@ for (const phrase of [
   assertIncludes(design, phrase);
 }
 
-assert.equal(
-  existsSync(recommendedScriptPath),
-  false,
-  "recommended local script must not be implemented by this design PR",
-);
+if (existsSync(recommendedScriptPath)) {
+  assert.equal(
+    pkg.scripts?.["ag:resume-proof-evidence-recording-create"],
+    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+    "implemented recording script must stay wired through the bounded package helper",
+  );
+}
 
 for (const phrase of [
   "The future helper takes `candidate_id` as canonical input",
@@ -211,6 +213,9 @@ const allowedChangedFiles = new Set([
   reconciliationDesignPath,
   lifecycleDocPath,
   packagePath,
+  "lib/ag-work-resume-proof-evidence-recording.ts",
+  "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
@@ -242,15 +247,16 @@ const forbiddenChangedPrefixes = [
   "db/",
   "apps/",
   "reports/browser/",
-  "lib/",
 ];
 const runtimeSchemaOrBrowserChanged = changedFiles.filter((file) =>
-  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)),
+  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
+  (file.startsWith("lib/") &&
+    file !== "lib/ag-work-resume-proof-evidence-recording.ts"),
 );
 assert.deepEqual(
   runtimeSchemaOrBrowserChanged,
   [],
-  "writer/helper gate design PR must not change runtime/schema/migration/writer/helper/route/UI/browser files",
+  "writer/helper implementation PR must not change runtime/schema/migration/route/UI/browser files outside the scoped writer helper",
 );
 
 console.log(
@@ -268,7 +274,7 @@ console.log(
       route_ui_out_of_scope: true,
       session_binding_codex_continuation_out_of_scope: true,
       approval_publish_retry_replay_merge_out_of_scope: true,
-      changed_files_limited_to_docs_package_smokes: true,
+      changed_files_limited_to_docs_package_scoped_writer_helper_smokes: true,
     },
     null,
     2,

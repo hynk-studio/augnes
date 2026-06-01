@@ -105,8 +105,8 @@ try {
           "schema initialization creates no action_records rows",
           "schema smoke direct DB fixture is rolled back",
           "protected AG Resume review-metadata tables remain empty after smoke",
-          "changed files are limited to schema, docs, package, and smoke guards",
-          "no writer/helper/route/UI files changed",
+          "changed files are limited to schema docs, package, scoped writer helper, and smoke guards",
+          "no route/UI/browser files or unscoped runtime files changed",
         ],
       },
       null,
@@ -795,6 +795,9 @@ function assertNoUnexpectedChangedFiles() {
     lifecycleDocPath,
     "package.json",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-recording.ts",
+    "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
     smokeRelativePath,
     "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
@@ -826,13 +829,17 @@ function assertNoWriterRouteUiChanges() {
       file.startsWith("public/") ||
       file.startsWith("apps/") ||
       file.startsWith("reports/browser/") ||
-      (file.startsWith("lib/") && file !== schemaRelativePath) ||
-      (file.startsWith("scripts/") && !file.startsWith("scripts/smoke-")),
+      (file.startsWith("lib/") &&
+        file !== schemaRelativePath &&
+        file !== "lib/ag-work-resume-proof-evidence-recording.ts") ||
+      (file.startsWith("scripts/") &&
+        !file.startsWith("scripts/smoke-") &&
+        file !== "scripts/ag-work-resume-proof-evidence-recording-create.mjs"),
   );
   assert.deepEqual(
     forbiddenFiles,
     [],
-    `schema-only PR must not change writer/helper/route/UI/browser files: ${forbiddenFiles.join(", ")}`,
+    `bridge-table follow-up must not change route/UI/browser files or unscoped runtime files: ${forbiddenFiles.join(", ")}`,
   );
 }
 
