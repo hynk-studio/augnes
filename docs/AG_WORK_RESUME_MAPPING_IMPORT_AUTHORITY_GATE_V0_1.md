@@ -30,6 +30,16 @@ mutation, confirmed mapping mutation, proposal mutation, approval, publish,
 retry, replay, merge, auto-merge, external posting, or committed-state
 authority.
 
+Actual proof/evidence recording gate pointer:
+`docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`
+defines the future explicit gate for turning reviewed reconciliation candidate
+metadata into local proof/evidence records. It is design-only. It adds no
+runtime behavior, schema/migration, writer/helper/route/UI, proof/evidence
+recording, session binding, Codex continuation, work item/event creation,
+imported context mutation, confirmed mapping mutation, proposal mutation,
+approval, publish, retry, replay, merge, auto-merge, or committed-state
+authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:

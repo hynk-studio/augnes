@@ -36,6 +36,10 @@ const reviewMetadataCloseoutDocRelativePath =
   "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md";
 const reviewMetadataCloseoutSmokeRelativePath =
   "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs";
+const actualRecordingGateDesignDocRelativePath =
+  "docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md";
+const actualRecordingGateDesignSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
@@ -47,6 +51,7 @@ const pointerDocRelativePaths = [
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
   reviewMetadataCloseoutDocRelativePath,
+  actualRecordingGateDesignDocRelativePath,
 ];
 
 for (const file of [
@@ -341,6 +346,7 @@ function assertNoUnexpectedChangedFiles() {
     candidateSchemaImplementationSmokeRelativePath,
     candidateWriterSmokeRelativePath,
     candidateWriterHelperRelativePath,
+    actualRecordingGateDesignSmokeRelativePath,
     reviewMetadataCloseoutSmokeRelativePath,
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
@@ -432,6 +438,7 @@ function assertNoForbiddenImplementationCode() {
       file !== candidateSchemaImplementationSmokeRelativePath &&
       file !== candidateWriterSmokeRelativePath &&
       file !== candidateWriterHelperRelativePath &&
+      file !== actualRecordingGateDesignSmokeRelativePath &&
       file !== reviewMetadataCloseoutSmokeRelativePath &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&

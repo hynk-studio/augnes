@@ -281,6 +281,10 @@ applicable to a docs-only closeout PR with no runtime/UI changes.
 No option is selected by this closeout. A future option requires explicit
 user/Core authorization and a separate PR.
 
+The actual proof/evidence recording gate design is tracked in
+`docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`.
+It is design-only and does not authorize recording by itself.
+
 ## Required Preconditions Before Actual Proof/Evidence Recording
 
 - user/Core explicit authorization

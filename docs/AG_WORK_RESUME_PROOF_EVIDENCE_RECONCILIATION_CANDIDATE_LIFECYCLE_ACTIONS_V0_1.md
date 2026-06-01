@@ -117,6 +117,12 @@ has been accepted as suitable for a possible future recording path. It does not
 record proof/evidence, create proof/evidence records, bind a session, continue
 Codex, or create work items/events.
 
+The future actual proof/evidence recording gate is documented in
+`docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`.
+That design is not recording authority. Actual proof/evidence recording remains
+unauthorized until a separate implementation PR is explicitly approved after
+that design.
+
 ## Allowed Transitions
 
 Allowed lifecycle transitions:

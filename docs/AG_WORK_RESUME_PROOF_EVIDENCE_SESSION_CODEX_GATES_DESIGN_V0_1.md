@@ -109,6 +109,13 @@ It calls only the lifecycle action route and adds no proof/evidence, session,
 Codex, work item/event, imported context, confirmed mapping, proposal,
 approval, publish, retry, replay, or merge authority.
 
+The actual proof/evidence recording gate is documented in
+`docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`.
+It defines the future explicit gate after review-metadata closeout and
+candidate lifecycle review. It is design-only; actual proof/evidence recording
+remains unauthorized until a separate implementation PR is explicitly approved
+after that design.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
