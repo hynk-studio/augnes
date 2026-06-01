@@ -42,6 +42,11 @@ The proof/evidence reconciliation design in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md` is
 design-only and does not add proof/evidence recording, schema, route, helper,
 UI, session, Codex, approval, publish, retry, replay, or merge behavior.
+The candidate DB/schema design in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
+adds no schema implementation, migration, route behavior, proof/evidence
+recording, session binding, Codex behavior, approval, publish, retry, replay,
+or merge authority.
 
 ## Route
 

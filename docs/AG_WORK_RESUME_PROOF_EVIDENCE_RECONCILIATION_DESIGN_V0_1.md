@@ -34,6 +34,13 @@ describe foreign proof, evidence, action, session, Git, evidence-pack, or
 handoff refs as bounded summaries for local review. That summary does not
 import raw payloads and does not create local proof/evidence.
 
+The future candidate DB/schema contract is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`.
+It preserves reconciliation candidates as review metadata only and adds no
+schema implementation, migration, runtime behavior, writer/helper/route/UI,
+proof/evidence recording, session binding, Codex behavior, approval, publish,
+retry, replay, or merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is
@@ -213,7 +220,8 @@ metadata only and is not proof/evidence authority.
 ## Future PR Sequence
 
 1. Proof/evidence reconciliation design only: this PR.
-2. Reconciliation candidate schema design, separately approved.
+2. Reconciliation candidate DB/schema design:
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`.
 3. Reconciliation candidate writer/helper, separately approved.
 4. Proof/evidence actual recording design, separately approved.
 5. Session/Codex gates remain separate.

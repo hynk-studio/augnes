@@ -35,6 +35,7 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
@@ -52,6 +53,10 @@ The proof/evidence reconciliation design is documented in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`. It keeps
 foreign refs foreign until explicitly reconciled and does not change this
 read helper/GET route.
+The candidate DB/schema design is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`;
+it adds no schema implementation, migration, runtime behavior, or read
+helper/GET route behavior.
 
 ## Read Filters
 

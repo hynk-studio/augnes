@@ -66,6 +66,11 @@ The proof/evidence reconciliation design in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md` keeps
 foreign refs as review-only reconciliation candidates until separately
 authorized and does not change this writer/helper.
+The candidate DB/schema design in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
+adds no schema implementation, migration, runtime behavior, writer/helper
+behavior, proof/evidence recording, session binding, Codex behavior, approval,
+publish, retry, replay, or merge authority.
 
 ## Core API
 
