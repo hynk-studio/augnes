@@ -6,6 +6,8 @@ const closeoutPath =
   "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md";
 const actualRecordingGateDesignPath =
   "docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md";
+const schemaIntegrationPolicyPath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md";
 const authorityGatePath =
   "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md";
 const packagePath = "package.json";
@@ -13,6 +15,7 @@ const packagePath = "package.json";
 for (const path of [
   closeoutPath,
   actualRecordingGateDesignPath,
+  schemaIntegrationPolicyPath,
   authorityGatePath,
   packagePath,
 ]) {
@@ -24,9 +27,15 @@ const actualRecordingGateDesign = readFileSync(
   actualRecordingGateDesignPath,
   "utf8",
 );
+const schemaIntegrationPolicy = readFileSync(schemaIntegrationPolicyPath, "utf8");
 const authorityGate = readFileSync(authorityGatePath, "utf8");
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
-const joined = [closeout, actualRecordingGateDesign, authorityGate].join("\n");
+const joined = [
+  closeout,
+  actualRecordingGateDesign,
+  schemaIntegrationPolicy,
+  authorityGate,
+].join("\n");
 
 for (const phrase of [
   "AG Resume Cross-local Continuity Review-Metadata Milestone v0.1",
@@ -138,8 +147,10 @@ const diffChangedFiles = execFileSync("git", ["diff", "--name-only", "HEAD"], {
 const allowedChangedFiles = new Set([
   closeoutPath,
   actualRecordingGateDesignPath,
+  schemaIntegrationPolicyPath,
   authorityGatePath,
   "package.json",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",

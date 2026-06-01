@@ -40,6 +40,13 @@ imported context mutation, confirmed mapping mutation, proposal mutation,
 approval, publish, retry, replay, merge, auto-merge, or committed-state
 authority.
 
+Proof/evidence recording schema/integration policy pointer:
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`
+narrows the future schema/integration policy after the recording gate design.
+It is design-only and adds no schema/migration, writer/helper/route/UI, actual
+proof/evidence recording, session binding, Codex continuation, approval,
+publish, retry, replay, merge, auto-merge, or committed-state authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:

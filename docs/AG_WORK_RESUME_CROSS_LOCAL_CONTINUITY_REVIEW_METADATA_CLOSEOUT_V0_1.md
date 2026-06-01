@@ -285,6 +285,11 @@ The actual proof/evidence recording gate design is tracked in
 `docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`.
 It is design-only and does not authorize recording by itself.
 
+The proof/evidence recording schema/integration policy is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`.
+It is design-only and does not authorize schema, migration, writer/helper/route/UI,
+or actual proof/evidence recording by itself.
+
 ## Required Preconditions Before Actual Proof/Evidence Recording
 
 - user/Core explicit authorization
