@@ -59,6 +59,12 @@ This recommendation does not implement the bridge table, does not create a
 verification evidence row, and does not approve recording. It only chooses the
 future integration policy to be designed and implemented in later explicit PRs.
 
+The bridge-table schema design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`.
+It is design-only and does not add schema/migration, modify
+`lib/db/schema.sql`, create bridge rows, create evidence rows, create action
+records, or authorize actual recording.
+
 ## Why This Is The First Path
 
 The first path should not mutate candidate rows to mark recording, because
@@ -602,7 +608,9 @@ design-only pass.
 The later implementation sequence should be:
 
 1. Bridge-table schema design PR.
-2. Bridge-table schema/migration PR.
+2. Bridge-table schema/migration PR, after
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`
+   is accepted.
 3. Writer/helper design PR for the exact approved recording attempt.
 4. Writer/helper implementation PR creating one bridge row and one evidence
    row in one transaction.

@@ -290,6 +290,12 @@ The proof/evidence recording schema/integration policy is tracked in
 It is design-only and does not authorize schema, migration, writer/helper/route/UI,
 or actual proof/evidence recording by itself.
 
+The proof/evidence recording bridge-table schema design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`.
+It is design-only and does not authorize schema, migration, bridge row
+creation, verification evidence row creation, action record creation, or actual
+proof/evidence recording by itself.
+
 ## Required Preconditions Before Actual Proof/Evidence Recording
 
 - user/Core explicit authorization

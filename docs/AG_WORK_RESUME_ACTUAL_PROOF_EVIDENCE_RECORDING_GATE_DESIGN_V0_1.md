@@ -278,6 +278,12 @@ It is design-only and recommends a future bridge-table path with one
 verification evidence target row first. It does not add schema, migration,
 writer/helper/route/UI, or proof/evidence recording authority.
 
+The bridge-table schema design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`.
+It is design-only and does not add schema/migration, modify
+`lib/db/schema.sql`, create bridge rows, create verification evidence rows,
+create action records, or authorize actual proof/evidence recording.
+
 ## Future Route/Helper/UI Implementation Sequence
 
 Later PRs should stay split and reviewable:

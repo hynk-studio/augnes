@@ -6,6 +6,8 @@ const designPath =
   "docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md";
 const schemaIntegrationPolicyPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md";
+const bridgeDesignPath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md";
 const closeoutPath =
   "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md";
 const authorityGatePath =
@@ -21,6 +23,7 @@ const packagePath = "package.json";
 for (const path of [
   designPath,
   schemaIntegrationPolicyPath,
+  bridgeDesignPath,
   closeoutPath,
   authorityGatePath,
   sessionCodexGatePath,
@@ -33,6 +36,7 @@ for (const path of [
 
 const design = readFileSync(designPath, "utf8");
 const schemaIntegrationPolicy = readFileSync(schemaIntegrationPolicyPath, "utf8");
+const bridgeDesign = readFileSync(bridgeDesignPath, "utf8");
 const closeout = readFileSync(closeoutPath, "utf8");
 const authorityGate = readFileSync(authorityGatePath, "utf8");
 const sessionCodexGate = readFileSync(sessionCodexGatePath, "utf8");
@@ -41,6 +45,7 @@ const lifecycleDoc = readFileSync(lifecycleDocPath, "utf8");
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
 const joinedPointers = [
   schemaIntegrationPolicy,
+  bridgeDesign,
   closeout,
   authorityGate,
   sessionCodexGate,
@@ -226,12 +231,14 @@ const changedFiles = gitChangedFiles();
 const allowedChangedFiles = new Set([
   designPath,
   schemaIntegrationPolicyPath,
+  bridgeDesignPath,
   closeoutPath,
   authorityGatePath,
   sessionCodexGatePath,
   reconciliationDesignPath,
   lifecycleDocPath,
   "package.json",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
   "scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs",
   "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
