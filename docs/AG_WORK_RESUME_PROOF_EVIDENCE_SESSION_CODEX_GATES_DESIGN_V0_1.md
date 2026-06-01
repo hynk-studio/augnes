@@ -69,9 +69,16 @@ approval, publish, retry, replay, or merge authority.
 The reconciliation candidate create route is documented in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
 It delegates to the writer core and creates reconciliation candidate review
-metadata rows only. It adds no Cockpit UI, read route, schema/migration,
-proof/evidence recording, session binding, Codex behavior, work item/event
-creation, imported context/confirmed mapping/proposal mutation, approval,
+metadata rows only. It adds no Cockpit UI, schema/migration, proof/evidence
+recording, session binding, Codex behavior, work item/event creation, imported
+context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
+or merge authority.
+
+The reconciliation candidate read helper/GET route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`.
+It reads reconciliation candidate review metadata only and does not record
+proof/evidence, bind sessions, execute Codex, create work items/events, mutate
+imported contexts, confirmed mappings, or proposals, or grant approval,
 publish, retry, replay, or merge authority.
 
 Approval, publish, retry, replay, and merge remain separate from imported

@@ -338,6 +338,10 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     schemaRelativePath,
     candidateWriterCoreRelativePath,
@@ -361,6 +365,7 @@ function assertNoUnexpectedChangedFiles() {
     assert.equal(
       file !== schemaRelativePath &&
         file !== candidateWriterCoreRelativePath &&
+        file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" &&
         file !==
           "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
@@ -370,8 +375,9 @@ function assertNoUnexpectedChangedFiles() {
     assert.ok(
       file === schemaRelativePath ||
         file === candidateWriterCoreRelativePath ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
         !file.startsWith("lib/"),
-      `lib changes are limited to ${schemaRelativePath} or candidate writer core: ${file}`,
+      `lib changes are limited to ${schemaRelativePath} or candidate writer/read core: ${file}`,
     );
   }
 }
@@ -383,11 +389,14 @@ function assertNoForbiddenImplementationCode() {
       file !== "package.json" &&
       file !== schemaRelativePath &&
       file !== candidateWriterCoreRelativePath &&
+      file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" &&
       file !== smokeRelativePath &&
       file !== candidateSchemaSmokeRelativePath &&
       file !== candidateSchemaImplementationSmokeRelativePath &&
       file !== candidateWriterSmokeRelativePath &&
       file !== candidateWriterHelperRelativePath &&
+      file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
       file !== gateSmokeRelativePath &&
       file !== "scripts/smoke-ag-work-resume-imported-context-route.mjs" &&
       file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs" &&

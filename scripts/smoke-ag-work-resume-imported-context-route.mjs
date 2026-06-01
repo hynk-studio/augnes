@@ -503,6 +503,10 @@ function assertSourceGuards() {
     "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
   ]);
   for (const file of changedFiles) {
@@ -535,8 +539,9 @@ function assertSourceGuards() {
     assert.ok(
       file === "lib/ag-work-resume-imported-context-read.ts" ||
         file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts" ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
         !file.startsWith("lib/"),
-      `lib changes limited to imported context read core and reconciliation candidate writer: ${file}`,
+      `lib changes limited to imported context read core and reconciliation candidate writer/read core: ${file}`,
     );
   }
 }

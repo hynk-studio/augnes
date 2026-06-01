@@ -32,6 +32,7 @@ This writer follows:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`
 
 The schema implementation creates only the candidate table and indexes. This
 writer adds the first bounded row creation path for that table, but still does
@@ -45,6 +46,13 @@ The later JSON route is documented in
 It delegates to this shared writer core and preserves the same review metadata
 authority boundary. The writer core remains independent of HTTP route
 behavior.
+
+The later read helper/GET route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`.
+It reads candidate review metadata only and does not change writer behavior,
+record proof/evidence, bind sessions, execute Codex, create work items/events,
+mutate imported contexts, confirmed mappings, or proposals, or grant approval,
+publish, retry, replay, or merge authority.
 
 ## Core API
 
