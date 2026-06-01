@@ -430,6 +430,8 @@ function assertChangedFilesGuard() {
   const allowedFiles = new Set([
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts",
     "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
@@ -449,6 +451,7 @@ function assertChangedFilesGuard() {
     "package.json",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md",
     "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
@@ -460,6 +463,7 @@ function assertChangedFilesGuard() {
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-writer.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
+    "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
   ]);

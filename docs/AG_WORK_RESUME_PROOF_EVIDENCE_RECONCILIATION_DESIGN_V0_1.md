@@ -99,6 +99,12 @@ It calls only the candidate lifecycle action route and adds no proof/evidence,
 session, Codex, work item/event, imported context, confirmed mapping,
 proposal, approval, publish, retry, replay, or merge authority.
 
+The actual proof/evidence recording gate is documented in
+`docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`.
+It defines future preconditions for turning reviewed candidate metadata into
+local proof/evidence records. It is design-only; candidate review and
+`accepted_for_future_recording` still do not record proof/evidence.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is
