@@ -219,6 +219,14 @@ recording, session binding, Codex behavior, work item/event creation, imported
 context mutation, confirmed mapping/proposal mutation, approval, publish,
 retry, replay, or merge authority.
 
+The candidate create route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
+It delegates to the shared writer core and creates candidate review metadata
+rows only; it adds no Cockpit UI, schema/migration, proof/evidence recording,
+session binding, Codex behavior, work item/event creation, imported
+context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
+or merge authority.
+
 Future actual proof/evidence recording remains separately approved. Session
 binding and Codex continuation remain separate gates. Approval, publish, retry,
 replay, and merge remain separate user/Core or review-gated decisions.
@@ -233,6 +241,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-route
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-writer
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design

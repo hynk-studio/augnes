@@ -325,6 +325,13 @@ PRs:
   proof/evidence recording, session binding, Codex behavior, work item/event
   creation, imported context/confirmed mapping/proposal mutation, approval,
   publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`
+  documents the reconciliation candidate create route; it delegates to the
+  writer core and creates candidate review metadata rows only, with no Cockpit
+  UI, read route, schema/migration, proof/evidence recording, session binding,
+  Codex behavior, work item/event creation, imported context/confirmed
+  mapping/proposal mutation, approval, publish, retry, replay, or merge
+  authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

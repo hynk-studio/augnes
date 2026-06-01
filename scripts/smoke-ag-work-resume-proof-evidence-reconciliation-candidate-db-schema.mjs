@@ -120,7 +120,7 @@ try {
           "migration creates no proof/evidence/session/Codex/work/imported-context/confirmed-mapping/proposal rows",
           "no candidate read helper/route/UI files exist",
           "schema smoke uses direct DB insert only for schema validation, not runtime writer behavior",
-          "source guard limits changed files to schema, docs, package, smoke, and narrow design-smoke compatibility",
+          "source guard limits changed files to schema, docs, package, smoke, writer/helper, route, and narrow design-smoke compatibility",
         ],
       },
       null,
@@ -448,7 +448,6 @@ function assertNoCandidateReadRouteUi() {
   for (const relativePath of [
     "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
     "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
-    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
     "app/api/ag-work-resume/reconciliation-candidates/route.ts",
     "components/ag-work-resume-proof-evidence-reconciliation-candidate.tsx",
   ]) {
@@ -489,6 +488,9 @@ function assertNoUnexpectedChangedFiles() {
     gateSmokeRelativePath,
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     "package.json",
   ]);
   const forbiddenPrefixes = [
@@ -511,9 +513,11 @@ function assertNoUnexpectedChangedFiles() {
       `lib changes are limited to schema.sql or candidate writer core in this slice: ${file}`,
     );
     assert.equal(
-      forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      file !==
+        "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+        forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
-      `candidate schema foundation must not touch forbidden path: ${file}`,
+      `candidate schema follow-up must not touch forbidden path except candidate create route: ${file}`,
     );
   }
 }
@@ -537,7 +541,10 @@ function assertNoRuntimeImplementationCode() {
       file !== reconciliationSmokeRelativePath &&
       file !== gateSmokeRelativePath &&
       file !== "scripts/smoke-ag-work-resume-imported-context-route.mjs" &&
-      file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+      file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs" &&
+      file !==
+        "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
   );
   assert.deepEqual(
     [...new Set(runtimeFiles)],
