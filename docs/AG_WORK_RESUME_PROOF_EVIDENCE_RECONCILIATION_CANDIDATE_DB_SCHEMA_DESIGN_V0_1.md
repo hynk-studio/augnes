@@ -130,6 +130,13 @@ The follow-up schema implementation deliberately keeps this FK policy and
 requires future writer validation for imported context, mapping, local work,
 redaction, actor/reason, and duplicate candidate checks.
 
+The candidate writer/helper is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
+It creates proposed candidate review metadata only and adds no route/UI,
+proof/evidence recording, session binding, Codex behavior, work item/event
+creation, imported context/confirmed mapping/proposal mutation, approval,
+publish, retry, replay, or merge authority.
+
 ## Status And Lifecycle Model
 
 - `proposed` is review metadata candidate state.
@@ -196,8 +203,10 @@ must remain review metadata and must not become proof/evidence authority.
   only.
 - The schema implementation is documented in
   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
-- A future candidate writer/helper should validate imported context, mapping,
-  local work, redaction, actor/reason, and duplicate candidate policy.
+- The candidate writer/helper is documented in
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
+  It validates imported context, mapping, local work, redaction, actor/reason,
+  and duplicate candidate policy while creating only proposed review metadata.
 - Future actual proof/evidence recording remains separately approved.
 - Session/Codex gates remain separate.
 - Approval, publish, retry, replay, and merge remain separate user/Core or

@@ -11,14 +11,22 @@ const rootDir = path.join(__dirname, "..");
 const smokePath = fileURLToPath(import.meta.url);
 const smokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs";
+const writerSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-writer.mjs";
+const writerHelperRelativePath =
+  "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-create.mjs";
 const designSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs";
 const reconciliationSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
 const gateSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs";
+const writerCoreRelativePath =
+  "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts";
 const schemaPath = path.join(rootDir, "lib", "db", "schema.sql");
 const packagePath = path.join(rootDir, "package.json");
+const writerDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md";
 const implementationDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md";
 const designDocRelativePath =
@@ -52,6 +60,10 @@ try {
     smokePath,
     schemaPath,
     packagePath,
+    path.join(rootDir, writerCoreRelativePath),
+    path.join(rootDir, writerHelperRelativePath),
+    path.join(rootDir, writerSmokeRelativePath),
+    path.join(rootDir, writerDocRelativePath),
     implementationDocPath,
     designDocPath,
     ...pointerDocRelativePaths.map((relativePath) => path.join(rootDir, relativePath)),
@@ -74,7 +86,7 @@ try {
   const schemaSource = readFileSync(schemaPath, "utf8");
   assertSchemaSource(schemaSource);
   assertDocs();
-  assertNoCandidateWriterHelperRouteUi();
+  assertNoCandidateReadRouteUi();
 
   runNpmScript("db:reset", tempDbPath);
   inspectMigratedDatabase(tempDbPath, "reset");
@@ -106,7 +118,7 @@ try {
           "lookup indexes exist",
           "db:migrate is idempotent",
           "migration creates no proof/evidence/session/Codex/work/imported-context/confirmed-mapping/proposal rows",
-          "no candidate writer/helper/route/UI files exist",
+          "no candidate read helper/route/UI files exist",
           "schema smoke uses direct DB insert only for schema validation, not runtime writer behavior",
           "source guard limits changed files to schema, docs, package, smoke, and narrow design-smoke compatibility",
         ],
@@ -432,11 +444,9 @@ function assertDocs() {
   }
 }
 
-function assertNoCandidateWriterHelperRouteUi() {
+function assertNoCandidateReadRouteUi() {
   for (const relativePath of [
-    "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts",
     "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
-    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-create.mjs",
     "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
     "app/api/ag-work-resume/reconciliation-candidates/route.ts",
@@ -445,7 +455,7 @@ function assertNoCandidateWriterHelperRouteUi() {
     assert.equal(
       existsSync(path.join(rootDir, relativePath)),
       false,
-      `${relativePath} must not exist in candidate schema foundation slice`,
+      `${relativePath} must not exist in candidate writer/schema slice`,
     );
   }
 }
@@ -459,6 +469,8 @@ function assertNoUnexpectedChangedFiles() {
   ]);
   const allowedFiles = new Set([
     "lib/db/schema.sql",
+    writerCoreRelativePath,
+    writerDocRelativePath,
     implementationDocRelativePath,
     designDocRelativePath,
     reconciliationDocRelativePath,
@@ -470,9 +482,13 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     smokeRelativePath,
+    writerSmokeRelativePath,
+    writerHelperRelativePath,
     designSmokeRelativePath,
     reconciliationSmokeRelativePath,
     gateSmokeRelativePath,
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "package.json",
   ]);
   const forbiddenPrefixes = [
@@ -489,8 +505,10 @@ function assertNoUnexpectedChangedFiles() {
       `changed file is outside candidate schema foundation slice: ${file}`,
     );
     assert.ok(
-      file === "lib/db/schema.sql" || !file.startsWith("lib/"),
-      `lib changes are limited to lib/db/schema.sql in this slice: ${file}`,
+      file === "lib/db/schema.sql" ||
+        file === writerCoreRelativePath ||
+        !file.startsWith("lib/"),
+      `lib changes are limited to schema.sql or candidate writer core in this slice: ${file}`,
     );
     assert.equal(
       forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
@@ -511,15 +529,20 @@ function assertNoRuntimeImplementationCode() {
       !file.startsWith("docs/") &&
       file !== "package.json" &&
       file !== "lib/db/schema.sql" &&
+      file !== writerCoreRelativePath &&
       file !== smokeRelativePath &&
+      file !== writerSmokeRelativePath &&
+      file !== writerHelperRelativePath &&
       file !== designSmokeRelativePath &&
       file !== reconciliationSmokeRelativePath &&
-      file !== gateSmokeRelativePath,
+      file !== gateSmokeRelativePath &&
+      file !== "scripts/smoke-ag-work-resume-imported-context-route.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
   );
   assert.deepEqual(
     [...new Set(runtimeFiles)],
     [],
-    `candidate schema slice must not change runtime implementation files: ${runtimeFiles.join(", ")}`,
+    `candidate schema follow-up must not change runtime implementation files outside candidate writer core/helper: ${runtimeFiles.join(", ")}`,
   );
 }
 

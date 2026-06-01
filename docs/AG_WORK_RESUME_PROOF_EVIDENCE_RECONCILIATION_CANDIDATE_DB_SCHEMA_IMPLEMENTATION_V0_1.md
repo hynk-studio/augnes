@@ -211,6 +211,14 @@ Future candidate writer/helper work must validate imported context, mapping,
 local work, redaction status, actor/reason, and duplicate candidate policy
 before any row creation behavior exists.
 
+The candidate writer/helper is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
+It creates one proposed candidate review metadata row from an imported context
+and bounded foreign ref summary, and it adds no route/UI, proof/evidence
+recording, session binding, Codex behavior, work item/event creation, imported
+context mutation, confirmed mapping/proposal mutation, approval, publish,
+retry, replay, or merge authority.
+
 Future actual proof/evidence recording remains separately approved. Session
 binding and Codex continuation remain separate gates. Approval, publish, retry,
 replay, and merge remain separate user/Core or review-gated decisions.
@@ -226,6 +234,7 @@ Run:
 ```bash
 npm run typecheck
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema
+npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-writer
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-design
 npm run smoke:ag-work-resume-proof-evidence-session-codex-gates-design

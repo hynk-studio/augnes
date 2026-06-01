@@ -319,6 +319,12 @@ PRs:
   rows in normal migration, and adds no writer/helper/route/UI,
   proof/evidence recording, session binding, Codex behavior, approval,
   publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`
+  documents the reconciliation candidate writer/helper; it creates one
+  proposed candidate review metadata row only and adds no route/UI,
+  proof/evidence recording, session binding, Codex behavior, work item/event
+  creation, imported context/confirmed mapping/proposal mutation, approval,
+  publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

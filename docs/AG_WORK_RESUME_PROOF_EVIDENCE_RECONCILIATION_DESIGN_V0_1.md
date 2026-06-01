@@ -48,6 +48,14 @@ normal migration and adds no writer/helper/route/UI, proof/evidence recording,
 session binding, Codex behavior, approval, publish, retry, replay, or merge
 authority.
 
+The candidate writer/helper is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
+It creates one proposed candidate review metadata row from an imported context
+and bounded foreign ref summary, while adding no route/UI, proof/evidence
+recording, session binding, Codex behavior, work item/event creation, imported
+context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
+or merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is
@@ -231,7 +239,8 @@ metadata only and is not proof/evidence authority.
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`.
 3. Reconciliation candidate DB/schema implementation:
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
-4. Reconciliation candidate writer/helper, separately approved.
+4. Reconciliation candidate writer/helper:
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
 5. Proof/evidence actual recording design, separately approved.
 6. Session/Codex gates remain separate.
 

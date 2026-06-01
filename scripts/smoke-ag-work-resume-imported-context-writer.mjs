@@ -535,6 +535,18 @@ function assertSourceGuards() {
     "app/api/ag-work-resume/imported-contexts/route.ts",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-create.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-writer.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
   ]);
   const changedFiles = gitChangedFiles();
   for (const file of changedFiles) {
@@ -565,8 +577,9 @@ function assertSourceGuards() {
     assert.ok(
       file === "lib/ag-work-resume-imported-context.ts" ||
         file === "lib/ag-work-resume-imported-context-read.ts" ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts" ||
         !file.startsWith("lib/"),
-      `lib changes limited to imported context writer/read cores: ${file}`,
+      `lib changes limited to imported context writer/read cores and reconciliation candidate writer: ${file}`,
     );
   }
 }

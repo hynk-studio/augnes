@@ -52,6 +52,13 @@ The candidate DB/schema implementation in
 creates only a future candidate table and indexes; it adds no imported context
 route behavior, proof/evidence recording, session binding, Codex behavior,
 approval, publish, retry, replay, or merge authority.
+The candidate writer/helper in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`
+creates candidate review metadata only and adds no route/UI. It does not
+change this imported context POST/GET route, record proof/evidence, bind
+sessions, execute Codex, create work items/events, mutate imported contexts,
+confirmed mappings, or proposals, or grant approval, publish, retry, replay,
+or merge authority.
 
 ## Route
 

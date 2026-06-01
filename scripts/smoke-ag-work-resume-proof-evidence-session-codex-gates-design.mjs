@@ -15,7 +15,13 @@ const candidateSchemaSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs";
 const candidateSchemaImplementationSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs";
+const candidateWriterSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-writer.mjs";
+const candidateWriterHelperRelativePath =
+  "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-create.mjs";
 const schemaRelativePath = "lib/db/schema.sql";
+const candidateWriterCoreRelativePath =
+  "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts";
 const designDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md";
 const reconciliationDesignDocRelativePath =
@@ -24,6 +30,8 @@ const candidateSchemaDesignDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md";
 const candidateSchemaImplementationDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md";
+const candidateWriterDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
@@ -41,6 +49,10 @@ for (const file of [
   designDocPath,
   packagePath,
   path.join(rootDir, schemaRelativePath),
+  path.join(rootDir, candidateWriterCoreRelativePath),
+  path.join(rootDir, candidateWriterHelperRelativePath),
+  path.join(rootDir, candidateWriterSmokeRelativePath),
+  path.join(rootDir, candidateWriterDocRelativePath),
   path.join(rootDir, candidateSchemaImplementationDocRelativePath),
   path.join(rootDir, candidateSchemaImplementationSmokeRelativePath),
   ...pointerDocRelativePaths.map((relativePath) => path.join(rootDir, relativePath)),
@@ -300,7 +312,7 @@ console.log(
         "doc requires user/Core actor and reason for future gates",
         "doc keeps approval/publish/retry/replay/merge separate",
         "related docs point to gate design doc",
-        "changed files are limited to docs, package.json, schema foundation, schema smoke, and design-smoke compatibility",
+        "changed files are limited to docs, package.json, schema foundation, candidate writer/helper, and design-smoke compatibility",
         "no app/components/runtime/migration/apps/browser report files changed",
         "no runtime implementation code changed for proof/evidence/session/Codex behavior outside schema.sql",
       ],
@@ -317,11 +329,17 @@ function assertNoUnexpectedChangedFiles() {
     reconciliationDesignDocRelativePath,
     candidateSchemaDesignDocRelativePath,
     candidateSchemaImplementationDocRelativePath,
+    candidateWriterDocRelativePath,
     smokeRelativePath,
     reconciliationSmokeRelativePath,
     candidateSchemaSmokeRelativePath,
     candidateSchemaImplementationSmokeRelativePath,
+    candidateWriterSmokeRelativePath,
+    candidateWriterHelperRelativePath,
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     schemaRelativePath,
+    candidateWriterCoreRelativePath,
     "package.json",
     ...pointerDocRelativePaths,
   ]);
@@ -341,13 +359,16 @@ function assertNoUnexpectedChangedFiles() {
     );
     assert.equal(
       file !== schemaRelativePath &&
+        file !== candidateWriterCoreRelativePath &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `gate follow-up must not touch runtime/UI/app/browser files: ${file}`,
     );
     assert.ok(
-      file === schemaRelativePath || !file.startsWith("lib/"),
-      `lib changes are limited to ${schemaRelativePath}: ${file}`,
+      file === schemaRelativePath ||
+        file === candidateWriterCoreRelativePath ||
+        !file.startsWith("lib/"),
+      `lib changes are limited to ${schemaRelativePath} or candidate writer core: ${file}`,
     );
   }
 }
@@ -358,10 +379,13 @@ function assertNoForbiddenImplementationCode() {
       !file.startsWith("docs/") &&
       file !== "package.json" &&
       file !== schemaRelativePath &&
+      file !== candidateWriterCoreRelativePath &&
       file !== smokeRelativePath &&
       file !== reconciliationSmokeRelativePath &&
       file !== candidateSchemaSmokeRelativePath &&
       file !== candidateSchemaImplementationSmokeRelativePath &&
+      file !== candidateWriterSmokeRelativePath &&
+      file !== candidateWriterHelperRelativePath &&
       !file.startsWith("scripts/smoke-ag-work-resume-imported-context"),
   );
   assert.deepEqual(
