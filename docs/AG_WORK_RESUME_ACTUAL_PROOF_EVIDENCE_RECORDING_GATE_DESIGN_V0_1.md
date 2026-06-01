@@ -272,6 +272,12 @@ one of these options, or introduce another option in a design-only PR first:
 Any option that adds schema, migration, helper, route, writer, UI, or runtime
 behavior must be a separate implementation PR after this design.
 
+The schema/integration policy decision is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`.
+It is design-only and recommends a future bridge-table path with one
+verification evidence target row first. It does not add schema, migration,
+writer/helper/route/UI, or proof/evidence recording authority.
+
 ## Future Route/Helper/UI Implementation Sequence
 
 Later PRs should stay split and reviewable:
@@ -386,7 +392,8 @@ implementation PR is explicitly approved after this design.
 ## Future PR Sequence
 
 1. Merge this design-only gate.
-2. Decide schema/integration policy.
+2. Decide schema/integration policy in
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`.
 3. Decide actor/reason/redaction/failure/rollback/idempotency policy details.
 4. Implement writer/helper only after explicit approval.
 5. Implement route only after writer/helper behavior is approved.

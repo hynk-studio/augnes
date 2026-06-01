@@ -123,6 +123,12 @@ That design is not recording authority. Actual proof/evidence recording remains
 unauthorized until a separate implementation PR is explicitly approved after
 that design.
 
+The proof/evidence recording schema/integration policy is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`.
+That policy is design-only. It does not turn `accepted_for_future_recording`
+into proof/evidence, does not add schema/migration, and does not authorize
+actual recording.
+
 ## Allowed Transitions
 
 Allowed lifecycle transitions:

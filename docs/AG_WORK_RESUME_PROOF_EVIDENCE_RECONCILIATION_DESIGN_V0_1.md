@@ -105,6 +105,13 @@ It defines future preconditions for turning reviewed candidate metadata into
 local proof/evidence records. It is design-only; candidate review and
 `accepted_for_future_recording` still do not record proof/evidence.
 
+The proof/evidence recording schema/integration policy is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`.
+It is design-only and recommends a future bridge-table/evidence-first path
+without adding schema/migration, writer/helper/route/UI, actual recording,
+session binding, Codex continuation, or approval/publish/retry/replay/merge
+authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

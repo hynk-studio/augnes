@@ -93,6 +93,7 @@
     "smoke:ag-work-resume-imported-context-read-cockpit-panel": "node scripts/smoke-ag-work-resume-imported-context-read-cockpit-panel.mjs",
     "smoke:ag-work-resume-imported-context-create-cockpit-panel": "node scripts/smoke-ag-work-resume-imported-context-create-cockpit-panel.mjs",
     "smoke:ag-work-resume-actual-proof-evidence-recording-gate-design": "node scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs",
+    "smoke:ag-work-resume-proof-evidence-recording-schema-integration-policy": "node scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
     "smoke:ag-work-resume-proof-evidence-session-codex-gates-design": "node scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-design": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",
