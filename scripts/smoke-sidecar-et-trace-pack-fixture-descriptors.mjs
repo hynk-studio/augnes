@@ -149,6 +149,7 @@ function readJson(filePath) {
 function assertApprovedFixtureSet() {
   const actual = readdirSync("fixtures")
     .filter((name) => name.startsWith("sidecar-et-trace-pack"))
+    .filter((name) => name !== "sidecar-et-trace-pack.manifest.json")
     .map((name) => path.join("fixtures", name))
     .sort();
   assert.deepEqual(

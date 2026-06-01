@@ -193,10 +193,11 @@ Exact descriptor proposal pointer:
 
 - `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
   records the exact first descriptor subset proposal, deferred descriptor set,
-  and first two-file fixture import slice. It imports only the approved
-  `example` and `grounded/quiet probes` fixture files plus a focused local
-  validation smoke; it does not import manifest JSON, report/compare/suite/
-  matrix behavior, helper logic, package scripts beyond the approved smoke,
-  thresholds as runtime policy, runtime computation, schema/API changes,
-  Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
-  commits, AG Resume bridge/writer/helper behavior, or CI enforcement.
+  first two-file fixture import slice, and first manifest routing slice. It
+  imports only the approved `example` and `grounded/quiet probes` fixture files,
+  a two-entry routing manifest, and focused local validation smokes; it does not
+  add report/compare/suite/matrix behavior, helper logic, package scripts
+  beyond the approved smokes, thresholds as runtime policy, runtime computation,
+  schema/API changes, Cockpit behavior, proof/evidence/readiness writes, QP
+  evidence, `z_t` commits, AG Resume bridge/writer/helper behavior, or CI
+  enforcement.
