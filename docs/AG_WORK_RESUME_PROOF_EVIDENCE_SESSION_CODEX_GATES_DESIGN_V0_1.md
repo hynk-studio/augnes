@@ -59,6 +59,13 @@ normal migration, and adds no writer/helper/route/UI, proof/evidence
 recording, session binding, Codex behavior, approval, publish, retry, replay,
 or merge authority.
 
+The reconciliation candidate writer/helper is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
+It creates one proposed candidate review metadata row only. It does not record
+proof/evidence, bind sessions, execute Codex, create work items/events, mutate
+imported contexts, confirmed mappings, or proposals, add routes/UI, or grant
+approval, publish, retry, replay, or merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
@@ -238,10 +245,12 @@ not approval/publish/retry/replay/merge authority.
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`.
 4. Reconciliation candidate DB/schema implementation:
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
-5. Proof/evidence schema/design or integration design, separately approved.
-6. Session binding design, separately approved.
-7. Codex continuation design, separately approved.
-8. Runtime implementations only after separate user/Core approval.
+5. Reconciliation candidate writer/helper:
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`.
+6. Proof/evidence schema/design or integration design, separately approved.
+7. Session binding design, separately approved.
+8. Codex continuation design, separately approved.
+9. Runtime implementations only after separate user/Core approval.
 
 Each future PR must restate the authority boundary, name actor and reason
 requirements, identify side effects, include fail-closed checks, and verify

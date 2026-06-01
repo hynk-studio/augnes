@@ -11,15 +11,23 @@ const smokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs";
 const implementationSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs";
+const writerSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-writer.mjs";
+const writerHelperRelativePath =
+  "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-create.mjs";
 const reconciliationSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
 const gateSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs";
 const schemaRelativePath = "lib/db/schema.sql";
+const writerCoreRelativePath =
+  "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts";
 const designDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md";
 const implementationDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md";
+const writerDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md";
 const reconciliationDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md";
 const gateDocRelativePath =
@@ -41,6 +49,10 @@ for (const file of [
   smokePath,
   designDocPath,
   packagePath,
+  path.join(rootDir, writerCoreRelativePath),
+  path.join(rootDir, writerHelperRelativePath),
+  path.join(rootDir, writerSmokeRelativePath),
+  path.join(rootDir, writerDocRelativePath),
   path.join(rootDir, implementationDocRelativePath),
   path.join(rootDir, schemaRelativePath),
   path.join(rootDir, implementationSmokeRelativePath),
@@ -231,7 +243,8 @@ for (const pattern of [
 const implementationSection = extractSection(designDoc, "Future Implementation Notes");
 for (const pattern of [
   /future schema implementation PR should add the candidate table and indexes\s+only/is,
-  /future candidate writer\/helper should validate imported context, mapping,\s+local work, redaction, actor\/reason, and duplicate candidate policy/is,
+  /candidate writer\/helper is documented/is,
+  /validates imported context, mapping, local work, redaction, actor\/reason,\s+and duplicate candidate policy/is,
   /Future actual proof\/evidence recording remains separately approved/i,
   /Session\/Codex gates remain separate/i,
 ]) {
@@ -312,11 +325,17 @@ function assertNoUnexpectedChangedFiles() {
   const allowedFiles = new Set([
     designDocRelativePath,
     implementationDocRelativePath,
+    writerDocRelativePath,
     smokeRelativePath,
     implementationSmokeRelativePath,
+    writerSmokeRelativePath,
+    writerHelperRelativePath,
     reconciliationSmokeRelativePath,
     gateSmokeRelativePath,
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     schemaRelativePath,
+    writerCoreRelativePath,
     "package.json",
     ...pointerDocRelativePaths,
   ]);
@@ -336,13 +355,16 @@ function assertNoUnexpectedChangedFiles() {
     );
     assert.equal(
       file !== schemaRelativePath &&
+        file !== writerCoreRelativePath &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `candidate DB/schema follow-up must not touch runtime/UI/app/browser files: ${file}`,
     );
     assert.ok(
-      file === schemaRelativePath || !file.startsWith("lib/"),
-      `lib changes are limited to ${schemaRelativePath}: ${file}`,
+      file === schemaRelativePath ||
+        file === writerCoreRelativePath ||
+        !file.startsWith("lib/"),
+      `lib changes are limited to ${schemaRelativePath} or candidate writer core: ${file}`,
     );
   }
 }
@@ -353,10 +375,15 @@ function assertNoForbiddenImplementationCode() {
       !file.startsWith("docs/") &&
       file !== "package.json" &&
       file !== schemaRelativePath &&
+      file !== writerCoreRelativePath &&
       file !== smokeRelativePath &&
       file !== implementationSmokeRelativePath &&
+      file !== writerSmokeRelativePath &&
+      file !== writerHelperRelativePath &&
       file !== reconciliationSmokeRelativePath &&
-      file !== gateSmokeRelativePath,
+      file !== gateSmokeRelativePath &&
+      file !== "scripts/smoke-ag-work-resume-imported-context-route.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
   );
   assert.deepEqual(
     implementationFiles,

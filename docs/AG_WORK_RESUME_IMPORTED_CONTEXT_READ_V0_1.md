@@ -37,6 +37,7 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
@@ -63,6 +64,12 @@ The candidate DB/schema implementation is documented in
 it creates only a future candidate table and indexes, and it adds no read
 helper/GET route behavior, proof/evidence recording, session binding, Codex
 behavior, or approval, publish, retry, replay, or merge authority.
+The candidate writer/helper is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`;
+it creates candidate review metadata only and does not change this imported
+context read helper/GET route, record proof/evidence, bind sessions, execute
+Codex, create work items/events, mutate imported contexts, confirmed mappings,
+or proposals, or grant approval, publish, retry, replay, or merge authority.
 
 ## Read Filters
 
