@@ -86,6 +86,19 @@ adds no update/delete, lifecycle, proof/evidence/session, Codex, work
 item/event creation, imported context/confirmed mapping/proposal mutation,
 schema/migration, approval, publish, retry, replay, or merge authority.
 
+The candidate lifecycle action contract is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`.
+It updates existing candidate review metadata only.
+`accepted_for_future_recording` is not proof/evidence recording, session
+binding, Codex continuation, work item/event creation, approval, publish,
+retry, replay, or merge authority.
+
+The candidate lifecycle Cockpit panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`.
+It calls only the candidate lifecycle action route and adds no proof/evidence,
+session, Codex, work item/event, imported context, confirmed mapping,
+proposal, approval, publish, retry, replay, or merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

@@ -145,6 +145,12 @@ session binding, Codex behavior, work item/event creation, imported
 context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
 or merge authority.
 
+The candidate lifecycle action contract is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`.
+It updates existing candidate review metadata only using the status values
+already reserved by this schema design. `accepted_for_future_recording` is not
+proof/evidence recording.
+
 The candidate read helper/GET route is documented in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`.
 It lists or fetches candidate review metadata only and preserves the existing

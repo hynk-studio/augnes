@@ -69,6 +69,12 @@ delete, lifecycle, proof/evidence/session, Codex, work item/event creation,
 imported context/confirmed mapping/proposal mutation, schema/migration,
 approval, publish, retry, replay, or merge authority.
 
+The candidate lifecycle action contract is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`.
+It updates existing reconciliation candidate review metadata only.
+`accepted_for_future_recording` is not proof/evidence recording and does not
+change this writer's create-only contract.
+
 ## Core API
 
 Core module:

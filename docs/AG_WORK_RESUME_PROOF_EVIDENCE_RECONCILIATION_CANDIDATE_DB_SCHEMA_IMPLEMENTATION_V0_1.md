@@ -245,6 +245,12 @@ session binding, Codex behavior, work item/event creation, imported
 context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
 or merge authority.
 
+The candidate lifecycle action contract is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`.
+It uses the existing candidate lifecycle columns and status values, including
+`accepted_for_future_recording`, as review metadata only. It adds no schema or
+migration and does not record proof/evidence.
+
 Future actual proof/evidence recording remains separately approved. Session
 binding and Codex continuation remain separate gates. Approval, publish, retry,
 replay, and merge remain separate user/Core or review-gated decisions.

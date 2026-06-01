@@ -53,6 +53,13 @@ proof/evidence/session, Codex, work item/event creation, imported
 context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
 or merge authority.
 
+The candidate lifecycle action route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`.
+It is a separate lifecycle endpoint that updates existing candidate review
+metadata only. `accepted_for_future_recording` is not proof/evidence
+recording, and the create route remains limited to proposed candidate row
+creation.
+
 ## Route
 
 Endpoint:

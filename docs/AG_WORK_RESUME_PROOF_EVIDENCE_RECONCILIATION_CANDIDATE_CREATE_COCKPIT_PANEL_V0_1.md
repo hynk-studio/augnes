@@ -16,6 +16,12 @@ transition, proof/evidence recording, session binding, Codex behavior, work
 item/event creation, imported context mutation, confirmed mapping mutation,
 proposal mutation, approval, publish, retry, replay, or merge authority.
 
+The later candidate lifecycle action panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`.
+It calls only the separate lifecycle action route and updates existing
+candidate review metadata only. `accepted_for_future_recording` is not
+proof/evidence recording.
+
 ## Purpose
 
 The panel lets an operator propose one reconciliation candidate from an existing
@@ -38,6 +44,8 @@ and proof/evidence recording flow exists.
   `AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`.
 - The read-only Cockpit review panel is
   `AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md`.
+- The candidate lifecycle action panel is
+  `AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`.
 
 This create panel does not call the GET read route and does not change read
 route behavior.

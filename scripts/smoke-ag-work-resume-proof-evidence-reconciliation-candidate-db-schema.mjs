@@ -498,8 +498,17 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-route.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
     "package.json",
   ]);
   const forbiddenPrefixes = [
@@ -519,17 +528,22 @@ function assertNoUnexpectedChangedFiles() {
       file === "lib/db/schema.sql" ||
         file === writerCoreRelativePath ||
         file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" ||
         !file.startsWith("lib/"),
-      `lib changes are limited to schema.sql or candidate writer/read core in this slice: ${file}`,
+      `lib changes are limited to schema.sql or candidate writer/read/lifecycle core in this slice: ${file}`,
     );
     assert.equal(
       file !==
         "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+        file !==
+          "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts" &&
         file !== "components/augnes-cockpit.tsx" &&
         file !==
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
         file !==
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" &&
+        file !==
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `candidate schema follow-up must not touch forbidden path except candidate create route: ${file}`,
@@ -550,11 +564,16 @@ function assertNoRuntimeImplementationCode() {
       file !== "lib/db/schema.sql" &&
       file !== writerCoreRelativePath &&
       file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" &&
+      file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" &&
       file !== smokeRelativePath &&
       file !== writerSmokeRelativePath &&
       file !== writerHelperRelativePath &&
+      file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-route.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs" &&
       file !== designSmokeRelativePath &&
       file !== reconciliationSmokeRelativePath &&
       file !== gateSmokeRelativePath &&
@@ -562,12 +581,16 @@ function assertNoRuntimeImplementationCode() {
       file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs" &&
       file !==
         "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+      file !==
+        "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs" &&
       file !== "components/augnes-cockpit.tsx" &&
       file !==
         "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
       file !==
         "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" &&
+      file !==
+        "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md" &&
       file !==
         "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs" &&
       file !==

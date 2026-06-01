@@ -96,6 +96,12 @@ reads reconciliation candidate review metadata only. It does not change this
 imported context writer/helper, record proof/evidence, bind sessions, execute
 Codex, create work items/events, mutate imported contexts, confirmed mappings,
 or proposals, or grant approval, publish, retry, replay, or merge authority.
+The candidate lifecycle action contract in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`
+updates existing candidate review metadata only. It does not change this
+imported context writer/helper, mutate imported contexts, record
+proof/evidence, bind sessions, execute Codex, create work items/events, or
+grant approval, publish, retry, replay, or merge authority.
 
 ## Core API
 
