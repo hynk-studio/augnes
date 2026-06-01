@@ -79,6 +79,13 @@ work item/event creation, imported context/confirmed mapping/proposal
 mutation, schema/migration, approval, publish, retry, replay, or merge
 authority.
 
+The candidate bounded Cockpit Operator create panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing POST route to create candidate review metadata and
+adds no update/delete, lifecycle, proof/evidence/session, Codex, work
+item/event creation, imported context/confirmed mapping/proposal mutation,
+schema/migration, approval, publish, retry, replay, or merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

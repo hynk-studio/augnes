@@ -28,6 +28,7 @@ The panel sits on top of the read helper/GET route documented in
 
 Related documents:
 
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
@@ -40,6 +41,13 @@ imported context row and a bounded foreign ref summary. The panel does not
 call that writer route. It only submits query parameters to the existing GET
 route and renders the route result. Foreign refs remain foreign until
 explicitly reconciled through a separately approved user/Core gate.
+
+The later bounded Cockpit Operator create panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`.
+It calls only the existing POST route and grants no update/delete, lifecycle,
+proof/evidence/session, Codex, work item/event creation, imported
+context/confirmed mapping/proposal mutation, schema/migration, approval,
+publish, retry, replay, or merge authority.
 
 ## Allowed UI
 

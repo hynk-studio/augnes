@@ -46,6 +46,13 @@ lifecycle, proof/evidence/session, Codex, work item/event creation, imported
 context/confirmed mapping/proposal mutation, schema/migration, approval,
 publish, retry, replay, or merge authority.
 
+The later bounded Cockpit Operator create panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md`.
+It calls only this existing POST route and does not add schema/migration,
+proof/evidence/session, Codex, work item/event creation, imported
+context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
+or merge authority.
+
 ## Route
 
 Endpoint:

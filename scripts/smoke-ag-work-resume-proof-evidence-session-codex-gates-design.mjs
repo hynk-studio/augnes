@@ -346,8 +346,11 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_CREATE_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     schemaRelativePath,
     candidateWriterCoreRelativePath,
@@ -377,6 +380,8 @@ function assertNoUnexpectedChangedFiles() {
         file !== "components/augnes-cockpit.tsx" &&
         file !==
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
+        file !==
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `gate follow-up must not touch runtime/UI/app/browser files: ${file}`,
@@ -413,6 +418,10 @@ function assertNoForbiddenImplementationCode() {
       file !== "components/augnes-cockpit.tsx" &&
       file !==
         "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
+      file !==
+        "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" &&
+      file !==
+        "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs" &&
       file !==
         "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs" &&
       !file.startsWith("scripts/smoke-ag-work-resume-imported-context"),

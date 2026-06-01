@@ -844,6 +844,26 @@ type AgResumeReconciliationCandidateReadPanelResult = {
   body: AgResumeReconciliationCandidateReadRouteResponse;
 };
 
+type AgResumeReconciliationCandidateCreatePanelResult = {
+  httpStatus: number;
+  requestBody: AgResumeReconciliationCandidateCreateRequestBody;
+  body: AgResumeReconciliationCandidateCreateRouteResponse;
+};
+
+type AgResumeReconciliationCandidateCreateRequestBody = {
+  import_id: string;
+  mapping_id?: string;
+  foreign_ref_type: string;
+  foreign_ref_id: string;
+  local_target_scope: string;
+  local_target_work_id: string;
+  summary: string;
+  redaction_status: Record<string, unknown>;
+  proposed_by: string;
+  proposed_reason: string;
+  created_at?: string;
+};
+
 type AgResumeImportedContextCreatePanelResult = {
   httpStatus: number;
   requestBody: AgResumeImportedContextCreateRequestBody;
@@ -1259,6 +1279,15 @@ type AgResumeReconciliationCandidateReadRouteResponse = {
   error?: string;
 };
 
+type AgResumeReconciliationCandidateCreateRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeReconciliationCandidateCreateResult | null;
+  authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
 type AgResumeReconciliationCandidateReadResult = {
   ok?: boolean;
   status?: string;
@@ -1277,6 +1306,18 @@ type AgResumeReconciliationCandidateReadResult = {
     reviewed_by?: string | null;
   };
   limit?: number | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeReconciliationCandidateCreateResult = {
+  ok?: boolean;
+  status?: string;
+  candidate_id?: string | null;
+  record?: AgResumeReconciliationCandidateRecord | null;
+  imported_context?: AgResumeImportedContextRecord | null;
   warnings?: string[];
   failures?: string[];
   authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
@@ -1384,6 +1425,20 @@ type AgResumeImportedContextCreateFixture = {
   redaction_report_json: string;
   created_by: string;
   import_reason: string;
+  created_at: string;
+};
+
+type AgResumeReconciliationCandidateCreateFixture = {
+  import_id: string;
+  mapping_id: string;
+  foreign_ref_type: string;
+  foreign_ref_id: string;
+  local_target_scope: string;
+  local_target_work_id: string;
+  summary: string;
+  redaction_status_json: string;
+  proposed_by: string;
+  proposed_reason: string;
   created_at: string;
 };
 
@@ -1820,6 +1875,81 @@ const SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_REVIEW_FIXTURE = {
   proposed_by: "user-core:reconciliation-candidate-read-cockpit-panel",
   reviewed_by: "user-core:reconciliation-candidate-reviewer-cockpit-panel",
   limit: "20",
+} as const;
+
+const SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE = {
+  active: {
+    import_id: "ag-resume-imported-context:create-candidate-active-001",
+    mapping_id: "ag-resume-confirmed-mapping:create-candidate-active-001",
+    foreign_ref_type: "proof",
+    foreign_ref_id:
+      "proof:foreign-public-safe:reconciliation-candidate-create-001",
+    local_target_scope: "project:augnes",
+    local_target_work_id:
+      "AG-FIXTURE-RECONCILIATION-CANDIDATE-CREATE-LOCAL-001",
+    summary:
+      "Bounded reconciliation candidate review metadata from a safe Cockpit fixture.",
+    redaction_status_json:
+      '{\n  "safe": true,\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    proposed_by: "user-core:reconciliation-candidate-create-cockpit-panel",
+    proposed_reason:
+      "User/Core proposed bounded reconciliation candidate review metadata through Cockpit.",
+    created_at: "2026-06-01T06:00:00.000Z",
+  },
+  missing_imported_context: {
+    import_id: "ag-resume-imported-context:missing-create-candidate-001",
+    mapping_id: "ag-resume-confirmed-mapping:create-candidate-active-001",
+    foreign_ref_type: "evidence",
+    foreign_ref_id:
+      "evidence:foreign-public-safe:reconciliation-candidate-missing-import-001",
+    local_target_scope: "project:augnes",
+    local_target_work_id:
+      "AG-FIXTURE-RECONCILIATION-CANDIDATE-CREATE-LOCAL-001",
+    summary:
+      "Bounded reconciliation candidate route error fixture for a missing imported context.",
+    redaction_status_json:
+      '{\n  "safe": true,\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    proposed_by: "user-core:reconciliation-candidate-create-cockpit-panel",
+    proposed_reason:
+      "User/Core route error fixture for a missing imported context.",
+    created_at: "2026-06-01T06:01:00.000Z",
+  },
+  inactive_imported_context: {
+    import_id: "ag-resume-imported-context:create-candidate-inactive-001",
+    mapping_id: "ag-resume-confirmed-mapping:create-candidate-inactive-001",
+    foreign_ref_type: "action",
+    foreign_ref_id:
+      "action:foreign-public-safe:reconciliation-candidate-inactive-import-001",
+    local_target_scope: "project:augnes",
+    local_target_work_id:
+      "AG-FIXTURE-RECONCILIATION-CANDIDATE-CREATE-INACTIVE-LOCAL-001",
+    summary:
+      "Bounded reconciliation candidate route error fixture for an inactive imported context.",
+    redaction_status_json:
+      '{\n  "safe": true,\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    proposed_by: "user-core:reconciliation-candidate-create-cockpit-panel",
+    proposed_reason:
+      "User/Core route error fixture for an inactive imported context.",
+    created_at: "2026-06-01T06:02:00.000Z",
+  },
+  mismatch: {
+    import_id: "ag-resume-imported-context:create-candidate-active-001",
+    mapping_id: "ag-resume-confirmed-mapping:create-candidate-mismatch-001",
+    foreign_ref_type: "git",
+    foreign_ref_id:
+      "git:foreign-public-safe:reconciliation-candidate-mismatch-001",
+    local_target_scope: "project:augnes",
+    local_target_work_id:
+      "AG-FIXTURE-RECONCILIATION-CANDIDATE-CREATE-MISMATCH-LOCAL-001",
+    summary:
+      "Bounded reconciliation candidate route error fixture for imported context mismatch.",
+    redaction_status_json:
+      '{\n  "safe": true,\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    proposed_by: "user-core:reconciliation-candidate-create-cockpit-panel",
+    proposed_reason:
+      "User/Core route error fixture for imported context mismatch.",
+    created_at: "2026-06-01T06:03:00.000Z",
+  },
 } as const;
 
 const SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE = {
@@ -4152,6 +4282,7 @@ function OperatorTab({
           <AgResumeConfirmedMappingReadPanel />
           <AgResumeImportedContextCreatePanel />
           <AgResumeImportedContextReadPanel />
+          <AgResumeReconciliationCandidateCreatePanel />
           <AgResumeReconciliationCandidateReadPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
@@ -9139,6 +9270,684 @@ function AgResumeImportedContextCard({
         />
       </div>
     </article>
+  );
+}
+
+function AgResumeReconciliationCandidateCreatePanel() {
+  const [importId, setImportId] = useState("");
+  const [mappingId, setMappingId] = useState("");
+  const [foreignRefType, setForeignRefType] = useState("");
+  const [foreignRefId, setForeignRefId] = useState("");
+  const [localTargetScope, setLocalTargetScope] = useState("");
+  const [localTargetWorkId, setLocalTargetWorkId] = useState("");
+  const [summary, setSummary] = useState("");
+  const [redactionStatusJson, setRedactionStatusJson] = useState("");
+  const [proposedBy, setProposedBy] = useState("");
+  const [proposedReason, setProposedReason] = useState("");
+  const [createdAt, setCreatedAt] = useState("");
+  const [result, setResult] =
+    useState<AgResumeReconciliationCandidateCreatePanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearCreateResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function applyReconciliationCandidateCreateFixture({
+    fixture,
+    includeMappingId,
+  }: {
+    fixture: AgResumeReconciliationCandidateCreateFixture;
+    includeMappingId: boolean;
+  }) {
+    setImportId(fixture.import_id);
+    setMappingId(includeMappingId ? fixture.mapping_id : "");
+    setForeignRefType(fixture.foreign_ref_type);
+    setForeignRefId(fixture.foreign_ref_id);
+    setLocalTargetScope(fixture.local_target_scope);
+    setLocalTargetWorkId(fixture.local_target_work_id);
+    setSummary(fixture.summary);
+    setRedactionStatusJson(fixture.redaction_status_json);
+    setProposedBy(fixture.proposed_by);
+    setProposedReason(fixture.proposed_reason);
+    setCreatedAt(fixture.created_at);
+    clearCreateResultState();
+  }
+
+  function loadSafeReconciliationCandidateDerivedMappingFixture() {
+    applyReconciliationCandidateCreateFixture({
+      fixture: SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE.active,
+      includeMappingId: false,
+    });
+  }
+
+  function loadSafeReconciliationCandidateExplicitMappingFixture() {
+    applyReconciliationCandidateCreateFixture({
+      fixture: SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE.active,
+      includeMappingId: true,
+    });
+  }
+
+  function loadSafeReconciliationCandidateMissingImportFixture() {
+    applyReconciliationCandidateCreateFixture({
+      fixture:
+        SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE.missing_imported_context,
+      includeMappingId: true,
+    });
+  }
+
+  function loadSafeReconciliationCandidateInactiveImportFixture() {
+    applyReconciliationCandidateCreateFixture({
+      fixture:
+        SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE.inactive_imported_context,
+      includeMappingId: true,
+    });
+  }
+
+  function loadSafeReconciliationCandidateMismatchFixture() {
+    applyReconciliationCandidateCreateFixture({
+      fixture: SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE.mismatch,
+      includeMappingId: true,
+    });
+  }
+
+  function clearReconciliationCandidateCreateInputs() {
+    requestIdRef.current += 1;
+    setImportId("");
+    setMappingId("");
+    setForeignRefType("");
+    setForeignRefId("");
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setSummary("");
+    setRedactionStatusJson("");
+    setProposedBy("");
+    setProposedReason("");
+    setCreatedAt("");
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleReconciliationCandidateCreateSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let requestBody: AgResumeReconciliationCandidateCreateRequestBody;
+    try {
+      requestBody = buildReconciliationCandidateCreateRequestBody({
+        importId,
+        mappingId,
+        foreignRefType,
+        foreignRefId,
+        localTargetScope,
+        localTargetWorkId,
+        summary,
+        redactionStatusJson,
+        proposedBy,
+        proposedReason,
+        createdAt,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(
+        "/api/ag-work-resume/proof-evidence-reconciliation-candidates",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(requestBody),
+        },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Reconciliation candidate create route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Reconciliation candidate create route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body =
+        parsedBody as AgResumeReconciliationCandidateCreateRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        requestBody,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "create failed";
+        setError(`Reconciliation candidate create route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Reconciliation candidate create route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-reconciliation-candidate-create-panel"
+      aria-label="AG Resume Proof Evidence Reconciliation Candidate Create"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Reconciliation Candidate Create"
+        description="Bounded create controls for proof/evidence reconciliation candidate review metadata."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>
+            Creates only reconciliation candidate review metadata through the
+            existing POST reconciliation candidates route.
+          </li>
+          <li>Reconciliation candidates are review metadata only.</li>
+          <li>Candidate rows are not proof/evidence.</li>
+          <li>Not proof/evidence recording, not session binding, and not Codex.</li>
+          <li>
+            Not work item/event creation and not imported context/confirmed
+            mapping/proposal mutation.
+          </li>
+          <li>
+            Not approval, publish, retry, replay, or merge authority. Durable
+            approval remains user/Core gated.
+          </li>
+          <li>
+            No update, delete, lifecycle, proof/evidence, session, Codex, work,
+            imported context, confirmed mapping, proposal, approval,
+            publication, bridge, MCP/App, Direct Resume Code, or relay controls.
+          </li>
+        </ul>
+      </BoundaryNote>
+      <form
+        className="observe-form"
+        onSubmit={handleReconciliationCandidateCreateSubmit}
+      >
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-create-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-create-safe-fixtures-heading">
+            Reconciliation candidate create safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe create fields into local
+            React state only. They do not create rows, call routes, persist
+            browser state, or grant proof/session/Codex/work/merge authority.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateDerivedMappingFixture}
+              disabled={busy}
+            >
+              Load safe derived mapping create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateExplicitMappingFixture}
+              disabled={busy}
+            >
+              Load safe explicit mapping create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateMissingImportFixture}
+              disabled={busy}
+            >
+              Load safe missing import create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateInactiveImportFixture}
+              disabled={busy}
+            >
+              Load safe inactive import create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeReconciliationCandidateMismatchFixture}
+              disabled={busy}
+            >
+              Load safe mismatch create fixture
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-create-inputs-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-create-inputs-heading">
+            Reconciliation candidate create inputs
+          </h3>
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Imported context and mapping</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-create-import-id-input">
+                import_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-create-import-id-input"
+                value={importId}
+                onChange={(event) => setImportId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-import-mapping-help"
+                placeholder="ag-resume-imported-context:..."
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-create-mapping-id-input">
+                mapping_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-create-mapping-id-input"
+                value={mappingId}
+                onChange={(event) => setMappingId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-import-mapping-help"
+                placeholder="ag-resume-confirmed-mapping:..."
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-create-import-mapping-help"
+                className="notice"
+              >
+                import_id is required. mapping_id is optional; when omitted, the
+                writer derives it from the imported context row.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Foreign ref</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-create-foreign-ref-type-input">
+                foreign_ref_type
+              </label>
+              <select
+                id="ag-resume-reconciliation-candidate-create-foreign-ref-type-input"
+                value={foreignRefType}
+                onChange={(event) => setForeignRefType(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-foreign-ref-help"
+              >
+                <option value="">Select a foreign ref type</option>
+                <option value="proof">proof</option>
+                <option value="evidence">evidence</option>
+                <option value="action">action</option>
+                <option value="session">session</option>
+                <option value="git">git</option>
+                <option value="evidence_pack">evidence_pack</option>
+                <option value="handoff">handoff</option>
+                <option value="other">other</option>
+              </select>
+              <label htmlFor="ag-resume-reconciliation-candidate-create-foreign-ref-id-input">
+                foreign_ref_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-create-foreign-ref-id-input"
+                value={foreignRefId}
+                onChange={(event) => setForeignRefId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-foreign-ref-help"
+                placeholder="proof:foreign-public-safe:..."
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-create-foreign-ref-help"
+                className="notice"
+              >
+                Required. Foreign refs are bounded review summaries only and
+                are not validated as local proof/evidence ids.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Local target</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-create-local-target-scope-input">
+                local_target_scope
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-create-local-target-scope-input"
+                value={localTargetScope}
+                onChange={(event) => setLocalTargetScope(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-local-target-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-create-local-target-work-id-input">
+                local_target_work_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-create-local-target-work-id-input"
+                value={localTargetWorkId}
+                onChange={(event) => setLocalTargetWorkId(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-local-target-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-create-local-target-help"
+                className="notice"
+              >
+                Required. The writer requires the local target identity to match
+                the imported context row.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Review metadata</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-create-summary-input">
+                summary
+              </label>
+              <textarea
+                id="ag-resume-reconciliation-candidate-create-summary-input"
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-review-metadata-help"
+                placeholder="Bounded reconciliation candidate review summary."
+                rows={4}
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-create-proposed-by-input">
+                proposed_by
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-create-proposed-by-input"
+                value={proposedBy}
+                onChange={(event) => setProposedBy(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-review-metadata-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-create-proposed-reason-input">
+                proposed_reason
+              </label>
+              <textarea
+                id="ag-resume-reconciliation-candidate-create-proposed-reason-input"
+                value={proposedReason}
+                onChange={(event) => setProposedReason(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-review-metadata-help"
+                placeholder="User/Core reason for proposing candidate review metadata."
+                rows={4}
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-create-created-at-input">
+                created_at
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-create-created-at-input"
+                value={createdAt}
+                onChange={(event) => setCreatedAt(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-review-metadata-help"
+                placeholder="2026-06-01T06:00:00.000Z"
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-create-review-metadata-help"
+                className="notice"
+              >
+                summary, proposed_by, and proposed_reason are required.
+                created_at is optional, but must be ISO UTC with millisecond
+                precision when supplied.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Required redaction status JSON</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-create-redaction-status-json-input">
+                redaction_status JSON object
+              </label>
+              <textarea
+                id="ag-resume-reconciliation-candidate-create-redaction-status-json-input"
+                value={redactionStatusJson}
+                onChange={(event) => setRedactionStatusJson(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-create-redaction-status-help"
+                placeholder={
+                  '{"safe": true, "secrets_included": false, "raw_db_paths_included": false, "session_payloads_included": false, "proof_payloads_included": false}'
+                }
+                rows={7}
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-create-redaction-status-help"
+                className="notice"
+              >
+                Required. safe must be explicitly true, and secrets_included,
+                raw_db_paths_included, session_payloads_included, and
+                proof_payloads_included must all be explicitly false.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-create-action-controls-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-create-action-controls-heading">
+            Reconciliation candidate create controls
+          </h3>
+          <BoundaryNote>
+            The create action calls only the existing POST reconciliation
+            candidates route with supported JSON fields. It does not call the
+            GET read route and does not expose update, delete, lifecycle,
+            proof/evidence, session, Codex, work, imported context, confirmed
+            mapping, proposal, approval, publication, bridge, MCP/App, Direct
+            Resume Code, or relay controls.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearReconciliationCandidateCreateInputs}
+            >
+              Clear reconciliation candidate create inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy
+                ? "Creating reconciliation candidate"
+                : "Create reconciliation candidate"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-reconciliation-candidate-create-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeReconciliationCandidateCreateResults result={result} />
+      ) : (
+        <EmptyState
+          label="No reconciliation candidate create result yet."
+          description="Enter imported context, foreign ref, local target, summary, redaction status, proposer, and reason to create candidate review metadata."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeReconciliationCandidateCreateResults({
+  result,
+}: {
+  result: AgResumeReconciliationCandidateCreatePanelResult;
+}) {
+  const { body } = result;
+  const createResult = body.result ?? null;
+  const record = createResult?.record ?? null;
+  const routeAuthorityBoundary =
+    body.authority_boundary ?? createResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-reconciliation-candidate-create-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-reconciliation-candidate-create-result-heading">
+        Reconciliation candidate create result
+      </h3>
+      <BoundaryNote tone="green">
+        Reconciliation candidate creation through this panel creates review
+        metadata only. Candidate rows are not proof/evidence, proof/evidence
+        recording, session binding, Codex execution, work item/event creation,
+        imported context/confirmed mapping/proposal mutation, approval, publish,
+        retry, replay, or merge authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>
+          route recommended_next_step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      {createResult?.recommended_next_step ? (
+        <BoundaryNote>
+          writer recommended_next_step: {createResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>proof-evidence-reconciliation-candidates POST route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Writer status</h3>
+          <p>{createResult?.status ?? body.error ?? "unknown"}</p>
+          <small>
+            created/invalid_input/imported_context_not_found/imported_context_not_allowed/imported_context_mismatch/redaction_blocked/duplicate_candidate/db_error
+          </small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Candidate id</h3>
+          <p>
+            {createResult?.candidate_id ??
+              record?.candidate_id ??
+              "not created"}
+          </p>
+          <small>new reconciliation candidate review metadata row</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Import id</h3>
+          <p>
+            {record?.import_id ??
+              createResult?.imported_context?.import_id ??
+              result.requestBody.import_id}
+          </p>
+          <small>existing imported context review metadata source</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Mapping id</h3>
+          <p>
+            {record?.mapping_id ??
+              createResult?.imported_context?.mapping_id ??
+              result.requestBody.mapping_id ??
+              "derived by writer"}
+          </p>
+          <small>confirmed mapping identity from imported context</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Foreign ref</h3>
+          <p>
+            {(record?.foreign_ref_type ?? result.requestBody.foreign_ref_type) +
+              " / " +
+              (record?.foreign_ref_id ?? result.requestBody.foreign_ref_id)}
+          </p>
+          <small>foreign bounded review reference only</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Local target</h3>
+          <p>
+            {(record?.local_target_scope ??
+              result.requestBody.local_target_scope) +
+              " / " +
+              (record?.local_target_work_id ??
+                result.requestBody.local_target_work_id)}
+          </p>
+          <small>local target identity checked by writer</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Summary</h3>
+          <p>{record?.summary ?? result.requestBody.summary}</p>
+          <small>bounded candidate review metadata summary</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Redaction status</h3>
+          <pre>
+            {formatAgResumeExampleJson(
+              record?.redaction_status ?? result.requestBody.redaction_status,
+            )}
+          </pre>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Proposer</h3>
+          <div className="meta-row">
+            <span>
+              proposed_by: {record?.proposed_by ?? result.requestBody.proposed_by}
+            </span>
+            <span>
+              proposed_reason:{" "}
+              {record?.proposed_reason ?? result.requestBody.proposed_reason}
+            </span>
+          </div>
+        </section>
+      </div>
+      <AgResumeStringList
+        title="Warnings"
+        items={createResult?.warnings ?? []}
+        emptyLabel="No reconciliation candidate create warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={createResult?.failures ?? []}
+        emptyLabel="No reconciliation candidate create failures."
+      />
+      <AgResumeReconciliationCandidateAuthorityBoundary
+        title="Create Authority Boundary"
+        authorityBoundary={routeAuthorityBoundary}
+      />
+      {record ? (
+        <div className="evidence-pack-grid">
+          <AgResumeReconciliationCandidateCard record={record} />
+        </div>
+      ) : (
+        <EmptyState
+          label="No reconciliation candidate record returned."
+          description="The create route did not create a reconciliation candidate review metadata row."
+        />
+      )}
+    </div>
   );
 }
 
@@ -16229,6 +17038,146 @@ function buildReconciliationCandidateReadSearchParams({
     searchParams.set("limit", trimmedLimit);
   }
   return searchParams;
+}
+
+function buildReconciliationCandidateCreateRequestBody({
+  importId,
+  mappingId,
+  foreignRefType,
+  foreignRefId,
+  localTargetScope,
+  localTargetWorkId,
+  summary,
+  redactionStatusJson,
+  proposedBy,
+  proposedReason,
+  createdAt,
+}: {
+  importId: string;
+  mappingId: string;
+  foreignRefType: string;
+  foreignRefId: string;
+  localTargetScope: string;
+  localTargetWorkId: string;
+  summary: string;
+  redactionStatusJson: string;
+  proposedBy: string;
+  proposedReason: string;
+  createdAt: string;
+}): AgResumeReconciliationCandidateCreateRequestBody {
+  const trimmedImportId = importId.trim();
+  const trimmedMappingId = mappingId.trim();
+  const trimmedForeignRefType = foreignRefType.trim();
+  const trimmedForeignRefId = foreignRefId.trim();
+  const trimmedLocalTargetScope = localTargetScope.trim();
+  const trimmedLocalTargetWorkId = localTargetWorkId.trim();
+  const trimmedSummary = summary.trim();
+  const trimmedProposedBy = proposedBy.trim();
+  const trimmedProposedReason = proposedReason.trim();
+  const trimmedCreatedAt = createdAt.trim();
+  const supportedForeignRefTypes = [
+    "proof",
+    "evidence",
+    "action",
+    "session",
+    "git",
+    "evidence_pack",
+    "handoff",
+    "other",
+  ];
+
+  if (!trimmedImportId) {
+    throw new Error("import_id is required for reconciliation candidate create.");
+  }
+  if (!trimmedForeignRefType) {
+    throw new Error(
+      "foreign_ref_type is required for reconciliation candidate create.",
+    );
+  }
+  if (!supportedForeignRefTypes.includes(trimmedForeignRefType)) {
+    throw new Error(
+      "foreign_ref_type must be one of proof, evidence, action, session, git, evidence_pack, handoff, or other.",
+    );
+  }
+  if (!trimmedForeignRefId) {
+    throw new Error(
+      "foreign_ref_id is required for reconciliation candidate create.",
+    );
+  }
+  if (!trimmedLocalTargetScope) {
+    throw new Error(
+      "local_target_scope is required for reconciliation candidate create.",
+    );
+  }
+  if (!trimmedLocalTargetWorkId) {
+    throw new Error(
+      "local_target_work_id is required for reconciliation candidate create.",
+    );
+  }
+  if (!trimmedSummary) {
+    throw new Error("summary is required for reconciliation candidate create.");
+  }
+  if (!trimmedProposedBy) {
+    throw new Error(
+      "proposed_by is required for reconciliation candidate create.",
+    );
+  }
+  if (!trimmedProposedReason) {
+    throw new Error(
+      "proposed_reason is required for reconciliation candidate create.",
+    );
+  }
+  if (trimmedCreatedAt) {
+    const parsedCreatedAt = Date.parse(trimmedCreatedAt);
+    if (
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
+        trimmedCreatedAt,
+      ) ||
+      !Number.isFinite(parsedCreatedAt) ||
+      new Date(parsedCreatedAt).toISOString() !== trimmedCreatedAt
+    ) {
+      throw new Error(
+        "created_at must be an ISO UTC timestamp with millisecond precision.",
+      );
+    }
+  }
+
+  const redactionStatus = parseAgResumeObjectInput(
+    "redaction_status JSON",
+    redactionStatusJson,
+  );
+  if (redactionStatus.safe !== true) {
+    throw new Error(
+      "redaction_status must explicitly set safe: true for reconciliation candidate create.",
+    );
+  }
+  for (const field of [
+    "secrets_included",
+    "raw_db_paths_included",
+    "session_payloads_included",
+    "proof_payloads_included",
+  ]) {
+    if (redactionStatus[field] !== false) {
+      throw new Error(
+        `redaction_status must explicitly set ${field}: false for reconciliation candidate create.`,
+      );
+    }
+  }
+
+  const requestBody: AgResumeReconciliationCandidateCreateRequestBody = {
+    import_id: trimmedImportId,
+    foreign_ref_type: trimmedForeignRefType,
+    foreign_ref_id: trimmedForeignRefId,
+    local_target_scope: trimmedLocalTargetScope,
+    local_target_work_id: trimmedLocalTargetWorkId,
+    summary: trimmedSummary,
+    redaction_status: redactionStatus,
+    proposed_by: trimmedProposedBy,
+    proposed_reason: trimmedProposedReason,
+  };
+  if (trimmedMappingId) requestBody.mapping_id = trimmedMappingId;
+  if (trimmedCreatedAt) requestBody.created_at = trimmedCreatedAt;
+  return requestBody;
 }
 
 function buildImportedContextCreateRequestBody({
