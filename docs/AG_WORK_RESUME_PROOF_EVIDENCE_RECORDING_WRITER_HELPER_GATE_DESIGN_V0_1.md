@@ -679,6 +679,13 @@ It does not authorize that implementation PR to record by default. The runtime
 helper must still require exact user/Core approval for each actual recording
 attempt.
 
+The proof/evidence recording Cockpit/UI invocation gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md`.
+It is design-only and does not add UI/Cockpit implementation, route changes,
+writer/helper behavior changes, schema/migration, proof/evidence recording,
+bridge rows, verification evidence rows, action records, or broader recording
+authority.
+
 ## What This Does Not Solve
 
 This design does not solve:

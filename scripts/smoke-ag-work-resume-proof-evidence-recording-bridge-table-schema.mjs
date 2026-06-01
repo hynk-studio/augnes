@@ -793,6 +793,7 @@ function assertNoUnexpectedChangedFiles() {
     sessionCodexGatePath,
     reconciliationDesignPath,
     lifecycleDocPath,
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md",
     "package.json",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
@@ -813,6 +814,7 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
   ]);
 
   const unexpectedFiles = changedFiles.filter((file) => !allowedFiles.has(file));

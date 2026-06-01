@@ -344,6 +344,13 @@ foreign refs remain foreign until explicitly reconciled, actor and reason are
 required, and actual local proof/evidence recording is a separate user/Core
 authorization.
 
+The proof/evidence recording Cockpit/UI invocation gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md`.
+It is design-only and does not add UI/Cockpit implementation, route changes,
+writer/helper behavior changes, schema/migration, proof/evidence recording,
+bridge rows, verification evidence rows, action records, reconciliation
+candidate mutation, or broader recording authority.
+
 ## Browser Verification
 
 browser verification skipped: no rendered UI/operator surface changed in this design-only proof/evidence reconciliation slice

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
-const routeDesignPath =
+const cockpitGateDesignPath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md";
+const routeGateDesignPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md";
 const writerHelperGatePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md";
@@ -26,12 +28,15 @@ const lifecycleDocPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md";
 const packagePath = "package.json";
 const smokePath =
-  "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs";
-const futureRoutePath =
-  "app/api/ag-work-resume/proof-evidence-recordings/route.ts";
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs";
+const cockpitComponentPath = "components/augnes-cockpit.tsx";
+const routePath = "app/api/ag-work-resume/proof-evidence-recordings/route.ts";
+const writerHelperPath = "lib/ag-work-resume-proof-evidence-recording.ts";
+const schemaPath = "lib/db/schema.sql";
 
 for (const path of [
-  routeDesignPath,
+  cockpitGateDesignPath,
+  routeGateDesignPath,
   writerHelperGatePath,
   bridgeSchemaPath,
   bridgeMigrationPolicyPath,
@@ -43,12 +48,14 @@ for (const path of [
   reconciliationDesignPath,
   lifecycleDocPath,
   packagePath,
+  routePath,
 ]) {
   assert.equal(existsSync(path), true, `Missing required input: ${path}`);
 }
 
-const design = readFileSync(routeDesignPath, "utf8");
+const design = readFileSync(cockpitGateDesignPath, "utf8");
 const pointerDocs = [
+  routeGateDesignPath,
   writerHelperGatePath,
   bridgeSchemaPath,
   bridgeMigrationPolicyPath,
@@ -65,15 +72,16 @@ const pointerDocs = [
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
 
 for (const phrase of [
-  "AG Resume Proof/Evidence Recording Route Gate Design v0.1",
+  "AG Resume Proof/Evidence Recording Cockpit Gate Design v0.1",
   "This document is design-only",
+  "no UI/Cockpit implementation",
   "no route implementation",
-  "no UI/Cockpit controls",
+  "no route modification",
+  "no writer/helper behavior change",
   "no schema or migration",
-  "no writer/helper implementation changes",
   "no proof/evidence recording",
   "no `verification_evidence_records` rows",
-  "`ag_work_resume_proof_evidence_recording_links` rows",
+  "no `ag_work_resume_proof_evidence_recording_links` rows",
   "no `action_records` rows",
   "no session binding",
   "no Codex execution or continuation",
@@ -83,103 +91,147 @@ for (const phrase of [
   "no proposal mutation",
   "no reconciliation candidate mutation",
   "no approval, publish, retry, replay, merge, auto-merge, external posting",
-  "The route gate design is not route implementation",
-  "The route gate design is not approval to record",
-  "A future route implementation PR is not blanket approval to record",
-  "Actual recording remains per-attempt user/Core gated",
+  "The UI gate design is not UI implementation",
+  "The UI gate design is not approval to record",
+  "A future UI implementation PR is not blanket approval to record",
   "`accepted_for_future_recording` is not proof/evidence recording",
-  "The route must not weaken helper validation",
+  "Recording remains exact per-attempt user/Core gated",
+  "The UI must not weaken route/helper validation",
 ]) {
   assertIncludes(design, phrase);
 }
 
 for (const phrase of [
+  "Cockpit Operator tab, near AG Resume proof/evidence recording/candidate panels",
   "POST /api/ag-work-resume/proof-evidence-recordings",
-  "application/json",
-  "The route must reject unsupported fields",
-  "Supported fields only",
-  "Forbidden Fields",
-  "`candidate_id`",
-  "`user_core_approval`",
-  "`actor`",
-  "`reason`",
-  "`redaction_summary`",
-  "`trust_provenance_label`",
-  "`local_target_scope`",
-  "`local_target_work_id`",
-  "`expected_idempotency_key`",
+  "The future UI must call only that route",
+  "must not call `createAgWorkResumeProofEvidenceRecordingFromCandidate` directly",
+  "candidate_id",
+  "import_id",
+  "mapping_id",
+  "user_core_approval",
+  "actor",
+  "reason",
+  "redaction_summary",
+  "trust_provenance_label",
+  "local_target_scope",
+  "local_target_work_id",
+  "expected_idempotency_key",
+  "`candidate_id` is the canonical input",
+  "`import_id`, `mapping_id`, and `expected_idempotency_key` are cross-checks only",
+]) {
+  assertIncludes(design, phrase);
+}
+
+for (const phrase of [
+  "accepted_for_future_recording is not proof/evidence recording.",
+  "Route success is not broader approval.",
+  "Actual recording requires exact user/Core approval for this attempt.",
+  "Manual JSON approval payload entry is allowed and required",
+  "The UI may build a draft approval payload from visible fields only as a copy/edit convenience",
+  "That draft is not approval",
+  "Safe fixture loading is allowed only for development, smoke, and local demo verification",
+  "Fixture data may never imply approval",
+  "Record verification evidence",
+  "confirmation checkbox",
+  "typed confirmation phrase",
+  "record verification evidence",
+  "The idempotency key must be shown before submission",
+  "Success must display `evidence_id`, `recording_link_id`, `candidate_id`, and `idempotency_key`",
+  "Failure text must be public-safe only",
+  "Browser verification is required for any future UI implementation PR",
+]) {
+  assertIncludes(design, phrase);
+}
+
+for (const phrase of [
+  "Run Codex",
+  "continue Codex",
+  "bind session",
+  "create work item/event",
+  "create action record",
+  "approve/publish/retry/replay/merge",
+  "auto-merge",
+  "external post",
+  "mutate imported context",
+  "mutate confirmed mapping",
+  "mutate proposal",
+  "mutate reconciliation candidate",
+  "Direct Resume Code",
+  "relay/hosted transfer",
   "`db`",
   "`now`",
+  "`codex_continue`",
+  "`codex_execute`",
+  "`mutate_imported_context`",
+  "`mutate_confirmed_mapping`",
+  "`mutate_proposal`",
+  "`mutate_candidate`",
+  "`publish`",
+  "`retry`",
+  "`replay`",
+  "`merge`",
+  "`auto_merge`",
+  "`external_post`",
 ]) {
   assertIncludes(design, phrase);
 }
 
 for (const phrase of [
-  "Exact User/Core Approval Payload Requirement",
-  "The route must require `user_core_approval`",
-  "pass it to the helper without weakening or replacing helper validation",
-  "`candidate_id` is the canonical input",
-  "`import_id`, `mapping_id`, and `expected_idempotency_key` only as cross-checks",
-  "Every response must include an `authority_boundary` object",
-  "The route should expose created row ids",
-  "`recorded` | 201",
-  "`idempotent_no_new_write` | 200",
-  "`duplicate_conflict` | 409",
-  "`invalid_candidate` | 409",
-  "`missing_source_rows` | 404",
-  "`unauthorized_attempt` | 403",
-  "`fk_or_unique_failure` | 409",
-  "`db_error` | 500",
-]) {
-  assertIncludes(design, phrase);
-}
-
-for (const phrase of [
-  "The route must call only",
-  "createAgWorkResumeProofEvidenceRecordingFromCandidate",
-  "The route must not call `fetch`",
+  "Future UI must not call",
+  "Codex APIs/helpers",
+  "session binding helpers",
+  "action-record writers",
+  "work item/event writers",
+  "imported context writers",
+  "confirmed mapping writers",
+  "proposal writers",
+  "reconciliation candidate lifecycle writers",
+  "approval/publish/retry/replay/merge helpers",
+  "external network APIs",
   "OpenAI APIs",
   "GitHub APIs",
   "MCP tools",
-  "Browser",
-  "Codex helpers",
-  "session bind helpers",
-  "action-record writers",
-  "work item/event writers",
-  "approval, publish, retry, replay, merge, auto-merge, or external-posting",
+  "Browser automation",
+  "`createAgWorkResumeProofEvidenceRecordingFromCandidate` directly",
 ]) {
   assertIncludes(design, phrase);
 }
 
 for (const phrase of [
-  "Route Smoke Expectations",
-  "Future Route Implementation Verification Matrix",
-  "Browser verification skipped",
-  "no route implementation",
-  "no UI/Cockpit controls",
-  "no bridge rows created",
-  "no `verification_evidence_records` row creation",
-  "no `action_records` row creation",
+  "Clear And Reset Behavior",
+  "Success Rendering",
+  "Idempotent Rendering",
+  "Failure Rendering",
+  "Future DB And Network Proof Expectations",
+  "Future Browser Verification Matrix",
+  "Accessibility And Keyboard Expectations",
+  "Unauthorized Controls Scan Expectations",
+  "Protected Table Count Proof Expectations",
+  "exact approved `recorded` may increase",
+  "`verification_evidence_records` by 1",
+  "`ag_work_resume_proof_evidence_recording_links` by 1",
 ]) {
   assertIncludes(design, phrase);
 }
 
 assert.equal(
   pkg.scripts?.[
-    "smoke:ag-work-resume-proof-evidence-recording-route-gate-design"
+    "smoke:ag-work-resume-proof-evidence-recording-cockpit-gate-design"
   ],
-  "node scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
-  "package.json should register the route gate design smoke",
+  "node scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
+  "package.json should register the Cockpit gate design smoke",
 );
 
 assert.ok(
-  pointerDocs.includes(routeDesignPath),
-  "AG Resume pointer docs should reference the route gate design doc",
+  pointerDocs.includes(cockpitGateDesignPath),
+  "AG Resume pointer docs should reference the Cockpit gate design doc",
 );
 
 const changedFiles = gitChangedFiles();
 const allowedChangedFiles = new Set([
-  routeDesignPath,
+  cockpitGateDesignPath,
+  routeGateDesignPath,
   writerHelperGatePath,
   bridgeSchemaPath,
   bridgeMigrationPolicyPath,
@@ -190,16 +242,15 @@ const allowedChangedFiles = new Set([
   sessionCodexGatePath,
   reconciliationDesignPath,
   lifecycleDocPath,
-  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md",
   packagePath,
   smokePath,
-  futureRoutePath,
   "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
-  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
   "scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs",
   "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
@@ -207,18 +258,38 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
-  "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
 ]);
 assert.deepEqual(
   changedFiles.filter((file) => !allowedChangedFiles.has(file)),
   [],
-  "route gate design PR should be limited to docs, package script, and smoke guards",
+  "Cockpit gate design PR should be limited to docs, package script, and smoke guard",
+);
+
+assert.equal(
+  changedFiles.includes(cockpitComponentPath),
+  false,
+  "Cockpit gate design PR must not change components/augnes-cockpit.tsx",
+);
+assert.equal(
+  changedFiles.includes(routePath),
+  false,
+  "Cockpit gate design PR must not change the recording route implementation",
+);
+assert.equal(
+  changedFiles.includes(writerHelperPath),
+  false,
+  "Cockpit gate design PR must not change writer/helper behavior",
+);
+assert.equal(
+  changedFiles.includes(schemaPath),
+  false,
+  "Cockpit gate design PR must not change schema",
 );
 
 assert.deepEqual(
   changedFiles.filter(
     (file) =>
-      (file.startsWith("app/") && file !== futureRoutePath) ||
+      file.startsWith("app/") ||
       file.startsWith("components/") ||
       file.startsWith("pages/") ||
       file.startsWith("public/") ||
@@ -230,25 +301,27 @@ assert.deepEqual(
       (file.startsWith("scripts/") && !file.startsWith("scripts/smoke-")),
   ),
   [],
-  "route gate design PR must not change runtime/schema/migration/route/UI/browser/helper files",
+  "Cockpit gate design PR must not change runtime/schema/migration/route/UI/browser/helper files",
 );
 
 console.log(
   JSON.stringify(
     {
-      smoke: "ag-work-resume-proof-evidence-recording-route-gate-design",
-  route_gate_design_doc_exists: true,
-  design_only_boundary: true,
-  route_implementation_allowed_after_design: existsSync(futureRoutePath),
-  proposed_route_path:
+      smoke: "ag-work-resume-proof-evidence-recording-cockpit-gate-design",
+      cockpit_gate_design_doc_exists: true,
+      design_only_boundary: true,
+      no_components_augnes_cockpit_change: true,
+      no_route_implementation_change: true,
+      no_writer_helper_behavior_change: true,
+      no_schema_migration_change: true,
+      proposed_route:
         "POST /api/ag-work-resume/proof-evidence-recordings",
-      application_json_required: true,
-      unsupported_fields_rejected: true,
       exact_user_core_approval_required: true,
-      helper_only_future_delegation: true,
-      route_gate_design_boundary_preserved: true,
-      no_ui_cockpit_files_added: true,
+      accepted_for_future_recording_not_recording: true,
+      ui_must_call_only_existing_route: true,
+      ui_must_not_call_helper_directly: true,
       no_runtime_schema_migration_route_ui_browser_files_changed: true,
+      future_browser_verification_required: true,
     },
     null,
     2,
