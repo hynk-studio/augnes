@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
@@ -9,26 +9,22 @@ import Database from "better-sqlite3";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, "..");
+const routePath = path.join(
+  rootDir,
+  "app",
+  "api",
+  "ag-work-resume",
+  "proof-evidence-recordings",
+  "route.ts",
+);
 const writerPath = path.join(
   rootDir,
   "lib",
   "ag-work-resume-proof-evidence-recording.ts",
 );
-const helperPath = path.join(
-  rootDir,
-  "scripts",
-  "ag-work-resume-proof-evidence-recording-create.mjs",
-);
-const smokePath = fileURLToPath(import.meta.url);
 const packagePath = path.join(rootDir, "package.json");
-const schemaPath = path.join(rootDir, "lib", "db", "schema.sql");
-const designPath = path.join(
-  rootDir,
-  "docs",
-  "AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
-);
 const tempDir = mkdtempSync(
-  path.join(os.tmpdir(), "augnes-ag-resume-proof-evidence-recording-writer-"),
+  path.join(os.tmpdir(), "augnes-ag-resume-proof-evidence-recording-route-"),
 );
 const dbPath = path.join(tempDir, "augnes.db");
 
@@ -38,7 +34,7 @@ process.env.OPENAI_API_KEY = "smoke-openai-key-must-not-be-used";
 let fetchCalls = 0;
 globalThis.fetch = async () => {
   fetchCalls += 1;
-  throw new Error("AG Resume proof/evidence recording smoke must not call fetch.");
+  throw new Error("AG Resume proof/evidence recording route smoke must not call fetch.");
 };
 
 try {
@@ -47,278 +43,309 @@ try {
   assertSourceGuards();
   resetDb(dbPath);
 
-  const { createAgWorkResumeProofEvidenceRecordingFromCandidate } = await import(
-    "../lib/ag-work-resume-proof-evidence-recording.ts"
+  const { POST, GET } = await import(
+    "../app/api/ag-work-resume/proof-evidence-recordings/route.ts"
+  );
+  assert.equal(typeof POST, "function", "recording route must expose POST");
+  assert.equal(typeof GET, "function", "recording route must expose bounded 405 GET");
+
+  const transportBefore = protectedCountsForPath(dbPath);
+  await assertTransportFailure({
+    label: "unsupported method",
+    response: () => GET(new Request(routeUrl(), { method: "GET" })),
+    status: 405,
+    result: "unsupported_method",
+  });
+  await assertTransportFailure({
+    label: "unsupported content type",
+    response: () =>
+      POST(
+        new Request(routeUrl(), {
+          method: "POST",
+          headers: { "content-type": "text/plain" },
+          body: JSON.stringify({ candidate_id: "candidate:content-type" }),
+        }),
+      ),
+    status: 415,
+    result: "unsupported_content_type",
+  });
+  await assertTransportFailure({
+    label: "invalid JSON",
+    response: () =>
+      POST(
+        new Request(routeUrl(), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{",
+        }),
+      ),
+    status: 400,
+    result: "invalid_json",
+  });
+  await assertTransportFailure({
+    label: "non-object JSON",
+    response: () => POST(jsonRequest([])),
+    status: 400,
+    result: "non_object_json",
+  });
+  await assertTransportFailure({
+    label: "unsupported field",
+    response: () => POST(jsonRequest({ candidate_id: "candidate:x", surprise: true })),
+    status: 400,
+    result: "unsupported_field",
+  });
+  await assertTransportFailure({
+    label: "forbidden field db",
+    response: () => POST(jsonRequest({ candidate_id: "candidate:x", db: "blocked" })),
+    status: 400,
+    result: "forbidden_field",
+  });
+  await assertTransportFailure({
+    label: "forbidden field publish",
+    response: () =>
+      POST(jsonRequest({ candidate_id: "candidate:x", publish: true })),
+    status: 400,
+    result: "forbidden_field",
+  });
+  assert.deepEqual(
+    protectedCountsForPath(dbPath),
+    transportBefore,
+    "transport failures must not mutate DB rows",
   );
 
-  const success = createSourceFixture(dbPath, "success");
-  const successInput = buildRecordingInput(success);
+  const success = createSourceFixture(dbPath, "route-success");
+  const successBody = buildRouteBody(success);
   const successBefore = sideEffectSnapshot(dbPath, success);
-  const successResult = createAgWorkResumeProofEvidenceRecordingFromCandidate(
-    successInput,
-  );
-  assert.equal(successResult.ok, true, JSON.stringify(successResult, null, 2));
-  assert.equal(successResult.result, "recorded");
-  assert.equal(successResult.created, true);
-  assert.equal(successResult.candidate_id, success.candidate_id);
-  assert.equal(successResult.target_record_kind, "verification_evidence");
-  assert.equal(successResult.idempotency_key, expectedIdempotencyKey(success));
-  assert.equal(successResult.authority_boundary.verification_evidence_record_created, true);
-  assert.equal(successResult.authority_boundary.bridge_link_created, true);
-  assertNoForbiddenAuthority(successResult.authority_boundary);
-  assertRecordingRows(dbPath, success, successResult);
+  const successResponse = await POST(jsonRequest(successBody));
+  const successPayload = await successResponse.json();
+  assert.equal(successResponse.status, 201);
+  assert.equal(successPayload.ok, true);
+  assert.equal(successPayload.route, "ag_work_resume_proof_evidence_recordings.v0_1");
+  assert.equal(successPayload.result, "recorded");
+  assert.equal(successPayload.created, true);
+  assert.equal(successPayload.candidate_id, success.candidate_id);
+  assert.equal(successPayload.evidence_id, expectedEvidenceId(success));
+  assert.equal(successPayload.recording_link_id, expectedLinkId(success));
+  assert.equal(successPayload.idempotency_key, expectedIdempotencyKey(success));
+  assert.equal(successPayload.target_record_kind, "verification_evidence");
+  assert.equal(successPayload.authority_boundary.verification_evidence_record_created, true);
+  assert.equal(successPayload.authority_boundary.bridge_link_created, true);
+  assertNoForbiddenAuthority(successPayload.authority_boundary);
+  assertPublicSafePayload(successPayload);
+  assertRecordingRows(dbPath, success, successPayload);
   assertSideEffects(dbPath, success, successBefore, {
     evidenceDelta: 1,
     linkDelta: 1,
   });
 
   const idempotentBefore = sideEffectSnapshot(dbPath, success);
-  const idempotentResult = createAgWorkResumeProofEvidenceRecordingFromCandidate(
-    successInput,
-  );
-  assert.equal(idempotentResult.ok, true);
-  assert.equal(idempotentResult.result, "idempotent_no_new_write");
-  assert.equal(idempotentResult.created, false);
-  assert.equal(idempotentResult.evidence_id, successResult.evidence_id);
-  assert.equal(idempotentResult.recording_link_id, successResult.recording_link_id);
-  assert.equal(idempotentResult.idempotency_key, successResult.idempotency_key);
-  assertNoForbiddenAuthority(idempotentResult.authority_boundary);
+  const idempotentResponse = await POST(jsonRequest(successBody));
+  const idempotentPayload = await idempotentResponse.json();
+  assert.equal(idempotentResponse.status, 200);
+  assert.equal(idempotentPayload.ok, true);
+  assert.equal(idempotentPayload.result, "idempotent_no_new_write");
+  assert.equal(idempotentPayload.created, false);
+  assert.equal(idempotentPayload.evidence_id, successPayload.evidence_id);
+  assert.equal(idempotentPayload.recording_link_id, successPayload.recording_link_id);
+  assertNoForbiddenAuthority(idempotentPayload.authority_boundary);
+  assertPublicSafePayload(idempotentPayload);
   assertSideEffects(dbPath, success, idempotentBefore, {
     evidenceDelta: 0,
     linkDelta: 0,
   });
 
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
-    fixture: success,
-    input: {
-      ...successInput,
-      reason: "Different reason for same idempotency key should fail closed.",
-      user_core_approval: buildApproval(success, {
-        reason: "Different reason for same idempotency key should fail closed.",
-      }),
-    },
+  const duplicate = createSourceFixture(dbPath, "route-duplicate");
+  seedDifferentKeyRecording(dbPath, duplicate);
+  await assertRouteFailureNoWrite({
+    POST,
+    fixture: duplicate,
+    body: buildRouteBody(duplicate),
+    status: 409,
     result: "duplicate_conflict",
-    label: "same key different payload",
+    label: "duplicate_conflict",
   });
 
-  const differentKey = createSourceFixture(dbPath, "different-key");
-  seedDifferentKeyRecording(dbPath, differentKey);
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
-    fixture: differentKey,
-    input: buildRecordingInput(differentKey),
-    result: "duplicate_conflict",
-    label: "same candidate different key",
+  const proposed = createSourceFixture(dbPath, "route-proposed", {
+    status: "proposed",
   });
-
-  const proposed = createSourceFixture(dbPath, "proposed", { status: "proposed" });
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: proposed,
-    input: buildRecordingInput(proposed),
+    body: buildRouteBody(proposed),
+    status: 409,
     result: "invalid_candidate",
-    label: "candidate not accepted_for_future_recording",
+    label: "invalid_candidate",
   });
 
-  const missingApproval = createSourceFixture(dbPath, "missing-approval");
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  const missingApproval = createSourceFixture(dbPath, "route-missing-approval");
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: missingApproval,
-    input: { ...buildRecordingInput(missingApproval), user_core_approval: null },
+    body: omit(buildRouteBody(missingApproval), "user_core_approval"),
+    status: 403,
     result: "unauthorized_attempt",
     label: "missing approval",
   });
 
-  const staleApproval = createSourceFixture(dbPath, "stale-approval");
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
-    fixture: staleApproval,
-    input: {
-      ...buildRecordingInput(staleApproval),
-      user_core_approval: {
-        ...buildApproval(staleApproval),
-        approved_local_target_work_id: "AG-STALE",
-      },
+  const unauthorized = createSourceFixture(dbPath, "route-unauthorized");
+  await assertRouteFailureNoWrite({
+    POST,
+    fixture: unauthorized,
+    body: {
+      ...buildRouteBody(unauthorized),
+      expected_idempotency_key: "actual-proof-evidence-recording:v0_1:wrong",
     },
+    status: 403,
     result: "unauthorized_attempt",
-    label: "stale approval",
+    label: "unauthorized_attempt",
   });
 
-  const crossCheck = createSourceFixture(dbPath, "cross-check");
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  const crossCheck = createSourceFixture(dbPath, "route-cross-check");
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: crossCheck,
-    input: { ...buildRecordingInput(crossCheck), import_id: "import:wrong" },
+    body: { ...buildRouteBody(crossCheck), import_id: "import:wrong" },
+    status: 409,
     result: "source_cross_check_failed",
-    label: "import_id mismatch",
-  });
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
-    fixture: crossCheck,
-    input: { ...buildRecordingInput(crossCheck), mapping_id: "mapping:wrong" },
-    result: "source_cross_check_failed",
-    label: "mapping_id mismatch",
+    label: "source_cross_check_failed",
   });
 
-  const missingSource = createSourceFixture(dbPath, "missing-source");
+  const missingSource = createSourceFixture(dbPath, "route-missing-source");
   deleteWorkItem(dbPath, missingSource);
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: missingSource,
-    input: buildRecordingInput(missingSource),
+    body: buildRouteBody(missingSource),
+    status: 404,
     result: "missing_source_rows",
-    label: "missing local work source row",
+    label: "missing_source_rows",
   });
 
-  const unsafeRedaction = createSourceFixture(dbPath, "unsafe-redaction");
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  const unsafeRedaction = createSourceFixture(dbPath, "route-unsafe-redaction");
+  const unsafeSummary = {
+    ...safeRedactionSummary(),
+    raw_evidence_payloads_included: true,
+  };
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: unsafeRedaction,
-    input: {
-      ...buildRecordingInput(unsafeRedaction),
-      redaction_summary: {
-        ...safeRedactionSummary(),
-        raw_evidence_payloads_included: true,
-      },
+    body: buildRouteBody(unsafeRedaction, {
+      redaction_summary: unsafeSummary,
       user_core_approval: buildApproval(unsafeRedaction, {
-        redaction_summary: {
-          ...safeRedactionSummary(),
-          raw_evidence_payloads_included: true,
-        },
+        redaction_summary: unsafeSummary,
       }),
-    },
+    }),
+    status: 422,
     result: "unsafe_redaction",
-    label: "unsafe redaction",
+    label: "unsafe_redaction",
   });
 
-  const invalidActor = createSourceFixture(dbPath, "invalid-actor");
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  const invalidActor = createSourceFixture(dbPath, "route-invalid-actor");
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: invalidActor,
-    input: {
-      ...buildRecordingInput(invalidActor),
+    body: buildRouteBody(invalidActor, {
       actor: "codex",
       user_core_approval: buildApproval(invalidActor, { actor: "codex" }),
-    },
+    }),
+    status: 422,
     result: "invalid_actor_reason",
-    label: "invalid actor",
-  });
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
-    fixture: invalidActor,
-    input: {
-      ...buildRecordingInput(invalidActor),
-      reason: "",
-      user_core_approval: buildApproval(invalidActor, { reason: "" }),
-    },
-    result: "invalid_actor_reason",
-    label: "invalid reason",
+    label: "invalid_actor_reason actor",
   });
 
-  const invalidTrust = createSourceFixture(dbPath, "invalid-trust");
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  const invalidReason = createSourceFixture(dbPath, "route-invalid-reason");
+  await assertRouteFailureNoWrite({
+    POST,
+    fixture: invalidReason,
+    body: buildRouteBody(invalidReason, {
+      reason: "",
+      user_core_approval: buildApproval(invalidReason, { reason: "" }),
+    }),
+    status: 422,
+    result: "invalid_actor_reason",
+    label: "invalid_actor_reason reason",
+  });
+
+  const invalidTrust = createSourceFixture(dbPath, "route-invalid-trust");
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: invalidTrust,
-    input: {
-      ...buildRecordingInput(invalidTrust),
+    body: buildRouteBody(invalidTrust, {
       trust_provenance_label: "raw_foreign_payload",
       user_core_approval: buildApproval(invalidTrust, {
         trust_provenance_label: "raw_foreign_payload",
       }),
-    },
+    }),
+    status: 422,
     result: "invalid_trust_provenance",
-    label: "invalid trust label",
+    label: "invalid_trust_provenance",
   });
 
-  const uniqueFailure = createSourceFixture(dbPath, "unique-failure");
+  const uniqueFailure = createSourceFixture(dbPath, "route-unique-failure");
   seedEvidenceIdConflict(dbPath, uniqueFailure);
-  assertFailureCase({
-    dbPath,
-    createAgWorkResumeProofEvidenceRecordingFromCandidate,
+  await assertRouteFailureNoWrite({
+    POST,
     fixture: uniqueFailure,
-    input: buildRecordingInput(uniqueFailure),
+    body: buildRouteBody(uniqueFailure),
+    status: 409,
     result: "fk_or_unique_failure",
-    label: "evidence unique failure rollback",
+    label: "fk_or_unique_failure",
+    expectedFailurePattern: /constraint prevented recording/i,
   });
 
-  const helperEnv = createSourceFixture(dbPath, "helper-env");
-  const helperBefore = sideEffectSnapshot(dbPath, helperEnv);
-  const helperRun = runHelper({
-    dbPath,
-    envInput: buildRecordingInput(helperEnv),
-  });
-  assert.equal(helperRun.status, 0);
-  assert.equal(helperRun.json.ok, true);
-  assert.equal(helperRun.json.helper, "ag_work_resume_proof_evidence_recording_create.v0_1");
-  assert.equal(helperRun.json.input_mode, "env");
-  assert.equal(helperRun.json.result.result, "recorded");
-  assertSideEffects(dbPath, helperEnv, helperBefore, {
-    evidenceDelta: 1,
-    linkDelta: 1,
-  });
-
-  const helperFlags = createSourceFixture(dbPath, "helper-flags");
-  const helperFlagsBefore = sideEffectSnapshot(dbPath, helperFlags);
-  const helperFlagsRun = runHelper({
-    dbPath,
-    flagsInput: buildRecordingInput(helperFlags),
-  });
-  assert.equal(helperFlagsRun.status, 0);
-  assert.equal(helperFlagsRun.json.ok, true);
-  assert.equal(helperFlagsRun.json.input_mode, "flags");
-  assertSideEffects(dbPath, helperFlags, helperFlagsBefore, {
-    evidenceDelta: 1,
-    linkDelta: 1,
-  });
+  const dbError = createSourceFixture(dbPath, "route-db-error");
+  const originalDbPath = process.env.AUGNES_DB_PATH;
+  try {
+    process.env.AUGNES_DB_PATH = tempDir;
+    const response = await POST(jsonRequest(buildRouteBody(dbError)));
+    const payload = await response.json();
+    assert.equal(response.status, 500);
+    assert.equal(payload.result, "db_error");
+    assert.equal(payload.created, false);
+    assertNoForbiddenAuthority(payload.authority_boundary);
+    assertPublicSafePayload(payload);
+    assert.doesNotMatch(JSON.stringify(payload), /SQLITE|better-sqlite3|\/Users\//i);
+  } finally {
+    process.env.AUGNES_DB_PATH = originalDbPath;
+  }
 
   assertNoForbiddenRows(dbPath);
-  assert.equal(fetchCalls, 0, "recording writer/helper smoke must not call fetch/network");
+  assert.equal(fetchCalls, 0, "recording route smoke must not call fetch/network");
 
   console.log(
     JSON.stringify(
       {
-        smoke: "ag-work-resume-proof-evidence-recording-writer-helper",
+        smoke: "ag-work-resume-proof-evidence-recording-route",
         temp_db_path: dbPath,
+        route: "POST /api/ag-work-resume/proof-evidence-recordings",
         cases: [
-          "package scripts are present",
-          "writer/helper source guards pass",
-          "successful exact approved recording creates exactly one evidence row and one bridge row",
-          "same key/same payload returns idempotent_no_new_write",
-          "same key/different payload fails closed",
-          "same candidate/different key fails closed",
-          "candidate not accepted_for_future_recording fails closed",
+          "package script is present",
+          "route source delegates only to createAgWorkResumeProofEvidenceRecordingFromCandidate",
+          "application/json is required",
+          "invalid JSON fails closed",
+          "non-object JSON fails closed",
+          "unsupported fields fail closed",
+          "forbidden fields fail closed",
           "missing approval fails closed",
-          "stale/mismatched approval fails closed",
-          "import_id and mapping_id cross-check mismatch fails closed",
-          "missing source rows fail closed",
-          "unsafe redaction fails closed",
-          "invalid actor/reason fails closed",
-          "invalid trust label fails closed",
-          "FK/unique failures roll back",
-          "helper env and flags modes succeed",
-          "no action_records rows are created",
-          "no sessions are bound",
-          "no work_items/work_events are created",
-          "imported context rows are not mutated",
-          "confirmed mapping rows are not mutated",
-          "proposal rows are not mutated",
-          "reconciliation candidate rows are not mutated",
-          "no route/UI files are added",
-          "no approval/publish/retry/replay/merge authority is added",
-          "no fetch/network call observed",
+          "exact approved recorded request returns 201",
+          "recorded request creates exactly one verification_evidence_records row and one bridge row",
+          "idempotent repeat returns 200 and creates no duplicate rows",
+          "duplicate_conflict returns 409 and creates no rows",
+          "invalid_candidate returns 409 and creates no rows",
+          "unauthorized_attempt returns 403 and creates no rows",
+          "source_cross_check_failed returns 409 and creates no rows",
+          "missing_source_rows returns 404 and creates no rows",
+          "unsafe_redaction returns 422 and creates no rows",
+          "invalid_actor_reason returns 422 and creates no rows",
+          "invalid_trust_provenance returns 422 and creates no rows",
+          "fk_or_unique_failure returns 409 and rolls back",
+          "db_error returns 500 with public-safe bounded failure text",
+          "every response includes authority_boundary",
+          "no route response grants session/Codex/work/action/source-row/approval/publish/retry/replay/merge authority",
+          "no fetch/network calls occur",
+          "no UI/Cockpit files changed",
+          "no writer/helper behavior changed",
+          "no schema/migration files changed",
         ],
       },
       null,
@@ -330,7 +357,7 @@ try {
 }
 
 function assertFilesExist() {
-  for (const file of [writerPath, helperPath, smokePath, packagePath, schemaPath, designPath]) {
+  for (const file of [routePath, writerPath, packagePath]) {
     assert.ok(existsSync(file), `${file} must exist`);
   }
 }
@@ -338,78 +365,118 @@ function assertFilesExist() {
 function assertPackageScripts() {
   const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
   assert.equal(
-    packageJson.scripts?.["ag:resume-proof-evidence-recording-create"],
-    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/ag-work-resume-proof-evidence-recording-create.mjs",
-    "package.json must expose the recording create helper",
-  );
-  assert.equal(
-    packageJson.scripts?.[
-      "smoke:ag-work-resume-proof-evidence-recording-writer-helper"
-    ],
-    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
-    "package.json must expose the recording writer/helper smoke",
+    packageJson.scripts?.["smoke:ag-work-resume-proof-evidence-recording-route"],
+    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
+    "package.json must expose recording route smoke",
   );
 }
 
 function assertSourceGuards() {
+  const routeSource = readFileSync(routePath, "utf8");
   const writerSource = readFileSync(writerPath, "utf8");
-  const helperSource = readFileSync(helperPath, "utf8");
-
+  assert.match(routeSource, /export const runtime = "nodejs"/);
+  assert.match(routeSource, /export const dynamic = "force-dynamic"/);
   assert.match(
-    writerSource,
-    /export function createAgWorkResumeProofEvidenceRecordingFromCandidate/,
-    "writer core export must exist",
-  );
-  assert.match(
-    writerSource,
-    /INSERT INTO verification_evidence_records/,
-    "writer must insert one verification evidence row",
-  );
-  assert.match(
-    writerSource,
-    /INSERT INTO ag_work_resume_proof_evidence_recording_links/,
-    "writer must insert one recording bridge row",
-  );
-  assert.match(
-    writerSource,
-    /db\.transaction/,
-    "writer must use a local database transaction",
-  );
-  assert.match(
-    writerSource,
-    /idempotent_no_new_write/,
-    "writer must implement idempotent no-new-write behavior",
-  );
-  assert.doesNotMatch(
-    writerSource,
-    /INSERT INTO\s+(?!verification_evidence_records|ag_work_resume_proof_evidence_recording_links)/i,
-    "writer must only insert into the two allowed tables",
-  );
-  assert.doesNotMatch(
-    writerSource,
-    /\b(UPDATE|DELETE|DROP|ALTER\s+TABLE|CREATE\s+TABLE)\s+/i,
-    "writer must not update/delete/source rows or mutate schema",
-  );
-  assert.doesNotMatch(
-    writerSource,
-    /INSERT INTO action_records|INSERT INTO work_items|INSERT INTO work_events|INSERT INTO sessions/i,
-    "writer must not insert protected tables",
-  );
-  assert.match(
-    helperSource,
+    routeSource,
     /createAgWorkResumeProofEvidenceRecordingFromCandidate/,
-    "helper script must call recording writer core",
+    "route must delegate to bounded recording helper",
   );
-  assert.doesNotMatch(helperSource, /fetch\s*\(/i, "helper must not call fetch");
+  assert.match(routeSource, /content-type/);
+  for (const field of [
+    "candidate_id",
+    "import_id",
+    "mapping_id",
+    "user_core_approval",
+    "actor",
+    "reason",
+    "redaction_summary",
+    "trust_provenance_label",
+    "local_target_scope",
+    "local_target_work_id",
+    "expected_idempotency_key",
+  ]) {
+    assert.match(routeSource, new RegExp(`"${field}"`), `${field} must be supported`);
+  }
+  for (const field of [
+    "db",
+    "now",
+    "session_id",
+    "codex_continue",
+    "codex_execute",
+    "work_item_create",
+    "work_event_create",
+    "action_record",
+    "mutate_imported_context",
+    "mutate_confirmed_mapping",
+    "mutate_proposal",
+    "mutate_candidate",
+    "publish",
+    "retry",
+    "replay",
+    "merge",
+    "auto_merge",
+    "external_post",
+    "committed_state",
+  ]) {
+    assert.match(routeSource, new RegExp(`"${field}"`), `${field} must be forbidden`);
+  }
+  assert.doesNotMatch(routeSource, /fetch\s*\(/i, "route must not call fetch");
+  assert.doesNotMatch(routeSource, /\bdb\s*:/, "route must not pass db to helper");
+  assert.doesNotMatch(routeSource, /\bnow\s*:/, "route must not pass now to helper");
   assert.doesNotMatch(
-    `${writerSource}\n${helperSource}`,
-    /\/api\/|@octokit|openai|record-proof|sessions\/bind|autoMerge\s*\(|auto_merge\s*\(/i,
-    "writer/helper must not call routes, GitHub/OpenAI, proof, session, or merge helpers",
+    routeSource,
+    /record-proof|record-evidence|sessions\/bind|work_events|commitStateUpdate|OpenAI|octokit|GitHub|Browser|MCP/i,
+    "route must not call proof/session/work/state/network helpers",
+  );
+  assert.doesNotMatch(
+    writerSource,
+    /export async function|Request|NextResponse/,
+    "writer/helper behavior must remain independent of route implementation",
   );
   assertNoUnexpectedChangedFiles();
 }
 
-function createSourceFixture(dbPath, key, options = {}) {
+async function assertTransportFailure({ label, response, status, result }) {
+  const routeResponse = await response();
+  const payload = await routeResponse.json();
+  assert.equal(routeResponse.status, status, label);
+  assert.equal(payload.ok, false, label);
+  assert.equal(payload.result, result, label);
+  assert.equal(payload.created, false, label);
+  assert.equal(payload.evidence_id, null, label);
+  assert.equal(payload.recording_link_id, null, label);
+  assert.ok(payload.authority_boundary, `${label} must include authority_boundary`);
+  assertNoForbiddenAuthority(payload.authority_boundary);
+  assertPublicSafePayload(payload);
+}
+
+async function assertRouteFailureNoWrite({
+  POST,
+  fixture,
+  body,
+  status,
+  result,
+  label,
+  expectedFailurePattern,
+}) {
+  const before = sideEffectSnapshot(dbPath, fixture);
+  const response = await POST(jsonRequest(body));
+  const payload = await response.json();
+  assert.equal(response.status, status, label);
+  assert.equal(payload.ok, false, label);
+  assert.equal(payload.result, result, label);
+  assert.equal(payload.created, false, label);
+  assert.equal(payload.evidence_id, null, label);
+  assert.equal(payload.recording_link_id, null, label);
+  assertNoForbiddenAuthority(payload.authority_boundary);
+  assertPublicSafePayload(payload);
+  if (expectedFailurePattern) {
+    assert.match(payload.failures.join("\n"), expectedFailurePattern, label);
+  }
+  assertSideEffects(dbPath, fixture, before, { evidenceDelta: 0, linkDelta: 0 });
+}
+
+function createSourceFixture(targetDbPath, key, options = {}) {
   const suffix = key.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
   const scope = "project:augnes";
   const workId = `AG-REC-${suffix.toUpperCase()}`;
@@ -422,14 +489,14 @@ function createSourceFixture(dbPath, key, options = {}) {
   const foreignScope = "foreign:augnes";
   const foreignWorkId = `FOREIGN-${suffix.toUpperCase()}`;
   const now = "2026-06-01T12:00:00.000Z";
-  const db = openDb(dbPath);
+  const db = openDb(targetDbPath);
   try {
     db.prepare(
       `
         INSERT INTO work_items (scope, work_id, title, status, priority, summary, next_action, related_state_keys, links, created_at, updated_at)
         VALUES (?, ?, ?, 'active', 'normal', ?, '', '[]', '{}', ?, ?)
       `,
-    ).run(scope, workId, `Recording fixture ${key}`, `Fixture work ${key}`, now, now);
+    ).run(scope, workId, `Recording route fixture ${key}`, `Fixture work ${key}`, now, now);
     db.prepare(
       `
         INSERT INTO ag_work_resume_mapping_proposals (
@@ -620,23 +687,25 @@ function createSourceFixture(dbPath, key, options = {}) {
   };
 }
 
-function buildRecordingInput(fixture, overrides = {}) {
+function buildRouteBody(fixture, overrides = {}) {
   const redactionSummary = overrides.redaction_summary ?? safeRedactionSummary();
-  const actor = overrides.actor ?? "user-core:recording-smoke";
+  const actor = overrides.actor ?? "user-core:recording-route-smoke";
   const reason =
     overrides.reason ??
-    `User/Core approved fixture ${fixture.key} for actual evidence recording.`;
+    `User/Core approved fixture ${fixture.key} for route evidence recording.`;
   return {
     candidate_id: fixture.candidate_id,
     import_id: fixture.import_id,
     mapping_id: fixture.mapping_id,
-    user_core_approval: overrides.user_core_approval ?? buildApproval(fixture, {
-      actor,
-      reason,
-      redaction_summary: redactionSummary,
-      trust_provenance_label:
-        overrides.trust_provenance_label ?? "foreign_summary_user_core_attested",
-    }),
+    user_core_approval:
+      overrides.user_core_approval ??
+      buildApproval(fixture, {
+        actor,
+        reason,
+        redaction_summary: redactionSummary,
+        trust_provenance_label:
+          overrides.trust_provenance_label ?? "foreign_summary_user_core_attested",
+      }),
     actor,
     reason,
     redaction_summary: redactionSummary,
@@ -646,15 +715,14 @@ function buildRecordingInput(fixture, overrides = {}) {
     local_target_work_id: fixture.work_id,
     expected_idempotency_key:
       overrides.expected_idempotency_key ?? expectedIdempotencyKey(fixture),
-    now: "2026-06-01T12:30:00.000Z",
   };
 }
 
 function buildApproval(fixture, overrides = {}) {
-  const actor = overrides.actor ?? "user-core:recording-smoke";
+  const actor = overrides.actor ?? "user-core:recording-route-smoke";
   const reason =
     overrides.reason ??
-    `User/Core approved fixture ${fixture.key} for actual evidence recording.`;
+    `User/Core approved fixture ${fixture.key} for route evidence recording.`;
   const redactionSummary = overrides.redaction_summary ?? safeRedactionSummary();
   const trustLabel =
     overrides.trust_provenance_label ?? "foreign_summary_user_core_attested";
@@ -740,17 +808,17 @@ function expectedLinkId(fixture) {
   return `ag-resume-proof-evidence-recording-link:${expectedHash(fixture)}`;
 }
 
-function assertRecordingRows(dbPath, fixture, result) {
-  const db = openDb(dbPath);
+function assertRecordingRows(targetDbPath, fixture, payload) {
+  const db = openDb(targetDbPath);
   try {
     const evidence = db
       .prepare("SELECT * FROM verification_evidence_records WHERE evidence_id = ?")
-      .get(result.evidence_id);
+      .get(payload.evidence_id);
     const link = db
       .prepare(
         "SELECT * FROM ag_work_resume_proof_evidence_recording_links WHERE recording_link_id = ?",
       )
-      .get(result.recording_link_id);
+      .get(payload.recording_link_id);
     assert.ok(evidence, "evidence row must exist");
     assert.ok(link, "bridge row must exist");
     assert.equal(evidence.evidence_id, expectedEvidenceId(fixture));
@@ -791,30 +859,8 @@ function assertRecordingRows(dbPath, fixture, result) {
   }
 }
 
-function assertFailureCase({
-  dbPath,
-  createAgWorkResumeProofEvidenceRecordingFromCandidate,
-  fixture,
-  input,
-  result,
-  label,
-}) {
-  const before = sideEffectSnapshot(dbPath, fixture);
-  const output = createAgWorkResumeProofEvidenceRecordingFromCandidate(input);
-  assert.equal(output.ok, false, `${label} should fail`);
-  assert.equal(output.result, result, `${label} should return ${result}`);
-  assert.equal(output.created, false, `${label} should not create rows`);
-  assert.equal(output.evidence_id, null, `${label} should not fabricate evidence id`);
-  assert.equal(
-    output.recording_link_id,
-    null,
-    `${label} should not fabricate bridge id`,
-  );
-  assertNoForbiddenAuthority(output.authority_boundary);
-  assertSideEffects(dbPath, fixture, before, { evidenceDelta: 0, linkDelta: 0 });
-}
-
 function assertNoForbiddenAuthority(boundary) {
+  assert.equal(boundary.exact_user_core_approval_required, true);
   assert.equal(boundary.proof_recorded, false);
   assert.equal(boundary.action_record_created, false);
   assert.equal(boundary.route_added, false);
@@ -836,8 +882,18 @@ function assertNoForbiddenAuthority(boundary) {
   assert.equal(boundary.committed_state_mutated, false);
 }
 
-function sideEffectSnapshot(dbPath, fixture) {
-  const db = openDb(dbPath);
+function assertPublicSafePayload(payload) {
+  assert.ok(payload.authority_boundary, "response must include authority_boundary");
+  const text = JSON.stringify(payload);
+  assert.doesNotMatch(text, /sk-[A-Za-z0-9_-]+/);
+  assert.doesNotMatch(text, /\bgh[pousr]_[A-Za-z0-9_]+/);
+  assert.doesNotMatch(text, /cookie|raw session payload|private key/i);
+  assert.doesNotMatch(text, /\/Users\/hynk/i);
+  assert.doesNotMatch(text, /at .*:\d+:\d+/, "response must not include stack trace frames");
+}
+
+function sideEffectSnapshot(targetDbPath, fixture) {
+  const db = openDb(targetDbPath);
   try {
     return {
       counts: protectedCounts(db),
@@ -857,8 +913,8 @@ function sideEffectSnapshot(dbPath, fixture) {
   }
 }
 
-function assertSideEffects(dbPath, fixture, before, { evidenceDelta, linkDelta }) {
-  const after = sideEffectSnapshot(dbPath, fixture);
+function assertSideEffects(targetDbPath, fixture, before, { evidenceDelta, linkDelta }) {
+  const after = sideEffectSnapshot(targetDbPath, fixture);
   for (const [table, beforeCount] of Object.entries(before.counts)) {
     const expected =
       table === "verification_evidence_records"
@@ -879,8 +935,8 @@ function assertSideEffects(dbPath, fixture, before, { evidenceDelta, linkDelta }
   assert.deepEqual(after.work, before.work, "work item row must not mutate");
 }
 
-function seedDifferentKeyRecording(dbPath, fixture) {
-  const db = openDb(dbPath);
+function seedDifferentKeyRecording(targetDbPath, fixture) {
+  const db = openDb(targetDbPath);
   try {
     const evidenceId = `evidence:different-key:${fixture.key}`;
     db.prepare(
@@ -919,8 +975,8 @@ function seedDifferentKeyRecording(dbPath, fixture) {
   }
 }
 
-function seedEvidenceIdConflict(dbPath, fixture) {
-  const db = openDb(dbPath);
+function seedEvidenceIdConflict(targetDbPath, fixture) {
+  const db = openDb(targetDbPath);
   try {
     db.prepare(
       `
@@ -941,8 +997,8 @@ function seedEvidenceIdConflict(dbPath, fixture) {
   }
 }
 
-function deleteWorkItem(dbPath, fixture) {
-  const db = openDb(dbPath);
+function deleteWorkItem(targetDbPath, fixture) {
+  const db = openDb(targetDbPath);
   try {
     db.prepare("DELETE FROM work_items WHERE scope = ? AND work_id = ?").run(
       fixture.scope,
@@ -953,70 +1009,8 @@ function deleteWorkItem(dbPath, fixture) {
   }
 }
 
-function runHelper({ dbPath, envInput, flagsInput }) {
-  const env = {
-    ...process.env,
-    AUGNES_DB_PATH: dbPath,
-    OPENAI_API_KEY: "smoke-openai-key-must-not-be-used",
-  };
-  const args = [
-    "run",
-    "--silent",
-    "ag:resume-proof-evidence-recording-create",
-    "--",
-    "--json",
-  ];
-  if (envInput) {
-    env.AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_CREATE_INPUT =
-      JSON.stringify(envInput);
-  }
-  if (flagsInput) {
-    args.push(
-      "--candidate-id",
-      flagsInput.candidate_id,
-      "--import-id",
-      flagsInput.import_id,
-      "--mapping-id",
-      flagsInput.mapping_id,
-      "--user-core-approval-json",
-      JSON.stringify(flagsInput.user_core_approval),
-      "--actor",
-      flagsInput.actor,
-      "--reason",
-      flagsInput.reason,
-      "--redaction-summary-json",
-      JSON.stringify(flagsInput.redaction_summary),
-      "--trust-provenance-label",
-      flagsInput.trust_provenance_label,
-      "--local-target-scope",
-      flagsInput.local_target_scope,
-      "--local-target-work-id",
-      flagsInput.local_target_work_id,
-      "--expected-idempotency-key",
-      flagsInput.expected_idempotency_key,
-      "--now",
-      flagsInput.now,
-    );
-  }
-  const result = spawnSync("npm", args, {
-    cwd: rootDir,
-    env,
-    encoding: "utf8",
-  });
-  return {
-    ...result,
-    json: parseJsonOutput(result.stdout),
-  };
-}
-
-function parseJsonOutput(output) {
-  const start = output.indexOf("{");
-  assert.notEqual(start, -1, `expected JSON output, got: ${output}`);
-  return JSON.parse(output.slice(start));
-}
-
-function assertNoForbiddenRows(dbPath) {
-  const db = openDb(dbPath);
+function assertNoForbiddenRows(targetDbPath) {
+  const db = openDb(targetDbPath);
   try {
     assert.equal(countRows(db, "action_records"), 0);
     assert.equal(countRows(db, "sessions"), 0);
@@ -1057,6 +1051,15 @@ function protectedCounts(db) {
   );
 }
 
+function protectedCountsForPath(targetDbPath) {
+  const db = openDb(targetDbPath);
+  try {
+    return protectedCounts(db);
+  } finally {
+    db.close();
+  }
+}
+
 function rowById(db, table, key, value) {
   return db.prepare(`SELECT * FROM ${table} WHERE ${key} = ?`).get(value) ?? null;
 }
@@ -1074,19 +1077,15 @@ function countRows(db, table) {
 }
 
 function resetDb(targetDbPath) {
-  const result = spawnSync("npm", ["run", "db:reset"], {
+  execFileSync("node", ["scripts/db-reset.mjs"], {
     cwd: rootDir,
     env: {
       ...process.env,
       AUGNES_DB_PATH: targetDbPath,
+      OPENAI_API_KEY: "smoke-openai-key-must-not-be-used",
     },
-    encoding: "utf8",
+    stdio: "pipe",
   });
-  assert.equal(
-    result.status,
-    0,
-    `db:reset failed\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`,
-  );
 }
 
 function openDb(targetDbPath) {
@@ -1105,24 +1104,11 @@ function assertNoUnexpectedChangedFiles() {
     ]),
   ];
   const allowedFiles = new Set([
-    "lib/ag-work-resume-proof-evidence-recording.ts",
-    "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
-    "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md",
-    "docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md",
-    "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md",
-    "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md",
-    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",
-    "package.json",
-    "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
     "app/api/ag-work-resume/proof-evidence-recordings/route.ts",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
+    "package.json",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
@@ -1138,7 +1124,7 @@ function assertNoUnexpectedChangedFiles() {
   assert.deepEqual(
     changedFiles.filter((file) => !allowedFiles.has(file)),
     [],
-    "recording writer/helper PR should be limited to helper, script, package, and smoke guards",
+    "recording route PR should be limited to route, package script, and route/smoke guards",
   );
   assert.deepEqual(
     changedFiles.filter(
@@ -1152,7 +1138,35 @@ function assertNoUnexpectedChangedFiles() {
         file.startsWith("reports/browser/"),
     ),
     [],
-    "recording writer/helper PR must not add route/UI/Cockpit/browser files",
+    "recording route PR must not add UI/Cockpit/schema/migration/browser files",
+  );
+  assert.deepEqual(
+    changedFiles.filter(
+      (file) =>
+        file.startsWith("lib/") ||
+        file === "lib/db/schema.sql" ||
+        file.startsWith("db/"),
+    ),
+    [],
+    "recording route PR must not modify writer/helper/schema files",
+  );
+}
+
+function jsonRequest(body) {
+  return new Request(routeUrl(), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function routeUrl() {
+  return "http://localhost/api/ag-work-resume/proof-evidence-recordings";
+}
+
+function omit(value, keyToOmit) {
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => key !== keyToOmit),
   );
 }
 
