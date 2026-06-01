@@ -62,6 +62,11 @@ It defines separate future gates and does not change this writer/helper or
 authorize proof/evidence recording, session binding, Codex continuation,
 approval, publish, retry, replay, or merge.
 
+The proof/evidence reconciliation design in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md` keeps
+foreign refs as review-only reconciliation candidates until separately
+authorized and does not change this writer/helper.
+
 ## Core API
 
 Core module:

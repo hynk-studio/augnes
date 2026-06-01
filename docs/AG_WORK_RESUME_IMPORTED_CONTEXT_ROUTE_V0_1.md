@@ -38,6 +38,11 @@ It keeps imported context review metadata separate from proof/evidence
 reconciliation, session binding, Codex continuation, approval, publish, retry,
 replay, and merge authority.
 
+The proof/evidence reconciliation design in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md` is
+design-only and does not add proof/evidence recording, schema, route, helper,
+UI, session, Codex, approval, publish, retry, replay, or merge behavior.
+
 ## Route
 
 Endpoint:

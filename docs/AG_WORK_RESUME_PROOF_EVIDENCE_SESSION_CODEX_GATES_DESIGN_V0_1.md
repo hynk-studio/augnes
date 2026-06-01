@@ -39,6 +39,13 @@ distinct future gates. Each gate needs its own design, explicit authorization,
 actor, reason, validation, side-effect boundary, and verification. No gate
 implies the next gate.
 
+The first design-only proof/evidence reconciliation contract is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`. It
+describes future review of imported context foreign refs as reconciliation
+candidates only; it adds no runtime behavior, schema/migration,
+writer/helper/route/UI, proof/evidence recording, session binding, Codex
+behavior, approval, publish, retry, replay, or merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
@@ -212,10 +219,12 @@ not approval/publish/retry/replay/merge authority.
 ## Future PR Sequence
 
 1. Proof/evidence/session/Codex gate design only: this PR.
-2. Proof/evidence schema/design or integration design, separately approved.
-3. Session binding design, separately approved.
-4. Codex continuation design, separately approved.
-5. Runtime implementations only after separate user/Core approval.
+2. Proof/evidence reconciliation design:
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`.
+3. Proof/evidence schema/design or integration design, separately approved.
+4. Session binding design, separately approved.
+5. Codex continuation design, separately approved.
+6. Runtime implementations only after separate user/Core approval.
 
 Each future PR must restate the authority boundary, name actor and reason
 requirements, identify side effects, include fail-closed checks, and verify

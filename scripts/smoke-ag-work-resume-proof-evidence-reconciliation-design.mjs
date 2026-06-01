@@ -8,22 +8,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, "..");
 const smokePath = fileURLToPath(import.meta.url);
 const smokeRelativePath =
-  "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs";
-const reconciliationSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
+const gateSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs";
 const designDocRelativePath =
-  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md";
-const reconciliationDesignDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
-  "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
 ];
 
@@ -31,6 +29,7 @@ for (const file of [
   smokePath,
   designDocPath,
   packagePath,
+  path.join(rootDir, gateSmokeRelativePath),
   ...pointerDocRelativePaths.map((relativePath) => path.join(rootDir, relativePath)),
 ]) {
   assert.ok(existsSync(file), `${file} must exist`);
@@ -43,9 +42,9 @@ const designDoc = readFileSync(designDocPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
-  packageJson.scripts?.["smoke:ag-work-resume-proof-evidence-session-codex-gates-design"],
-  "node scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
-  "package.json must expose proof/evidence/session/Codex gates design smoke",
+  packageJson.scripts?.["smoke:ag-work-resume-proof-evidence-reconciliation-design"],
+  "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
+  "package.json must expose proof/evidence reconciliation design smoke",
 );
 
 const statusSection = extractSection(designDoc, "Status");
@@ -55,163 +54,159 @@ for (const pattern of [
   /adds no schema or migration/i,
   /adds no writer, helper, route, or UI/i,
   /creates no proof\/evidence records/i,
-  /no session records or session bindings/i,
-  /no Codex records or actions/i,
-  /no work\s+items/is,
-  /no work\s+events/is,
+  /no reconciliation candidate records/i,
+  /no session records/i,
+  /no Codex records/i,
   /no proof\/evidence writer/i,
-  /no session binder/i,
-  /no Codex\s+continuation route\/helper\/UI/is,
+  /no proof\/evidence schema/i,
+  /no\s+session binding/is,
+  /no Codex behavior/i,
   /no app\/api changes/i,
   /no components changes/i,
   /no lib runtime changes/i,
-  /no ChatGPT App\/MCP\/App schema changes/i,
+  /no `lib\/db\/schema\.sql` changes/i,
+  /no migrations/i,
+  /no\s+ChatGPT App\/MCP\/App schema changes/is,
   /no bridge tools/i,
   /no Direct Resume Code/i,
   /no relay/i,
   /no telemetry\/analytics\/browser persistence/i,
   /no browser report/i,
-  /grants no approval, publish, retry, replay, merge/i,
-  /Durable approval\s+remains user\/Core gated/is,
+  /no session authority, no Codex authority, no approval/i,
+  /publish, retry, replay, merge/i,
 ]) {
-  assert.match(statusSection, pattern, `status section must include ${pattern}`);
+  assert.match(statusSection, pattern, `status must include ${pattern}`);
 }
 
 const purposeSection = extractSection(designDoc, "Purpose");
 for (const pattern of [
-  /Imported context is bounded review metadata/i,
-  /validated AG Resume\s+packet/is,
-  /existing active confirmed mapping/i,
-  /must remain review metadata until separately\s+gated/is,
-  /foreign\s+refs and foreign history/is,
-  /not local Augnes proof, evidence, sessions,\s+work events, committed state, or Codex authority/is,
-  /does not mean proof\/evidence was\s+reconciled/is,
-  /a session was bound/i,
-  /Codex may continue/i,
-  /durable approval was\s+granted/is,
-  /Proof\/evidence reconciliation, session binding, and Codex continuation are\s+distinct future gates/is,
-  /No gate\s+implies the next gate/is,
-  /Approval, publish, retry, replay, and merge remain\s+separate/is,
-  /Durable approval remains user\/Core gated/i,
+  /Imported context foreign refs need reconciliation/i,
+  /before they can become local\s+proof\/evidence/is,
+  /outside the local Augnes proof and\s+evidence ledgers/is,
+  /foreign proof ref or foreign evidence ref/i,
+  /not a local proof record/i,
+  /not a local evidence\s+record/is,
+  /Imported context is review metadata only/i,
+  /foreign_refs_summary/i,
+  /bounded summaries for local review/i,
+  /does not\s+import raw payloads/is,
+  /does not create local proof\/evidence/i,
+  /Foreign refs remain foreign until explicitly reconciled/i,
+  /no imported context ref is\s+automatically converted into local proof\/evidence/is,
 ]) {
-  assert.match(purposeSection, pattern, `purpose section must include ${pattern}`);
+  assert.match(purposeSection, pattern, `purpose must include ${pattern}`);
 }
 
 const definitionsSection = extractSection(designDoc, "Definitions");
 for (const pattern of [
-  /imported context review metadata.*Stage D/is,
-  /proof record.*separately authorized proof path/is,
-  /evidence record.*separately authorized evidence path/is,
-  /session binding.*known local work\s+identity.*known existing session identity/is,
-  /Codex continuation.*future authorized Codex work/is,
-  /codex:read-brief.*check-only Codex helper/is,
-  /user\/Core approval.*explicit human\/Core-gated authorization/is,
-  /committed state authority.*durable accepted project\s+state transitions/is,
-  /merge\/publish\/retry\/replay authority.*Imported context review metadata has none/is,
+  /imported context row.*ag_work_resume_imported_contexts/is,
+  /foreign proof ref.*remains foreign/is,
+  /foreign evidence ref.*remains\s+foreign/is,
+  /local proof record.*separately authorized proof path/is,
+  /local evidence record.*separately authorized evidence path/is,
+  /reconciliation candidate.*future review-only object/is,
+  /reconciliation decision.*future explicit user\/Core decision/is,
+  /actor\/reason.*explicit user\/Core actor and written reason/is,
+  /redaction report.*secrets, raw DB paths, raw\s+session payloads, and raw proof payloads/is,
+  /review-only summary.*without becoming a local proof\/evidence payload/is,
+  /proof\/evidence authority boundary.*do not record proof\/evidence/is,
 ]) {
-  assert.match(definitionsSection, pattern, `definitions section must include ${pattern}`);
+  assert.match(definitionsSection, pattern, `definitions must include ${pattern}`);
 }
 
-const gateModelSection = extractSection(designDoc, "Gate Model");
+const modelSection = extractSection(designDoc, "Reconciliation Model");
 for (const pattern of [
-  /Gate A: Imported Context Review Complete/i,
-  /Gate B: Proof\/Evidence Reconciliation Design And Explicit Authorization/i,
-  /Gate C: Session Binding Design And Explicit Authorization/i,
-  /Gate D: Codex Continuation After Fresh codex:read-brief/i,
-  /Gate E: Approval\/Publish\/Retry\/Replay\/Merge Remains Separate/i,
-  /Gate A completion is not proof\/evidence reconciliation/i,
-  /Proof\/evidence reconciliation must be designed and authorized separately/i,
-  /Imported context does not automatically record\s+proof\/evidence/is,
-  /Session binding must be designed and authorized separately/i,
-  /Imported context does not automatically bind\s+sessions/is,
-  /requires a fresh `codex:read-brief` result/i,
-  /Imported context and Cockpit UI\s+do not automatically execute or continue Codex/is,
-  /Those actions remain separately user\/Core gated/i,
-  /Merge remains outside Codex\s+authority/is,
+  /Candidate discovery is read-only/i,
+  /discovery does not create\s+proof\/evidence records/is,
+  /Candidate review does not create proof\/evidence/i,
+  /review remains metadata/i,
+  /explicit user\/Core reconciliation decision is required/i,
+  /actor,\s+reason,\s+source imported context/is,
+  /Future local proof\/evidence creation remains separately authorized/i,
+  /would not automatically create local proof or\s+evidence/is,
+  /Rejected candidates remain review metadata only/i,
+  /There is no automatic conversion from imported context refs/i,
+  /foreign refs remain foreign until explicitly reconciled/i,
 ]) {
-  assert.match(gateModelSection, pattern, `gate model must include ${pattern}`);
+  assert.match(modelSection, pattern, `model must include ${pattern}`);
 }
 
-const proofEvidenceSection = extractSection(
-  designDoc,
-  "Required Future Checks Before Proof/Evidence",
-);
+const checksSection = extractSection(designDoc, "Required Future Checks");
 for (const pattern of [
-  /imported context row exists/i,
-  /status is `review_metadata`/i,
-  /approved future status\s+only if separately designed/is,
+  /imported context exists/i,
+  /imported context status is allowed for reconciliation/i,
   /redaction report is safe/i,
-  /foreign refs remain foreign/i,
-  /user\/Core actor is required/i,
-  /user\/Core reason is required/i,
-  /no automatic proof\/evidence recording from imported context/i,
+  /foreign refs are bounded summaries, not raw payloads/i,
+  /local target work identity is confirmed/i,
+  /actor is required/i,
+  /reason is required/i,
+  /no raw secrets/i,
+  /no raw DB paths/i,
+  /no raw session payloads/i,
+  /no raw proof payloads/i,
+  /no session binding/i,
+  /no Codex execution/i,
+  /no merge, publish, retry, or replay authority/i,
 ]) {
-  assert.match(proofEvidenceSection, pattern, `proof/evidence checks must include ${pattern}`);
+  assert.match(checksSection, pattern, `future checks must include ${pattern}`);
 }
 
-const sessionSection = extractSection(
-  designDoc,
-  "Required Future Checks Before Session Binding",
-);
-for (const pattern of [
-  /local work identity is confirmed/i,
-  /session identity is explicit/i,
-  /user\/Core actor is required/i,
-  /user\/Core reason is required/i,
-  /no automatic session binding from imported context/i,
+const shapeSection = extractSection(designDoc, "Future Non-Implemented Record Shape");
+for (const token of [
+  "candidate_id",
+  "import_id",
+  "foreign_ref_type",
+  "foreign_ref_id",
+  "local_target_scope",
+  "local_target_work_id",
+  "summary",
+  "redaction_status",
+  "proposed_by",
+  "proposed_reason",
+  "authority_boundary",
 ]) {
-  assert.match(sessionSection, pattern, `session checks must include ${pattern}`);
+  assert.match(shapeSection, new RegExp(escapeRegExp(token)), `shape must include ${token}`);
 }
-
-const codexSection = extractSection(
-  designDoc,
-  "Required Future Checks Before Codex Continuation",
-);
 for (const pattern of [
-  /confirmed mapping exists/i,
-  /imported context was reviewed/i,
-  /fresh `codex:read-brief` succeeds/i,
-  /expected files\/checks were reviewed/i,
-  /stop conditions are defined/i,
-  /`CODEX_WORK_ID` is present if required/i,
-  /`CODEX_SESSION_ID` is present if required/i,
-  /no automatic Codex execution from imported context or UI/i,
+  /reconciliation candidate shape is design-only/i,
+  /not a\s+schema, migration, runtime model, writer contract, helper contract, route\s+contract, UI contract, or proof\/evidence recording contract/is,
+  /`candidate_id` is not a proof id, not an evidence id/i,
+  /`import_id` traces the candidate back to\s+review metadata only/is,
+  /not a local record to trust automatically/i,
 ]) {
-  assert.match(codexSection, pattern, `Codex checks must include ${pattern}`);
+  assert.match(shapeSection, pattern, `shape section must include ${pattern}`);
 }
 
 const authoritySection = extractSection(designDoc, "Authority Boundary");
 for (const pattern of [
   /no proof\/evidence recording/i,
   /no session binding/i,
-  /no Codex execution or continuation/i,
+  /no Codex execution/i,
   /no work item creation/i,
   /no work event creation/i,
   /no confirmed mapping mutation/i,
   /no proposal mutation/i,
+  /no imported context mutation/i,
   /no approval, publish, retry, replay, merge/i,
-  /no Direct Resume Code/i,
-  /no relay/i,
   /no committed state authority/i,
   /Durable approval remains user\/Core gated/i,
-  /Imported context review metadata is\s+not proof\/evidence, not session binding, not Codex/is,
+  /foreign refs remain\s+foreign until explicitly reconciled/is,
+  /reconciliation candidate is review\s+metadata only/is,
 ]) {
-  assert.match(authoritySection, pattern, `authority section must include ${pattern}`);
+  assert.match(authoritySection, pattern, `authority boundary must include ${pattern}`);
 }
 
 const nonGoalsSection = extractSection(designDoc, "Non-Goals");
 for (const pattern of [
   /No schema or migration/i,
   /No writer, helper, route, or UI/i,
+  /No proof\/evidence implementation/i,
   /No proof\/evidence writer/i,
-  /No proof\/evidence reconciliation implementation/i,
-  /No session binder/i,
-  /No session binding implementation/i,
-  /No Codex continuation route\/helper\/UI/i,
-  /No Codex continuation implementation/i,
-  /No app\/api changes/i,
-  /No components changes/i,
-  /No lib runtime changes/i,
+  /No proof\/evidence schema/i,
+  /No session implementation/i,
+  /No session binding/i,
+  /No Codex implementation/i,
+  /No Codex behavior/i,
   /No ChatGPT App, MCP\/App schema, or bridge tool changes/i,
   /No Direct Resume Code/i,
   /No relay/i,
@@ -224,12 +219,13 @@ for (const pattern of [
 
 const futureSection = extractSection(designDoc, "Future PR Sequence");
 for (const pattern of [
-  /Proof\/evidence\/session\/Codex gate design only: this PR/i,
-  /Proof\/evidence schema\/design or integration design, separately approved/i,
-  /Session binding design, separately approved/i,
-  /Codex continuation design, separately approved/i,
-  /Runtime implementations only after separate user\/Core approval/i,
-  /actor and reason\s+requirements/is,
+  /Proof\/evidence reconciliation design only: this PR/i,
+  /Reconciliation candidate schema design, separately approved/i,
+  /Reconciliation candidate writer\/helper, separately approved/i,
+  /Proof\/evidence actual recording design, separately approved/i,
+  /Session\/Codex gates remain separate/i,
+  /foreign refs remain foreign until explicitly reconciled/i,
+  /actor and reason are\s+required/is,
 ]) {
   assert.match(futureSection, pattern, `future sequence must include ${pattern}`);
 }
@@ -237,13 +233,14 @@ for (const pattern of [
 const browserSection = extractSection(designDoc, "Browser Verification");
 assert.match(
   browserSection,
-  /browser verification skipped: no rendered UI\/operator surface changed in this design-only proof\/evidence\/session\/Codex gate slice/,
+  /browser verification skipped: no rendered UI\/operator surface changed in this design-only proof\/evidence reconciliation slice/,
   "browser verification skip reason must match",
 );
 
 const verificationSection = extractSection(designDoc, "Verification");
 for (const command of [
   "npm run typecheck",
+  "npm run smoke:ag-work-resume-proof-evidence-reconciliation-design",
   "npm run smoke:ag-work-resume-proof-evidence-session-codex-gates-design",
   "npm run smoke:ag-work-resume-imported-context-create-cockpit-panel",
   "npm run smoke:ag-work-resume-imported-context-read-cockpit-panel",
@@ -253,7 +250,7 @@ for (const command of [
   "npm run smoke:ag-work-resume-mapping-import-authority-gate",
   "git diff --check",
   "git diff --cached --check",
-  "node --check scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
+  "node --check scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
 ]) {
   assert.match(
     verificationSection,
@@ -266,8 +263,8 @@ for (const relativePath of pointerDocRelativePaths) {
   const source = readFileSync(path.join(rootDir, relativePath), "utf8");
   assert.match(
     source,
-    /AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1\.md/,
-    `${relativePath} must point to the gate design doc`,
+    /AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1\.md/,
+    `${relativePath} must point to proof/evidence reconciliation design`,
   );
 }
 
@@ -277,18 +274,18 @@ assertNoForbiddenImplementationCode();
 console.log(
   JSON.stringify(
     {
-      smoke: "ag-work-resume-proof-evidence-session-codex-gates-design",
+      smoke: "ag-work-resume-proof-evidence-reconciliation-design",
       cases: [
         "design doc exists",
         "package script exists",
-        "doc says design-only with no runtime/schema/writer/helper/route/UI",
-        "doc defines proof/evidence/session/Codex gates separately",
-        "doc says imported context does not automatically record proof/evidence, bind session, or execute Codex",
-        "doc requires fresh codex:read-brief before future Codex continuation",
-        "doc requires user/Core actor and reason for future gates",
-        "doc keeps approval/publish/retry/replay/merge separate",
-        "related docs point to gate design doc",
-        "changed files are limited to docs, package.json, and the design smoke",
+        "doc says design-only",
+        "doc forbids runtime/schema/writer/helper/route/UI",
+        "doc says foreign refs remain foreign until explicitly reconciled",
+        "doc says no automatic proof/evidence recording",
+        "doc requires actor and reason",
+        "doc forbids session/Codex/merge authority",
+        "related docs point to proof/evidence reconciliation design",
+        "changed files are limited to docs, package.json, new reconciliation smoke, and gate-smoke pointer compatibility",
         "no app/components/lib/schema/migration/apps/browser report files changed",
         "no implementation code changed for proof/evidence/session/Codex behavior",
       ],
@@ -302,9 +299,8 @@ function assertNoUnexpectedChangedFiles() {
   const changedFiles = gitChangedFiles();
   const allowedFiles = new Set([
     designDocRelativePath,
-    reconciliationDesignDocRelativePath,
     smokeRelativePath,
-    reconciliationSmokeRelativePath,
+    gateSmokeRelativePath,
     "package.json",
     ...pointerDocRelativePaths,
   ]);
@@ -320,12 +316,12 @@ function assertNoUnexpectedChangedFiles() {
   for (const file of changedFiles) {
     assert.ok(
       allowedFiles.has(file),
-      `changed file is outside the design-only gate slice: ${file}`,
+      `changed file is outside the design-only reconciliation slice: ${file}`,
     );
     assert.equal(
       forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
-      `design-only gate slice must not touch runtime/UI/schema/app/browser files: ${file}`,
+      `design-only reconciliation slice must not touch runtime/UI/schema/app/browser files: ${file}`,
     );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
   }
@@ -337,13 +333,12 @@ function assertNoForbiddenImplementationCode() {
       !file.startsWith("docs/") &&
       file !== "package.json" &&
       file !== smokeRelativePath &&
-      file !== reconciliationSmokeRelativePath &&
-      !file.startsWith("scripts/smoke-ag-work-resume-imported-context"),
+      file !== gateSmokeRelativePath,
   );
   assert.deepEqual(
     implementationFiles,
     [],
-    `design-only gate slice must not change implementation code: ${implementationFiles.join(", ")}`,
+    `design-only reconciliation slice must not change implementation code: ${implementationFiles.join(", ")}`,
   );
 }
 
