@@ -32,6 +32,10 @@ const candidateSchemaImplementationDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md";
 const candidateWriterDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md";
+const reviewMetadataCloseoutDocRelativePath =
+  "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md";
+const reviewMetadataCloseoutSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
@@ -42,6 +46,7 @@ const pointerDocRelativePaths = [
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
+  reviewMetadataCloseoutDocRelativePath,
 ];
 
 for (const file of [
@@ -336,6 +341,7 @@ function assertNoUnexpectedChangedFiles() {
     candidateSchemaImplementationSmokeRelativePath,
     candidateWriterSmokeRelativePath,
     candidateWriterHelperRelativePath,
+    reviewMetadataCloseoutSmokeRelativePath,
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
@@ -426,6 +432,7 @@ function assertNoForbiddenImplementationCode() {
       file !== candidateSchemaImplementationSmokeRelativePath &&
       file !== candidateWriterSmokeRelativePath &&
       file !== candidateWriterHelperRelativePath &&
+      file !== reviewMetadataCloseoutSmokeRelativePath &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&

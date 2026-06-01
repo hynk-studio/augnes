@@ -1,0 +1,203 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+
+const closeoutPath =
+  "docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md";
+const authorityGatePath =
+  "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md";
+const packagePath = "package.json";
+
+for (const path of [
+  closeoutPath,
+  authorityGatePath,
+  packagePath,
+]) {
+  assert.equal(existsSync(path), true, `Missing required closeout input: ${path}`);
+}
+
+const closeout = readFileSync(closeoutPath, "utf8");
+const authorityGate = readFileSync(authorityGatePath, "utf8");
+const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
+const joined = [closeout, authorityGate].join("\n");
+
+for (const phrase of [
+  "AG Resume Cross-local Continuity Review-Metadata Milestone v0.1",
+  "Stage A packet / preview",
+  "Stage B proposal record create/read/lifecycle/UI",
+  "Stage C confirmed mapping create/read/UI",
+  "Stage D imported context create/read/UI",
+  "proof/evidence/session/Codex gate design",
+  "proof/evidence reconciliation design",
+  "reconciliation candidate create/read/lifecycle/UI",
+  "Route/Helper/UI Inventory",
+  "DB Table Inventory",
+  "Authority Boundary Matrix",
+  "Verification Matrix",
+  "Browser Report Inventory",
+  "actual proof/evidence recording",
+  "evidence recording",
+  "session binding",
+  "Codex continuation",
+  "Direct Resume Code",
+  "relay/hosted transfer",
+  "work item/event creation",
+  "imported context mutation beyond existing scoped create/read",
+  "confirmed mapping mutation beyond existing scoped create/read",
+  "proposal mutation beyond existing scoped lifecycle",
+  "approval/publish/retry/replay/merge authority",
+  "user/Core explicit authorization",
+  "fresh `codex:read-brief` succeeds",
+]) {
+  assertIncludes(closeout, phrase);
+}
+
+for (const phrase of [
+  "review-metadata milestone",
+  "adds no runtime behavior",
+  "adds no schema",
+  "adds no writer/helper/route/UI",
+  "proof/evidence recording",
+  "session binding",
+  "Codex execution or continuation",
+  "approval, publish, retry, replay, merge",
+]) {
+  assertIncludes(closeout, phrase);
+}
+
+assert.match(
+  closeout,
+  /`accepted_for_future_recording` is not proof\/evidence recording/,
+  "accepted_for_future_recording must stay non-recording metadata",
+);
+assert.match(
+  closeout,
+  /`superseded -> revoke` preserves `superseded_by_candidate_id` as audit metadata/,
+  "superseded revoke audit metadata boundary must be preserved",
+);
+assert.match(
+  closeout,
+  /Proof\/evidence recording[\s\S]*Out of scope/,
+  "actual proof/evidence recording must be explicitly out of scope",
+);
+assert.match(
+  closeout,
+  /Session binding[\s\S]*Out of scope/,
+  "session binding must be explicitly out of scope",
+);
+assert.match(
+  closeout,
+  /Codex continuation[\s\S]*Out of scope/,
+  "Codex continuation must be explicitly out of scope",
+);
+assert.match(
+  closeout,
+  /Approval\/publish\/retry\/replay\/merge\/auto-merge[\s\S]*Out of scope/,
+  "approval/publish/retry/replay/merge must be explicitly out of scope",
+);
+
+assert.ok(
+  joined.includes(closeoutPath),
+  "pointer docs should reference the closeout doc",
+);
+assert.equal(
+  pkg.scripts?.["smoke:ag-work-resume-review-metadata-closeout"],
+  "node scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
+  "package.json should register the closeout smoke",
+);
+
+const changedFiles = execFileSync(
+  "git",
+  ["status", "--porcelain", "--untracked-files=all"],
+  {
+    encoding: "utf8",
+  },
+)
+  .split("\n")
+  .map((line) => line.trimEnd())
+  .filter(Boolean)
+  .map((line) => {
+    const file = line.slice(3).trim();
+    return file.includes(" -> ") ? file.split(" -> ").at(-1) : file;
+  });
+
+const diffChangedFiles = execFileSync("git", ["diff", "--name-only", "HEAD"], {
+  encoding: "utf8",
+})
+  .split("\n")
+  .map((line) => line.trim())
+  .filter(Boolean);
+
+const allowedChangedFiles = new Set([
+  closeoutPath,
+  authorityGatePath,
+  "package.json",
+  "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+]);
+
+const unexpectedChangedFiles = changedFiles.filter(
+  (file) => !allowedChangedFiles.has(file),
+);
+assert.deepEqual(
+  unexpectedChangedFiles,
+  [],
+  "closeout PR should be limited to docs, the closeout smoke, and package pointer updates",
+);
+
+const forbiddenChangedPrefixes = [
+  "app/",
+  "app/api/",
+  "components/",
+  "lib/",
+  "pages/",
+  "public/",
+  "migrations/",
+  "db/",
+  "apps/",
+];
+const runtimeOrSchemaChanged = changedFiles.filter((file) =>
+  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)),
+);
+assert.deepEqual(
+  runtimeOrSchemaChanged,
+  [],
+  "closeout PR should not change route/helper/UI/runtime/schema files",
+);
+
+const unexpectedDiffFiles = diffChangedFiles.filter(
+  (file) => !allowedChangedFiles.has(file),
+);
+assert.deepEqual(
+  unexpectedDiffFiles,
+  [],
+  "closeout PR diff should be limited to docs, the closeout smoke, and package pointer updates",
+);
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "ag-work-resume-review-metadata-closeout",
+      closeout_doc_exists: true,
+      milestone_name_exists: true,
+      review_metadata_pipeline_stages_listed: true,
+      proof_evidence_recording_out_of_scope: true,
+      session_binding_out_of_scope: true,
+      codex_continuation_out_of_scope: true,
+      approval_publish_retry_replay_merge_out_of_scope: true,
+      changed_files_limited_to_docs_smoke_package_pointers: true,
+    },
+    null,
+    2,
+  ),
+);
+
+function assertIncludes(value, expected) {
+  assert.equal(
+    value.includes(expected),
+    true,
+    `Expected closeout content to include: ${expected}`,
+  );
+}

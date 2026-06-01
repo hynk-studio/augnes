@@ -19,6 +19,17 @@ approval, publish, retry, replay, merge, or committed-state mutation.
 The design does not authorize implementation by itself. Durable approval
 remains user/Core gated.
 
+Milestone closeout pointer:
+`docs/AG_WORK_RESUME_CROSS_LOCAL_CONTINUITY_REVIEW_METADATA_CLOSEOUT_V0_1.md`
+closes AG Resume Cross-local Continuity Review-Metadata Milestone v0.1 as a
+recoverable review-metadata milestone after reconciliation candidate lifecycle
+completion. The closeout adds no runtime behavior, schema, migration,
+writer/helper/route/UI, proof/evidence recording, evidence recording, session
+binding, Codex continuation, work item/event creation, imported context
+mutation, confirmed mapping mutation, proposal mutation, approval, publish,
+retry, replay, merge, auto-merge, external posting, or committed-state
+authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:
