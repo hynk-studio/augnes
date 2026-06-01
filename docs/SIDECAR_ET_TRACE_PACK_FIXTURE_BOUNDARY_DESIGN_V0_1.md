@@ -107,7 +107,9 @@ First implementation slice validation:
 
 - `fixtures/sidecar-et-trace-pack.example.json`
 - `fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json`
+- `fixtures/sidecar-et-trace-pack.manifest.json`
 - `npm run smoke:sidecar-et-trace-pack-fixture-descriptors`
+- `npm run smoke:sidecar-et-trace-pack-manifest`
 
 The smoke validates the approved two-file subset, v0.1 version, allowed
 low-cardinality fields/enums, non-decreasing timestamps, earlier-row reference
@@ -117,6 +119,13 @@ outputs, no QP evidence, no `z_t` commits, no AG Resume writer/helper calls or
 output dependency, and no `ag:resume-*` / `smoke:ag-work-resume-*` package
 script collision. It does not add report, compare, suite, matrix, runtime, or
 CI behavior.
+
+The manifest smoke validates exactly two routing entries, expected trace counts
+against the imported fixture files, safe relative fixture paths,
+`default_compare` only for the example pack, grounded/quiet as `explicit_only`,
+no deferred packs, no fetch/network calls, no DB writes, no AG Resume
+writer/helper calls, and no proof/evidence/readiness/QP/`z_t` outputs. It does
+not add report, compare, suite, matrix, runtime, or CI behavior.
 
 ## 5. Non-Authority Label Rules
 
@@ -190,14 +199,15 @@ Descriptor/naming plan pointer:
   evidence, `z_t` commits, AG Resume bridge-table behavior, or CI enforcement.
 - `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
   records the exact first descriptor subset proposal, deferred descriptor set,
-  exact metadata fields, first two-file fixture import slice, fixture import
-  gate, and AG Resume writer/helper safety note. It imports only the approved
-  `example` and `grounded/quiet probes` fixture files plus a focused local
-  validation smoke; it does not import manifest JSON, report/compare/suite/
-  matrix behavior, helper logic, package scripts beyond the approved smoke,
-  thresholds as runtime policy, runtime computation, schema/API changes,
-  Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
-  commits, AG Resume bridge/writer/helper behavior, or CI enforcement.
+  exact metadata fields, first two-file fixture import slice, first manifest
+  routing slice, fixture import gate, and AG Resume writer/helper safety note.
+  It imports only the approved `example` and `grounded/quiet probes` fixture
+  files, a two-entry routing manifest, and focused local validation smokes; it
+  does not add report/compare/suite/matrix behavior, helper logic, package
+  scripts beyond the approved smokes, thresholds as runtime policy, runtime
+  computation, schema/API changes, Cockpit behavior, proof/evidence/readiness
+  writes, QP evidence, `z_t` commits, AG Resume bridge/writer/helper behavior,
+  or CI enforcement.
 
 ## 8. Browser/Computer-Use Note
 

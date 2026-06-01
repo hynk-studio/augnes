@@ -97,6 +97,24 @@ The two `default_compare` packs are useful for compact report comparison. The
 six `explicit_only` packs are review-focused and should not be silently pulled
 into default comparison or CI behavior.
 
+Original repo first manifest routing slice:
+
+| manifest path | pack count | default compare | explicit only | what is excluded |
+| --- | ---: | ---: | ---: | --- |
+| `fixtures/sidecar-et-trace-pack.manifest.json` | 2 | 1 | 1 | curated, surprising probes, medium-tension probes, recovery-policy probes, low-evidence-boundary probes, stress |
+
+The original repo manifest routing file includes only:
+
+- `fixtures/sidecar-et-trace-pack.example.json` as `kind=example`,
+  `default_compare=true`, `explicit_only=false`, `expected_trace_count=1`
+- `fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json` as
+  `kind=probe`, `default_compare=false`, `explicit_only=true`,
+  `expected_trace_count=5`
+
+This manifest routing slice does not add report, compare, suite, matrix,
+runtime, helper, schema/API, Cockpit, AG Resume, proof/evidence/readiness, QP,
+`z_t`, or CI behavior.
+
 ## 4. Label Behavior Appendix
 
 The labels below summarize lab-report behavior only. The original repo cannot
@@ -153,13 +171,13 @@ Fixture-boundary design pointer:
   Resume bridge behavior, or CI enforcement.
 - `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
   records the exact first descriptor subset proposal, deferred descriptor set,
-  and first two-file fixture import slice. It imports only the approved
-  `example` and `grounded/quiet probes` fixture files plus a focused local
-  validation smoke; it does not import manifest JSON, report/compare/suite/
-  matrix behavior, helper logic, package scripts beyond the approved smoke,
-  runtime computation, schema/API changes, proof/evidence/readiness writes, QP
-  evidence, `z_t` commits, AG Resume bridge/writer/helper behavior, or CI
-  enforcement.
+  first two-file fixture import slice, and first manifest routing slice. It
+  imports only the approved `example` and `grounded/quiet probes` fixture files,
+  a two-entry routing manifest, and focused local validation smokes; it does not
+  add report/compare/suite/matrix behavior, helper logic, package scripts
+  beyond the approved smokes, runtime computation, schema/API changes,
+  proof/evidence/readiness writes, QP evidence, `z_t` commits, AG Resume
+  bridge/writer/helper behavior, or CI enforcement.
 
 ## 6. AG Resume Bridge Safety Note
 

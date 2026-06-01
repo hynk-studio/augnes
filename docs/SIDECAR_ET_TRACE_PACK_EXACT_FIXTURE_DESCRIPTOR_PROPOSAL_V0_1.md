@@ -30,9 +30,9 @@ Current original-repo snapshot for this proposal:
 | repo | `hynk-studio/augnes` |
 | remote | `https://github.com/hynk-studio/augnes.git` |
 | base branch | `main` |
-| original `origin/main` SHA | `c55d13696dfd4d5125becf7c1dc3b667399ac77a` |
-| comparison time | 2026-06-02 02:40 KST, refreshed after PR #349 |
-| target branch | `codex/sidecar-et-first-fixture-import` |
+| original `origin/main` SHA | `fb11a0882245e584048059e2ffcab95cd42b5fa6` |
+| comparison time | 2026-06-02 02:57 KST, refreshed after PR #352 |
+| target branch | `codex/sidecar-et-first-manifest-routing` |
 
 Runtime `PerspectiveSnapshot.research_diagnostics.sidecar_e_t` remains a
 structured placeholder with `computed=false`.
@@ -41,8 +41,12 @@ First implementation slice status:
 
 - imported `fixtures/sidecar-et-trace-pack.example.json`
 - imported `fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json`
+- added `fixtures/sidecar-et-trace-pack.manifest.json` with exactly those two
+  packs
 - added `npm run smoke:sidecar-et-trace-pack-fixture-descriptors`
-- did not import manifest JSON
+- added `npm run smoke:sidecar-et-trace-pack-manifest`
+- did not include curated, surprising, medium-tension, recovery-policy,
+  low-evidence-boundary, stress, or any unimported fixture
 - did not add report, compare, suite, or matrix behavior
 - did not add runtime computation, helper logic, API/schema/Cockpit changes, AG
   Resume writer/helper calls, bridge-table rows, QP evidence, `z_t` commits,
@@ -57,13 +61,16 @@ Recommend only these two descriptor ids for any first future review subset:
 | `sidecar_et_descriptor.example.v0.1` | `sidecar-et-trace-pack.example.json` | docs-only descriptor now; future fixture candidate only after separate user/PM approval; future default-compare treatment only after separate review | Smallest canonical pack and lowest-cardinality shape check. | Lets reviewers inspect descriptor metadata, naming, and future validation boundaries with minimal ambiguity. | Not fixture import, not manifest import, not coverage, not default compare approval, not runtime behavior. |
 | `sidecar_et_descriptor.grounded_quiet_probes.v0.1` | `sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json` | docs-only descriptor now; future explicit-only fixture candidate only after separate user/PM approval | Small explicit-only fallback-boundary pack with 5 traces, grounded 3, quiet 2, and `surprising_cases=0` in the lab baseline. | Lets reviewers inspect grounded/quiet wording and fallback-boundary risk without importing tension, recovery, or stress packs. | Not product-ready fallback policy, not runtime label behavior, not QP evidence, not `z_t`, not proof/evidence/readiness. |
 
-The proposed subset is a descriptor proposal only. It does not approve copying
-lab fixture rows, manifest entries, report output, compare logic, package
-scripts, or helper functions into the original repo.
+The original descriptor subset proposal was non-authoritative planning only.
+The current implementation slices copy only the approved fixture files and the
+two-entry routing manifest listed above, with local validation smokes. They do
+not approve report output, compare logic, suite/matrix behavior, helper
+functions, runtime computation, CI enforcement, or additional fixture packs.
 
 The first implementation slice imports only these two approved fixture files
-and one focused descriptor validation smoke. It does not change the deferred
-descriptor set or authorize any additional fixture pack.
+plus a focused descriptor validation smoke and a focused manifest routing
+smoke. It does not change the deferred descriptor set or authorize any
+additional fixture pack.
 
 ## 3. Deferred Descriptor Set
 
@@ -113,7 +120,7 @@ runtime code or treated as an implementation source of truth.
 
 ## 5. Future Fixture Import Gate
 
-Before any actual fixture file import:
+Before any additional fixture file import beyond the approved first subset:
 
 - user/PM confirms the exact subset
 - descriptor metadata is rechecked against the current lab repo
@@ -126,8 +133,8 @@ Before any actual fixture file import:
 - import paths and rollback criteria are reviewed
 
 If any gate is unclear, keep the original repo at docs/reference-only planning
-and do not import fixture files, manifest JSON, harness scripts, helper logic,
-package scripts, or runtime computation.
+and do not import more fixture files, broaden manifest routing, add harness
+scripts, helper logic, package scripts, or runtime computation.
 
 ## 6. AG Resume Writer/Helper Safety Note
 

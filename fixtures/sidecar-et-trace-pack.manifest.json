@@ -1,0 +1,19 @@
+{
+  "version": "sidecar_et_trace_pack_manifest.v0.1",
+  "packs": [
+    {
+      "path": "fixtures/sidecar-et-trace-pack.example.json",
+      "kind": "example",
+      "default_compare": true,
+      "explicit_only": false,
+      "expected_trace_count": 1
+    },
+    {
+      "path": "fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json",
+      "kind": "probe",
+      "default_compare": false,
+      "explicit_only": true,
+      "expected_trace_count": 5
+    }
+  ]
+}

@@ -164,6 +164,7 @@
     "smoke:research-diagnostics-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-research-diagnostics-boundaries.mjs",
     "smoke:sidecar-et-fixture-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-sidecar-et-fixture-boundaries.mjs",
     "smoke:sidecar-et-trace-pack-fixture-descriptors": "node scripts/smoke-sidecar-et-trace-pack-fixture-descriptors.mjs",
+    "smoke:sidecar-et-trace-pack-manifest": "node scripts/smoke-sidecar-et-trace-pack-manifest.mjs",
     "smoke:sidecar-et-runtime-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-sidecar-et-runtime-boundaries.mjs",
     "smoke:perspective-continuity-boundaries": "node scripts/smoke-perspective-continuity-boundaries.mjs",
     "smoke:perspective-continuity-sequences": "node scripts/smoke-perspective-continuity-sequences.mjs",
