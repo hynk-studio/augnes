@@ -312,6 +312,13 @@ writer/helper. It adds no route implementation, UI/Cockpit controls,
 schema/migration, writer/helper changes, bridge rows, verification evidence
 rows, action records, or actual proof/evidence recording authority.
 
+The proof/evidence recording Cockpit/UI invocation gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md`.
+It is design-only and does not add UI/Cockpit implementation, route changes,
+writer/helper behavior changes, schema/migration, proof/evidence recording,
+bridge rows, verification evidence rows, action records, or broader recording
+authority.
+
 ## Future Route/Helper/UI Implementation Sequence
 
 Later PRs should stay split and reviewable:
@@ -327,9 +334,10 @@ Later PRs should stay split and reviewable:
    side-effect tests.
 6. Read-surface update PR showing recorded local proof/evidence links without
    creating new authority.
-7. Cockpit UI design PR, if needed, with explicit approval language and no
+7. Cockpit UI invocation gate design PR with explicit approval language and no
    hidden write controls.
-8. Cockpit UI implementation PR, if explicitly approved, with browser proof.
+8. Cockpit UI implementation PR, if explicitly approved, with browser and DB
+   side-effect proof.
 
 No route, helper, or UI may record proof/evidence unless the implementation PR
 is explicitly scoped to do so.
@@ -434,8 +442,9 @@ implementation PR is explicitly approved after this design.
 4. Implement writer/helper only after explicit approval.
 5. Implement route only after writer/helper behavior is approved.
 6. Add read-surface links only after recording behavior exists.
-7. Add Cockpit UI only after route behavior is approved and UI authority copy
-   is reviewed.
+7. Design the Cockpit UI invocation gate after route behavior is approved.
+8. Add Cockpit UI only after the UI gate design is approved and browser/DB
+   proof expectations are documented.
 
 Session binding and Codex continuation remain separate future gates.
 

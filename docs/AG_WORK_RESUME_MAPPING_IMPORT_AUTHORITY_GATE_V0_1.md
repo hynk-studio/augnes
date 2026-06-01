@@ -626,6 +626,13 @@ Proof is not approval.
 - Explain disabled states and warnings.
 - Preserve accessibility and keyboard behavior.
 
+The proof/evidence recording Cockpit/UI invocation gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md`.
+It is design-only and does not add UI/Cockpit implementation, route changes,
+writer/helper behavior changes, schema/migration, proof/evidence recording,
+bridge rows, verification evidence rows, action records, or broader recording
+authority.
+
 ## Required Future PR Review Checklist
 
 Future PRs touching this area must include:

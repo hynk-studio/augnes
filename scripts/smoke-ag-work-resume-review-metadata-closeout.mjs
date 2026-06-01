@@ -180,12 +180,14 @@ const allowedChangedFiles = new Set([
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md",
   "scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs",
   "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
 ]);
 
 const unexpectedChangedFiles = changedFiles.filter(

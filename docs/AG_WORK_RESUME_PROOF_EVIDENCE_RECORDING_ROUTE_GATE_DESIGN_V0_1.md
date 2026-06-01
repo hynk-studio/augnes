@@ -53,6 +53,12 @@ Codex context, a browser report, a merged PR, or a smoke pass. It only validates
 transport-level constraints, rejects unsupported fields, delegates to the
 helper, and returns the helper result with an HTTP status code.
 
+The proof/evidence recording Cockpit/UI invocation gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md`.
+It is design-only and does not add UI/Cockpit implementation, route changes,
+writer/helper changes, schema/migration, proof/evidence recording, bridge rows,
+verification evidence rows, action records, or broader recording authority.
+
 ## Proposed Route
 
 Proposed route path:

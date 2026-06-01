@@ -196,6 +196,7 @@ const allowedChangedFiles = new Set([
   sessionCodexGatePath,
   reconciliationDesignPath,
   lifecycleDocPath,
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md",
   schemaPath,
   packagePath,
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
@@ -217,6 +218,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
 ]);
 const unexpectedChangedFiles = changedFiles.filter(
   (file) => !allowedChangedFiles.has(file),
