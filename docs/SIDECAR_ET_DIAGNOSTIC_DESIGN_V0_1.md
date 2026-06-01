@@ -213,6 +213,13 @@ It must also add or extend fixture smoke coverage proving:
   and Perspective diagnostics.
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke
   reporting boundaries.
+- `docs/SIDECAR_ET_LAB_UPSTREAM_ALIGNMENT_V0_1.md`: original-repo docs-only
+  lab upstream alignment pointer. It does not implement computation or grant
+  authority.
+- `docs/SIDECAR_ET_LAB_REPORT_REFERENCE_V0_1.md`: original-repo docs-only
+  lab-report reference pointer. It summarizes merged lab evidence for review
+  context only and does not import helper logic, harnesses, fixtures, runtime
+  thresholds, runtime computation, or CI policy.
 
 ## Merge Criteria For A Future Implementation
 
