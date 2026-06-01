@@ -1117,6 +1117,8 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
+    "components/augnes-cockpit.tsx",
+    "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
     "package.json",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
@@ -1133,6 +1135,7 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs",
   ]);
   assert.deepEqual(
     changedFiles.filter((file) => !allowedFiles.has(file)),
@@ -1144,14 +1147,17 @@ function assertNoUnexpectedChangedFiles() {
       (file) =>
         (file.startsWith("app/") &&
           file !== "app/api/ag-work-resume/proof-evidence-recordings/route.ts") ||
-        file.startsWith("components/") ||
+        (file.startsWith("components/") &&
+          file !== "components/augnes-cockpit.tsx") ||
         file.startsWith("pages/") ||
         file.startsWith("public/") ||
         file.startsWith("migrations/") ||
-        file.startsWith("reports/browser/"),
+        (file.startsWith("reports/browser/") &&
+          file !==
+            "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md"),
     ),
     [],
-    "recording route PR must not add UI/Cockpit/schema/migration/browser files",
+    "recording route compatibility must not add unscoped UI/Cockpit/schema/migration/browser files",
   );
   assert.deepEqual(
     changedFiles.filter(

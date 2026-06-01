@@ -797,6 +797,8 @@ function assertNoUnexpectedChangedFiles() {
     "package.json",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+    "components/augnes-cockpit.tsx",
+    "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md",
     "lib/ag-work-resume-proof-evidence-recording.ts",
     "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
@@ -815,6 +817,7 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs",
   ]);
 
   const unexpectedFiles = changedFiles.filter((file) => !allowedFiles.has(file));
@@ -830,11 +833,14 @@ function assertNoWriterRouteUiChanges() {
     (file) =>
       (file.startsWith("app/") &&
         file !== "app/api/ag-work-resume/proof-evidence-recordings/route.ts") ||
-      file.startsWith("components/") ||
+      (file.startsWith("components/") &&
+        file !== "components/augnes-cockpit.tsx") ||
       file.startsWith("pages/") ||
       file.startsWith("public/") ||
       file.startsWith("apps/") ||
-      file.startsWith("reports/browser/") ||
+      (file.startsWith("reports/browser/") &&
+        file !==
+          "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md") ||
       (file.startsWith("lib/") &&
         file !== schemaRelativePath &&
         file !== "lib/ag-work-resume-proof-evidence-recording.ts") ||

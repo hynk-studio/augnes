@@ -391,11 +391,13 @@ function assertNoUnexpectedChangedFiles() {
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md",
+    "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts",
     "app/api/ag-work-resume/proof-evidence-recordings/route.ts",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md",
     "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts",
@@ -440,6 +442,8 @@ function assertNoUnexpectedChangedFiles() {
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" &&
         file !==
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md" &&
+        file !==
+          "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `reconciliation follow-up must not touch runtime/UI/app/browser files: ${file}`,
@@ -483,6 +487,7 @@ function assertNoForbiddenImplementationCode() {
       file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
@@ -505,6 +510,8 @@ function assertNoForbiddenImplementationCode() {
         "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" &&
       file !==
         "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md" &&
+      file !==
+        "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md" &&
       file !==
         "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs" &&
       file !==

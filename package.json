@@ -103,6 +103,7 @@
     "smoke:ag-work-resume-proof-evidence-recording-route-gate-design": "node scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
     "smoke:ag-work-resume-proof-evidence-recording-route": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
     "smoke:ag-work-resume-proof-evidence-recording-cockpit-gate-design": "node scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
+    "smoke:ag-work-resume-proof-evidence-recording-cockpit-panel": "node scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs",
     "smoke:ag-work-resume-proof-evidence-session-codex-gates-design": "node scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-design": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",
