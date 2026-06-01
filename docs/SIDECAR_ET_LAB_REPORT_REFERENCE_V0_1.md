@@ -156,6 +156,8 @@ Use this document as:
   `docs/SIDECAR_ET_TRACE_PACK_FIXTURE_BOUNDARY_DESIGN_V0_1.md`
 - companion context for
   `docs/SIDECAR_ET_TRACE_PACK_FIXTURE_DESCRIPTOR_VALIDATION_PLAN_V0_1.md`
+- companion context for
+  `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
 - input for a future runtime log-only decision packet
 - product copy and non-authority wording reference
 - a checklist of lab ambiguities to keep visible during review

@@ -173,6 +173,14 @@ Descriptor/naming plan pointer:
   package scripts, thresholds as runtime policy, runtime computation,
   schema/API changes, Cockpit behavior, proof/evidence/readiness writes, QP
   evidence, `z_t` commits, AG Resume bridge-table behavior, or CI enforcement.
+- `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
+  records the docs-only exact first descriptor subset proposal, deferred
+  descriptor set, exact metadata fields, fixture import gate, and AG Resume
+  writer/helper safety note before any fixture import. It does not import
+  fixtures, manifest JSON, harness scripts, helper logic, package scripts,
+  thresholds as runtime policy, runtime computation, schema/API changes,
+  Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
+  commits, AG Resume bridge/writer/helper behavior, or CI enforcement.
 
 ## 8. Browser/Computer-Use Note
 
