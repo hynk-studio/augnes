@@ -21,6 +21,7 @@ const reconciliationDesignPath =
 const lifecycleDocPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md";
 const packagePath = "package.json";
+const schemaPath = "lib/db/schema.sql";
 
 for (const path of [
   designPath,
@@ -241,7 +242,9 @@ const allowedChangedFiles = new Set([
   sessionCodexGatePath,
   reconciliationDesignPath,
   lifecycleDocPath,
+  schemaPath,
   "package.json",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
@@ -265,7 +268,6 @@ const forbiddenChangedPrefixes = [
   "app/",
   "app/api/",
   "components/",
-  "lib/",
   "pages/",
   "public/",
   "migrations/",
@@ -274,12 +276,13 @@ const forbiddenChangedPrefixes = [
   "reports/browser/",
 ];
 const runtimeOrSchemaChanged = changedFiles.filter((file) =>
-  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)),
+  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
+  (file.startsWith("lib/") && file !== schemaPath),
 );
 assert.deepEqual(
   runtimeOrSchemaChanged,
   [],
-  "actual recording gate design PR should not change route/helper/UI/runtime/schema/browser files",
+  "actual recording gate follow-up should not change route/helper/UI/runtime/browser files outside schema.sql",
 );
 
 console.log(

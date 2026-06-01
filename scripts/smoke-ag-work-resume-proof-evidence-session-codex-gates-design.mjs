@@ -52,6 +52,8 @@ const bridgeTableMigrationPolicyDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md";
 const bridgeTableMigrationPolicySmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs";
+const bridgeTableSchemaSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
@@ -365,6 +367,7 @@ function assertNoUnexpectedChangedFiles() {
     schemaIntegrationPolicySmokeRelativePath,
     bridgeTableSchemaDesignSmokeRelativePath,
     bridgeTableMigrationPolicySmokeRelativePath,
+    bridgeTableSchemaSmokeRelativePath,
     reviewMetadataCloseoutSmokeRelativePath,
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
@@ -460,6 +463,7 @@ function assertNoForbiddenImplementationCode() {
       file !== schemaIntegrationPolicySmokeRelativePath &&
       file !== bridgeTableSchemaDesignSmokeRelativePath &&
       file !== bridgeTableMigrationPolicySmokeRelativePath &&
+      file !== bridgeTableSchemaSmokeRelativePath &&
       file !== reviewMetadataCloseoutSmokeRelativePath &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&

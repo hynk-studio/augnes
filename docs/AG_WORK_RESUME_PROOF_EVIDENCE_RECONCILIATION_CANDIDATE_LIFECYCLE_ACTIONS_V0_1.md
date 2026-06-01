@@ -142,6 +142,12 @@ That policy is design-only. It does not add schema/migration, modify
 reconciliation candidate rows, create bridge/evidence/action rows, or authorize
 actual recording.
 
+The schema-only bridge table implementation adds
+`ag_work_resume_proof_evidence_recording_links` to `lib/db/schema.sql` as an
+empty table with indexes. It does not mutate reconciliation candidate rows,
+does not create bridge/evidence/action rows, and does not authorize actual
+recording.
+
 ## Allowed Transitions
 
 Allowed lifecycle transitions:
