@@ -95,6 +95,15 @@ The relevant current docs already define this boundary:
 
 This PR chooses Strategy A only.
 
+Strategy B reference pointer:
+
+- `docs/SIDECAR_ET_LAB_REPORT_REFERENCE_V0_1.md` records the docs-only
+  lab-report reference import for original-repo reviewers. It does not import
+  helper logic, trace-pack harnesses, fixtures, thresholds as runtime policy,
+  runtime computation, schema/API changes, Cockpit action behavior, QP
+  evidence, `z_t` commits, proof/evidence/readiness writes, package scripts, or
+  CI enforcement.
+
 ## 5. Drift Checklist
 
 Original repo snapshot for this PR:

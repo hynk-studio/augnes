@@ -76,6 +76,11 @@ does not implement runtime computation or change response shape.
 `docs/SIDECAR_ET_RUNTIME_IMPLEMENTATION_CHECKLIST_V0_1.md` defines the final
 review checklist before any runtime implementation PR and also does not
 implement computation or change response shape.
+`docs/SIDECAR_ET_LAB_UPSTREAM_ALIGNMENT_V0_1.md` and
+`docs/SIDECAR_ET_LAB_REPORT_REFERENCE_V0_1.md` are original-repo docs-only lab
+alignment/reference pointers. They do not change runtime placeholder behavior,
+import lab helper logic, import trace-pack harnesses, define threshold runtime
+policy, or grant schema/API/Cockpit/action/proof/evidence/readiness authority.
 
 `meta_wm_hint` shape:
 
