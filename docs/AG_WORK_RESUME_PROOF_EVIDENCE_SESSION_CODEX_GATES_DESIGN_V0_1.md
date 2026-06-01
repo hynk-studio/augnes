@@ -96,6 +96,19 @@ adds no update/delete, lifecycle, proof/evidence/session, Codex, work
 item/event creation, imported context/confirmed mapping/proposal mutation,
 schema/migration, approval, publish, retry, replay, or merge authority.
 
+The reconciliation candidate lifecycle action contract is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`.
+It updates existing candidate review metadata only.
+`accepted_for_future_recording` is not proof/evidence recording, session
+binding, Codex continuation, work item/event creation, approval, publish,
+retry, replay, or merge authority.
+
+The reconciliation candidate lifecycle Cockpit panel is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`.
+It calls only the lifecycle action route and adds no proof/evidence, session,
+Codex, work item/event, imported context, confirmed mapping, proposal,
+approval, publish, retry, replay, or merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.

@@ -544,10 +544,24 @@ function assertChangedFilesGuard() {
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-route.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
@@ -566,10 +580,19 @@ function assertChangedFilesGuard() {
       allowedFiles.has(file),
       `changed file is outside reconciliation candidate create Cockpit panel slice: ${file}`,
     );
-    assert.equal(file.startsWith("app/"), false, `no app/api change: ${file}`);
+    assert.ok(
+      file ===
+        "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts" ||
+        !file.startsWith("app/"),
+      `app changes limited to candidate lifecycle route: ${file}`,
+    );
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
-    assert.equal(file.startsWith("lib/"), false, `no lib/schema change: ${file}`);
+    assert.ok(
+      file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" ||
+        !file.startsWith("lib/"),
+      `lib changes limited to candidate lifecycle core: ${file}`,
+    );
     assert.ok(
       file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),
       `component changes limited to the Cockpit panel: ${file}`,
@@ -577,6 +600,8 @@ function assertChangedFilesGuard() {
     assert.ok(
       file ===
         "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" ||
+        file ===
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md" ||
         !file.startsWith("reports/browser/"),
       `browser report changes limited to reconciliation candidate create Cockpit panel: ${file}`,
     );

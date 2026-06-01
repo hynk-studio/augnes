@@ -646,8 +646,17 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-route.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
     "package.json",
   ]);
   const forbiddenPrefixes = [
@@ -666,18 +675,23 @@ function assertNoUnexpectedChangedFiles() {
     assert.ok(
       file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts" ||
         file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" ||
         !file.startsWith("lib/"),
-      `lib changes are limited to candidate writer/read core: ${file}`,
+      `lib changes are limited to candidate writer/read/lifecycle core: ${file}`,
     );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.equal(
       file !==
         "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" &&
+        file !==
+          "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts" &&
         file !== "components/augnes-cockpit.tsx" &&
         file !==
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" &&
         file !==
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" &&
+        file !==
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md" &&
         forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
       `candidate writer/helper follow-up must not touch forbidden path except candidate create route: ${file}`,

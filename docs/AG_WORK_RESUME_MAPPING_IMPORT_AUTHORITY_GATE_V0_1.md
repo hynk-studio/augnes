@@ -353,6 +353,17 @@ PRs:
   no update/delete, lifecycle, proof/evidence/session, Codex, work item/event
   creation, imported context/confirmed mapping/proposal mutation,
   schema/migration, approval, publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md`
+  documents the reconciliation candidate lifecycle action contract; it updates
+  existing candidate review metadata only. `accepted_for_future_recording` is
+  not proof/evidence recording and grants no proof/evidence/session/Codex,
+  work item/event, imported context, confirmed mapping, proposal, approval,
+  publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md`
+  documents the bounded Cockpit Operator lifecycle controls over that route;
+  it calls only the candidate lifecycle route and grants no proof/evidence,
+  session, Codex, work item/event, imported context, confirmed mapping,
+  proposal, approval, publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

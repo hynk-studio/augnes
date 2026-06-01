@@ -864,6 +864,29 @@ type AgResumeReconciliationCandidateCreateRequestBody = {
   created_at?: string;
 };
 
+type AgResumeReconciliationCandidateLifecycleActionPanelResult = {
+  httpStatus: number;
+  requestBody: AgResumeReconciliationCandidateLifecycleActionRequestBody;
+  body: AgResumeReconciliationCandidateLifecycleActionRouteResponse;
+};
+
+type AgResumeReconciliationCandidateLifecycleActionRequestBody = {
+  candidate_id: string;
+  action: AgResumeReconciliationCandidateLifecycleAction;
+  reviewed_by: string;
+  review_note: string;
+  reviewed_at?: string;
+  replacement_candidate_id?: string;
+};
+
+type AgResumeReconciliationCandidateLifecycleAction =
+  | "accept_for_future_recording"
+  | "reject"
+  | "defer"
+  | "withdraw"
+  | "revoke"
+  | "supersede";
+
 type AgResumeImportedContextCreatePanelResult = {
   httpStatus: number;
   requestBody: AgResumeImportedContextCreateRequestBody;
@@ -1288,6 +1311,15 @@ type AgResumeReconciliationCandidateCreateRouteResponse = {
   error?: string;
 };
 
+type AgResumeReconciliationCandidateLifecycleActionRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeReconciliationCandidateLifecycleActionResult | null;
+  authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
 type AgResumeReconciliationCandidateReadResult = {
   ok?: boolean;
   status?: string;
@@ -1324,6 +1356,20 @@ type AgResumeReconciliationCandidateCreateResult = {
   recommended_next_step?: string;
 };
 
+type AgResumeReconciliationCandidateLifecycleActionResult = {
+  ok?: boolean;
+  status?: string;
+  action?: AgResumeReconciliationCandidateLifecycleAction | null;
+  candidate_id?: string | null;
+  before_record?: AgResumeReconciliationCandidateRecord | null;
+  record?: AgResumeReconciliationCandidateRecord | null;
+  updated_fields?: string[];
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeReconciliationCandidateAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
 type AgResumeReconciliationCandidateRecord = {
   candidate_id?: string;
   record_kind?: string;
@@ -1352,6 +1398,7 @@ type AgResumeReconciliationCandidateRecord = {
 type AgResumeReconciliationCandidateAuthorityBoundary = {
   read_only?: boolean;
   review_metadata_only?: boolean;
+  reconciliation_candidate_lifecycle_updated?: boolean;
   reconciliation_candidate_created?: boolean;
   reconciliation_candidate_updated?: boolean;
   reconciliation_candidate_deleted?: boolean;
@@ -1950,6 +1997,29 @@ const SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_CREATE_FIXTURE = {
       "User/Core route error fixture for imported context mismatch.",
     created_at: "2026-06-01T06:03:00.000Z",
   },
+} as const;
+
+const SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE = {
+  candidate_ids: {
+    accept_for_future_recording:
+      "ag-resume-proof-evidence-reconciliation-candidate:lifecycle-accept-001",
+    reject:
+      "ag-resume-proof-evidence-reconciliation-candidate:lifecycle-reject-001",
+    defer:
+      "ag-resume-proof-evidence-reconciliation-candidate:lifecycle-defer-001",
+    withdraw:
+      "ag-resume-proof-evidence-reconciliation-candidate:lifecycle-withdraw-001",
+    revoke:
+      "ag-resume-proof-evidence-reconciliation-candidate:lifecycle-revoke-001",
+    supersede:
+      "ag-resume-proof-evidence-reconciliation-candidate:lifecycle-supersede-001",
+  },
+  replacement_candidate_id:
+    "ag-resume-proof-evidence-reconciliation-candidate:lifecycle-replacement-001",
+  reviewed_by: "user-core:reconciliation-candidate-lifecycle-cockpit-panel",
+  review_note:
+    "Synthetic reconciliation candidate lifecycle review metadata fixture.",
+  reviewed_at: "2026-06-01T07:00:00.000Z",
 } as const;
 
 const SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE = {
@@ -4283,6 +4353,7 @@ function OperatorTab({
           <AgResumeImportedContextCreatePanel />
           <AgResumeImportedContextReadPanel />
           <AgResumeReconciliationCandidateCreatePanel />
+          <AgResumeReconciliationCandidateLifecycleActionPanel />
           <AgResumeReconciliationCandidateReadPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
@@ -9795,6 +9866,445 @@ function AgResumeReconciliationCandidateCreatePanel() {
   );
 }
 
+function AgResumeReconciliationCandidateLifecycleActionPanel() {
+  const [candidateId, setCandidateId] = useState("");
+  const [action, setAction] = useState("");
+  const [reviewedBy, setReviewedBy] = useState<string>(
+    SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE.reviewed_by,
+  );
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewedAt, setReviewedAt] = useState("");
+  const [replacementCandidateId, setReplacementCandidateId] = useState("");
+  const [result, setResult] =
+    useState<AgResumeReconciliationCandidateLifecycleActionPanelResult | null>(
+      null,
+    );
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function loadSafeReconciliationCandidateLifecycleActionFixture(
+    nextAction: AgResumeReconciliationCandidateLifecycleAction,
+  ) {
+    setCandidateId(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE
+        .candidate_ids[nextAction],
+    );
+    setAction(nextAction);
+    setReviewedBy(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE.reviewed_by,
+    );
+    setReviewNote(
+      `${SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE.review_note} Action: ${nextAction}.`,
+    );
+    setReviewedAt(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE.reviewed_at,
+    );
+    setReplacementCandidateId(
+      nextAction === "supersede"
+        ? SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE.replacement_candidate_id
+        : "",
+    );
+    clearResultState();
+  }
+
+  function clearReconciliationCandidateLifecycleActionInputs() {
+    requestIdRef.current += 1;
+    setCandidateId("");
+    setAction("");
+    setReviewedBy(
+      SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE.reviewed_by,
+    );
+    setReviewNote("");
+    setReviewedAt("");
+    setReplacementCandidateId("");
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleReconciliationCandidateLifecycleActionSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let requestBody: AgResumeReconciliationCandidateLifecycleActionRequestBody;
+    try {
+      requestBody = buildReconciliationCandidateLifecycleActionRequestBody({
+        candidateId,
+        action,
+        reviewedBy,
+        reviewNote,
+        reviewedAt,
+        replacementCandidateId,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(
+        "/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(requestBody),
+        },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Reconciliation candidate lifecycle route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Reconciliation candidate lifecycle route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body =
+        parsedBody as AgResumeReconciliationCandidateLifecycleActionRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        requestBody,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "lifecycle action failed";
+        setError(
+          `Reconciliation candidate lifecycle route error: ${routeError}`,
+        );
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Reconciliation candidate lifecycle route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-reconciliation-candidate-lifecycle-action-panel"
+      aria-label="AG Resume Proof Evidence Reconciliation Candidate Lifecycle Actions"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Reconciliation Candidate Lifecycle Actions"
+        description="Bounded lifecycle controls for proof/evidence reconciliation candidate review metadata."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>
+            Lifecycle actions update existing reconciliation candidate review
+            metadata only.
+          </li>
+          <li>
+            accepted_for_future_recording marks suitability for a future,
+            separately authorized recording design. It is not proof/evidence
+            recording.
+          </li>
+          <li>
+            The action submits JSON only to the candidate lifecycle action
+            route.
+          </li>
+          <li>
+            Not proof/evidence creation, not session binding, not Codex, and
+            not work item/event creation.
+          </li>
+          <li>
+            Not imported context/confirmed mapping/proposal mutation and not approval, publish, retry, replay, or merge authority.
+          </li>
+          <li>Durable approval remains user/Core gated.</li>
+        </ul>
+      </BoundaryNote>
+      <form
+        className="observe-form"
+        onSubmit={handleReconciliationCandidateLifecycleActionSubmit}
+      >
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-lifecycle-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-lifecycle-safe-fixtures-heading">
+            Reconciliation candidate lifecycle safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe lifecycle values into
+            local React state only. They do not create rows, update rows, call
+            routes, or persist browser state.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                loadSafeReconciliationCandidateLifecycleActionFixture(
+                  "accept_for_future_recording",
+                )
+              }
+              disabled={busy}
+            >
+              Load safe accept for future recording action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                loadSafeReconciliationCandidateLifecycleActionFixture("reject")
+              }
+              disabled={busy}
+            >
+              Load safe reject action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                loadSafeReconciliationCandidateLifecycleActionFixture("defer")
+              }
+              disabled={busy}
+            >
+              Load safe defer action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                loadSafeReconciliationCandidateLifecycleActionFixture("withdraw")
+              }
+              disabled={busy}
+            >
+              Load safe withdraw action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                loadSafeReconciliationCandidateLifecycleActionFixture("revoke")
+              }
+              disabled={busy}
+            >
+              Load safe revoke action
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                loadSafeReconciliationCandidateLifecycleActionFixture("supersede")
+              }
+              disabled={busy}
+            >
+              Load safe supersede action
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-lifecycle-inputs-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-lifecycle-inputs-heading">
+            Reconciliation candidate lifecycle action inputs
+          </h3>
+          <label htmlFor="ag-resume-reconciliation-candidate-lifecycle-candidate-id-input">
+            candidate_id
+          </label>
+          <p
+            id="ag-resume-reconciliation-candidate-lifecycle-candidate-id-help"
+            className="notice"
+          >
+            Existing reconciliation candidate review metadata row to move
+            through a lifecycle action.
+          </p>
+          <input
+            id="ag-resume-reconciliation-candidate-lifecycle-candidate-id-input"
+            value={candidateId}
+            onChange={(event) => setCandidateId(event.target.value)}
+            aria-describedby="ag-resume-reconciliation-candidate-lifecycle-candidate-id-help"
+            placeholder="ag-resume-proof-evidence-reconciliation-candidate:..."
+          />
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Lifecycle action</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-lifecycle-action-input">
+                action
+              </label>
+              <select
+                id="ag-resume-reconciliation-candidate-lifecycle-action-input"
+                value={action}
+                onChange={(event) => setAction(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-lifecycle-action-help"
+              >
+                <option value="">Select lifecycle action</option>
+                <option value="accept_for_future_recording">
+                  accept_for_future_recording
+                </option>
+                <option value="reject">reject</option>
+                <option value="defer">defer</option>
+                <option value="withdraw">withdraw</option>
+                <option value="revoke">revoke</option>
+                <option value="supersede">supersede</option>
+              </select>
+              <p
+                id="ag-resume-reconciliation-candidate-lifecycle-action-help"
+                className="notice"
+              >
+                Allowed actions update candidate lifecycle/review metadata
+                only. accepted_for_future_recording does not record proof or
+                evidence.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Review metadata</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-lifecycle-reviewed-by-input">
+                reviewed_by
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-lifecycle-reviewed-by-input"
+                value={reviewedBy}
+                onChange={(event) => setReviewedBy(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-lifecycle-review-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-lifecycle-review-note-input">
+                review_note
+              </label>
+              <textarea
+                id="ag-resume-reconciliation-candidate-lifecycle-review-note-input"
+                value={reviewNote}
+                onChange={(event) => setReviewNote(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-lifecycle-review-help"
+                rows={4}
+                placeholder="Reason for the candidate lifecycle action"
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-lifecycle-review-help"
+                className="notice"
+              >
+                reviewed_by and review_note are required candidate review
+                metadata for every lifecycle action.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Optional fields</h3>
+              <label htmlFor="ag-resume-reconciliation-candidate-lifecycle-reviewed-at-input">
+                reviewed_at
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-lifecycle-reviewed-at-input"
+                value={reviewedAt}
+                onChange={(event) => setReviewedAt(event.target.value)}
+                aria-describedby="ag-resume-reconciliation-candidate-lifecycle-optional-help"
+                placeholder="2026-06-01T07:00:00.000Z"
+              />
+              <label htmlFor="ag-resume-reconciliation-candidate-lifecycle-replacement-candidate-id-input">
+                replacement_candidate_id
+              </label>
+              <input
+                id="ag-resume-reconciliation-candidate-lifecycle-replacement-candidate-id-input"
+                value={replacementCandidateId}
+                onChange={(event) =>
+                  setReplacementCandidateId(event.target.value)
+                }
+                aria-describedby="ag-resume-reconciliation-candidate-lifecycle-optional-help"
+                placeholder="ag-resume-proof-evidence-reconciliation-candidate:..."
+              />
+              <p
+                id="ag-resume-reconciliation-candidate-lifecycle-optional-help"
+                className="notice"
+              >
+                reviewed_at must be ISO UTC when supplied.
+                replacement_candidate_id is allowed only for supersede and
+                does not create or update a replacement row.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-reconciliation-candidate-lifecycle-action-controls-heading"
+        >
+          <h3 id="ag-resume-reconciliation-candidate-lifecycle-action-controls-heading">
+            Reconciliation candidate lifecycle action controls
+          </h3>
+          <BoundaryNote>
+            The action button calls only the POST candidate lifecycle action
+            route with JSON. It does not call candidate create/read, proof,
+            evidence, session, Codex, work, imported context, confirmed
+            mapping, proposal, approval, publication, bridge, MCP/App, Direct
+            Resume Code, or relay routes.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearReconciliationCandidateLifecycleActionInputs}
+            >
+              Clear reconciliation candidate lifecycle inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy
+                ? "Applying reconciliation candidate lifecycle action"
+                : "Apply reconciliation candidate lifecycle action"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-reconciliation-candidate-lifecycle-action-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeReconciliationCandidateLifecycleActionResults result={result} />
+      ) : (
+        <EmptyState
+          label="No reconciliation candidate lifecycle action yet."
+          description="Enter an existing candidate_id, action, reviewer, and review note to update candidate review metadata."
+        />
+      )}
+    </section>
+  );
+}
+
 function AgResumeReconciliationCandidateCreateResults({
   result,
 }: {
@@ -10720,6 +11230,12 @@ function AgResumeReconciliationCandidateAuthorityBoundary({
               {formatAgResumeBoolean(authorityBoundary.review_metadata_only)}
             </span>
             <span>
+              reconciliation_candidate_lifecycle_updated:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.reconciliation_candidate_lifecycle_updated,
+              )}
+            </span>
+            <span>
               reconciliation_candidate_created:{" "}
               {formatAgResumeBoolean(
                 authorityBoundary.reconciliation_candidate_created,
@@ -10871,6 +11387,143 @@ function AgResumeReconciliationCandidateCard({
         />
       </div>
     </article>
+  );
+}
+
+function AgResumeReconciliationCandidateLifecycleActionResults({
+  result,
+}: {
+  result: AgResumeReconciliationCandidateLifecycleActionPanelResult;
+}) {
+  const { body } = result;
+  const actionResult = body.result ?? null;
+  const authorityBoundary =
+    body.authority_boundary ?? actionResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-reconciliation-candidate-lifecycle-action-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-reconciliation-candidate-lifecycle-action-result-heading">
+        Reconciliation candidate lifecycle action result
+      </h3>
+      <BoundaryNote tone="green">
+        Lifecycle action results are candidate review metadata only.
+        accepted_for_future_recording is not proof/evidence recording. Results
+        are not session binding, Codex execution, work item/event creation,
+        imported context/confirmed mapping/proposal mutation, approval,
+        publish, retry, replay, or merge authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>
+          route recommended_next_step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      {actionResult?.recommended_next_step ? (
+        <BoundaryNote>
+          lifecycle recommended_next_step: {actionResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>reconciliation candidates lifecycle POST route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Lifecycle status</h3>
+          <p>{actionResult?.status ?? body.error ?? "unknown"}</p>
+          <small>
+            updated/invalid_input/not_found/invalid_transition/replacement_not_found/db_error
+          </small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Action</h3>
+          <p>{actionResult?.action ?? result.requestBody.action}</p>
+          <small>
+            accept_for_future_recording/reject/defer/withdraw/revoke/supersede
+          </small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Candidate id</h3>
+          <p>{actionResult?.candidate_id ?? result.requestBody.candidate_id}</p>
+          <small>existing reconciliation candidate review metadata row</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Before/after status</h3>
+          <p>
+            {actionResult?.before_record?.status ?? "unknown"} {"->"}{" "}
+            {actionResult?.record?.status ?? "unknown"}
+          </p>
+          <small>candidate lifecycle status only</small>
+        </section>
+      </div>
+      <AgResumeStringList
+        title="Updated fields"
+        items={actionResult?.updated_fields ?? []}
+        emptyLabel="No candidate lifecycle fields updated."
+      />
+      <AgResumeStringList
+        title="Warnings"
+        items={actionResult?.warnings ?? []}
+        emptyLabel="No candidate lifecycle warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={actionResult?.failures ?? []}
+        emptyLabel="No candidate lifecycle failures."
+      />
+      <AgResumeReconciliationCandidateAuthorityBoundary
+        title="Lifecycle Authority Boundary"
+        authorityBoundary={authorityBoundary}
+      />
+      <div className="evidence-pack-grid">
+        <AgResumeReconciliationCandidateLifecycleRecordSnapshot
+          title="Before reconciliation candidate"
+          record={actionResult?.before_record ?? null}
+        />
+        <AgResumeReconciliationCandidateLifecycleRecordSnapshot
+          title="After reconciliation candidate"
+          record={actionResult?.record ?? null}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AgResumeReconciliationCandidateLifecycleRecordSnapshot({
+  title,
+  record,
+}: {
+  title: string;
+  record: AgResumeReconciliationCandidateRecord | null;
+}) {
+  return (
+    <section className="evidence-pack-card evidence-pack-card-wide">
+      <h3>{title}</h3>
+      {record ? (
+        <div className="meta-row">
+          <span>candidate_id: {record.candidate_id ?? "unknown"}</span>
+          <span>status: {record.status ?? "unknown"}</span>
+          <span>reviewed_by: {record.reviewed_by ?? "none"}</span>
+          <span>reviewed_at: {record.reviewed_at ?? "none"}</span>
+          <span>review_note: {record.review_note ?? "none"}</span>
+          <span>
+            superseded_by_candidate_id:{" "}
+            {record.superseded_by_candidate_id ?? "none"}
+          </span>
+          <span>updated_at: {record.updated_at ?? "unknown"}</span>
+        </div>
+      ) : (
+        <EmptyState label={`No ${title.toLowerCase()} returned.`} />
+      )}
+    </section>
   );
 }
 
@@ -17180,6 +17833,86 @@ function buildReconciliationCandidateCreateRequestBody({
   return requestBody;
 }
 
+function buildReconciliationCandidateLifecycleActionRequestBody({
+  candidateId,
+  action,
+  reviewedBy,
+  reviewNote,
+  reviewedAt,
+  replacementCandidateId,
+}: {
+  candidateId: string;
+  action: string;
+  reviewedBy: string;
+  reviewNote: string;
+  reviewedAt: string;
+  replacementCandidateId: string;
+}): AgResumeReconciliationCandidateLifecycleActionRequestBody {
+  const trimmedCandidateId = candidateId.trim();
+  const trimmedAction = action.trim();
+  const normalizedAction =
+    normalizeReconciliationCandidateLifecycleAction(trimmedAction);
+  const trimmedReviewedBy = reviewedBy.trim();
+  const trimmedReviewNote = reviewNote.trim();
+  const trimmedReviewedAt = reviewedAt.trim();
+  const trimmedReplacementCandidateId = replacementCandidateId.trim();
+
+  if (!trimmedCandidateId) {
+    throw new Error("candidate_id is required for candidate lifecycle action.");
+  }
+  if (!trimmedAction) {
+    throw new Error("action is required for candidate lifecycle action.");
+  }
+  if (!normalizedAction) {
+    throw new Error(
+      "action must be one of: accept_for_future_recording, reject, defer, withdraw, revoke, supersede.",
+    );
+  }
+  if (!trimmedReviewedBy) {
+    throw new Error("reviewed_by is required for candidate lifecycle action.");
+  }
+  if (!trimmedReviewNote) {
+    throw new Error("review_note is required for candidate lifecycle action.");
+  }
+  if (trimmedReplacementCandidateId && normalizedAction !== "supersede") {
+    throw new Error("replacement_candidate_id is allowed only for supersede.");
+  }
+  if (trimmedReplacementCandidateId === trimmedCandidateId) {
+    throw new Error(
+      "replacement_candidate_id must not equal candidate_id for supersede.",
+    );
+  }
+  if (trimmedReviewedAt) {
+    const parsedReviewedAt = Date.parse(trimmedReviewedAt);
+    if (
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
+        trimmedReviewedAt,
+      ) ||
+      !Number.isFinite(parsedReviewedAt) ||
+      new Date(parsedReviewedAt).toISOString() !== trimmedReviewedAt
+    ) {
+      throw new Error(
+        "reviewed_at must be an ISO UTC timestamp with millisecond precision.",
+      );
+    }
+  }
+
+  const requestBody: AgResumeReconciliationCandidateLifecycleActionRequestBody =
+    {
+      candidate_id: trimmedCandidateId,
+      action: normalizedAction,
+      reviewed_by: trimmedReviewedBy,
+      review_note: trimmedReviewNote,
+    };
+  if (trimmedReviewedAt) {
+    requestBody.reviewed_at = trimmedReviewedAt;
+  }
+  if (normalizedAction === "supersede" && trimmedReplacementCandidateId) {
+    requestBody.replacement_candidate_id = trimmedReplacementCandidateId;
+  }
+  return requestBody;
+}
+
 function buildImportedContextCreateRequestBody({
   mappingId,
   packetId,
@@ -17483,6 +18216,22 @@ function normalizeMappingProposalLifecycleAction(
     value === "reject" ||
     value === "supersede" ||
     value === "expire"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function normalizeReconciliationCandidateLifecycleAction(
+  value: string,
+): AgResumeReconciliationCandidateLifecycleAction | null {
+  if (
+    value === "accept_for_future_recording" ||
+    value === "reject" ||
+    value === "defer" ||
+    value === "withdraw" ||
+    value === "revoke" ||
+    value === "supersede"
   ) {
     return value;
   }

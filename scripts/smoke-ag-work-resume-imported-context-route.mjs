@@ -512,8 +512,17 @@ function assertSourceGuards() {
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_COCKPIT_PANEL_V0_1.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel.mjs",
+    "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_COCKPIT_PANEL_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-route.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
   ]);
   for (const file of changedFiles) {
     assert.ok(
@@ -524,8 +533,10 @@ function assertSourceGuards() {
       file === "app/api/ag-work-resume/imported-contexts/route.ts" ||
         file ===
           "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts" ||
+        file ===
+          "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions/route.ts" ||
         !file.startsWith("app/"),
-      `app changes limited to imported context route or reconciliation candidate route: ${file}`,
+      `app changes limited to imported context route or reconciliation candidate routes: ${file}`,
     );
     assert.ok(
       file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),
@@ -542,6 +553,8 @@ function assertSourceGuards() {
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-read-cockpit-panel-verification.md" ||
         file ===
           "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel-verification.md" ||
+        file ===
+          "reports/browser/2026-06-01-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-verification.md" ||
         !file.startsWith("reports/browser/"),
       `browser report changes limited to imported context Cockpit panels: ${file}`,
     );
@@ -550,8 +563,9 @@ function assertSourceGuards() {
       file === "lib/ag-work-resume-imported-context-read.ts" ||
         file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts" ||
         file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" ||
         !file.startsWith("lib/"),
-      `lib changes limited to imported context read core and reconciliation candidate writer/read core: ${file}`,
+      `lib changes limited to imported context read core and reconciliation candidate writer/read/lifecycle core: ${file}`,
     );
   }
 }
