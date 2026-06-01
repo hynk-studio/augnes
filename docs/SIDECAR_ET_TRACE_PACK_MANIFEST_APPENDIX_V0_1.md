@@ -137,6 +137,15 @@ Before any fixture, manifest, or harness import, reviewers must:
 If any decision is unclear, keep the original repo at docs/reference-only
 alignment and do not import lab fixtures, manifest JSON, or harness scripts.
 
+Fixture-boundary design pointer:
+
+- `docs/SIDECAR_ET_TRACE_PACK_FIXTURE_BOUNDARY_DESIGN_V0_1.md` records the
+  docs-only boundary design that should be reviewed before any fixture import.
+  It does not import fixtures, manifest JSON, harness scripts, helper logic,
+  package scripts, runtime computation, schema/API changes, proof/evidence/
+  readiness writes, QP evidence, `z_t` commits, AG Resume bridge behavior, or
+  CI enforcement.
+
 ## 6. AG Resume Bridge Safety Note
 
 PR #341 added the empty schema table
