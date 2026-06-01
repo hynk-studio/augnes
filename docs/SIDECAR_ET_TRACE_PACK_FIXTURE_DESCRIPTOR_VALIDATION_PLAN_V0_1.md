@@ -188,3 +188,13 @@ Before any actual fixture import:
 If any decision is unclear, keep the original repo at docs/reference-only
 planning and do not import fixtures, manifest JSON, harness scripts, helper
 logic, package scripts, or runtime computation.
+
+Exact descriptor proposal pointer:
+
+- `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
+  records the docs-only exact first descriptor subset proposal and deferred
+  descriptor set before any fixture-import decision. It does not import
+  fixtures, manifest JSON, harness scripts, helper logic, package scripts,
+  thresholds as runtime policy, runtime computation, schema/API changes,
+  Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
+  commits, AG Resume bridge/writer/helper behavior, or CI enforcement.

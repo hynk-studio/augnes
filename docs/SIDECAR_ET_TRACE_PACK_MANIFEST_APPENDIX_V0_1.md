@@ -151,6 +151,13 @@ Fixture-boundary design pointer:
   scripts, helper logic, package scripts, runtime computation, schema/API
   changes, proof/evidence/readiness writes, QP evidence, `z_t` commits, AG
   Resume bridge behavior, or CI enforcement.
+- `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
+  records the docs-only exact first descriptor subset proposal and deferred
+  descriptor set before any fixture import. It does not import fixtures,
+  manifest JSON, harness scripts, helper logic, package scripts, runtime
+  computation, schema/API changes, proof/evidence/readiness writes, QP
+  evidence, `z_t` commits, AG Resume bridge/writer/helper behavior, or CI
+  enforcement.
 
 ## 6. AG Resume Bridge Safety Note
 
