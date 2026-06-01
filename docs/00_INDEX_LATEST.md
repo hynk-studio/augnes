@@ -92,6 +92,14 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   policy, runtime computation, schema/API, Cockpit action,
   proof/evidence/readiness, AG Resume bridge behavior, or CI authority를
   만들지 않는다.
+- `SIDECAR_ET_TRACE_PACK_FIXTURE_DESCRIPTOR_VALIDATION_PLAN_V0_1.md`: original
+  repo docs-only Strategy C descriptor/naming plan pointer다. descriptor-only
+  pack candidates, safest first subset, validation command names, future
+  changed-file boundaries, AG Resume bridge safety note, browser/computer-use
+  skip/future scenario, and decision gate를 정리하며 fixtures, manifest JSON,
+  helper logic, harness scripts, package scripts, thresholds as runtime policy,
+  runtime computation, schema/API, Cockpit action, proof/evidence/readiness,
+  AG Resume bridge behavior, or CI authority를 만들지 않는다.
 - `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
   포인터를 둔다.
 - `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only
