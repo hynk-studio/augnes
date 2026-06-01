@@ -175,11 +175,34 @@ try {
     status: "superseded",
     reviewedAt: "2026-06-01T07:05:00.000Z",
     supersededByCandidateId: "candidate:replacement",
+    updatesSupersededByCandidateId: true,
   });
   assert.deepEqual(
     readCandidateRow(dbPath, "candidate:replacement"),
     replacementBefore,
     "replacement candidate row must not be updated",
+  );
+  assertSuccessfulLifecycle({
+    run: () =>
+      applyAgWorkResumeProofEvidenceReconciliationCandidateLifecycleAction({
+        candidate_id: "candidate:supersede",
+        action: "revoke",
+        reviewed_by: "user-core:reviewer",
+        review_note:
+          "Revoke a superseded candidate while preserving replacement audit metadata.",
+        reviewed_at: "2026-06-01T07:05:30.000Z",
+      }),
+    candidateId: "candidate:supersede",
+    action: "revoke",
+    status: "revoked",
+    reviewedAt: "2026-06-01T07:05:30.000Z",
+    supersededByCandidateId: "candidate:replacement",
+    updatesSupersededByCandidateId: false,
+  });
+  assert.deepEqual(
+    readCandidateRow(dbPath, "candidate:replacement"),
+    replacementBefore,
+    "revoking a superseded candidate must not update the replacement row",
   );
 
   insertCandidate(dbPath, { candidate_id: "candidate:deferred-accept", status: "deferred" });
@@ -481,6 +504,7 @@ try {
           "accept_for_future_recording, reject, defer, withdraw, revoke, and supersede succeed",
           "accepted_for_future_recording is review metadata only",
           "supersede may link an existing replacement candidate without updating it",
+          "revoke from superseded preserves superseded_by_candidate_id audit metadata",
           "deferred candidate can later accept",
           "helper env/file/flags/stdin succeeds",
           "helper invalid input exits non-zero",
@@ -567,6 +591,7 @@ function assertDocsGuard() {
     "invalid_transition",
     "replacement_not_found",
     "Imported-context inactive or mismatch checks are not reapplied",
+    "Revoking a superseded candidate intentionally preserves",
     "Updated fields",
     "POST /api/ag-work-resume/proof-evidence-reconciliation-candidates/lifecycle-actions",
     "No proof/evidence recording",
@@ -704,6 +729,7 @@ function assertSuccessfulLifecycle({
   status,
   reviewedAt,
   supersededByCandidateId = null,
+  updatesSupersededByCandidateId = false,
 }) {
   const result = run();
   assert.equal(result.ok, true);
@@ -719,7 +745,7 @@ function assertSuccessfulLifecycle({
   );
   assert.deepEqual(
     result.updated_fields,
-    supersededByCandidateId
+    updatesSupersededByCandidateId
       ? [
           "status",
           "reviewed_by",

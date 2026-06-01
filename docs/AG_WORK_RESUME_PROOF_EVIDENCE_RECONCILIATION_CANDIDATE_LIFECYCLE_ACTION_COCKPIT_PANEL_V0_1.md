@@ -81,6 +81,11 @@ The panel validates before calling the route:
 The route remains canonical validation for unknown fields, missing candidate,
 invalid transition, missing replacement candidate, and all DB behavior.
 
+When a superseded candidate is revoked, the route preserves the existing
+`superseded_by_candidate_id` as audit metadata. The replacement row is not
+updated, and the preserved link is not treated as proof/evidence recording or
+future recording authority.
+
 ## POST Route Behavior
 
 The panel sends exactly one route request with method POST, a JSON

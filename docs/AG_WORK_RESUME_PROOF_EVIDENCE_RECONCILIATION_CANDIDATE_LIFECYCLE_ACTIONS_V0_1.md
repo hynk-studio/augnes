@@ -145,6 +145,11 @@ Duplicate actions or actions that would repeat the current terminal decision
 return `invalid_transition` and do not write. Correction, reopen, or any
 broader idempotency behavior requires a separately gated future design.
 
+Revoking a superseded candidate intentionally preserves any existing
+`superseded_by_candidate_id` as audit metadata. The revoke action updates the
+candidate status and review metadata only; it does not clear the replacement
+link and does not update the replacement candidate row.
+
 ## Validation Rules
 
 - Unknown fields are rejected.
@@ -183,6 +188,9 @@ Updated fields:
 - `updated_at`
 - `superseded_by_candidate_id` only for `supersede` when a replacement id is
   supplied
+
+For `revoke` from `superseded`, `superseded_by_candidate_id` is preserved from
+the earlier supersede action but is not included in `updated_fields`.
 
 The lifecycle action does not update the replacement candidate row. It does
 not update `supersedes_candidate_id`, imported context rows, confirmed mapping

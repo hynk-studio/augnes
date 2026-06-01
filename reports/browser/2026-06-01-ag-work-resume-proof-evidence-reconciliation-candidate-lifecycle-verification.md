@@ -5,7 +5,7 @@ reconciliation candidate lifecycle action Cockpit controls.
 
 ## Related PR
 
-- PR: pending
+- PR: #333 `ag-resume: add reconciliation candidate lifecycle controls`
 - Work ID: not available; `CODEX_WORK_ID` was not set
 - Handoff ID: not available
 - Related state keys: AG Resume proof/evidence reconciliation candidate review metadata
@@ -24,7 +24,11 @@ reconciliation candidate lifecycle action Cockpit controls.
 ## Environment
 
 - Repository branch: `codex/ag-resume-reconciliation-candidate-lifecycle`
-- Commit: `050dee219fd4193ae0dc307c86bee1fc6ab28058` plus working tree changes
+- Browser-verified lifecycle code commit: `7ae365c41618ecf803004144c1a8394a985e8f5f`
+- Verification timing: Browser verification was run before PR #333 was opened.
+  The later hardening pass updated this report metadata, docs, and smoke
+  assertions only; it did not change lifecycle runtime, route, or Cockpit
+  behavior.
 - Node/npm versions: Node `v25.9.0`, npm `11.12.1`
 - Operating system: macOS `26.5` build `25F71`
 - Browser or runtime: Codex in-app Browser against Next dev server

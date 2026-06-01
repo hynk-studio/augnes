@@ -100,6 +100,7 @@ try {
   insertCandidate(dbPath, { candidate_id: "candidate:route-replacement", status: "proposed" });
   expectedCandidateRows += 6;
 
+  let routeReplacementBeforeSupersededRevoke = null;
   for (const [candidate_id, action, expectedStatus, reviewed_at, extra] of [
     [
       "candidate:route-reject",
@@ -164,8 +165,36 @@ try {
         beforeReplacement,
         "route supersede must not update replacement row",
       );
+      routeReplacementBeforeSupersededRevoke = beforeReplacement;
     }
   }
+  const revokeSupersededResponse = await POST(
+    jsonRequest({
+      candidate_id: "candidate:route-supersede",
+      action: "revoke",
+      reviewed_by: "user-core:route",
+      review_note:
+        "Route revokes a superseded candidate while preserving replacement audit metadata.",
+      reviewed_at: "2026-06-01T08:05:30.000Z",
+    }),
+  );
+  const revokeSupersededPayload = await revokeSupersededResponse.json();
+  assert.equal(revokeSupersededResponse.status, 200);
+  assert.equal(revokeSupersededPayload.result.before_record.status, "superseded");
+  assert.equal(revokeSupersededPayload.result.record.status, "revoked");
+  assert.equal(
+    revokeSupersededPayload.result.record.superseded_by_candidate_id,
+    "candidate:route-replacement",
+  );
+  assert.deepEqual(
+    revokeSupersededPayload.result.updated_fields,
+    ["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"],
+  );
+  assert.deepEqual(
+    readCandidateRow(dbPath, "candidate:route-replacement"),
+    routeReplacementBeforeSupersededRevoke,
+    "route revoke from superseded must not update replacement row",
+  );
 
   assert.equal(countRows(dbPath, tableName), expectedCandidateRows);
   assert.deepEqual(snapshotProtectedCounts(dbPath), protectedBefore);
@@ -340,6 +369,7 @@ try {
           "route source delegates to lifecycle core",
           "all lifecycle actions succeed through POST route",
           "accepted_for_future_recording returns review metadata only",
+          "revoke from superseded preserves superseded_by_candidate_id audit metadata",
           "wrong content-type, invalid JSON, and non-object JSON fail closed",
           "db, now, and proof mutation fields fail closed",
           "missing fields and invalid action fail closed",
