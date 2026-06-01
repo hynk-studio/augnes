@@ -863,6 +863,111 @@ CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_target_time
 CREATE INDEX IF NOT EXISTS idx_verification_evidence_scope_kind_time
   ON verification_evidence_records(scope, evidence_kind, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS ag_work_resume_proof_evidence_recording_links (
+  recording_link_id TEXT PRIMARY KEY,
+  record_kind TEXT NOT NULL CHECK (
+    record_kind = 'ag_work_resume_proof_evidence_recording_link'
+  ),
+  schema TEXT NOT NULL CHECK (
+    schema = 'augnes.ag_work_resume_proof_evidence_recording_link.v0_1'
+  ),
+  candidate_id TEXT NOT NULL,
+  import_id TEXT NOT NULL,
+  mapping_id TEXT NOT NULL,
+  local_target_scope TEXT NOT NULL CHECK (
+    length(trim(local_target_scope)) > 0
+  ),
+  local_target_work_id TEXT NOT NULL CHECK (
+    length(trim(local_target_work_id)) > 0
+  ),
+  target_record_kind TEXT NOT NULL CHECK (
+    target_record_kind = 'verification_evidence'
+  ),
+  target_evidence_id TEXT NOT NULL,
+  target_action_id TEXT CHECK (target_action_id IS NULL),
+  idempotency_key TEXT NOT NULL CHECK (
+    length(trim(idempotency_key)) > 0
+  ),
+  actor TEXT NOT NULL CHECK (length(trim(actor)) > 0),
+  reason TEXT NOT NULL CHECK (
+    length(trim(reason)) > 0 AND length(reason) <= 4000
+  ),
+  redaction_summary TEXT NOT NULL DEFAULT '{}' CHECK (
+    CASE
+      WHEN json_valid(redaction_summary)
+      THEN json_type(redaction_summary) = 'object'
+      ELSE 0
+    END
+  ),
+  trust_provenance_label TEXT NOT NULL CHECK (
+    trust_provenance_label IN ('foreign_summary_user_core_attested')
+  ),
+  provenance_json TEXT NOT NULL DEFAULT '{}' CHECK (
+    CASE
+      WHEN json_valid(provenance_json)
+      THEN json_type(provenance_json) = 'object'
+      ELSE 0
+    END
+  ),
+  recording_status TEXT NOT NULL CHECK (
+    recording_status = 'recorded'
+  ),
+  failure_reason TEXT CHECK (failure_reason IS NULL),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (updated_at = created_at),
+  FOREIGN KEY (candidate_id)
+    REFERENCES ag_work_resume_proof_evidence_reconciliation_candidates(candidate_id)
+    ON DELETE RESTRICT
+    ON UPDATE RESTRICT,
+  FOREIGN KEY (import_id)
+    REFERENCES ag_work_resume_imported_contexts(import_id)
+    ON DELETE RESTRICT
+    ON UPDATE RESTRICT,
+  FOREIGN KEY (mapping_id)
+    REFERENCES ag_work_resume_confirmed_mappings(mapping_id)
+    ON DELETE RESTRICT
+    ON UPDATE RESTRICT,
+  FOREIGN KEY (target_evidence_id)
+    REFERENCES verification_evidence_records(evidence_id)
+    ON DELETE RESTRICT
+    ON UPDATE RESTRICT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ag_recording_links_candidate_unique
+  ON ag_work_resume_proof_evidence_recording_links(candidate_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ag_recording_links_idempotency_unique
+  ON ag_work_resume_proof_evidence_recording_links(idempotency_key);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ag_recording_links_target_evidence_unique
+  ON ag_work_resume_proof_evidence_recording_links(target_evidence_id);
+
+CREATE INDEX IF NOT EXISTS idx_ag_recording_links_import_time
+  ON ag_work_resume_proof_evidence_recording_links(import_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_recording_links_mapping_time
+  ON ag_work_resume_proof_evidence_recording_links(mapping_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_recording_links_local_target_time
+  ON ag_work_resume_proof_evidence_recording_links(
+    local_target_scope,
+    local_target_work_id,
+    created_at DESC
+  );
+
+CREATE INDEX IF NOT EXISTS idx_ag_recording_links_status_time
+  ON ag_work_resume_proof_evidence_recording_links(recording_status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_recording_links_actor_time
+  ON ag_work_resume_proof_evidence_recording_links(actor, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_recording_links_trust_label_time
+  ON ag_work_resume_proof_evidence_recording_links(
+    trust_provenance_label,
+    created_at DESC
+  );
+
 CREATE TABLE IF NOT EXISTS temporal_preview_review_artifacts (
   artifact_id TEXT PRIMARY KEY,
   scope TEXT NOT NULL DEFAULT 'project:augnes',

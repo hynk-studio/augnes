@@ -56,6 +56,12 @@ table, recording proof/evidence, creating evidence/action rows, binding
 sessions, continuing Codex, or granting approval/publish/retry/replay/merge
 authority.
 
+The schema-only implementation adds
+`ag_work_resume_proof_evidence_recording_links` to `lib/db/schema.sql` as an
+empty table with indexes. It creates no bridge rows, creates no
+`verification_evidence_records` rows, creates no `action_records` rows, adds no
+writer/helper/route/UI, and does not authorize actual proof/evidence recording.
+
 ## Proposed Table
 
 Proposed table name:

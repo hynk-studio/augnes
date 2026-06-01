@@ -2,23 +2,19 @@
 
 ## Status
 
-This migration/DDL policy is design-only. It defines the exact future
-migration and DDL policy for adding the AG Resume proof/evidence recording
-bridge table in a later separately approved schema/migration PR. It is not a
-migration.
-
-This policy adds no runtime behavior, adds no schema or migration, does not
-modify `lib/db/schema.sql`, adds no migration files, creates no bridge table,
-adds no writer, helper, route, UI, browser surface, proof/evidence recording,
+This migration/DDL policy was introduced as design-only. The schema-only
+implementation follow-up may add the documented empty bridge table and indexes
+to `lib/db/schema.sql`; that schema implementation still adds no writer,
+helper, route, UI, browser surface, proof/evidence recording,
 `verification_evidence_records` row creation, `action_records` row creation,
 session binding, Codex execution or continuation, work item/event creation,
 imported context mutation, confirmed mapping mutation, proposal mutation,
 reconciliation candidate mutation, approval, publish, retry, replay, merge,
 auto-merge, external posting, or committed-state authority.
 
-The migration/DDL policy is not a migration. A future schema/migration PR is not approval to record. The bridge table is not proof/evidence recording by itself. Actual proof/evidence recording remains separately user/Core gated. `accepted_for_future_recording` is not proof/evidence recording.
+The migration/DDL policy is not approval to record. A schema/migration PR is not approval to record. The bridge table is not proof/evidence recording by itself. Actual proof/evidence recording remains separately user/Core gated. `accepted_for_future_recording` is not proof/evidence recording.
 
-Do not implement this DDL in this PR.
+The required table is `ag_work_resume_proof_evidence_recording_links`.
 
 ## Purpose
 
@@ -74,6 +70,21 @@ committed-state authority.
 
 The migration itself must create no rows. It must only create an empty table
 and indexes.
+
+## Schema-Only Implementation Status
+
+The schema-only implementation adds
+`ag_work_resume_proof_evidence_recording_links` and its documented indexes to
+`lib/db/schema.sql`. That implementation is limited to an empty table plus
+indexes. It does not create bridge rows, does not create
+`verification_evidence_records` rows, does not create `action_records` rows,
+and does not add any recording writer/helper/route/UI.
+
+The schema smoke for this implementation is:
+
+```bash
+npm run smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema
+```
 
 ## Proposed Future Table
 
@@ -616,16 +627,15 @@ recording behavior by including:
 
 ## Authority Boundary
 
-This migration/DDL policy grants:
+This schema-only bridge table implementation grants:
 
-- no runtime behavior
-- no schema/migration
-- no `lib/db/schema.sql` changes
+- schema table/indexes only
 - no migration files
 - no writer/helper/route/UI
 - no proof/evidence recording
 - no `verification_evidence_records` row creation
 - no `action_records` row creation
+- no bridge row creation
 - no session binding
 - no Codex execution or continuation
 - no work item/event creation
@@ -642,16 +652,14 @@ Codex continuation remain out of scope.
 ## Non-Goals
 
 - No runtime behavior.
-- No schema or migration.
-- No `lib/db/schema.sql` modification.
 - No migration files.
-- No bridge table creation.
 - No writer/helper/route/UI.
 - No browser report.
 - No proof/evidence recording.
 - No evidence recording.
 - No `verification_evidence_records` row creation.
 - No `action_records` row creation.
+- No bridge row creation.
 - No session binding.
 - No Codex execution or continuation.
 - No work item/event creation.
@@ -664,13 +672,14 @@ Codex continuation remain out of scope.
 
 ## Browser Verification
 
-Browser verification skipped: this is a docs-only migration/DDL policy with no
-runtime, Cockpit, UI, or browser files changed.
+Browser verification skipped: this is a schema-only bridge table/index
+implementation with no runtime, Cockpit, UI, or browser files changed.
 
-## Suggested Verification For This Design PR
+## Suggested Verification For This Schema PR
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema
 npm run smoke:ag-work-resume-proof-evidence-recording-bridge-table-migration-policy
 npm run smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema-design
 npm run smoke:ag-work-resume-proof-evidence-recording-schema-integration-policy
@@ -682,6 +691,7 @@ npm run smoke:ag-work-resume-proof-evidence-reconciliation-design
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-route
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel
+node --check scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs
 node --check scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs
 git diff --check
 git diff --cached --check

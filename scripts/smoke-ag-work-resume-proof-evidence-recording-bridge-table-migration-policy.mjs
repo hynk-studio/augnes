@@ -67,15 +67,16 @@ const joinedPointers = [
 
 for (const phrase of [
   "AG Resume Proof/Evidence Recording Bridge Table Migration/DDL Policy v0.1",
-  "This migration/DDL policy is design-only",
-  "It is not a\nmigration",
-  "Do not implement this DDL in this PR",
-  "The migration/DDL policy is not a migration",
-  "A future schema/migration PR is not approval to record",
+  "This migration/DDL policy was introduced as design-only",
+  "The schema-only\nimplementation follow-up may add the documented empty bridge table and indexes",
+  "The migration/DDL policy is not approval to record",
+  "A schema/migration PR is not approval to record",
   "The bridge table is not proof/evidence recording by itself",
   "Actual proof/evidence recording remains separately user/Core gated",
   "`accepted_for_future_recording` is not proof/evidence recording",
   "ag_work_resume_proof_evidence_recording_links",
+  "Schema-Only Implementation Status",
+  "npm run smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema",
   "Exact Proposed CREATE TABLE DDL",
   "CREATE TABLE IF NOT EXISTS ag_work_resume_proof_evidence_recording_links",
   "Proposed Index DDL",
@@ -135,14 +136,14 @@ for (const phrase of [
 }
 
 for (const phrase of [
-  "no runtime behavior",
-  "no schema or migration",
-  "no `lib/db/schema.sql` changes",
+  "No runtime behavior",
+  "schema table/indexes only",
   "no migration files",
   "no writer/helper/route/UI",
   "no proof/evidence recording",
   "no `verification_evidence_records` row creation",
   "no `action_records` row creation",
+  "no bridge row creation",
   "no session binding",
   "no Codex execution or continuation",
   "no work item/event creation",
@@ -166,9 +167,17 @@ assert.equal(
 );
 
 assert.equal(
-  schemaSql.includes("ag_work_resume_proof_evidence_recording_links"),
-  false,
-  "lib/db/schema.sql should not implement the bridge table in this design-only PR",
+  pkg.scripts?.[
+    "smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema"
+  ],
+  "node scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
+  "package.json should register the bridge table schema smoke",
+);
+
+assert.equal(
+  schemaSql.includes("CREATE TABLE IF NOT EXISTS ag_work_resume_proof_evidence_recording_links"),
+  true,
+  "lib/db/schema.sql should implement the bridge table in the schema-only PR",
 );
 
 assert.ok(
@@ -187,7 +196,9 @@ const allowedChangedFiles = new Set([
   sessionCodexGatePath,
   reconciliationDesignPath,
   lifecycleDocPath,
+  schemaPath,
   packagePath,
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
@@ -209,8 +220,8 @@ assert.deepEqual(
 
 assert.equal(
   changedFiles.includes(schemaPath),
-  false,
-  "lib/db/schema.sql must not be changed by the migration policy PR",
+  true,
+  "lib/db/schema.sql should be changed by the schema-only implementation PR",
 );
 
 const migrationFiles = changedFiles.filter(isMigrationFile);
@@ -224,7 +235,6 @@ const forbiddenChangedPrefixes = [
   "app/",
   "app/api/",
   "components/",
-  "lib/",
   "pages/",
   "public/",
   "migrations/",
@@ -232,13 +242,15 @@ const forbiddenChangedPrefixes = [
   "apps/",
   "reports/browser/",
 ];
-const runtimeSchemaOrBrowserChanged = changedFiles.filter((file) =>
-  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)),
+const runtimeSchemaOrBrowserChanged = changedFiles.filter(
+  (file) =>
+    forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
+    (file.startsWith("lib/") && file !== schemaPath),
 );
 assert.deepEqual(
   runtimeSchemaOrBrowserChanged,
   [],
-  "migration policy PR should not change runtime/schema/migration/writer/helper/route/UI/browser files",
+  "schema-only PR should not change runtime/migration/writer/helper/route/UI/browser files",
 );
 
 console.log(
@@ -247,9 +259,9 @@ console.log(
       smoke:
         "ag-work-resume-proof-evidence-recording-bridge-table-migration-policy",
       migration_policy_doc_exists: true,
-      design_only_boundary: true,
-      proposed_create_table_documented_not_implemented: true,
-      schema_sql_unchanged: true,
+      schema_only_boundary: true,
+      proposed_create_table_documented: true,
+      schema_sql_implements_bridge_table: true,
       no_migration_files_added: true,
       table_name: "ag_work_resume_proof_evidence_recording_links",
       key_constraints_documented: true,

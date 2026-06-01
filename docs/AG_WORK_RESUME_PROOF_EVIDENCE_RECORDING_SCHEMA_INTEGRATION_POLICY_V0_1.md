@@ -71,6 +71,11 @@ It is design-only and does not add schema/migration, modify
 `lib/db/schema.sql`, add migration files, create the bridge table, create
 bridge/evidence/action rows, or authorize actual recording.
 
+The schema-only bridge table implementation adds
+`ag_work_resume_proof_evidence_recording_links` and its indexes to
+`lib/db/schema.sql`. It is schema-only: it creates no bridge/evidence/action
+rows, adds no writer/helper/route/UI, and does not authorize actual recording.
+
 ## Why This Is The First Path
 
 The first path should not mutate candidate rows to mark recording, because

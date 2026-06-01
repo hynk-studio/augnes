@@ -302,6 +302,12 @@ It is design-only and does not authorize schema, migration, `lib/db/schema.sql`
 changes, migration files, bridge table creation, verification evidence row
 creation, action record creation, or actual proof/evidence recording by itself.
 
+The schema-only bridge table implementation adds
+`ag_work_resume_proof_evidence_recording_links` to `lib/db/schema.sql` as an
+empty table with indexes. It does not create bridge rows, evidence rows, action
+records, session bindings, work items/events, or actual proof/evidence
+recording authority.
+
 ## Required Preconditions Before Actual Proof/Evidence Recording
 
 - user/Core explicit authorization

@@ -15,6 +15,7 @@ const bridgeMigrationPolicyPath =
 const authorityGatePath =
   "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md";
 const packagePath = "package.json";
+const schemaPath = "lib/db/schema.sql";
 
 for (const path of [
   closeoutPath,
@@ -161,7 +162,9 @@ const allowedChangedFiles = new Set([
   bridgeDesignPath,
   bridgeMigrationPolicyPath,
   authorityGatePath,
+  schemaPath,
   "package.json",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
@@ -189,7 +192,6 @@ const forbiddenChangedPrefixes = [
   "app/",
   "app/api/",
   "components/",
-  "lib/",
   "pages/",
   "public/",
   "migrations/",
@@ -197,12 +199,13 @@ const forbiddenChangedPrefixes = [
   "apps/",
 ];
 const runtimeOrSchemaChanged = changedFiles.filter((file) =>
-  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)),
+  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
+  (file.startsWith("lib/") && file !== schemaPath),
 );
 assert.deepEqual(
   runtimeOrSchemaChanged,
   [],
-  "closeout PR should not change route/helper/UI/runtime/schema files",
+  "closeout follow-up should not change route/helper/UI/runtime files outside schema.sql",
 );
 
 const unexpectedDiffFiles = diffChangedFiles.filter(

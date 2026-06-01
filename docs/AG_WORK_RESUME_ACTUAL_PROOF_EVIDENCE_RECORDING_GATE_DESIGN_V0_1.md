@@ -291,6 +291,12 @@ without adding schema/migration, modifying `lib/db/schema.sql`, adding
 migration files, creating the bridge table, creating verification evidence
 rows, creating action records, or authorizing actual proof/evidence recording.
 
+The schema-only bridge table implementation adds the empty
+`ag_work_resume_proof_evidence_recording_links` table and indexes to
+`lib/db/schema.sql`. It does not add a recording writer, does not create
+verification evidence rows, does not create action records, and does not
+authorize actual proof/evidence recording.
+
 ## Future Route/Helper/UI Implementation Sequence
 
 Later PRs should stay split and reviewable:

@@ -135,6 +135,12 @@ add migration files, create the bridge table, create bridge/evidence/action
 rows, bind sessions, continue Codex, or grant approval/publish/retry/replay/merge
 authority.
 
+The schema-only bridge table implementation adds
+`ag_work_resume_proof_evidence_recording_links` to `lib/db/schema.sql` as an
+empty table with indexes. It does not create bridge/evidence/action rows, bind
+sessions, continue Codex, add writer/helper/route/UI behavior, or grant
+approval/publish/retry/replay/merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.

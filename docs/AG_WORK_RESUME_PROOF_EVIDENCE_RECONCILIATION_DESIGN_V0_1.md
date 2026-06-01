@@ -127,6 +127,13 @@ creating the bridge table, creating evidence/action records, mutating
 candidates, binding sessions, continuing Codex, or granting
 approval/publish/retry/replay/merge authority.
 
+The schema-only bridge table implementation adds
+`ag_work_resume_proof_evidence_recording_links` to `lib/db/schema.sql` as an
+empty table with indexes. It does not record proof/evidence, does not create
+evidence/action rows, does not mutate candidates, does not bind sessions, does
+not continue Codex, and does not grant approval/publish/retry/replay/merge
+authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

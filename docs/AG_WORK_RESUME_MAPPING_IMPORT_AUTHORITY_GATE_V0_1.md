@@ -65,6 +65,12 @@ evidence row creation, action record creation, session binding, Codex
 continuation, approval, publish, retry, replay, merge, auto-merge, or
 committed-state authority.
 
+Proof/evidence recording bridge-table schema-only implementation pointer:
+`ag_work_resume_proof_evidence_recording_links` now exists as an empty
+schema/index table in `lib/db/schema.sql`. It is not an import, not
+proof/evidence recording, not a writer/helper/route/UI, not session binding,
+not Codex continuation, and not approval/publish/retry/replay/merge authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:
