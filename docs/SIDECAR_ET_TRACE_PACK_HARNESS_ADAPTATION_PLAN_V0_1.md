@@ -219,7 +219,7 @@ implementation option.
 
 ## 8. Future Validation Plan Commands
 
-For this docs-only planning PR, run:
+Required validation for this docs-only Strategy C planning PR:
 
 - `npm run typecheck`
 - `npm run build`
@@ -228,9 +228,16 @@ For this docs-only planning PR, run:
 - `npm run smoke:sidecar-et-runtime-boundaries`
 - `npm run smoke:cockpit-perspective-snapshot`
 - `npm run smoke:sidecar-et-fixture-boundaries`
-- `npm run smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema`
 - `git diff --check`
 - `git diff --cached --check`
+
+AG Resume bridge-table guard check:
+
+- Run `npm run smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema`
+  on a clean PR #341/main baseline or with Sidecar docs stashed, because the
+  smoke has an AG-schema-PR-specific changed-file allowlist.
+- Record PASS or the non-applicable reason.
+- Do not change the AG smoke allowlist from this Sidecar docs PR.
 
 For a future Strategy C implementation PR, add the new harness-specific
 validation commands only after their scope, names, inputs, and authority
