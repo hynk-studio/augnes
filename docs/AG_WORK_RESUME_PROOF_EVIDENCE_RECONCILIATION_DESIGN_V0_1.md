@@ -134,6 +134,14 @@ evidence/action rows, does not mutate candidates, does not bind sessions, does
 not continue Codex, and does not grant approval/publish/retry/replay/merge
 authority.
 
+The proof/evidence recording writer/helper gate is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+It is design-only and defines a future helper contract for one separately
+approved candidate-to-verification-evidence recording attempt. It does not
+implement a writer/helper, route/UI, bridge row creation, verification evidence
+row creation, action record creation, candidate mutation, session binding,
+Codex continuation, or approval/publish/retry/replay/merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

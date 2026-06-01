@@ -369,6 +369,8 @@ function assertNoUnexpectedChangedFiles() {
     bridgeTableMigrationPolicySmokeRelativePath,
     bridgeTableSchemaSmokeRelativePath,
     reviewMetadataCloseoutSmokeRelativePath,
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
@@ -465,6 +467,7 @@ function assertNoForbiddenImplementationCode() {
       file !== bridgeTableMigrationPolicySmokeRelativePath &&
       file !== bridgeTableSchemaSmokeRelativePath &&
       file !== reviewMetadataCloseoutSmokeRelativePath &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&

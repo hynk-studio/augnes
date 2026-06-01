@@ -71,6 +71,14 @@ schema/index table in `lib/db/schema.sql`. It is not an import, not
 proof/evidence recording, not a writer/helper/route/UI, not session binding,
 not Codex continuation, and not approval/publish/retry/replay/merge authority.
 
+Proof/evidence recording writer/helper gate design pointer:
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`
+defines the future local writer/helper contract for one separately approved
+recording attempt. It is design-only and adds no writer/helper implementation,
+route/UI, bridge row creation, verification evidence row creation, action
+record creation, session binding, Codex continuation, or approval/publish/retry/replay/merge
+authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:

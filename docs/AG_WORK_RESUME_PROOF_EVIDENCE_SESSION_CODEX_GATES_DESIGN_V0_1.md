@@ -141,6 +141,14 @@ empty table with indexes. It does not create bridge/evidence/action rows, bind
 sessions, continue Codex, add writer/helper/route/UI behavior, or grant
 approval/publish/retry/replay/merge authority.
 
+The proof/evidence recording writer/helper gate is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+It is design-only and defines the future helper contract for one separately
+approved candidate-to-evidence recording attempt. It does not implement a
+writer/helper, route/UI, bridge row creation, verification evidence row
+creation, action record creation, session binding, Codex continuation, or
+approval/publish/retry/replay/merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.

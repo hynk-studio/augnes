@@ -794,6 +794,8 @@ function assertNoUnexpectedChangedFiles() {
     reconciliationDesignPath,
     lifecycleDocPath,
     "package.json",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
     smokeRelativePath,
     "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",

@@ -148,6 +148,13 @@ empty table with indexes. It does not mutate reconciliation candidate rows,
 does not create bridge/evidence/action rows, and does not authorize actual
 recording.
 
+The proof/evidence recording writer/helper gate is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+That design is not recording authority. It does not implement a writer/helper,
+route/UI, bridge row creation, verification evidence row creation, action
+record creation, reconciliation candidate mutation, session binding, Codex
+continuation, or approval/publish/retry/replay/merge authority.
+
 ## Allowed Transitions
 
 Allowed lifecycle transitions:
