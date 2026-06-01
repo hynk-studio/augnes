@@ -39,6 +39,14 @@ design remains non-implementation and adds no schema, migration, runtime
 behavior, writer/helper/route/UI, proof/evidence, session, Codex, approval,
 publish, retry, replay, or merge authority.
 
+The implemented read-only helper/GET route is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`, and the later read-only
+Cockpit Operator review panel is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`. Both read
+existing imported context review metadata only and grant no proof/evidence,
+session, Codex, work item/event, confirmed mapping/proposal mutation,
+approval, publish, retry, replay, or merge authority.
+
 Imported context is not proof/evidence. It is not committed state authority.
 It is not approval. It does not authorize publish, retry, replay, or merge. It
 does not bind sessions. It does not start or continue Codex. Any future Codex

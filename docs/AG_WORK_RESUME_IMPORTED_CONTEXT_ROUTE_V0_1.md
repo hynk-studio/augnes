@@ -18,6 +18,13 @@ The later read helper/GET route is documented separately in
 `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`; it preserves this POST
 create behavior and route id.
 
+The later read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`. It calls
+only the GET read route, does not call the writer route, and grants no
+create/update/delete, lifecycle, proof/evidence, session, Codex,
+work item/event, confirmed mapping/proposal mutation, approval, publish,
+retry, replay, or merge authority.
+
 ## Route
 
 Endpoint:
@@ -115,6 +122,9 @@ false.
 - Read helper/GET route is separately documented in
   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md` and preserves this POST
   create route.
+- Read-only Cockpit review panel is separately documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md` and uses
+  only the GET read route.
 - No schema or migration.
 - No proof/evidence recording.
 - No session binding.

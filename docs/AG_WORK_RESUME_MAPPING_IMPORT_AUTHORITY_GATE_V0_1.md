@@ -283,6 +283,12 @@ PRs:
   mutation, Cockpit UI, schema/migration, proof/evidence, session binding,
   Codex execution, work item/event creation, confirmed mapping/proposal
   mutation, approval, publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md` documents
+  the later read-only Cockpit Operator panel; it calls only the existing GET
+  imported context route and adds no create/update/delete, lifecycle,
+  proof/evidence, session binding, Codex execution, work item/event creation,
+  confirmed mapping/proposal mutation, schema/migration, approval, publish,
+  retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

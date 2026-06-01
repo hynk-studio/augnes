@@ -42,6 +42,13 @@ and grants no imported context creation, update, delete, lifecycle mutation,
 proof/evidence, session, Codex, work item/event, confirmed mapping/proposal
 mutation, approval, publish, retry, replay, or merge authority.
 
+The later read-only Cockpit Operator panel is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`. It calls
+only the imported context GET route and does not change this writer/helper,
+the POST create route, schema, proof/evidence, session, Codex, work,
+confirmed mapping/proposal, approval, publish, retry, replay, or merge
+behavior.
+
 ## Core API
 
 Core module:
