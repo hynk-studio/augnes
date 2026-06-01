@@ -226,6 +226,18 @@ Manifest appendix pointer:
   computation, schema/API changes, Cockpit behavior, proof/evidence/readiness
   writes, QP evidence, `z_t` commits, or CI enforcement.
 
+Fixture-boundary design pointer:
+
+- `docs/SIDECAR_ET_TRACE_PACK_FIXTURE_BOUNDARY_DESIGN_V0_1.md` records the
+  docs-only fixture-boundary design for possible future trace-pack fixture
+  adaptation. It defines safe input boundaries, allowed low-cardinality
+  vocabulary, candidate validation assertions, non-authority label rules, AG
+  Resume bridge safety, and future implementation gates. It does not import
+  fixtures, manifest JSON, harness scripts, helper logic, package scripts,
+  thresholds as runtime policy, runtime computation, schema/API changes,
+  Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
+  commits, AG Resume bridge-table behavior, or CI enforcement.
+
 ## 8. Future Validation Plan Commands
 
 Required validation for this docs-only Strategy C planning PR:
