@@ -71,6 +71,11 @@ The candidate DB/schema design in
 adds no schema implementation, migration, runtime behavior, writer/helper
 behavior, proof/evidence recording, session binding, Codex behavior, approval,
 publish, retry, replay, or merge authority.
+The candidate DB/schema implementation in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
+creates only a future candidate table and indexes; it adds no imported context
+writer/helper behavior, proof/evidence recording, session binding, Codex
+behavior, approval, publish, retry, replay, or merge authority.
 
 ## Core API
 

@@ -11,12 +11,17 @@ const smokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
 const candidateSchemaSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs";
+const candidateSchemaImplementationSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs";
 const gateSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs";
+const schemaRelativePath = "lib/db/schema.sql";
 const designDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md";
 const candidateSchemaDesignDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md";
+const candidateSchemaImplementationDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
@@ -33,6 +38,9 @@ for (const file of [
   smokePath,
   designDocPath,
   packagePath,
+  path.join(rootDir, schemaRelativePath),
+  path.join(rootDir, candidateSchemaImplementationDocRelativePath),
+  path.join(rootDir, candidateSchemaImplementationSmokeRelativePath),
   path.join(rootDir, gateSmokeRelativePath),
   ...pointerDocRelativePaths.map((relativePath) => path.join(rootDir, relativePath)),
 ]) {
@@ -290,9 +298,9 @@ console.log(
         "doc requires actor and reason",
         "doc forbids session/Codex/merge authority",
         "related docs point to proof/evidence reconciliation design",
-        "changed files are limited to docs, package.json, new reconciliation smoke, and gate-smoke pointer compatibility",
-        "no app/components/lib/schema/migration/apps/browser report files changed",
-        "no implementation code changed for proof/evidence/session/Codex behavior",
+        "changed files are limited to docs, package.json, schema foundation, schema smoke, and design-smoke compatibility",
+        "no app/components/runtime/migration/apps/browser report files changed",
+        "no runtime implementation code changed for proof/evidence/session/Codex behavior outside schema.sql",
       ],
     },
     null,
@@ -305,9 +313,12 @@ function assertNoUnexpectedChangedFiles() {
   const allowedFiles = new Set([
     designDocRelativePath,
     candidateSchemaDesignDocRelativePath,
+    candidateSchemaImplementationDocRelativePath,
     smokeRelativePath,
     candidateSchemaSmokeRelativePath,
+    candidateSchemaImplementationSmokeRelativePath,
     gateSmokeRelativePath,
+    schemaRelativePath,
     "package.json",
     ...pointerDocRelativePaths,
   ]);
@@ -326,11 +337,15 @@ function assertNoUnexpectedChangedFiles() {
       `changed file is outside the design-only reconciliation slice: ${file}`,
     );
     assert.equal(
-      forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      file !== schemaRelativePath &&
+        forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
-      `design-only reconciliation slice must not touch runtime/UI/schema/app/browser files: ${file}`,
+      `reconciliation follow-up must not touch runtime/UI/app/browser files: ${file}`,
     );
-    assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
+    assert.ok(
+      file === schemaRelativePath || !file.startsWith("lib/"),
+      `lib changes are limited to ${schemaRelativePath}: ${file}`,
+    );
   }
 }
 
@@ -339,8 +354,10 @@ function assertNoForbiddenImplementationCode() {
     (file) =>
       !file.startsWith("docs/") &&
       file !== "package.json" &&
+      file !== schemaRelativePath &&
       file !== smokeRelativePath &&
       file !== candidateSchemaSmokeRelativePath &&
+      file !== candidateSchemaImplementationSmokeRelativePath &&
       file !== gateSmokeRelativePath,
   );
   assert.deepEqual(

@@ -36,6 +36,7 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
@@ -57,6 +58,11 @@ The candidate DB/schema design is documented in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`;
 it adds no schema implementation, migration, runtime behavior, or read
 helper/GET route behavior.
+The candidate DB/schema implementation is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`;
+it creates only a future candidate table and indexes, and it adds no read
+helper/GET route behavior, proof/evidence recording, session binding, Codex
+behavior, or approval, publish, retry, replay, or merge authority.
 
 ## Read Filters
 

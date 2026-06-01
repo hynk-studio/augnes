@@ -414,6 +414,83 @@ CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_status_time
 CREATE INDEX IF NOT EXISTS idx_ag_imported_contexts_created_by_time
   ON ag_work_resume_imported_contexts(created_by, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS ag_work_resume_proof_evidence_reconciliation_candidates (
+  candidate_id TEXT PRIMARY KEY,
+  record_kind TEXT NOT NULL CHECK (
+    record_kind = 'ag_work_resume_proof_evidence_reconciliation_candidate'
+  ),
+  schema TEXT NOT NULL CHECK (
+    schema = 'augnes.ag_work_resume_proof_evidence_reconciliation_candidate.v0_1'
+  ),
+  status TEXT NOT NULL CHECK (
+    status IN (
+      'proposed',
+      'accepted_for_future_recording',
+      'rejected',
+      'deferred',
+      'superseded',
+      'withdrawn',
+      'revoked'
+    )
+  ),
+  import_id TEXT NOT NULL,
+  mapping_id TEXT NOT NULL,
+  foreign_ref_type TEXT NOT NULL CHECK (
+    foreign_ref_type IN (
+      'proof',
+      'evidence',
+      'action',
+      'session',
+      'git',
+      'evidence_pack',
+      'handoff',
+      'other'
+    )
+  ),
+  foreign_ref_id TEXT NOT NULL,
+  local_target_scope TEXT NOT NULL,
+  local_target_work_id TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  redaction_status TEXT NOT NULL DEFAULT '{}',
+  proposed_by TEXT NOT NULL,
+  proposed_reason TEXT NOT NULL,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_note TEXT,
+  supersedes_candidate_id TEXT,
+  superseded_by_candidate_id TEXT,
+  authority_boundary TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_import_time
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(import_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_mapping_time
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(mapping_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_foreign_ref
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(foreign_ref_type, foreign_ref_id);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_local_target_time
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(local_target_scope, local_target_work_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_status_time
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_proposed_by_time
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(proposed_by, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_reviewed_by_time
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(reviewed_by, reviewed_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_supersedes
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(supersedes_candidate_id);
+
+CREATE INDEX IF NOT EXISTS idx_ag_reconciliation_candidates_superseded_by
+  ON ag_work_resume_proof_evidence_reconciliation_candidates(superseded_by_candidate_id);
+
 CREATE TABLE IF NOT EXISTS handoffs (
   handoff_id TEXT PRIMARY KEY,
   scope TEXT NOT NULL DEFAULT 'project:augnes',

@@ -28,6 +28,7 @@ Related documents:
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
 
 The read-only Cockpit panel remains separate and uses only GET. This create
 panel does not change read route behavior.
@@ -45,6 +46,11 @@ not change this create panel or POST route.
 The candidate DB/schema design in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
 adds no schema implementation, migration, runtime behavior, or panel change.
+The candidate DB/schema implementation in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
+creates only a future candidate table and indexes; it adds no panel change,
+route behavior, proof/evidence recording, session binding, Codex behavior, or
+approval, publish, retry, replay, or merge authority.
 
 ## Allowed UI
 

@@ -13,12 +13,17 @@ const reconciliationSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs";
 const candidateSchemaSmokeRelativePath =
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs";
+const candidateSchemaImplementationSmokeRelativePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs";
+const schemaRelativePath = "lib/db/schema.sql";
 const designDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md";
 const reconciliationDesignDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md";
 const candidateSchemaDesignDocRelativePath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md";
+const candidateSchemaImplementationDocRelativePath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md";
 const designDocPath = path.join(rootDir, designDocRelativePath);
 const packagePath = path.join(rootDir, "package.json");
 const pointerDocRelativePaths = [
@@ -35,6 +40,9 @@ for (const file of [
   smokePath,
   designDocPath,
   packagePath,
+  path.join(rootDir, schemaRelativePath),
+  path.join(rootDir, candidateSchemaImplementationDocRelativePath),
+  path.join(rootDir, candidateSchemaImplementationSmokeRelativePath),
   ...pointerDocRelativePaths.map((relativePath) => path.join(rootDir, relativePath)),
 ]) {
   assert.ok(existsSync(file), `${file} must exist`);
@@ -292,9 +300,9 @@ console.log(
         "doc requires user/Core actor and reason for future gates",
         "doc keeps approval/publish/retry/replay/merge separate",
         "related docs point to gate design doc",
-        "changed files are limited to docs, package.json, and the design smoke",
-        "no app/components/lib/schema/migration/apps/browser report files changed",
-        "no implementation code changed for proof/evidence/session/Codex behavior",
+        "changed files are limited to docs, package.json, schema foundation, schema smoke, and design-smoke compatibility",
+        "no app/components/runtime/migration/apps/browser report files changed",
+        "no runtime implementation code changed for proof/evidence/session/Codex behavior outside schema.sql",
       ],
     },
     null,
@@ -308,9 +316,12 @@ function assertNoUnexpectedChangedFiles() {
     designDocRelativePath,
     reconciliationDesignDocRelativePath,
     candidateSchemaDesignDocRelativePath,
+    candidateSchemaImplementationDocRelativePath,
     smokeRelativePath,
     reconciliationSmokeRelativePath,
     candidateSchemaSmokeRelativePath,
+    candidateSchemaImplementationSmokeRelativePath,
+    schemaRelativePath,
     "package.json",
     ...pointerDocRelativePaths,
   ]);
@@ -329,11 +340,15 @@ function assertNoUnexpectedChangedFiles() {
       `changed file is outside the design-only gate slice: ${file}`,
     );
     assert.equal(
-      forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
+      file !== schemaRelativePath &&
+        forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
-      `design-only gate slice must not touch runtime/UI/schema/app/browser files: ${file}`,
+      `gate follow-up must not touch runtime/UI/app/browser files: ${file}`,
     );
-    assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
+    assert.ok(
+      file === schemaRelativePath || !file.startsWith("lib/"),
+      `lib changes are limited to ${schemaRelativePath}: ${file}`,
+    );
   }
 }
 
@@ -342,9 +357,11 @@ function assertNoForbiddenImplementationCode() {
     (file) =>
       !file.startsWith("docs/") &&
       file !== "package.json" &&
+      file !== schemaRelativePath &&
       file !== smokeRelativePath &&
       file !== reconciliationSmokeRelativePath &&
       file !== candidateSchemaSmokeRelativePath &&
+      file !== candidateSchemaImplementationSmokeRelativePath &&
       !file.startsWith("scripts/smoke-ag-work-resume-imported-context"),
   );
   assert.deepEqual(
