@@ -164,6 +164,16 @@ If any gate is unclear, keep the original repo at docs/reference-only planning
 and do not import fixtures, manifest JSON, harness scripts, helper logic, or
 runtime computation.
 
+Descriptor/naming plan pointer:
+
+- `docs/SIDECAR_ET_TRACE_PACK_FIXTURE_DESCRIPTOR_VALIDATION_PLAN_V0_1.md`
+  records docs-only descriptor candidates, validation naming proposals, future
+  changed-file boundaries, and decision gates before any fixture import. It
+  does not import fixtures, manifest JSON, harness scripts, helper logic,
+  package scripts, thresholds as runtime policy, runtime computation,
+  schema/API changes, Cockpit behavior, proof/evidence/readiness writes, QP
+  evidence, `z_t` commits, AG Resume bridge-table behavior, or CI enforcement.
+
 ## 8. Browser/Computer-Use Note
 
 Browser/computer-use validation is skipped for this PR because the change is

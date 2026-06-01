@@ -237,6 +237,13 @@ Fixture-boundary design pointer:
   thresholds as runtime policy, runtime computation, schema/API changes,
   Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
   commits, AG Resume bridge-table behavior, or CI enforcement.
+- `docs/SIDECAR_ET_TRACE_PACK_FIXTURE_DESCRIPTOR_VALIDATION_PLAN_V0_1.md`
+  records docs-only descriptor candidates, safest first subset, validation
+  naming proposals, and future changed-file boundaries. It does not import
+  fixtures, manifest JSON, harness scripts, helper logic, package scripts,
+  thresholds as runtime policy, runtime computation, schema/API changes,
+  Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
+  commits, AG Resume bridge-table behavior, or CI enforcement.
 
 ## 8. Future Validation Plan Commands
 
