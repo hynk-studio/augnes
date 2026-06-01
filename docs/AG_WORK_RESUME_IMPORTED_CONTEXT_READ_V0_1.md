@@ -38,6 +38,7 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
@@ -77,6 +78,13 @@ review metadata rows only. It does not change this imported context read
 helper/GET route, add Cockpit UI, record proof/evidence, bind sessions, execute
 Codex, create work items/events, mutate imported contexts, confirmed mappings,
 or proposals, or grant approval, publish, retry, replay, or merge authority.
+The candidate read helper/GET route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`;
+it reads reconciliation candidate review metadata only. It does not change
+this imported context read helper/GET route, record proof/evidence, bind
+sessions, execute Codex, create work items/events, mutate imported contexts,
+confirmed mappings, or proposals, or grant approval, publish, retry, replay,
+or merge authority.
 
 ## Read Filters
 

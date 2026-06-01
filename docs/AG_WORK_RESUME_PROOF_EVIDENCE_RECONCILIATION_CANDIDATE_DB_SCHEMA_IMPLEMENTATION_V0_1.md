@@ -8,8 +8,11 @@ reconciliation candidate review metadata.
 
 This is schema foundation only.
 
-This schema foundation adds no candidate writer/helper, no candidate read
-helper/route, no Cockpit UI, no proof/evidence recording, no session binding,
+This schema foundation originally added no candidate writer/helper and no
+candidate read helper/route. Later candidate writer/helper, create route, and
+read helper/GET route slices are documented separately and do not change this
+schema foundation. This schema foundation adds no Cockpit UI, no
+proof/evidence recording, no session binding,
 no Codex execution or continuation, no work item or work event creation, no
 imported context mutation, no confirmed mapping mutation, no proposal
 mutation, no ChatGPT App/MCP/App schema, no bridge tool, no Direct Resume
@@ -122,6 +125,13 @@ Future writer validation must require:
 - actor is present
 - reason is present
 - duplicate candidate policy is explicitly designed and enforced
+
+The candidate read helper/GET route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`.
+It reads candidate review metadata only and does not change this schema
+foundation, record proof/evidence, bind sessions, execute Codex, create work
+items/events, mutate imported contexts, confirmed mappings, or proposals, or
+grant approval, publish, retry, replay, or merge authority.
 
 ## Idempotent Migration Behavior
 

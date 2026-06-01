@@ -34,6 +34,11 @@ It does not change writer validation, schema, imported context behavior,
 proof/evidence reconciliation authority, session binding, Codex continuation,
 approval, publish, retry, replay, or merge behavior.
 
+The later read-only GET route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`.
+It lists or fetches candidate review metadata only and preserves this existing
+POST create route behavior.
+
 ## Route
 
 Endpoint:
@@ -124,7 +129,7 @@ proof/evidence/session/Codex/merge authority.
 
 - No Cockpit UI.
 - No schema or migration.
-- No read route.
+- No POST behavior change from the read helper/GET route slice.
 - No proof/evidence recording.
 - No evidence recording.
 - No session binding.
@@ -153,6 +158,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-read
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-route
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-writer
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema
@@ -165,4 +171,6 @@ npm run smoke:ag-work-resume-mapping-import-authority-gate
 git diff --check
 git diff --cached --check
 node --check scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs
+node --check scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs
+node --check scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs
 ```

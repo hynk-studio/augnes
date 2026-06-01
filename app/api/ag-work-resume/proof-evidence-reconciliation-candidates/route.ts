@@ -2,12 +2,18 @@ import {
   createAgWorkResumeProofEvidenceReconciliationCandidate,
   type AgWorkResumeProofEvidenceReconciliationCandidateCreateResult,
 } from "@/lib/ag-work-resume-proof-evidence-reconciliation-candidate";
+import {
+  readAgWorkResumeProofEvidenceReconciliationCandidates,
+  type AgWorkResumeProofEvidenceReconciliationCandidateReadInput,
+} from "@/lib/ag-work-resume-proof-evidence-reconciliation-candidate-read";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROUTE_ID = "ag_work_resume_proof_evidence_reconciliation_candidates.v0_1";
+const READ_ROUTE_ID =
+  "ag_work_resume_proof_evidence_reconciliation_candidate_read.v0_1";
 const SUPPORTED_BODY_FIELDS = new Set([
   "import_id",
   "mapping_id",
@@ -20,6 +26,19 @@ const SUPPORTED_BODY_FIELDS = new Set([
   "proposed_by",
   "proposed_reason",
   "created_at",
+]);
+const READ_QUERY_PARAMS = new Set([
+  "candidate_id",
+  "import_id",
+  "mapping_id",
+  "foreign_ref_type",
+  "foreign_ref_id",
+  "local_target_scope",
+  "local_target_work_id",
+  "status",
+  "proposed_by",
+  "reviewed_by",
+  "limit",
 ]);
 
 type ReconciliationCandidateRouteBody = {
@@ -69,6 +88,59 @@ export async function POST(request: Request) {
     },
     { status: statusForResult(result) },
   );
+}
+
+export function GET(request: Request) {
+  if (request.body !== null) {
+    return badReadRequest(
+      "GET reconciliation candidate reads do not accept a body.",
+    );
+  }
+
+  const { searchParams } = new URL(request.url);
+  const input = parseReadQuery(searchParams);
+  if ("error" in input) return badReadRequest(input.error);
+
+  const result = readAgWorkResumeProofEvidenceReconciliationCandidates(input);
+
+  return NextResponse.json(
+    {
+      ok: result.ok,
+      route: READ_ROUTE_ID,
+      result,
+      authority_boundary: result.authority_boundary,
+      recommended_next_step:
+        "User/Core may review reconciliation candidate metadata. This read route is not proof/evidence recording, session binding, Codex execution authority, work item/event creation, approval, publish, retry, replay, or merge authority.",
+    },
+    { status: statusForReadResult(result.status) },
+  );
+}
+
+function parseReadQuery(
+  searchParams: URLSearchParams,
+): AgWorkResumeProofEvidenceReconciliationCandidateReadInput | { error: string } {
+  for (const key of searchParams.keys()) {
+    if (!READ_QUERY_PARAMS.has(key)) {
+      return { error: `Unsupported read query parameter: ${key}.` };
+    }
+    if (searchParams.getAll(key).length > 1) {
+      return { error: `Read query parameter must not be repeated: ${key}.` };
+    }
+  }
+
+  return {
+    candidate_id: searchParams.get("candidate_id"),
+    import_id: searchParams.get("import_id"),
+    mapping_id: searchParams.get("mapping_id"),
+    foreign_ref_type: searchParams.get("foreign_ref_type"),
+    foreign_ref_id: searchParams.get("foreign_ref_id"),
+    local_target_scope: searchParams.get("local_target_scope"),
+    local_target_work_id: searchParams.get("local_target_work_id"),
+    status: searchParams.get("status"),
+    proposed_by: searchParams.get("proposed_by"),
+    reviewed_by: searchParams.get("reviewed_by"),
+    limit: searchParams.get("limit"),
+  };
 }
 
 async function parseBody(
@@ -133,6 +205,13 @@ function statusForResult(
   return 500;
 }
 
+function statusForReadResult(status: string) {
+  if (status === "fetched" || status === "listed") return 200;
+  if (status === "invalid_input") return 400;
+  if (status === "not_found") return 404;
+  return 500;
+}
+
 function badRequest(error: string) {
   return NextResponse.json(
     {
@@ -141,6 +220,19 @@ function badRequest(error: string) {
       error,
       recommended_next_step:
         "Stop. Provide valid AG Resume proof/evidence reconciliation candidate creation JSON.",
+    },
+    { status: 400 },
+  );
+}
+
+function badReadRequest(error: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      route: READ_ROUTE_ID,
+      error,
+      recommended_next_step:
+        "Stop. Provide supported AG Resume proof/evidence reconciliation candidate read query parameters only.",
     },
     { status: 400 },
   );

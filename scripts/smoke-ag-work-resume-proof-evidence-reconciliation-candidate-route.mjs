@@ -117,9 +117,10 @@ try {
   const { createAgWorkResumeImportedContext } = await import(
     "../lib/ag-work-resume-imported-context.ts"
   );
-  const { POST } = await import(
+  const { GET, POST } = await import(
     "../app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts"
   );
+  assert.equal(typeof GET, "function", "candidate route must expose GET");
   assert.equal(typeof POST, "function", "candidate route must expose POST");
 
   const fixtures = {
@@ -522,7 +523,7 @@ try {
         temp_db_path: dbPath,
         cases: [
           "package script is present",
-          "route source imports only candidate writer core and NextResponse",
+          "route source imports candidate writer/read cores and NextResponse",
           "docs and pointer guards pass",
           "route creates proposed candidate from imported context",
           "omitted mapping_id derives from imported context",
@@ -577,6 +578,10 @@ function assertSourceGuards() {
     "route must call candidate writer core",
   );
   assert.match(routeSource, /from "@\/lib\/ag-work-resume-proof-evidence-reconciliation-candidate"/);
+  assert.match(
+    routeSource,
+    /from "@\/lib\/ag-work-resume-proof-evidence-reconciliation-candidate-read"/,
+  );
   assert.match(routeSource, /from "next\/server"/);
   assert.doesNotMatch(
     routeSource,
@@ -592,8 +597,8 @@ function assertSourceGuards() {
   );
   assert.doesNotMatch(
     routeSource,
-    /\b(GET|PUT|PATCH|DELETE)\s*\(/,
-    "candidate route must not add read/update/delete handlers",
+    /\b(PUT|PATCH|DELETE)\s*\(/,
+    "candidate route must not add update/delete handlers",
   );
   assert.match(
     writerSource,
@@ -635,6 +640,10 @@ function assertNoUnexpectedChangedFiles() {
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md",
@@ -669,7 +678,11 @@ function assertNoUnexpectedChangedFiles() {
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
     assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
-    assert.equal(file.startsWith("lib/"), false, `no lib runtime changes in route slice: ${file}`);
+    assert.ok(
+      file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
+        !file.startsWith("lib/"),
+      `lib changes limited to candidate read core: ${file}`,
+    );
   }
 }
 

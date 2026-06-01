@@ -636,6 +636,10 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     "package.json",
   ]);
@@ -654,8 +658,9 @@ function assertNoUnexpectedChangedFiles() {
     );
     assert.ok(
       file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate.ts" ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
         !file.startsWith("lib/"),
-      `lib changes are limited to new candidate writer core: ${file}`,
+      `lib changes are limited to candidate writer/read core: ${file}`,
     );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.equal(

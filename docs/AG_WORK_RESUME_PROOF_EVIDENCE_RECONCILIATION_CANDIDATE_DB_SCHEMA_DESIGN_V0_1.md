@@ -140,7 +140,15 @@ publish, retry, replay, or merge authority.
 The candidate create route is documented in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md`.
 It delegates to the writer core and creates candidate review metadata rows
-only. It adds no Cockpit UI, read route, schema/migration, proof/evidence
+only. It adds no Cockpit UI, schema/migration, proof/evidence recording,
+session binding, Codex behavior, work item/event creation, imported
+context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
+or merge authority.
+
+The candidate read helper/GET route is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`.
+It lists or fetches candidate review metadata only and preserves the existing
+POST create route. It adds no Cockpit UI, schema/migration, proof/evidence
 recording, session binding, Codex behavior, work item/event creation, imported
 context/confirmed mapping/proposal mutation, approval, publish, retry, replay,
 or merge authority.

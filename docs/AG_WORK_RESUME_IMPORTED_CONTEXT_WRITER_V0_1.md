@@ -90,6 +90,12 @@ review metadata rows only. It does not change this imported context
 writer/helper, add Cockpit UI, record proof/evidence, bind sessions, execute
 Codex, create work items/events, mutate imported contexts, confirmed mappings,
 or proposals, or grant approval, publish, retry, replay, or merge authority.
+The candidate read helper/GET route in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md`
+reads reconciliation candidate review metadata only. It does not change this
+imported context writer/helper, record proof/evidence, bind sessions, execute
+Codex, create work items/events, mutate imported contexts, confirmed mappings,
+or proposals, or grant approval, publish, retry, replay, or merge authority.
 
 ## Core API
 

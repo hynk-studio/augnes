@@ -118,7 +118,7 @@ try {
           "lookup indexes exist",
           "db:migrate is idempotent",
           "migration creates no proof/evidence/session/Codex/work/imported-context/confirmed-mapping/proposal rows",
-          "no candidate read helper/route/UI files exist",
+    "no forbidden legacy candidate route/UI files exist",
           "schema smoke uses direct DB insert only for schema validation, not runtime writer behavior",
           "source guard limits changed files to schema, docs, package, smoke, writer/helper, route, and narrow design-smoke compatibility",
         ],
@@ -446,8 +446,6 @@ function assertDocs() {
 
 function assertNoCandidateReadRouteUi() {
   for (const relativePath of [
-    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
-    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "app/api/ag-work-resume/reconciliation-candidates/route.ts",
     "components/ag-work-resume-proof-evidence-reconciliation-candidate.tsx",
   ]) {
@@ -490,6 +488,10 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "app/api/ag-work-resume/proof-evidence-reconciliation-candidates/route.ts",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_READ_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts",
+    "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-route.mjs",
     "package.json",
   ]);
@@ -509,8 +511,9 @@ function assertNoUnexpectedChangedFiles() {
     assert.ok(
       file === "lib/db/schema.sql" ||
         file === writerCoreRelativePath ||
+        file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
         !file.startsWith("lib/"),
-      `lib changes are limited to schema.sql or candidate writer core in this slice: ${file}`,
+      `lib changes are limited to schema.sql or candidate writer/read core in this slice: ${file}`,
     );
     assert.equal(
       file !==
@@ -534,9 +537,12 @@ function assertNoRuntimeImplementationCode() {
       file !== "package.json" &&
       file !== "lib/db/schema.sql" &&
       file !== writerCoreRelativePath &&
+      file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" &&
       file !== smokeRelativePath &&
       file !== writerSmokeRelativePath &&
       file !== writerHelperRelativePath &&
+      file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
       file !== designSmokeRelativePath &&
       file !== reconciliationSmokeRelativePath &&
       file !== gateSmokeRelativePath &&
