@@ -103,12 +103,15 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
 - `SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`: original
   repo docs-only Strategy C exact fixture descriptor proposal pointer다. first
   proposed descriptor subset, deferred descriptor set, exact docs-only
-  descriptor metadata fields, future fixture import gate, AG Resume
+  descriptor metadata fields, first two-file fixture import slice, focused
+  descriptor validation smoke, future fixture import gate, AG Resume
   writer/helper safety note, and browser/computer-use skip/future scenario를
-  정리하며 fixtures, manifest JSON, helper logic, harness scripts, package
-  scripts, thresholds as runtime policy, runtime computation, schema/API,
-  Cockpit action, proof/evidence/readiness, AG Resume bridge/writer/helper
-  behavior, or CI authority를 만들지 않는다.
+  정리한다. Current first slice는 `example` 및 `grounded/quiet probes` fixture
+  두 개와 `smoke:sidecar-et-trace-pack-fixture-descriptors`만 추가하며
+  manifest JSON, report/compare/suite/matrix behavior, helper logic, thresholds
+  as runtime policy, runtime computation, schema/API, Cockpit action,
+  proof/evidence/readiness, AG Resume bridge/writer/helper behavior, or CI
+  authority를 만들지 않는다.
 - `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
   포인터를 둔다.
 - `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only

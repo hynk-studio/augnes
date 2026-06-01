@@ -103,6 +103,21 @@ Any future fixture import must include validation assertions for:
 Validation must be deterministic and local. It must not require network access,
 external services, browser state, production DB state, or user private data.
 
+First implementation slice validation:
+
+- `fixtures/sidecar-et-trace-pack.example.json`
+- `fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json`
+- `npm run smoke:sidecar-et-trace-pack-fixture-descriptors`
+
+The smoke validates the approved two-file subset, v0.1 version, allowed
+low-cardinality fields/enums, non-decreasing timestamps, earlier-row reference
+requirements, unsafe-string absence, runtime placeholder expectations, no
+fetch/network calls, no DB writes, no bridge/evidence/action/proof/readiness
+outputs, no QP evidence, no `z_t` commits, no AG Resume writer/helper calls or
+output dependency, and no `ag:resume-*` / `smoke:ag-work-resume-*` package
+script collision. It does not add report, compare, suite, matrix, runtime, or
+CI behavior.
+
 ## 5. Non-Authority Label Rules
 
 The following labels remain lab review vocabulary only:
@@ -174,10 +189,12 @@ Descriptor/naming plan pointer:
   schema/API changes, Cockpit behavior, proof/evidence/readiness writes, QP
   evidence, `z_t` commits, AG Resume bridge-table behavior, or CI enforcement.
 - `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
-  records the docs-only exact first descriptor subset proposal, deferred
-  descriptor set, exact metadata fields, fixture import gate, and AG Resume
-  writer/helper safety note before any fixture import. It does not import
-  fixtures, manifest JSON, harness scripts, helper logic, package scripts,
+  records the exact first descriptor subset proposal, deferred descriptor set,
+  exact metadata fields, first two-file fixture import slice, fixture import
+  gate, and AG Resume writer/helper safety note. It imports only the approved
+  `example` and `grounded/quiet probes` fixture files plus a focused local
+  validation smoke; it does not import manifest JSON, report/compare/suite/
+  matrix behavior, helper logic, package scripts beyond the approved smoke,
   thresholds as runtime policy, runtime computation, schema/API changes,
   Cockpit behavior, proof/evidence/readiness writes, QP evidence, `z_t`
   commits, AG Resume bridge/writer/helper behavior, or CI enforcement.

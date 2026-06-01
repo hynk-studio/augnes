@@ -1,0 +1,439 @@
+{
+  "version": "sidecar_et_trace_pack.v0.1",
+  "description": "synthetic grounded quiet boundary probe pack",
+  "traces": [
+    {
+      "id": "trace:probe:grounded-sparse-positive-low-evidence",
+      "scope": "project:probe:grounded-sparse-positive-low-evidence",
+      "title": "Grounded sparse positive low evidence probe",
+      "state_keys": ["probe.grounded_quiet.sparse_positive.latest"],
+      "events": [
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-sparse-positive-latest",
+          "state_key": "probe.grounded_quiet.sparse_positive.latest",
+          "value": "\"grounded quiet sparse positive latest\"",
+          "at": "2026-06-01T06:00:00.000Z"
+        },
+        {
+          "kind": "work",
+          "work_id": "AG-PROBE-GQ-SPARSE-POSITIVE",
+          "title": "Grounded quiet sparse positive probe",
+          "status": "in_progress",
+          "related_state_keys": [
+            "probe.grounded_quiet.sparse_positive.latest"
+          ],
+          "at": "2026-06-01T06:00:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-sparse-positive-latest",
+          "state_key": "probe.grounded_quiet.sparse_positive.latest",
+          "title": "Grounded quiet sparse positive latest",
+          "status": "completed",
+          "at": "2026-06-01T06:08:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-sparse-positive-latest",
+          "work_id": "AG-PROBE-GQ-SPARSE-POSITIVE",
+          "actor": "operator",
+          "result_status": "passed",
+          "related_action_id": "action:probe:grounded-quiet-sparse-positive-latest",
+          "related_state_keys": [
+            "probe.grounded_quiet.sparse_positive.latest"
+          ],
+          "at": "2026-06-01T06:08:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:probe:grounded-quiet-sparse-positive-skipped",
+          "work_id": "AG-PROBE-GQ-SPARSE-POSITIVE",
+          "evidence_kind": "check_skipped",
+          "label": "Grounded quiet sparse positive skipped",
+          "status": "skipped",
+          "at": "2026-06-01T06:08:00.000Z"
+        }
+      ],
+      "expectations": {
+        "runtime_sidecar_placeholder": true,
+        "allowed_regime_hint": true
+      }
+    },
+    {
+      "id": "trace:probe:quiet-low-stability-recovery",
+      "scope": "project:probe:quiet-low-stability-recovery",
+      "title": "Quiet low stability recovery probe",
+      "state_keys": ["probe.grounded_quiet.low_stability.recovery"],
+      "events": [
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-low-stability-recovery",
+          "state_key": "probe.grounded_quiet.low_stability.recovery",
+          "value": "\"grounded quiet low stability recovery\"",
+          "at": "2026-06-01T07:00:00.000Z"
+        },
+        {
+          "kind": "work",
+          "work_id": "AG-PROBE-GQ-LOW-STABILITY",
+          "title": "Grounded quiet low stability probe",
+          "status": "in_progress",
+          "related_state_keys": [
+            "probe.grounded_quiet.low_stability.recovery"
+          ],
+          "at": "2026-06-01T07:00:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-low-stability-blocked",
+          "state_key": "probe.grounded_quiet.low_stability.recovery",
+          "title": "Grounded quiet low stability blocked",
+          "status": "blocked",
+          "at": "2026-06-01T07:04:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-low-stability-blocked",
+          "work_id": "AG-PROBE-GQ-LOW-STABILITY",
+          "actor": "codex",
+          "result_status": "blocked",
+          "related_action_id": "action:probe:grounded-quiet-low-stability-blocked",
+          "related_state_keys": [
+            "probe.grounded_quiet.low_stability.recovery"
+          ],
+          "at": "2026-06-01T07:04:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:probe:grounded-quiet-low-stability-blocked",
+          "work_id": "AG-PROBE-GQ-LOW-STABILITY",
+          "evidence_kind": "check_failed",
+          "label": "Grounded quiet low stability blocked",
+          "status": "blocked",
+          "at": "2026-06-01T07:04:00.000Z"
+        },
+        {
+          "kind": "tension",
+          "id": "tension:probe:grounded-quiet-low-stability-window",
+          "state_key": "probe.grounded_quiet.low_stability.recovery",
+          "title": "Grounded quiet low stability window",
+          "severity": "medium",
+          "status": "open",
+          "at": "2026-06-01T07:06:00.000Z"
+        },
+        {
+          "kind": "proposal",
+          "id": "proposal:probe:grounded-quiet-low-stability-next",
+          "state_key": "probe.grounded_quiet.low_stability.recovery",
+          "status": "pending",
+          "at": "2026-06-01T07:08:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-low-stability-recovered",
+          "state_key": "probe.grounded_quiet.low_stability.recovery",
+          "title": "Grounded quiet low stability recovered",
+          "status": "completed",
+          "at": "2026-06-01T07:14:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-low-stability-recovered",
+          "work_id": "AG-PROBE-GQ-LOW-STABILITY",
+          "actor": "operator",
+          "result_status": "completed",
+          "related_action_id": "action:probe:grounded-quiet-low-stability-recovered",
+          "related_state_keys": [
+            "probe.grounded_quiet.low_stability.recovery"
+          ],
+          "at": "2026-06-01T07:14:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:probe:grounded-quiet-low-stability-recovered",
+          "work_id": "AG-PROBE-GQ-LOW-STABILITY",
+          "evidence_kind": "check_passed",
+          "label": "Grounded quiet low stability recovered",
+          "status": "passed",
+          "at": "2026-06-01T07:14:00.000Z"
+        }
+      ],
+      "expectations": {
+        "runtime_sidecar_placeholder": true,
+        "allowed_regime_hint": true
+      }
+    },
+    {
+      "id": "trace:probe:grounded-low-evidence-no-instability",
+      "scope": "project:probe:grounded-low-evidence-no-instability",
+      "title": "Grounded low evidence no instability probe",
+      "state_keys": [
+        "probe.grounded_quiet.no_instability.primary",
+        "probe.grounded_quiet.no_instability.latest"
+      ],
+      "events": [
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-no-instability-primary",
+          "state_key": "probe.grounded_quiet.no_instability.primary",
+          "value": "\"grounded quiet no instability primary\"",
+          "at": "2026-06-01T08:00:00.000Z"
+        },
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-no-instability-latest",
+          "state_key": "probe.grounded_quiet.no_instability.latest",
+          "value": "\"grounded quiet no instability latest\"",
+          "at": "2026-06-01T08:00:00.000Z"
+        },
+        {
+          "kind": "work",
+          "work_id": "AG-PROBE-GQ-NO-INSTABILITY",
+          "title": "Grounded quiet no instability probe",
+          "status": "in_progress",
+          "related_state_keys": [
+            "probe.grounded_quiet.no_instability.primary",
+            "probe.grounded_quiet.no_instability.latest"
+          ],
+          "at": "2026-06-01T08:00:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-no-instability-primary",
+          "state_key": "probe.grounded_quiet.no_instability.primary",
+          "title": "Grounded quiet no instability primary",
+          "status": "completed",
+          "at": "2026-06-01T08:04:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-no-instability-primary",
+          "work_id": "AG-PROBE-GQ-NO-INSTABILITY",
+          "actor": "operator",
+          "result_status": "completed",
+          "related_action_id": "action:probe:grounded-quiet-no-instability-primary",
+          "related_state_keys": [
+            "probe.grounded_quiet.no_instability.primary"
+          ],
+          "at": "2026-06-01T08:04:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-no-instability-latest",
+          "state_key": "probe.grounded_quiet.no_instability.latest",
+          "title": "Grounded quiet no instability latest",
+          "status": "completed",
+          "at": "2026-06-01T08:08:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-no-instability-latest",
+          "work_id": "AG-PROBE-GQ-NO-INSTABILITY",
+          "actor": "operator",
+          "result_status": "passed",
+          "related_action_id": "action:probe:grounded-quiet-no-instability-latest",
+          "related_state_keys": [
+            "probe.grounded_quiet.no_instability.latest"
+          ],
+          "at": "2026-06-01T08:08:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:probe:grounded-quiet-no-instability-skipped",
+          "work_id": "AG-PROBE-GQ-NO-INSTABILITY",
+          "evidence_kind": "check_skipped",
+          "label": "Grounded quiet no instability skipped",
+          "status": "skipped",
+          "at": "2026-06-01T08:08:00.000Z"
+        }
+      ],
+      "expectations": {
+        "runtime_sidecar_placeholder": true,
+        "allowed_regime_hint": true
+      }
+    },
+    {
+      "id": "trace:probe:quiet-medium-tension-low-evidence",
+      "scope": "project:probe:quiet-medium-tension-low-evidence",
+      "title": "Quiet medium tension low evidence probe",
+      "state_keys": [
+        "probe.grounded_quiet.medium_low.primary",
+        "probe.grounded_quiet.medium_low.review"
+      ],
+      "events": [
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-medium-low-primary",
+          "state_key": "probe.grounded_quiet.medium_low.primary",
+          "value": "\"grounded quiet medium low primary\"",
+          "at": "2026-06-01T09:00:00.000Z"
+        },
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-medium-low-review",
+          "state_key": "probe.grounded_quiet.medium_low.review",
+          "value": "\"grounded quiet medium low review\"",
+          "at": "2026-06-01T09:00:00.000Z"
+        },
+        {
+          "kind": "work",
+          "work_id": "AG-PROBE-GQ-MEDIUM-LOW",
+          "title": "Grounded quiet medium low probe",
+          "status": "in_progress",
+          "related_state_keys": [
+            "probe.grounded_quiet.medium_low.primary",
+            "probe.grounded_quiet.medium_low.review"
+          ],
+          "at": "2026-06-01T09:00:00.000Z"
+        },
+        {
+          "kind": "tension",
+          "id": "tension:probe:grounded-quiet-medium-low-open",
+          "state_key": "probe.grounded_quiet.medium_low.review",
+          "title": "Grounded quiet medium low open",
+          "severity": "medium",
+          "status": "open",
+          "at": "2026-06-01T09:04:00.000Z"
+        },
+        {
+          "kind": "proposal",
+          "id": "proposal:probe:grounded-quiet-medium-low-review",
+          "state_key": "probe.grounded_quiet.medium_low.review",
+          "status": "pending",
+          "at": "2026-06-01T09:06:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-medium-low-primary",
+          "state_key": "probe.grounded_quiet.medium_low.primary",
+          "title": "Grounded quiet medium low primary",
+          "status": "completed",
+          "at": "2026-06-01T09:10:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-medium-low-primary",
+          "work_id": "AG-PROBE-GQ-MEDIUM-LOW",
+          "actor": "operator",
+          "result_status": "skipped",
+          "related_action_id": "action:probe:grounded-quiet-medium-low-primary",
+          "related_state_keys": [
+            "probe.grounded_quiet.medium_low.primary"
+          ],
+          "at": "2026-06-01T09:10:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:probe:grounded-quiet-medium-low-skipped",
+          "work_id": "AG-PROBE-GQ-MEDIUM-LOW",
+          "evidence_kind": "check_skipped",
+          "label": "Grounded quiet medium low skipped",
+          "status": "skipped",
+          "at": "2026-06-01T09:10:00.000Z"
+        }
+      ],
+      "expectations": {
+        "runtime_sidecar_placeholder": true,
+        "allowed_regime_hint": true
+      }
+    },
+    {
+      "id": "trace:probe:grounded-sparse-neutral",
+      "scope": "project:probe:grounded-sparse-neutral",
+      "title": "Grounded sparse neutral probe",
+      "state_keys": [
+        "probe.grounded_quiet.sparse_neutral.primary",
+        "probe.grounded_quiet.sparse_neutral.review"
+      ],
+      "events": [
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-sparse-neutral-primary",
+          "state_key": "probe.grounded_quiet.sparse_neutral.primary",
+          "value": "\"grounded quiet sparse neutral primary\"",
+          "at": "2026-06-01T10:00:00.000Z"
+        },
+        {
+          "kind": "state",
+          "id": "state:probe:grounded-quiet-sparse-neutral-review",
+          "state_key": "probe.grounded_quiet.sparse_neutral.review",
+          "value": "\"grounded quiet sparse neutral review\"",
+          "at": "2026-06-01T10:00:00.000Z"
+        },
+        {
+          "kind": "work",
+          "work_id": "AG-PROBE-GQ-SPARSE-NEUTRAL",
+          "title": "Grounded quiet sparse neutral probe",
+          "status": "in_progress",
+          "related_state_keys": [
+            "probe.grounded_quiet.sparse_neutral.primary",
+            "probe.grounded_quiet.sparse_neutral.review"
+          ],
+          "at": "2026-06-01T10:00:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-sparse-neutral-primary",
+          "state_key": "probe.grounded_quiet.sparse_neutral.primary",
+          "title": "Grounded quiet sparse neutral primary",
+          "status": "completed",
+          "at": "2026-06-01T10:08:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:probe:grounded-quiet-sparse-neutral-review",
+          "state_key": "probe.grounded_quiet.sparse_neutral.review",
+          "title": "Grounded quiet sparse neutral review",
+          "status": "failed",
+          "at": "2026-06-01T10:08:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-sparse-neutral-primary",
+          "work_id": "AG-PROBE-GQ-SPARSE-NEUTRAL",
+          "actor": "operator",
+          "result_status": "passed",
+          "related_action_id": "action:probe:grounded-quiet-sparse-neutral-primary",
+          "related_state_keys": [
+            "probe.grounded_quiet.sparse_neutral.primary"
+          ],
+          "at": "2026-06-01T10:08:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:probe:grounded-quiet-sparse-neutral-review",
+          "work_id": "AG-PROBE-GQ-SPARSE-NEUTRAL",
+          "actor": "operator",
+          "result_status": "failed",
+          "related_action_id": "action:probe:grounded-quiet-sparse-neutral-review",
+          "related_state_keys": [
+            "probe.grounded_quiet.sparse_neutral.review"
+          ],
+          "at": "2026-06-01T10:08:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:probe:grounded-quiet-sparse-neutral-primary",
+          "work_id": "AG-PROBE-GQ-SPARSE-NEUTRAL",
+          "evidence_kind": "check_skipped",
+          "label": "Grounded quiet sparse neutral primary",
+          "status": "skipped",
+          "at": "2026-06-01T10:08:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:probe:grounded-quiet-sparse-neutral-review",
+          "work_id": "AG-PROBE-GQ-SPARSE-NEUTRAL",
+          "evidence_kind": "check_skipped",
+          "label": "Grounded quiet sparse neutral review",
+          "status": "skipped",
+          "at": "2026-06-01T10:08:00.000Z"
+        }
+      ],
+      "expectations": {
+        "runtime_sidecar_placeholder": true,
+        "allowed_regime_hint": true
+      }
+    }
+  ]
+}

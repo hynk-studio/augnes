@@ -1,0 +1,103 @@
+{
+  "version": "sidecar_et_trace_pack.v0.1",
+  "description": "synthetic anonymized trace pack",
+  "traces": [
+    {
+      "id": "trace:example:recovered-browser-validation",
+      "scope": "project:trace-pack:recovered-browser-validation",
+      "title": "Recovered browser validation trace",
+      "state_keys": ["trace.browser_validation"],
+      "events": [
+        {
+          "kind": "state",
+          "id": "state:trace:browser-validation",
+          "state_key": "trace.browser_validation",
+          "value": "\"browser validation trace\"",
+          "at": "2026-05-31T00:00:00.000Z"
+        },
+        {
+          "kind": "work",
+          "work_id": "AG-TRACE-BROWSER-VALIDATION",
+          "title": "Trace browser validation",
+          "status": "in_progress",
+          "related_state_keys": ["trace.browser_validation"],
+          "at": "2026-05-31T00:00:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:trace:blocked-start",
+          "state_key": "trace.browser_validation",
+          "title": "Blocked start",
+          "status": "blocked",
+          "at": "2026-05-31T00:05:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:trace:blocked-start",
+          "work_id": "AG-TRACE-BROWSER-VALIDATION",
+          "actor": "codex",
+          "result_status": "blocked",
+          "related_action_id": "action:trace:blocked-start",
+          "related_state_keys": ["trace.browser_validation"],
+          "at": "2026-05-31T00:05:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:trace:blocked-start",
+          "work_id": "AG-TRACE-BROWSER-VALIDATION",
+          "evidence_kind": "check_failed",
+          "label": "Blocked start",
+          "status": "blocked",
+          "at": "2026-05-31T00:05:00.000Z"
+        },
+        {
+          "kind": "tension",
+          "id": "tension:trace:recovery-window",
+          "state_key": "trace.browser_validation",
+          "title": "Recovery window tension",
+          "severity": "medium",
+          "status": "open",
+          "at": "2026-05-31T00:10:00.000Z"
+        },
+        {
+          "kind": "proposal",
+          "id": "proposal:trace:stabilize-validation",
+          "state_key": "trace.browser_validation",
+          "status": "pending",
+          "at": "2026-05-31T00:12:00.000Z"
+        },
+        {
+          "kind": "action",
+          "id": "action:trace:recovered",
+          "state_key": "trace.browser_validation",
+          "title": "Recovered check",
+          "status": "completed",
+          "at": "2026-05-31T00:20:00.000Z"
+        },
+        {
+          "kind": "work_event",
+          "id": "work-event:trace:recovered",
+          "work_id": "AG-TRACE-BROWSER-VALIDATION",
+          "actor": "codex",
+          "result_status": "completed",
+          "related_action_id": "action:trace:recovered",
+          "related_state_keys": ["trace.browser_validation"],
+          "at": "2026-05-31T00:20:00.000Z"
+        },
+        {
+          "kind": "evidence",
+          "id": "evidence:trace:recovered",
+          "work_id": "AG-TRACE-BROWSER-VALIDATION",
+          "evidence_kind": "check_passed",
+          "label": "Recovered check",
+          "status": "passed",
+          "at": "2026-05-31T00:20:00.000Z"
+        }
+      ],
+      "expectations": {
+        "runtime_sidecar_placeholder": true,
+        "allowed_regime_hint": true
+      }
+    }
+  ]
+}
