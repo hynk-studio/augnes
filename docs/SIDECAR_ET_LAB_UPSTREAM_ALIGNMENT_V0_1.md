@@ -104,6 +104,14 @@ Strategy B reference pointer:
   evidence, `z_t` commits, proof/evidence/readiness writes, package scripts, or
   CI enforcement.
 
+Strategy C planning pointer:
+
+- `docs/SIDECAR_ET_TRACE_PACK_HARNESS_ADAPTATION_PLAN_V0_1.md` records the
+  docs-only plan for a possible future trace-pack/report harness adaptation. It
+  does not port helper logic, trace-pack harnesses, fixtures, thresholds as
+  runtime policy, runtime computation, package scripts, schema/API changes,
+  Cockpit action behavior, proof/evidence/readiness writes, or CI enforcement.
+
 ## 5. Drift Checklist
 
 Original repo snapshot for this PR:

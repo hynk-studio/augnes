@@ -234,6 +234,10 @@ This runtime smoke design does not allow:
 - `docs/VERIFICATION_EVIDENCE_PACK.md`: verification evidence and smoke
   reporting boundaries. This document is design review context only, not
   runtime proof or evidence.
+- `docs/SIDECAR_ET_TRACE_PACK_HARNESS_ADAPTATION_PLAN_V0_1.md`: original-repo
+  docs-only Strategy C planning pointer for possible trace-pack/report harness
+  adaptation. It does not add smoke scripts, fixtures, package scripts, runtime
+  computation, or CI policy.
 
 ## Merge Criteria For A Future Runtime Smoke PR
 

@@ -220,6 +220,10 @@ It must also add or extend fixture smoke coverage proving:
   lab-report reference pointer. It summarizes merged lab evidence for review
   context only and does not import helper logic, harnesses, fixtures, runtime
   thresholds, runtime computation, or CI policy.
+- `docs/SIDECAR_ET_TRACE_PACK_HARNESS_ADAPTATION_PLAN_V0_1.md`: original-repo
+  docs-only Strategy C planning pointer for possible trace-pack/report harness
+  adaptation. It does not port harness scripts, fixtures, helper logic, package
+  scripts, runtime computation, or CI policy.
 
 ## Merge Criteria For A Future Implementation
 
