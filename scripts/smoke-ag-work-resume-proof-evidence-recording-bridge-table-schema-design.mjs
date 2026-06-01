@@ -197,6 +197,9 @@ const allowedChangedFiles = new Set([
   schemaPath,
   "package.json",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+  "lib/ag-work-resume-proof-evidence-recording.ts",
+  "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
@@ -231,12 +234,14 @@ const forbiddenChangedPrefixes = [
 ];
 const runtimeSchemaOrBrowserChanged = changedFiles.filter((file) =>
   forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
-  (file.startsWith("lib/") && file !== schemaPath),
+  (file.startsWith("lib/") &&
+    file !== schemaPath &&
+    file !== "lib/ag-work-resume-proof-evidence-recording.ts"),
 );
 assert.deepEqual(
   runtimeSchemaOrBrowserChanged,
   [],
-  "bridge table schema follow-up should not change runtime/migration/writer/helper/route/UI/browser files outside schema.sql",
+  "bridge table schema follow-up should not change runtime/migration/route/UI/browser files outside schema.sql and the scoped writer helper",
 );
 
 console.log(
@@ -252,7 +257,7 @@ console.log(
       action_records_out_of_first_scope: true,
       accepted_for_future_recording_not_recording: true,
       actual_recording_separately_user_core_gated: true,
-      changed_files_limited_to_docs_package_smokes: true,
+      changed_files_limited_to_docs_package_scoped_writer_helper_smokes: true,
     },
     null,
     2,

@@ -165,6 +165,9 @@ const allowedChangedFiles = new Set([
   authorityGatePath,
   schemaPath,
   "package.json",
+  "lib/ag-work-resume-proof-evidence-recording.ts",
+  "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
@@ -202,12 +205,14 @@ const forbiddenChangedPrefixes = [
 ];
 const runtimeOrSchemaChanged = changedFiles.filter((file) =>
   forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
-  (file.startsWith("lib/") && file !== schemaPath),
+  (file.startsWith("lib/") &&
+    file !== schemaPath &&
+    file !== "lib/ag-work-resume-proof-evidence-recording.ts"),
 );
 assert.deepEqual(
   runtimeOrSchemaChanged,
   [],
-  "closeout follow-up should not change route/helper/UI/runtime files outside schema.sql",
+  "closeout follow-up should not change route/UI/runtime files outside schema.sql and the scoped writer helper",
 );
 
 const unexpectedDiffFiles = diffChangedFiles.filter(
@@ -230,7 +235,7 @@ console.log(
       session_binding_out_of_scope: true,
       codex_continuation_out_of_scope: true,
       approval_publish_retry_replay_merge_out_of_scope: true,
-      changed_files_limited_to_docs_smoke_package_pointers: true,
+      changed_files_limited_to_docs_package_scoped_writer_helper_smoke_pointers: true,
     },
     null,
     2,

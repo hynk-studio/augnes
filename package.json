@@ -98,6 +98,8 @@
     "smoke:ag-work-resume-proof-evidence-recording-bridge-table-migration-policy": "node scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
     "smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema": "node scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
     "smoke:ag-work-resume-proof-evidence-recording-writer-helper-gate-design": "node scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
+    "ag:resume-proof-evidence-recording-create": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+    "smoke:ag-work-resume-proof-evidence-recording-writer-helper": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
     "smoke:ag-work-resume-proof-evidence-session-codex-gates-design": "node scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-design": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs",

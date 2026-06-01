@@ -245,6 +245,9 @@ const allowedChangedFiles = new Set([
   schemaPath,
   "package.json",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+  "lib/ag-work-resume-proof-evidence-recording.ts",
+  "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
@@ -279,12 +282,14 @@ const forbiddenChangedPrefixes = [
 ];
 const runtimeOrSchemaChanged = changedFiles.filter((file) =>
   forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
-  (file.startsWith("lib/") && file !== schemaPath),
+  (file.startsWith("lib/") &&
+    file !== schemaPath &&
+    file !== "lib/ag-work-resume-proof-evidence-recording.ts"),
 );
 assert.deepEqual(
   runtimeOrSchemaChanged,
   [],
-  "actual recording gate follow-up should not change route/helper/UI/runtime/browser files outside schema.sql",
+  "actual recording gate follow-up should not change route/UI/browser files outside schema.sql and the scoped writer helper",
 );
 
 console.log(
@@ -302,7 +307,7 @@ console.log(
       idempotency_policy_defined: true,
       rollback_failure_policy_defined: true,
       protected_side_effect_boundary_defined: true,
-      changed_files_limited_to_docs_package_smokes: true,
+      changed_files_limited_to_docs_package_scoped_writer_helper_smokes: true,
     },
     null,
     2,

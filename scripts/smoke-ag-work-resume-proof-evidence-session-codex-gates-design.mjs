@@ -339,9 +339,9 @@ console.log(
         "doc requires user/Core actor and reason for future gates",
         "doc keeps approval/publish/retry/replay/merge separate",
         "related docs point to gate design doc",
-        "changed files are limited to docs, package.json, schema foundation, candidate writer/helper, route, and design-smoke compatibility",
+        "changed files are limited to docs, package.json, schema foundation, scoped writer helpers, route, and design-smoke compatibility",
         "no app/components/runtime/migration/apps/browser report files changed",
-        "no runtime implementation code changed for proof/evidence/session/Codex behavior outside schema.sql",
+        "no runtime implementation code changed for session/Codex behavior outside schema.sql and the scoped proof/evidence recording writer helper",
       ],
     },
     null,
@@ -370,6 +370,9 @@ function assertNoUnexpectedChangedFiles() {
     bridgeTableSchemaSmokeRelativePath,
     reviewMetadataCloseoutSmokeRelativePath,
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+    "lib/ag-work-resume-proof-evidence-recording.ts",
+    "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
@@ -418,6 +421,7 @@ function assertNoUnexpectedChangedFiles() {
     assert.equal(
       file !== schemaRelativePath &&
         file !== candidateWriterCoreRelativePath &&
+        file !== "lib/ag-work-resume-proof-evidence-recording.ts" &&
         file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" &&
         file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" &&
         file !==
@@ -438,6 +442,7 @@ function assertNoUnexpectedChangedFiles() {
     assert.ok(
       file === schemaRelativePath ||
         file === candidateWriterCoreRelativePath ||
+        file === "lib/ag-work-resume-proof-evidence-recording.ts" ||
         file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" ||
         file === "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" ||
         !file.startsWith("lib/"),
@@ -453,6 +458,7 @@ function assertNoForbiddenImplementationCode() {
       file !== "package.json" &&
       file !== schemaRelativePath &&
       file !== candidateWriterCoreRelativePath &&
+      file !== "lib/ag-work-resume-proof-evidence-recording.ts" &&
       file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-read.ts" &&
       file !== "lib/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.ts" &&
       file !== smokeRelativePath &&
@@ -467,6 +473,8 @@ function assertNoForbiddenImplementationCode() {
       file !== bridgeTableMigrationPolicySmokeRelativePath &&
       file !== bridgeTableSchemaSmokeRelativePath &&
       file !== reviewMetadataCloseoutSmokeRelativePath &&
+      file !== "scripts/ag-work-resume-proof-evidence-recording-create.mjs" &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs" &&
       file !== "scripts/ag-work-resume-proof-evidence-reconciliation-candidate-read.mjs" &&
