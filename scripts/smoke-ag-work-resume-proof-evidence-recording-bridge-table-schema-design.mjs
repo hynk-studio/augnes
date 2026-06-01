@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
-const policyPath =
-  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md";
 const bridgeDesignPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md";
+const schemaIntegrationPolicyPath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md";
 const actualRecordingGateDesignPath =
   "docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md";
 const closeoutPath =
@@ -21,8 +21,8 @@ const lifecycleDocPath =
 const packagePath = "package.json";
 
 for (const path of [
-  policyPath,
   bridgeDesignPath,
+  schemaIntegrationPolicyPath,
   actualRecordingGateDesignPath,
   closeoutPath,
   authorityGatePath,
@@ -34,8 +34,8 @@ for (const path of [
   assert.equal(existsSync(path), true, `Missing required input: ${path}`);
 }
 
-const policy = readFileSync(policyPath, "utf8");
 const bridgeDesign = readFileSync(bridgeDesignPath, "utf8");
+const schemaIntegrationPolicy = readFileSync(schemaIntegrationPolicyPath, "utf8");
 const actualRecordingGateDesign = readFileSync(
   actualRecordingGateDesignPath,
   "utf8",
@@ -47,7 +47,7 @@ const reconciliationDesign = readFileSync(reconciliationDesignPath, "utf8");
 const lifecycleDoc = readFileSync(lifecycleDocPath, "utf8");
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
 const joinedPointers = [
-  bridgeDesign,
+  schemaIntegrationPolicy,
   actualRecordingGateDesign,
   closeout,
   authorityGate,
@@ -57,87 +57,103 @@ const joinedPointers = [
 ].join("\n");
 
 for (const phrase of [
-  "AG Resume Proof/Evidence Recording Schema Integration Policy v0.1",
+  "AG Resume Proof/Evidence Recording Bridge Table Schema Design v0.1",
   "This document is design-only",
   "adds no runtime behavior",
   "adds no schema or migration",
+  "modifies no `lib/db/schema.sql`",
   "adds no writer, helper, route, UI",
+  "The bridge table is not proof/evidence recording by itself",
+  "A bridge schema design is not approval to record",
+  "A future schema/migration PR is not approval to record",
+  "Actual proof/evidence recording remains separately user/Core gated",
   "`accepted_for_future_recording` is not proof/evidence recording",
-  "Schema/integration design is not approval to record",
-  "Actual recording remains separately user/Core gated",
-  "Policy Recommendation",
-  "Recommended first implementation path: use a new bridge table from reconciliation candidate ids to local proof/evidence ids",
-  "first target record kind narrowed to one `verification_evidence_records` row",
-  "Option 1: Existing Proof/Action-Record Path",
-  "Option 2: Existing Verification Evidence Path",
-  "Option 3: Split Proof And Evidence Records",
-  "Option 4: New Bridge Table From Reconciliation Candidate IDs To Local Proof/Evidence IDs",
-  "Option 5: Deferring Implementation Until Another Design-Only Extension",
-  "Protected Side-Effect Boundary",
-  "Authority Boundary",
+  "ag_work_resume_proof_evidence_recording_links",
+  "Proposed Columns",
+  "Unique Constraints",
+  "Indexes",
+  "Foreign Key Policy",
+  "Cascade/Delete Policy",
+  "Idempotency Key Policy",
+  "one `verification_evidence_records` row",
+  "Action records are out of first implementation scope unless separately approved",
+  "Approval/publish/retry/replay/merge remains out of scope",
+  "Session binding and Codex continuation remain out of scope",
   "Browser verification skipped",
 ]) {
-  assertIncludes(policy, phrase);
+  assertIncludes(bridgeDesign, phrase);
 }
 
-for (const phrase of [
-  "What Local Record Would Be Created Later",
-  "Required Existing Tables Or Schema Changes",
-  "Provenance Fields",
-  "Idempotency Key Placement",
-  "Actor/Reason Placement",
-  "Redaction Summary Placement",
-  "Source Imported Context Linkage",
-  "Confirmed Mapping Linkage",
-  "Reconciliation Candidate Linkage",
-  "Trust/Provenance Label Placement",
-  "Rollback/Failure Behavior",
-  "Read-Surface Implications",
-  "Migration Risk",
-  "Auditability",
-  "Fit For First Implementation",
+for (const column of [
+  "recording_link_id",
+  "candidate_id",
+  "import_id",
+  "mapping_id",
+  "local_target_scope",
+  "local_target_work_id",
+  "target_record_kind",
+  "target_evidence_id",
+  "target_action_id",
+  "idempotency_key",
+  "actor",
+  "reason",
+  "redaction_summary",
+  "trust_provenance_label",
+  "provenance_json",
+  "recording_status",
+  "failure_reason",
+  "created_at",
+  "updated_at",
 ]) {
-  const occurrences = policy.split(phrase).length - 1;
-  assert.equal(
-    occurrences,
-    5,
-    `Expected each evaluated option to include section: ${phrase}`,
-  );
+  assertIncludes(bridgeDesign, `\`${column}\``);
 }
 
 for (const phrase of [
-  "one `verification_evidence_records` row",
-  "one bridge/link row",
-  "single local transaction",
-  "user/Core explicitly approves the exact recording attempt",
-  "candidate is in `accepted_for_future_recording`",
-  "source imported context exists and remains allowed",
-  "source confirmed mapping exists and remains allowed",
-  "actor is explicit",
-  "reason is explicit",
-  "redaction summary is safe",
-  "trust/provenance label is explicit",
-  "idempotency key is explicit",
+  "Decision: one candidate can have more than one recording link? No.",
+  "Decision: can one idempotency key map to more than one link? No.",
+  "Decision: must `target_evidence_id` be unique? Yes.",
+  "Decision: must candidate_id be unique for the first implementation? Yes.",
+  "Decision: are action records excluded from the first implementation? Yes.",
+  "Imported context, confirmed mapping, and candidate rows are never mutated by bridge behavior.",
+  "There are no pending bridge rows in the first implementation.",
+  "target_evidence_id` is required and non-null",
+  "target_action_id` must be `NULL`",
 ]) {
-  assertIncludes(policy, phrase);
+  assertIncludes(bridgeDesign, phrase);
 }
 
 for (const phrase of [
-  "actual-proof-evidence-recording:v0_1:<candidate_id>:<import_id>:<mapping_id>:<foreign_ref_type>:<foreign_ref_id>:<local_scope>:<local_work_id>:verification_evidence",
-  "Same key with same payload may return an idempotent no-new-write response",
+  "unique `candidate_id`",
+  "unique `idempotency_key`",
+  "unique `target_evidence_id`",
+  "No cascade deletes",
+  "deleting a candidate with a bridge row must fail",
+  "deleting a verification evidence row with a bridge row must fail",
+  "same payload may return an idempotent no-new-write result",
   "Same key with different payload must fail closed",
   "Same candidate with a different key must fail closed",
 ]) {
-  assertIncludes(policy, phrase);
+  assertIncludes(bridgeDesign, phrase);
+}
+
+for (const phrase of [
+  "references `ag_work_resume_imported_contexts(import_id)`",
+  "references `ag_work_resume_confirmed_mappings(mapping_id)`",
+  "references\n  `verification_evidence_records(evidence_id)`",
+  "references `action_records(id)` only in a later design",
+]) {
+  assertIncludes(bridgeDesign, phrase);
 }
 
 for (const phrase of [
   "no runtime behavior",
   "no schema or migration",
+  "no `lib/db/schema.sql` modification",
   "no writer, helper, route, or UI",
   "no browser report",
   "no proof/evidence recording",
-  "no evidence recording",
+  "no `verification_evidence_records` row creation",
+  "no `action_records` row creation",
   "no session binding",
   "no Codex execution or continuation",
   "no work item creation",
@@ -145,30 +161,29 @@ for (const phrase of [
   "no imported context mutation",
   "no confirmed mapping mutation",
   "no proposal mutation",
+  "no reconciliation candidate mutation",
   "no approval, publish, retry, replay, merge, auto-merge, external posting",
-  "Approval/publish/retry/replay/merge remains out of scope",
-  "Session binding and Codex continuation remain out of scope",
 ]) {
-  assertIncludes(policy, phrase);
+  assertIncludes(bridgeDesign, phrase);
 }
 
 assert.equal(
   pkg.scripts?.[
-    "smoke:ag-work-resume-proof-evidence-recording-schema-integration-policy"
+    "smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema-design"
   ],
-  "node scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
-  "package.json should register the schema/integration policy smoke",
+  "node scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
+  "package.json should register the bridge table schema design smoke",
 );
 
 assert.ok(
-  joinedPointers.includes(policyPath),
-  "AG Resume pointer docs should reference the schema/integration policy doc",
+  joinedPointers.includes(bridgeDesignPath),
+  "AG Resume pointer docs should reference the bridge table schema design doc",
 );
 
 const changedFiles = gitChangedFiles();
 const allowedChangedFiles = new Set([
-  policyPath,
   bridgeDesignPath,
+  schemaIntegrationPolicyPath,
   actualRecordingGateDesignPath,
   closeoutPath,
   authorityGatePath,
@@ -191,7 +206,7 @@ const unexpectedChangedFiles = changedFiles.filter(
 assert.deepEqual(
   unexpectedChangedFiles,
   [],
-  "schema/integration policy PR should be limited to docs, package script, and smoke guards",
+  "bridge table schema design PR should be limited to docs, package script, and smoke guards",
 );
 
 const forbiddenChangedPrefixes = [
@@ -212,21 +227,22 @@ const runtimeSchemaOrBrowserChanged = changedFiles.filter((file) =>
 assert.deepEqual(
   runtimeSchemaOrBrowserChanged,
   [],
-  "schema/integration policy PR should not change runtime/schema/migration/writer/helper/route/UI/browser files",
+  "bridge table schema design PR should not change runtime/schema/migration/writer/helper/route/UI/browser files",
 );
 
 console.log(
   JSON.stringify(
     {
-      smoke: "ag-work-resume-proof-evidence-recording-schema-integration-policy",
-      policy_doc_exists: true,
+      smoke: "ag-work-resume-proof-evidence-recording-bridge-table-schema-design",
+      bridge_design_doc_exists: true,
       design_only_boundary: true,
-      all_five_options_evaluated: true,
-      recommended_first_path:
-        "new bridge table with one verification_evidence_records target row",
+      proposed_table_name: "ag_work_resume_proof_evidence_recording_links",
+      required_columns_listed: true,
+      unique_index_fk_cascade_policy_described: true,
+      first_target: "verification_evidence_records",
+      action_records_out_of_first_scope: true,
       accepted_for_future_recording_not_recording: true,
-      actual_recording_unauthorized: true,
-      authority_boundary_preserved: true,
+      actual_recording_separately_user_core_gated: true,
       changed_files_limited_to_docs_package_smokes: true,
     },
     null,
@@ -264,6 +280,6 @@ function assertIncludes(value, expected) {
   assert.equal(
     value.includes(expected),
     true,
-    `Expected policy content to include: ${expected}`,
+    `Expected bridge design content to include: ${expected}`,
   );
 }

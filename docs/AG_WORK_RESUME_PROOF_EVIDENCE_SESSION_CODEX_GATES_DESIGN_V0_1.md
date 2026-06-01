@@ -122,6 +122,12 @@ It is design-only and narrows the future integration shape without adding
 schema/migration, writer/helper/route/UI, proof/evidence recording, session
 binding, Codex continuation, or approval/publish/retry/replay/merge authority.
 
+The proof/evidence recording bridge-table schema design is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`.
+It is design-only and does not add schema/migration, bridge row creation,
+verification evidence row creation, action record creation, session binding,
+Codex continuation, or approval/publish/retry/replay/merge authority.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.

@@ -112,6 +112,13 @@ without adding schema/migration, writer/helper/route/UI, actual recording,
 session binding, Codex continuation, or approval/publish/retry/replay/merge
 authority.
 
+The proof/evidence recording bridge-table schema design is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`.
+It is design-only and defines future link-table constraints without adding
+schema/migration, modifying `lib/db/schema.sql`, creating evidence/action
+records, mutating candidates, binding sessions, continuing Codex, or granting
+approval/publish/retry/replay/merge authority.
+
 Foreign refs remain foreign until explicitly reconciled through a separately
 approved user/Core gate. Candidate discovery and candidate review can identify
 possible future local reconciliation candidates, but no imported context ref is

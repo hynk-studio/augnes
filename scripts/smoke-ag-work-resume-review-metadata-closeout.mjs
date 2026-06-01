@@ -8,6 +8,8 @@ const actualRecordingGateDesignPath =
   "docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md";
 const schemaIntegrationPolicyPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md";
+const bridgeDesignPath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md";
 const authorityGatePath =
   "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md";
 const packagePath = "package.json";
@@ -16,6 +18,7 @@ for (const path of [
   closeoutPath,
   actualRecordingGateDesignPath,
   schemaIntegrationPolicyPath,
+  bridgeDesignPath,
   authorityGatePath,
   packagePath,
 ]) {
@@ -28,12 +31,14 @@ const actualRecordingGateDesign = readFileSync(
   "utf8",
 );
 const schemaIntegrationPolicy = readFileSync(schemaIntegrationPolicyPath, "utf8");
+const bridgeDesign = readFileSync(bridgeDesignPath, "utf8");
 const authorityGate = readFileSync(authorityGatePath, "utf8");
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
 const joined = [
   closeout,
   actualRecordingGateDesign,
   schemaIntegrationPolicy,
+  bridgeDesign,
   authorityGate,
 ].join("\n");
 
@@ -148,8 +153,10 @@ const allowedChangedFiles = new Set([
   closeoutPath,
   actualRecordingGateDesignPath,
   schemaIntegrationPolicyPath,
+  bridgeDesignPath,
   authorityGatePath,
   "package.json",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md",
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md",

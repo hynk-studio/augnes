@@ -47,6 +47,15 @@ It is design-only and adds no schema/migration, writer/helper/route/UI, actual
 proof/evidence recording, session binding, Codex continuation, approval,
 publish, retry, replay, merge, auto-merge, or committed-state authority.
 
+Proof/evidence recording bridge-table schema design pointer:
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`
+defines a future bridge-table schema for linking reconciliation candidate
+metadata to local proof/evidence records. It is design-only and adds no
+schema/migration, `lib/db/schema.sql` change, writer/helper/route/UI, bridge row
+creation, evidence row creation, action record creation, session binding,
+Codex continuation, approval, publish, retry, replay, merge, auto-merge, or
+committed-state authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:
