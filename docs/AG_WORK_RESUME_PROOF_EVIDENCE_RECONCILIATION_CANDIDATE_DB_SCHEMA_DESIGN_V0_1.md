@@ -79,6 +79,12 @@ State JSON text fields:
 
 No schema is implemented in this PR.
 
+The follow-up schema implementation is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
+It creates the table and indexes only; it adds no writer/helper/route/UI,
+proof/evidence recording, session binding, Codex behavior, or
+approval/publish/retry/replay/merge authority.
+
 ## Proposed Indexes
 
 Future schema implementation should consider indexes for:
@@ -119,6 +125,10 @@ the future candidate writer must validate:
 
 No schema is implemented in this PR. No FK is added in this PR. No writer
 validation is implemented in this PR.
+
+The follow-up schema implementation deliberately keeps this FK policy and
+requires future writer validation for imported context, mapping, local work,
+redaction, actor/reason, and duplicate candidate checks.
 
 ## Status And Lifecycle Model
 
@@ -184,6 +194,8 @@ must remain review metadata and must not become proof/evidence authority.
 
 - A future schema implementation PR should add the candidate table and indexes
   only.
+- The schema implementation is documented in
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`.
 - A future candidate writer/helper should validate imported context, mapping,
   local work, redaction, actor/reason, and duplicate candidate policy.
 - Future actual proof/evidence recording remains separately approved.
@@ -201,6 +213,7 @@ Run:
 
 ```bash
 npm run typecheck
+npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design
 npm run smoke:ag-work-resume-proof-evidence-reconciliation-design
 npm run smoke:ag-work-resume-proof-evidence-session-codex-gates-design
@@ -212,5 +225,6 @@ npm run smoke:ag-work-resume-imported-context-writer
 npm run smoke:ag-work-resume-mapping-import-authority-gate
 git diff --check
 git diff --cached --check
+node --check scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema.mjs
 node --check scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-db-schema-design.mjs
 ```

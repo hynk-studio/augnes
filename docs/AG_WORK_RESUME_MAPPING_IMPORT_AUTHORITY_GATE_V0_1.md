@@ -313,6 +313,12 @@ PRs:
   runtime behavior, writer/helper/route/UI, proof/evidence recording, session
   binding, Codex behavior, approval, publish, retry, replay, or merge
   authority.
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
+  documents the schema-only future DB foundation for reconciliation candidate
+  review metadata; it creates only the candidate table and indexes, creates no
+  rows in normal migration, and adds no writer/helper/route/UI,
+  proof/evidence recording, session binding, Codex behavior, approval,
+  publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

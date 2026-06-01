@@ -38,6 +38,7 @@ Related documents:
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The panel does not call that writer route. It only submits
@@ -53,6 +54,11 @@ The candidate DB/schema design in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_DESIGN_V0_1.md`
 adds no schema implementation, migration, runtime behavior, or read-panel
 behavior.
+The candidate DB/schema implementation in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
+creates only a future candidate table and indexes; it adds no read-panel
+behavior, route behavior, proof/evidence recording, session binding, Codex
+behavior, or approval, publish, retry, replay, or merge authority.
 
 ## Allowed UI
 
