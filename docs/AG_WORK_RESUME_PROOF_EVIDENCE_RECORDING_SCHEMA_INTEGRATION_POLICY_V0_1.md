@@ -83,6 +83,14 @@ exists. It adds no writer/helper implementation, route/UI, bridge row creation,
 verification evidence row creation, action record creation, or actual
 recording authority by itself.
 
+The proof/evidence recording route gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and narrows a future HTTP invocation boundary over the
+writer/helper. It adds no route implementation, UI/Cockpit control,
+schema/migration, writer/helper implementation change, bridge row creation,
+verification evidence row creation, action record creation, or actual
+recording authority by itself.
+
 ## Why This Is The First Path
 
 The first path should not mutate candidate rows to mark recording, because
@@ -635,8 +643,9 @@ The later implementation sequence should be:
 4. Writer/helper implementation PR creating one bridge row and one evidence
    row in one transaction.
 5. Read-surface PR showing the bridge/evidence link without candidate mutation.
-6. Route design and route implementation PRs only after the writer/helper is
-   approved.
+6. Route gate design PR, now tracked in
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`,
+   and route implementation PRs only after the writer/helper is approved.
 7. UI design and UI implementation PRs only after route behavior is approved.
 
 No later PR may skip explicit user/Core approval for the exact recording

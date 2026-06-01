@@ -305,6 +305,13 @@ The schema-only bridge table implementation adds the empty
 verification evidence rows, does not create action records, and does not
 authorize actual proof/evidence recording.
 
+The proof/evidence recording route gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and defines a future POST invocation boundary over the
+writer/helper. It adds no route implementation, UI/Cockpit controls,
+schema/migration, writer/helper changes, bridge rows, verification evidence
+rows, action records, or actual proof/evidence recording authority.
+
 ## Future Route/Helper/UI Implementation Sequence
 
 Later PRs should stay split and reviewable:
@@ -313,7 +320,9 @@ Later PRs should stay split and reviewable:
 2. Writer/helper design PR defining input, validation, idempotency, transaction,
    output, authority boundary, and failure behavior.
 3. Writer/helper implementation PR with DB side-effect proof.
-4. Route design PR defining request/response shape and HTTP failure mapping.
+4. Route gate design PR defining request/response shape and HTTP failure
+   mapping, now tracked in
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
 5. Route implementation PR with HTTP, idempotency, redaction, and protected
    side-effect tests.
 6. Read-surface update PR showing recorded local proof/evidence links without

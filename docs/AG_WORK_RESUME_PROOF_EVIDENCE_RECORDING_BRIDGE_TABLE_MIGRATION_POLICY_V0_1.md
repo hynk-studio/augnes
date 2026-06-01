@@ -87,6 +87,14 @@ It is design-only and defines the future helper transaction contract after the
 empty bridge table exists. It creates no bridge/evidence/action rows and does
 not authorize actual recording.
 
+The proof/evidence recording route gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and defines a future `POST
+/api/ag-work-resume/proof-evidence-recordings` invocation boundary over the
+writer/helper. It adds no route implementation, UI/Cockpit controls, schema,
+writer/helper changes, bridge rows, evidence rows, action records, or
+recording authority.
+
 The schema smoke for this implementation is:
 
 ```bash

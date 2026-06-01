@@ -314,6 +314,13 @@ It is design-only and does not add writer/helper implementation, route/UI,
 bridge row creation, verification evidence row creation, action record
 creation, or actual proof/evidence recording authority by itself.
 
+The proof/evidence recording route gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and defines a future route invocation boundary over the
+writer/helper. It does not add route implementation, UI/Cockpit controls,
+schema/migration, writer/helper changes, bridge rows, verification evidence
+rows, action records, or actual proof/evidence recording authority by itself.
+
 ## Required Preconditions Before Actual Proof/Evidence Recording
 
 - user/Core explicit authorization

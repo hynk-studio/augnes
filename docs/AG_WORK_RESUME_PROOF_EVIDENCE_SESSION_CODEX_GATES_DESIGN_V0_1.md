@@ -149,6 +149,13 @@ writer/helper, route/UI, bridge row creation, verification evidence row
 creation, action record creation, session binding, Codex continuation, or
 approval/publish/retry/replay/merge authority.
 
+The proof/evidence recording route gate is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md`.
+It is design-only and defines a future POST invocation boundary over the
+writer/helper. It does not implement the route, add UI/Cockpit controls,
+weaken helper validation, create bridge/evidence/action rows, bind sessions, or
+continue Codex.
+
 Approval, publish, retry, replay, and merge remain separate from imported
 context review. Durable approval remains user/Core gated and merge remains a
 GitHub/user review decision, not an AG Resume imported context decision.
