@@ -81,6 +81,10 @@ implement computation or change response shape.
 alignment/reference pointers. They do not change runtime placeholder behavior,
 import lab helper logic, import trace-pack harnesses, define threshold runtime
 policy, or grant schema/API/Cockpit/action/proof/evidence/readiness authority.
+`docs/SIDECAR_ET_TRACE_PACK_HARNESS_ADAPTATION_PLAN_V0_1.md` is a docs-only
+Strategy C planning pointer for a possible future harness adaptation. It does
+not add fixtures, scripts, package scripts, helper logic, runtime computation,
+or CI policy.
 
 `meta_wm_hint` shape:
 

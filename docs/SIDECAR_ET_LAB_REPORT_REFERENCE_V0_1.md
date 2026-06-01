@@ -148,6 +148,8 @@ Use this document as:
 
 - review context for the merged lab evidence trail
 - planning input for a future Strategy C trace-pack/report harness adaptation
+- companion context for
+  `docs/SIDECAR_ET_TRACE_PACK_HARNESS_ADAPTATION_PLAN_V0_1.md`
 - input for a future runtime log-only decision packet
 - product copy and non-authority wording reference
 - a checklist of lab ambiguities to keep visible during review
