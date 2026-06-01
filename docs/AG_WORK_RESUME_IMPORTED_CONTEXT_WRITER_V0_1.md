@@ -11,7 +11,10 @@ Imported context remains bounded review metadata. It is not proof/evidence,
 not session binding, not Codex execution or continuation, not committed state
 authority, and not approval, publish, retry, replay, or merge authority.
 
-This slice adds no route, no read route, and no Cockpit UI.
+This writer/helper slice originally added no route, no read route, and no
+Cockpit UI. The later read helper/GET route is documented separately in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`; it reads existing
+imported context review metadata only and changes no writer behavior.
 
 ## Relationship To Stage D Design And Schema
 
@@ -31,6 +34,13 @@ The separately gated create route is documented in
 writer core and grants no UI, read route, proof/evidence, session, Codex, work
 item/event, confirmed mapping/proposal mutation, approval, publish, retry,
 replay, or merge authority.
+
+The separately gated read helper/GET route is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`. It reads only
+`ag_work_resume_imported_contexts`, preserves the existing POST create route,
+and grants no imported context creation, update, delete, lifecycle mutation,
+proof/evidence, session, Codex, work item/event, confirmed mapping/proposal
+mutation, approval, publish, retry, replay, or merge authority.
 
 ## Core API
 
@@ -213,7 +223,9 @@ proof/evidence/session/Codex/merge authority.
 ## Non-Goals
 
 - No route.
-- No read route.
+- Read helper/GET route is separately documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md` and changes no writer
+  behavior.
 - No Cockpit UI.
 - No app changes.
 - No components changes.

@@ -276,6 +276,13 @@ PRs:
   still adds no read route, Cockpit UI, proof/evidence, session binding, Codex
   execution, work item/event creation, confirmed mapping/proposal mutation,
   approval, publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md` documents the
+  separately gated Stage D read helper/GET route; it reads imported context
+  review metadata only from `ag_work_resume_imported_contexts`, preserves the
+  existing POST create route, and still adds no writer change, lifecycle
+  mutation, Cockpit UI, schema/migration, proof/evidence, session binding,
+  Codex execution, work item/event creation, confirmed mapping/proposal
+  mutation, approval, publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

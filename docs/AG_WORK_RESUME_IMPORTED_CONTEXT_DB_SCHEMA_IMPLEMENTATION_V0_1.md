@@ -192,6 +192,15 @@ proof/evidence recording, session binding, Codex execution, work item/event
 creation, confirmed mapping/proposal mutation, or approval, publish, retry,
 replay, or merge authority.
 
+The separately gated imported context read helper/GET route is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`. It reads only existing
+`ag_work_resume_imported_contexts` review metadata, parses JSON text fields for
+output, preserves the POST create route, and still adds no writer change,
+lifecycle mutation, Cockpit UI, schema/migration, proof/evidence recording,
+session binding, Codex execution, work item/event creation, confirmed
+mapping/proposal mutation, or approval, publish, retry, replay, or merge
+authority.
+
 Proof/evidence, session, and Codex gates remain separate.
 
 ## Browser Verification

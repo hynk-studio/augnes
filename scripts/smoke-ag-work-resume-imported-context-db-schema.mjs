@@ -64,7 +64,7 @@ try {
   const schemaSource = readFileSync(schemaPath, "utf8");
   assertSchemaSource(schemaSource);
   assertDocs();
-  assertNoImportedContextReadOrUiSurfaces();
+  assertNoImportedContextUiSurfaces();
 
   runNpmScript("db:reset", tempDbPath);
   inspectMigratedDatabase(tempDbPath, "reset");
@@ -86,7 +86,7 @@ try {
         constraints_passed: true,
         fixture_insert_rolled_back: true,
         migration_idempotency_passed: true,
-        no_route_read_ui_surface_passed: true,
+        no_ui_surface_passed: true,
         docs_guard_passed: true,
         source_guard_passed: true,
       },
@@ -396,15 +396,14 @@ function assertDocs() {
   }
 }
 
-function assertNoImportedContextReadOrUiSurfaces() {
+function assertNoImportedContextUiSurfaces() {
   for (const relativePath of [
-    "lib/ag-work-resume-imported-context-read.ts",
-    "scripts/ag-work-resume-imported-context-read.mjs",
+    "components/ag-work-resume-imported-context.tsx",
   ]) {
     assert.equal(
       existsSync(path.join(rootDir, relativePath)),
       false,
-      `${relativePath} must not exist in imported context schema/create-route slice`,
+      `${relativePath} must not exist in imported context schema/read slice`,
     );
   }
 }
@@ -423,8 +422,11 @@ function assertNoUnexpectedChangedFiles() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "lib/ag-work-resume-imported-context.ts",
+    "lib/ag-work-resume-imported-context-read.ts",
     "scripts/ag-work-resume-imported-context-create.mjs",
+    "scripts/ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
@@ -435,6 +437,7 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "app/api/ag-work-resume/imported-contexts/route.ts",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "package.json",
   ]);
@@ -454,8 +457,9 @@ function assertNoUnexpectedChangedFiles() {
     assert.ok(
       file === "lib/db/schema.sql" ||
         file === "lib/ag-work-resume-imported-context.ts" ||
+        file === "lib/ag-work-resume-imported-context-read.ts" ||
         !file.startsWith("lib/"),
-      `lib changes limited to schema.sql or imported context writer core in this slice: ${file}`,
+      `lib changes limited to schema.sql or imported context writer/read cores in this slice: ${file}`,
     );
     assert.ok(
       file === "app/api/ag-work-resume/imported-contexts/route.ts" ||

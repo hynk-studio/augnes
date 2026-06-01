@@ -338,13 +338,17 @@ function assertNoUnexpectedChangedFiles() {
   const allowedFiles = new Set([
     "lib/db/schema.sql",
     "lib/ag-work-resume-imported-context.ts",
+    "lib/ag-work-resume-imported-context-read.ts",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
     schemaDesignDocRelativePath,
     ...pointerDocRelativePaths,
     "package.json",
     "scripts/ag-work-resume-imported-context-create.mjs",
+    "scripts/ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
@@ -374,9 +378,10 @@ function assertNoUnexpectedChangedFiles() {
     assert.ok(
       file === "lib/db/schema.sql" ||
         file === "lib/ag-work-resume-imported-context.ts" ||
+        file === "lib/ag-work-resume-imported-context-read.ts" ||
         file === "app/api/ag-work-resume/imported-contexts/route.ts" ||
         !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
-      `imported context follow-up must not touch runtime/UI/browser files outside schema.sql, writer core, or create route: ${file}`,
+      `imported context follow-up must not touch runtime/UI/browser files outside schema.sql, writer/read cores, or create route: ${file}`,
     );
   }
 }
@@ -395,7 +400,8 @@ function assertNoForbiddenImplementationCode() {
         /^(app|apps|components|migrations)\//.test(file)) ||
       (file.startsWith("lib/") &&
         file !== "lib/db/schema.sql" &&
-        file !== "lib/ag-work-resume-imported-context.ts"),
+        file !== "lib/ag-work-resume-imported-context.ts" &&
+        file !== "lib/ag-work-resume-imported-context-read.ts"),
   );
   assert.deepEqual(
     implementationFiles,
@@ -406,7 +412,9 @@ function assertNoForbiddenImplementationCode() {
   const guardOnlySmokeFiles = new Set([
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/ag-work-resume-imported-context-create.mjs",
+    "scripts/ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema-design.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-create-cockpit-panel.mjs",
@@ -432,6 +440,7 @@ function assertNoForbiddenImplementationCode() {
   )) {
     if (file === "lib/db/schema.sql") continue;
     if (file === "lib/ag-work-resume-imported-context.ts") continue;
+    if (file === "lib/ag-work-resume-imported-context-read.ts") continue;
     if (guardOnlySmokeFiles.has(file)) continue;
     const source = readFileSync(path.join(rootDir, file), "utf8");
     for (const pattern of forbiddenPatterns) {
