@@ -10,6 +10,11 @@ const componentPath = path.join(rootDir, "components", "augnes-cockpit.tsx");
 const docsPath = path.join(
   rootDir,
   "docs",
+  "AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md",
+);
+const readPanelDocsPath = path.join(
+  rootDir,
+  "docs",
   "AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md",
 );
 const readDocsPath = path.join(
@@ -27,11 +32,6 @@ const writerDocsPath = path.join(
   "docs",
   "AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
 );
-const recordDesignDocsPath = path.join(
-  rootDir,
-  "docs",
-  "AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
-);
 const gateDocsPath = path.join(
   rootDir,
   "docs",
@@ -42,16 +42,16 @@ const browserReportPath = path.join(
   rootDir,
   "reports",
   "browser",
-  "2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md",
+  "2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md",
 );
 
 for (const file of [
   componentPath,
   docsPath,
+  readPanelDocsPath,
   readDocsPath,
   routeDocsPath,
   writerDocsPath,
-  recordDesignDocsPath,
   gateDocsPath,
   packagePath,
   browserReportPath,
@@ -61,37 +61,36 @@ for (const file of [
 
 const componentSource = readFileSync(componentPath, "utf8");
 const docsSource = readFileSync(docsPath, "utf8");
+const readPanelDocsSource = readFileSync(readPanelDocsPath, "utf8");
 const readDocsSource = readFileSync(readDocsPath, "utf8");
 const routeDocsSource = readFileSync(routeDocsPath, "utf8");
 const writerDocsSource = readFileSync(writerDocsPath, "utf8");
-const recordDesignDocsSource = readFileSync(recordDesignDocsPath, "utf8");
 const gateDocsSource = readFileSync(gateDocsPath, "utf8");
 const browserReportSource = readFileSync(browserReportPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
   packageJson.scripts?.[
-    "smoke:ag-work-resume-imported-context-read-cockpit-panel"
+    "smoke:ag-work-resume-imported-context-create-cockpit-panel"
   ],
-  "node scripts/smoke-ag-work-resume-imported-context-read-cockpit-panel.mjs",
-  "package.json must expose the imported context read Cockpit panel smoke",
+  "node scripts/smoke-ag-work-resume-imported-context-create-cockpit-panel.mjs",
+  "package.json must expose the imported context create Cockpit panel smoke",
 );
 
 const panelSource = extractFunctionBlock(
   componentSource,
-  "AgResumeImportedContextReadPanel",
+  "AgResumeImportedContextCreatePanel",
 );
 const submitHandlerSource = extractFunctionBlock(
   panelSource,
-  "handleImportedContextReadSubmit",
+  "handleImportedContextCreateSubmit",
 );
-const queryBuilderSource = extractFunctionBlock(
+const requestBuilderSource = extractFunctionBlock(
   componentSource,
-  "buildImportedContextReadSearchParams",
+  "buildImportedContextCreateRequestBody",
 );
 const resultSource = [
-  extractFunctionBlock(componentSource, "AgResumeImportedContextReadResults"),
-  extractFunctionBlock(componentSource, "AgResumeImportedContextReadFilters"),
+  extractFunctionBlock(componentSource, "AgResumeImportedContextCreateResults"),
   extractFunctionBlock(
     componentSource,
     "AgResumeImportedContextAuthorityBoundary",
@@ -100,60 +99,69 @@ const resultSource = [
 ].join("\n");
 const fixtureSource = extractConstAssignment(
   componentSource,
-  "SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE",
+  "SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE",
 );
 
 assert.match(
   componentSource,
-  /<AgResumeConfirmedMappingReadPanel \/>[\s\S]*<AgResumeImportedContextReadPanel \/>[\s\S]*<CoordinationEventTimeline\b/,
-  "Operator tab must render the imported context read panel after confirmed mapping read and before the event timeline",
+  /<AgResumeConfirmedMappingReadPanel \/>[\s\S]*<AgResumeImportedContextCreatePanel \/>[\s\S]*<AgResumeImportedContextReadPanel \/>/,
+  "Operator tab must render imported context create near imported context read surfaces",
 );
 
 for (const token of [
-  "AG Resume Imported Context Review",
-  "Read-only review over Stage D imported context metadata.",
-  "Read-only imported context review metadata only.",
-  "Calls only the existing GET imported contexts route.",
+  "AG Resume Imported Context Create",
+  "Bounded create controls for Stage D imported context review metadata.",
+  "Creates only imported context review metadata through the existing",
+  "POST imported contexts route",
+  "Imported context is bounded review metadata only.",
   "Not proof/evidence",
   "not session binding",
   "not Codex",
   "Not work item/event creation",
   "not confirmed mapping/proposal",
   "Not approval, publish, retry, replay, or merge authority.",
-  "Durable\n            approval remains user/Core gated.",
-  "importId",
   "mappingId",
+  "packetId",
+  "packetHash",
+  "sourceRuntimeInstanceId",
   "foreignScope",
   "foreignWorkId",
   "localScope",
   "localWorkId",
-  "packetId",
-  "packetHash",
-  "status",
+  "importedSummary",
+  "importedExpectedFilesJson",
+  "importedExpectedChecksJson",
+  "foreignRefsSummaryJson",
+  "redactionReportJson",
   "createdBy",
-  "limit",
-  "Imported context read route error",
+  "importReason",
+  "createdAt",
+  "Imported context create route error",
 ]) {
   assert.match(panelSource, new RegExp(escapeRegExp(token)), `panel must include ${token}`);
 }
 
 assert.match(
   submitHandlerSource,
-  /fetch\(\s*`\/api\/ag-work-resume\/imported-contexts\?\$\{searchParams\.toString\(\)\}`/,
-  "panel must call the existing imported contexts GET route",
+  /fetch\(\s*"\/api\/ag-work-resume\/imported-contexts"/,
+  "panel must call the existing imported contexts route",
 );
-assert.match(submitHandlerSource, /method:\s*"GET"/, "panel route call must use GET");
-assert.doesNotMatch(submitHandlerSource, /method:\s*"POST"/, "panel must not POST");
-assert.doesNotMatch(submitHandlerSource, /JSON\.stringify/, "panel must not build a write body");
-assert.doesNotMatch(
+assert.match(submitHandlerSource, /method:\s*"POST"/, "panel route call must use POST");
+assert.doesNotMatch(submitHandlerSource, /method:\s*"GET"/, "create panel must not GET");
+assert.match(
   submitHandlerSource,
-  /headers\s*:/,
-  "panel GET must not set request headers",
+  /headers:\s*\{\s*"content-type":\s*"application\/json"\s*\}/,
+  "panel POST must set JSON content type",
 );
-assert.doesNotMatch(
-  panelSource,
-  /content-type/i,
-  "panel GET must not set JSON content type",
+assert.match(
+  submitHandlerSource,
+  /body:\s*JSON\.stringify\(requestBody\)/,
+  "panel POST must send a JSON body built from supported fields",
+);
+assert.equal(
+  [...panelSource.matchAll(/\bfetch\(/g)].length,
+  1,
+  "imported context create panel must have exactly one route fetch",
 );
 
 const routeStrings = [
@@ -161,14 +169,8 @@ const routeStrings = [
 ].map((match) => match[1]);
 assert.deepEqual(
   [...new Set(routeStrings)],
-  ["/api/ag-work-resume/imported-contexts?${searchParams.toString()}"],
-  "panel must not reference any API route except imported-contexts GET",
-);
-
-assert.equal(
-  [...panelSource.matchAll(/\bfetch\(/g)].length,
-  1,
-  "imported context read panel must have exactly one route fetch",
+  ["/api/ag-work-resume/imported-contexts"],
+  "panel must not reference any API route except imported-contexts POST",
 );
 
 for (const forbiddenRoute of [
@@ -188,11 +190,6 @@ for (const forbiddenRoute of [
   "bridge",
   "mcp/app",
   "direct resume code",
-  "localStorage",
-  "sessionStorage",
-  "indexedDB",
-  "telemetry",
-  "analytics",
 ]) {
   assert.doesNotMatch(
     routeStrings.join("\n"),
@@ -200,6 +197,7 @@ for (const forbiddenRoute of [
     `panel API route strings must not reference ${forbiddenRoute}`,
   );
 }
+
 for (const forbiddenStorage of [
   "localStorage",
   "sessionStorage",
@@ -215,33 +213,27 @@ for (const forbiddenStorage of [
 }
 
 for (const accessibilityToken of [
-  'htmlFor="ag-resume-imported-context-import-id-input"',
-  'htmlFor="ag-resume-imported-context-mapping-id-input"',
-  'htmlFor="ag-resume-imported-context-foreign-scope-input"',
-  'htmlFor="ag-resume-imported-context-foreign-work-id-input"',
-  'htmlFor="ag-resume-imported-context-local-scope-input"',
-  'htmlFor="ag-resume-imported-context-local-work-id-input"',
-  'htmlFor="ag-resume-imported-context-packet-id-input"',
-  'htmlFor="ag-resume-imported-context-packet-hash-input"',
-  'htmlFor="ag-resume-imported-context-status-input"',
-  'htmlFor="ag-resume-imported-context-created-by-input"',
-  'htmlFor="ag-resume-imported-context-limit-input"',
-  'id="ag-resume-imported-context-import-id-input"',
-  'id="ag-resume-imported-context-mapping-id-input"',
-  'id="ag-resume-imported-context-foreign-scope-input"',
-  'id="ag-resume-imported-context-foreign-work-id-input"',
-  'id="ag-resume-imported-context-local-scope-input"',
-  'id="ag-resume-imported-context-local-work-id-input"',
-  'id="ag-resume-imported-context-packet-id-input"',
-  'id="ag-resume-imported-context-packet-hash-input"',
-  'id="ag-resume-imported-context-status-input"',
-  'id="ag-resume-imported-context-created-by-input"',
-  'id="ag-resume-imported-context-limit-input"',
+  'htmlFor="ag-resume-imported-context-create-mapping-id-input"',
+  'htmlFor="ag-resume-imported-context-create-packet-id-input"',
+  'htmlFor="ag-resume-imported-context-create-packet-hash-input"',
+  'htmlFor="ag-resume-imported-context-create-source-runtime-instance-id-input"',
+  'htmlFor="ag-resume-imported-context-create-foreign-scope-input"',
+  'htmlFor="ag-resume-imported-context-create-foreign-work-id-input"',
+  'htmlFor="ag-resume-imported-context-create-local-scope-input"',
+  'htmlFor="ag-resume-imported-context-create-local-work-id-input"',
+  'htmlFor="ag-resume-imported-context-create-imported-summary-input"',
+  'htmlFor="ag-resume-imported-context-create-expected-files-input"',
+  'htmlFor="ag-resume-imported-context-create-expected-checks-input"',
+  'htmlFor="ag-resume-imported-context-create-foreign-refs-input"',
+  'htmlFor="ag-resume-imported-context-create-redaction-report-input"',
+  'htmlFor="ag-resume-imported-context-create-created-by-input"',
+  'htmlFor="ag-resume-imported-context-create-import-reason-input"',
+  'htmlFor="ag-resume-imported-context-create-created-at-input"',
   "aria-describedby",
   'role="alert"',
   "aria-busy",
   "<input",
-  "<select",
+  "<textarea",
   "<button",
 ]) {
   assert.match(
@@ -253,16 +245,16 @@ for (const accessibilityToken of [
 
 for (const [groupLabel, headingId] of [
   [
-    "Imported context safe fixture controls",
-    "ag-resume-imported-context-safe-fixtures-heading",
+    "Imported context create safe fixture controls",
+    "ag-resume-imported-context-create-safe-fixtures-heading",
   ],
   [
-    "Imported context lookup inputs",
-    "ag-resume-imported-context-inputs-heading",
+    "Imported context create inputs",
+    "ag-resume-imported-context-create-inputs-heading",
   ],
   [
-    "Imported context read controls",
-    "ag-resume-imported-context-action-controls-heading",
+    "Imported context create controls",
+    "ag-resume-imported-context-create-action-controls-heading",
   ],
 ]) {
   assert.match(
@@ -277,57 +269,61 @@ for (const [groupLabel, headingId] of [
   );
 }
 
+assert.match(resultSource, /aria-live="polite"/, "result section must use aria-live polite");
 assert.match(
   resultSource,
-  /aria-live="polite"/,
-  "result section must use aria-live polite",
-);
-assert.match(
-  resultSource,
-  /aria-labelledby="ag-resume-imported-context-read-result-heading"/,
+  /aria-labelledby="ag-resume-imported-context-create-result-heading"/,
   "result section must have a stable labelled heading",
 );
 
-for (const queryToken of [
-  "import_id fetch must not be combined with list filters or limit.",
-  "foreign_scope and foreign_work_id must be supplied together.",
-  "local_scope and local_work_id must be supplied together.",
-  "packet_id and packet_hash must be supplied together.",
-  "At least one imported context read filter is required",
-  "limit must be a positive integer.",
-  'searchParams.set("mapping_id"',
-  'searchParams.set("foreign_scope"',
-  'searchParams.set("foreign_work_id"',
-  'searchParams.set("local_scope"',
-  'searchParams.set("local_work_id"',
-  'searchParams.set("packet_id"',
-  'searchParams.set("packet_hash"',
-  'searchParams.set("status"',
-  'searchParams.set("created_by"',
-  'searchParams.set("limit"',
+for (const requestToken of [
+  "mapping_id is required for imported context create.",
+  "packet_id is required for imported context create.",
+  "packet_hash is required for imported context create.",
+  "imported_summary is required for imported context create.",
+  "created_by is required for imported context create.",
+  "import_reason is required for imported context create.",
+  "created_at must be an ISO UTC timestamp with millisecond precision.",
+  "imported_expected_files JSON",
+  "imported_expected_checks JSON",
+  "foreign_refs_summary JSON",
+  "redaction_report JSON",
+  "redaction_report must explicitly set",
+  "secrets_included",
+  "raw_db_paths_included",
+  "session_payloads_included",
+  "proof_payloads_included",
+  "source_runtime_instance_id",
+  "imported_expected_files",
+  "imported_expected_checks",
+  "foreign_refs_summary",
+  "redaction_report",
 ]) {
   assert.match(
-    queryBuilderSource,
-    new RegExp(escapeRegExp(queryToken)),
-    `query builder must include ${queryToken}`,
+    requestBuilderSource,
+    new RegExp(escapeRegExp(requestToken)),
+    `request builder must include ${requestToken}`,
   );
 }
-assert.doesNotMatch(queryBuilderSource, /\bfetch\(/, "query builder must not fetch");
-assert.doesNotMatch(queryBuilderSource, /\/api\//, "query builder must not call routes");
+assert.doesNotMatch(requestBuilderSource, /\bfetch\(/, "request builder must not fetch");
+assert.doesNotMatch(requestBuilderSource, /\/api\//, "request builder must not call routes");
+assert.doesNotMatch(
+  requestBuilderSource,
+  /\b(db|now)\b/,
+  "request builder must not include db or now in route body",
+);
 
 for (const fixtureToken of [
-  "SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE",
-  "ag-resume-imported-context:",
+  "SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE",
   "ag-resume-confirmed-mapping:",
-  "project:foreign",
-  "AG-FIXTURE-IMPORTED-CONTEXT-READ-001",
-  "project:augnes",
-  "AG-FIXTURE-IMPORTED-CONTEXT-READ-LOCAL-001",
   "resume-packet:",
   "sha256:",
-  "review_metadata",
-  "user-core:imported-context-read-cockpit-panel",
-  "20",
+  "imported_expected_files_json",
+  "imported_expected_checks_json",
+  "foreign_refs_summary_json",
+  "redaction_report_json",
+  "user-core:imported-context-create-cockpit-panel",
+  "2026-06-01T05:02:00.000Z",
 ]) {
   assert.match(
     fixtureSource,
@@ -337,14 +333,12 @@ for (const fixtureToken of [
 }
 
 for (const localFunctionName of [
-  "loadSafeImportedContextIdFixture",
-  "loadSafeImportedContextMappingFixture",
-  "loadSafeImportedContextForeignWorkFixture",
-  "loadSafeImportedContextLocalWorkFixture",
-  "loadSafeImportedContextPacketFixture",
-  "loadSafeImportedContextStatusFixture",
-  "loadSafeImportedContextCreatedByFixture",
-  "clearImportedContextInputs",
+  "loadSafeImportedContextCreateFixture",
+  "loadSafeImportedContextMatchingIdentityFixture",
+  "loadSafeImportedContextMissingMappingFixture",
+  "loadSafeImportedContextInactiveMappingFixture",
+  "loadSafeImportedContextMismatchFixture",
+  "clearImportedContextCreateInputs",
 ]) {
   const source = extractFunctionBlock(panelSource, localFunctionName);
   assert.doesNotMatch(source, /\bfetch\(/, `${localFunctionName} must not fetch`);
@@ -353,27 +347,22 @@ for (const localFunctionName of [
 }
 
 for (const buttonLabel of [
-  "Load safe import id lookup",
-  "Load safe mapping lookup",
-  "Load safe foreign work lookup",
-  "Load safe local work lookup",
-  "Load safe packet lookup",
-  "Load safe status lookup",
-  "Load safe creator lookup",
-  "Clear imported context inputs",
-  "Read imported contexts",
+  "Load safe create fixture",
+  "Load safe matching identity create fixture",
+  "Load safe missing mapping fixture",
+  "Load safe inactive mapping fixture",
+  "Load safe mapping mismatch fixture",
+  "Clear imported context create inputs",
+  "Create imported context",
 ]) {
   assert.match(
     panelSource,
-    new RegExp(`>\\s*${escapeRegExp(buttonLabel)}\\s*<|\\?\\s*"Reading imported contexts"\\s*:\\s*"Read imported contexts"`),
+    new RegExp(`>\\s*${escapeRegExp(buttonLabel)}\\s*<|\\?\\s*"Creating imported context"\\s*:\\s*"Create imported context"`),
     `panel must include button label ${buttonLabel}`,
   );
 }
 
 for (const forbiddenLabel of [
-  "Create imported context",
-  "Update imported context",
-  "Delete imported context",
   "Record evidence",
   "Record proof",
   "Bind session",
@@ -395,14 +384,13 @@ for (const forbiddenLabel of [
 for (const resultToken of [
   "HTTP Status",
   "Route ok",
-  "Reader status",
-  "Record count",
-  "Applied filters",
+  "Writer status",
+  "Import id",
+  "Mapping id",
   "Warnings",
   "Failures",
-  "Read Authority Boundary",
+  "Create Authority Boundary",
   "Record Authority Boundary",
-  "review_metadata_only",
   "import_id",
   "mapping_id",
   "foreign_scope",
@@ -418,8 +406,6 @@ for (const resultToken of [
   "redaction_report",
   "created_by",
   "import_reason",
-  "created_at",
-  "updated_at",
   "proof_recorded",
   "evidence_recorded",
   "session_bound",
@@ -436,75 +422,65 @@ for (const resultToken of [
 }
 
 for (const docsToken of [
-  "AG Work Resume Imported Context Read Cockpit Panel v0.1",
-  "read-only Cockpit Operator panel",
-  "GET /api/ag-work-resume/imported-contexts",
-  "read-only imported context review metadata only",
-  "existing POST create route is preserved",
-  "import_id",
-  "mapping_id",
-  "foreign_scope",
-  "foreign_work_id",
-  "local_scope",
-  "local_work_id",
-  "packet_id",
-  "packet_hash",
-  "status",
-  "created_by",
-  "limit",
-  "Load safe import id lookup",
-  "Read imported contexts",
-  "Imported context cards render",
+  "AG Work Resume Imported Context Create Cockpit Panel v0.1",
+  "POST /api/ag-work-resume/imported-contexts",
+  "Imported context remains bounded review metadata only",
+  "The create action sends exactly one route request",
+  "JSON `Content-Type` header",
+  "does not include `db` or `now`",
+  "Local Validation",
+  "Redaction Validation",
+  "secrets_included",
+  "raw_db_paths_included",
+  "session_payloads_included",
+  "proof_payloads_included",
+  "Output Rendering",
   "role=\"alert\"",
   "aria-live=\"polite\"",
-  "No create controls",
-  "No update route",
-  "No delete route",
-  "No lifecycle mutation",
+  "No schema or migration",
+  "No read route behavior change",
   "No proof/evidence recording",
   "No session binding",
   "No Codex execution",
-  "No schema or migration",
-  "No ChatGPT App, MCP/App schema, or bridge tool changes",
-  "No telemetry, analytics, localStorage, sessionStorage, or indexedDB",
+  "No work item or work event creation",
+  "No confirmed mapping mutation",
+  "No proposal mutation",
   "No approval, publish, retry, replay, merge",
   "Browser Verification Requirement",
-  "network proof",
-  "DB side-effect proof",
 ]) {
   assert.match(docsSource, new RegExp(escapeRegExp(docsToken)), `docs must include ${docsToken}`);
 }
 
 for (const pointerDocs of [
+  readPanelDocsSource,
   readDocsSource,
   routeDocsSource,
   writerDocsSource,
-  recordDesignDocsSource,
   gateDocsSource,
 ]) {
   assert.match(
     pointerDocs,
-    /AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1\.md/,
-    "pointer docs must link to the imported context read Cockpit panel doc",
+    /AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1\.md/,
+    "pointer docs must link to the imported context create Cockpit panel doc",
   );
 }
 
 for (const reportToken of [
-  "AG Resume imported context read Cockpit panel",
+  "AG Resume imported context create Cockpit panel",
   "Codex in-app Browser",
-  "GET /api/ag-work-resume/imported-contexts",
-  "import_id",
-  "mapping_id",
-  "foreign_scope",
-  "local_scope",
-  "packet_id",
-  "status",
-  "created_by",
+  "POST /api/ag-work-resume/imported-contexts",
+  "create from active confirmed mapping",
+  "missing required local validation",
+  "malformed created_at local validation",
+  "unsafe redaction local validation",
+  "mapping_not_found",
+  "mapping_not_active",
+  "mapping_mismatch",
   "network proof",
-  "request body length was `0`",
-  "no read call sent a JSON `Content-Type` header",
+  "JSON content-type",
+  "no GET read route call",
   "DB side-effect proof",
-  "ag_work_resume_imported_contexts",
+  "exactly one imported context row created",
   "No unauthorized controls",
   "Result: passed",
 ]) {
@@ -517,7 +493,7 @@ for (const reportToken of [
 
 assertChangedFilesGuard();
 
-console.log("PASS ag work resume imported context read cockpit panel smoke");
+console.log("PASS ag work resume imported context create cockpit panel smoke");
 
 function assertChangedFilesGuard() {
   const changedFiles = new Set([
@@ -535,7 +511,6 @@ function assertChangedFilesGuard() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md",
-    "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md",
     "scripts/smoke-ag-work-resume-imported-context-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-imported-context-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-imported-context-read.mjs",
@@ -549,7 +524,7 @@ function assertChangedFilesGuard() {
   for (const file of changedFiles) {
     assert.ok(
       allowedFiles.has(file),
-      `changed file is outside imported context read Cockpit panel slice: ${file}`,
+      `changed file is outside imported context create Cockpit panel slice: ${file}`,
     );
     assert.equal(file.startsWith("app/"), false, `no app/api change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
@@ -561,11 +536,9 @@ function assertChangedFilesGuard() {
     );
     assert.ok(
       file ===
-        "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md" ||
-        file ===
-          "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md" ||
+        "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md" ||
         !file.startsWith("reports/browser/"),
-      `browser report changes limited to imported context Cockpit panels: ${file}`,
+      `browser report changes limited to this create panel: ${file}`,
     );
   }
 }
@@ -584,7 +557,7 @@ function extractFunctionBlock(source, functionName) {
   const signature = `function ${functionName}`;
   const start = source.indexOf(signature);
   assert.notEqual(start, -1, `${functionName} must exist`);
-  const bodyStartMatch = source.slice(start).match(/\)\s*\{/);
+  const bodyStartMatch = source.slice(start).match(/\)\s*(?::[^{]+)?\{/);
   assert.ok(bodyStartMatch, `${functionName} must have a body`);
   const openBrace =
     start + bodyStartMatch.index + bodyStartMatch[0].lastIndexOf("{");
@@ -633,7 +606,7 @@ function findMatchingBrace(source, openBrace) {
     }
   }
 
-  throw new Error(`No matching brace found at ${openBrace}`);
+  throw new Error("No matching brace found");
 }
 
 function escapeRegExp(value) {

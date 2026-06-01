@@ -18,6 +18,9 @@ browser report, ChatGPT App/MCP/App schema, or bridge tool was added by this
 read helper/route slice. The later read-only Cockpit panel is documented in
 `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`; it uses
 the GET route only and preserves existing POST create behavior.
+The later bounded POST create Cockpit panel is documented separately in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`; it does
+not change this read helper/GET route.
 
 ## Relationship To Writer Route Schema And Design
 
@@ -29,6 +32,7 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`
+- `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
@@ -236,6 +240,9 @@ not proof/evidence/session/Codex/merge authority.
 - No Cockpit UI in this helper/route slice; the later read-only Cockpit
   review panel is documented in
   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`.
+- Bounded POST create Cockpit controls are separately documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md` and do
+  not change this read helper/route.
 - No schema or migration.
 - No proof/evidence recording.
 - No session binding.

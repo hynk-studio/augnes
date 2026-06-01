@@ -25,6 +25,13 @@ create/update/delete, lifecycle, proof/evidence, session, Codex,
 work item/event, confirmed mapping/proposal mutation, approval, publish,
 retry, replay, or merge authority.
 
+The later bounded POST create Cockpit panel is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`. It calls
+only this existing POST route with supported JSON fields and grants no
+schema/migration, read route behavior, proof/evidence, session, Codex, work
+item/event, confirmed mapping/proposal mutation, approval, publish, retry,
+replay, or merge authority.
+
 ## Route
 
 Endpoint:
@@ -125,6 +132,9 @@ false.
 - Read-only Cockpit review panel is separately documented in
   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md` and uses
   only the GET read route.
+- Bounded POST create Cockpit controls are separately documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md` and
+  preserve this existing POST route contract.
 - No schema or migration.
 - No proof/evidence recording.
 - No session binding.

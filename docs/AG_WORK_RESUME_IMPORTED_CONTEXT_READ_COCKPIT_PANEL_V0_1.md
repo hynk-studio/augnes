@@ -19,6 +19,10 @@ approval, publish, retry, replay, or merge authority.
 The existing POST create route is preserved but not changed by this Cockpit
 read panel slice.
 
+The later bounded POST create Cockpit panel is documented separately in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`; this
+read panel remains GET-only.
+
 ## Relationship To Writer Route Schema And Design
 
 The panel sits on top of the read helper/GET route documented in
@@ -30,6 +34,7 @@ Related documents:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`
+- `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The panel does not call that writer route. It only submits
@@ -180,7 +185,9 @@ proof/evidence/session/Codex/merge authority.
 
 ## Non-Goals
 
-- No create controls.
+- No create controls in this read panel; bounded POST create controls are
+  separately documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`.
 - No update route.
 - No delete route.
 - No lifecycle mutation.

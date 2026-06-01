@@ -839,6 +839,31 @@ type AgResumeImportedContextReadPanelResult = {
   body: AgResumeImportedContextReadRouteResponse;
 };
 
+type AgResumeImportedContextCreatePanelResult = {
+  httpStatus: number;
+  requestBody: AgResumeImportedContextCreateRequestBody;
+  body: AgResumeImportedContextCreateRouteResponse;
+};
+
+type AgResumeImportedContextCreateRequestBody = {
+  mapping_id: string;
+  packet_id: string;
+  packet_hash: string;
+  source_runtime_instance_id?: string;
+  foreign_scope?: string;
+  foreign_work_id?: string;
+  local_scope?: string;
+  local_work_id?: string;
+  imported_summary: string;
+  imported_expected_files?: unknown[];
+  imported_expected_checks?: unknown[];
+  foreign_refs_summary?: Record<string, unknown>;
+  redaction_report: Record<string, unknown>;
+  created_by: string;
+  import_reason: string;
+  created_at?: string;
+};
+
 type AgResumeConfirmedMappingCreatePanelResult = {
   httpStatus: number;
   requestBody: AgResumeConfirmedMappingCreateRequestBody;
@@ -1127,6 +1152,15 @@ type AgResumeImportedContextReadRouteResponse = {
   error?: string;
 };
 
+type AgResumeImportedContextCreateRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeImportedContextCreateResult | null;
+  authority_boundary?: AgResumeImportedContextAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
 type AgResumeImportedContextReadResult = {
   ok?: boolean;
   status?: string;
@@ -1145,6 +1179,18 @@ type AgResumeImportedContextReadResult = {
     created_by?: string | null;
   };
   limit?: number | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeImportedContextAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeImportedContextCreateResult = {
+  ok?: boolean;
+  status?: string;
+  import_id?: string | null;
+  record?: AgResumeImportedContextRecord | null;
+  source_mapping?: AgResumeConfirmedMappingRecord | null;
   warnings?: string[];
   failures?: string[];
   authority_boundary?: AgResumeImportedContextAuthorityBoundary | null;
@@ -1235,6 +1281,25 @@ type AgResumeConfirmedMappingCreateFixture = {
   confirmed_by: string;
   confirmation_reason: string;
   confirmed_at: string;
+};
+
+type AgResumeImportedContextCreateFixture = {
+  mapping_id: string;
+  packet_id: string;
+  packet_hash: string;
+  source_runtime_instance_id: string;
+  foreign_scope: string;
+  foreign_work_id: string;
+  local_scope: string;
+  local_work_id: string;
+  imported_summary: string;
+  imported_expected_files_json: string;
+  imported_expected_checks_json: string;
+  foreign_refs_summary_json: string;
+  redaction_report_json: string;
+  created_by: string;
+  import_reason: string;
+  created_at: string;
 };
 
 const SAFE_AG_RESUME_EXAMPLE_PACKET = {
@@ -1654,6 +1719,110 @@ const SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE = {
   status: "review_metadata",
   created_by: "user-core:imported-context-read-cockpit-panel",
   limit: "20",
+} as const;
+
+const SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE = {
+  active: {
+    mapping_id: "ag-resume-confirmed-mapping:a57e476df4b547f17498c5ea",
+    foreign_scope: "project:foreign",
+    foreign_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-CREATE-ACTIVE-001",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-CREATE-ACTIVE-LOCAL-001",
+    packet_id:
+      "resume-packet:preview:project-foreign:AG-FIXTURE-IMPORTED-CONTEXT-CREATE-ACTIVE-001",
+    packet_hash:
+      "sha256:5fee5790281f3ebbc5cb0d6e723c029bfd7de628c0b095a0f4548cc462ee7767",
+    source_runtime_instance_id:
+      "runtime-instance:imported-context-create-active-cockpit-panel",
+    imported_summary:
+      "Bounded imported context review metadata created from a safe Cockpit fixture.",
+    imported_expected_files_json:
+      '[\n  "components/augnes-cockpit.tsx",\n  "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md"\n]',
+    imported_expected_checks_json:
+      '[\n  "npm run smoke:ag-work-resume-imported-context-create-cockpit-panel"\n]',
+    foreign_refs_summary_json:
+      '{\n  "foreign_action_ref": "action:imported-context-create-cockpit-panel",\n  "summaries_only": true\n}',
+    redaction_report_json:
+      '{\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    created_by: "user-core:imported-context-create-cockpit-panel",
+    import_reason:
+      "User/Core created bounded imported context review metadata through Cockpit.",
+    created_at: "2026-06-01T05:02:00.000Z",
+  },
+  missing_mapping: {
+    mapping_id: "ag-resume-confirmed-mapping:missing-create-cockpit-001",
+    foreign_scope: "project:foreign",
+    foreign_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-READ-001",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-READ-LOCAL-001",
+    packet_id:
+      "resume-packet:preview:project-foreign:AG-FIXTURE-IMPORTED-CONTEXT-READ-001",
+    packet_hash:
+      "sha256:ebe5b5082fa668ec7f4abf939ed86878f7962daf70ea7eed9af7585433a3e490",
+    source_runtime_instance_id:
+      "runtime-instance:imported-context-read-cockpit-panel",
+    imported_summary:
+      "Bounded imported context review metadata for a missing mapping route error.",
+    imported_expected_files_json: "[]",
+    imported_expected_checks_json: "[]",
+    foreign_refs_summary_json:
+      '{\n  "foreign_action_ref": "action:imported-context-create-missing-mapping"\n}',
+    redaction_report_json:
+      '{\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    created_by: "user-core:imported-context-create-cockpit-panel",
+    import_reason:
+      "User/Core route error fixture for missing confirmed mapping.",
+    created_at: "2026-06-01T05:03:00.000Z",
+  },
+  inactive_mapping: {
+    mapping_id: "ag-resume-confirmed-mapping:54c7f17122d5c816361bcedc",
+    foreign_scope: "project:foreign",
+    foreign_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-CREATE-INACTIVE-001",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-CREATE-INACTIVE-LOCAL-001",
+    packet_id:
+      "resume-packet:preview:project-foreign:AG-FIXTURE-IMPORTED-CONTEXT-CREATE-INACTIVE-001",
+    packet_hash:
+      "sha256:6b04c7bbd5566c0c1fed7383fa56aa0ccf11f594964ebc1c2be3a6d5254e1561",
+    source_runtime_instance_id:
+      "runtime-instance:imported-context-create-inactive-cockpit-panel",
+    imported_summary:
+      "Bounded imported context review metadata for an inactive mapping route error.",
+    imported_expected_files_json: "[]",
+    imported_expected_checks_json: "[]",
+    foreign_refs_summary_json:
+      '{\n  "foreign_action_ref": "action:imported-context-create-inactive-mapping"\n}',
+    redaction_report_json:
+      '{\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    created_by: "user-core:imported-context-create-cockpit-panel",
+    import_reason:
+      "User/Core route error fixture for inactive confirmed mapping.",
+    created_at: "2026-06-01T05:04:00.000Z",
+  },
+  mismatch: {
+    mapping_id: "ag-resume-confirmed-mapping:a57e476df4b547f17498c5ea",
+    foreign_scope: "project:mismatch",
+    foreign_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-CREATE-MISMATCH-001",
+    local_scope: "project:augnes",
+    local_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-CREATE-ACTIVE-LOCAL-001",
+    packet_id:
+      "resume-packet:preview:project-foreign:AG-FIXTURE-IMPORTED-CONTEXT-CREATE-ACTIVE-001",
+    packet_hash:
+      "sha256:mismatch-imported-context-create-cockpit-panel",
+    source_runtime_instance_id:
+      "runtime-instance:imported-context-create-active-cockpit-panel",
+    imported_summary:
+      "Bounded imported context review metadata for a mapping mismatch route error.",
+    imported_expected_files_json: "[]",
+    imported_expected_checks_json: "[]",
+    foreign_refs_summary_json:
+      '{\n  "foreign_action_ref": "action:imported-context-create-mismatch"\n}',
+    redaction_report_json:
+      '{\n  "secrets_included": false,\n  "raw_db_paths_included": false,\n  "session_payloads_included": false,\n  "proof_payloads_included": false\n}',
+    created_by: "user-core:imported-context-create-cockpit-panel",
+    import_reason: "User/Core route error fixture for mapping mismatch.",
+    created_at: "2026-06-01T05:05:00.000Z",
+  },
 } as const;
 
 const SAFE_AG_RESUME_CONFIRMED_MAPPING_CREATE_FIXTURE = {
@@ -3880,6 +4049,7 @@ function OperatorTab({
           <AgResumeMappingProposalLifecycleActionPanel />
           <AgResumeConfirmedMappingCreatePanel />
           <AgResumeConfirmedMappingReadPanel />
+          <AgResumeImportedContextCreatePanel />
           <AgResumeImportedContextReadPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
@@ -7304,6 +7474,698 @@ function AgResumeConfirmedMappingCard({
         />
       </div>
     </article>
+  );
+}
+
+function AgResumeImportedContextCreatePanel() {
+  const [mappingId, setMappingId] = useState("");
+  const [packetId, setPacketId] = useState("");
+  const [packetHash, setPacketHash] = useState("");
+  const [sourceRuntimeInstanceId, setSourceRuntimeInstanceId] = useState("");
+  const [foreignScope, setForeignScope] = useState("");
+  const [foreignWorkId, setForeignWorkId] = useState("");
+  const [localScope, setLocalScope] = useState("");
+  const [localWorkId, setLocalWorkId] = useState("");
+  const [importedSummary, setImportedSummary] = useState("");
+  const [importedExpectedFilesJson, setImportedExpectedFilesJson] = useState("");
+  const [importedExpectedChecksJson, setImportedExpectedChecksJson] = useState("");
+  const [foreignRefsSummaryJson, setForeignRefsSummaryJson] = useState("");
+  const [redactionReportJson, setRedactionReportJson] = useState("");
+  const [createdBy, setCreatedBy] = useState("");
+  const [importReason, setImportReason] = useState("");
+  const [createdAt, setCreatedAt] = useState("");
+  const [result, setResult] =
+    useState<AgResumeImportedContextCreatePanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearCreateResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function applyImportedContextCreateFixture({
+    fixture,
+    includeOptionalFields,
+  }: {
+    fixture: AgResumeImportedContextCreateFixture;
+    includeOptionalFields: boolean;
+  }) {
+    setMappingId(fixture.mapping_id);
+    setPacketId(fixture.packet_id);
+    setPacketHash(fixture.packet_hash);
+    setSourceRuntimeInstanceId(
+      includeOptionalFields ? fixture.source_runtime_instance_id : "",
+    );
+    setForeignScope(includeOptionalFields ? fixture.foreign_scope : "");
+    setForeignWorkId(includeOptionalFields ? fixture.foreign_work_id : "");
+    setLocalScope(includeOptionalFields ? fixture.local_scope : "");
+    setLocalWorkId(includeOptionalFields ? fixture.local_work_id : "");
+    setImportedSummary(fixture.imported_summary);
+    setImportedExpectedFilesJson(fixture.imported_expected_files_json);
+    setImportedExpectedChecksJson(fixture.imported_expected_checks_json);
+    setForeignRefsSummaryJson(fixture.foreign_refs_summary_json);
+    setRedactionReportJson(fixture.redaction_report_json);
+    setCreatedBy(fixture.created_by);
+    setImportReason(fixture.import_reason);
+    setCreatedAt(fixture.created_at);
+    clearCreateResultState();
+  }
+
+  function loadSafeImportedContextCreateFixture() {
+    applyImportedContextCreateFixture({
+      fixture: SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE.active,
+      includeOptionalFields: false,
+    });
+  }
+
+  function loadSafeImportedContextMatchingIdentityFixture() {
+    applyImportedContextCreateFixture({
+      fixture: SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE.active,
+      includeOptionalFields: true,
+    });
+  }
+
+  function loadSafeImportedContextMissingMappingFixture() {
+    applyImportedContextCreateFixture({
+      fixture: SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE.missing_mapping,
+      includeOptionalFields: true,
+    });
+  }
+
+  function loadSafeImportedContextInactiveMappingFixture() {
+    applyImportedContextCreateFixture({
+      fixture: SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE.inactive_mapping,
+      includeOptionalFields: true,
+    });
+  }
+
+  function loadSafeImportedContextMismatchFixture() {
+    applyImportedContextCreateFixture({
+      fixture: SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE.mismatch,
+      includeOptionalFields: true,
+    });
+  }
+
+  function clearImportedContextCreateInputs() {
+    requestIdRef.current += 1;
+    setMappingId("");
+    setPacketId("");
+    setPacketHash("");
+    setSourceRuntimeInstanceId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setImportedSummary("");
+    setImportedExpectedFilesJson("");
+    setImportedExpectedChecksJson("");
+    setForeignRefsSummaryJson("");
+    setRedactionReportJson("");
+    setCreatedBy("");
+    setImportReason("");
+    setCreatedAt("");
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleImportedContextCreateSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let requestBody: AgResumeImportedContextCreateRequestBody;
+    try {
+      requestBody = buildImportedContextCreateRequestBody({
+        mappingId,
+        packetId,
+        packetHash,
+        sourceRuntimeInstanceId,
+        foreignScope,
+        foreignWorkId,
+        localScope,
+        localWorkId,
+        importedSummary,
+        importedExpectedFilesJson,
+        importedExpectedChecksJson,
+        foreignRefsSummaryJson,
+        redactionReportJson,
+        createdBy,
+        importReason,
+        createdAt,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch("/api/ag-work-resume/imported-contexts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Imported context create route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Imported context create route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeImportedContextCreateRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        requestBody,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "create failed";
+        setError(`Imported context create route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Imported context create route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-imported-context-create-panel"
+      aria-label="AG Resume Imported Context Create"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Imported Context Create"
+        description="Bounded create controls for Stage D imported context review metadata."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>
+            Creates only imported context review metadata through the existing
+            POST imported contexts route.
+          </li>
+          <li>Imported context is bounded review metadata only.</li>
+          <li>Not proof/evidence, not session binding, and not Codex.</li>
+          <li>
+            Not work item/event creation and not confirmed mapping/proposal
+            mutation.
+          </li>
+          <li>
+            Not approval, publish, retry, replay, or merge authority. Durable
+            approval remains user/Core gated.
+          </li>
+          <li>
+            No update, delete, lifecycle, proof/evidence, session, Codex, work,
+            confirmed mapping, proposal, approval, publication, bridge, MCP/App,
+            Direct Resume Code, or relay controls.
+          </li>
+        </ul>
+      </BoundaryNote>
+      <form className="observe-form" onSubmit={handleImportedContextCreateSubmit}>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-imported-context-create-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-imported-context-create-safe-fixtures-heading">
+            Imported context create safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe create fields into local
+            React state only. They do not create rows, call routes, persist
+            browser state, or grant proof/session/Codex/work/merge authority.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextCreateFixture}
+              disabled={busy}
+            >
+              Load safe create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextMatchingIdentityFixture}
+              disabled={busy}
+            >
+              Load safe matching identity create fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextMissingMappingFixture}
+              disabled={busy}
+            >
+              Load safe missing mapping fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextInactiveMappingFixture}
+              disabled={busy}
+            >
+              Load safe inactive mapping fixture
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextMismatchFixture}
+              disabled={busy}
+            >
+              Load safe mapping mismatch fixture
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-imported-context-create-inputs-heading"
+        >
+          <h3 id="ag-resume-imported-context-create-inputs-heading">
+            Imported context create inputs
+          </h3>
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Required mapping and packet</h3>
+              <label htmlFor="ag-resume-imported-context-create-mapping-id-input">
+                mapping_id
+              </label>
+              <input
+                id="ag-resume-imported-context-create-mapping-id-input"
+                value={mappingId}
+                onChange={(event) => setMappingId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-mapping-packet-help"
+                placeholder="ag-resume-confirmed-mapping:..."
+              />
+              <label htmlFor="ag-resume-imported-context-create-packet-id-input">
+                packet_id
+              </label>
+              <input
+                id="ag-resume-imported-context-create-packet-id-input"
+                value={packetId}
+                onChange={(event) => setPacketId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-mapping-packet-help"
+                placeholder="resume-packet:..."
+              />
+              <label htmlFor="ag-resume-imported-context-create-packet-hash-input">
+                packet_hash
+              </label>
+              <input
+                id="ag-resume-imported-context-create-packet-hash-input"
+                value={packetHash}
+                onChange={(event) => setPacketHash(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-mapping-packet-help"
+                placeholder="sha256:..."
+              />
+              <p
+                id="ag-resume-imported-context-create-mapping-packet-help"
+                className="notice"
+              >
+                Required. The route/core verifies that packet identity matches
+                the active confirmed mapping.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Optional mapping identity checks</h3>
+              <label htmlFor="ag-resume-imported-context-create-source-runtime-instance-id-input">
+                source_runtime_instance_id
+              </label>
+              <input
+                id="ag-resume-imported-context-create-source-runtime-instance-id-input"
+                value={sourceRuntimeInstanceId}
+                onChange={(event) =>
+                  setSourceRuntimeInstanceId(event.target.value)
+                }
+                aria-describedby="ag-resume-imported-context-create-optional-identity-help"
+                placeholder="runtime-instance:..."
+              />
+              <label htmlFor="ag-resume-imported-context-create-foreign-scope-input">
+                foreign_scope
+              </label>
+              <input
+                id="ag-resume-imported-context-create-foreign-scope-input"
+                value={foreignScope}
+                onChange={(event) => setForeignScope(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-optional-identity-help"
+                placeholder="project:source"
+              />
+              <label htmlFor="ag-resume-imported-context-create-foreign-work-id-input">
+                foreign_work_id
+              </label>
+              <input
+                id="ag-resume-imported-context-create-foreign-work-id-input"
+                value={foreignWorkId}
+                onChange={(event) => setForeignWorkId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-optional-identity-help"
+                placeholder="AG-..."
+              />
+              <label htmlFor="ag-resume-imported-context-create-local-scope-input">
+                local_scope
+              </label>
+              <input
+                id="ag-resume-imported-context-create-local-scope-input"
+                value={localScope}
+                onChange={(event) => setLocalScope(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-optional-identity-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-imported-context-create-local-work-id-input">
+                local_work_id
+              </label>
+              <input
+                id="ag-resume-imported-context-create-local-work-id-input"
+                value={localWorkId}
+                onChange={(event) => setLocalWorkId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-optional-identity-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-imported-context-create-optional-identity-help"
+                className="notice"
+              >
+                Optional. When supplied, these identity fields must match the
+                active confirmed mapping.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Required review metadata</h3>
+              <label htmlFor="ag-resume-imported-context-create-imported-summary-input">
+                imported_summary
+              </label>
+              <textarea
+                id="ag-resume-imported-context-create-imported-summary-input"
+                value={importedSummary}
+                onChange={(event) => setImportedSummary(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-review-metadata-help"
+                placeholder="Bounded imported context review metadata summary."
+                rows={4}
+              />
+              <label htmlFor="ag-resume-imported-context-create-created-by-input">
+                created_by
+              </label>
+              <input
+                id="ag-resume-imported-context-create-created-by-input"
+                value={createdBy}
+                onChange={(event) => setCreatedBy(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-review-metadata-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-imported-context-create-import-reason-input">
+                import_reason
+              </label>
+              <textarea
+                id="ag-resume-imported-context-create-import-reason-input"
+                value={importReason}
+                onChange={(event) => setImportReason(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-review-metadata-help"
+                placeholder="User/Core reason for creating bounded review metadata."
+                rows={4}
+              />
+              <label htmlFor="ag-resume-imported-context-create-created-at-input">
+                created_at
+              </label>
+              <input
+                id="ag-resume-imported-context-create-created-at-input"
+                value={createdAt}
+                onChange={(event) => setCreatedAt(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-review-metadata-help"
+                placeholder="2026-06-01T05:02:00.000Z"
+              />
+              <p
+                id="ag-resume-imported-context-create-review-metadata-help"
+                className="notice"
+              >
+                imported_summary, created_by, and import_reason are required.
+                created_at is optional, but must be ISO UTC with millisecond
+                precision when supplied.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Imported expected files JSON</h3>
+              <label htmlFor="ag-resume-imported-context-create-expected-files-input">
+                imported_expected_files JSON array
+              </label>
+              <textarea
+                id="ag-resume-imported-context-create-expected-files-input"
+                value={importedExpectedFilesJson}
+                onChange={(event) =>
+                  setImportedExpectedFilesJson(event.target.value)
+                }
+                aria-describedby="ag-resume-imported-context-create-expected-files-help"
+                placeholder={'["components/augnes-cockpit.tsx"]'}
+                rows={6}
+              />
+              <p
+                id="ag-resume-imported-context-create-expected-files-help"
+                className="notice"
+              >
+                Optional. When supplied, this must parse as a JSON array.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Imported expected checks JSON</h3>
+              <label htmlFor="ag-resume-imported-context-create-expected-checks-input">
+                imported_expected_checks JSON array
+              </label>
+              <textarea
+                id="ag-resume-imported-context-create-expected-checks-input"
+                value={importedExpectedChecksJson}
+                onChange={(event) =>
+                  setImportedExpectedChecksJson(event.target.value)
+                }
+                aria-describedby="ag-resume-imported-context-create-expected-checks-help"
+                placeholder={'["npm run typecheck"]'}
+                rows={6}
+              />
+              <p
+                id="ag-resume-imported-context-create-expected-checks-help"
+                className="notice"
+              >
+                Optional. When supplied, this must parse as a JSON array.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Foreign refs summary JSON</h3>
+              <label htmlFor="ag-resume-imported-context-create-foreign-refs-input">
+                foreign_refs_summary JSON object
+              </label>
+              <textarea
+                id="ag-resume-imported-context-create-foreign-refs-input"
+                value={foreignRefsSummaryJson}
+                onChange={(event) => setForeignRefsSummaryJson(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-foreign-refs-help"
+                placeholder={'{"summaries_only": true}'}
+                rows={6}
+              />
+              <p
+                id="ag-resume-imported-context-create-foreign-refs-help"
+                className="notice"
+              >
+                Optional. When supplied, this must parse as a JSON object.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Required redaction report JSON</h3>
+              <label htmlFor="ag-resume-imported-context-create-redaction-report-input">
+                redaction_report JSON object
+              </label>
+              <textarea
+                id="ag-resume-imported-context-create-redaction-report-input"
+                value={redactionReportJson}
+                onChange={(event) => setRedactionReportJson(event.target.value)}
+                aria-describedby="ag-resume-imported-context-create-redaction-report-help"
+                placeholder={
+                  '{"secrets_included": false, "raw_db_paths_included": false, "session_payloads_included": false, "proof_payloads_included": false}'
+                }
+                rows={7}
+              />
+              <p
+                id="ag-resume-imported-context-create-redaction-report-help"
+                className="notice"
+              >
+                Required. secrets_included, raw_db_paths_included,
+                session_payloads_included, and proof_payloads_included must all
+                be explicitly false.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-imported-context-create-action-controls-heading"
+        >
+          <h3 id="ag-resume-imported-context-create-action-controls-heading">
+            Imported context create controls
+          </h3>
+          <BoundaryNote>
+            The create action calls only the existing POST imported contexts
+            route with supported JSON fields. It does not call the read route
+            and does not expose update, delete, lifecycle, proof/evidence,
+            session, Codex, work, confirmed mapping, proposal, approval,
+            publication, bridge, MCP/App, Direct Resume Code, or relay controls.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearImportedContextCreateInputs}
+            >
+              Clear imported context create inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy ? "Creating imported context" : "Create imported context"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-imported-context-create-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeImportedContextCreateResults result={result} />
+      ) : (
+        <EmptyState
+          label="No imported context create result yet."
+          description="Enter confirmed mapping, packet identity, review metadata, and redaction metadata to create an imported context row."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeImportedContextCreateResults({
+  result,
+}: {
+  result: AgResumeImportedContextCreatePanelResult;
+}) {
+  const { body } = result;
+  const createResult = body.result ?? null;
+  const record = createResult?.record ?? null;
+  const routeAuthorityBoundary =
+    body.authority_boundary ?? createResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-imported-context-create-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-imported-context-create-result-heading">
+        Imported context create result
+      </h3>
+      <BoundaryNote tone="green">
+        Imported context creation through this panel creates bounded review
+        metadata only. It is not proof/evidence, session binding, Codex
+        execution, work item/event creation, confirmed mapping/proposal
+        mutation, approval, publish, retry, replay, or merge authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>route recommended_next_step: {body.recommended_next_step}</BoundaryNote>
+      ) : null}
+      {createResult?.recommended_next_step ? (
+        <BoundaryNote>
+          writer recommended_next_step: {createResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>imported-contexts POST route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Writer status</h3>
+          <p>{createResult?.status ?? body.error ?? "unknown"}</p>
+          <small>
+            created/invalid_input/mapping_not_found/mapping_not_active/mapping_mismatch/redaction_blocked/db_error
+          </small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Import id</h3>
+          <p>{createResult?.import_id ?? record?.import_id ?? "not created"}</p>
+          <small>new imported context review metadata row</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Mapping id</h3>
+          <p>
+            {record?.mapping_id ??
+              createResult?.source_mapping?.mapping_id ??
+              result.requestBody.mapping_id}
+          </p>
+          <small>existing active confirmed mapping source</small>
+        </section>
+      </div>
+      <AgResumeStringList
+        title="Warnings"
+        items={createResult?.warnings ?? []}
+        emptyLabel="No imported context create warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={createResult?.failures ?? []}
+        emptyLabel="No imported context create failures."
+      />
+      <AgResumeImportedContextAuthorityBoundary
+        title="Create Authority Boundary"
+        authorityBoundary={routeAuthorityBoundary}
+      />
+      {record ? (
+        <div className="evidence-pack-grid">
+          <AgResumeImportedContextCard record={record} />
+        </div>
+      ) : (
+        <EmptyState
+          label="No imported context record returned."
+          description="The create route did not create an imported context review metadata row."
+        />
+      )}
+    </div>
   );
 }
 
@@ -14230,6 +15092,149 @@ function buildImportedContextReadSearchParams({
     searchParams.set("limit", trimmedLimit);
   }
   return searchParams;
+}
+
+function buildImportedContextCreateRequestBody({
+  mappingId,
+  packetId,
+  packetHash,
+  sourceRuntimeInstanceId,
+  foreignScope,
+  foreignWorkId,
+  localScope,
+  localWorkId,
+  importedSummary,
+  importedExpectedFilesJson,
+  importedExpectedChecksJson,
+  foreignRefsSummaryJson,
+  redactionReportJson,
+  createdBy,
+  importReason,
+  createdAt,
+}: {
+  mappingId: string;
+  packetId: string;
+  packetHash: string;
+  sourceRuntimeInstanceId: string;
+  foreignScope: string;
+  foreignWorkId: string;
+  localScope: string;
+  localWorkId: string;
+  importedSummary: string;
+  importedExpectedFilesJson: string;
+  importedExpectedChecksJson: string;
+  foreignRefsSummaryJson: string;
+  redactionReportJson: string;
+  createdBy: string;
+  importReason: string;
+  createdAt: string;
+}): AgResumeImportedContextCreateRequestBody {
+  const trimmedMappingId = mappingId.trim();
+  const trimmedPacketId = packetId.trim();
+  const trimmedPacketHash = packetHash.trim();
+  const trimmedSourceRuntimeInstanceId = sourceRuntimeInstanceId.trim();
+  const trimmedForeignScope = foreignScope.trim();
+  const trimmedForeignWorkId = foreignWorkId.trim();
+  const trimmedLocalScope = localScope.trim();
+  const trimmedLocalWorkId = localWorkId.trim();
+  const trimmedImportedSummary = importedSummary.trim();
+  const trimmedCreatedBy = createdBy.trim();
+  const trimmedImportReason = importReason.trim();
+  const trimmedCreatedAt = createdAt.trim();
+
+  if (!trimmedMappingId) {
+    throw new Error("mapping_id is required for imported context create.");
+  }
+  if (!trimmedPacketId) {
+    throw new Error("packet_id is required for imported context create.");
+  }
+  if (!trimmedPacketHash) {
+    throw new Error("packet_hash is required for imported context create.");
+  }
+  if (!trimmedImportedSummary) {
+    throw new Error("imported_summary is required for imported context create.");
+  }
+  if (!trimmedCreatedBy) {
+    throw new Error("created_by is required for imported context create.");
+  }
+  if (!trimmedImportReason) {
+    throw new Error("import_reason is required for imported context create.");
+  }
+  if (trimmedCreatedAt) {
+    const parsedCreatedAt = Date.parse(trimmedCreatedAt);
+    if (
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
+        trimmedCreatedAt,
+      ) ||
+      !Number.isFinite(parsedCreatedAt) ||
+      new Date(parsedCreatedAt).toISOString() !== trimmedCreatedAt
+    ) {
+      throw new Error(
+        "created_at must be an ISO UTC timestamp with millisecond precision.",
+      );
+    }
+  }
+
+  const importedExpectedFiles = parseAgResumeArrayInput(
+    "imported_expected_files JSON",
+    importedExpectedFilesJson,
+    { allowEmpty: true },
+  );
+  const importedExpectedChecks = parseAgResumeArrayInput(
+    "imported_expected_checks JSON",
+    importedExpectedChecksJson,
+    { allowEmpty: true },
+  );
+  const foreignRefsSummary = parseAgResumeObjectInput(
+    "foreign_refs_summary JSON",
+    foreignRefsSummaryJson,
+    { allowEmpty: true },
+  );
+  const redactionReport = parseAgResumeObjectInput(
+    "redaction_report JSON",
+    redactionReportJson,
+  );
+
+  for (const field of [
+    "secrets_included",
+    "raw_db_paths_included",
+    "session_payloads_included",
+    "proof_payloads_included",
+  ]) {
+    if (redactionReport[field] !== false) {
+      throw new Error(
+        `redaction_report must explicitly set ${field}: false for imported context create.`,
+      );
+    }
+  }
+
+  const requestBody: AgResumeImportedContextCreateRequestBody = {
+    mapping_id: trimmedMappingId,
+    packet_id: trimmedPacketId,
+    packet_hash: trimmedPacketHash,
+    imported_summary: trimmedImportedSummary,
+    redaction_report: redactionReport,
+    created_by: trimmedCreatedBy,
+    import_reason: trimmedImportReason,
+  };
+  if (trimmedSourceRuntimeInstanceId) {
+    requestBody.source_runtime_instance_id = trimmedSourceRuntimeInstanceId;
+  }
+  if (trimmedForeignScope) requestBody.foreign_scope = trimmedForeignScope;
+  if (trimmedForeignWorkId) requestBody.foreign_work_id = trimmedForeignWorkId;
+  if (trimmedLocalScope) requestBody.local_scope = trimmedLocalScope;
+  if (trimmedLocalWorkId) requestBody.local_work_id = trimmedLocalWorkId;
+  if (importedExpectedFilesJson.trim()) {
+    requestBody.imported_expected_files = importedExpectedFiles;
+  }
+  if (importedExpectedChecksJson.trim()) {
+    requestBody.imported_expected_checks = importedExpectedChecks;
+  }
+  if (foreignRefsSummaryJson.trim() && foreignRefsSummary) {
+    requestBody.foreign_refs_summary = foreignRefsSummary;
+  }
+  if (trimmedCreatedAt) requestBody.created_at = trimmedCreatedAt;
+  return requestBody;
 }
 
 function buildConfirmedMappingCreateRequestBody({

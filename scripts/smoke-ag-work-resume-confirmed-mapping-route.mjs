@@ -403,6 +403,7 @@ function assertSourceGuards() {
     "components/augnes-cockpit.tsx",
     "reports/browser/2026-05-31-ag-work-resume-confirmed-mapping-read-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md",
+    "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md",
     "lib/ag-work-resume-confirmed-mapping-read.ts",
     "scripts/ag-work-resume-confirmed-mapping-read.mjs",
@@ -427,6 +428,7 @@ function assertSourceGuards() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "package.json",
@@ -434,6 +436,7 @@ function assertSourceGuards() {
     "scripts/ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "scripts/smoke-ag-work-resume-imported-context-read.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-imported-context-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
     "scripts/smoke-ag-work-resume-imported-context-record-design.mjs",
@@ -466,6 +469,8 @@ function assertSourceGuards() {
           "reports/browser/2026-06-01-ag-work-resume-confirmed-mapping-create-cockpit-panel-verification.md" ||
         file ===
           "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md" ||
+        file ===
+          "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md" ||
         !file.startsWith("reports/browser/"),
       `browser reports limited to AG Resume Cockpit panel verification: ${file}`,
     );

@@ -47,6 +47,13 @@ existing imported context review metadata only and grant no proof/evidence,
 session, Codex, work item/event, confirmed mapping/proposal mutation,
 approval, publish, retry, replay, or merge authority.
 
+The later bounded POST create Cockpit panel is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`. It uses
+the existing imported contexts POST route for bounded review metadata creation
+and adds no schema/migration, read route change, proof/evidence, session,
+Codex, work item/event, confirmed mapping/proposal mutation, approval,
+publish, retry, replay, or merge authority.
+
 Imported context is not proof/evidence. It is not committed state authority.
 It is not approval. It does not authorize publish, retry, replay, or merge. It
 does not bind sessions. It does not start or continue Codex. Any future Codex

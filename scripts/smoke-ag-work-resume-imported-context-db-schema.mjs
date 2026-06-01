@@ -436,8 +436,11 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
     "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md",
+    "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md",
     "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-imported-context-create-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-imported-context-read-cockpit-panel.mjs",
     "app/api/ag-work-resume/imported-contexts/route.ts",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
@@ -468,6 +471,8 @@ function assertNoUnexpectedChangedFiles() {
         file === "components/augnes-cockpit.tsx" ||
         file ===
           "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md" ||
+        file ===
+          "reports/browser/2026-06-01-ag-work-resume-imported-context-create-cockpit-panel-verification.md" ||
         !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
       `imported context schema follow-up must not touch forbidden path outside create route: ${file}`,
     );
