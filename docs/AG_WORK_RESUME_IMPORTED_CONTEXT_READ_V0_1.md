@@ -14,8 +14,10 @@ approval, publish, retry, replay, or merge authority.
 
 No Cockpit UI, schema, migration, lifecycle mutation, proof/evidence
 recording, session binding, Codex execution, Direct Resume Code, relay,
-browser report, ChatGPT App/MCP/App schema, or bridge tool is added. The
-existing POST create route is preserved but not changed by this read slice.
+browser report, ChatGPT App/MCP/App schema, or bridge tool was added by this
+read helper/route slice. The later read-only Cockpit panel is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`; it uses
+the GET route only and preserves existing POST create behavior.
 
 ## Relationship To Writer Route Schema And Design
 
@@ -26,6 +28,7 @@ This read slice follows:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md`
+- `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`
 
 The writer creates bounded imported context review metadata from an active
 confirmed mapping. The existing POST route delegates creation to that writer.
@@ -230,7 +233,9 @@ not proof/evidence/session/Codex/merge authority.
 - No writer changes.
 - No POST behavior change; the existing POST create route is preserved.
 - No lifecycle mutation.
-- No Cockpit UI.
+- No Cockpit UI in this helper/route slice; the later read-only Cockpit
+  review panel is documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`.
 - No schema or migration.
 - No proof/evidence recording.
 - No session binding.

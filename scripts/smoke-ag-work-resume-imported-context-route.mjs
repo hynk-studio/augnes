@@ -467,6 +467,10 @@ function assertSourceGuards() {
     "lib/ag-work-resume-imported-context-read.ts",
     "scripts/ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-read.mjs",
+    "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md",
+    "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-imported-context-read-cockpit-panel.mjs",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
@@ -493,10 +497,18 @@ function assertSourceGuards() {
         !file.startsWith("app/"),
       `app changes limited to imported context create route: ${file}`,
     );
-    assert.equal(file.startsWith("components/"), false, `no component change: ${file}`);
+    assert.ok(
+      file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),
+      `component changes limited to imported context read Cockpit panel: ${file}`,
+    );
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
-    assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
+    assert.ok(
+      file ===
+        "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md" ||
+        !file.startsWith("reports/browser/"),
+      `browser report changes limited to imported context read Cockpit panel: ${file}`,
+    );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.ok(
       file === "lib/ag-work-resume-imported-context-read.ts" ||

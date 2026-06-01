@@ -425,6 +425,8 @@ function assertSourceGuards() {
     "scripts/ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-read.mjs",
     "app/api/ag-work-resume/imported-contexts/route.ts",
+    "components/augnes-cockpit.tsx",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
@@ -433,6 +435,8 @@ function assertSourceGuards() {
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
     "package.json",
+    "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md",
+    "scripts/smoke-ag-work-resume-imported-context-read-cockpit-panel.mjs",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
     "scripts/smoke-ag-work-resume-imported-context-db-schema.mjs",
@@ -446,10 +450,18 @@ function assertSourceGuards() {
       allowedFiles.has(file),
       `changed file is outside imported context read helper/route slice: ${file}`,
     );
-    assert.equal(file.startsWith("components/"), false, `no component change: ${file}`);
+    assert.ok(
+      file === "components/augnes-cockpit.tsx" || !file.startsWith("components/"),
+      `component changes limited to imported context read Cockpit panel: ${file}`,
+    );
     assert.equal(file.startsWith("migrations/"), false, `no migration change: ${file}`);
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
-    assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
+    assert.ok(
+      file ===
+        "reports/browser/2026-06-01-ag-work-resume-imported-context-read-cockpit-panel-verification.md" ||
+        !file.startsWith("reports/browser/"),
+      `browser report changes limited to imported context read Cockpit panel: ${file}`,
+    );
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.ok(
       file === "lib/ag-work-resume-imported-context-read.ts" || !file.startsWith("lib/"),

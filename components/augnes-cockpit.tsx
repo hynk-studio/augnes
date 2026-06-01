@@ -834,6 +834,11 @@ type AgResumeConfirmedMappingReadPanelResult = {
   body: AgResumeConfirmedMappingReadRouteResponse;
 };
 
+type AgResumeImportedContextReadPanelResult = {
+  httpStatus: number;
+  body: AgResumeImportedContextReadRouteResponse;
+};
+
 type AgResumeConfirmedMappingCreatePanelResult = {
   httpStatus: number;
   requestBody: AgResumeConfirmedMappingCreateRequestBody;
@@ -1112,6 +1117,87 @@ type AgResumeConfirmedMappingReadAuthorityBoundary = {
 
 type AgResumeConfirmedMappingRecordAuthorityBoundary =
   AgResumeConfirmedMappingReadAuthorityBoundary;
+
+type AgResumeImportedContextReadRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: AgResumeImportedContextReadResult | null;
+  authority_boundary?: AgResumeImportedContextAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeImportedContextReadResult = {
+  ok?: boolean;
+  status?: string;
+  record?: AgResumeImportedContextRecord | null;
+  records?: AgResumeImportedContextRecord[];
+  filters?: {
+    import_id?: string | null;
+    mapping_id?: string | null;
+    foreign_scope?: string | null;
+    foreign_work_id?: string | null;
+    local_scope?: string | null;
+    local_work_id?: string | null;
+    packet_id?: string | null;
+    packet_hash?: string | null;
+    status?: string | null;
+    created_by?: string | null;
+  };
+  limit?: number | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeImportedContextAuthorityBoundary | null;
+  recommended_next_step?: string;
+};
+
+type AgResumeImportedContextRecord = {
+  import_id?: string;
+  record_kind?: string;
+  schema?: string;
+  status?: string;
+  mapping_id?: string;
+  foreign_scope?: string;
+  foreign_work_id?: string;
+  local_scope?: string;
+  local_work_id?: string;
+  packet_id?: string;
+  packet_hash?: string;
+  source_runtime_instance_id?: string | null;
+  imported_summary?: string;
+  imported_expected_files?: string[];
+  imported_expected_checks?: string[];
+  foreign_refs_summary?: Record<string, unknown>;
+  redaction_report?: Record<string, unknown>;
+  created_by?: string;
+  import_reason?: string;
+  created_at?: string;
+  updated_at?: string;
+  authority_boundary?: AgResumeImportedContextAuthorityBoundary | null;
+};
+
+type AgResumeImportedContextAuthorityBoundary = {
+  read_only?: boolean;
+  review_metadata_only?: boolean;
+  confirmed_mapping_required?: boolean;
+  imported_context_created?: boolean;
+  imported_context_updated?: boolean;
+  imported_context_deleted?: boolean;
+  confirmed_mapping_created?: boolean;
+  confirmed_mapping_updated?: boolean;
+  proposal_record_updated?: boolean;
+  work_item_created?: boolean;
+  work_event_created?: boolean;
+  proof_recorded?: boolean;
+  evidence_recorded?: boolean;
+  session_bound?: boolean;
+  codex_executed?: boolean;
+  approval_granted?: boolean;
+  publish_retry_replay_authority?: boolean;
+  merge_authority?: boolean;
+  durable_approval?: string;
+  statement?: string;
+};
 
 type AgResumeConfirmedMappingCreateRouteResponse = {
   ok?: boolean;
@@ -1551,6 +1637,22 @@ const SAFE_AG_RESUME_CONFIRMED_MAPPING_REVIEW_FIXTURE = {
   packet_hash:
     "sha256:981e73c0f39746851e319aa5a5d2b53adf94870084718b403ecc50d8bc1f6835",
   status: "active",
+  limit: "20",
+} as const;
+
+const SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE = {
+  import_id: "ag-resume-imported-context:f166e214f77cc3ffa05b13a3",
+  mapping_id: "ag-resume-confirmed-mapping:abe483753ae48565e8312c1c",
+  foreign_scope: "project:foreign",
+  foreign_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-READ-001",
+  local_scope: "project:augnes",
+  local_work_id: "AG-FIXTURE-IMPORTED-CONTEXT-READ-LOCAL-001",
+  packet_id:
+    "resume-packet:preview:project-foreign:AG-FIXTURE-IMPORTED-CONTEXT-READ-001",
+  packet_hash:
+    "sha256:ebe5b5082fa668ec7f4abf939ed86878f7962daf70ea7eed9af7585433a3e490",
+  status: "review_metadata",
+  created_by: "user-core:imported-context-read-cockpit-panel",
   limit: "20",
 } as const;
 
@@ -3778,6 +3880,7 @@ function OperatorTab({
           <AgResumeMappingProposalLifecycleActionPanel />
           <AgResumeConfirmedMappingCreatePanel />
           <AgResumeConfirmedMappingReadPanel />
+          <AgResumeImportedContextReadPanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -7196,6 +7299,877 @@ function AgResumeConfirmedMappingCard({
           </div>
         </section>
         <AgResumeConfirmedMappingReadAuthorityBoundary
+          title="Record Authority Boundary"
+          authorityBoundary={record.authority_boundary ?? null}
+        />
+      </div>
+    </article>
+  );
+}
+
+function AgResumeImportedContextReadPanel() {
+  const [importId, setImportId] = useState("");
+  const [mappingId, setMappingId] = useState("");
+  const [foreignScope, setForeignScope] = useState("");
+  const [foreignWorkId, setForeignWorkId] = useState("");
+  const [localScope, setLocalScope] = useState("");
+  const [localWorkId, setLocalWorkId] = useState("");
+  const [packetId, setPacketId] = useState("");
+  const [packetHash, setPacketHash] = useState("");
+  const [status, setStatus] = useState("");
+  const [createdBy, setCreatedBy] = useState("");
+  const [limit, setLimit] = useState<string>(
+    SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit,
+  );
+  const [result, setResult] =
+    useState<AgResumeImportedContextReadPanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function loadSafeImportedContextIdFixture() {
+    setImportId(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.import_id);
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setCreatedBy("");
+    setLimit("");
+    clearResultState();
+  }
+
+  function loadSafeImportedContextMappingFixture() {
+    setImportId("");
+    setMappingId(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.mapping_id);
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setCreatedBy("");
+    setLimit(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeImportedContextForeignWorkFixture() {
+    setImportId("");
+    setMappingId("");
+    setForeignScope(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.foreign_scope);
+    setForeignWorkId(
+      SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.foreign_work_id,
+    );
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setCreatedBy("");
+    setLimit(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeImportedContextLocalWorkFixture() {
+    setImportId("");
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.local_scope);
+    setLocalWorkId(
+      SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.local_work_id,
+    );
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setCreatedBy("");
+    setLimit(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeImportedContextPacketFixture() {
+    setImportId("");
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.packet_id);
+    setPacketHash(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.packet_hash);
+    setStatus("");
+    setCreatedBy("");
+    setLimit(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeImportedContextStatusFixture() {
+    setImportId("");
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.status);
+    setCreatedBy("");
+    setLimit(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function loadSafeImportedContextCreatedByFixture() {
+    setImportId("");
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setCreatedBy(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.created_by);
+    setLimit(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit);
+    clearResultState();
+  }
+
+  function clearImportedContextInputs() {
+    requestIdRef.current += 1;
+    setImportId("");
+    setMappingId("");
+    setForeignScope("");
+    setForeignWorkId("");
+    setLocalScope("");
+    setLocalWorkId("");
+    setPacketId("");
+    setPacketHash("");
+    setStatus("");
+    setCreatedBy("");
+    setLimit(SAFE_AG_RESUME_IMPORTED_CONTEXT_REVIEW_FIXTURE.limit);
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleImportedContextReadSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let searchParams: URLSearchParams;
+    try {
+      searchParams = buildImportedContextReadSearchParams({
+        importId,
+        mappingId,
+        foreignScope,
+        foreignWorkId,
+        localScope,
+        localWorkId,
+        packetId,
+        packetHash,
+        status,
+        createdBy,
+        limit,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(
+        `/api/ag-work-resume/imported-contexts?${searchParams.toString()}`,
+        { method: "GET" },
+      );
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Imported context read route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Imported context read route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeImportedContextReadRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.error ??
+          body.result?.failures?.[0] ??
+          body.result?.status ??
+          "read failed";
+        setError(`Imported context read route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Imported context read route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-imported-context-read-panel"
+      aria-label="AG Resume Imported Context Review"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Imported Context Review"
+        description="Read-only review over Stage D imported context metadata."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>Read-only imported context review metadata only.</li>
+          <li>Calls only the existing GET imported contexts route.</li>
+          <li>Not proof/evidence, not session binding, and not Codex.</li>
+          <li>
+            Not work item/event creation and not confirmed mapping/proposal
+            mutation.
+          </li>
+          <li>
+            Not approval, publish, retry, replay, or merge authority. Durable
+            approval remains user/Core gated.
+          </li>
+          <li>
+            No create, update, delete, lifecycle, proof/evidence, session,
+            Codex, work, approval, publication, bridge, MCP/App, Direct Resume
+            Code, relay, or browser persistence controls.
+          </li>
+        </ul>
+      </BoundaryNote>
+      <form className="observe-form" onSubmit={handleImportedContextReadSubmit}>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-imported-context-safe-fixtures-heading"
+        >
+          <h3 id="ag-resume-imported-context-safe-fixtures-heading">
+            Imported context safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture buttons load synthetic public-safe lookup filters into local
+            React state only. They do not create rows, update rows, call routes,
+            or persist browser state.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextIdFixture}
+              disabled={busy}
+            >
+              Load safe import id lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextMappingFixture}
+              disabled={busy}
+            >
+              Load safe mapping lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextForeignWorkFixture}
+              disabled={busy}
+            >
+              Load safe foreign work lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextLocalWorkFixture}
+              disabled={busy}
+            >
+              Load safe local work lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextPacketFixture}
+              disabled={busy}
+            >
+              Load safe packet lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextStatusFixture}
+              disabled={busy}
+            >
+              Load safe status lookup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeImportedContextCreatedByFixture}
+              disabled={busy}
+            >
+              Load safe creator lookup
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-imported-context-inputs-heading"
+        >
+          <h3 id="ag-resume-imported-context-inputs-heading">
+            Imported context lookup inputs
+          </h3>
+          <label htmlFor="ag-resume-imported-context-import-id-input">
+            import_id
+          </label>
+          <p id="ag-resume-imported-context-import-id-help" className="notice">
+            Fetches one imported context. Leave every list filter and limit
+            empty when using import_id.
+          </p>
+          <input
+            id="ag-resume-imported-context-import-id-input"
+            value={importId}
+            onChange={(event) => setImportId(event.target.value)}
+            aria-describedby="ag-resume-imported-context-import-id-help"
+            placeholder="ag-resume-imported-context:..."
+          />
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Mapping filter</h3>
+              <label htmlFor="ag-resume-imported-context-mapping-id-input">
+                mapping_id
+              </label>
+              <input
+                id="ag-resume-imported-context-mapping-id-input"
+                value={mappingId}
+                onChange={(event) => setMappingId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-mapping-id-help"
+                placeholder="ag-resume-confirmed-mapping:..."
+              />
+              <p id="ag-resume-imported-context-mapping-id-help" className="notice">
+                Lists imported contexts derived from one active confirmed
+                mapping.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Foreign work filter</h3>
+              <label htmlFor="ag-resume-imported-context-foreign-scope-input">
+                foreign_scope
+              </label>
+              <input
+                id="ag-resume-imported-context-foreign-scope-input"
+                value={foreignScope}
+                onChange={(event) => setForeignScope(event.target.value)}
+                aria-describedby="ag-resume-imported-context-foreign-filter-help"
+                placeholder="project:source"
+              />
+              <label htmlFor="ag-resume-imported-context-foreign-work-id-input">
+                foreign_work_id
+              </label>
+              <input
+                id="ag-resume-imported-context-foreign-work-id-input"
+                value={foreignWorkId}
+                onChange={(event) => setForeignWorkId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-foreign-filter-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-imported-context-foreign-filter-help"
+                className="notice"
+              >
+                Both foreign_scope and foreign_work_id are required for this
+                list filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Local work filter</h3>
+              <label htmlFor="ag-resume-imported-context-local-scope-input">
+                local_scope
+              </label>
+              <input
+                id="ag-resume-imported-context-local-scope-input"
+                value={localScope}
+                onChange={(event) => setLocalScope(event.target.value)}
+                aria-describedby="ag-resume-imported-context-local-filter-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-imported-context-local-work-id-input">
+                local_work_id
+              </label>
+              <input
+                id="ag-resume-imported-context-local-work-id-input"
+                value={localWorkId}
+                onChange={(event) => setLocalWorkId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-local-filter-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-imported-context-local-filter-help"
+                className="notice"
+              >
+                Both local_scope and local_work_id are required for this list
+                filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Packet filter</h3>
+              <label htmlFor="ag-resume-imported-context-packet-id-input">
+                packet_id
+              </label>
+              <input
+                id="ag-resume-imported-context-packet-id-input"
+                value={packetId}
+                onChange={(event) => setPacketId(event.target.value)}
+                aria-describedby="ag-resume-imported-context-packet-filter-help"
+                placeholder="ag-resume-packet:..."
+              />
+              <label htmlFor="ag-resume-imported-context-packet-hash-input">
+                packet_hash
+              </label>
+              <input
+                id="ag-resume-imported-context-packet-hash-input"
+                value={packetHash}
+                onChange={(event) => setPacketHash(event.target.value)}
+                aria-describedby="ag-resume-imported-context-packet-filter-help"
+                placeholder="sha256:..."
+              />
+              <p
+                id="ag-resume-imported-context-packet-filter-help"
+                className="notice"
+              >
+                Both packet_id and packet_hash are required for this list
+                filter.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Status, creator, and limit filter</h3>
+              <label htmlFor="ag-resume-imported-context-status-input">
+                status
+              </label>
+              <select
+                id="ag-resume-imported-context-status-input"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                aria-describedby="ag-resume-imported-context-status-creator-limit-help"
+              >
+                <option value="">Any status filter omitted</option>
+                <option value="review_metadata">review_metadata</option>
+                <option value="superseded">superseded</option>
+                <option value="withdrawn">withdrawn</option>
+                <option value="revoked">revoked</option>
+              </select>
+              <label htmlFor="ag-resume-imported-context-created-by-input">
+                created_by
+              </label>
+              <input
+                id="ag-resume-imported-context-created-by-input"
+                value={createdBy}
+                onChange={(event) => setCreatedBy(event.target.value)}
+                aria-describedby="ag-resume-imported-context-status-creator-limit-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-imported-context-limit-input">
+                limit
+              </label>
+              <input
+                id="ag-resume-imported-context-limit-input"
+                value={limit}
+                onChange={(event) => setLimit(event.target.value)}
+                aria-describedby="ag-resume-imported-context-status-creator-limit-help"
+                inputMode="numeric"
+                placeholder="20"
+              />
+              <p
+                id="ag-resume-imported-context-status-creator-limit-help"
+                className="notice"
+              >
+                Limit applies to list reads only. The route defaults to 20 and
+                caps large positive values.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-imported-context-action-controls-heading"
+        >
+          <h3 id="ag-resume-imported-context-action-controls-heading">
+            Imported context read controls
+          </h3>
+          <BoundaryNote>
+            The read action calls only the existing GET imported contexts route.
+            It does not call a writer route and does not expose create, update,
+            delete, lifecycle, proof/evidence, session, Codex, work,
+            approval, publication, bridge, MCP/App, Direct Resume Code, or
+            relay controls.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearImportedContextInputs}
+            >
+              Clear imported context inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy ? "Reading imported contexts" : "Read imported contexts"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-imported-context-read-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeImportedContextReadResults result={result} />
+      ) : (
+        <EmptyState
+          label="No imported context read yet."
+          description="Enter one supported lookup filter to read imported context review metadata."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeImportedContextReadResults({
+  result,
+}: {
+  result: AgResumeImportedContextReadPanelResult;
+}) {
+  const { body } = result;
+  const readResult = body.result ?? null;
+  const records = readResult?.records ?? [];
+  const routeAuthorityBoundary =
+    body.authority_boundary ?? readResult?.authority_boundary ?? null;
+
+  return (
+    <div
+      aria-labelledby="ag-resume-imported-context-read-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-imported-context-read-result-heading">
+        Imported context read result
+      </h3>
+      <BoundaryNote tone="green">
+        Imported context reads expose bounded review metadata only. They are
+        not proof/evidence, session binding, Codex execution, work item/event
+        creation, confirmed mapping/proposal mutation, or approval, publish,
+        retry, replay, or merge authority.
+      </BoundaryNote>
+      {body.recommended_next_step ? (
+        <BoundaryNote>route recommended_next_step: {body.recommended_next_step}</BoundaryNote>
+      ) : null}
+      {readResult?.recommended_next_step ? (
+        <BoundaryNote>
+          reader recommended_next_step: {readResult.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>imported-contexts GET route</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route ok</h3>
+          <p>{formatAgResumeBoolean(body.ok)}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Reader status</h3>
+          <p>{readResult?.status ?? body.error ?? "unknown"}</p>
+          <small>fetched/listed/not_found/invalid_input/db_error</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Record count</h3>
+          <p>{records.length}</p>
+          <small>imported context review metadata records</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Limit</h3>
+          <p>{readResult?.limit ?? "single fetch or unavailable"}</p>
+          <small>bounded list reads only</small>
+        </section>
+      </div>
+      <AgResumeImportedContextReadFilters filters={readResult?.filters ?? null} />
+      <AgResumeStringList
+        title="Warnings"
+        items={readResult?.warnings ?? []}
+        emptyLabel="No imported context read warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={readResult?.failures ?? []}
+        emptyLabel="No imported context read failures."
+      />
+      <AgResumeImportedContextAuthorityBoundary
+        title="Read Authority Boundary"
+        authorityBoundary={routeAuthorityBoundary}
+      />
+      {records.length === 0 ? (
+        <EmptyState
+          label="No imported contexts returned."
+          description="The read route found no imported context review metadata for the supplied filter."
+        />
+      ) : (
+        <div className="evidence-pack-grid">
+          {records.map((record, index) => (
+            <AgResumeImportedContextCard
+              key={record.import_id ?? `imported-context-${index}`}
+              record={record}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgResumeImportedContextReadFilters({
+  filters,
+}: {
+  filters: AgResumeImportedContextReadResult["filters"] | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>Applied filters</h3>
+      <div className="meta-row">
+        <span>import_id: {filters?.import_id ?? "none"}</span>
+        <span>mapping_id: {filters?.mapping_id ?? "none"}</span>
+        <span>foreign_scope: {filters?.foreign_scope ?? "none"}</span>
+        <span>foreign_work_id: {filters?.foreign_work_id ?? "none"}</span>
+        <span>local_scope: {filters?.local_scope ?? "none"}</span>
+        <span>local_work_id: {filters?.local_work_id ?? "none"}</span>
+        <span>packet_id: {filters?.packet_id ?? "none"}</span>
+        <span>packet_hash: {filters?.packet_hash ?? "none"}</span>
+        <span>status: {filters?.status ?? "none"}</span>
+        <span>created_by: {filters?.created_by ?? "none"}</span>
+      </div>
+    </section>
+  );
+}
+
+function AgResumeImportedContextAuthorityBoundary({
+  title,
+  authorityBoundary,
+}: {
+  title: string;
+  authorityBoundary: AgResumeImportedContextAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card">
+      <h3>{title}</h3>
+      {authorityBoundary ? (
+        <>
+          <p>
+            {authorityBoundary.statement ??
+              "No imported context authority boundary statement returned."}
+          </p>
+          <div className="meta-row">
+            <span>read_only: {formatAgResumeBoolean(authorityBoundary.read_only)}</span>
+            <span>
+              review_metadata_only:{" "}
+              {formatAgResumeBoolean(authorityBoundary.review_metadata_only)}
+            </span>
+            <span>
+              confirmed_mapping_required:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.confirmed_mapping_required,
+              )}
+            </span>
+            <span>
+              imported_context_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_created)}
+            </span>
+            <span>
+              imported_context_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_updated)}
+            </span>
+            <span>
+              imported_context_deleted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_deleted)}
+            </span>
+            <span>
+              confirmed_mapping_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_created)}
+            </span>
+            <span>
+              confirmed_mapping_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_updated)}
+            </span>
+            <span>
+              proposal_record_updated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_updated)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              evidence_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.evidence_recorded)}
+            </span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+          </div>
+          <p>durable_approval: {authorityBoundary.durable_approval ?? "unknown"}</p>
+        </>
+      ) : (
+        <EmptyState label="No imported context authority boundary returned." />
+      )}
+    </section>
+  );
+}
+
+function AgResumeImportedContextCard({
+  record,
+}: {
+  record: AgResumeImportedContextRecord;
+}) {
+  return (
+    <article className="evidence-pack-card evidence-pack-card-wide">
+      <div className="card-topline">
+        <div>
+          <h3>{record.import_id ?? "unknown import_id"}</h3>
+          <p>{record.imported_summary ?? "No imported summary returned."}</p>
+        </div>
+        <StatusBadge label={record.status ?? "unknown"} />
+      </div>
+      <div className="meta-row">
+        <span>record_kind: {record.record_kind ?? "unknown"}</span>
+        <span>schema: {record.schema ?? "unknown"}</span>
+        <span>mapping_id: {record.mapping_id ?? "unknown"}</span>
+        <span>created_at: {record.created_at ?? "unknown"}</span>
+        <span>updated_at: {record.updated_at ?? "unknown"}</span>
+      </div>
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>Foreign identity</h3>
+          <div className="meta-row">
+            <span>foreign_scope: {record.foreign_scope ?? "unknown"}</span>
+            <span>foreign_work_id: {record.foreign_work_id ?? "unknown"}</span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Local identity</h3>
+          <div className="meta-row">
+            <span>local_scope: {record.local_scope ?? "unknown"}</span>
+            <span>local_work_id: {record.local_work_id ?? "unknown"}</span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Packet identity</h3>
+          <div className="meta-row">
+            <span>packet_id: {record.packet_id ?? "unknown"}</span>
+            <span>packet_hash: {record.packet_hash ?? "unknown"}</span>
+            <span>
+              source_runtime_instance_id:{" "}
+              {record.source_runtime_instance_id ?? "none"}
+            </span>
+          </div>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Imported expected files</h3>
+          <AgResumeStringList
+            title="imported_expected_files"
+            items={record.imported_expected_files ?? []}
+            emptyLabel="No imported expected files returned."
+          />
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Imported expected checks</h3>
+          <AgResumeStringList
+            title="imported_expected_checks"
+            items={record.imported_expected_checks ?? []}
+            emptyLabel="No imported expected checks returned."
+          />
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Foreign refs summary</h3>
+          <pre>{formatAgResumeExampleJson(record.foreign_refs_summary ?? {})}</pre>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Redaction report</h3>
+          <pre>{formatAgResumeExampleJson(record.redaction_report ?? {})}</pre>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Import metadata</h3>
+          <div className="meta-row">
+            <span>created_by: {record.created_by ?? "unknown"}</span>
+            <span>import_reason: {record.import_reason ?? "unknown"}</span>
+          </div>
+        </section>
+        <AgResumeImportedContextAuthorityBoundary
           title="Record Authority Boundary"
           authorityBoundary={record.authority_boundary ?? null}
         />
@@ -13141,6 +14115,116 @@ function buildConfirmedMappingReadSearchParams({
   }
   if (trimmedStatus) {
     searchParams.set("status", trimmedStatus);
+  }
+  if (trimmedLimit) {
+    searchParams.set("limit", trimmedLimit);
+  }
+  return searchParams;
+}
+
+function buildImportedContextReadSearchParams({
+  importId,
+  mappingId,
+  foreignScope,
+  foreignWorkId,
+  localScope,
+  localWorkId,
+  packetId,
+  packetHash,
+  status,
+  createdBy,
+  limit,
+}: {
+  importId: string;
+  mappingId: string;
+  foreignScope: string;
+  foreignWorkId: string;
+  localScope: string;
+  localWorkId: string;
+  packetId: string;
+  packetHash: string;
+  status: string;
+  createdBy: string;
+  limit: string;
+}) {
+  const trimmedImportId = importId.trim();
+  const trimmedMappingId = mappingId.trim();
+  const trimmedForeignScope = foreignScope.trim();
+  const trimmedForeignWorkId = foreignWorkId.trim();
+  const trimmedLocalScope = localScope.trim();
+  const trimmedLocalWorkId = localWorkId.trim();
+  const trimmedPacketId = packetId.trim();
+  const trimmedPacketHash = packetHash.trim();
+  const trimmedStatus = status.trim();
+  const trimmedCreatedBy = createdBy.trim();
+  const trimmedLimit = limit.trim();
+  const hasForeignFilter = Boolean(trimmedForeignScope || trimmedForeignWorkId);
+  const hasLocalFilter = Boolean(trimmedLocalScope || trimmedLocalWorkId);
+  const hasPacketFilter = Boolean(trimmedPacketId || trimmedPacketHash);
+  const hasListFilter = Boolean(
+    trimmedMappingId ||
+      hasForeignFilter ||
+      hasLocalFilter ||
+      hasPacketFilter ||
+      trimmedStatus ||
+      trimmedCreatedBy,
+  );
+
+  if (trimmedImportId) {
+    if (hasListFilter || trimmedLimit) {
+      throw new Error(
+        "import_id fetch must not be combined with list filters or limit.",
+      );
+    }
+    return new URLSearchParams({ import_id: trimmedImportId });
+  }
+
+  if (Boolean(trimmedForeignScope) !== Boolean(trimmedForeignWorkId)) {
+    throw new Error("foreign_scope and foreign_work_id must be supplied together.");
+  }
+
+  if (Boolean(trimmedLocalScope) !== Boolean(trimmedLocalWorkId)) {
+    throw new Error("local_scope and local_work_id must be supplied together.");
+  }
+
+  if (Boolean(trimmedPacketId) !== Boolean(trimmedPacketHash)) {
+    throw new Error("packet_id and packet_hash must be supplied together.");
+  }
+
+  if (!hasListFilter) {
+    throw new Error(
+      "At least one imported context read filter is required: import_id, mapping_id, foreign work, local work, packet identity, status, or created_by.",
+    );
+  }
+
+  if (trimmedLimit) {
+    const parsedLimit = Number(trimmedLimit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+      throw new Error("limit must be a positive integer.");
+    }
+  }
+
+  const searchParams = new URLSearchParams();
+  if (trimmedMappingId) {
+    searchParams.set("mapping_id", trimmedMappingId);
+  }
+  if (trimmedForeignScope && trimmedForeignWorkId) {
+    searchParams.set("foreign_scope", trimmedForeignScope);
+    searchParams.set("foreign_work_id", trimmedForeignWorkId);
+  }
+  if (trimmedLocalScope && trimmedLocalWorkId) {
+    searchParams.set("local_scope", trimmedLocalScope);
+    searchParams.set("local_work_id", trimmedLocalWorkId);
+  }
+  if (trimmedPacketId && trimmedPacketHash) {
+    searchParams.set("packet_id", trimmedPacketId);
+    searchParams.set("packet_hash", trimmedPacketHash);
+  }
+  if (trimmedStatus) {
+    searchParams.set("status", trimmedStatus);
+  }
+  if (trimmedCreatedBy) {
+    searchParams.set("created_by", trimmedCreatedBy);
   }
   if (trimmedLimit) {
     searchParams.set("limit", trimmedLimit);
