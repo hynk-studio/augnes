@@ -217,6 +217,15 @@ implementation option.
 | D: Add local harness scripts and fixture copies | User/PM explicitly approves a scoped Strategy C implementation PR. | `fixtures/`, `scripts/`, `package.json`, docs. | typecheck, build, new harness smokes, existing boundary smokes, diff checks. | Required if UI/runtime files change; otherwise document skip. | High: script and fixture imports can imply CI or runtime authority. |
 | E: Add runtime log-only candidate planning | Strategy C evidence is accepted as input to a separate runtime decision packet. | Docs first; runtime files only in a separately approved PR. | Full Strategy D/E gate suite, runtime boundary smokes, AG Resume bridge guard smokes, browser/computer-use with temp DB. | Required. | Very high: can affect user-facing diagnostic meaning if scoped poorly. |
 
+Manifest appendix pointer:
+
+- `docs/SIDECAR_ET_TRACE_PACK_MANIFEST_APPENDIX_V0_1.md` records the docs-only
+  manifest appendix for lab trace-pack inventory, pack classes, labels, and
+  future adaptation checks. It does not import fixtures, manifest JSON, harness
+  scripts, helper logic, package scripts, thresholds as runtime policy, runtime
+  computation, schema/API changes, Cockpit behavior, proof/evidence/readiness
+  writes, QP evidence, `z_t` commits, or CI enforcement.
+
 ## 8. Future Validation Plan Commands
 
 Required validation for this docs-only Strategy C planning PR:
