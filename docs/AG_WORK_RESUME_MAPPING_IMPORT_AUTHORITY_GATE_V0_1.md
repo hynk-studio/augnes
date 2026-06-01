@@ -295,6 +295,12 @@ PRs:
   schema/migration, read route behavior, proof/evidence, session binding,
   Codex execution, work item/event creation, confirmed mapping/proposal
   mutation, approval, publish, retry, replay, or merge authority.
+  `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
+  documents the design-only future gates from imported context review metadata
+  into proof/evidence reconciliation, session binding, and Codex continuation;
+  it adds no runtime behavior, schema/migration, writer/helper/route/UI,
+  proof/evidence/session/Codex implementation, approval, publish, retry,
+  replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

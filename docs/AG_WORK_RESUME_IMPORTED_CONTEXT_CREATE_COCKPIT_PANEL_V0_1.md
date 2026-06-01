@@ -25,9 +25,16 @@ Related documents:
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_COCKPIT_PANEL_V0_1.md`
 - `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`
 - `docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`
 
 The read-only Cockpit panel remains separate and uses only GET. This create
 panel does not change read route behavior.
+
+Future movement from imported context review metadata into proof/evidence
+reconciliation, session binding, or Codex continuation is design-only in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`.
+Those gates remain separate and do not grant approval, publish, retry, replay,
+or merge authority.
 
 ## Allowed UI
 

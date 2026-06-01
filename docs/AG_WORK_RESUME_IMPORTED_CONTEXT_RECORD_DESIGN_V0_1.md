@@ -54,6 +54,11 @@ and adds no schema/migration, read route change, proof/evidence, session,
 Codex, work item/event, confirmed mapping/proposal mutation, approval,
 publish, retry, replay, or merge authority.
 
+The future proof/evidence/session/Codex gate contract is design-only in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`.
+It keeps proof/evidence reconciliation, session binding, and Codex
+continuation as separate future gates after imported context review metadata.
+
 Imported context is not proof/evidence. It is not committed state authority.
 It is not approval. It does not authorize publish, retry, replay, or merge. It
 does not bind sessions. It does not start or continue Codex. Any future Codex
@@ -241,7 +246,10 @@ or revoke a confirmed mapping. Confirmed mapping lifecycle remains separate.
 6. Imported context read helper/route:
    `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`.
 7. Cockpit review UI, only if separately approved.
-8. Proof/evidence/session/Codex gates remain separate.
+8. Imported context Cockpit create UI:
+   `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_CREATE_COCKPIT_PANEL_V0_1.md`.
+9. Proof/evidence/session/Codex gates remain separate and are documented in
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_SESSION_CODEX_GATES_DESIGN_V0_1.md`.
 
 Each future PR must restate the authority boundary and prove it does not grant
 unscoped downstream authority.
