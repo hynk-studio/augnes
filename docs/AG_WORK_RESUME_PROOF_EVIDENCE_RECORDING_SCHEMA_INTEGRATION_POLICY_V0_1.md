@@ -65,6 +65,12 @@ It is design-only and does not add schema/migration, modify
 `lib/db/schema.sql`, create bridge rows, create evidence rows, create action
 records, or authorize actual recording.
 
+The bridge-table migration/DDL policy is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`.
+It is design-only and does not add schema/migration, modify
+`lib/db/schema.sql`, add migration files, create the bridge table, create
+bridge/evidence/action rows, or authorize actual recording.
+
 ## Why This Is The First Path
 
 The first path should not mutate candidate rows to mark recording, because

@@ -135,6 +135,13 @@ That design is also design-only. It does not mutate reconciliation candidate
 rows, does not create bridge/evidence/action rows, and does not authorize
 actual recording.
 
+The proof/evidence recording bridge-table migration/DDL policy is documented in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`.
+That policy is design-only. It does not add schema/migration, modify
+`lib/db/schema.sql`, add migration files, create the bridge table, mutate
+reconciliation candidate rows, create bridge/evidence/action rows, or authorize
+actual recording.
+
 ## Allowed Transitions
 
 Allowed lifecycle transitions:

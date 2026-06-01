@@ -296,6 +296,12 @@ It is design-only and does not authorize schema, migration, bridge row
 creation, verification evidence row creation, action record creation, or actual
 proof/evidence recording by itself.
 
+The proof/evidence recording bridge-table migration/DDL policy is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`.
+It is design-only and does not authorize schema, migration, `lib/db/schema.sql`
+changes, migration files, bridge table creation, verification evidence row
+creation, action record creation, or actual proof/evidence recording by itself.
+
 ## Required Preconditions Before Actual Proof/Evidence Recording
 
 - user/Core explicit authorization

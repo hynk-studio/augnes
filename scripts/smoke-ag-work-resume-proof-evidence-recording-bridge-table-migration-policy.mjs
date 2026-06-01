@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 
+const migrationPolicyPath =
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md";
 const bridgeDesignPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md";
-const bridgeMigrationPolicyPath =
-  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md";
 const schemaIntegrationPolicyPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md";
 const actualRecordingGateDesignPath =
@@ -21,8 +22,10 @@ const reconciliationDesignPath =
 const lifecycleDocPath =
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTIONS_V0_1.md";
 const packagePath = "package.json";
+const schemaPath = "lib/db/schema.sql";
 
-for (const path of [
+for (const inputPath of [
+  migrationPolicyPath,
   bridgeDesignPath,
   schemaIntegrationPolicyPath,
   actualRecordingGateDesignPath,
@@ -32,10 +35,12 @@ for (const path of [
   reconciliationDesignPath,
   lifecycleDocPath,
   packagePath,
+  schemaPath,
 ]) {
-  assert.equal(existsSync(path), true, `Missing required input: ${path}`);
+  assert.equal(existsSync(inputPath), true, `Missing required input: ${inputPath}`);
 }
 
+const migrationPolicy = readFileSync(migrationPolicyPath, "utf8");
 const bridgeDesign = readFileSync(bridgeDesignPath, "utf8");
 const schemaIntegrationPolicy = readFileSync(schemaIntegrationPolicyPath, "utf8");
 const actualRecordingGateDesign = readFileSync(
@@ -48,7 +53,9 @@ const sessionCodexGate = readFileSync(sessionCodexGatePath, "utf8");
 const reconciliationDesign = readFileSync(reconciliationDesignPath, "utf8");
 const lifecycleDoc = readFileSync(lifecycleDocPath, "utf8");
 const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
+const schemaSql = readFileSync(schemaPath, "utf8");
 const joinedPointers = [
+  bridgeDesign,
   schemaIntegrationPolicy,
   actualRecordingGateDesign,
   closeout,
@@ -59,133 +66,120 @@ const joinedPointers = [
 ].join("\n");
 
 for (const phrase of [
-  "AG Resume Proof/Evidence Recording Bridge Table Schema Design v0.1",
-  "This document is design-only",
-  "adds no runtime behavior",
-  "adds no schema or migration",
-  "modifies no `lib/db/schema.sql`",
-  "adds no writer, helper, route, UI",
-  "The bridge table is not proof/evidence recording by itself",
-  "A bridge schema design is not approval to record",
+  "AG Resume Proof/Evidence Recording Bridge Table Migration/DDL Policy v0.1",
+  "This migration/DDL policy is design-only",
+  "It is not a\nmigration",
+  "Do not implement this DDL in this PR",
+  "The migration/DDL policy is not a migration",
   "A future schema/migration PR is not approval to record",
+  "The bridge table is not proof/evidence recording by itself",
   "Actual proof/evidence recording remains separately user/Core gated",
   "`accepted_for_future_recording` is not proof/evidence recording",
   "ag_work_resume_proof_evidence_recording_links",
-  "Proposed Columns",
-  "Unique Constraints",
-  "Indexes",
-  "Foreign Key Policy",
-  "Cascade/Delete Policy",
-  "Idempotency Key Policy",
-  "one `verification_evidence_records` row",
-  "Action records are out of first implementation scope unless separately approved",
-  "Approval/publish/retry/replay/merge remains out of scope",
-  "Session binding and Codex continuation remain out of scope",
+  "Exact Proposed CREATE TABLE DDL",
+  "CREATE TABLE IF NOT EXISTS ag_work_resume_proof_evidence_recording_links",
+  "Proposed Index DDL",
+  "Foreign Key Feasibility",
+  "FK Fallback Policy",
+  "No-Cascade/Delete Restrict Policy",
+  "JSON Text Validation Expectations",
+  "Diff Boundary For Later Schema/Migration PR",
+  "Rollback/Backout Policy",
+  "Later PR Proof Requirements",
   "Browser verification skipped",
 ]) {
-  assertIncludes(bridgeDesign, phrase);
+  assertIncludes(migrationPolicy, phrase);
 }
 
-for (const column of [
-  "recording_link_id",
-  "candidate_id",
-  "import_id",
-  "mapping_id",
-  "local_target_scope",
-  "local_target_work_id",
-  "target_record_kind",
-  "target_evidence_id",
-  "target_action_id",
-  "idempotency_key",
-  "actor",
-  "reason",
-  "redaction_summary",
-  "trust_provenance_label",
-  "provenance_json",
-  "recording_status",
-  "failure_reason",
-  "created_at",
-  "updated_at",
+for (const ddlToken of [
+  "recording_link_id TEXT PRIMARY KEY",
+  "record_kind = 'ag_work_resume_proof_evidence_recording_link'",
+  "schema = 'augnes.ag_work_resume_proof_evidence_recording_link.v0_1'",
+  "target_record_kind = 'verification_evidence'",
+  "target_action_id TEXT CHECK (target_action_id IS NULL)",
+  "recording_status = 'recorded'",
+  "failure_reason TEXT CHECK (failure_reason IS NULL)",
+  "CHECK (updated_at = created_at)",
+  "ON DELETE RESTRICT",
+  "ON UPDATE RESTRICT",
 ]) {
-  assertIncludes(bridgeDesign, `\`${column}\``);
+  assertIncludes(migrationPolicy, ddlToken);
 }
 
 for (const phrase of [
-  "Decision: one candidate can have more than one recording link? No.",
-  "Decision: can one idempotency key map to more than one link? No.",
-  "Decision: must `target_evidence_id` be unique? Yes.",
-  "Decision: must candidate_id be unique for the first implementation? Yes.",
-  "Decision: are action records excluded from the first implementation? Yes.",
-  "Imported context, confirmed mapping, and candidate rows are never mutated by bridge behavior.",
-  "There are no pending bridge rows in the first implementation.",
-  "target_evidence_id` is required and non-null",
-  "target_action_id` must be `NULL`",
+  "idx_ag_recording_links_candidate_unique",
+  "idx_ag_recording_links_idempotency_unique",
+  "idx_ag_recording_links_target_evidence_unique",
+  "idx_ag_recording_links_import_time",
+  "idx_ag_recording_links_mapping_time",
+  "idx_ag_recording_links_local_target_time",
+  "idx_ag_recording_links_status_time",
+  "idx_ag_recording_links_actor_time",
+  "idx_ag_recording_links_trust_label_time",
 ]) {
-  assertIncludes(bridgeDesign, phrase);
+  assertIncludes(migrationPolicy, phrase);
 }
 
 for (const phrase of [
   "unique `candidate_id`",
   "unique `idempotency_key`",
   "unique `target_evidence_id`",
-  "No cascade deletes",
-  "deleting a candidate with a bridge row must fail",
-  "deleting a verification evidence row with a bridge row must fail",
-  "same payload may return an idempotent no-new-write result",
-  "Same key with different payload must fail closed",
-  "Same candidate with a different key must fail closed",
+  "No pending placeholder rows are allowed",
+  "Action records are out of first implementation scope",
+  "No `target_action_id` foreign key is proposed",
+  "same future transaction as the target",
+  "bridge row must never be created\nbefore target evidence exists",
+  "If evidence-row creation fails, there must be no bridge row",
 ]) {
-  assertIncludes(bridgeDesign, phrase);
-}
-
-for (const phrase of [
-  "references `ag_work_resume_imported_contexts(import_id)`",
-  "references `ag_work_resume_confirmed_mappings(mapping_id)`",
-  "references\n  `verification_evidence_records(evidence_id)`",
-  "references `action_records(id)` only in a later design",
-]) {
-  assertIncludes(bridgeDesign, phrase);
+  assertIncludes(migrationPolicy, phrase);
 }
 
 for (const phrase of [
   "no runtime behavior",
   "no schema or migration",
-  "no `lib/db/schema.sql` modification",
-  "no writer, helper, route, or UI",
-  "no browser report",
+  "no `lib/db/schema.sql` changes",
+  "no migration files",
+  "no writer/helper/route/UI",
   "no proof/evidence recording",
   "no `verification_evidence_records` row creation",
   "no `action_records` row creation",
   "no session binding",
   "no Codex execution or continuation",
-  "no work item creation",
-  "no work event creation",
+  "no work item/event creation",
   "no imported context mutation",
   "no confirmed mapping mutation",
   "no proposal mutation",
   "no reconciliation candidate mutation",
   "no approval, publish, retry, replay, merge, auto-merge, external posting",
+  "Approval/publish/retry/replay/merge remains out of scope",
+  "Session binding and\nCodex continuation remain out of scope",
 ]) {
-  assertIncludes(bridgeDesign, phrase);
+  assertIncludes(migrationPolicy, phrase);
 }
 
 assert.equal(
   pkg.scripts?.[
-    "smoke:ag-work-resume-proof-evidence-recording-bridge-table-schema-design"
+    "smoke:ag-work-resume-proof-evidence-recording-bridge-table-migration-policy"
   ],
-  "node scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
-  "package.json should register the bridge table schema design smoke",
+  "node scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
+  "package.json should register the bridge table migration policy smoke",
+);
+
+assert.equal(
+  schemaSql.includes("ag_work_resume_proof_evidence_recording_links"),
+  false,
+  "lib/db/schema.sql should not implement the bridge table in this design-only PR",
 );
 
 assert.ok(
-  joinedPointers.includes(bridgeDesignPath),
-  "AG Resume pointer docs should reference the bridge table schema design doc",
+  joinedPointers.includes(migrationPolicyPath),
+  "AG Resume pointer docs should reference the bridge table migration policy doc",
 );
 
 const changedFiles = gitChangedFiles();
 const allowedChangedFiles = new Set([
+  migrationPolicyPath,
   bridgeDesignPath,
-  bridgeMigrationPolicyPath,
   schemaIntegrationPolicyPath,
   actualRecordingGateDesignPath,
   closeoutPath,
@@ -193,7 +187,7 @@ const allowedChangedFiles = new Set([
   sessionCodexGatePath,
   reconciliationDesignPath,
   lifecycleDocPath,
-  "package.json",
+  packagePath,
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-schema-integration-policy.mjs",
@@ -210,7 +204,20 @@ const unexpectedChangedFiles = changedFiles.filter(
 assert.deepEqual(
   unexpectedChangedFiles,
   [],
-  "bridge table schema design PR should be limited to docs, package script, and smoke guards",
+  "bridge table migration policy PR should be limited to docs, package script, and smoke guards",
+);
+
+assert.equal(
+  changedFiles.includes(schemaPath),
+  false,
+  "lib/db/schema.sql must not be changed by the migration policy PR",
+);
+
+const migrationFiles = changedFiles.filter(isMigrationFile);
+assert.deepEqual(
+  migrationFiles,
+  [],
+  "migration policy PR must not add migration files",
 );
 
 const forbiddenChangedPrefixes = [
@@ -231,22 +238,28 @@ const runtimeSchemaOrBrowserChanged = changedFiles.filter((file) =>
 assert.deepEqual(
   runtimeSchemaOrBrowserChanged,
   [],
-  "bridge table schema design PR should not change runtime/schema/migration/writer/helper/route/UI/browser files",
+  "migration policy PR should not change runtime/schema/migration/writer/helper/route/UI/browser files",
 );
 
 console.log(
   JSON.stringify(
     {
-      smoke: "ag-work-resume-proof-evidence-recording-bridge-table-schema-design",
-      bridge_design_doc_exists: true,
+      smoke:
+        "ag-work-resume-proof-evidence-recording-bridge-table-migration-policy",
+      migration_policy_doc_exists: true,
       design_only_boundary: true,
-      proposed_table_name: "ag_work_resume_proof_evidence_recording_links",
-      required_columns_listed: true,
-      unique_index_fk_cascade_policy_described: true,
-      first_target: "verification_evidence_records",
+      proposed_create_table_documented_not_implemented: true,
+      schema_sql_unchanged: true,
+      no_migration_files_added: true,
+      table_name: "ag_work_resume_proof_evidence_recording_links",
+      key_constraints_documented: true,
+      indexes_documented: true,
+      fk_no_cascade_policy_documented: true,
+      no_pending_placeholder_policy_documented: true,
       action_records_out_of_first_scope: true,
-      accepted_for_future_recording_not_recording: true,
+      future_schema_migration_pr_not_approval_to_record: true,
       actual_recording_separately_user_core_gated: true,
+      accepted_for_future_recording_not_recording: true,
       changed_files_limited_to_docs_package_smokes: true,
     },
     null,
@@ -280,10 +293,19 @@ function gitLinesAllowFailure(args) {
   }
 }
 
+function isMigrationFile(file) {
+  return (
+    file.startsWith("migrations/") ||
+    file.startsWith("db/migrations/") ||
+    /(^|\/)migrations?\//i.test(file) ||
+    /(^|\/)\d{8,}.*\.(?:sql|js|mjs|ts)$/.test(file)
+  );
+}
+
 function assertIncludes(value, expected) {
   assert.equal(
     value.includes(expected),
     true,
-    `Expected bridge design content to include: ${expected}`,
+    `Expected migration policy content to include: ${expected}`,
   );
 }

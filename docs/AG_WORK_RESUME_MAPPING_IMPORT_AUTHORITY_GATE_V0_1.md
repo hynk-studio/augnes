@@ -56,6 +56,15 @@ creation, evidence row creation, action record creation, session binding,
 Codex continuation, approval, publish, retry, replay, merge, auto-merge, or
 committed-state authority.
 
+Proof/evidence recording bridge-table migration/DDL policy pointer:
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`
+defines future DDL/migration expectations for that bridge table. It is
+design-only and adds no schema/migration, `lib/db/schema.sql` change, migration
+file, writer/helper/route/UI, bridge table creation, bridge row creation,
+evidence row creation, action record creation, session binding, Codex
+continuation, approval, publish, retry, replay, merge, auto-merge, or
+committed-state authority.
+
 ## Purpose
 
 The existing AG Resume pipeline can already:
