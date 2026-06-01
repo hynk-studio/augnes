@@ -67,10 +67,11 @@ try {
   const {
     createAgWorkResumeConfirmedMapping,
   } = await import("../lib/ag-work-resume-confirmed-mapping.ts");
-  const { POST } = await import(
+  const { GET, POST } = await import(
     "../app/api/ag-work-resume/imported-contexts/route.ts"
   );
   assert.equal(typeof POST, "function", "imported context route must expose POST");
+  assert.equal(typeof GET, "function", "imported context route must expose GET");
 
   const createFixture = (key, options = {}) =>
     createConfirmedMappingFixture({
@@ -425,11 +426,15 @@ function assertSourceGuards() {
     /@\/lib\/ag-work-resume-imported-context/,
     "route must import imported context writer core",
   );
+  assert.match(
+    routeImportText,
+    /@\/lib\/ag-work-resume-imported-context-read/,
+    "route must import imported context read core",
+  );
   assert.match(routeImportText, /next\/server/, "route must import NextResponse");
   for (const forbidden of [
     /ag-work-resume-confirmed-mapping/i,
     /ag-work-resume-mapping-proposal/i,
-    /ag-work-resume-imported-context-read/i,
     /node:http/i,
     /node:https/i,
     /node:net/i,
@@ -438,7 +443,6 @@ function assertSourceGuards() {
     assert.doesNotMatch(routeImportText, forbidden, `route import guard forbids ${forbidden}`);
   }
   for (const forbidden of [
-    /export\s+(?:async\s+)?function\s+GET/i,
     /fetch\s*\(/i,
     /OpenAI/i,
     /GITHUB_TOKEN/i,
@@ -460,6 +464,10 @@ function assertSourceGuards() {
   const changedFiles = gitChangedFiles();
   const allowedFiles = new Set([
     "app/api/ag-work-resume/imported-contexts/route.ts",
+    "lib/ag-work-resume-imported-context-read.ts",
+    "scripts/ag-work-resume-imported-context-read.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-read.mjs",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
     "scripts/smoke-ag-work-resume-imported-context-route.mjs",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
     "package.json",
@@ -490,7 +498,11 @@ function assertSourceGuards() {
     assert.equal(file.startsWith("apps/"), false, `no MCP/App change: ${file}`);
     assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
-    assert.equal(file.startsWith("lib/"), false, `no lib runtime change: ${file}`);
+    assert.ok(
+      file === "lib/ag-work-resume-imported-context-read.ts" ||
+        !file.startsWith("lib/"),
+      `lib changes limited to imported context read core: ${file}`,
+    );
   }
 }
 
@@ -530,6 +542,7 @@ function assertDocsGuard() {
     /does not mutate confirmed mapping rows/i,
     /does not mutate proposal rows/i,
     /does not add UI/i,
+    /AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1\.md/i,
     /browser verification skipped: no rendered UI\/operator surface changed in this imported context route slice/i,
   ]) {
     assert.match(docs, pattern, `route docs must include ${pattern}`);

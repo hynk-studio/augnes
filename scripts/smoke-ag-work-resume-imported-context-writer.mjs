@@ -498,8 +498,6 @@ function assertSourceGuards() {
 
   for (const forbiddenPath of [
     "components/ag-work-resume-imported-context.tsx",
-    "lib/ag-work-resume-imported-context-read.ts",
-    "scripts/ag-work-resume-imported-context-read.mjs",
   ]) {
     assert.equal(
       existsSync(path.join(rootDir, forbiddenPath)),
@@ -510,9 +508,13 @@ function assertSourceGuards() {
 
   const allowedFiles = new Set([
     "lib/ag-work-resume-imported-context.ts",
+    "lib/ag-work-resume-imported-context-read.ts",
     "scripts/ag-work-resume-imported-context-create.mjs",
+    "scripts/ag-work-resume-imported-context-read.mjs",
     "scripts/smoke-ag-work-resume-imported-context-writer.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-read.mjs",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_IMPLEMENTATION_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_DB_SCHEMA_DESIGN_V0_1.md",
     "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_RECORD_DESIGN_V0_1.md",
@@ -544,8 +546,10 @@ function assertSourceGuards() {
     assert.equal(file.startsWith("reports/browser/"), false, `no browser report: ${file}`);
     assert.notEqual(file, "lib/db/schema.sql", "schema.sql must be unchanged");
     assert.ok(
-      file === "lib/ag-work-resume-imported-context.ts" || !file.startsWith("lib/"),
-      `lib changes limited to imported context writer core: ${file}`,
+      file === "lib/ag-work-resume-imported-context.ts" ||
+        file === "lib/ag-work-resume-imported-context-read.ts" ||
+        !file.startsWith("lib/"),
+      `lib changes limited to imported context writer/read cores: ${file}`,
     );
   }
 }

@@ -12,8 +12,11 @@ evidence, not session binding, not Codex execution or continuation, not
 committed state authority, and not approval, publish, retry, replay, or merge
 authority.
 
-This slice adds no Cockpit UI, no read route, no schema or migration, and no
-writer behavior beyond the existing shared core.
+This create-route slice originally added no Cockpit UI, no read route, no
+schema or migration, and no writer behavior beyond the existing shared core.
+The later read helper/GET route is documented separately in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`; it preserves this POST
+create behavior and route id.
 
 ## Route
 
@@ -71,6 +74,10 @@ The route returns one JSON object:
 
 `route` is `ag_work_resume_imported_contexts.v0_1`.
 
+The read-only GET surface for the same collection route is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md`. GET route id is
+`ag_work_resume_imported_context_read.v0_1`; POST route id remains unchanged.
+
 ## HTTP Status Mapping
 
 - `created` -> HTTP 201
@@ -105,7 +112,9 @@ false.
 ## Non-Goals
 
 - No Cockpit UI.
-- No read route.
+- Read helper/GET route is separately documented in
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_READ_V0_1.md` and preserves this POST
+  create route.
 - No schema or migration.
 - No proof/evidence recording.
 - No session binding.
