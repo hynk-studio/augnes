@@ -26,6 +26,12 @@ including `created_by` and `import_reason`. This writer validates the active
 confirmed mapping, packet identity, redaction report, actor, and reason before
 creating a single `review_metadata` row.
 
+The separately gated create route is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md`. It delegates to this
+writer core and grants no UI, read route, proof/evidence, session, Codex, work
+item/event, confirmed mapping/proposal mutation, approval, publish, retry,
+replay, or merge authority.
+
 ## Core API
 
 Core module:

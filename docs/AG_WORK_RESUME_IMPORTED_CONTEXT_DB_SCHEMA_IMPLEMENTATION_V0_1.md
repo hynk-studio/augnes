@@ -185,6 +185,13 @@ proof/evidence recording, session binding, Codex execution, work item/event
 creation, confirmed mapping/proposal mutation, or approval, publish, retry,
 replay, or merge authority.
 
+The separately gated imported context create route is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md`. It delegates to the
+writer core and still adds no read route, Cockpit UI, schema/migration,
+proof/evidence recording, session binding, Codex execution, work item/event
+creation, confirmed mapping/proposal mutation, or approval, publish, retry,
+replay, or merge authority.
+
 Proof/evidence, session, and Codex gates remain separate.
 
 ## Browser Verification

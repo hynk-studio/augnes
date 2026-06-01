@@ -271,6 +271,11 @@ PRs:
   proof/evidence, session binding, Codex execution, work item/event creation,
   confirmed mapping/proposal mutation, approval, publish, retry, replay, or
   merge authority.
+  `docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md` documents the
+  separately gated Stage D create route; it delegates to the writer core and
+  still adds no read route, Cockpit UI, proof/evidence, session binding, Codex
+  execution, work item/event creation, confirmed mapping/proposal mutation,
+  approval, publish, retry, replay, or merge authority.
 - **Stage E: optional local work item creation**. Future-only and only if ever
   allowed by explicit user/Core action and separate design.
 - **Stage F: optional proof/evidence/session reconciliation**. Future-only and

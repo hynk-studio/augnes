@@ -353,6 +353,9 @@ function assertNoUnexpectedChangedFiles() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
+    "app/api/ag-work-resume/imported-contexts/route.ts",
+    "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md",
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
   ]);
   const forbiddenPrefixes = [
     "app/",
@@ -371,8 +374,9 @@ function assertNoUnexpectedChangedFiles() {
     assert.ok(
       file === "lib/db/schema.sql" ||
         file === "lib/ag-work-resume-imported-context.ts" ||
+        file === "app/api/ag-work-resume/imported-contexts/route.ts" ||
         !forbiddenPrefixes.some((prefix) => file.startsWith(prefix)),
-      `imported context follow-up must not touch runtime/UI/browser files outside schema.sql or writer core: ${file}`,
+      `imported context follow-up must not touch runtime/UI/browser files outside schema.sql, writer core, or create route: ${file}`,
     );
   }
 }
@@ -387,7 +391,8 @@ function assertNoForbiddenImplementationCode() {
   ];
   const implementationFiles = changedFiles.filter(
     (file) =>
-      /^(app|apps|components|migrations)\//.test(file) ||
+      (file !== "app/api/ag-work-resume/imported-contexts/route.ts" &&
+        /^(app|apps|components|migrations)\//.test(file)) ||
       (file.startsWith("lib/") &&
         file !== "lib/db/schema.sql" &&
         file !== "lib/ag-work-resume-imported-context.ts"),
@@ -409,6 +414,7 @@ function assertNoForbiddenImplementationCode() {
     "scripts/smoke-ag-work-resume-confirmed-mapping-read.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-route.mjs",
     "scripts/smoke-ag-work-resume-confirmed-mapping-writer.mjs",
+    "scripts/smoke-ag-work-resume-imported-context-route.mjs",
   ]);
   const forbiddenPatterns = [
     /CREATE\s+TABLE/i,

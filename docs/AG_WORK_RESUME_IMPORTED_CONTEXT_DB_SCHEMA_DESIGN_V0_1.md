@@ -269,6 +269,12 @@ context review metadata rows from active confirmed mappings and still grants no
 route/UI, proof/evidence, session, Codex, approval, publish, retry, replay, or
 merge authority.
 
+The separately gated create route is documented in
+`docs/AG_WORK_RESUME_IMPORTED_CONTEXT_ROUTE_V0_1.md`. It delegates to the
+writer core and still grants no read route, UI, proof/evidence, session, Codex,
+work item/event, confirmed mapping/proposal mutation, approval, publish, retry,
+replay, or merge authority.
+
 This design document itself does not authorize implementation.
 
 ## Browser Verification
