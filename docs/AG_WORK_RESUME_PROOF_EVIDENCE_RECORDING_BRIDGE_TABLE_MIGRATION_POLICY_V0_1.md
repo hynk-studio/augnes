@@ -45,6 +45,7 @@ This policy preserves the evidence-first first implementation target:
 - `docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`
 
 These documents remain controlling for authority boundaries. This policy only
 defines future migration mechanics.
@@ -79,6 +80,12 @@ The schema-only implementation adds
 indexes. It does not create bridge rows, does not create
 `verification_evidence_records` rows, does not create `action_records` rows,
 and does not add any recording writer/helper/route/UI.
+
+The writer/helper gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+It is design-only and defines the future helper transaction contract after the
+empty bridge table exists. It creates no bridge/evidence/action rows and does
+not authorize actual recording.
 
 The schema smoke for this implementation is:
 

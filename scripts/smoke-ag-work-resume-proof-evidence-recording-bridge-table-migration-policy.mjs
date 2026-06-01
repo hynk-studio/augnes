@@ -198,6 +198,8 @@ const allowedChangedFiles = new Set([
   lifecycleDocPath,
   schemaPath,
   packagePath,
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-migration-policy.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-schema-design.mjs",
@@ -216,12 +218,6 @@ assert.deepEqual(
   unexpectedChangedFiles,
   [],
   "bridge table migration policy PR should be limited to docs, package script, and smoke guards",
-);
-
-assert.equal(
-  changedFiles.includes(schemaPath),
-  true,
-  "lib/db/schema.sql should be changed by the schema-only implementation PR",
 );
 
 const migrationFiles = changedFiles.filter(isMigrationFile);

@@ -42,6 +42,7 @@ This bridge-table schema design follows and preserves these controlling docs:
 - `docs/AG_WORK_RESUME_ACTUAL_PROOF_EVIDENCE_RECORDING_GATE_DESIGN_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_SCHEMA_INTEGRATION_POLICY_V0_1.md`
 - `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_MIGRATION_POLICY_V0_1.md`
+- `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`
 
 Those docs remain controlling for review-metadata, mapping/import,
 proof/evidence/session/Codex, reconciliation, candidate lifecycle, recording
@@ -61,6 +62,12 @@ The schema-only implementation adds
 empty table with indexes. It creates no bridge rows, creates no
 `verification_evidence_records` rows, creates no `action_records` rows, adds no
 writer/helper/route/UI, and does not authorize actual proof/evidence recording.
+
+The writer/helper gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+It is design-only and defines the future helper contract for one separately
+approved candidate-to-evidence recording attempt. It does not implement the
+writer/helper or create bridge/evidence/action rows.
 
 ## Proposed Table
 

@@ -278,6 +278,14 @@ It is design-only and recommends a future bridge-table path with one
 verification evidence target row first. It does not add schema, migration,
 writer/helper/route/UI, or proof/evidence recording authority.
 
+The writer/helper gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+It is design-only and defines the future local helper transaction contract for
+one separately approved candidate-to-verification-evidence recording attempt.
+It does not add writer/helper implementation, route/UI, bridge row creation,
+verification evidence row creation, action record creation, or actual
+proof/evidence recording authority.
+
 The bridge-table schema design is tracked in
 `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`.
 It is design-only and does not add schema/migration, modify

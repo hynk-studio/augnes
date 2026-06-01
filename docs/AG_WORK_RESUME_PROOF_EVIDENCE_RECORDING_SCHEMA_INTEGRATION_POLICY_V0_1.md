@@ -76,6 +76,13 @@ The schema-only bridge table implementation adds
 `lib/db/schema.sql`. It is schema-only: it creates no bridge/evidence/action
 rows, adds no writer/helper/route/UI, and does not authorize actual recording.
 
+The writer/helper gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+It is design-only and narrows the future helper contract after the bridge table
+exists. It adds no writer/helper implementation, route/UI, bridge row creation,
+verification evidence row creation, action record creation, or actual
+recording authority by itself.
+
 ## Why This Is The First Path
 
 The first path should not mutate candidate rows to mark recording, because
@@ -622,7 +629,9 @@ The later implementation sequence should be:
 2. Bridge-table schema/migration PR, after
    `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_BRIDGE_TABLE_SCHEMA_DESIGN_V0_1.md`
    is accepted.
-3. Writer/helper design PR for the exact approved recording attempt.
+3. Writer/helper design PR for the exact approved recording attempt, now
+   tracked in
+   `docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
 4. Writer/helper implementation PR creating one bridge row and one evidence
    row in one transaction.
 5. Read-surface PR showing the bridge/evidence link without candidate mutation.

@@ -308,6 +308,12 @@ empty table with indexes. It does not create bridge rows, evidence rows, action
 records, session bindings, work items/events, or actual proof/evidence
 recording authority.
 
+The proof/evidence recording writer/helper gate design is tracked in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_WRITER_HELPER_GATE_DESIGN_V0_1.md`.
+It is design-only and does not add writer/helper implementation, route/UI,
+bridge row creation, verification evidence row creation, action record
+creation, or actual proof/evidence recording authority by itself.
+
 ## Required Preconditions Before Actual Proof/Evidence Recording
 
 - user/Core explicit authorization
