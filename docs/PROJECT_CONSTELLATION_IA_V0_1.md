@@ -584,9 +584,17 @@ npm run smoke:perspective-quality
 npm run smoke:research-diagnostics-boundaries
 npm run smoke:sidecar-et-runtime-boundaries
 npm run smoke:cockpit-perspective-snapshot
+npm run smoke:project-constellation-ia-boundaries
 git diff --check
 git diff --cached --check
 ```
+
+`npm run smoke:project-constellation-ia-boundaries` is a focused static
+document/IA boundary guard. It checks required sections, concepts, boundary
+phrases, non-goals, and index pointers for this document. It does not implement
+Project Constellation runtime behavior, UI behavior, route/API behavior,
+storage, persistence, graph computation, agent routing, evidence production, or
+proof/evidence/readiness writes.
 
 Browser/computer-use may be skipped because this PR is docs-only. It does not
 touch UI, runtime, API, schema, fixture, manifest JSON, package scripts,
