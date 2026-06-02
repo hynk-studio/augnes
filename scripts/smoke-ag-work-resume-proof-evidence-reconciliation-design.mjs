@@ -63,6 +63,7 @@ const pointerDocRelativePaths = [
   "docs/AG_WORK_RESUME_IMPORTED_CONTEXT_WRITER_V0_1.md",
   "docs/AG_WORK_RESUME_MAPPING_IMPORT_AUTHORITY_GATE_V0_1.md",
   reviewMetadataCloseoutDocRelativePath,
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_GATE_CLOSEOUT_V0_1.md",
   actualRecordingGateDesignDocRelativePath,
   schemaIntegrationPolicyDocRelativePath,
   bridgeTableSchemaDesignDocRelativePath,
@@ -367,6 +368,7 @@ function assertNoUnexpectedChangedFiles() {
     bridgeTableMigrationPolicySmokeRelativePath,
     bridgeTableSchemaSmokeRelativePath,
     reviewMetadataCloseoutSmokeRelativePath,
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-gate-closeout.mjs",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md",
     "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
     "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
@@ -495,6 +497,7 @@ function assertNoForbiddenImplementationCode() {
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-route.mjs" &&
       file !== "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs" &&
       file !== gateSmokeRelativePath &&
+      file !== "scripts/smoke-ag-work-resume-proof-evidence-recording-gate-closeout.mjs" &&
       file !== "scripts/smoke-ag-work-resume-imported-context-route.mjs" &&
       file !== "scripts/smoke-ag-work-resume-imported-context-writer.mjs" &&
       file !==

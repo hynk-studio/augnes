@@ -120,6 +120,7 @@
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-create-cockpit-panel.mjs",
     "smoke:ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel": "node scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
     "smoke:ag-work-resume-review-metadata-closeout": "node scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
+    "smoke:ag-work-resume-proof-evidence-recording-gate-closeout": "node scripts/smoke-ag-work-resume-proof-evidence-recording-gate-closeout.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-read-cockpit-panel": "node scripts/smoke-ag-work-resume-mapping-proposal-record-read-cockpit-panel.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-design": "node scripts/smoke-ag-work-resume-mapping-proposal-record-design.mjs",
     "smoke:ag-work-resume-mapping-proposal-db-schema-design": "node scripts/smoke-ag-work-resume-mapping-proposal-db-schema-design.mjs",

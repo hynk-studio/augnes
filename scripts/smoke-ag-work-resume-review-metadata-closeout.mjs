@@ -19,6 +19,7 @@ const schemaPath = "lib/db/schema.sql";
 
 for (const path of [
   closeoutPath,
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_GATE_CLOSEOUT_V0_1.md",
   actualRecordingGateDesignPath,
   schemaIntegrationPolicyPath,
   bridgeDesignPath,
@@ -157,6 +158,7 @@ const diffChangedFiles = execFileSync("git", ["diff", "--name-only", "HEAD"], {
 
 const allowedChangedFiles = new Set([
   closeoutPath,
+  "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_GATE_CLOSEOUT_V0_1.md",
   actualRecordingGateDesignPath,
   schemaIntegrationPolicyPath,
   bridgeDesignPath,
@@ -185,6 +187,7 @@ const allowedChangedFiles = new Set([
   "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md",
   "scripts/smoke-ag-work-resume-actual-proof-evidence-recording-gate-design.mjs",
   "scripts/smoke-ag-work-resume-review-metadata-closeout.mjs",
+    "scripts/smoke-ag-work-resume-proof-evidence-recording-gate-closeout.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-session-codex-gates-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
