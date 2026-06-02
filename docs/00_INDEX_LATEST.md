@@ -115,6 +115,17 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   policy, runtime computation, schema/API, Cockpit action,
   proof/evidence/readiness, AG Resume bridge/writer/helper behavior, or CI
   authority를 만들지 않는다.
+- `SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md`: original
+  repo docs-only Strategy C first-slice closeout / stop-go decision packet이다.
+  Imported first-slice fixture/manifest inventory, current routing boundary,
+  fixture/manifest validation boundary, explicit still-forbidden list, AG
+  Resume isolation note, stop/go decision matrix, future implementation gate,
+  and browser/computer-use skip/future scenario를 정리하며 additional fixtures,
+  manifest entries, harness scripts, package scripts, report/compare/suite/
+  matrix behavior, runtime computation, helper logic, schema/API/Cockpit
+  behavior, proof/evidence/readiness writes, QP evidence, `z_t` commits, CI
+  enforcement, or AG Resume bridge/writer/helper/route behavior를 만들지
+  않는다.
 - `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
   포인터를 둔다.
 - `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only

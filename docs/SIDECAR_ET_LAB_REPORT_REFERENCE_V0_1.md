@@ -158,6 +158,8 @@ Use this document as:
   `docs/SIDECAR_ET_TRACE_PACK_FIXTURE_DESCRIPTOR_VALIDATION_PLAN_V0_1.md`
 - companion context for
   `docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md`
+- companion context for
+  `docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md`
 - input for a future runtime log-only decision packet
 - product copy and non-authority wording reference
 - a checklist of lab ambiguities to keep visible during review
@@ -184,10 +186,22 @@ Do not infer:
 - CI requirement
 - helper or harness approval
 - fixture import approval
+- next Strategy C implementation approval
 
 Runtime `PerspectiveSnapshot.research_diagnostics.sidecar_e_t` remains the
 structured placeholder with `computed=false` unless a separately scoped future
 PR changes it.
+
+First-slice closeout pointer:
+
+- `docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md`
+  records the current original-repo first-slice fixture/manifest inventory,
+  validation boundary, explicit still-forbidden list, AG Resume isolation note,
+  stop/go decision matrix, and future implementation gate. It does not
+  authorize report/compare/suite/matrix behavior, additional fixtures, runtime
+  computation, helper imports, schema/API/Cockpit changes,
+  proof/evidence/readiness writes, QP evidence, `z_t` commits, AG Resume
+  bridge/writer/helper/route behavior, or CI enforcement.
 
 ## 7. Drift and Refresh Note
 

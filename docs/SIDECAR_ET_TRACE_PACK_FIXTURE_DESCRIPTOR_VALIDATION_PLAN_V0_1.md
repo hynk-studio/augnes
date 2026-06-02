@@ -201,3 +201,12 @@ Exact descriptor proposal pointer:
   schema/API changes, Cockpit behavior, proof/evidence/readiness writes, QP
   evidence, `z_t` commits, AG Resume bridge/writer/helper behavior, or CI
   enforcement.
+- `docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md`
+  records the docs-only closeout and stop/go decision packet after the approved
+  first fixture/manifest slices. It summarizes what validation exists, what
+  remains forbidden, how AG Resume proof/evidence recording stays isolated, and
+  what gates must be satisfied before any next implementation PR. It does not
+  add report/compare/suite/matrix behavior, additional fixtures, package
+  scripts, runtime computation, helper logic, schema/API/Cockpit changes,
+  proof/evidence/readiness writes, QP evidence, `z_t` commits, AG Resume
+  bridge/writer/helper/route behavior, or CI enforcement.

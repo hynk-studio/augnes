@@ -208,6 +208,15 @@ Descriptor/naming plan pointer:
   computation, schema/API changes, Cockpit behavior, proof/evidence/readiness
   writes, QP evidence, `z_t` commits, AG Resume bridge/writer/helper behavior,
   or CI enforcement.
+- `docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md`
+  records the docs-only Strategy C first-slice closeout and stop/go decision
+  packet. It summarizes the approved two-fixture subset, two-entry routing
+  manifest, validation boundary, still-forbidden behavior, AG Resume isolation,
+  and future implementation gate; it does not add fixtures, manifest entries,
+  harness scripts, package scripts, report/compare/suite/matrix behavior,
+  runtime computation, helper logic, schema/API/Cockpit changes,
+  proof/evidence/readiness writes, QP evidence, `z_t` commits, AG Resume
+  bridge/writer/helper/route behavior, or CI enforcement.
 
 ## 8. Browser/Computer-Use Note
 
