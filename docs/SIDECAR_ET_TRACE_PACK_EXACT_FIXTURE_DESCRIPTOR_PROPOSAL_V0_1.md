@@ -175,3 +175,26 @@ confirm:
   docs/reference/harness planning.
 - Viewing or running diagnostics creates no proof, evidence, readiness, action,
   bridge-table, QP, or `z_t` writes.
+
+## 8. Strategy C First-Slice Closeout Pointer
+
+`docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md` records
+the docs-only first-slice closeout and stop/go decision packet after the
+approved fixture and manifest validation slices.
+
+It summarizes:
+
+- the two imported fixture files
+- the two-entry manifest routing boundary
+- the fixture descriptor and manifest smoke validation boundary
+- the explicit still-forbidden list
+- AG Resume proof/evidence recording isolation
+- the stop/go decision matrix
+- the future implementation gate
+- the browser/computer-use skip and future temp DB requirement
+
+The closeout does not authorize report/compare/suite/matrix behavior,
+additional fixtures, deferred packs, runtime `sidecar_e_t` computation, helper
+imports, threshold runtime policy, schema/API/Cockpit changes,
+proof/evidence/readiness writes, QP evidence, `z_t` commits, AG Resume
+bridge/writer/helper/route behavior, or CI enforcement.

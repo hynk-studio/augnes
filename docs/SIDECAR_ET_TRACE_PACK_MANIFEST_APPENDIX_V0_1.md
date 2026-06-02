@@ -178,6 +178,14 @@ Fixture-boundary design pointer:
   beyond the approved smokes, runtime computation, schema/API changes,
   proof/evidence/readiness writes, QP evidence, `z_t` commits, AG Resume
   bridge/writer/helper behavior, or CI enforcement.
+- `docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md`
+  records the current original-repo first-slice closeout and stop/go decision
+  packet. It summarizes the two-pack routing boundary, validation boundary,
+  explicit still-forbidden list, AG Resume isolation note, and future
+  implementation gate; it does not add fixtures, manifest entries,
+  report/compare/suite/matrix behavior, runtime computation, schema/API
+  changes, proof/evidence/readiness writes, QP evidence, `z_t` commits, AG
+  Resume bridge/writer/helper/route behavior, or CI enforcement.
 
 ## 6. AG Resume Bridge Safety Note
 
