@@ -21,7 +21,6 @@ const APPROVED_PACKS = [
     expected_trace_count: 5,
   },
 ];
-const APPROVED_PATHS = new Set(APPROVED_PACKS.map((pack) => pack.path));
 const FORBIDDEN_PACK_PATH_FRAGMENTS = [
   "curated",
   "surprising-probes",
@@ -47,6 +46,7 @@ globalThis.fetch = async () => {
 
 const manifest = readJson(MANIFEST_PATH);
 validateManifest(manifest);
+const negativeCasesChecked = assertNegativeManifestCases();
 validatePackageScriptBoundary();
 assert.equal(fetchCalls, 0, "manifest routing smoke should not call fetch");
 
@@ -68,6 +68,7 @@ console.log(
       unimported_packs_present: false,
       expected_trace_counts_match_actual_files: true,
       unsafe_paths_present: false,
+      negative_cases_checked: negativeCasesChecked,
       fetch_calls: fetchCalls,
       db_writes: false,
       ag_resume_writer_helper_called: false,
@@ -81,7 +82,235 @@ console.log(
   ),
 );
 
-function validateManifest(value) {
+function assertNegativeManifestCases() {
+  const examplePack = approvedPack(
+    "fixtures/sidecar-et-trace-pack.example.json",
+  );
+  const groundedQuietPack = approvedPack(
+    "fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json",
+  );
+  const missingFixturePack = {
+    path: "fixtures/sidecar-et-trace-pack.missing.json",
+    kind: "probe",
+    default_compare: false,
+    explicit_only: true,
+    expected_trace_count: 1,
+  };
+  const deferredPackPaths = [
+    "fixtures/sidecar-et-trace-pack.curated-v0.1.json",
+    "fixtures/sidecar-et-trace-pack.surprising-probes-v0.1.json",
+    "fixtures/sidecar-et-trace-pack.medium-tension-probes-v0.1.json",
+    "fixtures/sidecar-et-trace-pack.recovery-policy-probes-v0.1.json",
+    "fixtures/sidecar-et-trace-pack.low-evidence-boundary-probes-v0.1.json",
+    "fixtures/sidecar-et-trace-pack.stress-v0.1.json",
+  ];
+
+  const negativeCases = [
+    {
+      name: "invalid_manifest_version",
+      manifest: {
+        ...approvedManifest(),
+        version: "sidecar_et_trace_pack_manifest.v9.9",
+      },
+      messageIncludes: "version must be",
+    },
+    {
+      name: "missing_packs",
+      manifest: { version: MANIFEST_VERSION },
+      messageIncludes: "packs must be an array",
+    },
+    {
+      name: "non_array_packs",
+      manifest: { version: MANIFEST_VERSION, packs: {} },
+      messageIncludes: "packs must be an array",
+    },
+    {
+      name: "empty_packs",
+      manifest: { version: MANIFEST_VERSION, packs: [] },
+      messageIncludes: "must include exactly the approved first subset",
+    },
+    {
+      name: "duplicate_paths",
+      manifest: manifestWithPacks([examplePack, examplePack]),
+      messageIncludes: "must not be duplicated",
+    },
+    {
+      name: "unsafe_raw_url_path",
+      manifest: manifestWithPacks([
+        { ...examplePack, path: "https://example.invalid/pack.json" },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "must not be a raw URL",
+    },
+    {
+      name: "absolute_path",
+      manifest: manifestWithPacks([
+        { ...examplePack, path: "/tmp/sidecar-et-trace-pack.example.json" },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "must not be absolute",
+    },
+    {
+      name: "path_traversal",
+      manifest: manifestWithPacks([
+        {
+          ...examplePack,
+          path: "fixtures/../sidecar-et-trace-pack.example.json",
+        },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "must be normalized",
+    },
+    {
+      name: "backslash_path",
+      manifest: manifestWithPacks([
+        { ...examplePack, path: "fixtures\\sidecar-et-trace-pack.example.json" },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "must use forward slashes",
+    },
+    {
+      name: "non_json_path",
+      manifest: manifestWithPacks([
+        { ...examplePack, path: "fixtures/sidecar-et-trace-pack.example.txt" },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "must end in .json",
+    },
+    ...deferredPackPaths.map((packPath) => ({
+      name: `unimported_deferred_${deferredPackName(packPath)}`,
+      manifest: manifestWithPacks([
+        { ...examplePack, path: packPath },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "must not reference deferred pack",
+    })),
+    {
+      name: "unknown_pack_field",
+      manifest: manifestWithPacks([
+        { ...examplePack, description: "not allowed in the manifest" },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "description is not supported",
+    },
+    {
+      name: "unsupported_kind",
+      manifest: manifestWithPacks([
+        { ...examplePack, kind: "curated" },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "kind",
+    },
+    {
+      name: "default_compare_and_explicit_only_both_true",
+      manifest: manifestWithPacks([
+        { ...examplePack, default_compare: true, explicit_only: true },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "cannot be both default_compare and explicit_only",
+    },
+    {
+      name: "default_compare_false_and_explicit_only_false",
+      manifest: manifestWithPacks([
+        examplePack,
+        { ...groundedQuietPack, default_compare: false, explicit_only: false },
+      ]),
+      messageIncludes: "explicit_only",
+    },
+    {
+      name: "grounded_quiet_accidentally_default_compare",
+      manifest: manifestWithPacks([
+        examplePack,
+        { ...groundedQuietPack, default_compare: true },
+      ]),
+      messageIncludes: "default_compare",
+    },
+    {
+      name: "example_accidentally_explicit_only",
+      manifest: manifestWithPacks([
+        { ...examplePack, explicit_only: true },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "cannot be both default_compare and explicit_only",
+    },
+    {
+      name: "expected_trace_count_mismatch",
+      manifest: manifestWithPacks([
+        { ...examplePack, expected_trace_count: 2 },
+        groundedQuietPack,
+      ]),
+      messageIncludes: "expected_trace_count",
+    },
+    {
+      name: "missing_fixture_file",
+      manifest: manifestWithPacks([missingFixturePack]),
+      messageIncludes: "must exist",
+      options: {
+        approvedPacks: [missingFixturePack],
+        enforceFirstSubsetRouting: false,
+      },
+    },
+  ];
+
+  for (const negativeCase of negativeCases) {
+    assertRejectsManifest(negativeCase);
+  }
+
+  return negativeCases.map((negativeCase) => negativeCase.name);
+}
+
+function assertRejectsManifest(negativeCase) {
+  assert.throws(
+    () => validateManifest(negativeCase.manifest, negativeCase.options),
+    (error) => {
+      assert(
+        error instanceof Error,
+        `${negativeCase.name} should throw an Error`,
+      );
+      assert(
+        error.message.includes(negativeCase.messageIncludes),
+        `${negativeCase.name} rejected with unexpected message: ${error.message}`,
+      );
+      return true;
+    },
+    `${negativeCase.name} should reject invalid manifest input`,
+  );
+}
+
+function approvedManifest() {
+  return manifestWithPacks(APPROVED_PACKS);
+}
+
+function manifestWithPacks(packs) {
+  return {
+    version: MANIFEST_VERSION,
+    packs: packs.map(cloneJson),
+  };
+}
+
+function approvedPack(packPath) {
+  const pack = APPROVED_PACKS.find((candidate) => candidate.path === packPath);
+  assert(pack, `${packPath} should be approved by the fixture manifest smoke`);
+  return cloneJson(pack);
+}
+
+function deferredPackName(packPath) {
+  return path
+    .basename(packPath, ".json")
+    .replace(/^sidecar-et-trace-pack\./, "")
+    .replace(/-v0\.1$/, "")
+    .replaceAll("-", "_");
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function validateManifest(value, options = {}) {
+  const approvedPacks = options.approvedPacks ?? APPROVED_PACKS;
+  const approvedPaths = new Set(approvedPacks.map((pack) => pack.path));
+  const enforceFirstSubsetRouting = options.enforceFirstSubsetRouting ?? true;
+
   assertObject(value, "$");
   assertOnlyKeys(value, ALLOWED_MANIFEST_KEYS, "$");
   assert.equal(
@@ -92,20 +321,27 @@ function validateManifest(value) {
   assert(Array.isArray(value.packs), `${MANIFEST_PATH}.packs must be an array`);
   assert.equal(
     value.packs.length,
-    APPROVED_PACKS.length,
+    approvedPacks.length,
     `${MANIFEST_PATH} must include exactly the approved first subset`,
   );
 
   const seenPaths = new Set();
   for (const [index, pack] of value.packs.entries()) {
-    validateManifestPack(pack, `$.packs[${index}]`, seenPaths);
+    validateManifestPack(pack, `$.packs[${index}]`, seenPaths, {
+      approvedPacks,
+      approvedPaths,
+    });
   }
 
   assert.deepEqual(
     value.packs.map((pack) => pack.path).sort(),
-    [...APPROVED_PATHS].sort(),
+    [...approvedPaths].sort(),
     `${MANIFEST_PATH} paths must match the imported approved fixture files`,
   );
+
+  if (!enforceFirstSubsetRouting) {
+    return;
+  }
 
   const defaultComparePacks = value.packs.filter(
     (pack) => pack.default_compare,
@@ -125,25 +361,34 @@ function validateManifest(value) {
   assert.equal(groundedQuiet.explicit_only, true);
 }
 
-function validateManifestPack(pack, packPath, seenPaths) {
+function validateManifestPack(pack, packPath, seenPaths, options) {
+  const { approvedPacks, approvedPaths } = options;
+
   assertObject(pack, packPath);
   assertOnlyKeys(pack, ALLOWED_PACK_KEYS, packPath);
   assertManifestPath(pack.path, `${packPath}.path`);
   assert(!seenPaths.has(pack.path), `${pack.path} must not be duplicated`);
   seenPaths.add(pack.path);
-  assert(
-    APPROVED_PATHS.has(pack.path),
-    `${pack.path} is not part of the approved first imported subset`,
-  );
   for (const forbidden of FORBIDDEN_PACK_PATH_FRAGMENTS) {
     assert(
       !pack.path.includes(forbidden),
       `${pack.path} must not reference deferred pack ${forbidden}`,
     );
   }
+  assert(
+    approvedPaths.has(pack.path),
+    `${pack.path} is not part of the approved first imported subset`,
+  );
 
-  const expected = APPROVED_PACKS.find((candidate) => candidate.path === pack.path);
+  const expected = approvedPacks.find(
+    (candidate) => candidate.path === pack.path,
+  );
   assert(expected, `${pack.path} should have an approved routing entry`);
+  assert.equal(
+    !(pack.default_compare && pack.explicit_only),
+    true,
+    `${pack.path} cannot be both default_compare and explicit_only`,
+  );
   assert.equal(pack.kind, expected.kind, `${pack.path} kind`);
   assert.equal(
     pack.default_compare,
@@ -154,11 +399,6 @@ function validateManifestPack(pack, packPath, seenPaths) {
     pack.explicit_only,
     expected.explicit_only,
     `${pack.path} explicit_only`,
-  );
-  assert.equal(
-    !(pack.default_compare && pack.explicit_only),
-    true,
-    `${pack.path} cannot be both default_compare and explicit_only`,
   );
   assert.equal(
     typeof pack.expected_trace_count,
