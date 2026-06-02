@@ -718,3 +718,18 @@ node --check scripts/smoke-ag-work-resume-proof-evidence-recording-bridge-table-
 git diff --check
 git diff --cached --check
 ```
+
+## Proof/Evidence Recording Gate Closeout Pointer
+
+The AG Resume Proof/Evidence Recording Gate Milestone v0.1 closeout is tracked
+in
+`docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_GATE_CLOSEOUT_V0_1.md`.
+
+That closeout records the post-PR #354 safe stopping point: exactly one
+`verification_evidence_records` row and exactly one
+`ag_work_resume_proof_evidence_recording_links` row may be created in one
+transaction only through exact per-attempt user/Core approval and the existing
+writer/helper, route, and Cockpit gate path. It does not add action records,
+session binding, Codex continuation, work item/event creation, source-row
+mutation, approval, publish, retry, replay, merge, Direct Resume Code,
+relay/hosted transfer, or committed-state authority.
