@@ -29,7 +29,11 @@ const lifecycleDocPath =
 const packagePath = "package.json";
 const smokePath =
   "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs";
+const cockpitPanelSmokePath =
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs";
 const cockpitComponentPath = "components/augnes-cockpit.tsx";
+const cockpitBrowserReportPath =
+  "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md";
 const routePath = "app/api/ag-work-resume/proof-evidence-recordings/route.ts";
 const writerHelperPath = "lib/ag-work-resume-proof-evidence-recording.ts";
 const schemaPath = "lib/db/schema.sql";
@@ -244,6 +248,9 @@ const allowedChangedFiles = new Set([
   lifecycleDocPath,
   packagePath,
   smokePath,
+  cockpitPanelSmokePath,
+  cockpitComponentPath,
+  cockpitBrowserReportPath,
   "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-route-gate-design.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
@@ -262,13 +269,7 @@ const allowedChangedFiles = new Set([
 assert.deepEqual(
   changedFiles.filter((file) => !allowedChangedFiles.has(file)),
   [],
-  "Cockpit gate design PR should be limited to docs, package script, and smoke guard",
-);
-
-assert.equal(
-  changedFiles.includes(cockpitComponentPath),
-  false,
-  "Cockpit gate design PR must not change components/augnes-cockpit.tsx",
+  "Cockpit gate design compatibility should be limited to docs, package scripts, smoke guards, and the scoped Cockpit implementation panel",
 );
 assert.equal(
   changedFiles.includes(routePath),
@@ -290,18 +291,19 @@ assert.deepEqual(
   changedFiles.filter(
     (file) =>
       file.startsWith("app/") ||
-      file.startsWith("components/") ||
+      (file.startsWith("components/") && file !== cockpitComponentPath) ||
       file.startsWith("pages/") ||
       file.startsWith("public/") ||
       file.startsWith("migrations/") ||
       file.startsWith("db/") ||
       file.startsWith("apps/") ||
-      file.startsWith("reports/browser/") ||
+      (file.startsWith("reports/browser/") &&
+        file !== cockpitBrowserReportPath) ||
       file.startsWith("lib/") ||
       (file.startsWith("scripts/") && !file.startsWith("scripts/smoke-")),
   ),
   [],
-  "Cockpit gate design PR must not change runtime/schema/migration/route/UI/browser/helper files",
+  "Cockpit gate compatibility must not change runtime/schema/migration/route/helper files or unscoped UI/browser files",
 );
 
 console.log(
@@ -310,7 +312,8 @@ console.log(
       smoke: "ag-work-resume-proof-evidence-recording-cockpit-gate-design",
       cockpit_gate_design_doc_exists: true,
       design_only_boundary: true,
-      no_components_augnes_cockpit_change: true,
+      scoped_components_augnes_cockpit_change_allowed:
+        changedFiles.includes(cockpitComponentPath),
       no_route_implementation_change: true,
       no_writer_helper_behavior_change: true,
       no_schema_migration_change: true,

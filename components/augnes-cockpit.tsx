@@ -887,6 +887,70 @@ type AgResumeReconciliationCandidateLifecycleAction =
   | "revoke"
   | "supersede";
 
+type AgResumeProofEvidenceRecordingPanelResult = {
+  httpStatus: number;
+  requestBody: AgResumeProofEvidenceRecordingRequestBody;
+  body: AgResumeProofEvidenceRecordingRouteResponse;
+};
+
+type AgResumeProofEvidenceRecordingRequestBody = {
+  candidate_id: string;
+  import_id?: string;
+  mapping_id?: string;
+  user_core_approval: Record<string, unknown>;
+  actor: string;
+  reason: string;
+  redaction_summary: Record<string, unknown>;
+  trust_provenance_label: "foreign_summary_user_core_attested";
+  local_target_scope: string;
+  local_target_work_id: string;
+  expected_idempotency_key?: string;
+};
+
+type AgResumeProofEvidenceRecordingRouteResponse = {
+  ok?: boolean;
+  route?: string;
+  result?: string;
+  created?: boolean;
+  candidate_id?: string | null;
+  evidence_id?: string | null;
+  recording_link_id?: string | null;
+  idempotency_key?: string | null;
+  target_record_kind?: "verification_evidence" | null;
+  warnings?: string[];
+  failures?: string[];
+  authority_boundary?: AgResumeProofEvidenceRecordingAuthorityBoundary | null;
+  recommended_next_step?: string;
+  error?: string;
+};
+
+type AgResumeProofEvidenceRecordingAuthorityBoundary = {
+  exact_user_core_approval_required?: boolean;
+  verification_evidence_record_created?: boolean;
+  bridge_link_created?: boolean;
+  proof_recorded?: boolean;
+  action_record_created?: boolean;
+  route_added?: boolean;
+  ui_added?: boolean;
+  session_bound?: boolean;
+  codex_executed?: boolean;
+  codex_continued?: boolean;
+  work_item_created?: boolean;
+  work_event_created?: boolean;
+  imported_context_mutated?: boolean;
+  confirmed_mapping_mutated?: boolean;
+  proposal_record_mutated?: boolean;
+  reconciliation_candidate_mutated?: boolean;
+  approval_granted?: boolean;
+  publish_retry_replay_authority?: boolean;
+  merge_authority?: boolean;
+  auto_merge_authority?: boolean;
+  external_posting_authority?: boolean;
+  committed_state_mutated?: boolean;
+  allowed_insert_tables?: string[];
+  statement?: string;
+};
+
 type AgResumeImportedContextCreatePanelResult = {
   httpStatus: number;
   requestBody: AgResumeImportedContextCreateRequestBody;
@@ -2020,6 +2084,168 @@ const SAFE_AG_RESUME_RECONCILIATION_CANDIDATE_LIFECYCLE_ACTION_FIXTURE = {
   review_note:
     "Synthetic reconciliation candidate lifecycle review metadata fixture.",
   reviewed_at: "2026-06-01T07:00:00.000Z",
+} as const;
+
+const AG_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE =
+  "/api/ag-work-resume/proof-evidence-recordings";
+const AG_RESUME_PROOF_EVIDENCE_RECORDING_TRUST_LABEL =
+  "foreign_summary_user_core_attested" as const;
+const AG_RESUME_PROOF_EVIDENCE_RECORDING_CONFIRMATION_PHRASE =
+  "record verification evidence";
+const AG_RESUME_PROOF_EVIDENCE_RECORDING_FORBIDDEN_FIELDS = [
+  "db",
+  "now",
+  "route_path",
+  "route_method",
+  "content_type",
+  "session_id",
+  "bind_session",
+  "codex_session_id",
+  "codex_continue",
+  "codex_execute",
+  "work_item",
+  "work_item_create",
+  "work_event",
+  "work_event_create",
+  "action_id",
+  "action_record",
+  "target_action_id",
+  "evidence_id",
+  "recording_link_id",
+  "mutate_imported_context",
+  "mutate_confirmed_mapping",
+  "mutate_proposal",
+  "mutate_candidate",
+  "approval_request_id",
+  "approval_decision_id",
+  "publish",
+  "retry",
+  "replay",
+  "merge",
+  "auto_merge",
+  "external_post",
+  "committed_state",
+  "direct_resume_code",
+  "relay_transfer",
+  "hosted_transfer",
+] as const;
+const AG_RESUME_PROOF_EVIDENCE_RECORDING_APPROVAL_FIELDS = [
+  "approval_kind",
+  "approval_schema",
+  "approved_candidate_id",
+  "approved_import_id",
+  "approved_mapping_id",
+  "approved_local_target_scope",
+  "approved_local_target_work_id",
+  "approved_target_record_kind",
+  "approved_idempotency_key",
+  "approved_actor",
+  "approved_reason",
+  "approved_redaction_summary",
+  "approved_trust_provenance_label",
+  "approved_side_effects",
+] as const;
+const AG_RESUME_PROOF_EVIDENCE_RECORDING_SIDE_EFFECT_FIELDS = [
+  "insert_tables",
+  "forbidden_tables",
+] as const;
+const AG_RESUME_PROOF_EVIDENCE_RECORDING_REDACTION_FIELDS = [
+  "safe",
+  "secrets_included",
+  "raw_db_paths_included",
+  "raw_session_payloads_included",
+  "session_payloads_included",
+  "raw_proof_payloads_included",
+  "proof_payloads_included",
+  "raw_evidence_payloads_included",
+  "evidence_payloads_included",
+  "tokens_included",
+  "keys_included",
+  "cookies_included",
+  "private_paths_included",
+  "raw_foreign_payload_copied",
+  "raw_foreign_payloads_copied",
+  "raw_command_output_included",
+] as const;
+const SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_REDACTION_SUMMARY = {
+  safe: true,
+  secrets_included: false,
+  raw_db_paths_included: false,
+  raw_session_payloads_included: false,
+  session_payloads_included: false,
+  raw_proof_payloads_included: false,
+  proof_payloads_included: false,
+  raw_evidence_payloads_included: false,
+  evidence_payloads_included: false,
+  tokens_included: false,
+  keys_included: false,
+  cookies_included: false,
+  private_paths_included: false,
+  raw_foreign_payload_copied: false,
+  raw_foreign_payloads_copied: false,
+  raw_command_output_included: false,
+} as const;
+const SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE = {
+  candidate_id:
+    "ag-resume-proof-evidence-reconciliation-candidate:cockpit-recording-safe-001",
+  import_id: "ag-resume-imported-context:cockpit-recording-safe-001",
+  mapping_id: "ag-resume-confirmed-mapping:cockpit-recording-safe-001",
+  foreign_ref_type: "proof",
+  foreign_ref_id: "proof:foreign-public-safe:recording-cockpit-001",
+  local_target_scope: "project:augnes",
+  local_target_work_id: "AG-COCKPIT-RECORDING-001",
+  actor: "user-core:recording-cockpit-panel",
+  reason:
+    "User/Core approved Cockpit proof/evidence recording fixture for browser verification.",
+  trust_provenance_label: "foreign_summary_user_core_attested",
+  expected_idempotency_key:
+    "actual-proof-evidence-recording:v0_1:ag-resume-proof-evidence-reconciliation-candidate:cockpit-recording-safe-001:ag-resume-imported-context:cockpit-recording-safe-001:ag-resume-confirmed-mapping:cockpit-recording-safe-001:proof:proof:foreign-public-safe:recording-cockpit-001:project:augnes:AG-COCKPIT-RECORDING-001:verification_evidence",
+  redaction_summary_json: JSON.stringify(
+    SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_REDACTION_SUMMARY,
+    null,
+    2,
+  ),
+  user_core_approval_json: JSON.stringify(
+    {
+      approval_kind: "ag_work_resume_actual_proof_evidence_recording",
+      approval_schema:
+        "augnes.ag_work_resume.actual_proof_evidence_recording.approval.v0_1",
+      approved_candidate_id:
+        "ag-resume-proof-evidence-reconciliation-candidate:cockpit-recording-safe-001",
+      approved_import_id: "ag-resume-imported-context:cockpit-recording-safe-001",
+      approved_mapping_id:
+        "ag-resume-confirmed-mapping:cockpit-recording-safe-001",
+      approved_local_target_scope: "project:augnes",
+      approved_local_target_work_id: "AG-COCKPIT-RECORDING-001",
+      approved_target_record_kind: "verification_evidence",
+      approved_idempotency_key:
+        "actual-proof-evidence-recording:v0_1:ag-resume-proof-evidence-reconciliation-candidate:cockpit-recording-safe-001:ag-resume-imported-context:cockpit-recording-safe-001:ag-resume-confirmed-mapping:cockpit-recording-safe-001:proof:proof:foreign-public-safe:recording-cockpit-001:project:augnes:AG-COCKPIT-RECORDING-001:verification_evidence",
+      approved_actor: "user-core:recording-cockpit-panel",
+      approved_reason:
+        "User/Core approved Cockpit proof/evidence recording fixture for browser verification.",
+      approved_redaction_summary:
+        SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_REDACTION_SUMMARY,
+      approved_trust_provenance_label: "foreign_summary_user_core_attested",
+      approved_side_effects: {
+        insert_tables: [
+          "verification_evidence_records",
+          "ag_work_resume_proof_evidence_recording_links",
+        ],
+        forbidden_tables: [
+          "action_records",
+          "sessions",
+          "work_items",
+          "work_events",
+          "ag_work_resume_imported_contexts",
+          "ag_work_resume_confirmed_mappings",
+          "ag_work_resume_mapping_proposals",
+          "ag_work_resume_proof_evidence_reconciliation_candidates",
+        ],
+      },
+    },
+    null,
+    2,
+  ),
 } as const;
 
 const SAFE_AG_RESUME_IMPORTED_CONTEXT_CREATE_FIXTURE = {
@@ -4355,6 +4581,7 @@ function OperatorTab({
           <AgResumeReconciliationCandidateCreatePanel />
           <AgResumeReconciliationCandidateLifecycleActionPanel />
           <AgResumeReconciliationCandidateReadPanel />
+          <AgResumeProofEvidenceRecordingGatePanel />
           <CoordinationEventTimeline
             events={coordinationEvents}
             selectedEvent={selectedCoordinationEvent}
@@ -11080,6 +11307,703 @@ function AgResumeReconciliationCandidateReadPanel() {
   );
 }
 
+function AgResumeProofEvidenceRecordingGatePanel() {
+  const [candidateId, setCandidateId] = useState("");
+  const [importId, setImportId] = useState("");
+  const [mappingId, setMappingId] = useState("");
+  const [userCoreApprovalJson, setUserCoreApprovalJson] = useState("");
+  const [actor, setActor] = useState("");
+  const [reason, setReason] = useState("");
+  const [redactionSummaryJson, setRedactionSummaryJson] = useState("");
+  const [trustProvenanceLabel, setTrustProvenanceLabel] = useState<string>(
+    AG_RESUME_PROOF_EVIDENCE_RECORDING_TRUST_LABEL,
+  );
+  const [localTargetScope, setLocalTargetScope] = useState("");
+  const [localTargetWorkId, setLocalTargetWorkId] = useState("");
+  const [expectedIdempotencyKey, setExpectedIdempotencyKey] = useState("");
+  const [hasExactApproval, setHasExactApproval] = useState(false);
+  const [typedConfirmationPhrase, setTypedConfirmationPhrase] = useState("");
+  const [result, setResult] =
+    useState<AgResumeProofEvidenceRecordingPanelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
+
+  function clearProofEvidenceRecordingResultState() {
+    setError(null);
+    setResult(null);
+  }
+
+  function loadSafeProofEvidenceRecordingFixture() {
+    setCandidateId(SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.candidate_id);
+    setImportId(SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.import_id);
+    setMappingId(SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.mapping_id);
+    setUserCoreApprovalJson(
+      SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.user_core_approval_json,
+    );
+    setActor(SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.actor);
+    setReason(SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.reason);
+    setRedactionSummaryJson(
+      SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.redaction_summary_json,
+    );
+    setTrustProvenanceLabel(
+      SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.trust_provenance_label,
+    );
+    setLocalTargetScope(
+      SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.local_target_scope,
+    );
+    setLocalTargetWorkId(
+      SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.local_target_work_id,
+    );
+    setExpectedIdempotencyKey(
+      SAFE_AG_RESUME_PROOF_EVIDENCE_RECORDING_FIXTURE.expected_idempotency_key,
+    );
+    setHasExactApproval(false);
+    setTypedConfirmationPhrase("");
+    clearProofEvidenceRecordingResultState();
+  }
+
+  function clearProofEvidenceRecordingInputs() {
+    requestIdRef.current += 1;
+    setCandidateId("");
+    setImportId("");
+    setMappingId("");
+    setUserCoreApprovalJson("");
+    setActor("");
+    setReason("");
+    setRedactionSummaryJson("");
+    setTrustProvenanceLabel(AG_RESUME_PROOF_EVIDENCE_RECORDING_TRUST_LABEL);
+    setLocalTargetScope("");
+    setLocalTargetWorkId("");
+    setExpectedIdempotencyKey("");
+    setHasExactApproval(false);
+    setTypedConfirmationPhrase("");
+    setResult(null);
+    setError(null);
+    setBusy(false);
+  }
+
+  async function handleProofEvidenceRecordingSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let requestBody: AgResumeProofEvidenceRecordingRequestBody;
+    try {
+      requestBody = buildAgResumeProofEvidenceRecordingRequestBody({
+        candidateId,
+        importId,
+        mappingId,
+        userCoreApprovalJson,
+        actor,
+        reason,
+        redactionSummaryJson,
+        trustProvenanceLabel,
+        localTargetScope,
+        localTargetWorkId,
+        expectedIdempotencyKey,
+        hasExactApproval,
+        typedConfirmationPhrase,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : String(caughtError));
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setBusy(true);
+
+    try {
+      const response = await fetch(AG_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const bodyText = await response.text();
+      let parsedBody: unknown;
+      try {
+        parsedBody = bodyText.trim().length > 0 ? JSON.parse(bodyText) : null;
+      } catch (caughtError) {
+        throw new Error(
+          `Proof/evidence recording route returned a non-JSON response: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+
+      if (!isAgResumeRecord(parsedBody)) {
+        throw new Error(
+          "Proof/evidence recording route returned a non-object JSON response.",
+        );
+      }
+
+      if (requestIdRef.current !== requestId) return;
+
+      const body = parsedBody as AgResumeProofEvidenceRecordingRouteResponse;
+      setResult({
+        httpStatus: response.status,
+        requestBody,
+        body,
+      });
+
+      if (!response.ok) {
+        const routeError =
+          body.failures?.[0] ?? body.error ?? body.result ?? "recording failed";
+        setError(`Proof/evidence recording route error: ${routeError}`);
+      }
+    } catch (caughtError) {
+      if (requestIdRef.current === requestId) {
+        setError(
+          `Proof/evidence recording route error: ${
+            caughtError instanceof Error ? caughtError.message : String(caughtError)
+          }`,
+        );
+      }
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setBusy(false);
+      }
+    }
+  }
+
+  return (
+    <section
+      className="cockpit-surface-card ag-resume-proof-evidence-recording-gate-panel"
+      aria-label="AG Resume Proof Evidence Recording Gate"
+      aria-busy={busy ? true : undefined}
+    >
+      <PanelHeader
+        eyebrow="AG resume"
+        title="AG Resume Proof/Evidence Recording Gate"
+        description="Bounded Operator UI for one exact user/Core-approved proof/evidence recording attempt through the existing route."
+      />
+      <BoundaryNote tone="green">
+        <ul className="boundary-list">
+          <li>accepted_for_future_recording is not proof/evidence recording.</li>
+          <li>Route success is not broader approval.</li>
+          <li>
+            Actual recording requires exact user/Core approval for this attempt.
+          </li>
+          <li>
+            This UI calls only POST /api/ag-work-resume/proof-evidence-recordings
+            and must not weaken route/helper validation.
+          </li>
+          <li>
+            Allowed route side effects are exactly one verification evidence row
+            and one proof/evidence recording bridge row through the route/helper.
+          </li>
+          <li>
+            No session/Codex/work/action/source-row/approval/publish/retry/
+            replay/merge, auto-merge, external posting, Direct Resume Code,
+            relay, hosted transfer, or committed-state authority is granted.
+          </li>
+        </ul>
+      </BoundaryNote>
+      <form className="observe-form" onSubmit={handleProofEvidenceRecordingSubmit}>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-proof-evidence-recording-safe-fixture-heading"
+        >
+          <h3 id="ag-resume-proof-evidence-recording-safe-fixture-heading">
+            Proof/evidence recording safe fixture controls
+          </h3>
+          <BoundaryNote>
+            Fixture data is for development, smoke, and local demo verification
+            only. Fixture data is not approval, does not auto-submit, and still
+            requires the checkbox plus typed confirmation phrase.
+          </BoundaryNote>
+          <div className="action-controls">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadSafeProofEvidenceRecordingFixture}
+              disabled={busy}
+            >
+              Load safe fixture (not approval)
+            </button>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-proof-evidence-recording-inputs-heading"
+        >
+          <h3 id="ag-resume-proof-evidence-recording-inputs-heading">
+            Proof/evidence recording inputs
+          </h3>
+          <div className="evidence-pack-grid">
+            <section className="evidence-pack-card">
+              <h3>Candidate and source cross-checks</h3>
+              <label htmlFor="ag-resume-proof-evidence-recording-candidate-id-input">
+                candidate_id
+              </label>
+              <input
+                id="ag-resume-proof-evidence-recording-candidate-id-input"
+                value={candidateId}
+                onChange={(event) => setCandidateId(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-candidate-help"
+                placeholder="ag-resume-proof-evidence-reconciliation-candidate:..."
+              />
+              <label htmlFor="ag-resume-proof-evidence-recording-import-id-input">
+                import_id cross-check
+              </label>
+              <input
+                id="ag-resume-proof-evidence-recording-import-id-input"
+                value={importId}
+                onChange={(event) => setImportId(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-candidate-help"
+                placeholder="ag-resume-imported-context:..."
+              />
+              <label htmlFor="ag-resume-proof-evidence-recording-mapping-id-input">
+                mapping_id cross-check
+              </label>
+              <input
+                id="ag-resume-proof-evidence-recording-mapping-id-input"
+                value={mappingId}
+                onChange={(event) => setMappingId(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-candidate-help"
+                placeholder="ag-resume-confirmed-mapping:..."
+              />
+              <p
+                id="ag-resume-proof-evidence-recording-candidate-help"
+                className="notice"
+              >
+                candidate_id is canonical. import_id and mapping_id are
+                optional cross-checks only.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Actor, reason, and local target</h3>
+              <label htmlFor="ag-resume-proof-evidence-recording-actor-input">
+                actor
+              </label>
+              <input
+                id="ag-resume-proof-evidence-recording-actor-input"
+                value={actor}
+                onChange={(event) => setActor(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-actor-help"
+                placeholder="user-core:..."
+              />
+              <label htmlFor="ag-resume-proof-evidence-recording-reason-input">
+                reason
+              </label>
+              <textarea
+                id="ag-resume-proof-evidence-recording-reason-input"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-actor-help"
+                rows={4}
+                placeholder="Exact user/Core reason for this recording attempt."
+              />
+              <label htmlFor="ag-resume-proof-evidence-recording-local-target-scope-input">
+                local_target_scope
+              </label>
+              <input
+                id="ag-resume-proof-evidence-recording-local-target-scope-input"
+                value={localTargetScope}
+                onChange={(event) => setLocalTargetScope(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-actor-help"
+                placeholder="project:augnes"
+              />
+              <label htmlFor="ag-resume-proof-evidence-recording-local-target-work-id-input">
+                local_target_work_id
+              </label>
+              <input
+                id="ag-resume-proof-evidence-recording-local-target-work-id-input"
+                value={localTargetWorkId}
+                onChange={(event) => setLocalTargetWorkId(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-actor-help"
+                placeholder="AG-..."
+              />
+              <p
+                id="ag-resume-proof-evidence-recording-actor-help"
+                className="notice"
+              >
+                actor and reason must be explicit user/Core values. The local
+                target must match the candidate/import/mapping source rows.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Approval payload</h3>
+              <label htmlFor="ag-resume-proof-evidence-recording-user-core-approval-input">
+                user_core_approval JSON object
+              </label>
+              <textarea
+                id="ag-resume-proof-evidence-recording-user-core-approval-input"
+                value={userCoreApprovalJson}
+                onChange={(event) => setUserCoreApprovalJson(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-approval-help"
+                rows={12}
+                placeholder='{"approval_kind":"ag_work_resume_actual_proof_evidence_recording"}'
+              />
+              <p
+                id="ag-resume-proof-evidence-recording-approval-help"
+                className="notice"
+              >
+                Manual JSON approval is required for the exact attempt. A safe
+                fixture or draft payload is not approval by itself.
+              </p>
+            </section>
+            <section className="evidence-pack-card">
+              <h3>Redaction and provenance</h3>
+              <label htmlFor="ag-resume-proof-evidence-recording-redaction-summary-input">
+                redaction_summary JSON object
+              </label>
+              <textarea
+                id="ag-resume-proof-evidence-recording-redaction-summary-input"
+                value={redactionSummaryJson}
+                onChange={(event) => setRedactionSummaryJson(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-redaction-help"
+                rows={10}
+                placeholder='{"safe":true,"secrets_included":false}'
+              />
+              <label htmlFor="ag-resume-proof-evidence-recording-trust-label-input">
+                trust_provenance_label
+              </label>
+              <input
+                id="ag-resume-proof-evidence-recording-trust-label-input"
+                value={trustProvenanceLabel}
+                onChange={(event) => setTrustProvenanceLabel(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-redaction-help"
+                placeholder="foreign_summary_user_core_attested"
+              />
+              <label htmlFor="ag-resume-proof-evidence-recording-idempotency-key-input">
+                expected_idempotency_key cross-check
+              </label>
+              <textarea
+                id="ag-resume-proof-evidence-recording-idempotency-key-input"
+                value={expectedIdempotencyKey}
+                onChange={(event) => setExpectedIdempotencyKey(event.target.value)}
+                aria-describedby="ag-resume-proof-evidence-recording-redaction-help"
+                rows={4}
+                placeholder="actual-proof-evidence-recording:v0_1:..."
+              />
+              <p
+                id="ag-resume-proof-evidence-recording-redaction-help"
+                className="notice"
+              >
+                Redaction must be public-safe. The idempotency key is displayed
+                before submit as a cross-check only, not retry/replay authority.
+              </p>
+            </section>
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-proof-evidence-recording-confirmation-heading"
+        >
+          <h3 id="ag-resume-proof-evidence-recording-confirmation-heading">
+            Proof/evidence recording confirmation
+          </h3>
+          <label className="checkbox-row" htmlFor="ag-resume-proof-evidence-recording-confirmation-checkbox">
+            <input
+              id="ag-resume-proof-evidence-recording-confirmation-checkbox"
+              type="checkbox"
+              checked={hasExactApproval}
+              onChange={(event) => setHasExactApproval(event.target.checked)}
+              aria-describedby="ag-resume-proof-evidence-recording-confirmation-help"
+            />
+            I have exact user/Core approval for this recording attempt.
+          </label>
+          <label htmlFor="ag-resume-proof-evidence-recording-confirmation-phrase-input">
+            typed confirmation phrase
+          </label>
+          <input
+            id="ag-resume-proof-evidence-recording-confirmation-phrase-input"
+            value={typedConfirmationPhrase}
+            onChange={(event) => setTypedConfirmationPhrase(event.target.value)}
+            aria-describedby="ag-resume-proof-evidence-recording-confirmation-help"
+            placeholder={AG_RESUME_PROOF_EVIDENCE_RECORDING_CONFIRMATION_PHRASE}
+          />
+          <p
+            id="ag-resume-proof-evidence-recording-confirmation-help"
+            className="notice"
+          >
+            Type exactly: record verification evidence
+          </p>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ag-resume-proof-evidence-recording-action-controls-heading"
+        >
+          <h3 id="ag-resume-proof-evidence-recording-action-controls-heading">
+            Proof/evidence recording controls
+          </h3>
+          <BoundaryNote>
+            Clear/reset never calls the route and never persists approval JSON.
+            Submit sends only supported application/json fields to the existing
+            proof/evidence recording route.
+          </BoundaryNote>
+          <div className="form-row">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearProofEvidenceRecordingInputs}
+            >
+              Clear proof/evidence recording inputs
+            </button>
+            <button type="submit" disabled={busy}>
+              {busy
+                ? "Recording verification evidence"
+                : "Record verification evidence"}
+            </button>
+          </div>
+          {error ? (
+            <span
+              id="ag-resume-proof-evidence-recording-error"
+              className="notice error"
+              role="alert"
+            >
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      {result ? (
+        <AgResumeProofEvidenceRecordingResults result={result} />
+      ) : (
+        <EmptyState
+          label="No proof/evidence recording result yet."
+          description="Enter candidate, approval, actor, reason, redaction, trust, local target, and confirmation to call the bounded route."
+        />
+      )}
+    </section>
+  );
+}
+
+function AgResumeProofEvidenceRecordingResults({
+  result,
+}: {
+  result: AgResumeProofEvidenceRecordingPanelResult;
+}) {
+  const { body } = result;
+  const routeResult = body.result ?? body.error ?? "unknown";
+  const isRecorded = routeResult === "recorded";
+  const isIdempotent = routeResult === "idempotent_no_new_write";
+
+  return (
+    <div
+      aria-labelledby="ag-resume-proof-evidence-recording-result-heading"
+      aria-live="polite"
+    >
+      <h3 id="ag-resume-proof-evidence-recording-result-heading">
+        Proof/evidence recording result
+      </h3>
+      <BoundaryNote tone={isRecorded || isIdempotent ? "green" : undefined}>
+        accepted_for_future_recording is not proof/evidence recording. Route
+        success is not broader approval. Actual recording requires exact
+        user/Core approval for this attempt. This UI calls only POST
+        /api/ag-work-resume/proof-evidence-recordings and must not weaken
+        route/helper validation.
+      </BoundaryNote>
+      {isRecorded ? (
+        <BoundaryNote tone="green">
+          Recorded through the route/helper. No session/Codex/work/action/source-row/
+          approval/publish/retry/replay/merge authority was granted.
+        </BoundaryNote>
+      ) : null}
+      {isIdempotent ? (
+        <BoundaryNote>
+          Idempotent no-new-write result. No duplicate rows were created, and
+          idempotent success is not retry, replay, publish, merge, or approval
+          authority.
+        </BoundaryNote>
+      ) : null}
+      {!isRecorded && !isIdempotent ? (
+        <BoundaryNote>
+          Failure path shown with public-safe route text only. No UI/Cockpit
+          authority was gained.
+        </BoundaryNote>
+      ) : null}
+      <div className="evidence-pack-grid">
+        <section className="evidence-pack-card">
+          <h3>HTTP Status</h3>
+          <p>{result.httpStatus}</p>
+          <small>POST /api/ag-work-resume/proof-evidence-recordings</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Route result</h3>
+          <p>{routeResult}</p>
+          <small>{body.route ?? "route unknown"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>Created</h3>
+          <p>{formatAgResumeBoolean(body.created)}</p>
+          <small>{isIdempotent ? "no duplicate rows were created" : "route created flag"}</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>candidate_id</h3>
+          <p>{body.candidate_id ?? result.requestBody.candidate_id}</p>
+          <small>recording attempt candidate</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>evidence_id</h3>
+          <p>{body.evidence_id ?? "none"}</p>
+          <small>verification_evidence_records target</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>recording_link_id</h3>
+          <p>{body.recording_link_id ?? "none"}</p>
+          <small>ag_work_resume_proof_evidence_recording_links bridge row</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>idempotency_key</h3>
+          <p>{body.idempotency_key ?? "none"}</p>
+          <small>cross-check only, not retry/replay authority</small>
+        </section>
+        <section className="evidence-pack-card">
+          <h3>target_record_kind</h3>
+          <p>{body.target_record_kind ?? "none"}</p>
+          <small>first implementation target kind</small>
+        </section>
+      </div>
+      <AgResumeStringList
+        title="Warnings"
+        items={body.warnings ?? []}
+        emptyLabel="No proof/evidence recording warnings."
+      />
+      <AgResumeStringList
+        title="Failures"
+        items={body.failures ?? []}
+        emptyLabel="No proof/evidence recording failures."
+      />
+      {body.recommended_next_step ? (
+        <BoundaryNote>
+          Bounded recommended next step: {body.recommended_next_step}
+        </BoundaryNote>
+      ) : null}
+      <AgResumeProofEvidenceRecordingAuthorityBoundary
+        authorityBoundary={body.authority_boundary ?? null}
+      />
+    </div>
+  );
+}
+
+function AgResumeProofEvidenceRecordingAuthorityBoundary({
+  authorityBoundary,
+}: {
+  authorityBoundary: AgResumeProofEvidenceRecordingAuthorityBoundary | null;
+}) {
+  return (
+    <section className="evidence-pack-card evidence-pack-card-wide">
+      <h3>Proof/evidence recording authority_boundary</h3>
+      {authorityBoundary ? (
+        <>
+          <p>
+            {authorityBoundary.statement ??
+              "No proof/evidence recording authority boundary statement returned."}
+          </p>
+          <div className="meta-row">
+            <span>
+              exact_user_core_approval_required:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.exact_user_core_approval_required,
+              )}
+            </span>
+            <span>
+              verification_evidence_record_created:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.verification_evidence_record_created,
+              )}
+            </span>
+            <span>
+              bridge_link_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.bridge_link_created)}
+            </span>
+            <span>
+              proof_recorded:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proof_recorded)}
+            </span>
+            <span>
+              action_record_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.action_record_created)}
+            </span>
+            <span>
+              route_added: {formatAgResumeBoolean(authorityBoundary.route_added)}
+            </span>
+            <span>ui_added: {formatAgResumeBoolean(authorityBoundary.ui_added)}</span>
+            <span>
+              session_bound:{" "}
+              {formatAgResumeBoolean(authorityBoundary.session_bound)}
+            </span>
+            <span>
+              codex_executed:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_executed)}
+            </span>
+            <span>
+              codex_continued:{" "}
+              {formatAgResumeBoolean(authorityBoundary.codex_continued)}
+            </span>
+            <span>
+              work_item_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_item_created)}
+            </span>
+            <span>
+              work_event_created:{" "}
+              {formatAgResumeBoolean(authorityBoundary.work_event_created)}
+            </span>
+            <span>
+              imported_context_mutated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.imported_context_mutated)}
+            </span>
+            <span>
+              confirmed_mapping_mutated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.confirmed_mapping_mutated)}
+            </span>
+            <span>
+              proposal_record_mutated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.proposal_record_mutated)}
+            </span>
+            <span>
+              reconciliation_candidate_mutated:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.reconciliation_candidate_mutated,
+              )}
+            </span>
+            <span>
+              approval_granted:{" "}
+              {formatAgResumeBoolean(authorityBoundary.approval_granted)}
+            </span>
+            <span>
+              publish_retry_replay_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.publish_retry_replay_authority,
+              )}
+            </span>
+            <span>
+              merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.merge_authority)}
+            </span>
+            <span>
+              auto_merge_authority:{" "}
+              {formatAgResumeBoolean(authorityBoundary.auto_merge_authority)}
+            </span>
+            <span>
+              external_posting_authority:{" "}
+              {formatAgResumeBoolean(
+                authorityBoundary.external_posting_authority,
+              )}
+            </span>
+            <span>
+              committed_state_mutated:{" "}
+              {formatAgResumeBoolean(authorityBoundary.committed_state_mutated)}
+            </span>
+          </div>
+          <AgResumeStringList
+            title="Allowed insert tables"
+            items={authorityBoundary.allowed_insert_tables ?? []}
+            emptyLabel="No allowed insert tables returned."
+          />
+        </>
+      ) : (
+        <EmptyState label="No proof/evidence recording authority boundary returned." />
+      )}
+    </section>
+  );
+}
+
 function AgResumeReconciliationCandidateReadResults({
   result,
 }: {
@@ -17691,6 +18615,195 @@ function buildReconciliationCandidateReadSearchParams({
     searchParams.set("limit", trimmedLimit);
   }
   return searchParams;
+}
+
+function buildAgResumeProofEvidenceRecordingRequestBody({
+  candidateId,
+  importId,
+  mappingId,
+  userCoreApprovalJson,
+  actor,
+  reason,
+  redactionSummaryJson,
+  trustProvenanceLabel,
+  localTargetScope,
+  localTargetWorkId,
+  expectedIdempotencyKey,
+  hasExactApproval,
+  typedConfirmationPhrase,
+}: {
+  candidateId: string;
+  importId: string;
+  mappingId: string;
+  userCoreApprovalJson: string;
+  actor: string;
+  reason: string;
+  redactionSummaryJson: string;
+  trustProvenanceLabel: string;
+  localTargetScope: string;
+  localTargetWorkId: string;
+  expectedIdempotencyKey: string;
+  hasExactApproval: boolean;
+  typedConfirmationPhrase: string;
+}): AgResumeProofEvidenceRecordingRequestBody {
+  const trimmedCandidateId = candidateId.trim();
+  const trimmedImportId = importId.trim();
+  const trimmedMappingId = mappingId.trim();
+  const trimmedActor = actor.trim();
+  const trimmedReason = reason.trim();
+  const trimmedTrustProvenanceLabel = trustProvenanceLabel.trim();
+  const trimmedLocalTargetScope = localTargetScope.trim();
+  const trimmedLocalTargetWorkId = localTargetWorkId.trim();
+  const trimmedExpectedIdempotencyKey = expectedIdempotencyKey.trim();
+  const trimmedConfirmationPhrase = typedConfirmationPhrase.trim();
+
+  if (!trimmedCandidateId) {
+    throw new Error("candidate_id is required for proof/evidence recording.");
+  }
+  if (!trimmedActor) {
+    throw new Error("actor is required for proof/evidence recording.");
+  }
+  if (!trimmedReason) {
+    throw new Error("reason is required for proof/evidence recording.");
+  }
+  if (!trimmedTrustProvenanceLabel) {
+    throw new Error(
+      "trust_provenance_label is required for proof/evidence recording.",
+    );
+  }
+  if (
+    trimmedTrustProvenanceLabel !==
+    AG_RESUME_PROOF_EVIDENCE_RECORDING_TRUST_LABEL
+  ) {
+    throw new Error(
+      `trust_provenance_label must be ${AG_RESUME_PROOF_EVIDENCE_RECORDING_TRUST_LABEL}.`,
+    );
+  }
+  if (!trimmedLocalTargetScope) {
+    throw new Error(
+      "local_target_scope is required for proof/evidence recording.",
+    );
+  }
+  if (!trimmedLocalTargetWorkId) {
+    throw new Error(
+      "local_target_work_id is required for proof/evidence recording.",
+    );
+  }
+  if (!hasExactApproval) {
+    throw new Error(
+      "Exact user/Core approval checkbox is required for proof/evidence recording.",
+    );
+  }
+  if (
+    trimmedConfirmationPhrase !==
+    AG_RESUME_PROOF_EVIDENCE_RECORDING_CONFIRMATION_PHRASE
+  ) {
+    throw new Error(
+      "typed confirmation phrase must exactly match record verification evidence.",
+    );
+  }
+
+  const userCoreApproval = parseAgResumeObjectInput(
+    "user_core_approval JSON",
+    userCoreApprovalJson,
+  );
+  const redactionSummary = parseAgResumeObjectInput(
+    "redaction_summary JSON",
+    redactionSummaryJson,
+  );
+  assertNoAgResumeProofEvidenceRecordingForbiddenJsonFields(
+    "user_core_approval JSON",
+    userCoreApproval,
+  );
+  assertNoAgResumeProofEvidenceRecordingForbiddenJsonFields(
+    "redaction_summary JSON",
+    redactionSummary,
+  );
+  assertAgResumeProofEvidenceRecordingAllowedKeys(
+    "user_core_approval JSON",
+    userCoreApproval,
+    AG_RESUME_PROOF_EVIDENCE_RECORDING_APPROVAL_FIELDS,
+  );
+  assertAgResumeProofEvidenceRecordingApprovalSideEffects(userCoreApproval);
+  assertAgResumeProofEvidenceRecordingAllowedKeys(
+    "redaction_summary JSON",
+    redactionSummary,
+    AG_RESUME_PROOF_EVIDENCE_RECORDING_REDACTION_FIELDS,
+  );
+
+  const requestBody: AgResumeProofEvidenceRecordingRequestBody = {
+    candidate_id: trimmedCandidateId,
+    user_core_approval: userCoreApproval,
+    actor: trimmedActor,
+    reason: trimmedReason,
+    redaction_summary: redactionSummary,
+    trust_provenance_label: AG_RESUME_PROOF_EVIDENCE_RECORDING_TRUST_LABEL,
+    local_target_scope: trimmedLocalTargetScope,
+    local_target_work_id: trimmedLocalTargetWorkId,
+  };
+  if (trimmedImportId) requestBody.import_id = trimmedImportId;
+  if (trimmedMappingId) requestBody.mapping_id = trimmedMappingId;
+  if (trimmedExpectedIdempotencyKey) {
+    requestBody.expected_idempotency_key = trimmedExpectedIdempotencyKey;
+  }
+  return requestBody;
+}
+
+function assertNoAgResumeProofEvidenceRecordingForbiddenJsonFields(
+  label: string,
+  value: unknown,
+) {
+  const forbiddenFields = new Set<string>(
+    AG_RESUME_PROOF_EVIDENCE_RECORDING_FORBIDDEN_FIELDS,
+  );
+
+  function visit(current: unknown, path: string) {
+    if (Array.isArray(current)) {
+      current.forEach((item, index) => visit(item, `${path}[${index}]`));
+      return;
+    }
+    if (!isAgResumeRecord(current)) return;
+    for (const [key, nestedValue] of Object.entries(current)) {
+      if (forbiddenFields.has(key)) {
+        throw new Error(`${label} includes forbidden field ${path}.${key}.`);
+      }
+      visit(nestedValue, `${path}.${key}`);
+    }
+  }
+
+  visit(value, label);
+}
+
+function assertAgResumeProofEvidenceRecordingAllowedKeys(
+  label: string,
+  value: Record<string, unknown>,
+  allowedFields: readonly string[],
+) {
+  const allowedFieldSet = new Set(allowedFields);
+  const unsupportedFields = Object.keys(value).filter(
+    (field) => !allowedFieldSet.has(field),
+  );
+  if (unsupportedFields.length > 0) {
+    throw new Error(
+      `${label} includes unsupported field(s): ${unsupportedFields.join(", ")}.`,
+    );
+  }
+}
+
+function assertAgResumeProofEvidenceRecordingApprovalSideEffects(
+  approval: Record<string, unknown>,
+) {
+  const sideEffects = approval.approved_side_effects;
+  if (!isAgResumeRecord(sideEffects)) {
+    throw new Error(
+      "user_core_approval JSON approved_side_effects must be a JSON object.",
+    );
+  }
+  assertAgResumeProofEvidenceRecordingAllowedKeys(
+    "user_core_approval JSON approved_side_effects",
+    sideEffects,
+    AG_RESUME_PROOF_EVIDENCE_RECORDING_SIDE_EFFECT_FIELDS,
+  );
 }
 
 function buildReconciliationCandidateCreateRequestBody({

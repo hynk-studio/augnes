@@ -215,6 +215,8 @@ const allowedChangedFiles = new Set([
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_COCKPIT_GATE_DESIGN_V0_1.md",
   packagePath,
   "docs/AG_WORK_RESUME_PROOF_EVIDENCE_RECORDING_ROUTE_GATE_DESIGN_V0_1.md",
+  "components/augnes-cockpit.tsx",
+  "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md",
   "lib/ag-work-resume-proof-evidence-recording.ts",
   "scripts/ag-work-resume-proof-evidence-recording-create.mjs",
   "app/api/ag-work-resume/proof-evidence-recordings/route.ts",
@@ -233,6 +235,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs",
 ]);
 const unexpectedChangedFiles = changedFiles.filter(
   (file) => !allowedChangedFiles.has(file),
@@ -255,7 +258,14 @@ const forbiddenChangedPrefixes = [
 const runtimeSchemaOrBrowserChanged = changedFiles.filter((file) =>
   (file.startsWith("app/") &&
     file !== "app/api/ag-work-resume/proof-evidence-recordings/route.ts") ||
-  forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)) ||
+  (file.startsWith("components/") &&
+    file !== "components/augnes-cockpit.tsx") ||
+  (file.startsWith("reports/browser/") &&
+    file !==
+      "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md") ||
+  forbiddenChangedPrefixes
+    .filter((prefix) => prefix !== "components/" && prefix !== "reports/browser/")
+    .some((prefix) => file.startsWith(prefix)) ||
   (file.startsWith("lib/") &&
     file !== "lib/ag-work-resume-proof-evidence-recording.ts"),
 );

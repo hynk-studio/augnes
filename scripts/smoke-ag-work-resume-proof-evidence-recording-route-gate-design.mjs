@@ -194,6 +194,8 @@ const allowedChangedFiles = new Set([
   packagePath,
   smokePath,
   futureRoutePath,
+  "components/augnes-cockpit.tsx",
+  "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-route.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-writer-helper-gate-design.mjs",
@@ -208,6 +210,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-reconciliation-candidate-lifecycle-action-cockpit-panel.mjs",
   "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-gate-design.mjs",
+  "scripts/smoke-ag-work-resume-proof-evidence-recording-cockpit-panel.mjs",
 ]);
 assert.deepEqual(
   changedFiles.filter((file) => !allowedChangedFiles.has(file)),
@@ -219,13 +222,16 @@ assert.deepEqual(
   changedFiles.filter(
     (file) =>
       (file.startsWith("app/") && file !== futureRoutePath) ||
-      file.startsWith("components/") ||
+      (file.startsWith("components/") &&
+        file !== "components/augnes-cockpit.tsx") ||
       file.startsWith("pages/") ||
       file.startsWith("public/") ||
       file.startsWith("migrations/") ||
       file.startsWith("db/") ||
       file.startsWith("apps/") ||
-      file.startsWith("reports/browser/") ||
+      (file.startsWith("reports/browser/") &&
+        file !==
+          "reports/browser/2026-06-02-ag-work-resume-proof-evidence-recording-cockpit-verification.md") ||
       file.startsWith("lib/") ||
       (file.startsWith("scripts/") && !file.startsWith("scripts/smoke-")),
   ),
