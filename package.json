@@ -171,6 +171,7 @@
     "smoke:sidecar-et-runtime-boundaries": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-sidecar-et-runtime-boundaries.mjs",
     "smoke:project-constellation-ia-boundaries": "node scripts/smoke-project-constellation-ia-boundaries.mjs",
     "smoke:project-constellation-sample-fixture": "node scripts/smoke-project-constellation-sample-fixture.mjs",
+    "smoke:project-constellation-cockpit-preview": "node scripts/smoke-project-constellation-cockpit-preview.mjs",
     "smoke:perspective-continuity-boundaries": "node scripts/smoke-perspective-continuity-boundaries.mjs",
     "smoke:perspective-continuity-sequences": "node scripts/smoke-perspective-continuity-sequences.mjs",
     "smoke:perspective-capsule-contract": "node scripts/smoke-perspective-capsule-contract.mjs",
