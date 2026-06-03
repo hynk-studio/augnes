@@ -130,6 +130,7 @@
     "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:augnes-operator-plugin-v2": "node scripts/smoke-augnes-operator-plugin-v2.mjs",
     "smoke:augnes-capsule-handoff-skill": "node scripts/smoke-augnes-capsule-handoff-skill.mjs",
+    "smoke:capsule-handoff-skill-dogfood-report": "node scripts/smoke-capsule-handoff-skill-dogfood-report.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",
     "smoke:chatgpt-work-contract-card": "node scripts/smoke-chatgpt-work-contract-card.mjs",
