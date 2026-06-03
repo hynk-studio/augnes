@@ -361,6 +361,15 @@ preview is conceptual, non-authoritative, and fixture-backed only; it does not
 create runtime capsule behavior, schema, persistence, graph DB, proof/evidence
 writes, Codex task launch, or AG Resume behavior.
 
+The first Perspective Capsule / Handoff Capsule copyable handoff preview lives
+inside the Project Constellation read-only Cockpit preview. It renders readonly
+selectable `codex_handoff` text from the static capsule/handoff sample so a
+human can manually inspect or select it for review workflows. It adds no copy
+control, no clipboard integration, no live SDK call, no provider
+implementation, no runtime execution, no proof/evidence writes, and no
+approval/publish/merge authority. The static guard is
+`npm run smoke:perspective-capsule-copyable-handoff-preview`.
+
 ### Example 2: ChatGPT App/MCP Review To Codex Plugin Workflow
 
 Source: ChatGPT App/MCP whole perspective review.
@@ -395,6 +404,7 @@ Required checks for this docs/smoke/package-pointer PR:
 ```text
 npm run typecheck
 npm run smoke:perspective-capsule-contract
+npm run smoke:perspective-capsule-copyable-handoff-preview
 git diff --check
 git diff --cached --check
 ```
@@ -420,6 +430,7 @@ unrelated PRs:
 ```text
 AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries
 AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:augnes-operator-plugin-v2
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:perspective-capsule-copyable-handoff-preview
 ```
 
 Legacy `AUGNES_CHANGED_FILES_BASE_REF=HEAD` diagnostics are superseded by
