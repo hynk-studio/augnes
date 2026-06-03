@@ -171,6 +171,7 @@ function assertReportContent() {
     "forbidden changed-path enforcement is skipped",
   ], { textByFile });
   assertNoForbiddenPositiveClauses(reportFile, report);
+  assertNoUnsupportedUserScopeAuthorityClaims(reportFile, report);
 }
 
 function assertIndexPointer() {
@@ -278,6 +279,25 @@ function assertNoForbiddenPositiveClauses(file, text) {
       isForbiddenPositiveClause(clause),
       false,
       `${file} appears to grant forbidden authority or active behavior: ${clause}`,
+    );
+  }
+}
+
+function assertNoUnsupportedUserScopeAuthorityClaims(file, text) {
+  const forbiddenPatterns = [
+    /\bactive user task\b.{0,120}\bauthori[sz]es?\b.{0,120}\b(publishing|publish|deploy|deployment|merge|approval|approve|retry|replay|proof\/evidence writes?|proof writes?|evidence writes?|runtime behavior)\b/i,
+    /\b(publishing|publish|deploy|deployment|merge|approval|approve|retry|replay)\b.{0,80}\bis authorized\b/i,
+  ];
+  const clauses = normalizeText(text)
+    .split(/[.;!?]\s+/)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+
+  for (const clause of clauses) {
+    if (!forbiddenPatterns.some((pattern) => pattern.test(clause))) continue;
+    assert(
+      isNegatedBoundary(clause),
+      `${file} contains unsupported positive active-user-scope authority claim: ${clause}`,
     );
   }
 }

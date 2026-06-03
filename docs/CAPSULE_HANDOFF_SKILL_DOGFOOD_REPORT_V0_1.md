@@ -99,8 +99,9 @@ The skill helped preserve these fields from the active handoff:
   narrow smoke-only allowlist update.
 - scope risks: accidental broadening into runtime/UI/plugin-hook/proof behavior
   or treating the skill as execution authority.
-- assumptions: the active user task independently authorizes branch creation,
-  PR creation, and publishing for this PR; the skill itself does not.
+- assumptions: the active user task authorizes the normal branch/PR workflow
+  for this PR; it does not authorize publishing, merge, approval, retry, replay,
+  deploy, proof/evidence writes, or runtime behavior.
 - questions requiring user/PM judgment: none identified at report-writing time.
 - next suggested goal: use this report to decide whether the skill needs wording
   refinements before broader capsule handoff dogfood.
