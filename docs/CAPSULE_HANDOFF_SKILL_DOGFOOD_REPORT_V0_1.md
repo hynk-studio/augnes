@@ -204,6 +204,14 @@ Suggested follow-ups:
 - Clarify how to report "no blockers" and "no questions requiring user/PM
   judgment" without dropping those fields.
 
+Follow-up application note: the v0.1 wording refinement applies these
+dogfood-derived suggestions to `augnes-capsule-handoff` as instruction-only
+skill guidance. The report remains docs/smoke/package-pointer only and does not
+add runtime behavior, UI, API routes, DB schema/migrations, MCP/App tools,
+plugin hooks/config/mappings, proof/evidence writes, AG Resume behavior, Codex
+SDK execution/provider behavior, branch/PR creation authority by itself, or
+merge/publish/approval/retry/replay/deploy authority.
+
 ## Non-Goals
 
 This report does not implement runtime behavior, UI behavior, API routes, DB

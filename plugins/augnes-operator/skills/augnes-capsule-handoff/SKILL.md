@@ -81,6 +81,32 @@ If any required capsule field is missing, continue only when the active user
 task supplies enough scope. Otherwise report the missing field as a blocker or
 assumption.
 
+## Dogfood Checklist Example
+
+Use this short example to map a capsule or handoff packet into PR and closeout
+discipline. It is example-only guidance and does not grant authority.
+
+- PR body requirements: include summary, files changed, task scope, authority
+  boundary statement, validation results, skipped-check reasons, blockers/risks,
+  assumptions, questions requiring user/PM judgment, and next suggested goal.
+- Final report requirements: include PR number and URL when an active
+  user-scoped task independently requests a PR to be opened, branch, commit SHA,
+  changed files, tests run with exact results, regression result when relevant,
+  blockers, repo/task mismatches, scope risks, assumptions, questions requiring
+  user/PM judgment, and next suggested goal.
+- Validation list: preserve the exact required checks from the capsule or
+  active user task, run them when available, and report concrete results.
+- Skipped check policy: keep skipped checks explicit and tied to scope or
+  environment.
+- Blockers/risks: carry unresolved tensions and scope risks into the PR body
+  and final report.
+- Assumptions: state what was assumed and avoid converting an assumption into
+  publish, merge, proof, runtime, or deployment authority.
+- Questions requiring user/PM judgment: keep the field even when no questions
+  are open.
+- Next suggested goal: preserve the capsule's next move as a suggestion, not as
+  approval or execution permission.
+
 ## Capsule Fields To Preserve
 
 Preserve capsule fields verbatim when practical, especially:
@@ -180,6 +206,26 @@ Acceptable skipped reasons are specific, for example:
 
 Do not write only `N/A`, `skipped`, or `not needed`.
 
+Concrete skipped reason examples:
+
+- browser/computer-use skipped: docs/metadata/skill/smoke/package-pointer only;
+  no UI or browser-facing behavior changed.
+- proof-only closeout skipped: no runtime/work ID context exists, and this task
+  must not record proof/evidence writes.
+- runtime check skipped: no runtime behavior, API route, or provider
+  implementation changed.
+
+## Smoke-Only Dogfood Note
+
+For smoke-only dogfood tasks and unrelated cross-PR content regression,
+`AUGNES_BOUNDARY_SMOKE_MODE=content-only` is diagnostic only. Default scoped
+smoke remains the direct-edit gate. Do not make content-only the default.
+In short: content-only is diagnostic only.
+
+Content-only mode can confirm skill, docs, package pointer, and smoke content
+still hold without treating unrelated changed files as part of the scoped gate.
+It is not a substitute for default scoped validation on direct edits.
+
 ## Evidence Pointers And Unresolved Tensions
 
 Preserve evidence pointers as references. Do not create proof/evidence writes
@@ -244,9 +290,18 @@ At closeout, report:
 - questions requiring user/PM judgment
 - next suggested goal
 
-If the active task asks for PR publication and repository instructions permit
+If the active task asks for a PR to be opened and repository instructions permit
 it, include PR number, URL, branch, and commit SHA. ChatGPT reviews; the user
 decides merge.
+
+## Explicit Empty-Field Reporting
+
+Do not silently omit required closeout fields when they are empty. Use explicit
+statements such as:
+
+- Blockers: none.
+- Repo/task mismatches: none.
+- Questions requiring user/PM judgment: none.
 
 ## Authority Boundaries
 

@@ -55,6 +55,9 @@ const requiredSections = [
   "Proof-Only Closeout Expectations",
   "PR Body Requirements",
   "Final Report Requirements",
+  "Dogfood Checklist Example",
+  "Smoke-Only Dogfood Note",
+  "Explicit Empty-Field Reporting",
   "Authority Boundaries",
   "Non-Goals",
 ];
@@ -170,6 +173,21 @@ function assertRequiredConcepts() {
     "Do not claim a check passed unless it actually ran and passed.",
     "This skill does not open PRs by itself.",
     "ChatGPT reviews; the user decides merge.",
+    "Dogfood Checklist Example",
+    "PR body requirements: include summary, files changed, task scope, authority boundary statement, validation results, skipped-check reasons, blockers/risks, assumptions, questions requiring user/PM judgment, and next suggested goal.",
+    "Final report requirements: include PR number and URL when an active user-scoped task independently requests a PR to be opened, branch, commit SHA, changed files, tests run with exact results, regression result when relevant, blockers, repo/task mismatches, scope risks, assumptions, questions requiring user/PM judgment, and next suggested goal.",
+    "Validation list: preserve the exact required checks from the capsule or active user task",
+    "Skipped check policy: keep skipped checks explicit and tied to scope or environment.",
+    "AUGNES_BOUNDARY_SMOKE_MODE=content-only",
+    "content-only is diagnostic only",
+    "Default scoped smoke remains the direct-edit gate.",
+    "Do not make content-only the default.",
+    "browser/computer-use skipped: docs/metadata/skill/smoke/package-pointer only; no UI or browser-facing behavior changed.",
+    "proof-only closeout skipped: no runtime/work ID context exists, and this task must not record proof/evidence writes.",
+    "runtime check skipped: no runtime behavior, API route, or provider implementation changed.",
+    "Blockers: none.",
+    "Repo/task mismatches: none.",
+    "Questions requiring user/PM judgment: none.",
   ], { textByFile });
 }
 
@@ -213,6 +231,10 @@ function assertDocPointers() {
     "does not record proof/evidence",
     "does not create branches",
     "does not open PRs",
+    "Dogfood-derived v0.1 wording refinement",
+    "short checklist example",
+    "concrete skipped-reason examples",
+    "explicit empty-field reporting guidance",
     "smoke:augnes-capsule-handoff-skill",
   ], { textByFile });
 
@@ -236,6 +258,9 @@ function assertDocPointers() {
     "no proof/evidence writes",
     "no branch/PR creation authority by itself",
     "no merge/publish/approval/retry/replay/deploy authority",
+    "Dogfood-derived wording refinement",
+    "smoke-only content-only diagnostic guidance",
+    "explicit empty-field reporting",
   ], { textByFile });
 }
 

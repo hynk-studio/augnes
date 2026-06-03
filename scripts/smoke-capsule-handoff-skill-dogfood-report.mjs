@@ -12,15 +12,22 @@ import {
 
 const reportFile = "docs/CAPSULE_HANDOFF_SKILL_DOGFOOD_REPORT_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
+const pluginDoc = "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md";
+const capsuleHandoffSkillFile =
+  "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
 const capsuleHandoffSkillSmokeFile =
   "scripts/smoke-augnes-capsule-handoff-skill.mjs";
+const pluginV2SmokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
 
 const inspectedFiles = [reportFile, indexDoc, packageJsonFile, smokeFile];
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
+  pluginDoc,
+  capsuleHandoffSkillFile,
   capsuleHandoffSkillSmokeFile,
+  pluginV2SmokeFile,
 ]);
 
 const requiredSections = [

@@ -21,6 +21,10 @@ const indexFile = "docs/00_INDEX_LATEST.md";
 const smokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
 const capsuleHandoffSmokeFile =
   "scripts/smoke-augnes-capsule-handoff-skill.mjs";
+const capsuleHandoffDogfoodReportFile =
+  "docs/CAPSULE_HANDOFF_SKILL_DOGFOOD_REPORT_V0_1.md";
+const capsuleHandoffDogfoodSmokeFile =
+  "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
 const packageJsonFile = "package.json";
 
 const inspectedFiles = [
@@ -36,6 +40,8 @@ const allowedChangedFiles = new Set(inspectedFiles);
 allowedChangedFiles.add(capsuleHandoffSkillFile);
 allowedChangedFiles.add(capsuleDocFile);
 allowedChangedFiles.add(capsuleHandoffSmokeFile);
+allowedChangedFiles.add(capsuleHandoffDogfoodReportFile);
+allowedChangedFiles.add(capsuleHandoffDogfoodSmokeFile);
 const textByFile = loadTextByFile(inspectedFiles);
 
 assertPackageJsonScript();

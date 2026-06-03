@@ -195,6 +195,11 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   Codex PR workflow discipline while preserving expected files, forbidden
   files, hard constraints, checks, skipped reasons, evidence pointers,
   unresolved tensions, PR body requirements, and final report requirements.
+  Dogfood-derived wording refinement adds a short checklist example, concrete
+  skipped-reason examples, smoke-only content-only diagnostic guidance, and
+  explicit empty-field reporting such as `Blockers: none.`,
+  `Repo/task mismatches: none.`, and `Questions requiring user/PM judgment:
+  none.` This remains instruction-only and non-authoritative.
   `npm run smoke:augnes-capsule-handoff-skill`는 skill frontmatter, required
   sections, plugin metadata compatibility, docs pointers, package pointer, no
   runtime behavior, no GitHub/OpenAI/Augnes runtime calls, no MCP/App tool

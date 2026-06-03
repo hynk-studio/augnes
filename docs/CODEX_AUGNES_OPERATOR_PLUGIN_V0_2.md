@@ -109,6 +109,15 @@ requirements, final report requirements, blockers, repo/task mismatches, scope
 risks, assumptions, questions requiring user/PM judgment, and next suggested
 goal.
 
+Dogfood-derived v0.1 wording refinement adds a short checklist example for
+mapping capsule material into PR body requirements, final report requirements,
+validation list, skipped check policy, blockers/risks, assumptions, questions
+requiring user/PM judgment, and next suggested goal. It also adds concrete
+skipped-reason examples and explicit empty-field reporting guidance such as
+`Blockers: none.`, `Repo/task mismatches: none.`, and `Questions requiring
+user/PM judgment: none.` This remains instruction-only guidance and does not
+add runtime behavior or authority.
+
 The skill can guide Codex during a user-scoped task, but it does not create
 execution authority. It does not call GitHub, does not call OpenAI, does not
 call Augnes runtime, does not call network resources, does not call MCP/App
