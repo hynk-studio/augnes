@@ -20,6 +20,10 @@ const smokeFile = "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
 const capsuleHandoffSkillSmokeFile =
   "scripts/smoke-augnes-capsule-handoff-skill.mjs";
 const pluginV2SmokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
+const firstLoopCloseoutFile =
+  "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
+const firstLoopCloseoutSmokeFile =
+  "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
 
 const inspectedFiles = [reportFile, indexDoc, packageJsonFile, smokeFile];
 const allowedChangedFiles = new Set([
@@ -28,6 +32,8 @@ const allowedChangedFiles = new Set([
   capsuleHandoffSkillFile,
   capsuleHandoffSkillSmokeFile,
   pluginV2SmokeFile,
+  firstLoopCloseoutFile,
+  firstLoopCloseoutSmokeFile,
 ]);
 
 const requiredSections = [

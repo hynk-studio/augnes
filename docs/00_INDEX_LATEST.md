@@ -217,6 +217,19 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   sections, package/index pointers, scoped/content-only boundary behavior, and
   no runtime behavior, no UI/API/DB/MCP/App/proof/evidence/Codex SDK authority를
   정적으로 확인한다.
+- `docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md`:
+  Project Constellation Capsule Handoff first-loop closeout pointer다. Project
+  Constellation IA, sample fixture, read-only Cockpit preview, copyable handoff
+  preview, Perspective Capsule contract, Augnes Operator Plugin v0.2,
+  `augnes-capsule-handoff` skill, dogfood report, wording refinement, boundary
+  smoke scope profiles, and Codex SDK execution authority design이 만든
+  read-only/non-authoritative loop를 정리한다. Recommended next step:
+  Type-only Project Constellation fixture/schema boundary. `npm run
+  smoke:project-constellation-capsule-handoff-first-loop-closeout`는 closeout
+  sections, inventory, product loop terms, authority boundaries, next safe
+  candidates, package/index pointers, and docs/smoke/package-pointer only
+  scope를 확인한다. This pointer has no runtime behavior and no
+  UI/API/DB/MCP/App/proof/evidence/Codex SDK authority.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
