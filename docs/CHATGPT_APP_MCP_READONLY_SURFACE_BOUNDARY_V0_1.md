@@ -186,6 +186,11 @@ Any future implementation requires separate gates for:
 - browser/computer-use validation
 - authority matrix update
 
+future read-only API route planning is defined in
+`docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md`. No route, tool,
+component, or runtime endpoint is implemented by that planning note or this
+surface boundary.
+
 Additional gates may be required for data provenance, privacy, prompt-injection
 handling, workspace authorization, rate limits, logging, and rollback of any
 incorrect surface assumptions. This planning note does not satisfy those gates.
