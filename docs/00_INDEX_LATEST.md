@@ -139,6 +139,14 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   external calls, Cockpit action behavior, Codex execution behavior, ChatGPT
   Apps/MCP tool changes, proof/evidence/readiness writes, QP evidence, `z_t`
   commits, or AG Resume behavior를 만들지 않는다.
+- `fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json`: first
+  public-safe Project Constellation sample fixture for the Sidecar e_t Strategy
+  C first slice다. `npm run smoke:project-constellation-sample-fixture`는
+  fixture shape, Perspective Capsule preview, Codex execution authority preview,
+  docs pointers, and package script pointer를 정적으로 확인한다. This fixture
+  and smoke add no Project Constellation runtime behavior, no graph DB, no
+  persistence, no proof/evidence write, no Codex SDK execution, and no AG Resume
+  writer/helper/route behavior.
 - `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
   포인터를 둔다.
 - `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only

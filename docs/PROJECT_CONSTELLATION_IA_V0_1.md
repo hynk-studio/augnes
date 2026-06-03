@@ -431,6 +431,13 @@ Initial edges:
 | AG Resume isolation constraint | Project Constellation IA | warns_against |
 | closeout decision | Project Constellation IA | next_candidate |
 
+The first fixture-backed sample for this use case is
+`fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json`. It is
+public-safe, `sample_fixture_only`, read-only, non-authoritative, and not graph
+runtime behavior. `npm run smoke:project-constellation-sample-fixture` validates
+the fixture shape, capsule preview, Codex execution authority preview, package
+script pointer, and docs/index pointers with deterministic static reads only.
+
 Example capsule thesis:
 
 ```text
@@ -592,6 +599,7 @@ npm run smoke:research-diagnostics-boundaries
 npm run smoke:sidecar-et-runtime-boundaries
 npm run smoke:cockpit-perspective-snapshot
 npm run smoke:project-constellation-ia-boundaries
+npm run smoke:project-constellation-sample-fixture
 git diff --check
 git diff --cached --check
 ```
@@ -622,6 +630,11 @@ script pointer. This PR does not touch UI, runtime, API, schema, fixture,
 manifest JSON, Cockpit action behavior, AG Resume behavior, ChatGPT Apps/MCP
 tools, or browser-facing files.
 
+For the first sample fixture follow-up, browser/computer-use may still be
+skipped because the work is fixture/smoke/docs/package-pointer only and does
+not touch UI, runtime, API, schema, MCP/App tools, routes, browser-facing
+files, external calls, or interactive behavior.
+
 If future Project Constellation work touches UI or browser-facing files, it
 must add browser/computer-use validation. If it touches runtime, APIs, schema,
 storage, routes, fixtures, Cockpit action behavior, AG Resume, ChatGPT
@@ -639,9 +652,9 @@ Project Constellation v0.1 does not implement or authorize:
 - graph database
 - API routes
 - DB schema or migrations
-- package scripts
-- fixtures
-- smokes
+- package scripts beyond bounded documentation or sample-fixture smoke pointers
+- runtime/generated fixtures
+- unbounded smokes or CI enforcement
 - Cockpit action behavior
 - Codex execution behavior
 - ChatGPT Apps/MCP tool changes

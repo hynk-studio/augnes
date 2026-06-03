@@ -1,0 +1,571 @@
+{
+  "version": "project_constellation_sample.v0.1",
+  "status": "sample_fixture_only",
+  "authority": "read_only_non_authoritative",
+  "formation_mode": "work_unit_constellation",
+  "source_use_case": "sidecar_et_strategy_c_first_slice",
+  "source_scope": {
+    "scope_id": "scope.sidecar_strategy_c_first_slice",
+    "title": "Sidecar e_t Strategy C first slice",
+    "summary": "Synthetic public-safe constellation sample for the stopped first fixture and manifest slice.",
+    "public_safety": "synthetic_public_safe_no_private_text",
+    "boundaries": [
+      "sample fixture only",
+      "read-only and non-authoritative",
+      "not graph runtime behavior",
+      "not evidence production",
+      "not agent routing"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "node.lab_evidence_baseline",
+      "type": "evidence_pointer",
+      "label": "lab evidence baseline",
+      "summary": "A pointer to the bounded lab-reference baseline used to orient Strategy C first-slice discussion.",
+      "source_refs": [
+        "docs/SIDECAR_ET_LAB_UPSTREAM_ALIGNMENT_V0_1.md",
+        "docs/SIDECAR_ET_LAB_REPORT_REFERENCE_V0_1.md"
+      ],
+      "boundary_notes": [
+        "pointer only",
+        "not proof creation",
+        "not readiness authority"
+      ],
+      "evidence_pointers": [
+        "pointer.doc.lab_upstream_alignment",
+        "pointer.doc.lab_report_reference"
+      ],
+      "unresolved_tensions": [
+        "Lab-reference material can orient review but must not become Augnes runtime evidence."
+      ],
+      "next_action_candidates": [
+        "Keep lab-reference pointers visible when reviewing future fixture slices."
+      ]
+    },
+    {
+      "id": "node.grounded_quiet_probe",
+      "type": "work_unit",
+      "label": "grounded/quiet probe",
+      "summary": "Synthetic grounded and quiet probe family used as the first safe trace-pack input shape.",
+      "source_refs": [
+        "fixtures/sidecar-et-trace-pack.grounded-quiet-probes-v0.1.json"
+      ],
+      "boundary_notes": [
+        "synthetic only",
+        "no private text",
+        "no runtime Sidecar e_t computation"
+      ],
+      "evidence_pointers": [
+        "pointer.fixture.grounded_quiet_probe"
+      ],
+      "unresolved_tensions": [
+        "Probe examples are useful for review but must not imply computed runtime state."
+      ],
+      "next_action_candidates": [
+        "Use as a stable sample input for constellation review."
+      ]
+    },
+    {
+      "id": "node.first_fixture_subset",
+      "type": "work_unit",
+      "label": "first fixture subset",
+      "summary": "The initial two-file synthetic fixture subset selected for safe Strategy C review.",
+      "source_refs": [
+        "docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md",
+        "docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md"
+      ],
+      "boundary_notes": [
+        "fixture descriptor only",
+        "no helper import",
+        "no report or compare behavior"
+      ],
+      "evidence_pointers": [
+        "pointer.doc.exact_fixture_descriptor_proposal",
+        "pointer.doc.strategy_c_first_slice_closeout"
+      ],
+      "unresolved_tensions": [
+        "Future slices may need more descriptors, but this sample keeps the first subset stopped."
+      ],
+      "next_action_candidates": [
+        "Review whether additional fixture descriptors require a separate scope."
+      ]
+    },
+    {
+      "id": "node.manifest_routing",
+      "type": "document",
+      "label": "manifest routing",
+      "summary": "Manifest routing context that keeps first-slice fixture references bounded and review-only.",
+      "source_refs": [
+        "fixtures/sidecar-et-trace-pack.manifest.json",
+        "docs/SIDECAR_ET_TRACE_PACK_MANIFEST_APPENDIX_V0_1.md"
+      ],
+      "boundary_notes": [
+        "manifest pointer only",
+        "no runtime routing",
+        "no graph persistence"
+      ],
+      "evidence_pointers": [
+        "pointer.fixture.trace_pack_manifest"
+      ],
+      "unresolved_tensions": [
+        "Manifest routing is useful context but must not imply live routing behavior."
+      ],
+      "next_action_candidates": [
+        "Keep manifest routing visible as a dependency edge."
+      ]
+    },
+    {
+      "id": "node.manifest_hardening",
+      "type": "validation_result",
+      "label": "manifest hardening",
+      "summary": "Static manifest and descriptor smoke hardening that validates the first-slice fixture boundary.",
+      "source_refs": [
+        "scripts/smoke-sidecar-et-trace-pack-fixture-descriptors.mjs",
+        "scripts/smoke-sidecar-et-trace-pack-manifest.mjs"
+      ],
+      "boundary_notes": [
+        "static smoke only",
+        "no DB access",
+        "no external calls"
+      ],
+      "evidence_pointers": [
+        "pointer.command.smoke_sidecar_fixture_descriptors",
+        "pointer.command.smoke_sidecar_manifest"
+      ],
+      "unresolved_tensions": [
+        "Static validation can support fixture shape review but is not production readiness."
+      ],
+      "next_action_candidates": [
+        "Use static validation shape as a model for this Project Constellation sample smoke."
+      ]
+    },
+    {
+      "id": "node.closeout_decision",
+      "type": "decision",
+      "label": "closeout decision",
+      "summary": "The Strategy C first-slice stop/go decision that keeps follow-up work bounded before runtime expansion.",
+      "source_refs": [
+        "docs/SIDECAR_ET_TRACE_PACK_STRATEGY_C_FIRST_SLICE_CLOSEOUT_V0_1.md"
+      ],
+      "boundary_notes": [
+        "stop and observe",
+        "candidate next actions only",
+        "no implementation approval"
+      ],
+      "evidence_pointers": [
+        "pointer.doc.strategy_c_closeout"
+      ],
+      "unresolved_tensions": [
+        "Future work must choose between more static fixtures and a separately scoped implementation path."
+      ],
+      "next_action_candidates": [
+        "Use Project Constellation to preserve the stop decision and next-direction candidate."
+      ]
+    },
+    {
+      "id": "node.ag_resume_isolation_constraint",
+      "type": "constraint",
+      "label": "AG Resume isolation constraint",
+      "summary": "AG Resume proof and evidence recording remain separate from this constellation sample.",
+      "source_refs": [
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+        "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md"
+      ],
+      "boundary_notes": [
+        "no AG Resume writer/helper/route behavior",
+        "no proof/evidence/readiness writes",
+        "no resume execution behavior"
+      ],
+      "evidence_pointers": [
+        "pointer.doc.perspective_capsule_contract",
+        "pointer.doc.codex_sdk_execution_authority_design"
+      ],
+      "unresolved_tensions": [
+        "AG Resume may later display references, but this sample must not update AG Resume records."
+      ],
+      "next_action_candidates": [
+        "Keep AG Resume isolation visible as a constraint node."
+      ]
+    },
+    {
+      "id": "node.project_constellation_ia_next_direction",
+      "type": "next_move",
+      "label": "Project Constellation IA next direction",
+      "summary": "A safe next direction for Project Constellation: public-safe sample fixture and static smoke only.",
+      "source_refs": [
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md"
+      ],
+      "boundary_notes": [
+        "fixture/smoke/docs/package-pointer only",
+        "no Project Constellation runtime node update",
+        "no UI or graph DB"
+      ],
+      "evidence_pointers": [
+        "pointer.doc.project_constellation_ia"
+      ],
+      "unresolved_tensions": [
+        "The sample can clarify shape but must not become runtime graph authority."
+      ],
+      "next_action_candidates": [
+        "Review the fixture-backed shape and decide whether a future type-only boundary is warranted."
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge.grounded_quiet_probe.to.first_fixture_subset",
+      "type": "derived_from",
+      "source": "node.grounded_quiet_probe",
+      "target": "node.first_fixture_subset",
+      "summary": "The first fixture subset is derived from grounded and quiet probe examples.",
+      "boundary_notes": [
+        "interpretive relation only",
+        "no runtime computation"
+      ],
+      "evidence_pointers": [
+        "pointer.fixture.grounded_quiet_probe"
+      ]
+    },
+    {
+      "id": "edge.first_fixture_subset.to.manifest_routing",
+      "type": "depends_on",
+      "source": "node.first_fixture_subset",
+      "target": "node.manifest_routing",
+      "summary": "The first fixture subset depends on manifest routing context for bounded review.",
+      "boundary_notes": [
+        "dependency edge only",
+        "no live routing"
+      ],
+      "evidence_pointers": [
+        "pointer.fixture.trace_pack_manifest"
+      ]
+    },
+    {
+      "id": "edge.manifest_routing.to.manifest_hardening",
+      "type": "validates",
+      "source": "node.manifest_routing",
+      "target": "node.manifest_hardening",
+      "summary": "Manifest routing is validated by static manifest and descriptor boundary checks.",
+      "boundary_notes": [
+        "static validation only",
+        "not readiness authority"
+      ],
+      "evidence_pointers": [
+        "pointer.command.smoke_sidecar_manifest"
+      ]
+    },
+    {
+      "id": "edge.manifest_hardening.to.closeout_decision",
+      "type": "supports",
+      "source": "node.manifest_hardening",
+      "target": "node.closeout_decision",
+      "summary": "Static hardening supports the closeout decision to stop at the first slice.",
+      "boundary_notes": [
+        "support is interpretive",
+        "not proof creation"
+      ],
+      "evidence_pointers": [
+        "pointer.command.smoke_sidecar_fixture_descriptors",
+        "pointer.command.smoke_sidecar_manifest"
+      ]
+    },
+    {
+      "id": "edge.ag_resume_isolation_constraint.to.project_constellation_ia_next_direction",
+      "type": "warns_against",
+      "source": "node.ag_resume_isolation_constraint",
+      "target": "node.project_constellation_ia_next_direction",
+      "summary": "AG Resume isolation warns against treating the sample as a resume writer or proof bridge.",
+      "boundary_notes": [
+        "visible constraint",
+        "no AG Resume behavior"
+      ],
+      "evidence_pointers": [
+        "pointer.doc.perspective_capsule_contract"
+      ]
+    },
+    {
+      "id": "edge.closeout_decision.to.project_constellation_ia_next_direction",
+      "type": "next_candidate",
+      "source": "node.closeout_decision",
+      "target": "node.project_constellation_ia_next_direction",
+      "summary": "The closeout decision suggests a bounded Project Constellation sample as the next candidate.",
+      "boundary_notes": [
+        "candidate only",
+        "does not route or execute agents"
+      ],
+      "evidence_pointers": [
+        "pointer.doc.strategy_c_closeout"
+      ]
+    }
+  ],
+  "clusters": [
+    {
+      "id": "cluster.sidecar_strategy_c_first_slice",
+      "label": "Sidecar e_t Strategy C first slice",
+      "node_ids": [
+        "node.lab_evidence_baseline",
+        "node.grounded_quiet_probe",
+        "node.first_fixture_subset",
+        "node.manifest_routing",
+        "node.manifest_hardening",
+        "node.closeout_decision",
+        "node.ag_resume_isolation_constraint",
+        "node.project_constellation_ia_next_direction"
+      ],
+      "edge_ids": [
+        "edge.grounded_quiet_probe.to.first_fixture_subset",
+        "edge.first_fixture_subset.to.manifest_routing",
+        "edge.manifest_routing.to.manifest_hardening",
+        "edge.manifest_hardening.to.closeout_decision",
+        "edge.ag_resume_isolation_constraint.to.project_constellation_ia_next_direction",
+        "edge.closeout_decision.to.project_constellation_ia_next_direction"
+      ],
+      "cluster_thesis": "Strategy C is safely stopped at the first fixture and manifest slice; Project Constellation can use it as a synthetic sample map without creating runtime authority.",
+      "unresolved_tensions": [
+        "Whether future Strategy C work should remain docs-only or add more fixture descriptors.",
+        "How to keep trace-pack review useful without implying runtime computation.",
+        "How to keep AG Resume isolation visible instead of buried in non-goals."
+      ],
+      "next_action_candidates": [
+        "Review the public-safe sample constellation shape.",
+        "Consider a separate future type-only boundary if the shape is accepted."
+      ],
+      "boundaries": [
+        "read-only non-authoritative cluster",
+        "evidence-pointer-based only",
+        "no graph layout engine",
+        "no graph DB",
+        "no persistence",
+        "no proof/evidence/readiness writes"
+      ]
+    }
+  ],
+  "perspective_capsule_preview": {
+    "capsule_id": "capsule.sample.sidecar_strategy_c_first_slice.v0_1",
+    "capsule_version": "perspective_capsule.v0.1",
+    "source_surface": "project_constellation",
+    "source_scope": "sidecar_et_strategy_c_first_slice",
+    "source_snapshot_ref": "sample_fixture_only.no_runtime_snapshot",
+    "source_constellation_ref": "project_constellation.sample.sidecar_strategy_c.v0_1",
+    "formation_mode": "work_unit_constellation",
+    "thesis": "Strategy C is safely stopped at the first fixture and manifest slice; this sample can preview a bounded Project Constellation handoff without runtime authority.",
+    "selected_nodes": [
+      "node.lab_evidence_baseline",
+      "node.grounded_quiet_probe",
+      "node.first_fixture_subset",
+      "node.manifest_routing",
+      "node.manifest_hardening",
+      "node.closeout_decision",
+      "node.ag_resume_isolation_constraint",
+      "node.project_constellation_ia_next_direction"
+    ],
+    "selected_edges": [
+      "edge.grounded_quiet_probe.to.first_fixture_subset",
+      "edge.first_fixture_subset.to.manifest_routing",
+      "edge.manifest_routing.to.manifest_hardening",
+      "edge.manifest_hardening.to.closeout_decision",
+      "edge.ag_resume_isolation_constraint.to.project_constellation_ia_next_direction",
+      "edge.closeout_decision.to.project_constellation_ia_next_direction"
+    ],
+    "evidence_pointers": [
+      "pointer.doc.project_constellation_ia",
+      "pointer.doc.perspective_capsule_contract",
+      "pointer.doc.codex_sdk_execution_authority_design",
+      "pointer.fixture.grounded_quiet_probe",
+      "pointer.fixture.trace_pack_manifest"
+    ],
+    "unresolved_tensions": [
+      "Static fixture shape must not imply Project Constellation runtime behavior.",
+      "Capsule preview must remain conceptual and non-authoritative.",
+      "Codex execution authority preview must remain a preview and not a provider."
+    ],
+    "boundaries": [
+      "sample_fixture_only",
+      "read_only_non_authoritative",
+      "fixture/smoke/docs/package-pointer only",
+      "no runtime graph behavior",
+      "no evidence production"
+    ],
+    "forbidden_actions": [
+      "no Project Constellation runtime behavior",
+      "no graph DB",
+      "no persistence",
+      "no proof/evidence/readiness writes",
+      "no Codex SDK execution",
+      "no AG Resume writer/helper/route behavior",
+      "no QP evidence",
+      "no z_t commits",
+      "no approval/publish/retry/replay/merge authority"
+    ],
+    "next_action_candidates": [
+      "Open the fixture and smoke PR for review.",
+      "After review, consider a separate type-only Project Constellation boundary."
+    ],
+    "target_surface": "codex_handoff",
+    "codex_handoff_packet": {
+      "repo": "hynk-studio/augnes",
+      "base_branch": "main",
+      "working_branch_suggestion": "codex/project-constellation-sample-fixture-v0-1",
+      "expected_pr_title": "fixtures/smoke: add Project Constellation sample constellation v0.1",
+      "task_goal": "sample fixture / smoke only",
+      "context_anchors": [
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+        "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md"
+      ],
+      "expected_changed_files": [
+        "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
+        "scripts/smoke-project-constellation-sample-fixture.mjs",
+        "package.json",
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+        "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md",
+        "docs/00_INDEX_LATEST.md"
+      ],
+      "forbidden_changed_files": [
+        "AGENTS.md",
+        "app/**",
+        "components/**",
+        "lib/**",
+        "db/**",
+        "migrations/**",
+        "apps/augnes_apps/**",
+        "routes/API files",
+        "MCP/App tool files",
+        "plugin hooks",
+        "reports/**",
+        "screenshots/**"
+      ],
+      "hard_constraints": [
+        "fixture/smoke/docs/package-pointer only",
+        "no UI implementation",
+        "no runtime node creation",
+        "no API routes",
+        "no DB schema or migrations",
+        "no live Codex SDK call",
+        "no provider implementation",
+        "no proof/evidence/readiness writes"
+      ],
+      "required_checks": [
+        "npm run typecheck",
+        "npm run smoke:project-constellation-sample-fixture",
+        "git diff --check",
+        "git diff --cached --check"
+      ],
+      "skipped_check_policy": "Browser/computer-use may be skipped only with the fixture/smoke/docs/package-pointer reason.",
+      "browser_computer_use_expectation": "Skip because there is no UI, runtime, API, browser-facing, external, or interactive behavior.",
+      "pr_body_requirements": [
+        "Summary",
+        "Files changed",
+        "Fixture scope",
+        "Capsule preview scope",
+        "Codex execution authority preview scope",
+        "Authority boundary statement",
+        "Validation results"
+      ],
+      "final_report_requirements": [
+        "changed files",
+        "tests run with exact results",
+        "blockers",
+        "repo/task mismatches",
+        "scope risks",
+        "assumptions",
+        "questions requiring user/PM judgment",
+        "next suggested goal"
+      ],
+      "blockers_or_risks": [
+        "Future runtime interpretation requires separate approved scope."
+      ],
+      "assumptions": [
+        "The sample remains public-safe and synthetic.",
+        "All evidence references are pointers only."
+      ],
+      "questions_requiring_user_pm_judgment": [],
+      "next_suggested_goal": "Review whether a future type-only boundary should formalize this sample shape."
+    },
+    "required_checks": [
+      "npm run typecheck",
+      "npm run smoke:project-constellation-sample-fixture",
+      "git diff --check",
+      "git diff --cached --check"
+    ],
+    "skipped_check_policy": "Skipped checks require concrete reasons.",
+    "browser_computer_use_expectation": "May be skipped because this fixture has no UI, runtime, API, schema, MCP/App, routes, browser-facing files, external calls, or interactive behavior.",
+    "proof_only_closeout_status_or_skip": "Skip when no runtime/work ID context exists and no proof/evidence writes are allowed.",
+    "final_report_requirements": [
+      "PR number and URL",
+      "branch",
+      "commit SHA",
+      "changed files",
+      "tests run with exact results",
+      "blockers",
+      "repo/task mismatches",
+      "scope risks",
+      "assumptions",
+      "questions requiring user/PM judgment",
+      "next suggested goal"
+    ],
+    "user_pm_judgment_questions": [],
+    "assumptions": [
+      "This fixture is a review aid, not a runtime graph.",
+      "All source references are repo-local pointers."
+    ],
+    "blockers_or_risks": [
+      "Future implementation could blur fixture review and runtime authority if not separately scoped."
+    ]
+  },
+  "codex_execution_authority_preview": {
+    "execution_intent": "docs_smoke_fixture_validation",
+    "recommended_permission_profile": "workspace_write",
+    "planning_review_permission": "read_only",
+    "escalation_required": false,
+    "forbidden_escalations": [
+      "full_access",
+      "danger_full_access"
+    ],
+    "user_approval_required": false,
+    "evidence_pointer_semantics": "pointer_only",
+    "live_sdk_call": false,
+    "provider_implementation": false,
+    "runtime_execution": false,
+    "boundary_notes": [
+      "conceptual only",
+      "no live Codex SDK call",
+      "no provider implementation",
+      "no TypeScript execution types",
+      "no proof/evidence write",
+      "no AG Resume update",
+      "no Project Constellation runtime node update"
+    ]
+  },
+  "non_goals": [
+    "no Project Constellation UI",
+    "no graph layout engine",
+    "no graph DB",
+    "no persistence",
+    "no runtime node creation",
+    "no API routes",
+    "no DB schema or migrations",
+    "no MCP/App tools",
+    "no live Codex SDK call",
+    "no provider implementation",
+    "no credentials/auth/env changes",
+    "no proof/evidence/readiness writes",
+    "no AG Resume writer/helper/route changes",
+    "no QP evidence",
+    "no z_t commits",
+    "no Codex task launch",
+    "no Sites deployment behavior",
+    "no approval/publish/retry/replay/merge authority"
+  ],
+  "forbidden_actions": [
+    "no runtime Sidecar e_t computation",
+    "no Project Constellation runtime graph mutation",
+    "no AG Resume update",
+    "no proof/evidence/readiness writes",
+    "no Codex SDK execution",
+    "no external calls",
+    "no merge authority"
+  ]
+}
