@@ -168,6 +168,16 @@ be treated as runtime proof, evidence status, readiness, benchmark authority,
 scoring authority, diagnostic authority, evaluation authority, or permission
 for runtime sequence fixtures. It does not compute Perspective continuity,
 Sidecar e_t, QP output, or `z_t`.
+Project Constellation IA boundary verification belongs in bounded command
+evidence, such as `npm run smoke:project-constellation-ia-boundaries`. It must
+record documentation-boundary-only facts about the symbolic node/edge/cluster
+map, read-only and non-authoritative status, evidence-pointer-based
+handoff-preview boundaries, conceptual snapshot/rollback/diff/fork semantics,
+required non-goals, and repo-local index pointers. It is not runtime proof and
+does not implement Project Constellation runtime behavior, UI behavior,
+route/API behavior, persistence, graph computation, or agent routing. It does
+not create proof/evidence/readiness writes, does not create QP evidence, and
+does not commit `z_t`.
 Perspective continuity runtime-disabled sequence fixture verification belongs
 in bounded command evidence, such as
 `npm run smoke:perspective-continuity-sequences`. It must record
@@ -440,6 +450,7 @@ npm run smoke:cockpit-perspective-snapshot
 npm run smoke:perspective-quality
 npm run smoke:research-diagnostics-boundaries
 npm run smoke:sidecar-et-fixture-boundaries
+npm run smoke:project-constellation-ia-boundaries
 ```
 
 After running a command, Codex or another local verifier may record a bounded

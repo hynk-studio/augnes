@@ -575,7 +575,7 @@ This panel sketch is not implementation approval.
 
 ## 21. Validation and Smoke Plan
 
-Validation for this docs-only PR should include:
+Validation for this docs/smoke/package-pointer PR should include:
 
 ```text
 npm run typecheck
@@ -584,20 +584,30 @@ npm run smoke:perspective-quality
 npm run smoke:research-diagnostics-boundaries
 npm run smoke:sidecar-et-runtime-boundaries
 npm run smoke:cockpit-perspective-snapshot
+npm run smoke:project-constellation-ia-boundaries
 git diff --check
 git diff --cached --check
 ```
 
-Browser/computer-use may be skipped because this PR is docs-only. It does not
-touch UI, runtime, API, schema, fixture, manifest JSON, package scripts,
-Cockpit action behavior, AG Resume behavior, ChatGPT Apps/MCP tools, or
-browser-facing files.
+`npm run smoke:project-constellation-ia-boundaries` is a focused static
+document/IA boundary guard. It checks required sections, concepts, boundary
+phrases, non-goals, and index pointers for this document. It does not implement
+Project Constellation runtime behavior, UI behavior, route/API behavior,
+storage, persistence, graph computation, agent routing, evidence production, or
+proof/evidence/readiness writes.
+
+Browser/computer-use may be skipped for this docs/smoke/package-pointer PR
+because the only `package.json` change is a static documentation-boundary smoke
+script pointer. This PR does not touch UI, runtime, API, schema, fixture,
+manifest JSON, Cockpit action behavior, AG Resume behavior, ChatGPT Apps/MCP
+tools, or browser-facing files.
 
 If future Project Constellation work touches UI or browser-facing files, it
 must add browser/computer-use validation. If it touches runtime, APIs, schema,
-storage, routes, fixtures, package scripts, Cockpit action behavior, AG Resume,
-ChatGPT Apps/MCP tools, or agent routing, it needs a separate approved scope
-and a stronger validation plan.
+storage, routes, fixtures, Cockpit action behavior, AG Resume, ChatGPT
+Apps/MCP tools, agent routing, or package scripts that go beyond bounded
+documentation-boundary smoke pointers or imply implementation/runtime behavior,
+it needs a separate approved scope and a stronger validation plan.
 
 ## 22. Non-Goals
 

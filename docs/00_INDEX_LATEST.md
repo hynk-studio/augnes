@@ -126,17 +126,19 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   behavior, proof/evidence/readiness writes, QP evidence, `z_t` commits, CI
   enforcement, or AG Resume bridge/writer/helper/route behavior를 만들지
   않는다.
-- `PROJECT_CONSTELLATION_IA_V0_1.md`: Project Constellation의 docs-only,
-  read-only, non-authoritative Perspective IA/design pointer다. Scattered
-  projects, work units, PRs, documents, concepts, decisions, tensions,
-  evidence pointers, validation results, and next moves를 symbolic
-  node/typed-edge/cluster map으로 표현하고 Perspective Capsule 및
-  agent-handoff preview vocabulary를 정리한다. Runtime code, UI components,
-  graph engine, graph DB, API routes, DB schema/migrations, package scripts,
-  fixtures, smokes, persistence, save/rollback buttons, automatic agent
-  routing, external calls, Cockpit action behavior, Codex execution behavior,
-  ChatGPT Apps/MCP tool changes, proof/evidence/readiness writes, QP evidence,
-  `z_t` commits, or AG Resume behavior를 만들지 않는다.
+- `PROJECT_CONSTELLATION_IA_V0_1.md`: Project Constellation의 repo-local,
+  docs-only, non-SSOT, read-only, non-authoritative Perspective IA/design
+  pointer다. This is not an Active-set expansion. Scattered projects, work
+  units, PRs, documents, concepts, decisions, tensions, evidence pointers,
+  validation results, and next moves를 symbolic node/typed-edge/cluster map으로
+  표현하고 Perspective Capsule 및 agent-handoff preview vocabulary를 정리한다.
+  `npm run smoke:project-constellation-ia-boundaries`는 이 문서의 focused
+  document/IA boundary guard다. Runtime code, UI components, graph engine,
+  graph DB, API routes, DB schema/migrations, package scripts, fixtures,
+  smokes, persistence, save/rollback buttons, automatic agent routing,
+  external calls, Cockpit action behavior, Codex execution behavior, ChatGPT
+  Apps/MCP tool changes, proof/evidence/readiness writes, QP evidence, `z_t`
+  commits, or AG Resume behavior를 만들지 않는다.
 - `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
   포인터를 둔다.
 - `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only
