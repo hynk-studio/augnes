@@ -10,12 +10,26 @@ import {
 } from "./smoke-boundary-common.mjs";
 
 const designDoc = "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md";
+const closeoutDoc =
+  "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
+const codexExecutionRecordTypeFile = "types/codex-execution-record.ts";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-codex-sdk-execution-authority-design.mjs";
+const codexExecutionRecordSmokeFile =
+  "scripts/smoke-codex-execution-record-boundary.mjs";
+const closeoutSmokeFile =
+  "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
 
 const inspectedFiles = [designDoc, indexDoc, packageJsonFile, smokeFile];
-const allowedChangedFiles = new Set(inspectedFiles);
+const allowedChangedFiles = new Set([
+  ...inspectedFiles,
+  closeoutDoc,
+  codexExecutionRecordTypeFile,
+  codexExecutionRecordSmokeFile,
+  closeoutSmokeFile,
+]);
+const allowedTypeOnlyBoundaryFiles = new Set([codexExecutionRecordTypeFile]);
 const textByFile = loadTextByFile(inspectedFiles);
 
 const requiredSections = [
@@ -107,6 +121,7 @@ const futureTypeNames = [
   "CodexUserApprovalRecord",
   "CodexEvidenceLink",
   "CodexExecutionProvider",
+  "CodexExecutionProviderBoundary",
 ];
 
 const futureProviderNames = [
@@ -412,7 +427,7 @@ function assertChangedFilesBoundary() {
   const allFiles = [...new Set([...result.files, ...untrackedFiles])].sort();
   if (!contentOnly) {
     assertNoForbiddenChangedPaths(allFiles);
-    assertNoTypescriptFilesAdded(allFiles);
+    assertNoUnexpectedTypescriptFilesAdded(allFiles);
   }
 
   return {
@@ -451,11 +466,12 @@ function assertNoForbiddenChangedPaths(files) {
   }
 }
 
-function assertNoTypescriptFilesAdded(files) {
+function assertNoUnexpectedTypescriptFilesAdded(files) {
   for (const file of files) {
+    if (!/\.(ts|tsx)$/.test(file)) continue;
     assert(
-      !/\.(ts|tsx)$/.test(file),
-      `This PR must not add TypeScript execution types or runtime files: ${file}`,
+      allowedTypeOnlyBoundaryFiles.has(file),
+      `Unexpected TypeScript file for Codex SDK execution authority design smoke: ${file}`,
     );
   }
 }

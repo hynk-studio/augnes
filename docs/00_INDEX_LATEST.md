@@ -239,6 +239,16 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   fixture literal values, node/edge literals, execution authority preview
   fields, docs/index pointers, package pointer, and type-only non-authority
   wording을 정적으로 확인한다.
+- `types/codex-execution-record.ts`: type-only Codex execution record boundary
+  for future execution intent, permission profile, approval record, execution
+  result, evidence link, resume pointer, risk/check records, host provenance,
+  and provider-boundary vocabulary다. It is non-SSOT and has no runtime schema,
+  no DB schema, no API route, no MCP/App tool, no proof/evidence write, no AG
+  Resume behavior, and no Codex SDK execution/provider implementation. `npm run
+  smoke:codex-execution-record-boundary`는 exported type names, permission
+  profile/status literals, conceptual fields, evidence pointer semantics,
+  docs/index pointers, package pointer, and type-only non-authority wording을
+  정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
