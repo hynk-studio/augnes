@@ -13,9 +13,14 @@ import {
 const pluginJsonFile = "plugins/augnes-operator/.codex-plugin/plugin.json";
 const skillFile =
   "plugins/augnes-operator/skills/augnes-codex-surface-ops/SKILL.md";
+const capsuleHandoffSkillFile =
+  "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
 const docFile = "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md";
+const capsuleDocFile = "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md";
 const indexFile = "docs/00_INDEX_LATEST.md";
 const smokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
+const capsuleHandoffSmokeFile =
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs";
 const packageJsonFile = "package.json";
 
 const inspectedFiles = [
@@ -28,6 +33,9 @@ const inspectedFiles = [
 ];
 
 const allowedChangedFiles = new Set(inspectedFiles);
+allowedChangedFiles.add(capsuleHandoffSkillFile);
+allowedChangedFiles.add(capsuleDocFile);
+allowedChangedFiles.add(capsuleHandoffSmokeFile);
 const textByFile = loadTextByFile(inspectedFiles);
 
 assertPackageJsonScript();

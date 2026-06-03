@@ -370,6 +370,17 @@ implementation, no runtime execution, no proof/evidence writes, and no
 approval/publish/merge authority. The static guard is
 `npm run smoke:perspective-capsule-copyable-handoff-preview`.
 
+Codex Plugin consumption guidance for Perspective Capsule / Handoff Capsule
+material lives in
+`plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md`. That skill is
+instruction-only workflow guidance for preserving capsule fields, scope,
+checks, skipped reasons, evidence pointers, unresolved tensions, PR body
+requirements, and final report requirements. It does not create capsule runtime
+behavior, does not call GitHub/OpenAI/Augnes runtime, does not call MCP/App
+tools, does not create proof/evidence, does not open PRs by itself, does not
+merge, does not publish, does not approve, does not retry, does not replay, does
+not deploy, and does not grant Codex execution authority.
+
 ### Example 2: ChatGPT App/MCP Review To Codex Plugin Workflow
 
 Source: ChatGPT App/MCP whole perspective review.
@@ -405,6 +416,7 @@ Required checks for this docs/smoke/package-pointer PR:
 npm run typecheck
 npm run smoke:perspective-capsule-contract
 npm run smoke:perspective-capsule-copyable-handoff-preview
+npm run smoke:augnes-capsule-handoff-skill
 git diff --check
 git diff --cached --check
 ```
