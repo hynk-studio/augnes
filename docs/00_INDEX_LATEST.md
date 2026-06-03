@@ -201,6 +201,17 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   calls, no proof/evidence writes, no branch/PR creation authority by itself,
   and no merge/publish/approval/retry/replay/deploy authority를 정적으로
   확인한다.
+- `docs/CAPSULE_HANDOFF_SKILL_DOGFOOD_REPORT_V0_1.md`: `augnes-capsule-handoff`
+  skill을 docs/smoke/package-pointer only workflow에서 conceptually dogfood한
+  report다. Perspective Capsule / Handoff Capsule fields, required checks,
+  skipped check policy, evidence pointers, unresolved tensions, browser/
+  computer-use handling, proof-only closeout handling, PR body/final report
+  requirements, blockers, repo/task mismatches, scope risks, assumptions,
+  questions requiring user/PM judgment, and next suggested goal preservation을
+  기록한다. `npm run smoke:capsule-handoff-skill-dogfood-report`는 report
+  sections, package/index pointers, scoped/content-only boundary behavior, and
+  no runtime behavior, no UI/API/DB/MCP/App/proof/evidence/Codex SDK authority를
+  정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

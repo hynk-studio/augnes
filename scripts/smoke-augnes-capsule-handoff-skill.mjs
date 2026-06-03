@@ -19,6 +19,9 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-augnes-capsule-handoff-skill.mjs";
 const pluginV2SmokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
+const dogfoodReportFile = "docs/CAPSULE_HANDOFF_SKILL_DOGFOOD_REPORT_V0_1.md";
+const dogfoodSmokeFile =
+  "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
 
 const inspectedFiles = [
   skillFile,
@@ -33,6 +36,8 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
   pluginV2SmokeFile,
+  dogfoodReportFile,
+  dogfoodSmokeFile,
 ]);
 
 const requiredSections = [
