@@ -143,7 +143,8 @@ const requiredNonAuthorityPhrases = [
   "Unresolved tensions must remain visible and must not be collapsed into support.",
   "They can block or qualify a next action candidate.",
   "Sites deployment URLs remain production deployment and are not Augnes readiness, proof, publication, approval, or merge authority.",
-  "Future work may add a cross-PR regression mode for boundary smokes.",
+  "AUGNES_BOUNDARY_SMOKE_MODE=content-only",
+  "Content-only mode is an explicit cross-PR regression diagnostic.",
 ];
 
 const requiredForbiddenExamples = [
@@ -213,6 +214,7 @@ console.log(
     {
       smoke: "perspective-capsule-contract",
       pass: true,
+      boundary_smoke_mode: changedFilesBoundary.mode,
       docs_checked: [contractDoc, projectDoc, pluginDoc, indexDoc],
       package_script_checked: true,
       required_sections_checked: requiredSections.length,
@@ -222,13 +224,17 @@ console.log(
       codex_handoff_packet_fields_checked: codexHandoffPacketFields.length,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
+      changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_checked: changedFilesBoundary.files,
+      changed_files_observed: changedFilesBoundary.files,
       changed_files_base_ref: changedFilesBoundary.base_ref,
       changed_files_base_range_checked: changedFilesBoundary.base_range_checked,
       changed_files_base_range_skipped: changedFilesBoundary.base_range_skipped,
       changed_files_working_tree_checked:
         changedFilesBoundary.working_tree_checked,
       untracked_files_checked: changedFilesBoundary.untracked_checked,
+      untracked_files_skipped: changedFilesBoundary.untracked_skipped,
+      untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       smoke_type: "contract-boundary-only",
       runtime_behavior_changed: false,
       api_route_behavior_changed: false,
@@ -377,16 +383,23 @@ function assertChangedFilesBoundary() {
     label: "Perspective Capsule contract boundary smoke",
   });
   const untrackedFiles = getUntrackedFiles();
-  for (const file of untrackedFiles) {
-    assert(
-      allowedChangedFiles.has(file),
-      `Unexpected untracked file for Perspective Capsule contract boundary smoke: ${file}`,
-    );
+  const contentOnly = result.mode === "content-only";
+  if (!contentOnly) {
+    for (const file of untrackedFiles) {
+      assert(
+        allowedChangedFiles.has(file),
+        `Unexpected untracked file for Perspective Capsule contract boundary smoke: ${file}`,
+      );
+    }
   }
   return {
     ...result,
     files: [...new Set([...result.files, ...untrackedFiles])].sort(),
-    untracked_checked: true,
+    untracked_checked: !contentOnly,
+    untracked_skipped: contentOnly,
+    untracked_skip_reason: contentOnly
+      ? "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only"
+      : null,
   };
 }
 

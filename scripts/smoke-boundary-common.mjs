@@ -77,10 +77,47 @@ export function assertNoForbiddenPositivePhrases({
   }
 }
 
+export function getBoundarySmokeMode() {
+  const mode = process.env.AUGNES_BOUNDARY_SMOKE_MODE || "scoped";
+  assertBoundarySmokeMode(mode);
+  return mode;
+}
+
+export function isBoundaryContentOnlyMode() {
+  return getBoundarySmokeMode() === "content-only";
+}
+
+export function assertBoundarySmokeMode(mode = getBoundarySmokeMode()) {
+  assert(
+    ["scoped", "content-only"].includes(mode),
+    `AUGNES_BOUNDARY_SMOKE_MODE must be unset, scoped, or content-only; received ${JSON.stringify(mode)}`,
+  );
+}
+
 export function assertChangedFilesWithin({ allowedChangedFiles, label }) {
   const workingTree = collectGitDiffFiles(["diff", "--name-only", "HEAD"]);
   const baseRange = getBaseRangeChangedFiles();
   const files = uniqueSorted([...workingTree.files, ...baseRange.files]);
+  const mode = getBoundarySmokeMode();
+
+  if (mode === "content-only") {
+    return {
+      mode,
+      checked: false,
+      skipped: true,
+      skip_reason:
+        "changed-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only",
+      files,
+      working_tree_files: workingTree.files,
+      working_tree_checked: workingTree.checked,
+      working_tree_skipped: workingTree.skipped,
+      base_ref: baseRange.base_ref,
+      base_range_files: baseRange.files,
+      base_range_checked: baseRange.checked,
+      base_range_skipped: baseRange.skipped,
+    };
+  }
+
   const allowed = new Set(allowedChangedFiles);
 
   for (const file of files) {
@@ -90,8 +127,10 @@ export function assertChangedFilesWithin({ allowedChangedFiles, label }) {
   const checked = workingTree.checked || baseRange.checked;
 
   return {
+    mode,
     checked,
     skipped: !checked,
+    skip_reason: checked ? null : "changed-file boundary could not be checked",
     files,
     working_tree_files: workingTree.files,
     working_tree_checked: workingTree.checked,

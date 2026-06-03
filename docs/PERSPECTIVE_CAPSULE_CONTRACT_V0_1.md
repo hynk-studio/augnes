@@ -393,28 +393,31 @@ git diff --check
 git diff --cached --check
 ```
 
-Supplemental Augnes Operator plugin v2 content guard:
+`npm run smoke:perspective-capsule-contract` runs in scoped changed-file mode
+by default and enforces the contract PR's allowed changed-file boundary. For
+cross-PR content-only diagnostics, use:
 
-- The exact `npm run smoke:augnes-operator-plugin-v2` command is not a required
-  gate if it still includes a PR #361-specific changed-file allowlist and
-  rejects this contract PR's files.
-- `AUGNES_CHANGED_FILES_BASE_REF=HEAD npm run smoke:augnes-operator-plugin-v2`
-  may be used as a supplemental content-only diagnostic to confirm the Augnes
-  Operator plugin v0.2 alignment remains intact.
-- The supplemental diagnostic is not a substitute for generalizing that smoke's
-  changed-file mode.
+```text
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:perspective-capsule-contract
+```
 
-Supplemental Project Constellation content guard:
+Content-only mode is an explicit cross-PR regression diagnostic. It skips the
+changed-file allowlist but still checks the contract sections, conceptual
+fields, source surfaces, target surfaces, Codex handoff packet fields,
+non-authority phrases, pointers, and package script. It is not an
+implementation/runtime authority and not a substitute for scoped changed-file
+validation in direct contract PRs.
 
-- The exact `npm run smoke:project-constellation-ia-boundaries` command is not
-  a required gate if it still includes a PR #359-specific changed-file
-  allowlist and rejects this contract PR's files.
-- `AUGNES_CHANGED_FILES_BASE_REF=HEAD npm run smoke:project-constellation-ia-boundaries`
-  may be used as a supplemental content-only diagnostic to confirm Project
-  Constellation IA content remains intact.
-- The supplemental diagnostic is not a substitute for generalizing that smoke's
-  changed-file mode.
-- Future work may add a cross-PR regression mode for boundary smokes.
+Related boundary smokes can also be run in explicit content-only mode for
+unrelated PRs:
+
+```text
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:augnes-operator-plugin-v2
+```
+
+Legacy `AUGNES_CHANGED_FILES_BASE_REF=HEAD` diagnostics are superseded by
+`AUGNES_BOUNDARY_SMOKE_MODE=content-only` for cross-PR content checks.
 
 Browser/computer-use may be skipped because this PR is docs/smoke/package-pointer
 only and should not touch UI, runtime, API, schema, MCP/App tools, routes,

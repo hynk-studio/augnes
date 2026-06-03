@@ -134,6 +134,7 @@ const changedFilesBoundary = assertChangedFilesBoundary();
 const summary = {
   smoke: "project-constellation-ia-boundaries",
   pass: true,
+  boundary_smoke_mode: changedFilesBoundary.mode,
   docs_checked: [projectDoc, indexDoc, verificationDoc],
   package_script_checked: true,
   required_sections_checked: requiredSections.length,
@@ -145,7 +146,9 @@ const summary = {
   verification_pointer_checked: true,
   changed_files_boundary_checked: changedFilesBoundary.checked,
   changed_files_boundary_skipped: changedFilesBoundary.skipped,
+  changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
   changed_files_checked: changedFilesBoundary.files,
+  changed_files_observed: changedFilesBoundary.files,
   changed_files_base_ref: changedFilesBoundary.base_ref,
   changed_files_base_range_checked: changedFilesBoundary.base_range_checked,
   changed_files_base_range_skipped: changedFilesBoundary.base_range_skipped,

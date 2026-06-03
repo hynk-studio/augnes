@@ -136,16 +136,23 @@ git diff --check
 git diff --cached --check
 ```
 
-Supplemental Project Constellation content guard:
+`npm run smoke:augnes-operator-plugin-v2` runs in strict scoped changed-file
+mode by default. For unrelated PRs that only need to confirm v0.2 plugin
+content and boundary wording still hold, use the explicit supplemental
+content-only mode:
 
-- The exact `npm run smoke:project-constellation-ia-boundaries` command is not
-  a required check for this plugin PR because that smoke currently includes a
-  PR #359-specific changed-file allowlist.
-- `AUGNES_CHANGED_FILES_BASE_REF=HEAD npm run smoke:project-constellation-ia-boundaries`
-  may be used as a supplemental content-only diagnostic to confirm Project
-  Constellation IA content remains intact, but it is not a substitute for
-  generalizing that smoke's changed-file mode.
-- Future work may add a cross-PR regression mode for boundary smokes.
+```text
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:augnes-operator-plugin-v2
+```
+
+Content-only mode is supplemental for unrelated PRs. It skips the changed-file
+allowlist by explicit opt-in while preserving content, pointer, package-script,
+and boundary checks. It is not a replacement for scoped changed-file validation
+when this plugin alignment doc, smoke, package pointer, or plugin metadata are
+directly edited.
+
+Legacy `AUGNES_CHANGED_FILES_BASE_REF=HEAD` diagnostics are superseded by
+`AUGNES_BOUNDARY_SMOKE_MODE=content-only` for cross-PR content checks.
 
 Browser/computer-use may be skipped because this PR is
 docs/metadata/skill/smoke/package-pointer only and does not touch UI, runtime,

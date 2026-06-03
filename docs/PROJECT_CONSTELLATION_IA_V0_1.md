@@ -603,6 +603,19 @@ Project Constellation runtime behavior, UI behavior, route/API behavior,
 storage, persistence, graph computation, agent routing, evidence production, or
 proof/evidence/readiness writes.
 
+By default the smoke runs in scoped changed-file mode and enforces its allowed
+changed-file boundary for direct Project Constellation IA edits. For cross-PR
+content-only diagnostics, use:
+
+```text
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries
+```
+
+Content-only mode is an explicit cross-PR regression diagnostic. It does not
+replace scoped changed-file validation for direct edits and does not grant
+runtime, UI, API, schema, MCP/App tool, persistence, proof/evidence, or agent
+execution authority.
+
 Browser/computer-use may be skipped for this docs/smoke/package-pointer PR
 because the only `package.json` change is a static documentation-boundary smoke
 script pointer. This PR does not touch UI, runtime, API, schema, fixture,
