@@ -2812,6 +2812,7 @@ function buildProjectConstellationCopyableHandoffText(
     `- repo: ${packet.repo}`,
     `- base branch: ${packet.baseBranch}`,
     `- working branch suggestion: ${packet.workingBranchSuggestion}`,
+    `- expected PR title: ${packet.expectedPrTitle}`,
     "",
     "Goal:",
     packet.taskGoal,

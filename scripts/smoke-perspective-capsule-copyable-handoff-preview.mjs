@@ -158,6 +158,7 @@ function assertCopyablePreviewContent() {
     "thesis",
     "repo",
     "base branch",
+    "expected PR title",
     "task goal",
     "expected changed files",
     "forbidden changed files",
@@ -185,6 +186,7 @@ function assertCopyablePreviewContent() {
     "sourceScope",
     "selectedNodes",
     "selectedEdges",
+    "expectedPrTitle",
     "expectedChangedFiles",
     "forbiddenChangedFiles",
     "hardConstraints",
@@ -196,6 +198,13 @@ function assertCopyablePreviewContent() {
     "blockersOrRisks",
     "questionsRequiringUserPmJudgment",
   ], { label: "Perspective Capsule copyable handoff data bindings" });
+
+  assertContainsAll(handoffBuilderSource, [
+    "`- expected PR title: ${packet.expectedPrTitle}`",
+  ], {
+    label:
+      "Perspective Capsule copyable handoff expected PR title generated text",
+  });
 }
 
 function assertCopyablePreviewReadOnly() {
