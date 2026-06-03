@@ -653,6 +653,15 @@ skipped because the work is fixture/smoke/docs/package-pointer only and does
 not touch UI, runtime, API, schema, MCP/App tools, routes, browser-facing
 files, external calls, or interactive behavior.
 
+The exact `npm run smoke:project-constellation-sample-fixture` command is the
+scoped check for direct sample fixture/smoke/package-pointer edits. Unrelated
+Project Constellation UI-preview PRs should use the content-only form as a
+supplemental fixture-content diagnostic:
+
+```text
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-sample-fixture
+```
+
 For the first Project Constellation read-only Cockpit preview follow-up,
 browser/computer-use is required because the work touches the Cockpit
 Perspective UI. The browser report should confirm the Perspective surface

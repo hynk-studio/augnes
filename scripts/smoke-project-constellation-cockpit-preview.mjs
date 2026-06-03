@@ -82,6 +82,7 @@ console.log(
       codex_execution_authority_preview_checked: true,
       read_only_preview_checked: true,
       forbidden_action_controls_checked: true,
+      boundary_smoke_mode: changedFilesBoundary.mode,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
       changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
@@ -90,6 +91,7 @@ console.log(
       changed_files_base_ref: changedFilesBoundary.base_ref,
       untracked_files_checked: changedFilesBoundary.untracked_checked,
       untracked_files_skipped: changedFilesBoundary.untracked_skipped,
+      untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       untracked_files_observed: changedFilesBoundary.untracked_files,
       smoke_type: "static-cockpit-preview-boundary-only",
       runtime_behavior_changed: false,
@@ -307,8 +309,9 @@ function assertChangedFilesBoundary() {
   });
   const untrackedFiles = collectUntrackedFiles();
   const mode = getBoundarySmokeMode();
+  const contentOnly = mode === "content-only";
 
-  if (mode !== "content-only") {
+  if (!contentOnly) {
     for (const file of untrackedFiles) {
       assert(
         allowedChangedFiles.has(file),
@@ -318,13 +321,18 @@ function assertChangedFilesBoundary() {
   }
 
   const files = uniqueSorted([...boundary.files, ...untrackedFiles]);
-  assertNoForbiddenChangedPaths(files);
+  if (!contentOnly) {
+    assertNoForbiddenChangedPaths(files);
+  }
 
   return {
     ...boundary,
     files,
-    untracked_checked: mode !== "content-only",
-    untracked_skipped: mode === "content-only",
+    untracked_checked: !contentOnly,
+    untracked_skipped: contentOnly,
+    untracked_skip_reason: contentOnly
+      ? "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only"
+      : null,
     untracked_files: untrackedFiles,
   };
 }
