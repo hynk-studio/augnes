@@ -230,8 +230,15 @@ Future type-only work may introduce names such as:
 - `CodexEvidenceLink`
 - `CodexExecutionProvider`
 
-These are proposed future names only. This PR does not create TypeScript files,
-does not add TypeScript execution types, and does not add schema/API contracts.
+These names were proposed future names in the original design-only PR. The
+original design-only PR did not create TypeScript files, did not add TypeScript
+execution types, and did not add schema/API contracts. This follow-up now
+introduces `types/codex-execution-record.ts` as a type-only boundary for this
+vocabulary.
+The boundary is not runtime schema, not DB schema, not API contract, not MCP/App
+tool contract, not proof/evidence write authority, and not source-of-truth; it
+has no live SDK call, no `@openai/codex-sdk` import, no provider
+implementation, and no runtime execution.
 
 Follow-up type boundary: `types/codex-execution-record.ts` is the type-only
 Codex execution record boundary for this vocabulary. It introduces static

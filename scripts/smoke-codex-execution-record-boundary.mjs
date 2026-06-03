@@ -149,6 +149,7 @@ assertTypeExports();
 assertTypeFileBoundary();
 assertRequiredTypeContent();
 assertDocPointers();
+assertNoStaleTypeBoundaryClaims();
 assertSmokeScriptBoundary();
 const changedFilesBoundary = assertChangedFilesBoundary();
 
@@ -274,6 +275,16 @@ function assertDocPointers() {
   assertContainsAll(designDoc, [
     typeFile,
     "type-only Codex execution record boundary",
+    "original design-only PR did not create TypeScript files",
+    "This follow-up now introduces `types/codex-execution-record.ts` as a type-only boundary",
+    "not runtime schema",
+    "not DB schema",
+    "not API contract",
+    "not MCP/App tool contract",
+    "not proof/evidence write authority",
+    "not source-of-truth",
+    "no live SDK call",
+    "no `@openai/codex-sdk` import",
     "does not add live SDK calls",
     "does not add provider implementation",
     "does not add runtime execution",
@@ -315,6 +326,15 @@ function assertDocPointers() {
     if ([smokeFile, packageJsonFile].includes(file)) continue;
     assertNoForbiddenPositiveClauses(file, text);
   }
+}
+
+function assertNoStaleTypeBoundaryClaims() {
+  const designText = textByFile.get(designDoc);
+  if (!designText.includes(typeFile)) return;
+  assert(
+    !/\bThis PR does not create TypeScript files\b/.test(designText),
+    `${designDoc} must not keep stale "This PR does not create TypeScript files" wording when it points to ${typeFile}`,
+  );
 }
 
 function assertSmokeScriptBoundary() {
