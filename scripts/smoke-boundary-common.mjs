@@ -211,10 +211,12 @@ export function getProjectConstellationBoundaryScopeProfile({
       "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
       "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
       "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md",
+      "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md",
       "docs/00_INDEX_LATEST.md",
     ],
     adjacentFixtureFiles: [
       "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
+      "types/project-constellation-fixture.ts",
     ],
     adjacentCockpitFiles: ["components/augnes-cockpit.tsx"],
     adjacentSmokeFiles: [
@@ -225,6 +227,8 @@ export function getProjectConstellationBoundaryScopeProfile({
       "scripts/smoke-perspective-capsule-copyable-handoff-preview.mjs",
       "scripts/smoke-perspective-capsule-contract.mjs",
       "scripts/smoke-codex-sdk-execution-authority-design.mjs",
+      "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs",
+      "scripts/smoke-project-constellation-fixture-schema-boundary.mjs",
     ],
     browserReportFilePatterns: [
       "reports/browser/*project-constellation*.md",

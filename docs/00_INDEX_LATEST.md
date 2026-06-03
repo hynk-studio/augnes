@@ -230,6 +230,15 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   candidates, package/index pointers, and docs/smoke/package-pointer only
   scope를 확인한다. This pointer has no runtime behavior and no
   UI/API/DB/MCP/App/proof/evidence/Codex SDK authority.
+- `types/project-constellation-fixture.ts`: type-only Project Constellation
+  fixture/schema boundary for the static public-safe sample fixture and
+  read-only preview loop이다. It is non-SSOT and has no runtime schema, no DB
+  schema, no API route, no MCP/App tool, no graph DB, no persistence, no
+  proof/evidence write, and no Codex SDK execution. `npm run
+  smoke:project-constellation-fixture-schema-boundary`는 exported type names,
+  fixture literal values, node/edge literals, execution authority preview
+  fields, docs/index pointers, package pointer, and type-only non-authority
+  wording을 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
