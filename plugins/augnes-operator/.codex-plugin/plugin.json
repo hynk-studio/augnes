@@ -1,7 +1,7 @@
 {
   "name": "augnes-operator",
-  "version": "0.1.0",
-  "description": "Augnes workflow harness for Codex preflight, bounded implementation, evidence reporting, proof-only closeout, and authority audit.",
+  "version": "0.2.0",
+  "description": "Augnes workflow harness for Codex preflight, bounded implementation, evidence reporting, proof-only closeout, and authority audit; v0.2 aligns adjacent ChatGPT Apps and Codex Plugin surface operations while preserving Augnes authority boundaries.",
   "author": {
     "name": "Aurna-code"
   },
@@ -9,14 +9,15 @@
   "interface": {
     "displayName": "Augnes Operator",
     "shortDescription": "Use Augnes workflow skills inside Codex.",
-    "longDescription": "Packages the approved Augnes workflow skills for Codex context intake, bounded implementation, evidence reporting, proof-only closeout, and authority audit. This local scaffold does not include hooks, MCP config, app mappings, runtime calls, GitHub calls, OpenAI calls, network calls, or secrets.",
+    "longDescription": "Packages approved Augnes workflow skills for Codex context intake, bounded implementation, surface-operation guidance, evidence-aware reporting, proof-only closeout, and authority audit. This v0.2 metadata alignment does not add hooks, MCP config, app mappings, runtime calls, GitHub calls, OpenAI calls, network calls, or secrets.",
     "developerName": "Aurna-code",
     "category": "Productivity",
     "capabilities": [
       "workflow-guidance",
       "preflight",
+      "surface-ops-guidance",
       "authority-audit"
     ],
-    "defaultPrompt": "Use the Augnes Operator skills to keep Codex work bounded, evidence-aware, proof-only at closeout, and aligned with Augnes authority boundaries."
+    "defaultPrompt": "Use the Augnes Operator skills to keep Codex work bounded, evidence-aware, surface-aware, proof-only at closeout, and aligned with Augnes authority boundaries."
   }
 }
