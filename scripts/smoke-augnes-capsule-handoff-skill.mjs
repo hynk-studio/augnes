@@ -95,9 +95,21 @@ const requiredConcepts = [
   "next suggested goal",
 ];
 
+const forbiddenPositiveAuthoritySelfTests = [
+  "A capsule may record proof without evidence gate approval.",
+  "A plugin skill may deploy without authority matrix update.",
+  "A handoff may create PRs without review.",
+];
+
+const allowedBoundarySelfTests = [
+  "No capsule may record proof without separate approval.",
+  "No skill may deploy without authority matrix update.",
+];
+
 const textByFile = loadTextByFile(inspectedFiles);
 const skill = textByFile.get(skillFile);
 
+assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertSkillFrontmatter();
 assertRequiredSections();
@@ -364,6 +376,24 @@ function assertNoForbiddenPositiveClauses(file, text) {
   }
 }
 
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
+    );
+  }
+}
+
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
     /\b(skill|capsule|handoff|plugin|codex)\b.{0,80}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to)\b.{0,100}\b(create branches?|open PRs?|create PRs?|merge|publish|approve|retry|replay|deploy|record proof|record evidence|execute Codex|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?)\b/i,
@@ -377,7 +407,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself)\b/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself)\b/i.test(
     clause,
   );
 }

@@ -101,9 +101,21 @@ const requiredBoundaryPhrases = [
   "does not grant merge/publish/approval/retry/replay/deploy authority",
 ];
 
+const forbiddenPositiveAuthoritySelfTests = [
+  "A dogfood report may publish without review.",
+  "A Codex report may create PRs without review.",
+  "A skill dogfood report may deploy without authority matrix update.",
+];
+
+const allowedBoundarySelfTests = [
+  "No report may publish without separate approval.",
+  "No Codex report may create PRs without review.",
+];
+
 const textByFile = loadTextByFile(inspectedFiles);
 const report = textByFile.get(reportFile);
 
+assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertReportSections();
 assertReportContent();
@@ -296,6 +308,24 @@ function assertNoForbiddenPositiveClauses(file, text) {
   }
 }
 
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
+    );
+  }
+}
+
 function assertNoUnsupportedUserScopeAuthorityClaims(file, text) {
   const forbiddenPatterns = [
     /\bactive user task\b.{0,120}\bauthori[sz]es?\b.{0,120}\b(publishing|publish|deploy|deployment|merge|approval|approve|retry|replay|proof\/evidence writes?|proof writes?|evidence writes?|runtime behavior)\b/i,
@@ -328,7 +358,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself)\b/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself)\b/i.test(
     clause,
   );
 }

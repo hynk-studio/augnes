@@ -107,6 +107,9 @@ const forbiddenPositiveAuthoritySelfTests = [
   "A future read-only MCP surface may execute Codex.",
   "A planning-only ChatGPT App may publish outcomes.",
   "A future MCP tool is allowed to write Augnes state.",
+  "A future surface may merge without approval.",
+  "A planning-only ChatGPT App may publish without review.",
+  "A future MCP tool may deploy without authority matrix update.",
 ];
 
 const allowedBoundarySelfTests = [
@@ -114,6 +117,8 @@ const allowedBoundarySelfTests = [
   "The surface must not execute Codex.",
   "Future implementation requires separate gates before any tool surface exists.",
   "Read-only rendering is decision support only and does not write Augnes state.",
+  "No surface may merge without separate approval.",
+  "No MCP tool may expose credentials.",
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
@@ -366,7 +371,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself)\b|않|아니다|만들지 않는다/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself)\b|않|아니다|만들지 않는다/i.test(
     clause,
   );
 }

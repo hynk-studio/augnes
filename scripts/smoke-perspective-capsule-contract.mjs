@@ -195,6 +195,18 @@ const requiredNonGoals = [
   "no approval/publish/retry/replay/merge authority",
 ];
 
+const forbiddenPositiveAuthoritySelfTests = [
+  "A capsule may record proof without evidence gate approval.",
+  "A contract may publish without review.",
+  "A ChatGPT capsule may execute without approval.",
+];
+
+const allowedBoundarySelfTests = [
+  "No capsule may record proof without separate approval.",
+  "The surface must not execute Codex.",
+];
+
+assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertSmokeScriptBoundary();
 assertRequiredSections();
@@ -418,6 +430,24 @@ function assertNoForbiddenPositiveClauses(file, text) {
   }
 }
 
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
+    );
+  }
+}
+
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
     /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|launches?|routes?|persists?|publishes?|approves?|retries|replays|merges?|deploys?)\b.{0,100}\b(runtime behavior|runtime schema|DB schema|API route|MCP\/App writes?|MCP\/App tool changes?|plugin runtime action|graph DB|persistence|proof\/evidence writes?|proof writes?|evidence writes?|Codex execution|Codex task launch|Sites deployment authority|approval\/publish\/retry\/replay\/merge authority|merge authority|publish authority)\b/i,
@@ -429,8 +459,10 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|doesn't|cannot|can't|out of scope)\b/i.test(
-    clause,
+  return (
+    /\b(not|no|does not|do not|must not|never|is not|are not|doesn't|cannot|can't|out of scope)\b/i.test(
+      clause,
+    ) || /\bwithout inference\b/i.test(clause)
   );
 }
 

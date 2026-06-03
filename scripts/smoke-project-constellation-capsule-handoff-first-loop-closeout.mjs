@@ -129,6 +129,17 @@ const authorityBoundaryPhrases = [
   "handoff-preview-oriented",
 ];
 
+const forbiddenPositiveAuthoritySelfTests = [
+  "A Project Constellation closeout may merge without approval.",
+  "A capsule handoff loop may deploy without authority matrix update.",
+  "A Codex closeout may record proof without evidence gate approval.",
+];
+
+const allowedBoundarySelfTests = [
+  "No closeout may merge without separate approval.",
+  "No capsule handoff loop may deploy without authority matrix update.",
+];
+
 const nextSafeCandidates = [
   "A. Type-only Project Constellation fixture/schema boundary",
   "B. Type-only Codex execution record boundary",
@@ -140,6 +151,7 @@ const nextSafeCandidates = [
 const textByFile = loadTextByFile(inspectedFiles);
 const closeout = textByFile.get(closeoutDoc);
 
+assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertRequiredSections();
 assertCloseoutContent();
@@ -348,6 +360,24 @@ function assertNoForbiddenPositiveClauses(file, text) {
   }
 }
 
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
+    );
+  }
+}
+
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
     /\b(closeout|loop|Project Constellation|capsule|handoff|skill|Codex|PR)\b.{0,100}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?)\b.{0,140}\b(create branches?|open PRs?|create PRs?|merge|publish|approve|retry|replay|deploy|record proof|record evidence|write proof|write evidence|execute Codex|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?)\b/i,
@@ -361,7 +391,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself|remains design-only|not current runtime behavior)\b/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself|remains design-only|not current runtime behavior)\b/i.test(
     clause,
   );
 }
