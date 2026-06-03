@@ -19,6 +19,9 @@ const planningSmokeFile =
   "scripts/smoke-readonly-api-route-planning-boundary.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
+const responseShapeTypeFile = "types/readonly-api-route-response.ts";
+const responseShapeSmokeFile =
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs";
 
 const inspectedFiles = [
   checklistDoc,
@@ -32,6 +35,8 @@ const allowedChangedFiles = new Set([
   ...inspectedFiles,
   planningSmokeFile,
   surfaceSmokeFile,
+  responseShapeTypeFile,
+  responseShapeSmokeFile,
 ]);
 
 const requiredSections = [

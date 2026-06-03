@@ -59,6 +59,13 @@ Future GET/read-only route families could be scoped around:
 Candidate route families are vocabulary only. They are not route paths, API
 contracts, database queries, tool schemas, or source-of-truth definitions.
 
+`types/readonly-api-route-response.ts` defines the type-only response shape
+boundary for these future route families. It is required before endpoint
+implementation as response vocabulary only. It does not implement any API route,
+does not add runtime behavior, does not add auth implementation, does not add DB
+schema, does not add MCP/App tool, does not add proof/evidence writes, and does
+not add Codex SDK execution.
+
 ## Allowed response concepts
 
 Future read-only routes may display bounded derived concepts such as:
@@ -174,6 +181,7 @@ Required validation for this planning note:
 - `npm run typecheck`
 - `npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:readonly-api-route-review-checklist`
+- `npm run smoke:readonly-api-route-response-shape-boundary`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries`
