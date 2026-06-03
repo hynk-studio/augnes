@@ -164,6 +164,7 @@ export function defineBoundarySmokeScopeProfile({
   ownedFiles = [],
   adjacentDocsFiles = [],
   adjacentFixtureFiles = [],
+  adjacentCockpitFiles = [],
   adjacentSmokeFiles = [],
   browserReportFiles = [],
   browserReportFilePatterns = [],
@@ -176,6 +177,7 @@ export function defineBoundarySmokeScopeProfile({
     ...ownedFiles,
     ...adjacentDocsFiles,
     ...adjacentFixtureFiles,
+    ...adjacentCockpitFiles,
     ...adjacentSmokeFiles,
     ...browserReportFiles,
   ]);
@@ -214,6 +216,7 @@ export function getProjectConstellationBoundaryScopeProfile({
     adjacentFixtureFiles: [
       "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
     ],
+    adjacentCockpitFiles: ["components/augnes-cockpit.tsx"],
     adjacentSmokeFiles: [
       "scripts/smoke-boundary-common.mjs",
       "scripts/smoke-project-constellation-ia-boundaries.mjs",
