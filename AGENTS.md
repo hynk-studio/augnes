@@ -13,11 +13,21 @@ repo implementation and verification worker. Preserve the authority boundaries.
   - `README.md`
   - `docs/AUTHORITY_MATRIX.md`
   - `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`
+  - `docs/CANONICAL_REPO_OWNER_NOTE_V0_1.md`
   - task-specific roadmap, handoff, or protocol docs
 - Inspect `git status` before editing and keep changes scoped to the task.
 - If the local Augnes runtime is available, run `npm run codex:read-brief`.
 - If `CODEX_WORK_ID` is set, use `npm run codex:read-brief` so the Work Brief
   context is read too.
+
+## Repository Owner Examples
+
+- Use `hynk-studio/augnes` for new copyable examples, placeholders, templates,
+  and future Codex handoff instructions.
+- Treat `Aurna-code/augnes` as a historical/migration-era reference unless a
+  task explicitly scopes updating a legacy fixture, report, or evidence record.
+- Do not rewrite historical PR, issue, screenshot, dogfood, or evidence refs as
+  if they originally targeted the current canonical owner.
 
 ## Authority Boundaries
 
