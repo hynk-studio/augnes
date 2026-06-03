@@ -10,44 +10,48 @@ import {
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
-const boundaryDoc = "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
-const routePlanningDoc = "docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md";
+const routeDoc = "docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md";
+const surfaceDoc =
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
-const smokeFile =
+const smokeFile = "scripts/smoke-readonly-api-route-planning-boundary.mjs";
+const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
-const routePlanningSmokeFile =
-  "scripts/smoke-readonly-api-route-planning-boundary.mjs";
 
-const inspectedFiles = [boundaryDoc, indexDoc, packageJsonFile, smokeFile];
-const allowedChangedFiles = new Set([
-  ...inspectedFiles,
-  routePlanningDoc,
-  routePlanningSmokeFile,
-]);
+const inspectedFiles = [
+  routeDoc,
+  surfaceDoc,
+  indexDoc,
+  packageJsonFile,
+  smokeFile,
+];
+
+const allowedChangedFiles = new Set([...inspectedFiles, surfaceSmokeFile]);
 
 const requiredSections = [
   "Status and scope",
   "Purpose",
-  "Surface model",
-  "User-facing read-only capabilities",
-  "Project Constellation rendering expectations",
-  "Perspective Capsule rendering expectations",
-  "Evidence pointers and unresolved tensions",
-  "Boundary / Next review",
-  "Copyable handoff expectations",
-  "MCP/App tool non-goals",
-  "Authority boundaries",
-  "Future implementation gates",
+  "Relationship to ChatGPT App/MCP read-only surface",
+  "Candidate read-only route families",
+  "Allowed response concepts",
+  "Forbidden response concepts",
+  "Evidence pointer semantics",
+  "Perspective Capsule semantics",
+  "Project Constellation semantics",
+  "Auth/security gates",
+  "Browser/computer-use gates",
+  "Implementation gates",
   "Validation and smoke plan",
   "Non-goals",
 ];
 
-const readOnlySurfaceTerms = [
+const readOnlyRouteConcepts = [
   "planning only",
-  "user-facing decision support",
-  "Whole Perspective",
-  "Project Constellation",
+  "No API route is implemented in this PR",
+  "GET/read-only",
+  "Whole Perspective summary",
+  "Project Constellation read model",
   "nodes",
   "edges",
   "clusters",
@@ -57,82 +61,91 @@ const readOnlySurfaceTerms = [
   "Perspective Capsule / Handoff Capsule preview",
   "copyable handoff text",
   "boundary / next review",
-  "manual and read-only",
 ];
 
-const requiredNonGoals = [
-  "no ChatGPT App tool implementation",
-  "no MCP tool implementation",
+const forbiddenResponseConcepts = [
+  "secrets",
+  "raw private user text beyond scoped Augnes records",
+  "hidden reasoning / chain-of-thought",
+  "raw DB rows",
+  "credentials/auth/env",
+  "proof/evidence write handles",
+  "mutation URLs",
+  "approval/publish/merge controls",
+  "Codex SDK execution handles",
+  "provider credentials",
+];
+
+const implementationGates = [
+  "API route PR",
+  "auth/security review",
+  "privacy review",
+  "prompt-injection review",
+  "browser/computer-use validation if surfaced in UI",
+  "authority matrix update",
+  "smoke and test coverage",
+];
+
+const authorityBoundaryPhrases = [
+  "does not implement any API route",
+  "no API route implementation",
   "no runtime behavior",
   "no UI code",
-  "no API routes",
+  "no ChatGPT App tool implementation",
+  "no MCP tool implementation",
   "no DB schema/migrations",
   "no graph DB",
   "no persistence",
   "no proof/evidence writes",
   "no AG Resume behavior",
   "no Codex SDK execution/provider behavior",
-  "no GitHub/OpenAI/Augnes runtime calls",
-  "no network calls",
-  "no write tools",
-  "no proof/evidence/readiness records",
+  "no auth implementation",
+  "no external calls",
   "no branch creation authority",
   "no PR creation authority by itself",
   "no merge/publish/approval/retry/replay/deploy authority",
-];
-
-const authorityBoundaryPhrases = [
-  "must not write Augnes state",
-  "must not create proof/evidence/readiness records",
-  "must not execute Codex",
-  "must not create branches or PRs",
-  "must not approve, publish, merge, retry, replay, or deploy",
-  "no Augnes state writes",
-  "no source-of-truth claim",
-  "read-only API route",
-  "ChatGPT App component",
-  "MCP read-only tool",
-  "auth/security review",
-  "browser/computer-use validation",
-  "authority matrix update",
+  "must not become graph DB",
+  "must not launch handoff execution",
 ];
 
 const forbiddenPositiveAuthoritySelfTests = [
-  "A future read-only ChatGPT App may create PRs.",
-  "A future read-only MCP surface may execute Codex.",
-  "A planning-only ChatGPT App may publish outcomes.",
-  "A future MCP tool is allowed to write Augnes state.",
+  "A future read-only API route may create proof records.",
+  "A future GET route may execute Codex.",
+  "A read-only route is allowed to expose credentials.",
+  "A planning-only route may approve merges.",
 ];
 
 const allowedBoundarySelfTests = [
-  "This planning note does not create PR authority.",
-  "The surface must not execute Codex.",
-  "Future implementation requires separate gates before any tool surface exists.",
-  "Read-only rendering is decision support only and does not write Augnes state.",
+  "This planning note does not implement API routes.",
+  "A future API route requires separate auth/security review.",
+  "Read-only route planning does not write Augnes state.",
+  "GET/read-only routes still require privacy review before implementation.",
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
-const boundaryDocText = textByFile.get(boundaryDoc);
+const routeDocText = textByFile.get(routeDoc);
 
 assertPackageJsonScript();
 assertSmokeScriptBoundary();
 assertRequiredSections();
 assertAuthorityClassifierSelfTests();
 assertRequiredContent();
+assertSurfaceDocPointer();
 assertIndexPointer();
 const changedFilesBoundary = assertChangedFilesBoundary();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "chatgpt-app-mcp-readonly-surface-boundary",
+      smoke: "readonly-api-route-planning-boundary",
       pass: true,
       boundary_smoke_mode: changedFilesBoundary.mode,
-      docs_checked: [boundaryDoc, indexDoc],
+      docs_checked: [routeDoc, surfaceDoc, indexDoc],
       package_script_checked: true,
       required_sections_checked: requiredSections.length,
-      read_only_surface_terms_checked: readOnlySurfaceTerms.length,
-      non_goals_checked: requiredNonGoals.length,
+      read_only_route_concepts_checked: readOnlyRouteConcepts.length,
+      forbidden_response_concepts_checked: forbiddenResponseConcepts.length,
+      implementation_gates_checked: implementationGates.length,
       authority_boundary_phrases_checked: authorityBoundaryPhrases.length,
       forbidden_positive_authority_self_tests_checked:
         forbiddenPositiveAuthoritySelfTests.length,
@@ -151,15 +164,17 @@ console.log(
       untracked_files_skipped: changedFilesBoundary.untracked_skipped,
       untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       untracked_files_observed: changedFilesBoundary.untracked_files,
-      smoke_type: "static-docs-package-pointer-planning-boundary-only",
+      smoke_type: "static-docs-package-pointer-api-route-planning-boundary-only",
+      api_route_implemented: false,
       runtime_behavior_changed: false,
       ui_behavior_changed: false,
-      api_route_behavior_changed: false,
       db_schema_migration_changed: false,
       mcp_app_tool_changes_added: false,
       proof_evidence_writes_added: false,
       ag_resume_behavior_added: false,
       codex_sdk_execution_added: false,
+      auth_implementation_added: false,
+      external_calls_added: false,
       branch_pr_creation_authority_added: false,
       merge_publish_authority_added: false,
     },
@@ -167,14 +182,13 @@ console.log(
     2,
   ),
 );
-console.log("PASS smoke:chatgpt-app-mcp-readonly-surface-boundary");
+console.log("PASS smoke:readonly-api-route-planning-boundary");
 
 function assertPackageJsonScript() {
   assertPackageScript({
     packageJsonText: textByFile.get(packageJsonFile),
-    scriptName: "smoke:chatgpt-app-mcp-readonly-surface-boundary",
-    expectedCommand:
-      "node scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs",
+    scriptName: "smoke:readonly-api-route-planning-boundary",
+    expectedCommand: "node scripts/smoke-readonly-api-route-planning-boundary.mjs",
   });
 }
 
@@ -206,8 +220,8 @@ function assertRequiredSections() {
   for (const section of requiredSections) {
     const headingPattern = new RegExp(`^##\\s+${escapeRegExp(section)}\\s*$`, "m");
     assert(
-      headingPattern.test(boundaryDocText),
-      `${boundaryDoc} must contain section: ${section}`,
+      headingPattern.test(routeDocText),
+      `${routeDoc} must contain section: ${section}`,
     );
   }
 }
@@ -231,39 +245,49 @@ function assertAuthorityClassifierSelfTests() {
 }
 
 function assertRequiredContent() {
-  assertContainsAll(boundaryDoc, [
-    ...readOnlySurfaceTerms,
-    ...requiredNonGoals,
+  assertContainsAll(routeDoc, [
+    ...readOnlyRouteConcepts,
+    ...forbiddenResponseConcepts,
+    ...implementationGates,
     ...authorityBoundaryPhrases,
-    "ChatGPT App/MCP surface",
-    "read-only user-facing decision support",
-    "must not write Augnes state",
-    "must not create proof/evidence/readiness records",
-    "must not execute Codex",
-    "must not create branches or PRs",
-    "must not approve, publish, merge, retry, replay, or deploy",
-    "future implementation requires separate gates",
-    routePlanningDoc,
-    "future read-only API route planning",
-    "No route, tool, component, or runtime endpoint is implemented",
-    "npm run smoke:chatgpt-app-mcp-readonly-surface-boundary",
+    "Evidence pointers are pointers only",
+    "do not create proof/evidence/readiness records",
+    "Perspective Capsule / Handoff Capsule route material remains conceptual and non-authoritative",
+    "must not launch handoff execution",
+    "Project Constellation route material remains read-only",
+    "must not become graph DB",
+    "must not expose credentials/auth/env",
+    "Future implementation must be GET/read-only only unless separately scoped.",
+    "Even GET/read-only routes need auth/security/privacy boundaries",
+    "npm run smoke:readonly-api-route-planning-boundary",
     "AUGNES_BOUNDARY_SMOKE_MODE=content-only",
   ], { textByFile });
-  assertNoForbiddenPositiveClauses(boundaryDoc, boundaryDocText);
+  assertNoForbiddenPositiveClauses(routeDoc, routeDocText);
+}
+
+function assertSurfaceDocPointer() {
+  assertContainsAll(surfaceDoc, [
+    routeDoc,
+    "future read-only API route planning",
+    "No route, tool, component, or runtime endpoint is implemented",
+  ], { textByFile });
+  assertNoForbiddenPositiveClauses(surfaceDoc, textByFile.get(surfaceDoc));
 }
 
 function assertIndexPointer() {
   assertContainsAll(indexDoc, [
-    boundaryDoc,
-    "ChatGPT App/MCP read-only surface boundary",
-    "smoke:chatgpt-app-mcp-readonly-surface-boundary",
+    routeDoc,
+    "read-only API route planning boundary",
+    "smoke:readonly-api-route-planning-boundary",
     "docs/smoke/package-pointer only",
-    "read-only",
-    "non-authoritative",
-    "no ChatGPT App tool implementation",
-    "no MCP tool implementation",
+    "non-SSOT",
+    "no API route",
     "no runtime behavior",
-    "no UI/API/DB/MCP/App/proof/evidence/Codex SDK authority",
+    "no UI",
+    "no DB",
+    "no MCP/App tool",
+    "no proof/evidence write",
+    "no Codex SDK execution",
   ], { textByFile });
   assertNoForbiddenPositiveClauses(indexDoc, textByFile.get(indexDoc));
 }
@@ -271,7 +295,7 @@ function assertIndexPointer() {
 function assertChangedFilesBoundary() {
   const result = assertChangedFilesWithin({
     allowedChangedFiles,
-    label: "ChatGPT App/MCP read-only surface boundary smoke",
+    label: "read-only API route planning boundary smoke",
   });
   const untrackedFiles = collectUntrackedFiles();
   const contentOnly = result.mode === "content-only";
@@ -280,7 +304,7 @@ function assertChangedFilesBoundary() {
     for (const file of untrackedFiles) {
       assert(
         allowedChangedFiles.has(file),
-        `Unexpected untracked file for ChatGPT App/MCP read-only surface boundary smoke: ${file}`,
+        `Unexpected untracked file for read-only API route planning boundary smoke: ${file}`,
       );
     }
   }
@@ -328,7 +352,7 @@ function assertNoForbiddenChangedPaths(files) {
   for (const file of files) {
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
-      `Forbidden changed file for ChatGPT App/MCP read-only surface boundary smoke: ${file}`,
+      `Forbidden changed file for read-only API route planning boundary smoke: ${file}`,
     );
   }
 }
@@ -350,8 +374,8 @@ function assertNoForbiddenPositiveClauses(file, text) {
 
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
-    /\b(ChatGPT App|MCP|surface|tool|Augnes|Codex|PR)\b.{0,120}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?)\b.{0,160}\b(write Augnes state|create proof|create evidence|create readiness|execute Codex|create branches?|open PRs?|create PRs?|approve|publish|merge|retry|replay|deploy|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?)\b/i,
-    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?)\b.{0,160}\b(runtime behavior|UI code|API routes?|DB schema|migrations?|graph DB|persistence|MCP\/App tools?|ChatGPT App tools?|MCP tools?|proof\/evidence writes?|proof writes?|evidence writes?|AG Resume behavior|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|Project Constellation runtime behavior)\b/i,
+    /\b(API route|GET route|read-only route|route|endpoint|Augnes|Codex|PR)\b.{0,120}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?)\b.{0,160}\b(create proof|create evidence|create readiness|execute Codex|expose credentials|write Augnes state|create branches?|open PRs?|create PRs?|approve merges?|approve|publish|merge|retry|replay|deploy|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?)\b/i,
+    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|exposes?)\b.{0,160}\b(runtime behavior|UI code|API routes?|route files?|DB schema|migrations?|graph DB|persistence|MCP\/App tools?|ChatGPT App tools?|MCP tools?|proof\/evidence writes?|proof writes?|evidence writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|Project Constellation runtime behavior)\b/i,
     /\b(grants?|adds?|creates?|provides?|authori[sz]es?)\b.{0,100}\b(branch creation authority|PR creation authority|merge authority|publish authority|approval authority|proof\/evidence write authority|Codex SDK execution authority|deploy authority)\b/i,
     /\b(navigator\.clipboard|@openai\/codex-sdk|api\.github\.com|api\.openai\.com|fetch\s*\(|XMLHttpRequest|gh\s+(api|pr|issue|repo))\b/i,
   ];
