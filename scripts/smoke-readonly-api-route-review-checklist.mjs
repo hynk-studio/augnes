@@ -128,6 +128,11 @@ const forbiddenPositiveAuthoritySelfTests = [
   "A read-only checklist may expose credentials.",
   "A future route checklist is allowed to create proof records.",
   "A checklist may bypass auth review.",
+  "A future route may merge without approval.",
+  "A checklist may bypass auth review without security signoff.",
+  "A read-only route may expose credentials without review.",
+  "A future API route may create proof records without evidence gate approval.",
+  "A planning checklist may deploy without authority matrix update.",
 ];
 
 const allowedBoundarySelfTests = [
@@ -135,6 +140,8 @@ const allowedBoundarySelfTests = [
   "Future implementation requires auth/security review.",
   "Read-only route checklist does not write Augnes state.",
   "Checklist-only planning requires separate route implementation PR.",
+  "No route may merge without separate approval.",
+  "No API route may expose credentials.",
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
@@ -401,7 +408,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself|absent|excluded|excludes?)\b|않|아니다|만들지 않는다/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself|absent|excluded|excludes?)\b|않|아니다|만들지 않는다/i.test(
     clause,
   );
 }
