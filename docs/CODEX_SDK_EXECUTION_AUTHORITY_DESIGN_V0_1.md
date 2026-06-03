@@ -230,8 +230,28 @@ Future type-only work may introduce names such as:
 - `CodexEvidenceLink`
 - `CodexExecutionProvider`
 
-These are proposed future names only. This PR does not create TypeScript files,
-does not add TypeScript execution types, and does not add schema/API contracts.
+These names were proposed future names in the original design-only PR. The
+original design-only PR did not create TypeScript files, did not add TypeScript
+execution types, and did not add schema/API contracts. This follow-up now
+introduces `types/codex-execution-record.ts` as a type-only boundary for this
+vocabulary.
+The boundary is not runtime schema, not DB schema, not API contract, not MCP/App
+tool contract, not proof/evidence write authority, and not source-of-truth; it
+has no live SDK call, no `@openai/codex-sdk` import, no provider
+implementation, and no runtime execution.
+
+Follow-up type boundary: `types/codex-execution-record.ts` is the type-only
+Codex execution record boundary for this vocabulary. It introduces static
+TypeScript names for execution intent, permission profile, approval record,
+execution result, evidence link, resume pointer, risk/check records, host
+provenance, and provider-boundary vocabulary, including
+`CodexExecutionProviderBoundary`. It does not add live SDK calls, does not add
+provider implementation, does not add runtime execution, does not add
+credentials/auth/env, does not add API route, does not add DB schema, does not
+add MCP/App tool, does not add proof/evidence writes, does not add AG Resume
+behavior, and does not add Project Constellation runtime behavior. `npm run
+smoke:codex-execution-record-boundary` verifies the type-only boundary,
+docs/index pointers, package pointer, and non-authority wording.
 
 ## 16. Proposed Future Provider Boundary
 

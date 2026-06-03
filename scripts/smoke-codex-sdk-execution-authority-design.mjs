@@ -10,12 +10,26 @@ import {
 } from "./smoke-boundary-common.mjs";
 
 const designDoc = "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md";
+const closeoutDoc =
+  "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
+const codexExecutionRecordTypeFile = "types/codex-execution-record.ts";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-codex-sdk-execution-authority-design.mjs";
+const codexExecutionRecordSmokeFile =
+  "scripts/smoke-codex-execution-record-boundary.mjs";
+const closeoutSmokeFile =
+  "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
 
 const inspectedFiles = [designDoc, indexDoc, packageJsonFile, smokeFile];
-const allowedChangedFiles = new Set(inspectedFiles);
+const allowedChangedFiles = new Set([
+  ...inspectedFiles,
+  closeoutDoc,
+  codexExecutionRecordTypeFile,
+  codexExecutionRecordSmokeFile,
+  closeoutSmokeFile,
+]);
+const allowedTypeOnlyBoundaryFiles = new Set([codexExecutionRecordTypeFile]);
 const textByFile = loadTextByFile(inspectedFiles);
 
 const requiredSections = [
@@ -107,6 +121,7 @@ const futureTypeNames = [
   "CodexUserApprovalRecord",
   "CodexEvidenceLink",
   "CodexExecutionProvider",
+  "CodexExecutionProviderBoundary",
 ];
 
 const futureProviderNames = [
@@ -317,11 +332,16 @@ function assertFutureBoundaries() {
   assertContainsAll(designDoc, futureTypeNames, { textByFile });
   assertContainsAll(designDoc, futureProviderNames, { textByFile });
   assertContainsAll(designDoc, [
-    "These are proposed future names only.",
+    "These names were proposed future names in the original design-only PR.",
     "These are future concepts only and are not implemented in this PR.",
-    "does not create TypeScript files",
+    "original design-only PR did not create TypeScript files",
+    "This follow-up now introduces `types/codex-execution-record.ts` as a type-only boundary",
     "does not add TypeScript execution types",
   ], { textByFile });
+  assert(
+    !/\bThis PR does not create TypeScript files\b/.test(textByFile.get(designDoc)),
+    `${designDoc} must not keep stale "This PR does not create TypeScript files" wording after adding types/codex-execution-record.ts`,
+  );
 }
 
 function assertRoadmap() {
@@ -412,7 +432,7 @@ function assertChangedFilesBoundary() {
   const allFiles = [...new Set([...result.files, ...untrackedFiles])].sort();
   if (!contentOnly) {
     assertNoForbiddenChangedPaths(allFiles);
-    assertNoTypescriptFilesAdded(allFiles);
+    assertNoUnexpectedTypescriptFilesAdded(allFiles);
   }
 
   return {
@@ -451,11 +471,12 @@ function assertNoForbiddenChangedPaths(files) {
   }
 }
 
-function assertNoTypescriptFilesAdded(files) {
+function assertNoUnexpectedTypescriptFilesAdded(files) {
   for (const file of files) {
+    if (!/\.(ts|tsx)$/.test(file)) continue;
     assert(
-      !/\.(ts|tsx)$/.test(file),
-      `This PR must not add TypeScript execution types or runtime files: ${file}`,
+      allowedTypeOnlyBoundaryFiles.has(file),
+      `Unexpected TypeScript file for Codex SDK execution authority design smoke: ${file}`,
     );
   }
 }

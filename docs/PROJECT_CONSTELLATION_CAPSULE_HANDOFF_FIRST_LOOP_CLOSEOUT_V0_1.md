@@ -293,6 +293,14 @@ does not add UI behavior, does not add graph DB, does not add persistence, does
 not add API routes, does not add MCP/App tools, does not add proof/evidence
 writes, and does not add Codex SDK execution/provider behavior.
 
+Follow-up note: candidate B type-only Codex execution record boundary is now
+being introduced in `types/codex-execution-record.ts` with
+`smoke:codex-execution-record-boundary`. This follow-up remains
+type-only/docs/smoke/package-pointer only. It does not add live Codex SDK calls,
+does not add provider implementation, does not add runtime execution, does not
+add API routes, does not add DB schema, does not add MCP/App tools, does not add
+proof/evidence writes, and does not add AG Resume behavior.
+
 ## Non-goals
 
 This closeout does not implement runtime behavior, UI behavior, API routes, DB

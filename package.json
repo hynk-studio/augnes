@@ -133,6 +133,7 @@
     "smoke:capsule-handoff-skill-dogfood-report": "node scripts/smoke-capsule-handoff-skill-dogfood-report.mjs",
     "smoke:project-constellation-capsule-handoff-first-loop-closeout": "node scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs",
     "smoke:project-constellation-fixture-schema-boundary": "node scripts/smoke-project-constellation-fixture-schema-boundary.mjs",
+    "smoke:codex-execution-record-boundary": "node scripts/smoke-codex-execution-record-boundary.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",
     "smoke:chatgpt-work-contract-card": "node scripts/smoke-chatgpt-work-contract-card.mjs",

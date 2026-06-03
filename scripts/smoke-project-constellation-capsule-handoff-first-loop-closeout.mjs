@@ -14,12 +14,19 @@ const closeoutDoc =
   "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
 const projectDoc = "docs/PROJECT_CONSTELLATION_IA_V0_1.md";
 const typeBoundaryFile = "types/project-constellation-fixture.ts";
+const codexExecutionDesignDoc =
+  "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md";
+const codexExecutionRecordTypeFile = "types/codex-execution-record.ts";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
 const fixtureSchemaBoundarySmokeFile =
   "scripts/smoke-project-constellation-fixture-schema-boundary.mjs";
+const codexExecutionRecordSmokeFile =
+  "scripts/smoke-codex-execution-record-boundary.mjs";
+const codexExecutionDesignSmokeFile =
+  "scripts/smoke-codex-sdk-execution-authority-design.mjs";
 const boundaryCommonFile = "scripts/smoke-boundary-common.mjs";
 const capsuleHandoffSkillSmokeFile =
   "scripts/smoke-augnes-capsule-handoff-skill.mjs";
@@ -31,7 +38,11 @@ const allowedChangedFiles = new Set([
   ...inspectedFiles,
   projectDoc,
   typeBoundaryFile,
+  codexExecutionDesignDoc,
+  codexExecutionRecordTypeFile,
   fixtureSchemaBoundarySmokeFile,
+  codexExecutionRecordSmokeFile,
+  codexExecutionDesignSmokeFile,
   boundaryCommonFile,
   capsuleHandoffSkillSmokeFile,
   capsuleHandoffDogfoodSmokeFile,
