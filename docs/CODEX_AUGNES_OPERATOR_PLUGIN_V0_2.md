@@ -126,10 +126,20 @@ Validation for this docs/metadata/skill/smoke/package-pointer PR should include:
 npm run typecheck
 npm run smoke:augnes-operator-plugin-scaffold
 npm run smoke:augnes-operator-plugin-v2
-npm run smoke:project-constellation-ia-boundaries
 git diff --check
 git diff --cached --check
 ```
+
+Supplemental Project Constellation content guard:
+
+- The exact `npm run smoke:project-constellation-ia-boundaries` command is not
+  a required check for this plugin PR because that smoke currently includes a
+  PR #359-specific changed-file allowlist.
+- `AUGNES_CHANGED_FILES_BASE_REF=HEAD npm run smoke:project-constellation-ia-boundaries`
+  may be used as a supplemental content-only diagnostic to confirm Project
+  Constellation IA content remains intact, but it is not a substitute for
+  generalizing that smoke's changed-file mode.
+- Future work may add a cross-PR regression mode for boundary smokes.
 
 Browser/computer-use may be skipped because this PR is
 docs/metadata/skill/smoke/package-pointer only and does not touch UI, runtime,
