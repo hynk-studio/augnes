@@ -142,6 +142,217 @@ export function assertChangedFilesWithin({ allowedChangedFiles, label }) {
   };
 }
 
+const projectConstellationForbiddenPathPatterns = [
+  /^AGENTS\.md$/,
+  /^app\/api\//,
+  /^app\/.*route\.(ts|tsx|js|jsx)$/,
+  /^db\//,
+  /^migrations\//,
+  /^apps\/augnes_apps\//,
+  /(^|\/)(mcp|plugin|plugins|tool|tools|hook|hooks|mapping|mappings)(\/|$)/i,
+  /(^|\/)(secret|secrets|env)(\/|$)/i,
+  /(^|\/)\.env/i,
+  /(^|\/)(ag-work-resume|ag_resume|ag-resume)(\/|$)/i,
+  /(^|\/)(proof|evidence)(\/|$)/i,
+  /(^|\/)(sidecar-runtime|sidecar_et_runtime|sidecar-et-runtime|runtime-sidecar)(\/|$)/i,
+  /(^|\/)(codex-sdk|codex_sdk|provider|providers)(\/|$)/i,
+  /(^|\/)(graph-db|graph_db|persistence)(\/|$)/i,
+];
+
+export function defineBoundarySmokeScopeProfile({
+  name,
+  ownedFiles = [],
+  adjacentDocsFiles = [],
+  adjacentFixtureFiles = [],
+  adjacentCockpitFiles = [],
+  adjacentSmokeFiles = [],
+  browserReportFiles = [],
+  browserReportFilePatterns = [],
+  packageJsonFile = "package.json",
+  forbiddenPathPatterns = [],
+}) {
+  assert(name, "Boundary smoke scope profile must include a name");
+  const exactAllowedFiles = uniqueSorted([
+    packageJsonFile,
+    ...ownedFiles,
+    ...adjacentDocsFiles,
+    ...adjacentFixtureFiles,
+    ...adjacentCockpitFiles,
+    ...adjacentSmokeFiles,
+    ...browserReportFiles,
+  ]);
+  const profile = {
+    name,
+    exactAllowedFiles,
+    allowedChangedFiles: new Set(exactAllowedFiles),
+    allowedPathPatterns: browserReportFilePatterns.map(toBoundaryPathPattern),
+    forbiddenPathPatterns: [
+      ...projectConstellationForbiddenPathPatterns,
+      ...forbiddenPathPatterns,
+    ],
+  };
+
+  assertNoForbiddenBoundaryProfilePaths({
+    files: exactAllowedFiles,
+    profile,
+    label: `${name} profile definition`,
+  });
+
+  return profile;
+}
+
+export function getProjectConstellationBoundaryScopeProfile({
+  ownedFiles = [],
+} = {}) {
+  return defineBoundarySmokeScopeProfile({
+    name: "project_constellation_boundary_scope_v0_1",
+    ownedFiles,
+    adjacentDocsFiles: [
+      "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+      "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+      "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md",
+      "docs/00_INDEX_LATEST.md",
+    ],
+    adjacentFixtureFiles: [
+      "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
+    ],
+    adjacentCockpitFiles: ["components/augnes-cockpit.tsx"],
+    adjacentSmokeFiles: [
+      "scripts/smoke-boundary-common.mjs",
+      "scripts/smoke-project-constellation-ia-boundaries.mjs",
+      "scripts/smoke-project-constellation-sample-fixture.mjs",
+      "scripts/smoke-project-constellation-cockpit-preview.mjs",
+      "scripts/smoke-perspective-capsule-copyable-handoff-preview.mjs",
+      "scripts/smoke-perspective-capsule-contract.mjs",
+      "scripts/smoke-codex-sdk-execution-authority-design.mjs",
+    ],
+    browserReportFilePatterns: [
+      "reports/browser/*project-constellation*.md",
+      "reports/browser/*perspective-capsule*.md",
+    ],
+  });
+}
+
+export function assertChangedFilesWithinBoundaryProfile({ profile, label }) {
+  assert(profile?.name, "Boundary smoke scope profile is required");
+  const workingTree = collectGitDiffFiles(["diff", "--name-only", "HEAD"]);
+  const baseRange = getBaseRangeChangedFiles();
+  const changedFiles = uniqueSorted([...workingTree.files, ...baseRange.files]);
+  const untrackedFiles = collectUntrackedFiles();
+  const files = uniqueSorted([...changedFiles, ...untrackedFiles]);
+  const mode = getBoundarySmokeMode();
+  const contentOnly = mode === "content-only";
+
+  if (contentOnly) {
+    return {
+      profile_name: profile.name,
+      mode,
+      checked: false,
+      skipped: true,
+      skip_reason:
+        "changed-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only",
+      files,
+      working_tree_files: workingTree.files,
+      working_tree_checked: workingTree.checked,
+      working_tree_skipped: workingTree.skipped,
+      base_ref: baseRange.base_ref,
+      base_range_files: baseRange.files,
+      base_range_checked: baseRange.checked,
+      base_range_skipped: baseRange.skipped,
+      untracked_checked: false,
+      untracked_skipped: true,
+      untracked_skip_reason:
+        "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only",
+      untracked_files: untrackedFiles,
+    };
+  }
+
+  for (const file of changedFiles) {
+    assertBoundaryProfileAllowsFile({
+      file,
+      profile,
+      message: `Unexpected changed file for ${label}: ${file}`,
+    });
+  }
+
+  for (const file of untrackedFiles) {
+    assertBoundaryProfileAllowsFile({
+      file,
+      profile,
+      message: `Unexpected untracked file for ${label}: ${file}`,
+    });
+  }
+
+  assertNoForbiddenBoundaryProfilePaths({ files, profile, label });
+
+  const checked = workingTree.checked || baseRange.checked;
+
+  return {
+    profile_name: profile.name,
+    mode,
+    checked,
+    skipped: !checked,
+    skip_reason: checked ? null : "changed-file boundary could not be checked",
+    files,
+    working_tree_files: workingTree.files,
+    working_tree_checked: workingTree.checked,
+    working_tree_skipped: workingTree.skipped,
+    base_ref: baseRange.base_ref,
+    base_range_files: baseRange.files,
+    base_range_checked: baseRange.checked,
+    base_range_skipped: baseRange.skipped,
+    untracked_checked: true,
+    untracked_skipped: false,
+    untracked_skip_reason: null,
+    untracked_files: untrackedFiles,
+  };
+}
+
+export function collectUntrackedFiles() {
+  try {
+    const output = execFileSync(
+      "git",
+      ["ls-files", "--others", "--exclude-standard"],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    return uniqueSorted(parseGitFileList(output));
+  } catch {
+    return [];
+  }
+}
+
+function assertBoundaryProfileAllowsFile({ file, profile, message }) {
+  assert(
+    profile.allowedChangedFiles.has(file) ||
+      profile.allowedPathPatterns.some((pattern) => pattern.test(file)),
+    message,
+  );
+}
+
+function assertNoForbiddenBoundaryProfilePaths({ files, profile, label }) {
+  for (const file of files) {
+    for (const pattern of profile.forbiddenPathPatterns) {
+      assert(
+        !pattern.test(file),
+        `Forbidden changed path for ${label}: ${file}`,
+      );
+    }
+  }
+}
+
+function toBoundaryPathPattern(pattern) {
+  if (pattern instanceof RegExp) return pattern;
+  const source = String(pattern)
+    .split("*")
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[^/]*");
+  return new RegExp(`^${source}$`);
+}
+
 export function collectGitDiffFiles(args) {
   try {
     const output = execFileSync("git", args, {

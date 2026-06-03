@@ -168,6 +168,14 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   live SDK call, no provider implementation, no runtime execution, no
   proof/evidence write, no graph DB, no persistence, and no AG Resume
   writer/helper/route behavior를 정적으로 확인한다.
+- `scripts/smoke-boundary-common.mjs`: Project Constellation boundary smokes
+  share `project_constellation_boundary_scope_v0_1` scope profile semantics.
+  The profile keeps scoped mode as the strict direct-edit gate while explicitly
+  allowing only bounded adjacent docs, fixture, smoke, read-only Cockpit preview,
+  browser-report, and package-pointer surfaces. It does not add runtime
+  behavior, UI action behavior, API/DB/MCP/App tools, graph DB, persistence,
+  proof/evidence writes, AG Resume behavior, Codex SDK provider behavior, or
+  execution authority.
 - `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
   포인터를 둔다.
 - `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only
@@ -199,7 +207,8 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
 - Boundary smokes support explicit cross-PR content-only diagnostics with
   `AUGNES_BOUNDARY_SMOKE_MODE=content-only`. This mode is non-SSOT,
   read-only, and non-authoritative; it skips changed-file allowlists only by
-  explicit opt-in and does not replace scoped validation for direct edits.
+  explicit opt-in and does not replace scoped profile validation for direct
+  edits.
 
 Boundary 요약:
 

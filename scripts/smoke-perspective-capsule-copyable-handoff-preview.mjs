@@ -1,14 +1,11 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import {
-  assertChangedFilesWithin,
+  assertChangedFilesWithinBoundaryProfile,
   assertContainsAll,
   assertPackageScript,
-  getBoundarySmokeMode,
+  getProjectConstellationBoundaryScopeProfile,
   loadTextByFile,
   normalizeText,
-  repoRoot,
-  uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
 const cockpitFile = "components/augnes-cockpit.tsx";
@@ -32,16 +29,9 @@ const inspectedFiles = [
   indexDoc,
 ];
 
-const allowedChangedFiles = new Set([
-  cockpitFile,
-  smokeFile,
-  cockpitPreviewSmokeFile,
-  packageJsonFile,
-  capsuleDoc,
-  projectDoc,
-  indexDoc,
-  browserReportFile,
-]);
+const boundaryScopeProfile = getProjectConstellationBoundaryScopeProfile({
+  ownedFiles: [browserReportFile],
+});
 
 const textByFile = loadTextByFile(inspectedFiles);
 const cockpit = textByFile.get(cockpitFile);
@@ -95,6 +85,7 @@ console.log(
       readonly_selectable_surface_checked: true,
       content_checks_preserved: true,
       forbidden_action_controls_checked: true,
+      boundary_profile_name: changedFilesBoundary.profile_name,
       boundary_smoke_mode: changedFilesBoundary.mode,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
@@ -320,83 +311,10 @@ function assertDocPointers() {
 }
 
 function assertChangedFilesBoundary() {
-  const boundary = assertChangedFilesWithin({
-    allowedChangedFiles,
+  return assertChangedFilesWithinBoundaryProfile({
+    profile: boundaryScopeProfile,
     label: "Perspective Capsule copyable handoff preview smoke",
   });
-  const untrackedFiles = collectUntrackedFiles();
-  const mode = getBoundarySmokeMode();
-  const contentOnly = mode === "content-only";
-
-  if (!contentOnly) {
-    for (const file of untrackedFiles) {
-      assert(
-        allowedChangedFiles.has(file),
-        `Unexpected untracked file for Perspective Capsule copyable handoff preview smoke: ${file}`,
-      );
-    }
-  }
-
-  const files = uniqueSorted([...boundary.files, ...untrackedFiles]);
-  if (!contentOnly) {
-    assertNoForbiddenChangedPaths(files);
-  }
-
-  return {
-    ...boundary,
-    files,
-    untracked_checked: !contentOnly,
-    untracked_skipped: contentOnly,
-    untracked_skip_reason: contentOnly
-      ? "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only"
-      : null,
-    untracked_files: untrackedFiles,
-  };
-}
-
-function assertNoForbiddenChangedPaths(files) {
-  const forbiddenPatterns = [
-    /^AGENTS\.md$/,
-    /^db\//,
-    /^migrations\//,
-    /^app\/api\//,
-    /^app\/.*route\.(ts|tsx|js|jsx)$/,
-    /^apps\/augnes_apps\//,
-    /(^|\/)(mcp|plugin|plugins|tool|tools|hook|hooks|mapping|mappings)(\/|$)/i,
-    /(^|\/)(secret|secrets|env)(\/|$)/i,
-    /(^|\/)(ag-work-resume|ag_resume|proof|evidence|sidecar|codex-sdk|provider|graph|persistence)/i,
-  ];
-
-  for (const file of files) {
-    for (const pattern of forbiddenPatterns) {
-      assert(
-        !pattern.test(file),
-        `Forbidden changed path for Perspective Capsule copyable handoff preview smoke: ${file}`,
-      );
-    }
-  }
-}
-
-function collectUntrackedFiles() {
-  try {
-    const output = execFileSync(
-      "git",
-      ["ls-files", "--others", "--exclude-standard"],
-      {
-        cwd: repoRoot,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
-    return uniqueSorted(
-      output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean),
-    );
-  } catch {
-    return [];
-  }
 }
 
 function assertContainsAllCaseInsensitive(text, requiredPhrases, label) {

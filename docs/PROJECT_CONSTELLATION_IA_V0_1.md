@@ -645,6 +645,18 @@ replace scoped changed-file validation for direct edits and does not grant
 runtime, UI, API, schema, MCP/App tool, persistence, proof/evidence, or agent
 execution authority.
 
+Project Constellation boundary smokes use shared boundary scope profile
+semantics from `scripts/smoke-boundary-common.mjs`. The
+`project_constellation_boundary_scope_v0_1` profile explicitly enumerates
+owned files, adjacent docs, adjacent smoke files, the sample fixture, the
+read-only Cockpit preview file, bounded browser report patterns, and the
+`package.json` smoke pointer surface. Scoped mode remains the direct-edit gate
+and still fails closed on unrelated files. Content-only mode remains an
+explicit cross-PR diagnostic. Scope profiles reduce ad hoc per-PR allowlist
+updates, but they do not grant runtime, UI action, API, DB, MCP/App tool,
+graph, persistence, proof/evidence, AG Resume, Codex SDK provider, or
+execution authority.
+
 Browser/computer-use may be skipped for this docs/smoke/package-pointer PR
 because the only `package.json` change is a static documentation-boundary smoke
 script pointer. This PR does not touch UI, runtime, API, schema, fixture,
