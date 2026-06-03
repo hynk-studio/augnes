@@ -90,12 +90,27 @@ const authorityBoundaryPhrases = [
   "authority matrix update",
 ];
 
+const forbiddenPositiveAuthoritySelfTests = [
+  "A future read-only ChatGPT App may create PRs.",
+  "A future read-only MCP surface may execute Codex.",
+  "A planning-only ChatGPT App may publish outcomes.",
+  "A future MCP tool is allowed to write Augnes state.",
+];
+
+const allowedBoundarySelfTests = [
+  "This planning note does not create PR authority.",
+  "The surface must not execute Codex.",
+  "Future implementation requires separate gates before any tool surface exists.",
+  "Read-only rendering is decision support only and does not write Augnes state.",
+];
+
 const textByFile = loadTextByFile(inspectedFiles);
 const boundaryDocText = textByFile.get(boundaryDoc);
 
 assertPackageJsonScript();
 assertSmokeScriptBoundary();
 assertRequiredSections();
+assertAuthorityClassifierSelfTests();
 assertRequiredContent();
 assertIndexPointer();
 const changedFilesBoundary = assertChangedFilesBoundary();
@@ -112,6 +127,9 @@ console.log(
       read_only_surface_terms_checked: readOnlySurfaceTerms.length,
       non_goals_checked: requiredNonGoals.length,
       authority_boundary_phrases_checked: authorityBoundaryPhrases.length,
+      forbidden_positive_authority_self_tests_checked:
+        forbiddenPositiveAuthoritySelfTests.length,
+      allowed_boundary_self_tests_checked: allowedBoundarySelfTests.length,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
       changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
@@ -183,6 +201,24 @@ function assertRequiredSections() {
     assert(
       headingPattern.test(boundaryDocText),
       `${boundaryDoc} must contain section: ${section}`,
+    );
+  }
+}
+
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
     );
   }
 }
@@ -315,7 +351,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself|read-only|planning only|non-goals|separate gates|future)\b|않|아니다|만들지 않는다/i.test(
+  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself)\b|않|아니다|만들지 않는다/i.test(
     clause,
   );
 }
