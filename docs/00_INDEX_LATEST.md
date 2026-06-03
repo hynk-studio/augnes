@@ -249,6 +249,17 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   profile/status literals, conceptual fields, evidence pointer semantics,
   docs/index pointers, package pointer, and type-only non-authority wording을
   정적으로 확인한다.
+- `docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md`: ChatGPT App/MCP
+  read-only surface boundary planning note다. It describes future user-facing
+  decision support for Whole Perspective, Project Constellation, Perspective
+  Capsule / Handoff Capsule preview, evidence pointers, unresolved tensions,
+  boundary / next review, and copyable handoff text. It is
+  docs/smoke/package-pointer only, read-only, and non-authoritative, with no
+  ChatGPT App tool implementation, no MCP tool implementation, no runtime
+  behavior, and no UI/API/DB/MCP/App/proof/evidence/Codex SDK authority. `npm run
+  smoke:chatgpt-app-mcp-readonly-surface-boundary`는 planning sections,
+  read-only surface terms, authority boundaries, package/index pointers, scoped
+  and content-only boundary behavior, and non-goal wording을 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
