@@ -10,21 +10,19 @@ import {
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
-const routeDoc = "docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md";
 const checklistDoc = "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
-const surfaceDoc =
-  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
+const planningDoc = "docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
-const smokeFile = "scripts/smoke-readonly-api-route-planning-boundary.mjs";
-const checklistSmokeFile =
-  "scripts/smoke-readonly-api-route-review-checklist.mjs";
+const smokeFile = "scripts/smoke-readonly-api-route-review-checklist.mjs";
+const planningSmokeFile =
+  "scripts/smoke-readonly-api-route-planning-boundary.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 
 const inspectedFiles = [
-  routeDoc,
-  surfaceDoc,
+  checklistDoc,
+  planningDoc,
   indexDoc,
   packageJsonFile,
   smokeFile,
@@ -32,66 +30,76 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
-  checklistDoc,
-  checklistSmokeFile,
+  planningSmokeFile,
   surfaceSmokeFile,
 ]);
 
 const requiredSections = [
   "Status and scope",
   "Purpose",
-  "Relationship to ChatGPT App/MCP read-only surface",
-  "Candidate read-only route families",
-  "Allowed response concepts",
-  "Forbidden response concepts",
-  "Evidence pointer semantics",
-  "Perspective Capsule semantics",
-  "Project Constellation semantics",
-  "Auth/security gates",
-  "Browser/computer-use gates",
-  "Implementation gates",
+  "Checklist usage",
+  "Auth and session boundary",
+  "Privacy boundary",
+  "Prompt-injection boundary",
+  "Data provenance boundary",
+  "Response minimization boundary",
+  "Evidence pointer boundary",
+  "Perspective Capsule boundary",
+  "Project Constellation boundary",
+  "Logging and telemetry boundary",
+  "Browser/computer-use validation boundary",
+  "Authority matrix boundary",
+  "Required implementation PR evidence",
   "Validation and smoke plan",
   "Non-goals",
 ];
 
-const readOnlyRouteConcepts = [
-  "planning only",
-  "No API route is implemented in this PR",
-  "GET/read-only",
-  "Whole Perspective summary",
-  "Project Constellation read model",
-  "nodes",
-  "edges",
-  "clusters",
-  "evidence pointers",
-  "unresolved tensions",
-  "next action candidates",
-  "Perspective Capsule / Handoff Capsule preview",
-  "copyable handoff text",
-  "boundary / next review",
-];
-
-const forbiddenResponseConcepts = [
-  "secrets",
-  "raw private user text beyond scoped Augnes records",
-  "hidden reasoning / chain-of-thought",
-  "raw DB rows",
-  "credentials/auth/env",
-  "proof/evidence write handles",
-  "mutation URLs",
-  "approval/publish/merge controls",
-  "Codex SDK execution handles",
-  "provider credentials",
-];
-
-const implementationGates = [
-  "API route PR",
-  "auth/security review",
-  "privacy review",
-  "prompt-injection review",
-  "browser/computer-use validation if surfaced in UI",
-  "authority matrix update",
-  "smoke and test coverage",
+const checklistConcepts = [
+  "checklist only",
+  "No route is implemented",
+  "future route implementation must answer each checklist item before merge",
+  "who can call the route",
+  "what workspace/project scope is allowed",
+  "whether user/session identity is required",
+  "how unauthorized access fails closed",
+  "no public unauthenticated endpoint",
+  "no secrets",
+  "no credentials/auth/env",
+  "no raw private user text unless explicitly scoped",
+  "no hidden reasoning/chain-of-thought",
+  "no raw DB rows",
+  "minimal response payload",
+  "no tool instructions from untrusted records are executed",
+  "evidence/capsule text is treated as display data, not instructions",
+  "route-provided text avoids granting authority",
+  "source records are identified",
+  "derived state is separated from committed state",
+  "evidence pointers are labeled as pointers",
+  "confidence/limits are visible where applicable",
+  "only fields needed for the read-only surface",
+  "no mutation URLs",
+  "no write handles",
+  "no approval/publish/merge controls",
+  "pointer-only",
+  "no proof/evidence/readiness record creation",
+  "no acceptance or readiness marking",
+  "non-authoritative",
+  "no Codex launch",
+  "no PR/branch creation",
+  "no proof/evidence write",
+  "read-only",
+  "no graph DB",
+  "no persistence",
+  "no runtime node creation",
+  "no source-of-truth",
+  "route path",
+  "auth/session design",
+  "response schema or sample",
+  "forbidden fields review",
+  "browser/computer-use report if surfaced in UI",
+  "tests/smokes run",
+  "skipped checks with reasons",
+  "authority matrix update status or skipped reason",
 ];
 
 const authorityBoundaryPhrases = [
@@ -104,56 +112,53 @@ const authorityBoundaryPhrases = [
   "no DB schema/migrations",
   "no graph DB",
   "no persistence",
+  "no auth implementation",
+  "no external calls",
   "no proof/evidence writes",
   "no AG Resume behavior",
   "no Codex SDK execution/provider behavior",
-  "no auth implementation",
-  "no external calls",
   "no branch creation authority",
   "no PR creation authority by itself",
   "no merge/publish/approval/retry/replay/deploy authority",
-  "must not become graph DB",
-  "must not launch handoff execution",
+  "does not grant authority",
 ];
 
 const forbiddenPositiveAuthoritySelfTests = [
-  "A future read-only API route may create proof records.",
-  "A future GET route may execute Codex.",
-  "A read-only route is allowed to expose credentials.",
-  "A planning-only route may approve merges.",
+  "A future checklist may approve route deployment.",
+  "A read-only checklist may expose credentials.",
+  "A future route checklist is allowed to create proof records.",
+  "A checklist may bypass auth review.",
 ];
 
 const allowedBoundarySelfTests = [
-  "This planning note does not implement API routes.",
-  "A future API route requires separate auth/security review.",
-  "Read-only route planning does not write Augnes state.",
-  "GET/read-only routes still require privacy review before implementation.",
+  "This checklist does not implement API routes.",
+  "Future implementation requires auth/security review.",
+  "Read-only route checklist does not write Augnes state.",
+  "Checklist-only planning requires separate route implementation PR.",
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
-const routeDocText = textByFile.get(routeDoc);
+const checklistDocText = textByFile.get(checklistDoc);
 
 assertPackageJsonScript();
 assertSmokeScriptBoundary();
 assertRequiredSections();
 assertAuthorityClassifierSelfTests();
 assertRequiredContent();
-assertSurfaceDocPointer();
+assertPlanningDocPointer();
 assertIndexPointer();
 const changedFilesBoundary = assertChangedFilesBoundary();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "readonly-api-route-planning-boundary",
+      smoke: "readonly-api-route-review-checklist",
       pass: true,
       boundary_smoke_mode: changedFilesBoundary.mode,
-      docs_checked: [routeDoc, surfaceDoc, indexDoc],
+      docs_checked: [checklistDoc, planningDoc, indexDoc],
       package_script_checked: true,
       required_sections_checked: requiredSections.length,
-      read_only_route_concepts_checked: readOnlyRouteConcepts.length,
-      forbidden_response_concepts_checked: forbiddenResponseConcepts.length,
-      implementation_gates_checked: implementationGates.length,
+      checklist_concepts_checked: checklistConcepts.length,
       authority_boundary_phrases_checked: authorityBoundaryPhrases.length,
       forbidden_positive_authority_self_tests_checked:
         forbiddenPositiveAuthoritySelfTests.length,
@@ -172,7 +177,7 @@ console.log(
       untracked_files_skipped: changedFilesBoundary.untracked_skipped,
       untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       untracked_files_observed: changedFilesBoundary.untracked_files,
-      smoke_type: "static-docs-package-pointer-api-route-planning-boundary-only",
+      smoke_type: "static-docs-package-pointer-api-route-review-checklist-only",
       api_route_implemented: false,
       runtime_behavior_changed: false,
       ui_behavior_changed: false,
@@ -190,13 +195,13 @@ console.log(
     2,
   ),
 );
-console.log("PASS smoke:readonly-api-route-planning-boundary");
+console.log("PASS smoke:readonly-api-route-review-checklist");
 
 function assertPackageJsonScript() {
   assertPackageScript({
     packageJsonText: textByFile.get(packageJsonFile),
-    scriptName: "smoke:readonly-api-route-planning-boundary",
-    expectedCommand: "node scripts/smoke-readonly-api-route-planning-boundary.mjs",
+    scriptName: "smoke:readonly-api-route-review-checklist",
+    expectedCommand: "node scripts/smoke-readonly-api-route-review-checklist.mjs",
   });
 }
 
@@ -228,8 +233,8 @@ function assertRequiredSections() {
   for (const section of requiredSections) {
     const headingPattern = new RegExp(`^##\\s+${escapeRegExp(section)}\\s*$`, "m");
     assert(
-      headingPattern.test(routeDocText),
-      `${routeDoc} must contain section: ${section}`,
+      headingPattern.test(checklistDocText),
+      `${checklistDoc} must contain section: ${section}`,
     );
   }
 }
@@ -253,47 +258,46 @@ function assertAuthorityClassifierSelfTests() {
 }
 
 function assertRequiredContent() {
-  assertContainsAll(routeDoc, [
-    ...readOnlyRouteConcepts,
-    ...forbiddenResponseConcepts,
-    ...implementationGates,
+  assertContainsAll(checklistDoc, [
+    ...checklistConcepts,
     ...authorityBoundaryPhrases,
-    "Evidence pointers are pointers only",
-    "do not create proof/evidence/readiness records",
-    "Perspective Capsule / Handoff Capsule route material remains conceptual and non-authoritative",
-    "must not launch handoff execution",
-    "Project Constellation route material remains read-only",
-    "must not become graph DB",
-    "must not expose credentials/auth/env",
-    "Future implementation must be GET/read-only only unless separately scoped.",
-    "Even GET/read-only routes need auth/security/privacy boundaries",
+    "auth/security/privacy/prompt-injection/provenance",
+    "future read-only API route implementation PRs must satisfy",
+    "fail-closed auth/session handling",
+    "route response must not expose secrets",
+    "Prompt-injection review",
+    "Data provenance",
+    "Response minimization",
+    "Evidence pointers are pointer-only",
+    "Perspective Capsule / Handoff Capsule material remains conceptual",
+    "Project Constellation material remains read-only",
+    "Logging and telemetry",
+    "Browser/computer-use validation",
+    "Authority matrix",
+    "npm run smoke:readonly-api-route-review-checklist",
+    "AUGNES_BOUNDARY_SMOKE_MODE=content-only",
+  ], { textByFile });
+  assertNoForbiddenPositiveClauses(checklistDoc, checklistDocText);
+}
+
+function assertPlanningDocPointer() {
+  assertContainsAll(planningDoc, [
     checklistDoc,
     "checklist is required before future route implementation",
     "No API route is implemented by the checklist or this planning boundary",
-    "npm run smoke:readonly-api-route-review-checklist",
-    "npm run smoke:readonly-api-route-planning-boundary",
-    "AUGNES_BOUNDARY_SMOKE_MODE=content-only",
+    "smoke:readonly-api-route-review-checklist",
   ], { textByFile });
-  assertNoForbiddenPositiveClauses(routeDoc, routeDocText);
-}
-
-function assertSurfaceDocPointer() {
-  assertContainsAll(surfaceDoc, [
-    routeDoc,
-    "future read-only API route planning",
-    "No route, tool, component, or runtime endpoint is implemented",
-  ], { textByFile });
-  assertNoForbiddenPositiveClauses(surfaceDoc, textByFile.get(surfaceDoc));
+  assertNoForbiddenPositiveClauses(planningDoc, textByFile.get(planningDoc));
 }
 
 function assertIndexPointer() {
   assertContainsAll(indexDoc, [
-    routeDoc,
-    "read-only API route planning boundary",
-    "smoke:readonly-api-route-planning-boundary",
+    checklistDoc,
+    "read-only API route review checklist",
+    "smoke:readonly-api-route-review-checklist",
     "docs/smoke/package-pointer only",
-    "non-SSOT",
     "no API route",
+    "no auth implementation",
     "no runtime behavior",
     "no UI",
     "no DB",
@@ -307,7 +311,7 @@ function assertIndexPointer() {
 function assertChangedFilesBoundary() {
   const result = assertChangedFilesWithin({
     allowedChangedFiles,
-    label: "read-only API route planning boundary smoke",
+    label: "read-only API route review checklist smoke",
   });
   const untrackedFiles = collectUntrackedFiles();
   const contentOnly = result.mode === "content-only";
@@ -316,7 +320,7 @@ function assertChangedFilesBoundary() {
     for (const file of untrackedFiles) {
       assert(
         allowedChangedFiles.has(file),
-        `Unexpected untracked file for read-only API route planning boundary smoke: ${file}`,
+        `Unexpected untracked file for read-only API route review checklist smoke: ${file}`,
       );
     }
   }
@@ -364,7 +368,7 @@ function assertNoForbiddenChangedPaths(files) {
   for (const file of files) {
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
-      `Forbidden changed file for read-only API route planning boundary smoke: ${file}`,
+      `Forbidden changed file for read-only API route review checklist smoke: ${file}`,
     );
   }
 }
@@ -386,9 +390,9 @@ function assertNoForbiddenPositiveClauses(file, text) {
 
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
-    /\b(API route|GET route|read-only route|route|endpoint|Augnes|Codex|PR)\b.{0,120}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?)\b.{0,160}\b(create proof|create evidence|create readiness|execute Codex|expose credentials|write Augnes state|create branches?|open PRs?|create PRs?|approve merges?|approve|publish|merge|retry|replay|deploy|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?)\b/i,
-    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|exposes?)\b.{0,160}\b(runtime behavior|UI code|API routes?|route files?|DB schema|migrations?|graph DB|persistence|MCP\/App tools?|ChatGPT App tools?|MCP tools?|proof\/evidence writes?|proof writes?|evidence writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|Project Constellation runtime behavior)\b/i,
-    /\b(grants?|adds?|creates?|provides?|authori[sz]es?)\b.{0,100}\b(branch creation authority|PR creation authority|merge authority|publish authority|approval authority|proof\/evidence write authority|Codex SDK execution authority|deploy authority)\b/i,
+    /\b(checklist|read-only checklist|route checklist|API route|GET route|read-only route|route|endpoint|Augnes|Codex|PR)\b.{0,120}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?)\b.{0,180}\b(approve route deployment|bypass auth review|create proof|create evidence|create readiness|execute Codex|expose credentials|write Augnes state|create branches?|open PRs?|create PRs?|approve merges?|approve|publish|merge|retry|replay|deploy|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?)\b/i,
+    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|exposes?|bypasses?)\b.{0,180}\b(runtime behavior|UI code|API routes?|route files?|DB schema|migrations?|graph DB|persistence|MCP\/App tools?|ChatGPT App tools?|MCP tools?|auth implementation|external calls?|proof\/evidence writes?|proof writes?|evidence writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|Project Constellation runtime behavior|auth review)\b/i,
+    /\b(grants?|adds?|creates?|provides?|authori[sz]es?)\b.{0,120}\b(branch creation authority|PR creation authority|merge authority|publish authority|approval authority|proof\/evidence write authority|Codex SDK execution authority|deploy authority)\b/i,
     /\b(navigator\.clipboard|@openai\/codex-sdk|api\.github\.com|api\.openai\.com|fetch\s*\(|XMLHttpRequest|gh\s+(api|pr|issue|repo))\b/i,
   ];
 
@@ -397,7 +401,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself)\b|않|아니다|만들지 않는다/i.test(
+  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself|absent|excluded|excludes?)\b|않|아니다|만들지 않는다/i.test(
     clause,
   );
 }
