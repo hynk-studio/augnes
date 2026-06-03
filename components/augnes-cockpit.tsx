@@ -2405,6 +2405,280 @@ const SAFE_AG_RESUME_CONFIRMED_MAPPING_CREATE_FIXTURE = {
   },
 } as const;
 
+const PROJECT_CONSTELLATION_SAMPLE_FIXTURE_PATH =
+  "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
+
+const PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW = {
+  fixturePath: PROJECT_CONSTELLATION_SAMPLE_FIXTURE_PATH,
+  title: "Project Constellation",
+  sourceScopeTitle: "Sidecar e_t Strategy C first slice",
+  sourceUseCase: "sidecar_et_strategy_c_first_slice",
+  status: "sample_fixture_only",
+  authority: "read_only_non_authoritative",
+  formationMode: "work_unit_constellation",
+  sourceSummary:
+    "Synthetic public-safe constellation sample for the stopped first fixture and manifest slice.",
+  nodes: [
+    {
+      id: "node.lab_evidence_baseline",
+      type: "evidence_pointer",
+      label: "lab evidence baseline",
+      summary:
+        "A pointer to the bounded lab-reference baseline used to orient Strategy C first-slice discussion.",
+      evidencePointers: [
+        "pointer.doc.lab_upstream_alignment",
+        "pointer.doc.lab_report_reference",
+      ],
+      unresolvedTensions: [
+        "Lab-reference material can orient review but must not become Augnes runtime evidence.",
+      ],
+      nextActionCandidates: [
+        "Keep lab-reference pointers visible when reviewing future fixture slices.",
+      ],
+    },
+    {
+      id: "node.grounded_quiet_probe",
+      type: "work_unit",
+      label: "grounded/quiet probe",
+      summary:
+        "Synthetic grounded and quiet probe family used as the first safe trace-pack input shape.",
+      evidencePointers: ["pointer.fixture.grounded_quiet_probe"],
+      unresolvedTensions: [
+        "Probe examples are useful for review but must not imply computed runtime state.",
+      ],
+      nextActionCandidates: [
+        "Use as a stable sample input for constellation review.",
+      ],
+    },
+    {
+      id: "node.first_fixture_subset",
+      type: "work_unit",
+      label: "first fixture subset",
+      summary:
+        "The initial two-file synthetic fixture subset selected for safe Strategy C review.",
+      evidencePointers: [
+        "pointer.doc.exact_fixture_descriptor_proposal",
+        "pointer.doc.strategy_c_first_slice_closeout",
+      ],
+      unresolvedTensions: [
+        "Future slices may need more descriptors, but this sample keeps the first subset stopped.",
+      ],
+      nextActionCandidates: [
+        "Review whether additional fixture descriptors require a separate scope.",
+      ],
+    },
+    {
+      id: "node.manifest_routing",
+      type: "document",
+      label: "manifest routing",
+      summary:
+        "Manifest routing context that keeps first-slice fixture references bounded and review-only.",
+      evidencePointers: ["pointer.fixture.trace_pack_manifest"],
+      unresolvedTensions: [
+        "Manifest routing is useful context but must not imply live routing behavior.",
+      ],
+      nextActionCandidates: ["Keep manifest routing visible as a dependency edge."],
+    },
+    {
+      id: "node.manifest_hardening",
+      type: "validation_result",
+      label: "manifest hardening",
+      summary:
+        "Static manifest and descriptor smoke hardening that validates the first-slice fixture boundary.",
+      evidencePointers: [
+        "pointer.command.smoke_sidecar_fixture_descriptors",
+        "pointer.command.smoke_sidecar_manifest",
+      ],
+      unresolvedTensions: [
+        "Static validation can support fixture shape review but is not production readiness.",
+      ],
+      nextActionCandidates: [
+        "Use static validation shape as a model for this Project Constellation sample smoke.",
+      ],
+    },
+    {
+      id: "node.closeout_decision",
+      type: "decision",
+      label: "closeout decision",
+      summary:
+        "The Strategy C first-slice stop/go decision that keeps follow-up work bounded before runtime expansion.",
+      evidencePointers: ["pointer.doc.strategy_c_closeout"],
+      unresolvedTensions: [
+        "Future work must choose between more static fixtures and a separately scoped implementation path.",
+      ],
+      nextActionCandidates: [
+        "Use Project Constellation to preserve the stop decision and next-direction candidate.",
+      ],
+    },
+    {
+      id: "node.ag_resume_isolation_constraint",
+      type: "constraint",
+      label: "AG Resume isolation constraint",
+      summary:
+        "AG Resume proof and evidence recording remain separate from this constellation sample.",
+      evidencePointers: [
+        "pointer.doc.perspective_capsule_contract",
+        "pointer.doc.codex_sdk_execution_authority_design",
+      ],
+      unresolvedTensions: [
+        "AG Resume may later display references, but this sample must not update AG Resume records.",
+      ],
+      nextActionCandidates: [
+        "Keep AG Resume isolation visible as a constraint node.",
+      ],
+    },
+    {
+      id: "node.project_constellation_ia_next_direction",
+      type: "next_move",
+      label: "Project Constellation IA next direction",
+      summary:
+        "A safe next direction for Project Constellation: public-safe sample fixture and static smoke only.",
+      evidencePointers: ["pointer.doc.project_constellation_ia"],
+      unresolvedTensions: [
+        "The sample can clarify shape but must not become runtime graph authority.",
+      ],
+      nextActionCandidates: [
+        "Review the fixture-backed shape and decide whether a future type-only boundary is warranted.",
+      ],
+    },
+  ],
+  edges: [
+    {
+      id: "edge.grounded_quiet_probe.to.first_fixture_subset",
+      type: "derived_from",
+      source: "node.grounded_quiet_probe",
+      target: "node.first_fixture_subset",
+      summary:
+        "The first fixture subset is derived from grounded and quiet probe examples.",
+    },
+    {
+      id: "edge.first_fixture_subset.to.manifest_routing",
+      type: "depends_on",
+      source: "node.first_fixture_subset",
+      target: "node.manifest_routing",
+      summary:
+        "The first fixture subset depends on manifest routing context for bounded review.",
+    },
+    {
+      id: "edge.manifest_routing.to.manifest_hardening",
+      type: "validates",
+      source: "node.manifest_routing",
+      target: "node.manifest_hardening",
+      summary:
+        "Manifest routing is validated by static manifest and descriptor boundary checks.",
+    },
+    {
+      id: "edge.manifest_hardening.to.closeout_decision",
+      type: "supports",
+      source: "node.manifest_hardening",
+      target: "node.closeout_decision",
+      summary:
+        "Static hardening supports the closeout decision to stop at the first slice.",
+    },
+    {
+      id: "edge.ag_resume_isolation_constraint.to.project_constellation_ia_next_direction",
+      type: "warns_against",
+      source: "node.ag_resume_isolation_constraint",
+      target: "node.project_constellation_ia_next_direction",
+      summary:
+        "AG Resume isolation warns against treating the sample as a resume writer or proof bridge.",
+    },
+    {
+      id: "edge.closeout_decision.to.project_constellation_ia_next_direction",
+      type: "next_candidate",
+      source: "node.closeout_decision",
+      target: "node.project_constellation_ia_next_direction",
+      summary:
+        "The closeout decision suggests a bounded Project Constellation sample as the next candidate.",
+    },
+  ],
+  cluster: {
+    id: "cluster.sidecar_strategy_c_first_slice",
+    label: "Sidecar e_t Strategy C first slice",
+    thesis:
+      "Strategy C is safely stopped at the first fixture and manifest slice; Project Constellation can use it as a synthetic sample map without creating runtime authority.",
+    unresolvedTensions: [
+      "Whether future Strategy C work should remain docs-only or add more fixture descriptors.",
+      "How to keep trace-pack review useful without implying runtime computation.",
+      "How to keep AG Resume isolation visible instead of buried in non-goals.",
+    ],
+    nextActionCandidates: [
+      "Review the public-safe sample constellation shape.",
+      "Consider a separate future type-only boundary if the shape is accepted.",
+    ],
+    boundaries: [
+      "read-only non-authoritative cluster",
+      "evidence-pointer-based only",
+      "no graph layout engine",
+      "no graph DB",
+      "no persistence",
+      "no proof/evidence/readiness writes",
+    ],
+  },
+  capsule: {
+    title: "Perspective Capsule preview",
+    thesis:
+      "Strategy C is safely stopped at the first fixture and manifest slice; this sample can preview a bounded Project Constellation handoff without runtime authority.",
+    targetSurface: "codex_handoff",
+    evidencePointers: [
+      "pointer.doc.project_constellation_ia",
+      "pointer.doc.perspective_capsule_contract",
+      "pointer.doc.codex_sdk_execution_authority_design",
+      "pointer.fixture.grounded_quiet_probe",
+      "pointer.fixture.trace_pack_manifest",
+    ],
+    codexHandoffPacket: {
+      repo: "hynk-studio/augnes",
+      baseBranch: "main",
+      taskGoal: "sample fixture / smoke only",
+      requiredChecks: [
+        "npm run typecheck",
+        "npm run smoke:project-constellation-sample-fixture",
+        "git diff --check",
+        "git diff --cached --check",
+      ],
+      finalReportRequirements: [
+        "PR number and URL",
+        "branch",
+        "commit SHA",
+        "changed files",
+        "tests run with exact results",
+      ],
+    },
+  },
+  codexExecutionAuthority: {
+    title: "Codex execution authority preview",
+    execution_intent: "docs_smoke_fixture_validation",
+    recommended_permission_profile: "workspace_write",
+    planning_review_permission: "read_only",
+    escalation_required: false,
+    user_approval_required: false,
+    live_sdk_call: false,
+    provider_implementation: false,
+    runtime_execution: false,
+    boundaryNotes: [
+      "conceptual only",
+      "no live SDK call",
+      "no provider implementation",
+      "no runtime execution",
+      "no proof/evidence write",
+      "no AG Resume update",
+      "no Project Constellation runtime node update",
+    ],
+  },
+  forbiddenBoundaries: [
+    "no Project Constellation runtime behavior",
+    "no graph DB",
+    "no persistence",
+    "no proof/evidence/readiness writes",
+    "no Codex SDK execution",
+    "no AG Resume writer/helper/route behavior",
+    "no QP evidence",
+    "no z_t commits",
+    "no delivery authority",
+  ],
+} as const;
+
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
 const COCKPIT_TABS: { id: CockpitTab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -3424,6 +3698,10 @@ function PerspectiveTab({
       perspectiveSnapshot.committed_state_basis.deprecated.length
     : 0;
   const snapshotResearch = perspectiveSnapshot?.research_diagnostics ?? null;
+  const constellationPreview = PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW;
+  const constellationNodeLabelById = new Map(
+    constellationPreview.nodes.map((node) => [node.id, node.label]),
+  );
 
   return (
     <section
@@ -3456,6 +3734,7 @@ function PerspectiveTab({
         <a href="#perspective-evidence">Evidence</a>
         <a href="#perspective-tensions">Tensions</a>
         <a href="#perspective-boundary-next">Boundary / Next</a>
+        <a href="#perspective-constellation-preview">Constellation preview</a>
       </nav>
 
       <div className="perspective-grid">
@@ -4117,6 +4396,291 @@ function PerspectiveTab({
             >
               Open Operator
             </button>
+          </div>
+        </section>
+
+        <section
+          className="cockpit-surface-card perspective-section project-constellation-preview-section"
+          id="perspective-constellation-preview"
+          aria-label="Project Constellation read-only preview"
+        >
+          <PanelHeader
+            eyebrow="Constellation preview"
+            title={constellationPreview.title}
+            description={`${constellationPreview.sourceScopeTitle} rendered from a static sample fixture for read-only Perspective inspection.`}
+          />
+          <BoundaryNote tone="green">
+            Static sample fixture: <code>{constellationPreview.fixturePath}</code>.
+            This preview is <code>{constellationPreview.status}</code> and{" "}
+            <code>{constellationPreview.authority}</code>; it has no live SDK
+            call, no provider implementation, and no runtime execution.
+          </BoundaryNote>
+          <div className="tab-stat-row compact-stat-row">
+            <MetricCard
+              label="status"
+              value={constellationPreview.status}
+              detail="sample_fixture_only"
+            />
+            <MetricCard
+              label="authority"
+              value="read-only"
+              detail="read_only_non_authoritative"
+            />
+            <MetricCard
+              label="formation mode"
+              value={constellationPreview.formationMode}
+              detail="work_unit_constellation"
+            />
+            <MetricCard
+              label="nodes"
+              value={constellationPreview.nodes.length}
+              detail="static sample nodes"
+            />
+            <MetricCard
+              label="edges"
+              value={constellationPreview.edges.length}
+              detail="typed static sample edges"
+            />
+          </div>
+          <div className="perspective-frame-summary">
+            <article>
+              <h3>Fixture source</h3>
+              <strong>{constellationPreview.sourceScopeTitle}</strong>
+              <p>{constellationPreview.sourceSummary}</p>
+              <div className="meta-row">
+                <StatusBadge label={constellationPreview.sourceUseCase} />
+                <StatusBadge label={constellationPreview.formationMode} />
+              </div>
+            </article>
+            <article>
+              <h3>Cluster thesis</h3>
+              <strong>{constellationPreview.cluster.label}</strong>
+              <p>{constellationPreview.cluster.thesis}</p>
+              <RefChipList
+                refs={constellationPreview.cluster.boundaries}
+                emptyLabel="No cluster boundaries"
+              />
+            </article>
+          </div>
+          <div className="perspective-tension-grid">
+            <TensionList
+              title="nodes"
+              items={constellationPreview.nodes.map((node) => ({
+                key: node.id,
+                label: node.label,
+                detail: node.summary,
+                metaChips: [node.type, node.id],
+              }))}
+              emptyLabel="No Project Constellation sample nodes"
+            />
+            <TensionList
+              title="edges"
+              items={constellationPreview.edges.map((edge) => ({
+                key: edge.id,
+                label: `${constellationNodeLabelById.get(edge.source) ?? edge.source} -> ${
+                  constellationNodeLabelById.get(edge.target) ?? edge.target
+                }`,
+                detail: edge.summary,
+                metaChips: [edge.type, edge.id],
+              }))}
+              emptyLabel="No Project Constellation sample edges"
+            />
+            <TensionList
+              title="evidence pointers"
+              items={constellationPreview.nodes.flatMap((node) =>
+                node.evidencePointers.map((pointer) => ({
+                  key: `${node.id}:${pointer}`,
+                  label: pointer,
+                  detail: node.label,
+                  metaChips: [node.type],
+                })),
+              )}
+              emptyLabel="No Project Constellation evidence pointers"
+            />
+            <TensionList
+              title="unresolved tensions"
+              items={[
+                ...constellationPreview.cluster.unresolvedTensions.map(
+                  (tension) => ({
+                    key: `cluster:${tension}`,
+                    label: "Cluster tension",
+                    detail: tension,
+                    metaChips: [constellationPreview.cluster.id],
+                  }),
+                ),
+                ...constellationPreview.nodes.flatMap((node) =>
+                  node.unresolvedTensions.map((tension) => ({
+                    key: `${node.id}:tension:${tension}`,
+                    label: node.label,
+                    detail: tension,
+                    metaChips: [node.type],
+                  })),
+                ),
+              ]}
+              emptyLabel="No Project Constellation unresolved tensions"
+            />
+            <TensionList
+              title="next action candidates"
+              items={[
+                ...constellationPreview.cluster.nextActionCandidates.map(
+                  (candidate) => ({
+                    key: `cluster:${candidate}`,
+                    label: "Cluster candidate",
+                    detail: candidate,
+                    metaChips: [constellationPreview.cluster.id],
+                  }),
+                ),
+                ...constellationPreview.nodes.flatMap((node) =>
+                  node.nextActionCandidates.map((candidate) => ({
+                    key: `${node.id}:next:${candidate}`,
+                    label: node.label,
+                    detail: candidate,
+                    metaChips: [node.type],
+                  })),
+                ),
+              ]}
+              emptyLabel="No Project Constellation next action candidates"
+            />
+            <TensionList
+              title="Forbidden boundaries"
+              items={constellationPreview.forbiddenBoundaries.map((boundary) => ({
+                key: boundary,
+                label: boundary,
+              }))}
+              emptyLabel="No Project Constellation forbidden boundaries"
+            />
+          </div>
+          <div className="perspective-frame-summary">
+            <article>
+              <h3>{constellationPreview.capsule.title}</h3>
+              <p>{constellationPreview.capsule.thesis}</p>
+              <div className="meta-row">
+                <StatusBadge label={constellationPreview.capsule.targetSurface} />
+                <span>Perspective Capsule preview</span>
+              </div>
+              <h4>Evidence pointers</h4>
+              <RefChipList
+                refs={constellationPreview.capsule.evidencePointers}
+                emptyLabel="No capsule evidence pointers"
+              />
+            </article>
+            <article>
+              <h3>Codex handoff packet summary</h3>
+              <div className="meta-row">
+                <span>
+                  repo <code>{constellationPreview.capsule.codexHandoffPacket.repo}</code>
+                </span>
+                <span>
+                  base{" "}
+                  <code>{constellationPreview.capsule.codexHandoffPacket.baseBranch}</code>
+                </span>
+                <span>
+                  goal{" "}
+                  <code>{constellationPreview.capsule.codexHandoffPacket.taskGoal}</code>
+                </span>
+              </div>
+              <h4>Required checks</h4>
+              <RefChipList
+                refs={constellationPreview.capsule.codexHandoffPacket.requiredChecks}
+                emptyLabel="No handoff checks"
+              />
+              <h4>Final report requirements</h4>
+              <RefChipList
+                refs={
+                  constellationPreview.capsule.codexHandoffPacket
+                    .finalReportRequirements
+                }
+                emptyLabel="No final report requirements"
+              />
+            </article>
+          </div>
+          <div className="perspective-frame-summary">
+            <article>
+              <h3>Codex execution authority preview</h3>
+              <div className="meta-row">
+                <StatusBadge
+                  label={
+                    constellationPreview.codexExecutionAuthority.execution_intent
+                  }
+                />
+                <StatusBadge
+                  label={
+                    constellationPreview.codexExecutionAuthority
+                      .recommended_permission_profile
+                  }
+                />
+                <StatusBadge
+                  label={
+                    constellationPreview.codexExecutionAuthority
+                      .planning_review_permission
+                  }
+                />
+              </div>
+              <ul className="boundary-list">
+                <li>
+                  execution_intent:{" "}
+                  {
+                    constellationPreview.codexExecutionAuthority
+                      .execution_intent
+                  }
+                </li>
+                <li>
+                  recommended_permission_profile:{" "}
+                  {
+                    constellationPreview.codexExecutionAuthority
+                      .recommended_permission_profile
+                  }
+                </li>
+                <li>
+                  planning_review_permission:{" "}
+                  {
+                    constellationPreview.codexExecutionAuthority
+                      .planning_review_permission
+                  }
+                </li>
+                <li>
+                  escalation_required:{" "}
+                  {String(
+                    constellationPreview.codexExecutionAuthority
+                      .escalation_required,
+                  )}
+                </li>
+                <li>
+                  user_approval_required:{" "}
+                  {String(
+                    constellationPreview.codexExecutionAuthority
+                      .user_approval_required,
+                  )}
+                </li>
+                <li>
+                  live_sdk_call:{" "}
+                  {String(
+                    constellationPreview.codexExecutionAuthority.live_sdk_call,
+                  )}
+                </li>
+                <li>
+                  provider_implementation:{" "}
+                  {String(
+                    constellationPreview.codexExecutionAuthority
+                      .provider_implementation,
+                  )}
+                </li>
+                <li>
+                  runtime_execution:{" "}
+                  {String(
+                    constellationPreview.codexExecutionAuthority
+                      .runtime_execution,
+                  )}
+                </li>
+              </ul>
+            </article>
+            <article>
+              <h3>Execution boundary notes</h3>
+              <RefChipList
+                refs={constellationPreview.codexExecutionAuthority.boundaryNotes}
+                emptyLabel="No execution boundary notes"
+              />
+            </article>
           </div>
         </section>
       </div>
@@ -13996,7 +14560,7 @@ function RefChipList({
   refs,
   emptyLabel,
 }: {
-  refs: string[];
+  refs: readonly string[];
   emptyLabel: string;
 }) {
   const uniqueRefs = Array.from(new Set(refs.filter(Boolean))).slice(0, 18);

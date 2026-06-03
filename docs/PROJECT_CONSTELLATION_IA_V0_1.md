@@ -587,6 +587,23 @@ Not included:
 
 This panel sketch is not implementation approval.
 
+First read-only Cockpit preview:
+
+- `components/augnes-cockpit.tsx` renders a Project Constellation read-only
+  Cockpit preview inside the existing Perspective surface.
+- The preview is anchored to
+  `fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json`.
+- It displays the static `sample_fixture_only`,
+  `read_only_non_authoritative`, `work_unit_constellation` sample shape for
+  Sidecar e_t Strategy C first slice review.
+- It may show nodes, edges, evidence pointers, unresolved tensions, next
+  action candidates, the Perspective Capsule preview, Codex handoff packet
+  summary, and Codex execution authority preview fields.
+- It must remain inspection-only: no action controls, no graph layout engine,
+  no graph DB, no persistence, no proof/evidence/readiness writes, no AG
+  Resume writer/helper/route behavior, no live SDK call, no provider
+  implementation, and no runtime execution.
+
 ## 21. Validation and Smoke Plan
 
 Validation for this docs/smoke/package-pointer PR should include:
@@ -600,6 +617,7 @@ npm run smoke:sidecar-et-runtime-boundaries
 npm run smoke:cockpit-perspective-snapshot
 npm run smoke:project-constellation-ia-boundaries
 npm run smoke:project-constellation-sample-fixture
+npm run smoke:project-constellation-cockpit-preview
 git diff --check
 git diff --cached --check
 ```
@@ -635,24 +653,43 @@ skipped because the work is fixture/smoke/docs/package-pointer only and does
 not touch UI, runtime, API, schema, MCP/App tools, routes, browser-facing
 files, external calls, or interactive behavior.
 
+The exact `npm run smoke:project-constellation-sample-fixture` command is the
+scoped check for direct sample fixture/smoke/package-pointer edits. Unrelated
+Project Constellation UI-preview PRs should use the content-only form as a
+supplemental fixture-content diagnostic:
+
+```text
+AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-sample-fixture
+```
+
+For the first Project Constellation read-only Cockpit preview follow-up,
+browser/computer-use is required because the work touches the Cockpit
+Perspective UI. The browser report should confirm the Perspective surface
+loads, the fixture/source, nodes, edges, cluster, evidence pointers,
+unresolved tensions, next action candidates, Perspective Capsule preview, and
+Codex execution authority preview are visible, and no Project Constellation
+action controls are present.
+
 If future Project Constellation work touches UI or browser-facing files, it
 must add browser/computer-use validation. If it touches runtime, APIs, schema,
 storage, routes, fixtures, Cockpit action behavior, AG Resume, ChatGPT
 Apps/MCP tools, agent routing, or package scripts that go beyond bounded
-documentation-boundary smoke pointers or imply implementation/runtime behavior,
-it needs a separate approved scope and a stronger validation plan.
+documentation-boundary/sample-fixture/read-only-Cockpit-preview smoke pointers
+or imply implementation/runtime behavior, it needs a separate approved scope
+and a stronger validation plan.
 
 ## 22. Non-Goals
 
 Project Constellation v0.1 does not implement or authorize:
 
 - runtime code
-- UI components
+- UI components beyond the read-only Cockpit preview
 - graph engine
 - graph database
 - API routes
 - DB schema or migrations
-- package scripts beyond bounded documentation or sample-fixture smoke pointers
+- package scripts beyond bounded documentation, sample-fixture, or
+  read-only-Cockpit-preview smoke pointers
 - runtime/generated fixtures
 - unbounded smokes or CI enforcement
 - Cockpit action behavior
