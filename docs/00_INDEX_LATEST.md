@@ -158,6 +158,10 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   는 이 contract boundary를 정적으로 확인한다. This pointer does not add
   runtime schema, API route, MCP/App tool, persistence, graph DB,
   proof/evidence write, Codex task launch, or plugin runtime action.
+- Boundary smokes support explicit cross-PR content-only diagnostics with
+  `AUGNES_BOUNDARY_SMOKE_MODE=content-only`. This mode is non-SSOT,
+  read-only, and non-authoritative; it skips changed-file allowlists only by
+  explicit opt-in and does not replace scoped validation for direct edits.
 
 Boundary 요약:
 

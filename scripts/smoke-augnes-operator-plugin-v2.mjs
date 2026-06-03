@@ -43,6 +43,7 @@ console.log(
     {
       smoke: "augnes-operator-plugin-v2",
       pass: true,
+      boundary_smoke_mode: changedFilesBoundary.mode,
       plugin_json_local_metadata_only: true,
       plugin_v2_alignment_checked: true,
       instruction_only_skill_checked: true,
@@ -50,13 +51,17 @@ console.log(
       package_script_checked: true,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
+      changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_checked: changedFilesBoundary.files,
+      changed_files_observed: changedFilesBoundary.files,
       changed_files_base_ref: changedFilesBoundary.base_ref,
       changed_files_base_range_checked: changedFilesBoundary.base_range_checked,
       changed_files_base_range_skipped: changedFilesBoundary.base_range_skipped,
       changed_files_working_tree_checked:
         changedFilesBoundary.working_tree_checked,
       untracked_files_checked: changedFilesBoundary.untracked_checked,
+      untracked_files_skipped: changedFilesBoundary.untracked_skipped,
+      untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       smoke_type: "static-docs-metadata-skill-boundary-only",
       runtime_behavior_changed: false,
       network_calls_added: false,
@@ -198,16 +203,23 @@ function assertChangedFilesBoundary() {
     label: "Augnes Operator plugin v0.2 boundary smoke",
   });
   const untrackedFiles = getUntrackedFiles();
-  for (const file of untrackedFiles) {
-    assert(
-      allowedChangedFiles.has(file),
-      `Unexpected untracked file for Augnes Operator plugin v0.2 boundary smoke: ${file}`,
-    );
+  const contentOnly = result.mode === "content-only";
+  if (!contentOnly) {
+    for (const file of untrackedFiles) {
+      assert(
+        allowedChangedFiles.has(file),
+        `Unexpected untracked file for Augnes Operator plugin v0.2 boundary smoke: ${file}`,
+      );
+    }
   }
   return {
     ...result,
     files: [...new Set([...result.files, ...untrackedFiles])].sort(),
-    untracked_checked: true,
+    untracked_checked: !contentOnly,
+    untracked_skipped: contentOnly,
+    untracked_skip_reason: contentOnly
+      ? "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only"
+      : null,
   };
 }
 
