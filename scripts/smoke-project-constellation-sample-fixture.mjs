@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import {
-  assertChangedFilesWithin,
+  assertChangedFilesWithinBoundaryProfile,
   assertContainsAll,
+  getProjectConstellationBoundaryScopeProfile,
   assertNoRuntimeImports,
   assertPackageScript,
   loadTextByFile,
@@ -17,8 +17,6 @@ const codexAuthorityDoc = "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-project-constellation-sample-fixture.mjs";
-const codexAuthoritySmokeFile =
-  "scripts/smoke-codex-sdk-execution-authority-design.mjs";
 
 const inspectedFiles = [
   fixtureFile,
@@ -30,8 +28,7 @@ const inspectedFiles = [
   smokeFile,
 ];
 
-const allowedChangedFiles = new Set(inspectedFiles);
-allowedChangedFiles.add(codexAuthoritySmokeFile);
+const boundaryScopeProfile = getProjectConstellationBoundaryScopeProfile();
 const textByFile = loadTextByFile(inspectedFiles);
 const fixture = JSON.parse(textByFile.get(fixtureFile));
 
@@ -203,6 +200,7 @@ console.log(
       capsule_preview_checked: true,
       codex_execution_authority_preview_checked: true,
       public_safe_strings_checked: true,
+      boundary_profile_name: changedFilesBoundary.profile_name,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
       changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
@@ -216,6 +214,7 @@ console.log(
       untracked_files_checked: changedFilesBoundary.untracked_checked,
       untracked_files_skipped: changedFilesBoundary.untracked_skipped,
       untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
+      untracked_files_observed: changedFilesBoundary.untracked_files,
       smoke_type: "static-fixture-boundary-only",
       runtime_behavior_changed: false,
       project_constellation_runtime_behavior_changed: false,
@@ -515,33 +514,10 @@ function assertDocPointers() {
 }
 
 function assertChangedFilesBoundary() {
-  const result = assertChangedFilesWithin({
-    allowedChangedFiles,
+  return assertChangedFilesWithinBoundaryProfile({
+    profile: boundaryScopeProfile,
     label: "Project Constellation sample fixture smoke",
   });
-  const untrackedFiles = getUntrackedFiles();
-  const contentOnly = result.mode === "content-only";
-  if (!contentOnly) {
-    for (const file of untrackedFiles) {
-      assert(
-        allowedChangedFiles.has(file),
-        `Unexpected untracked file for Project Constellation sample fixture smoke: ${file}`,
-      );
-    }
-  }
-  const files = [...new Set([...result.files, ...untrackedFiles])].sort();
-  if (!contentOnly) {
-    assertNoForbiddenChangedPaths(files);
-  }
-  return {
-    ...result,
-    files,
-    untracked_checked: !contentOnly,
-    untracked_skipped: contentOnly,
-    untracked_skip_reason: contentOnly
-      ? "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only"
-      : null,
-  };
 }
 
 function assertReferencesKnown(values, collection, label) {
@@ -549,30 +525,6 @@ function assertReferencesKnown(values, collection, label) {
   const ids = new Set(collection.map((entry) => entry.id));
   for (const value of values) {
     assert(ids.has(value), `${label} contains unknown reference: ${value}`);
-  }
-}
-
-function assertNoForbiddenChangedPaths(files) {
-  const forbiddenPatterns = [
-    /^AGENTS\.md$/,
-    /^app\//,
-    /^components\//,
-    /^lib\//,
-    /^db\//,
-    /^migrations\//,
-    /^apps\/augnes_apps\//,
-    /^reports\//,
-    /^screenshots\//,
-    /(^|\/)(route|api)\.(js|jsx|ts|tsx)$/,
-    /(^|\/)mcp/i,
-    /(^|\/)hook/i,
-    /(^|\/)\.env/,
-  ];
-  for (const file of files) {
-    assert(
-      !forbiddenPatterns.some((pattern) => pattern.test(file)),
-      `Forbidden changed file for Project Constellation sample fixture smoke: ${file}`,
-    );
   }
 }
 
@@ -662,20 +614,4 @@ function assertOnlyKeys(object, allowedKeys, path) {
 
 function assertObject(value, path) {
   assert(value && typeof value === "object" && !Array.isArray(value), `${path} must be an object`);
-}
-
-function getUntrackedFiles() {
-  try {
-    const output = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return output
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .sort();
-  } catch {
-    return [];
-  }
 }

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import {
-  assertChangedFilesWithin,
+  assertChangedFilesWithinBoundaryProfile,
   assertContainsAll as assertTextContainsAll,
+  getProjectConstellationBoundaryScopeProfile,
   assertNoRuntimeImports,
   assertPackageScript as assertPackageJsonScript,
   loadTextByFile,
@@ -22,13 +23,9 @@ const inspectedFiles = [
   smokeFile,
 ];
 
-const allowedChangedFiles = new Set([
-  packageJsonFile,
-  smokeFile,
-  projectDoc,
-  indexDoc,
-  verificationDoc,
-]);
+const boundaryScopeProfile = getProjectConstellationBoundaryScopeProfile({
+  ownedFiles: [verificationDoc],
+});
 
 const requiredSections = [
   "Status and Scope",
@@ -144,6 +141,7 @@ const summary = {
   snapshot_semantics_conceptual_only: true,
   index_pointer_checked: true,
   verification_pointer_checked: true,
+  boundary_profile_name: changedFilesBoundary.profile_name,
   changed_files_boundary_checked: changedFilesBoundary.checked,
   changed_files_boundary_skipped: changedFilesBoundary.skipped,
   changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
@@ -153,6 +151,10 @@ const summary = {
   changed_files_base_range_checked: changedFilesBoundary.base_range_checked,
   changed_files_base_range_skipped: changedFilesBoundary.base_range_skipped,
   changed_files_working_tree_checked: changedFilesBoundary.working_tree_checked,
+  untracked_files_checked: changedFilesBoundary.untracked_checked,
+  untracked_files_skipped: changedFilesBoundary.untracked_skipped,
+  untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
+  untracked_files_observed: changedFilesBoundary.untracked_files,
   smoke_type: "documentation-boundary-only",
   runtime_behavior_changed: false,
   ui_behavior_changed: false,
@@ -285,8 +287,8 @@ function assertVerificationPointerBoundary() {
 }
 
 function assertChangedFilesBoundary() {
-  return assertChangedFilesWithin({
-    allowedChangedFiles,
+  return assertChangedFilesWithinBoundaryProfile({
+    profile: boundaryScopeProfile,
     label: "Project Constellation IA boundary smoke",
   });
 }
