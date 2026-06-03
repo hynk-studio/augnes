@@ -599,6 +599,8 @@ First read-only Cockpit preview:
 - It may show nodes, edges, evidence pointers, unresolved tensions, next
   action candidates, the Perspective Capsule preview, Codex handoff packet
   summary, and Codex execution authority preview fields.
+- It may include a Perspective Capsule / Handoff Capsule copyable handoff
+  preview as readonly selectable `codex_handoff` text for manual review.
 - It must remain inspection-only: no action controls, no graph layout engine,
   no graph DB, no persistence, no proof/evidence/readiness writes, no AG
   Resume writer/helper/route behavior, no live SDK call, no provider
@@ -618,6 +620,7 @@ npm run smoke:cockpit-perspective-snapshot
 npm run smoke:project-constellation-ia-boundaries
 npm run smoke:project-constellation-sample-fixture
 npm run smoke:project-constellation-cockpit-preview
+npm run smoke:perspective-capsule-copyable-handoff-preview
 git diff --check
 git diff --cached --check
 ```
@@ -670,6 +673,13 @@ unresolved tensions, next action candidates, Perspective Capsule preview, and
 Codex execution authority preview are visible, and no Project Constellation
 action controls are present.
 
+For the Perspective Capsule / Handoff Capsule copyable handoff preview
+follow-up, browser/computer-use is required because the work touches the
+Cockpit Perspective UI. The browser report should confirm the readonly
+selectable handoff text, `codex_handoff` target surface, evidence pointers,
+unresolved tensions, visible forbidden actions, final report requirements, and
+no action controls.
+
 If future Project Constellation work touches UI or browser-facing files, it
 must add browser/computer-use validation. If it touches runtime, APIs, schema,
 storage, routes, fixtures, Cockpit action behavior, AG Resume, ChatGPT
@@ -683,13 +693,14 @@ and a stronger validation plan.
 Project Constellation v0.1 does not implement or authorize:
 
 - runtime code
-- UI components beyond the read-only Cockpit preview
+- UI components beyond the read-only Cockpit preview and readonly copyable
+  handoff preview
 - graph engine
 - graph database
 - API routes
 - DB schema or migrations
-- package scripts beyond bounded documentation, sample-fixture, or
-  read-only-Cockpit-preview smoke pointers
+- package scripts beyond bounded documentation, sample-fixture,
+  read-only-Cockpit-preview, or readonly-handoff-preview smoke pointers
 - runtime/generated fixtures
 - unbounded smokes or CI enforcement
 - Cockpit action behavior

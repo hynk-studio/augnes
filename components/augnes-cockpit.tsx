@@ -2617,9 +2617,31 @@ const PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW = {
   },
   capsule: {
     title: "Perspective Capsule preview",
+    sourceSurface: "project_constellation",
+    sourceScope: "sidecar_et_strategy_c_first_slice",
+    sourceSnapshotRef: "sample_fixture_only.no_runtime_snapshot",
+    sourceConstellationRef: "project_constellation.sample.sidecar_strategy_c.v0_1",
     thesis:
       "Strategy C is safely stopped at the first fixture and manifest slice; this sample can preview a bounded Project Constellation handoff without runtime authority.",
     targetSurface: "codex_handoff",
+    selectedNodes: [
+      "node.lab_evidence_baseline",
+      "node.grounded_quiet_probe",
+      "node.first_fixture_subset",
+      "node.manifest_routing",
+      "node.manifest_hardening",
+      "node.closeout_decision",
+      "node.ag_resume_isolation_constraint",
+      "node.project_constellation_ia_next_direction",
+    ],
+    selectedEdges: [
+      "edge.grounded_quiet_probe.to.first_fixture_subset",
+      "edge.first_fixture_subset.to.manifest_routing",
+      "edge.manifest_routing.to.manifest_hardening",
+      "edge.manifest_hardening.to.closeout_decision",
+      "edge.ag_resume_isolation_constraint.to.project_constellation_ia_next_direction",
+      "edge.closeout_decision.to.project_constellation_ia_next_direction",
+    ],
     evidencePointers: [
       "pointer.doc.project_constellation_ia",
       "pointer.doc.perspective_capsule_contract",
@@ -2627,15 +2649,92 @@ const PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW = {
       "pointer.fixture.grounded_quiet_probe",
       "pointer.fixture.trace_pack_manifest",
     ],
+    unresolvedTensions: [
+      "Static fixture shape must not imply Project Constellation runtime behavior.",
+      "Capsule preview must remain conceptual and non-authoritative.",
+      "Codex execution authority preview must remain a preview and not a provider.",
+    ],
+    forbiddenActions: [
+      "no Project Constellation runtime behavior",
+      "no graph DB",
+      "no persistence",
+      "no proof/evidence/readiness writes",
+      "no Codex SDK execution",
+      "no AG Resume writer/helper/route behavior",
+      "no QP evidence",
+      "no z_t commits",
+      "no approval/publish/retry/replay/merge authority",
+    ],
+    nextActionCandidates: [
+      "Open the fixture and smoke PR for review.",
+      "After review, consider a separate type-only Project Constellation boundary.",
+    ],
     codexHandoffPacket: {
       repo: "hynk-studio/augnes",
       baseBranch: "main",
+      workingBranchSuggestion:
+        "codex/project-constellation-sample-fixture-v0-1",
+      expectedPrTitle:
+        "fixtures/smoke: add Project Constellation sample constellation v0.1",
       taskGoal: "sample fixture / smoke only",
+      contextAnchors: [
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+        "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md",
+      ],
+      expectedChangedFiles: [
+        "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
+        "scripts/smoke-project-constellation-sample-fixture.mjs",
+        "package.json",
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+        "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md",
+        "docs/00_INDEX_LATEST.md",
+      ],
+      forbiddenChangedFiles: [
+        "AGENTS.md",
+        "app/**",
+        "components/**",
+        "lib/**",
+        "db/**",
+        "migrations/**",
+        "apps/augnes_apps/**",
+        "routes/API files",
+        "MCP/App tool files",
+        "plugin hooks",
+        "reports/**",
+        "screenshots/**",
+      ],
+      hardConstraints: [
+        "fixture/smoke/docs/package-pointer only",
+        "no UI implementation",
+        "no runtime node creation",
+        "no API routes",
+        "no DB schema or migrations",
+        "no live Codex SDK call",
+        "no provider implementation",
+        "no proof/evidence/readiness writes",
+      ],
       requiredChecks: [
         "npm run typecheck",
         "npm run smoke:project-constellation-sample-fixture",
         "git diff --check",
         "git diff --cached --check",
+      ],
+      skippedCheckPolicy:
+        "Browser/computer-use may be skipped only with the fixture/smoke/docs/package-pointer reason.",
+      browserComputerUseExpectation:
+        "Skip because there is no UI, runtime, API, browser-facing, external, or interactive behavior.",
+      proofOnlyCloseoutStatusOrSkip:
+        "Skip when no runtime/work ID context exists and no proof/evidence writes are allowed.",
+      prBodyRequirements: [
+        "Summary",
+        "Files changed",
+        "Fixture scope",
+        "Capsule preview scope",
+        "Codex execution authority preview scope",
+        "Authority boundary statement",
+        "Validation results",
       ],
       finalReportRequirements: [
         "PR number and URL",
@@ -2643,7 +2742,23 @@ const PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW = {
         "commit SHA",
         "changed files",
         "tests run with exact results",
+        "blockers",
+        "repo/task mismatches",
+        "scope risks",
+        "assumptions",
+        "questions requiring user/PM judgment",
+        "next suggested goal",
       ],
+      blockersOrRisks: [
+        "Future runtime interpretation requires separate approved scope.",
+      ],
+      assumptions: [
+        "The sample remains public-safe and synthetic.",
+        "All evidence references are pointers only.",
+      ],
+      questionsRequiringUserPmJudgment: [],
+      nextSuggestedGoal:
+        "Review whether a future type-only boundary should formalize this sample shape.",
     },
   },
   codexExecutionAuthority: {
@@ -2678,6 +2793,102 @@ const PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW = {
     "no delivery authority",
   ],
 } as const;
+
+const PROJECT_CONSTELLATION_COPYABLE_HANDOFF_TEXT =
+  buildProjectConstellationCopyableHandoffText(
+    PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW,
+  );
+
+function buildProjectConstellationCopyableHandoffText(
+  preview: typeof PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW,
+) {
+  const capsule = preview.capsule;
+  const packet = capsule.codexHandoffPacket;
+
+  return [
+    "Perspective Capsule / Handoff Capsule",
+    "",
+    "Project:",
+    `- repo: ${packet.repo}`,
+    `- base branch: ${packet.baseBranch}`,
+    `- working branch suggestion: ${packet.workingBranchSuggestion}`,
+    `- expected PR title: ${packet.expectedPrTitle}`,
+    "",
+    "Goal:",
+    packet.taskGoal,
+    "",
+    "Context:",
+    ...formatHandoffList(packet.contextAnchors),
+    "",
+    "Perspective:",
+    `- thesis: ${capsule.thesis}`,
+    `- source: ${capsule.sourceSurface} / ${capsule.sourceScope}`,
+    `- source snapshot: ${capsule.sourceSnapshotRef}`,
+    `- source constellation: ${capsule.sourceConstellationRef}`,
+    `- target surface: ${capsule.targetSurface}`,
+    "- selected nodes:",
+    ...formatHandoffList(capsule.selectedNodes),
+    "- selected edges:",
+    ...formatHandoffList(capsule.selectedEdges),
+    "- evidence pointers:",
+    ...formatHandoffList(capsule.evidencePointers),
+    "- unresolved tensions:",
+    ...formatHandoffList(capsule.unresolvedTensions),
+    "",
+    "Scope:",
+    "Expected changed files:",
+    ...formatHandoffList(packet.expectedChangedFiles),
+    "",
+    "Forbidden changed files:",
+    ...formatHandoffList(packet.forbiddenChangedFiles),
+    "",
+    "Hard constraints:",
+    ...formatHandoffList(packet.hardConstraints),
+    "",
+    "Required checks:",
+    ...formatHandoffList(packet.requiredChecks),
+    "",
+    "Skipped check policy:",
+    packet.skippedCheckPolicy,
+    "",
+    "Browser/computer-use:",
+    packet.browserComputerUseExpectation,
+    "",
+    "Proof-only closeout:",
+    packet.proofOnlyCloseoutStatusOrSkip,
+    "",
+    "PR body requirements:",
+    ...formatHandoffList(packet.prBodyRequirements),
+    "",
+    "Final report requirements:",
+    ...formatHandoffList(packet.finalReportRequirements),
+    "",
+    "Blockers/risks:",
+    ...formatHandoffList(packet.blockersOrRisks),
+    "",
+    "Assumptions:",
+    ...formatHandoffList(packet.assumptions),
+    "",
+    "Questions requiring user/PM judgment:",
+    ...formatHandoffList(packet.questionsRequiringUserPmJudgment),
+    "",
+    "Forbidden actions:",
+    ...formatHandoffList(capsule.forbiddenActions),
+    "",
+    "Next suggested goal:",
+    packet.nextSuggestedGoal,
+    "",
+    "Authority boundary:",
+    "This is a read-only handoff preview for manual review. It does not call providers, write proof/evidence/readiness, mutate Augnes state, create runtime graph state, or grant execution authority.",
+    "",
+    "Reporting requirement:",
+    "At the end, report changed files, tests run with results, blockers, repo/task mismatches, scope risks, assumptions, questions requiring user/PM judgment, and the next suggested goal.",
+  ].join("\n");
+}
+
+function formatHandoffList(items: readonly string[]) {
+  return items.length ? items.map((item) => `- ${item}`) : ["- None."];
+}
 
 // Tab order: Overview -> Work -> Perspective -> Bridge -> Operator
 const COCKPIT_TABS: { id: CockpitTab; label: string }[] = [
@@ -3699,6 +3910,7 @@ function PerspectiveTab({
     : 0;
   const snapshotResearch = perspectiveSnapshot?.research_diagnostics ?? null;
   const constellationPreview = PROJECT_CONSTELLATION_COCKPIT_SAMPLE_PREVIEW;
+  const copyableHandoffText = PROJECT_CONSTELLATION_COPYABLE_HANDOFF_TEXT;
   const constellationNodeLabelById = new Map(
     constellationPreview.nodes.map((node) => [node.id, node.label]),
   );
@@ -4594,6 +4806,203 @@ function PerspectiveTab({
               />
             </article>
           </div>
+          <section
+            className="perspective-detail-panel perspective-capsule-copyable-handoff-preview"
+            aria-label="Perspective Capsule / Handoff Capsule copyable handoff preview"
+          >
+            <PanelHeader
+              eyebrow="Handoff preview"
+              title="Perspective Capsule / Handoff Capsule"
+              description="Readonly selectable handoff packet text for manual review. It does not start Codex, call providers, create state, or write evidence."
+            />
+            <BoundaryNote tone="green">
+              Target surface:{" "}
+              <code>{constellationPreview.capsule.targetSurface}</code>.
+              Capsule source:{" "}
+              <code>{constellationPreview.capsule.sourceSurface}</code> /{" "}
+              <code>{constellationPreview.capsule.sourceScope}</code>. Manual
+              selection only; no clipboard integration and no execution path.
+            </BoundaryNote>
+            <div className="perspective-frame-summary">
+              <article>
+                <h3>Capsule thesis</h3>
+                <p>{constellationPreview.capsule.thesis}</p>
+                <div className="meta-row">
+                  <span>
+                    repo{" "}
+                    <code>
+                      {constellationPreview.capsule.codexHandoffPacket.repo}
+                    </code>
+                  </span>
+                  <span>
+                    base branch{" "}
+                    <code>
+                      {
+                        constellationPreview.capsule.codexHandoffPacket
+                          .baseBranch
+                      }
+                    </code>
+                  </span>
+                  <span>
+                    task goal{" "}
+                    <code>
+                      {
+                        constellationPreview.capsule.codexHandoffPacket
+                          .taskGoal
+                      }
+                    </code>
+                  </span>
+                </div>
+              </article>
+              <article>
+                <h3>Evidence pointers</h3>
+                <RefChipList
+                  refs={constellationPreview.capsule.evidencePointers}
+                  emptyLabel="No handoff evidence pointers"
+                />
+                <h4>Unresolved tensions</h4>
+                <RefChipList
+                  refs={constellationPreview.capsule.unresolvedTensions}
+                  emptyLabel="No handoff unresolved tensions"
+                />
+              </article>
+            </div>
+            <label htmlFor="perspective-capsule-copyable-handoff-text">
+              Readonly selectable handoff text
+            </label>
+            <textarea
+              id="perspective-capsule-copyable-handoff-text"
+              value={copyableHandoffText}
+              readOnly
+              rows={28}
+              spellCheck={false}
+              aria-label="Perspective Capsule / Handoff Capsule readonly selectable handoff text"
+              style={{
+                width: "100%",
+                minHeight: "440px",
+                resize: "vertical",
+                fontFamily:
+                  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+                lineHeight: 1.45,
+              }}
+            />
+            <div className="perspective-frame-summary">
+              <article>
+                <h3>Expected changed files</h3>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket
+                      .expectedChangedFiles
+                  }
+                  emptyLabel="No expected changed files"
+                />
+                <h4>Forbidden changed files</h4>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket
+                      .forbiddenChangedFiles
+                  }
+                  emptyLabel="No forbidden changed files"
+                />
+                <h4>Hard constraints</h4>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket
+                      .hardConstraints
+                  }
+                  emptyLabel="No hard constraints"
+                />
+              </article>
+              <article>
+                <h3>Required checks</h3>
+                <RefChipList
+                  refs={constellationPreview.capsule.codexHandoffPacket.requiredChecks}
+                  emptyLabel="No required checks"
+                />
+                <h4>Skipped check policy</h4>
+                <p>
+                  {
+                    constellationPreview.capsule.codexHandoffPacket
+                      .skippedCheckPolicy
+                  }
+                </p>
+                <h4>Browser/computer-use</h4>
+                <p>
+                  {
+                    constellationPreview.capsule.codexHandoffPacket
+                      .browserComputerUseExpectation
+                  }
+                </p>
+                <h4>Proof-only closeout</h4>
+                <p>
+                  {
+                    constellationPreview.capsule.codexHandoffPacket
+                      .proofOnlyCloseoutStatusOrSkip
+                  }
+                </p>
+              </article>
+            </div>
+            <div className="perspective-frame-summary">
+              <article>
+                <h3>PR body requirements</h3>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket
+                      .prBodyRequirements
+                  }
+                  emptyLabel="No PR body requirements"
+                />
+                <h4>Final report requirements</h4>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket
+                      .finalReportRequirements
+                  }
+                  emptyLabel="No final report requirements"
+                />
+              </article>
+              <article>
+                <h3>Blockers/risks</h3>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket
+                      .blockersOrRisks
+                  }
+                  emptyLabel="No blockers or risks"
+                />
+                <h4>Assumptions</h4>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket.assumptions
+                  }
+                  emptyLabel="No assumptions"
+                />
+                <h4>Questions requiring user/PM judgment</h4>
+                <RefChipList
+                  refs={
+                    constellationPreview.capsule.codexHandoffPacket
+                      .questionsRequiringUserPmJudgment
+                  }
+                  emptyLabel="No user/PM judgment questions"
+                />
+                <h4>Next suggested goal</h4>
+                <p>
+                  {
+                    constellationPreview.capsule.codexHandoffPacket
+                      .nextSuggestedGoal
+                  }
+                </p>
+              </article>
+            </div>
+            <TensionList
+              title="Forbidden actions"
+              items={constellationPreview.capsule.forbiddenActions.map((action) => ({
+                key: action,
+                label: action,
+              }))}
+              emptyLabel="No forbidden actions"
+            />
+          </section>
           <div className="perspective-frame-summary">
             <article>
               <h3>Codex execution authority preview</h3>

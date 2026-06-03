@@ -15,11 +15,16 @@ const cockpitFile = "components/augnes-cockpit.tsx";
 const smokeFile = "scripts/smoke-project-constellation-cockpit-preview.mjs";
 const packageJsonFile = "package.json";
 const projectDoc = "docs/PROJECT_CONSTELLATION_IA_V0_1.md";
+const capsuleDoc = "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const fixtureFile =
   "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
+const copyableHandoffSmokeFile =
+  "scripts/smoke-perspective-capsule-copyable-handoff-preview.mjs";
 const browserReportFile =
   "reports/browser/2026-06-03-project-constellation-cockpit-preview.md";
+const copyableHandoffBrowserReportFile =
+  "reports/browser/2026-06-03-perspective-capsule-copyable-handoff-preview.md";
 
 const inspectedFiles = [
   cockpitFile,
@@ -33,10 +38,13 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   cockpitFile,
   smokeFile,
+  copyableHandoffSmokeFile,
   packageJsonFile,
+  capsuleDoc,
   projectDoc,
   indexDoc,
   browserReportFile,
+  copyableHandoffBrowserReportFile,
 ]);
 
 const textByFile = loadTextByFile(inspectedFiles);

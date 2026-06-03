@@ -159,6 +159,15 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   controls, no Project Constellation runtime behavior, no graph DB, no
   persistence, no proof/evidence write, no Codex SDK execution, and no AG Resume
   writer/helper/route behavior를 정적으로 확인한다.
+- `components/augnes-cockpit.tsx`: Perspective Capsule / Handoff Capsule
+  copyable handoff preview도 같은 Project Constellation read-only Cockpit
+  preview 안에 표시한다. It renders readonly selectable `codex_handoff` text
+  for manual review from the static capsule/handoff sample. `npm run
+  smoke:perspective-capsule-copyable-handoff-preview`는 package script pointer,
+  docs/index pointers, readonly/selectable text surface, no action controls, no
+  live SDK call, no provider implementation, no runtime execution, no
+  proof/evidence write, no graph DB, no persistence, and no AG Resume
+  writer/helper/route behavior를 정적으로 확인한다.
 - `VERIFICATION_EVIDENCE_PACK.md`: 관련 smoke command 색인과 검증 기록
   포인터를 둔다.
 - `COCKPIT_PERSPECTIVE_IA_V0_1.md`: Cockpit Perspective IA의 read-only
