@@ -438,6 +438,14 @@ runtime behavior. `npm run smoke:project-constellation-sample-fixture` validates
 the fixture shape, capsule preview, Codex execution authority preview, package
 script pointer, and docs/index pointers with deterministic static reads only.
 
+`types/project-constellation-fixture.ts` is the type-only Project Constellation
+fixture boundary for that static sample shape. It supports fixture and preview
+alignment only. It does not implement runtime graph behavior, does not implement
+persistence, does not implement graph DB, does not implement API routes, and
+does not become source of truth. `npm run
+smoke:project-constellation-fixture-schema-boundary` verifies the type-only
+boundary, docs pointers, package pointer, and non-authority wording.
+
 Example capsule thesis:
 
 ```text

@@ -285,6 +285,14 @@ unresolved tensions, next action candidates, Perspective Capsule preview, Codex
 execution authority preview, and copyable handoff text before runtime,
 persistence, or provider work is considered.
 
+Follow-up note: the recommended type-only fixture/schema boundary is now being
+introduced in `types/project-constellation-fixture.ts` with
+`smoke:project-constellation-fixture-schema-boundary`. This follow-up remains
+type-only/docs/smoke/package-pointer only. It does not add runtime behavior,
+does not add UI behavior, does not add graph DB, does not add persistence, does
+not add API routes, does not add MCP/App tools, does not add proof/evidence
+writes, and does not add Codex SDK execution/provider behavior.
+
 ## Non-goals
 
 This closeout does not implement runtime behavior, UI behavior, API routes, DB
