@@ -120,9 +120,21 @@ const boundaryPhrases = [
   fixtureFile,
 ];
 
+const forbiddenPositiveAuthoritySelfTests = [
+  "A fixture may merge without approval.",
+  "A type boundary may execute Codex without review.",
+  "A Project Constellation schema may deploy without authority matrix update.",
+];
+
+const allowedBoundarySelfTests = [
+  "No fixture may merge without separate approval.",
+  "No type boundary may execute Codex.",
+];
+
 const textByFile = loadTextByFile(inspectedFiles);
 const typeText = textByFile.get(typeFile);
 
+assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertTypeExports();
 assertTypeFileBoundary();
@@ -390,6 +402,24 @@ function assertNoForbiddenPositiveClauses(file, text) {
   }
 }
 
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
+    );
+  }
+}
+
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
     /\b(type|schema|fixture|boundary|Project Constellation|Codex|PR)\b.{0,100}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?)\b.{0,140}\b(create branches?|open PRs?|create PRs?|merge|publish|approve|retry|replay|deploy|record proof|record evidence|write proof|write evidence|execute Codex|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?|call SDK|implement providers?)\b/i,
@@ -403,7 +433,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself|type-only|boundary only)\b/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself|type-only|boundary only)\b/i.test(
     clause,
   );
 }

@@ -121,6 +121,10 @@ const forbiddenPositiveAuthoritySelfTests = [
   "A future GET route may execute Codex.",
   "A read-only route is allowed to expose credentials.",
   "A planning-only route may approve merges.",
+  "A future route may merge without approval.",
+  "A read-only route may expose credentials without review.",
+  "A future API route may create proof records without evidence gate approval.",
+  "A planning-only route may deploy without authority matrix update.",
 ];
 
 const allowedBoundarySelfTests = [
@@ -128,6 +132,8 @@ const allowedBoundarySelfTests = [
   "A future API route requires separate auth/security review.",
   "Read-only route planning does not write Augnes state.",
   "GET/read-only routes still require privacy review before implementation.",
+  "No route may merge without separate approval.",
+  "No API route may expose credentials.",
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
@@ -397,7 +403,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself)\b|않|아니다|만들지 않는다/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself)\b|않|아니다|만들지 않는다/i.test(
     clause,
   );
 }

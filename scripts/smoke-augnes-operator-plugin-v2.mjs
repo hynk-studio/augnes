@@ -42,8 +42,24 @@ allowedChangedFiles.add(capsuleDocFile);
 allowedChangedFiles.add(capsuleHandoffSmokeFile);
 allowedChangedFiles.add(capsuleHandoffDogfoodReportFile);
 allowedChangedFiles.add(capsuleHandoffDogfoodSmokeFile);
+
+const forbiddenPositiveAuthoritySelfTests = [
+  "A plugin may publish without review.",
+  "A plugin may publish without granting merge authority.",
+  "A skill may deploy without granting approval authority.",
+  "A skill may record proof without evidence gate approval.",
+  "A plugin may record proof without granting evidence authority.",
+  "A deployment URL may approve without review.",
+];
+
+const allowedBoundarySelfTests = [
+  "No plugin may publish without separate approval.",
+  "This plugin does not add runtime behavior.",
+];
+
 const textByFile = loadTextByFile(inspectedFiles);
 
+assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertPluginMetadataBoundary();
 assertSkillBoundary();
@@ -252,9 +268,27 @@ function assertNoForbiddenPositiveClauses(file, text) {
   }
 }
 
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
+    );
+  }
+}
+
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
-    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?)\b.{0,80}\b(runtime behavior|network calls?|GitHub calls?|OpenAI calls?|Augnes runtime calls?|MCP\/App tool changes?|MCP\/App writes?|proof\/evidence writes?|proof writes?|evidence writes?|Sites deployment behavior|merge authority|publish authority|publication authority|approval authority|commit\/reject authority|Project Constellation UI\/runtime behavior)\b/i,
+    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?(?!\s*,)|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?)\b.{0,80}\b(runtime behavior|network calls?|GitHub calls?|OpenAI calls?|Augnes runtime calls?|MCP\/App tool changes?|MCP\/App writes?|proof\/evidence writes?|proof writes?|evidence writes?|Sites deployment behavior|merge authority|publish authority|publication authority|approval authority|commit\/reject authority|Project Constellation UI\/runtime behavior)\b/i,
     /\b(Codex|ChatGPT|plugin|skill|Sites URL|deployment URL)\b.{0,80}\b(can|may|is allowed to|is permitted to)\b.{0,80}\b(merge|publish|approve|retry|replay|record proof|record evidence|commit\/reject)\b/i,
     /\bproduction deployment\b.{0,80}\b(Augnes readiness|proof|publication|approval|merge authority)\b/i,
   ];
@@ -264,8 +298,10 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|doesn't|cannot|can't|out of scope)\b/i.test(
-    clause,
+  return (
+    /\b(not|no|does not|do not|must not|never|is not|are not|doesn't|cannot|can't|out of scope)\b/i.test(
+      clause,
+    )
   );
 }
 

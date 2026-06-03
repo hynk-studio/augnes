@@ -141,9 +141,21 @@ const boundaryPhrases = [
   "RealCodexSdkExecutionProvider",
 ];
 
+const forbiddenPositiveAuthoritySelfTests = [
+  "A future Codex execution record may merge without approval.",
+  "A provider may call SDK without approval.",
+  "A boundary may record proof without evidence gate approval.",
+];
+
+const allowedBoundarySelfTests = [
+  "No execution record may merge without separate approval.",
+  "No provider may call SDK without separate approval.",
+];
+
 const textByFile = loadTextByFile(inspectedFiles);
 const typeText = textByFile.get(typeFile);
 
+assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertTypeExports();
 assertTypeFileBoundary();
@@ -440,6 +452,24 @@ function assertNoForbiddenPositiveClauses(file, text) {
   }
 }
 
+function assertAuthorityClassifierSelfTests() {
+  for (const clause of forbiddenPositiveAuthoritySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      true,
+      `Authority classifier must reject forbidden positive claim: ${clause}`,
+    );
+  }
+
+  for (const clause of allowedBoundarySelfTests) {
+    assert.equal(
+      isForbiddenPositiveClause(clause),
+      false,
+      `Authority classifier must allow legitimate boundary wording: ${clause}`,
+    );
+  }
+}
+
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
     /\b(type|boundary|record|Codex|execution|provider|PR)\b.{0,120}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?)\b.{0,160}\b(create branches?|open PRs?|create PRs?|merge|publish|approve|retry|replay|deploy|record proof|record evidence|write proof|write evidence|execute Codex|call GitHub|call OpenAI|call Augnes runtime|call MCP\/App tools?|call SDK|implement providers?)\b/i,
@@ -453,7 +483,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|without|never|is not|are not|cannot|can't|by itself|type-only|boundary only|pointer only|future)\b|않|만들지 않는다/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself|type-only|boundary only|pointer only)\b|않|만들지 않는다/i.test(
     clause,
   );
 }
