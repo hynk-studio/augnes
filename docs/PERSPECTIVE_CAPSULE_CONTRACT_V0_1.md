@@ -355,6 +355,12 @@ Forbidden actions:
 Candidate next action: add or refine a docs-only/smoke-only boundary pointer
 with explicit validation and no runtime implementation.
 
+The first fixture-backed capsule preview for this example lives in
+`fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json`. That
+preview is conceptual, non-authoritative, and fixture-backed only; it does not
+create runtime capsule behavior, schema, persistence, graph DB, proof/evidence
+writes, Codex task launch, or AG Resume behavior.
+
 ### Example 2: ChatGPT App/MCP Review To Codex Plugin Workflow
 
 Source: ChatGPT App/MCP whole perspective review.

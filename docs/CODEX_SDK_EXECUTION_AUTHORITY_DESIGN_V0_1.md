@@ -201,6 +201,13 @@ DB, graph engine, node creation, route behavior, or UI behavior. Project
 Constellation remains a read-only, non-authoritative, evidence-pointer-based
 design layer.
 
+`fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json` includes a
+`codex_execution_authority_preview` object as conceptual only. It is a sample
+fixture preview for docs/smoke validation and does not add a live SDK call,
+does not add provider implementation, and does not add runtime execution. This
+preview preserves no live SDK call, no provider implementation, and no runtime
+execution.
+
 ## 14. Perspective Capsule Relationship
 
 A Perspective Capsule may later carry Codex execution intent into a Handoff
