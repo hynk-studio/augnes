@@ -344,6 +344,13 @@ change routes, or write proof/evidence/readiness data.
 A Perspective Capsule is a handoff-ready, bounded summary compiled from a
 snapshot or selected scope.
 
+Detailed Perspective Capsule / Handoff Capsule contract semantics are factored
+into `docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`. That contract is docs-only,
+non-SSOT, contract/design-only, read-only, non-authoritative,
+evidence-pointer-based, and handoff-preview-oriented. Project Constellation
+v0.1 remains read-only, non-authoritative, evidence-pointer-based, and
+handoff-preview-oriented.
+
 Required capsule fields:
 
 - `capsule_id`

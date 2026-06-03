@@ -53,6 +53,12 @@ notes, validation results, skipped reasons, and next-move candidates across
 surfaces without granting execution, write, proof, publication, or merge
 authority.
 
+The shared Perspective Capsule / Handoff Capsule contract is defined in
+`docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`. That contract is docs-only,
+non-SSOT, contract/design-only, read-only, and non-authoritative. This v0.2
+plugin alignment remains docs/metadata/skill/smoke/package-pointer only and
+does not modify plugin skill semantics.
+
 ## v0.2 Surface-Ops Skill
 
 The `augnes-codex-surface-ops` skill is instruction-only guidance for:
