@@ -159,12 +159,21 @@ Future implementation must be GET/read-only only unless separately scoped.
 Even GET/read-only routes need auth/security/privacy boundaries before
 implementation.
 
+`docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md` defines the read-only API
+route review checklist for those gates. The checklist is required before future
+route implementation, and future implementation PRs must answer its auth/session,
+privacy, prompt-injection, provenance, response minimization, evidence pointer,
+capsule, Project Constellation, browser/computer-use, and authority matrix
+items before merge. No API route is implemented by the checklist or this
+planning boundary.
+
 ## Validation and smoke plan
 
 Required validation for this planning note:
 
 - `npm run typecheck`
 - `npm run smoke:readonly-api-route-planning-boundary`
+- `npm run smoke:readonly-api-route-review-checklist`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries`

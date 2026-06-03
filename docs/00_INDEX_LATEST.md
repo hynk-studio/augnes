@@ -270,6 +270,17 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   planning sections, read-only route concepts, forbidden response concepts,
   implementation gates, package/index pointers, scoped/content-only boundary
   behavior, and non-authority wording을 정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md`: read-only API route
+  review checklist for future route implementation PRs다. It is
+  docs/smoke/package-pointer only, non-SSOT, and defines auth/session, privacy,
+  prompt-injection, provenance, response minimization, evidence pointer,
+  capsule, Project Constellation, logging/telemetry, browser, and authority
+  matrix review items only. It has no API route, no auth implementation, no
+  runtime behavior, no UI, no DB, no MCP/App tool, no proof/evidence write, and
+  no Codex SDK execution. `npm run smoke:readonly-api-route-review-checklist`는
+  checklist sections, review concepts, planning/index pointers,
+  package pointer, scoped/content-only boundary behavior, and non-authority
+  wording을 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

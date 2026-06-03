@@ -12,18 +12,23 @@ import {
 
 const boundaryDoc = "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
 const routePlanningDoc = "docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md";
+const routeChecklistDoc = "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 const routePlanningSmokeFile =
   "scripts/smoke-readonly-api-route-planning-boundary.mjs";
+const routeChecklistSmokeFile =
+  "scripts/smoke-readonly-api-route-review-checklist.mjs";
 
 const inspectedFiles = [boundaryDoc, indexDoc, packageJsonFile, smokeFile];
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
   routePlanningDoc,
   routePlanningSmokeFile,
+  routeChecklistDoc,
+  routeChecklistSmokeFile,
 ]);
 
 const requiredSections = [
