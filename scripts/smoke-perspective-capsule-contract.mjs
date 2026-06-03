@@ -197,6 +197,9 @@ const requiredNonGoals = [
 
 const forbiddenPositiveAuthoritySelfTests = [
   "A capsule may record proof without evidence gate approval.",
+  "A ChatGPT capsule may execute without inference.",
+  "A Perspective Capsule may launch Codex without inference.",
+  "A capsule may record proof without inference.",
   "A contract may publish without review.",
   "A ChatGPT capsule may execute without approval.",
 ];
@@ -450,7 +453,7 @@ function assertAuthorityClassifierSelfTests() {
 
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
-    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|launches?|routes?|persists?|publishes?|approves?|retries|replays|merges?|deploys?)\b.{0,100}\b(runtime behavior|runtime schema|DB schema|API route|MCP\/App writes?|MCP\/App tool changes?|plugin runtime action|graph DB|persistence|proof\/evidence writes?|proof writes?|evidence writes?|Codex execution|Codex task launch|Sites deployment authority|approval\/publish\/retry\/replay\/merge authority|merge authority|publish authority)\b/i,
+    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?(?!\s*[,/-])|calls?|runs?|executes?|launches?|routes?(?!\s+behavior)|persists?|publishes?|approves?|retries|replays|merges?|deploys?)\b.{0,100}\b(runtime behavior|runtime schema|DB schema|API route|MCP\/App writes?|MCP\/App tool changes?|plugin runtime action|graph DB|persistence|proof\/evidence writes?|proof writes?|evidence writes?|Codex execution|Codex task launch|Sites deployment authority|approval\/publish\/retry\/replay\/merge authority|merge authority|publish authority)\b/i,
     /\b(Codex|ChatGPT|MCP|plugin|capsule|contract|Sites URL|deployment URL)\b.{0,80}\b(can|may|is allowed to|is permitted to|will)\b.{0,80}\b(execute|launch|write|persist|route|merge|publish|approve|retry|replay|record proof|record evidence|commit\/reject)\b/i,
   ];
 
@@ -462,7 +465,7 @@ function isNegatedBoundary(clause) {
   return (
     /\b(not|no|does not|do not|must not|never|is not|are not|doesn't|cannot|can't|out of scope)\b/i.test(
       clause,
-    ) || /\bwithout inference\b/i.test(clause)
+    )
   );
 }
 
