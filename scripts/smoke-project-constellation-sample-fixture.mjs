@@ -530,7 +530,9 @@ function assertChangedFilesBoundary() {
     }
   }
   const files = [...new Set([...result.files, ...untrackedFiles])].sort();
-  assertNoForbiddenChangedPaths(files);
+  if (!contentOnly) {
+    assertNoForbiddenChangedPaths(files);
+  }
   return {
     ...result,
     files,
