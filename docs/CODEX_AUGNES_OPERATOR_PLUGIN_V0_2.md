@@ -29,8 +29,13 @@ or Augnes Core gates.
   alignment in local scaffold metadata.
 - `plugins/augnes-operator/skills/augnes-codex-surface-ops/SKILL.md` adds an
   instruction-only surface-ops skill.
+- `plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md` adds an
+  instruction-only Perspective Capsule / Handoff Capsule consumption skill.
 - `scripts/smoke-augnes-operator-plugin-v2.mjs` adds a static boundary smoke.
+- `scripts/smoke-augnes-capsule-handoff-skill.mjs` adds a static guard for
+  the capsule handoff skill.
 - `package.json` exposes `npm run smoke:augnes-operator-plugin-v2`.
+- `package.json` exposes `npm run smoke:augnes-capsule-handoff-skill`.
 - `docs/00_INDEX_LATEST.md` points to this v0.2 alignment document.
 
 This PR does not change `AGENTS.md`.
@@ -88,6 +93,30 @@ URLs are production deployment and are not Augnes readiness, proof,
 publication, approval, or merge authority. This PR does not implement Sites
 deployment behavior.
 
+## v0.2 Capsule Handoff Skill
+
+The `augnes-capsule-handoff` skill is instruction-only guidance for consuming
+Perspective Capsule / Handoff Capsule material from Augnes, Project
+Constellation, Cockpit Perspective, ChatGPT review, or manually copied handoff
+text.
+
+The skill tells Codex to preserve repo, base branch, working branch suggestion,
+expected PR title, task goal, context anchors, selected nodes and edges,
+expected changed files, forbidden changed files, hard constraints, required
+checks, skipped check policy, evidence pointers, unresolved tensions,
+browser/computer-use expectation, proof-only closeout expectation, PR body
+requirements, final report requirements, blockers, repo/task mismatches, scope
+risks, assumptions, questions requiring user/PM judgment, and next suggested
+goal.
+
+The skill can guide Codex during a user-scoped task, but it does not create
+execution authority. It does not call GitHub, does not call OpenAI, does not
+call Augnes runtime, does not call network resources, does not call MCP/App
+tools, does not record proof/evidence, does not create branches, does not open
+PRs, does not merge, does not publish, does not approve, does not retry, does
+not replay, does not deploy, does not post externally, does not execute Codex
+SDK calls, and does not implement providers.
+
 ## PR-Centered Workflow
 
 The preserved workflow is:
@@ -132,6 +161,7 @@ Validation for this docs/metadata/skill/smoke/package-pointer PR should include:
 npm run typecheck
 npm run smoke:augnes-operator-plugin-scaffold
 npm run smoke:augnes-operator-plugin-v2
+npm run smoke:augnes-capsule-handoff-skill
 git diff --check
 git diff --cached --check
 ```
@@ -178,6 +208,9 @@ This v0.2 alignment does not:
 - add external calls
 - add GitHub/OpenAI/Augnes runtime calls
 - add proof/evidence/readiness writes
+- add branch or PR creation authority by itself
 - implement Project Constellation UI/runtime behavior
+- implement Perspective Capsule runtime behavior
+- implement Codex SDK execution
 - create approve, publish, retry, replay, external-posting, commit/reject, or
   merge authority

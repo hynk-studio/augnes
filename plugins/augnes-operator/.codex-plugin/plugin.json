@@ -9,15 +9,16 @@
   "interface": {
     "displayName": "Augnes Operator",
     "shortDescription": "Use Augnes workflow skills inside Codex.",
-    "longDescription": "Packages approved Augnes workflow skills for Codex context intake, bounded implementation, surface-operation guidance, evidence-aware reporting, proof-only closeout, and authority audit. This v0.2 metadata alignment does not add hooks, MCP config, app mappings, runtime calls, GitHub calls, OpenAI calls, network calls, or secrets.",
+    "longDescription": "Packages approved Augnes workflow skills for Codex context intake, bounded implementation, surface-operation guidance, capsule handoff guidance, evidence-aware reporting, proof-only closeout, and authority audit. This v0.2 metadata alignment does not add hooks, MCP config, app mappings, runtime calls, GitHub calls, OpenAI calls, network calls, or secrets.",
     "developerName": "Aurna-code",
     "category": "Productivity",
     "capabilities": [
       "workflow-guidance",
       "preflight",
       "surface-ops-guidance",
+      "capsule-handoff-guidance",
       "authority-audit"
     ],
-    "defaultPrompt": "Use the Augnes Operator skills to keep Codex work bounded, evidence-aware, surface-aware, proof-only at closeout, and aligned with Augnes authority boundaries."
+    "defaultPrompt": "Use the Augnes Operator skills to keep Codex work bounded, capsule-handoff-aware, evidence-aware, surface-aware, proof-only at closeout, and aligned with Augnes authority boundaries."
   }
 }
