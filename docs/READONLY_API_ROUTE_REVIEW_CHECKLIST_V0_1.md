@@ -249,6 +249,7 @@ Future route implementation PRs must include:
 - route path
 - auth/session design
 - response schema or sample
+- comparison against `types/readonly-api-route-response.ts`, the type-only response shape
 - forbidden fields review
 - privacy review result
 - prompt-injection review result
@@ -260,12 +261,18 @@ Future route implementation PRs must include:
 - remaining blockers/risks
 - questions requiring user/PM judgment
 
+Future route implementation PRs should include or compare against the type-only
+response shape in `types/readonly-api-route-response.ts`. That type boundary
+does not implement any API route, does not add runtime behavior, does not add
+auth implementation, and does not add proof/evidence writes.
+
 ## Validation and smoke plan
 
 Required validation for this checklist PR:
 
 - `npm run typecheck`
 - `npm run smoke:readonly-api-route-review-checklist`
+- `npm run smoke:readonly-api-route-response-shape-boundary`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`

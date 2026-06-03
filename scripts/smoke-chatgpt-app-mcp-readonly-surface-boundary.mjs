@@ -21,6 +21,9 @@ const routePlanningSmokeFile =
   "scripts/smoke-readonly-api-route-planning-boundary.mjs";
 const routeChecklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
+const routeResponseShapeTypeFile = "types/readonly-api-route-response.ts";
+const routeResponseShapeSmokeFile =
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs";
 
 const inspectedFiles = [boundaryDoc, indexDoc, packageJsonFile, smokeFile];
 const allowedChangedFiles = new Set([
@@ -29,6 +32,8 @@ const allowedChangedFiles = new Set([
   routePlanningSmokeFile,
   routeChecklistDoc,
   routeChecklistSmokeFile,
+  routeResponseShapeTypeFile,
+  routeResponseShapeSmokeFile,
 ]);
 
 const requiredSections = [
