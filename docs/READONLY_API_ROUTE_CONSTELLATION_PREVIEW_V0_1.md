@@ -33,6 +33,7 @@ This PR implements only the route slice:
 
 - `app/api/augnes/read/constellation-preview/route.ts`
 - `lib/readonly-api/constellation-preview.ts`
+- `lib/readonly-api/access-guard.ts`
 
 It does not connect Cockpit, ChatGPT App, MCP, plugin tools, or any consumer
 surface.
@@ -52,6 +53,7 @@ validation. It follows:
 - `docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md`
 - `docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md`
 - `docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md`
+- `docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md`
 - `types/readonly-api-route-response.ts`
 
 The route path is now implemented for this local validation slice, but the
@@ -66,12 +68,21 @@ The route requires both:
 - local host access from `localhost`, `127.0.0.1`, or `::1`
 - header `x-augnes-local-readonly: constellation-preview-v0.1`
 
+The route now uses the shared read-only access guard documented in
+`docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md`. The guard checks URL host,
+`Host` header, `X-Forwarded-Host`, GET method, marker header, and
+`project:augnes` scope. It remains a local validation guard and is not
+production auth.
+
 The route fails closed when:
 
 - request host is not local
+- `Host` header is not local
+- `X-Forwarded-Host` is not local
 - required local-read marker header is missing or wrong
 - `scope` is missing
 - `scope` is not `project:augnes`
+- request method is present and is not `GET`
 - request URL is malformed
 - an unexpected internal error occurs
 
@@ -241,13 +252,17 @@ The route returns minimal error bodies:
 - `malformed_request`
 - `unauthorized_scope`
 - `local_authorization_required`
+- `disallowed_forwarded_host`
+- `method_not_allowed`
 - `unavailable`
 
 Suggested status mapping:
 
 - `200` for a valid local-authorized request
 - `400` for missing or malformed scope/request
-- `403` for non-local host, missing/wrong marker header, or wrong project scope
+- `403` for non-local host, non-local forwarded host, missing/wrong marker
+  header, or wrong project scope
+- `405` for a non-GET request object when the shared guard is called directly
 - `500` only for unexpected internal error
 
 Error bodies include only response version, minimal error code/status, and
@@ -269,18 +284,21 @@ Focused smoke:
 
 ```text
 npm run smoke:readonly-api-route-constellation-preview
+npm run smoke:readonly-api-route-access-guard
 ```
 
 The smoke checks route/helper existence, GET-only exports, route runtime flags,
-static fixture source, local authorization/fail-closed behavior, minimized
-response shape, forbidden fields, pointer-only evidence, prompt-injection and
-display-data boundaries, authority matrix/index pointers, and strict scoped
-changed-file behavior.
+static fixture source, shared access guard usage, local
+authorization/fail-closed behavior, forwarded host handling, minimized response
+shape, forbidden fields, pointer-only evidence, prompt-injection and display-data
+boundaries, authority matrix/index pointers, and strict scoped changed-file
+behavior.
 
 Required validation for this PR:
 
 - `npm run typecheck`
 - `npm run smoke:readonly-api-route-constellation-preview`
+- `npm run smoke:readonly-api-route-access-guard`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-constellation-preview`
 - `npm run smoke:readonly-api-route-implementation-plan`
 - `npm run smoke:readonly-api-route-implementation-design-packet`

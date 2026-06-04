@@ -54,6 +54,13 @@ fixture source, minimized response profile, and no-consumer decision. It
 preserves that no Cockpit, ChatGPT App, MCP, plugin tool, or other consumer
 surface is connected by the route implementation PR.
 
+`docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md` documents the shared local
+read-only access guard introduced after the first route slice. The guard
+extracts local host, `Host`, `X-Forwarded-Host`, GET method, marker header, and
+`project:augnes` scope validation for route-only local validation. Future real
+authenticated workspace/project integration remains separate scope and still
+requires concrete auth/session evidence beyond this local guard.
+
 ## 2. Purpose
 
 The purpose is to define a concrete but non-executable implementation plan for
@@ -483,6 +490,8 @@ Remaining questions:
   smokes pass?
 - Which optional capsule/handoff fields are truly necessary for the first
   read-only consumer, if any?
+- Which real authenticated workspace/project scope source should replace the
+  local access guard when moving beyond route-only local validation?
 
 ## 24. Validation and smoke plan
 

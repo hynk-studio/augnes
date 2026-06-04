@@ -169,6 +169,14 @@ execution authority, no DB schema/migration authority, no graph DB authority,
 no persistence authority, and no consumer authority. It does not connect
 Cockpit, ChatGPT App, MCP, plugin tools, or any UI/browser-facing consumer.
 
+`lib/readonly-api/access-guard.ts` is the shared read-only local access guard
+for route-only local validation. It is local-only, fail-closed, and not
+production auth. It grants no consumer authority, no write authority, no
+proof/evidence/readiness authority, no publish authority, no merge authority,
+no approval authority, no retry/replay/deploy authority, no Codex execution
+authority, no DB query authority, no graph DB authority, and no persistence
+authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

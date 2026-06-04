@@ -17,6 +17,7 @@ export function GET(request: Request) {
         buildConstellationPreviewError({
           code: validation.code,
           status: validation.status,
+          authorityBoundary: validation.authority_boundary,
         }),
         { status: validation.status },
       );

@@ -40,6 +40,10 @@ const constellationPreviewHelperFile =
   "lib/readonly-api/constellation-preview.ts";
 const constellationPreviewSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
+const accessGuardFile = "lib/readonly-api/access-guard.ts";
+const accessGuardSmokeFile =
+  "scripts/smoke-readonly-api-route-access-guard.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
@@ -65,6 +69,9 @@ const allowedChangedFiles = new Set([
   constellationPreviewRouteFile,
   constellationPreviewHelperFile,
   constellationPreviewSmokeFile,
+  accessGuardDoc,
+  accessGuardFile,
+  accessGuardSmokeFile,
   authorityMatrixDoc,
 ]);
 
