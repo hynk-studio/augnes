@@ -74,6 +74,10 @@ const consumerScopeDecisionDoc =
   "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
 const consumerScopeDecisionSmokeFile =
   "scripts/smoke-readonly-api-route-local-only-consumer-scope-decision.mjs";
+const cockpitPlanDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
+const cockpitPlanSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
@@ -118,6 +122,8 @@ const allowedChangedFiles = new Set([
   surfaceBoundaryDoc,
   consumerScopeDecisionDoc,
   consumerScopeDecisionSmokeFile,
+  cockpitPlanDoc,
+  cockpitPlanSmokeFile,
   authorityMatrixDoc,
 ]);
 

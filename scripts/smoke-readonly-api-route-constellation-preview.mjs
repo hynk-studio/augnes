@@ -49,6 +49,8 @@ const realAuthGatePlanDoc =
   "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
+const cockpitPlanDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const designDoc =
   "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
@@ -63,6 +65,8 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const cockpitPlanSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
 const authScopePlanSmokeFile =
@@ -103,6 +107,7 @@ const inspectedFiles = [
   accessGuardDoc,
   authScopePlanDoc,
   routeDoc,
+  cockpitPlanDoc,
   localDevAdapterDoc,
   realAuthGatePlanDoc,
   planDoc,
@@ -119,6 +124,7 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
+  cockpitPlanSmokeFile,
   authSourceSelectionDoc,
   adapterBoundaryDoc,
   authScopeTypeFile,

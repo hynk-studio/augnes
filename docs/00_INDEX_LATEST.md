@@ -471,6 +471,22 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   gates, false-affordance review, browser/computer-use requirements,
   docs/index/authority pointers, package pointer, scoped/content-only boundary
   behavior, and no forbidden positive authority grants를 확인한다.
+- `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`: Cockpit
+  local-only constellation route preview implementation plan이다. It is
+  docs/smoke/package-pointer only and defines future placement, local-only
+  copy, false-affordance gates, response minimization, browser/computer-use
+  validation, future file candidates, and smoke expectations before any
+  Cockpit consumer code changes. It adds no Cockpit implementation, no consumer
+  implementation, no route behavior change, no real auth implementation, no DB
+  query, no UI, no MCP/App tool, no proof/evidence write, no Codex SDK
+  execution, no graph DB, no persistence, and no
+  merge/publish/approval/retry/replay/deploy authority. `npm run
+  smoke:cockpit-local-only-constellation-route-preview-plan`는 required
+  sections, current local-only route/auth baseline, ChatGPT App/MCP deferral,
+  local-only copy, forbidden controls, response field and minimization plan,
+  browser/computer-use plan, future implementation file candidates,
+  docs/index/authority pointers, package pointer, scoped/content-only boundary
+  behavior, and no forbidden positive authority grants를 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

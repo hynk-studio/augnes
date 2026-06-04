@@ -10,6 +10,8 @@ import {
 } from "./smoke-boundary-common.mjs";
 
 const gatePlanDoc = "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
+const cockpitPlanDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
 const localDevAdapterDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const localDevAdapterPlanDoc =
@@ -33,6 +35,8 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
+const cockpitPlanSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
 
 const localDevAdapterSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
@@ -57,6 +61,7 @@ const consumerScopeDecisionSmokeFile =
 
 const inspectedFiles = [
   gatePlanDoc,
+  cockpitPlanDoc,
   localDevAdapterDoc,
   localDevAdapterPlanDoc,
   adapterBoundaryDoc,
@@ -75,6 +80,7 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   gatePlanDoc,
+  cockpitPlanDoc,
   localDevAdapterDoc,
   localDevAdapterPlanDoc,
   adapterBoundaryDoc,
@@ -88,6 +94,7 @@ const allowedChangedFiles = new Set([
   authorityMatrixDoc,
   indexDoc,
   smokeFile,
+  cockpitPlanSmokeFile,
   packageJsonFile,
   localDevAdapterSmokeFile,
   localDevAdapterPlanSmokeFile,

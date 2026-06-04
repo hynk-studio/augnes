@@ -116,6 +116,10 @@ the local-only consumer scope decision. It preserves that no consumer surface
 is currently connected and that any future local-only consumer needs a separate
 implementation PR.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` records the
+future Cockpit local-only route preview plan. No consumer is currently
+connected.
+
 ## 4. Request shape
 
 Required request:

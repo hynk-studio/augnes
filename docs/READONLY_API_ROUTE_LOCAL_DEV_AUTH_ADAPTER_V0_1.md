@@ -52,6 +52,10 @@ the local-only consumer scope decision after the real auth gate. It preserves
 that Candidate D remains local-only and not production auth, and it does not
 connect a consumer.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` defines the
+future Cockpit local-only route preview plan. Candidate D remains local-only
+and not production auth.
+
 ## 2. Route and adapter summary
 
 The route remains:
@@ -287,6 +291,7 @@ npm run smoke:readonly-api-route-constellation-preview
 npm run smoke:readonly-api-route-access-guard
 npm run smoke:readonly-api-route-local-dev-auth-adapter-plan
 npm run smoke:readonly-api-route-local-only-consumer-scope-decision
+npm run smoke:cockpit-local-only-constellation-route-preview-plan
 ```
 
 ## 15. Browser/computer-use status

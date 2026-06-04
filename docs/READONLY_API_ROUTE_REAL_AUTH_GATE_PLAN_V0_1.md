@@ -48,6 +48,10 @@ GET /api/augnes/read/constellation-preview
 separate local-only consumer scope decision packet referenced by this gate. It
 does not connect a consumer.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` is the
+planning-only Cockpit local-only route preview plan. Real hosted/session/
+workspace auth still does not exist.
+
 ## 2. Purpose
 
 The purpose is to state what must be true before the read-only constellation
@@ -236,6 +240,10 @@ consumer scope in a separate PR.
 that separate local-only consumer scope decision at planning level only. It
 keeps Option A, no consumer, as the default decision and does not connect
 Cockpit, ChatGPT App, MCP, plugin tools, or any browser-facing consumer.
+
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` documents
+only a future Cockpit local-only route preview implementation plan. It does not
+implement real auth and does not connect a consumer.
 
 A future consumer PR must separately define:
 
