@@ -276,6 +276,17 @@ this checklist before merge, including comparison against
 `types/readonly-api-route-response.ts` and the PR #381 user-intent validation
 baseline where applicable.
 
+`docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md` is the next pre-route
+implementation plan artifact after the design packet. It converts the PR #382
+PM/user judgment questions into planning-level decisions for authenticated
+workspace/project scope, response minimization, first consumer surface,
+implementation slices, future tests/smokes, prompt-injection/privacy checklist
+application, and authority matrix update or skipped reason. The plan is
+docs/smoke/package-pointer only and does not satisfy runtime, auth/session,
+privacy, prompt-injection, browser/computer-use, or route implementation tests
+by itself. Future implementation PRs must still answer this checklist with
+concrete implementation evidence before merge.
+
 ## Validation and smoke plan
 
 Required validation for this checklist PR:
@@ -284,6 +295,7 @@ Required validation for this checklist PR:
 - `npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-response-shape-boundary`
 - `npm run smoke:readonly-api-route-implementation-design-packet`
+- `npm run smoke:readonly-api-route-implementation-plan`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`

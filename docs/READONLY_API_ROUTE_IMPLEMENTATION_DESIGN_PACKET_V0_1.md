@@ -58,6 +58,14 @@ use a separate route implementation PR with route file, auth/security review,
 privacy review, prompt-injection review, browser/computer-use validation if
 surfaced, authority matrix update, and tests/smokes.
 
+`docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md` is the next
+docs/smoke/package-pointer artifact before route implementation. It answers the
+PR #382 PM/user judgment questions at planning level only and does not
+implement a route, route file, route handler, API contract, auth behavior,
+runtime behavior, DB query, UI, MCP/App tool, proof/evidence write, AG Resume
+behavior, Codex SDK execution/provider behavior, graph DB, persistence, or
+merge/publish/approval/retry/replay/deploy authority.
+
 ## 3. Candidate route
 
 Candidate route vocabulary:
