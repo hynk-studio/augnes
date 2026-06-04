@@ -54,6 +54,10 @@ local-only consumer scope in a separate PR.
 
 This is that separate decision packet. It does not connect a consumer.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` is the
+planning-only Cockpit local-only route preview plan selected after this
+decision packet. It does not connect a consumer.
+
 ## 3. Current route baseline
 
 The current route remains local-only.
@@ -152,6 +156,10 @@ because Cockpit is local and can label the route as local-only and not
 production-authenticated.
 
 ChatGPT App/MCP remain deferred unless separately scoped by PM.
+
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` defines the
+planning scope for the conditional Cockpit local-only read preview path. It is
+planning-only and does not implement Cockpit, UI, or a route consumer.
 
 This PR must not implement Cockpit, ChatGPT App, MCP, plugin tool, or any
 browser-facing consumer.

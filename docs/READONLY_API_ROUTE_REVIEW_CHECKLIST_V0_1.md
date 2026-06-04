@@ -273,6 +273,11 @@ boundary. Future consumer PRs need browser/computer-use validation,
 false-affordance review, and their own focused smokes before any Cockpit,
 ChatGPT App, MCP, plugin tool, or browser-facing consumer connects.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` documents
+the future Cockpit local-only route preview plan under this consumer/browser
+validation boundary. Future Cockpit implementation requires browser/computer-use
+validation and false-affordance review.
+
 ## Authority matrix boundary
 
 Future route implementation must answer:
@@ -365,6 +370,10 @@ gate plan. The focused smoke is
 `docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` documents
 the local-only consumer scope decision. The focused smoke is
 `npm run smoke:readonly-api-route-local-only-consumer-scope-decision`.
+
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` documents
+the Cockpit local-only route preview plan. The focused smoke is
+`npm run smoke:cockpit-local-only-constellation-route-preview-plan`.
 
 ## Validation and smoke plan
 

@@ -156,6 +156,10 @@ the read-only constellation preview route local-only consumer scope decision.
 ChatGPT App/MCP consumers remain deferred unless separately scoped; this
 boundary does not connect ChatGPT App or MCP to that route.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` records a
+Cockpit local-only route preview planning packet. ChatGPT App/MCP remain
+deferred while the Cockpit local-only preview is only planning.
+
 ## Authority boundaries
 
 Authority boundaries:

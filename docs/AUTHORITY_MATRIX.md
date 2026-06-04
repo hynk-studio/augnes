@@ -231,6 +231,14 @@ production auth, hosted auth, workspace membership, DB query, UI, MCP/App tool,
 proof/evidence write, Codex execution, graph DB, persistence, publish, merge,
 retry, replay, deploy, approval, branch/PR, or runtime authority.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` is a
+docs/smoke-only Cockpit local-only route preview plan for the read-only
+constellation preview route. It grants no consumer authority and adds no
+Cockpit implementation, UI, route behavior change, real auth implementation,
+DB query, MCP/App tool, proof/evidence write, Codex execution, graph DB,
+persistence, publish, merge, retry, replay, deploy, approval, branch/PR, or
+runtime authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |
