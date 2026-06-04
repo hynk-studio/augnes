@@ -26,6 +26,14 @@ const firstLoopCloseoutFile =
   "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
 const firstLoopCloseoutSmokeFile =
   "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
+const usefulnessPlanFile =
+  "docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md";
+const usefulnessPlanSmokeFile =
+  "scripts/smoke-perspective-handoff-usefulness-experiment-plan.mjs";
+const userIntentSmokeFile =
+  "scripts/smoke-project-constellation-user-intent-validation.mjs";
+const readonlyCloseoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 
 const inspectedFiles = [
   skillFile,
@@ -44,6 +52,10 @@ const allowedChangedFiles = new Set([
   dogfoodSmokeFile,
   firstLoopCloseoutFile,
   firstLoopCloseoutSmokeFile,
+  usefulnessPlanFile,
+  usefulnessPlanSmokeFile,
+  userIntentSmokeFile,
+  readonlyCloseoutSmokeFile,
 ]);
 
 const requiredSections = [
@@ -64,6 +76,7 @@ const requiredSections = [
   "Dogfood Checklist Example",
   "Smoke-Only Dogfood Note",
   "Explicit Empty-Field Reporting",
+  "Not-Done Classification For Final Reports",
   "Authority Boundaries",
   "Non-Goals",
 ];
@@ -93,6 +106,13 @@ const requiredConcepts = [
   "assumptions",
   "questions requiring user/PM judgment",
   "next suggested goal",
+  "closed",
+  "implementation_fix",
+  "impossible_now",
+  "rejected_for_current_goal",
+  "rejected_for_next_session",
+  "waiting_for_concrete_trigger",
+  "manual_next_step",
 ];
 
 const forbiddenPositiveAuthoritySelfTests = [
@@ -206,6 +226,10 @@ function assertRequiredConcepts() {
     "Blockers: none.",
     "Repo/task mismatches: none.",
     "Questions requiring user/PM judgment: none.",
+    "Not-Done Classification For Final Reports",
+    "Final reports and PR bodies must classify skipped or unopened work",
+    "deferred/later/나중에 must not be used as status values.",
+    "This classification guidance is instruction-only.",
   ], { textByFile });
 }
 

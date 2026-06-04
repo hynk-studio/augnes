@@ -24,6 +24,14 @@ const firstLoopCloseoutFile =
   "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
 const firstLoopCloseoutSmokeFile =
   "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
+const usefulnessPlanFile =
+  "docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md";
+const usefulnessPlanSmokeFile =
+  "scripts/smoke-perspective-handoff-usefulness-experiment-plan.mjs";
+const userIntentSmokeFile =
+  "scripts/smoke-project-constellation-user-intent-validation.mjs";
+const readonlyCloseoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 
 const inspectedFiles = [reportFile, indexDoc, packageJsonFile, smokeFile];
 const allowedChangedFiles = new Set([
@@ -34,6 +42,10 @@ const allowedChangedFiles = new Set([
   pluginV2SmokeFile,
   firstLoopCloseoutFile,
   firstLoopCloseoutSmokeFile,
+  usefulnessPlanFile,
+  usefulnessPlanSmokeFile,
+  userIntentSmokeFile,
+  readonlyCloseoutSmokeFile,
 ]);
 
 const requiredSections = [
