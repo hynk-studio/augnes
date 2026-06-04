@@ -174,6 +174,17 @@ capsule, Project Constellation, browser/computer-use, and authority matrix
 items before merge. No API route is implemented by the checklist or this
 planning boundary.
 
+`docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md` is the next
+pre-route implementation design artifact. It is docs/smoke/package-pointer only
+and does not implement a route. It applies this planning boundary, the review
+checklist, `types/readonly-api-route-response.ts`, and the PR #381
+Project Constellation user-intent validation baseline before any future route
+implementation PR. It adds no API route, route file, handler, API contract,
+runtime behavior, UI, auth implementation, DB schema/migrations, MCP/App tool,
+proof/evidence write, AG Resume behavior, Codex SDK execution/provider
+behavior, graph DB, persistence, or merge/publish/approval/retry/replay/deploy
+authority.
+
 ## Validation and smoke plan
 
 Required validation for this planning note:
@@ -182,6 +193,7 @@ Required validation for this planning note:
 - `npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-response-shape-boundary`
+- `npm run smoke:readonly-api-route-implementation-design-packet`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries`

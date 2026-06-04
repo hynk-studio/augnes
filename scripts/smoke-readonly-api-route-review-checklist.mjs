@@ -22,6 +22,10 @@ const surfaceSmokeFile =
 const responseShapeTypeFile = "types/readonly-api-route-response.ts";
 const responseShapeSmokeFile =
   "scripts/smoke-readonly-api-route-response-shape-boundary.mjs";
+const implementationDesignDoc =
+  "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
+const implementationDesignSmokeFile =
+  "scripts/smoke-readonly-api-route-implementation-design-packet.mjs";
 
 const inspectedFiles = [
   checklistDoc,
@@ -37,6 +41,8 @@ const allowedChangedFiles = new Set([
   surfaceSmokeFile,
   responseShapeTypeFile,
   responseShapeSmokeFile,
+  implementationDesignDoc,
+  implementationDesignSmokeFile,
 ]);
 
 const requiredSections = [

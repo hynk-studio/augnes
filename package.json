@@ -138,6 +138,7 @@
     "smoke:readonly-api-route-planning-boundary": "node scripts/smoke-readonly-api-route-planning-boundary.mjs",
     "smoke:readonly-api-route-review-checklist": "node scripts/smoke-readonly-api-route-review-checklist.mjs",
     "smoke:readonly-api-route-response-shape-boundary": "node scripts/smoke-readonly-api-route-response-shape-boundary.mjs",
+    "smoke:readonly-api-route-implementation-design-packet": "node scripts/smoke-readonly-api-route-implementation-design-packet.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",
     "smoke:chatgpt-work-contract-card": "node scripts/smoke-chatgpt-work-contract-card.mjs",
