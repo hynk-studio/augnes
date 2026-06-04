@@ -168,6 +168,21 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   live SDK call, no provider implementation, no runtime execution, no
   proof/evidence write, no graph DB, no persistence, and no AG Resume
   writer/helper/route behavior를 정적으로 확인한다.
+- `PROJECT_CONSTELLATION_USER_INTENT_VALIDATION_V0_1.md`: Project Constellation
+  user-intent validation pointer다. It defines browser/computer-use scenarios
+  for first-entry orientation, node/edge/cluster meaning, evidence pointer
+  comprehension, unresolved tension visibility, boundary and next-action
+  clarity, Perspective Capsule / Handoff Capsule comprehension,
+  authority-misread prevention, and user question answerability. The paired
+  browser report is
+  `reports/browser/2026-06-03-project-constellation-user-intent-validation.md`.
+  `npm run smoke:project-constellation-user-intent-validation` checks required
+  sections, scenario names, report fields, authority clarity, false-affordance
+  findings, package/index pointers, scoped changed files, and no forbidden
+  positive authority grants. This validation adds no UI implementation change,
+  no API route implementation, no runtime behavior, no graph DB, no
+  persistence, no proof/evidence write, no Codex SDK execution, no AG Resume
+  behavior, and no merge/publish/approval/retry/replay/deploy authority.
 - `scripts/smoke-boundary-common.mjs`: Project Constellation boundary smokes
   share `project_constellation_boundary_scope_v0_1` scope profile semantics.
   The profile keeps scoped mode as the strict direct-edit gate while explicitly

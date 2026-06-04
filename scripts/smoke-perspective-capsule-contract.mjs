@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import {
-  assertChangedFilesWithin,
+  assertChangedFilesWithinBoundaryProfile,
   assertContainsAll,
   assertNoRuntimeImports,
   assertPackageScript,
+  getProjectConstellationBoundaryScopeProfile,
   loadTextByFile,
   normalizeText,
 } from "./smoke-boundary-common.mjs";
@@ -26,7 +26,9 @@ const inspectedFiles = [
   packageJsonFile,
 ];
 
-const allowedChangedFiles = new Set([...inspectedFiles, verificationDoc]);
+const boundaryScopeProfile = getProjectConstellationBoundaryScopeProfile({
+  ownedFiles: [pluginDoc, verificationDoc],
+});
 const textByFile = loadTextByFile(inspectedFiles);
 
 const requiredSections = [
@@ -393,29 +395,10 @@ function assertPointers() {
 }
 
 function assertChangedFilesBoundary() {
-  const result = assertChangedFilesWithin({
-    allowedChangedFiles,
+  return assertChangedFilesWithinBoundaryProfile({
+    profile: boundaryScopeProfile,
     label: "Perspective Capsule contract boundary smoke",
   });
-  const untrackedFiles = getUntrackedFiles();
-  const contentOnly = result.mode === "content-only";
-  if (!contentOnly) {
-    for (const file of untrackedFiles) {
-      assert(
-        allowedChangedFiles.has(file),
-        `Unexpected untracked file for Perspective Capsule contract boundary smoke: ${file}`,
-      );
-    }
-  }
-  return {
-    ...result,
-    files: [...new Set([...result.files, ...untrackedFiles])].sort(),
-    untracked_checked: !contentOnly,
-    untracked_skipped: contentOnly,
-    untracked_skip_reason: contentOnly
-      ? "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only"
-      : null,
-  };
 }
 
 function assertNoForbiddenPositiveClauses(file, text) {
@@ -480,22 +463,6 @@ function extractNumberedSection(markdown, sectionName) {
   const rest = markdown.slice(start);
   const nextSection = rest.search(/^##\s+\d+\.\s+/m);
   return nextSection === -1 ? rest : rest.slice(0, nextSection);
-}
-
-function getUntrackedFiles() {
-  try {
-    const output = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return output
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .sort();
-  } catch {
-    return [];
-  }
 }
 
 function escapeRegExp(value) {
