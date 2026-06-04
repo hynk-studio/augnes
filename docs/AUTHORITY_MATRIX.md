@@ -215,6 +215,14 @@ proof/evidence authority, DB query authority, graph DB authority, persistence
 authority, publish authority, merge authority, retry/replay/deploy authority,
 approval authority, branch/PR authority, or Codex execution authority.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` is a docs/smoke-only real
+auth gate plan for the read-only constellation preview route. It adds no real
+auth implementation, production auth, hosted auth, OAuth, session identity,
+workspace membership, route behavior change, consumer authority, write
+authority, proof/evidence authority, DB query, graph DB, persistence, publish,
+merge, retry, replay, deploy, approval, branch/PR, or Codex execution
+authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

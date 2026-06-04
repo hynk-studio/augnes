@@ -103,6 +103,11 @@ Candidate D local-only adapter implementation and focused smoke
 is local-only, not production auth, not hosted auth, not OAuth, not session
 identity, and not workspace membership.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` documents the real auth
+gate under this auth/session boundary. Future real auth implementation PRs
+still need concrete source evidence and focused smokes before route behavior
+moves beyond local-only.
+
 ## Privacy boundary
 
 Future route implementation must answer:
@@ -346,6 +351,10 @@ Candidate D local dev adapter plan. The focused plan smoke is
 `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
 Candidate D local dev adapter implementation. The focused smoke is
 `npm run smoke:readonly-api-route-local-dev-auth-adapter`.
+
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` documents the real auth
+gate plan. The focused smoke is
+`npm run smoke:readonly-api-route-real-auth-gate-plan`.
 
 ## Validation and smoke plan
 

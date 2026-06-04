@@ -53,6 +53,10 @@ remains local-only and is not production auth.
 Candidate D local-only implementation. The adapter composes with this local
 guard and does not replace it.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next real
+auth gate after Candidate D. This local guard remains not production auth and
+cannot replace real hosted/session/workspace auth.
+
 ## 2. Purpose
 
 The purpose is to extract the local host, marker header, method, and

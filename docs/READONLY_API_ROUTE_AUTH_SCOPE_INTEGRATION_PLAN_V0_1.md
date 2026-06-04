@@ -73,6 +73,10 @@ local-only and future real auth remains separate.
 Candidate D local-only implementation slice. Future real auth remains separate
 from that local development adapter.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` is the next required
+decision point before any hosted/session/workspace implementation. It preserves
+that no real auth is implemented at planning level.
+
 ## 3. Current local guard baseline
 
 PR #384 implemented the first route-only local read validation slice for:

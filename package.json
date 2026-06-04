@@ -145,6 +145,7 @@
     "smoke:readonly-api-route-auth-scope-adapter-boundary": "node scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs",
     "smoke:readonly-api-route-local-dev-auth-adapter-plan": "node scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs",
     "smoke:readonly-api-route-local-dev-auth-adapter": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs",
+    "smoke:readonly-api-route-real-auth-gate-plan": "node scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs",
     "smoke:readonly-api-route-access-guard": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-readonly-api-route-access-guard.mjs",
     "smoke:readonly-api-route-constellation-preview": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-readonly-api-route-constellation-preview.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",

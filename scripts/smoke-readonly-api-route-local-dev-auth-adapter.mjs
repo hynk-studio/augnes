@@ -46,6 +46,8 @@ const typeFile = "types/readonly-api-auth-scope.ts";
 const adapterDoc = "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const adapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
+const realAuthGatePlanDoc =
+  "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const adapterBoundaryDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md";
 const authSourceSelectionDoc =
@@ -77,6 +79,8 @@ const reviewChecklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
+const realAuthGatePlanSmokeFile =
+  "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
 
 const inspectedFiles = [
   adapterFile,
@@ -86,6 +90,7 @@ const inspectedFiles = [
   typeFile,
   adapterDoc,
   adapterPlanDoc,
+  realAuthGatePlanDoc,
   adapterBoundaryDoc,
   authSourceSelectionDoc,
   authScopePlanDoc,
@@ -106,6 +111,7 @@ const allowedChangedFiles = new Set([
   routeFile,
   adapterDoc,
   adapterPlanDoc,
+  realAuthGatePlanDoc,
   adapterBoundaryDoc,
   authSourceSelectionDoc,
   authScopePlanDoc,
@@ -124,6 +130,7 @@ const allowedChangedFiles = new Set([
   accessGuardSmokeFile,
   reviewChecklistSmokeFile,
   surfaceSmokeFile,
+  realAuthGatePlanSmokeFile,
 ]);
 
 const requiredSections = [

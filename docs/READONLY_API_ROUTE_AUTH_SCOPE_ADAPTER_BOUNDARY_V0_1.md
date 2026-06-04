@@ -83,6 +83,10 @@ Candidate D local-only implementation slice. It maps Candidate D to this type
 boundary locally only and does not add production auth, hosted auth, OAuth,
 session identity, workspace membership, or consumer authority.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next gate for
+future real auth/scope implementation. Any future implementation must still
+satisfy this type boundary before route behavior moves beyond local-only.
+
 ## 4. Type boundary overview
 
 `types/readonly-api-auth-scope.ts` exports type/interface vocabulary only.

@@ -55,6 +55,10 @@ implementation slice after user/PM accepted Candidate D local-only semantics.
 That implementation remains local-only, is not production auth, and connects no
 consumer surface.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next gate for
+future real auth/scope implementation. The local dev adapter implementation
+does not satisfy real auth.
+
 ## 2. Purpose
 
 The purpose is to map Candidate D to the type-only auth/scope adapter boundary

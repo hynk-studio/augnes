@@ -59,6 +59,7 @@ validation. It follows:
 - `docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`
 - `docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`
 - `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md`
+- `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md`
 - `types/readonly-api-route-response.ts`
 
 The route path is now implemented for this local validation slice, but the
@@ -105,6 +106,10 @@ selected and separately implemented.
 Candidate D local-only adapter now composed with the local guard. Candidate D
 is not production auth, not hosted auth, not OAuth, not session identity, and
 not workspace membership.
+
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next gate for
+future real auth. The current route remains local-only with the Candidate D
+local dev adapter until a separate implementation PR changes route behavior.
 
 ## 4. Request shape
 
