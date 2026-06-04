@@ -123,6 +123,9 @@ Cockpit local-only route preview plan that preceded implementation.
 Cockpit local-only consumer now exists. No App/MCP consumer exists, and the
 route remains local-only and not production auth.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records the
+closed local-only consumer milestone and preserves the route local-only status.
+
 For this route line, no App/MCP consumer exists.
 
 ## 4. Request shape

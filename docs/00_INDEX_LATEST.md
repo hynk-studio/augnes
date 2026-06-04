@@ -502,6 +502,16 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   displayed and omitted response field families, forbidden-control absence,
   docs/index/authority/report pointers, package pointer, scoped/content-only
   boundary behavior, and no forbidden positive authority grants를 확인한다.
+- `docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md`: read-only
+  Project Constellation local-only route and Cockpit consumer loop closeout
+  packet이다. It is closeout-only, marks the local-only route/Cockpit consumer
+  milestone closed, references PR #394 browser/computer-use validation, and
+  states no route/UI/auth/DB/App/MCP/proof/Codex/graph/persistence behavior
+  changes. `npm run smoke:readonly-constellation-local-only-consumer-closeout`
+  는 completed PR chain, closed milestone, deferred real auth and ChatGPT
+  App/MCP status, next allowed/forbidden PR types, docs/index/authority
+  pointers, package pointer, scoped/content-only boundary behavior, and no
+  forbidden positive authority grants를 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

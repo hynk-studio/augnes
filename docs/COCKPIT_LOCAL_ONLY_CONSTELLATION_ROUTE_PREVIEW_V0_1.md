@@ -49,6 +49,11 @@ GET /api/augnes/read/constellation-preview?scope=project:augnes
 
 It connects no App/MCP/ChatGPT App/plugin tool.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records
+this implementation as part of the closed local-only milestone. The closeout
+adds no runtime behavior and preserves the Cockpit preview as local-only,
+read-only, and not production auth.
+
 ## 2. Route preview summary
 
 The preview is rendered in `components/augnes-cockpit.tsx` with stable id:

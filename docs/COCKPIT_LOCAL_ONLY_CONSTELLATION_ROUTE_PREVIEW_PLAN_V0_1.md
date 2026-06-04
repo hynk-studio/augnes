@@ -58,6 +58,13 @@ implementation is blocked.
 no further Cockpit local-only preview planning PR should follow unless
 implementation is blocked
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records the
+closed local-only route/Cockpit consumer milestone. No more planning PRs for
+this same preview should follow unless a concrete implementation blocker
+appears.
+
+no more planning PRs for this same preview should follow.
+
 ## 2. Purpose
 
 The purpose is to define the future UI/consumer scope, local-only copy,

@@ -245,6 +245,13 @@ App/MCP, write, proof/evidence, Codex, branch/PR, merge/publish/approval/
 retry/replay/deploy, DB, graph DB, persistence, hosted auth, production auth,
 session identity, or workspace membership authority.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` is a
+docs/smoke/package-pointer closeout for the read-only constellation local-only
+route and Cockpit consumer loop. The closeout adds no authority and marks the
+local-only milestone closed. It adds no route, UI, auth, DB, App/MCP,
+proof/evidence, Codex, graph, persistence, merge, publish, approval, retry,
+replay, or deploy authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

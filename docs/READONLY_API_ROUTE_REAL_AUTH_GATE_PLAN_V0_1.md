@@ -52,6 +52,12 @@ does not connect a consumer.
 planning-only Cockpit local-only route preview plan. Real hosted/session/
 workspace auth still does not exist.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records the
+local-only consumer closeout. Real auth still blocked until source evidence
+exists for identity and workspace/project membership.
+
+real auth still blocked until source evidence exists.
+
 ## 2. Purpose
 
 The purpose is to state what must be true before the read-only constellation

@@ -82,6 +82,10 @@ const cockpitImplementationDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const cockpitImplementationSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const closeoutDoc =
+  "docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md";
+const closeoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 const staticCockpitSmokeFile =
   "scripts/smoke-project-constellation-cockpit-preview.mjs";
 const cockpitFile = "components/augnes-cockpit.tsx";
@@ -135,6 +139,8 @@ const allowedChangedFiles = new Set([
   cockpitPlanSmokeFile,
   cockpitImplementationDoc,
   cockpitImplementationSmokeFile,
+  closeoutDoc,
+  closeoutSmokeFile,
   staticCockpitSmokeFile,
   cockpitFile,
   cockpitBrowserReportFile,

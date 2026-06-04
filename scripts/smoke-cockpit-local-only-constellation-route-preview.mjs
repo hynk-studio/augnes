@@ -14,10 +14,14 @@ const implementationDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
+const closeoutDoc =
+  "docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md";
 const consumerDecisionDoc =
   "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
 const localDevAdapterDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const realAuthGatePlanDoc =
+  "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const reviewChecklistDoc =
   "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
@@ -30,6 +34,8 @@ const browserReportFile =
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const closeoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 const staticCockpitSmokeFile =
   "scripts/smoke-project-constellation-cockpit-preview.mjs";
 
@@ -54,8 +60,10 @@ const inspectedFiles = [
   cockpitFile,
   implementationDoc,
   cockpitPlanDoc,
+  closeoutDoc,
   consumerDecisionDoc,
   localDevAdapterDoc,
+  realAuthGatePlanDoc,
   routeDoc,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
@@ -70,8 +78,10 @@ const allowedChangedFiles = new Set([
   cockpitFile,
   implementationDoc,
   cockpitPlanDoc,
+  closeoutDoc,
   consumerDecisionDoc,
   localDevAdapterDoc,
+  realAuthGatePlanDoc,
   routeDoc,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
@@ -79,6 +89,7 @@ const allowedChangedFiles = new Set([
   indexDoc,
   browserReportFile,
   smokeFile,
+  closeoutSmokeFile,
   staticCockpitSmokeFile,
   packageJsonFile,
   planSmokeFile,
