@@ -26,6 +26,10 @@ const implementationDesignDoc =
   "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
 const implementationDesignSmokeFile =
   "scripts/smoke-readonly-api-route-implementation-design-packet.mjs";
+const implementationPlanDoc =
+  "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
+const implementationPlanSmokeFile =
+  "scripts/smoke-readonly-api-route-implementation-plan.mjs";
 
 const inspectedFiles = [
   checklistDoc,
@@ -43,6 +47,8 @@ const allowedChangedFiles = new Set([
   responseShapeSmokeFile,
   implementationDesignDoc,
   implementationDesignSmokeFile,
+  implementationPlanDoc,
+  implementationPlanSmokeFile,
 ]);
 
 const requiredSections = [

@@ -185,6 +185,18 @@ proof/evidence write, AG Resume behavior, Codex SDK execution/provider
 behavior, graph DB, persistence, or merge/publish/approval/retry/replay/deploy
 authority.
 
+`docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md` is the next
+pre-route implementation plan artifact after the design packet. It is
+docs/smoke/package-pointer only and does not implement a route. It converts the
+PR #382 authenticated workspace/project scope, bounded summary/minimization,
+and first consumer surface questions into a planning-only answer before any
+route file exists. No route is implemented by planning, design, or plan docs.
+The plan adds no API route, route file, handler, API contract, runtime behavior,
+UI, auth implementation, DB query, DB schema/migrations, MCP/App tool,
+proof/evidence write, AG Resume behavior, Codex SDK execution/provider
+behavior, graph DB, persistence, or merge/publish/approval/retry/replay/deploy
+authority.
+
 ## Validation and smoke plan
 
 Required validation for this planning note:
@@ -194,6 +206,7 @@ Required validation for this planning note:
 - `npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-response-shape-boundary`
 - `npm run smoke:readonly-api-route-implementation-design-packet`
+- `npm run smoke:readonly-api-route-implementation-plan`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries`

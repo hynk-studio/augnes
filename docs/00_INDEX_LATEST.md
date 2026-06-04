@@ -323,6 +323,27 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   Project Constellation, browser/computer-use, package/index pointers,
   scoped/content-only boundary behavior, and no forbidden positive authority
   grants를 정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md`: read-only API route
+  implementation plan for candidate `GET /api/augnes/read/constellation-preview`
+  vocabulary다. It answers the PR #382 authenticated workspace/project scope,
+  bounded summary/minimization, and first consumer surface questions as a
+  planning-only docs/smoke/package-pointer artifact before any route file is
+  created. The planned default scope is `project:augnes`, the planned first
+  consumer decision is no consumer yet / route-first local validation, and the
+  planned response profile maps to `types/readonly-api-route-response.ts`.
+  This pointer has no route, no API contract, no runtime behavior, no UI, no
+  auth implementation, no DB, no MCP/App tool, no proof/evidence write, no
+  Codex SDK execution, no provider implementation, no graph DB, no persistence,
+  no AG Resume behavior, and no merge/publish/approval/retry/replay/deploy
+  authority. `npm run smoke:readonly-api-route-implementation-plan`는 required
+  sections, placeholder/non-contract route wording, design/checklist/planning
+  pointers, `types/readonly-api-route-response.ts` mapping, authenticated scope
+  decision, fail-closed/no-public-endpoint wording, first consumer decision,
+  response minimization, bounded field plan, forbidden fields, prompt-injection,
+  privacy, logging/telemetry, browser/computer-use, authority matrix,
+  implementation slices, future validation plan, scoped/content-only boundary
+  behavior, package pointer, and no forbidden positive authority grants를
+  정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
