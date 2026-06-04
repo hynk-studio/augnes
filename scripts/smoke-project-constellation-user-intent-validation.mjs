@@ -18,6 +18,9 @@ const browserReport =
   "reports/browser/2026-06-03-project-constellation-user-intent-validation.md";
 const smokeFile =
   "scripts/smoke-project-constellation-user-intent-validation.mjs";
+const boundaryCommonFile = "scripts/smoke-boundary-common.mjs";
+const capsuleContractSmokeFile =
+  "scripts/smoke-perspective-capsule-contract.mjs";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 
@@ -25,6 +28,8 @@ const inspectedFiles = [
   validationDoc,
   browserReport,
   smokeFile,
+  boundaryCommonFile,
+  capsuleContractSmokeFile,
   indexDoc,
   packageJsonFile,
 ];
