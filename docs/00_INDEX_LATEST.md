@@ -400,6 +400,20 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   Candidate E decision, docs/index/authority pointers, scoped/content-only
   boundary behavior, package pointer, and no forbidden positive authority
   grants를 정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md` and
+  `types/readonly-api-auth-scope.ts`: type-only read-only route auth/scope
+  adapter boundary다. It defines request, decision, success, failure,
+  error-code, identity, workspace, project, source-kind, forbidden-field, and
+  authority-boundary vocabulary for a future fail-closed adapter. It is
+  type/docs/smoke/package-pointer only and adds no auth implementation, no
+  route behavior change, no consumer surface, no DB query, no UI, no MCP/App
+  tool, no proof/evidence write, no Codex SDK execution, no graph DB, no
+  persistence, and no merge/publish/approval/retry/replay/deploy authority.
+  `npm run smoke:readonly-api-route-auth-scope-adapter-boundary`는 exported
+  type names, error codes, source kinds, forbidden fields, type comments,
+  docs/index/authority pointers, scoped/content-only boundary behavior,
+  package pointer, and no forbidden positive authority grants를 정적으로
+  확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

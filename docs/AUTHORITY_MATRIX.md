@@ -191,6 +191,14 @@ identity, workspace membership, consumer authority, write authority,
 proof/evidence authority, Codex execution, DB query, graph DB, persistence,
 publish, merge, retry, replay, deploy, or approval authority.
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md` and
+`types/readonly-api-auth-scope.ts` are a type-only auth/scope adapter boundary
+for the read-only constellation preview route. They add no authority and do not
+implement production auth, hosted auth, OAuth, session identity, workspace
+membership, consumer authority, write authority, proof/evidence authority,
+Codex execution, DB query, graph DB, persistence, publish, merge, retry,
+replay, deploy, or approval authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

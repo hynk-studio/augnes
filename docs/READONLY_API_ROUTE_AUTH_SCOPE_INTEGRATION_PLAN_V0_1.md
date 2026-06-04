@@ -60,6 +60,11 @@ before any auth/scope adapter implementation. It inspects repo-local
 session/workspace/auth-adjacent surfaces and records source selection at
 planning level only, without implementing auth or changing route behavior.
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md` and
+`types/readonly-api-auth-scope.ts` define type vocabulary only for a future
+fail-closed adapter. They do not implement auth, session identity, workspace
+membership, or route behavior.
+
 ## 3. Current local guard baseline
 
 PR #384 implemented the first route-only local read validation slice for:
