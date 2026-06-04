@@ -183,6 +183,23 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   no API route implementation, no runtime behavior, no graph DB, no
   persistence, no proof/evidence write, no Codex SDK execution, no AG Resume
   behavior, and no merge/publish/approval/retry/replay/deploy authority.
+- `docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md`: Perspective
+  handoff usefulness experiment plan이다. It defines Baseline A ordinary Codex
+  prompt comparison, Baseline B Perspective/Handoff Capsule comparison,
+  optional ChatGPT human-review baseline, docs/smoke/package-pointer and
+  planned implementation-fix/read-only preview scenarios, rubric fields,
+  review-note outcome labels, not-done classification guidance, decision gates,
+  browser/computer-use and proof-only skipped reasons, and forbidden scope
+  boundaries. This pointer is docs/smoke/package-pointer/skill-guidance only,
+  non-SSOT, and non-authoritative, with no runtime behavior, no
+  UI/API/DB/MCP/App/proof/evidence/Codex SDK authority, no route/auth/consumer
+  planning loop, no real auth, no App/MCP consumer, no route response
+  expansion, no graph UI, no capsule display expansion, and no
+  merge/publish/approval/retry/replay/deploy authority. `npm run
+  smoke:perspective-handoff-usefulness-experiment-plan` checks the plan,
+  package/index pointer, not-done classification terms, skill instruction-only
+  guidance, scoped/content-only boundary behavior, and no forbidden positive
+  authority grants.
 - `scripts/smoke-boundary-common.mjs`: Project Constellation boundary smokes
   share `project_constellation_boundary_scope_v0_1` scope profile semantics.
   The profile keeps scoped mode as the strict direct-edit gate while explicitly
@@ -214,7 +231,12 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   skipped-reason examples, smoke-only content-only diagnostic guidance, and
   explicit empty-field reporting such as `Blockers: none.`,
   `Repo/task mismatches: none.`, and `Questions requiring user/PM judgment:
-  none.` This remains instruction-only and non-authoritative.
+  none.` A narrow not-done classification section now tells final reports and
+  PR bodies to use `closed`, `implementation_fix`, `impossible_now`,
+  `rejected_for_current_goal`, `rejected_for_next_session`,
+  `waiting_for_concrete_trigger`, or `manual_next_step` rather than
+  deferred/later/나중에 as status values. This remains instruction-only and
+  non-authoritative.
   `npm run smoke:augnes-capsule-handoff-skill`는 skill frontmatter, required
   sections, plugin metadata compatibility, docs pointers, package pointer, no
   runtime behavior, no GitHub/OpenAI/Augnes runtime calls, no MCP/App tool

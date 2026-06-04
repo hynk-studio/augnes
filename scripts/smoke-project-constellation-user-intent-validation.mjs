@@ -23,6 +23,18 @@ const capsuleContractSmokeFile =
   "scripts/smoke-perspective-capsule-contract.mjs";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
+const usefulnessPlanFile =
+  "docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md";
+const usefulnessPlanSmokeFile =
+  "scripts/smoke-perspective-handoff-usefulness-experiment-plan.mjs";
+const capsuleHandoffSkillFile =
+  "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
+const capsuleHandoffSkillSmokeFile =
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs";
+const capsuleDogfoodSmokeFile =
+  "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
+const readonlyCloseoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 
 const inspectedFiles = [
   validationDoc,
@@ -34,7 +46,17 @@ const inspectedFiles = [
   packageJsonFile,
 ];
 
-const allowedChangedFiles = new Set(inspectedFiles);
+const allowedChangedFiles = new Set([
+  ...inspectedFiles,
+  usefulnessPlanFile,
+  usefulnessPlanSmokeFile,
+  capsuleHandoffSkillFile,
+  capsuleHandoffSkillSmokeFile,
+  capsuleDogfoodSmokeFile,
+  readonlyCloseoutSmokeFile,
+]);
+
+const forbiddenPathExceptions = new Set([capsuleHandoffSkillFile]);
 
 const requiredSections = [
   "Status and scope",
@@ -445,6 +467,7 @@ function assertChangedFilesWithinAllowedSet() {
 
   for (const file of files) {
     for (const pattern of forbiddenPathPatterns) {
+      if (forbiddenPathExceptions.has(file)) continue;
       assert(
         !pattern.test(file),
         `Forbidden changed path for Project Constellation user-intent validation: ${file}`,

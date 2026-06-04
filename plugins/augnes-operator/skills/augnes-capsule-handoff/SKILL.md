@@ -303,6 +303,30 @@ statements such as:
 - Repo/task mismatches: none.
 - Questions requiring user/PM judgment: none.
 
+## Not-Done Classification For Final Reports
+
+Final reports and PR bodies must classify skipped or unopened work with one of
+these status values:
+
+- `closed`: already completed; do not reopen without concrete defect.
+- `implementation_fix`: concrete defect in closed work.
+- `impossible_now`: missing concrete source, substrate, permission, or info;
+  name the missing dependency.
+- `rejected_for_current_goal`: possible but does not serve the current goal.
+- `rejected_for_next_session`: not supported by the current
+  experiment/usefulness trigger.
+- `waiting_for_concrete_trigger`: do not open until the named trigger occurs.
+- `manual_next_step`: user/human dogfood or review, not repo PR initially.
+
+deferred/later/나중에 must not be used as status values.
+
+This classification guidance is instruction-only. It does not grant GitHub,
+OpenAI, or Augnes runtime calls, branch creation authority by itself, PR
+creation authority by itself, proof/evidence writes, Codex SDK execution,
+merge, publish, approval, retry, replay, deploy, external posting authority,
+plugin hooks, MCP config, App mappings, runtime integration, or provider
+implementation.
+
 ## Authority Boundaries
 
 This skill does not grant execution authority. It does not call GitHub, call

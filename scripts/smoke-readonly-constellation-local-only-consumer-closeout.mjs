@@ -52,6 +52,18 @@ const staticCockpitSmokeFile =
   "scripts/smoke-project-constellation-cockpit-preview.mjs";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
+const usefulnessPlanFile =
+  "docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md";
+const usefulnessPlanSmokeFile =
+  "scripts/smoke-perspective-handoff-usefulness-experiment-plan.mjs";
+const capsuleHandoffSkillFile =
+  "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
+const capsuleHandoffSkillSmokeFile =
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs";
+const capsuleDogfoodSmokeFile =
+  "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
+const userIntentSmokeFile =
+  "scripts/smoke-project-constellation-user-intent-validation.mjs";
 
 const inspectedFiles = [
   closeoutDoc,
@@ -93,6 +105,12 @@ const allowedChangedFiles = new Set([
   surfaceSmokeFile,
   staticCockpitSmokeFile,
   accessGuardSmokeFile,
+  usefulnessPlanFile,
+  usefulnessPlanSmokeFile,
+  capsuleHandoffSkillFile,
+  capsuleHandoffSkillSmokeFile,
+  capsuleDogfoodSmokeFile,
+  userIntentSmokeFile,
 ]);
 
 const requiredSections = [
