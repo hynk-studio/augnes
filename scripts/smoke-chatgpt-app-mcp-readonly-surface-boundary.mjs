@@ -70,6 +70,10 @@ const realAuthGatePlanDoc =
   "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const realAuthGatePlanSmokeFile =
   "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
+const consumerScopeDecisionDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
+const consumerScopeDecisionSmokeFile =
+  "scripts/smoke-readonly-api-route-local-only-consumer-scope-decision.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [boundaryDoc, indexDoc, packageJsonFile, smokeFile];
@@ -106,6 +110,8 @@ const allowedChangedFiles = new Set([
   localDevAdapterSmokeFile,
   realAuthGatePlanDoc,
   realAuthGatePlanSmokeFile,
+  consumerScopeDecisionDoc,
+  consumerScopeDecisionSmokeFile,
   authorityMatrixDoc,
 ]);
 

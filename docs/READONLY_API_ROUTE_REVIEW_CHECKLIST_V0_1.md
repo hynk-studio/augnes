@@ -267,6 +267,12 @@ If the route is surfaced in UI, ChatGPT Apps, MCP tools, or browser-facing
 previews, browser/computer-use validation is required in that implementation
 PR.
 
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` documents
+the local-only consumer scope decision under this browser/computer-use
+boundary. Future consumer PRs need browser/computer-use validation,
+false-affordance review, and their own focused smokes before any Cockpit,
+ChatGPT App, MCP, plugin tool, or browser-facing consumer connects.
+
 ## Authority matrix boundary
 
 Future route implementation must answer:
@@ -355,6 +361,10 @@ Candidate D local dev adapter implementation. The focused smoke is
 `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` documents the real auth
 gate plan. The focused smoke is
 `npm run smoke:readonly-api-route-real-auth-gate-plan`.
+
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` documents
+the local-only consumer scope decision. The focused smoke is
+`npm run smoke:readonly-api-route-local-only-consumer-scope-decision`.
 
 ## Validation and smoke plan
 

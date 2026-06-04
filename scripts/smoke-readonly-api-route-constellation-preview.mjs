@@ -54,6 +54,10 @@ const designDoc =
   "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
 const planningDoc = "docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md";
 const checklistDoc = "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
+const surfaceBoundaryDoc =
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
+const consumerScopeDecisionDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
@@ -85,6 +89,8 @@ const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 const realAuthGatePlanSmokeFile =
   "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
+const consumerScopeDecisionSmokeFile =
+  "scripts/smoke-readonly-api-route-local-only-consumer-scope-decision.mjs";
 const responseShapeTypeFile = "types/readonly-api-route-response.ts";
 const staticFixtureFile =
   "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
@@ -103,6 +109,8 @@ const inspectedFiles = [
   designDoc,
   planningDoc,
   checklistDoc,
+  surfaceBoundaryDoc,
+  consumerScopeDecisionDoc,
   authorityMatrixDoc,
   indexDoc,
   packageJsonFile,
@@ -130,6 +138,7 @@ const allowedChangedFiles = new Set([
   responseShapeSmokeFile,
   surfaceSmokeFile,
   realAuthGatePlanSmokeFile,
+  consumerScopeDecisionSmokeFile,
 ]);
 
 const requiredSections = [
