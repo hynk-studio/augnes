@@ -13,6 +13,8 @@ const decisionDoc =
   "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
 const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const realAuthGatePlanDoc =
   "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const localDevAdapterDoc =
@@ -29,6 +31,13 @@ const smokeFile =
   "scripts/smoke-readonly-api-route-local-only-consumer-scope-decision.mjs";
 const cockpitPlanSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const browserReportFile =
+  "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const staticCockpitSmokeFile =
+  "scripts/smoke-project-constellation-cockpit-preview.mjs";
 
 const realAuthGatePlanSmokeFile =
   "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
@@ -46,6 +55,7 @@ const accessGuardSmokeFile =
 const inspectedFiles = [
   decisionDoc,
   cockpitPlanDoc,
+  cockpitImplementationDoc,
   realAuthGatePlanDoc,
   localDevAdapterDoc,
   routeDoc,
@@ -60,6 +70,7 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   decisionDoc,
   cockpitPlanDoc,
+  cockpitImplementationDoc,
   realAuthGatePlanDoc,
   localDevAdapterDoc,
   routeDoc,
@@ -68,6 +79,10 @@ const allowedChangedFiles = new Set([
   authorityMatrixDoc,
   indexDoc,
   smokeFile,
+  cockpitFile,
+  browserReportFile,
+  cockpitImplementationSmokeFile,
+  staticCockpitSmokeFile,
   cockpitPlanSmokeFile,
   packageJsonFile,
   realAuthGatePlanSmokeFile,
@@ -349,7 +364,7 @@ function assertDocPointers() {
   ], { textByFile });
   assertContainsAll(routeDoc, [
     decisionDoc,
-    "no consumer surface is currently connected",
+    "ChatGPT App/MCP consumers remain unconnected",
   ], { textByFile });
   assertContainsAll(reviewChecklistDoc, [
     decisionDoc,
@@ -517,6 +532,10 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (allowedChangedFiles.has(file)) {
+      continue;
+    }
+
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only route local-only consumer scope decision smoke: ${file}`,

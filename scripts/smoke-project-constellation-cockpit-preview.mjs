@@ -17,6 +17,38 @@ const fixtureFile =
   "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
 const browserReportFile =
   "reports/browser/2026-06-03-project-constellation-cockpit-preview.md";
+const cockpitRoutePreviewDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
+const cockpitRoutePreviewPlanDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
+const consumerScopeDecisionDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
+const routeReviewChecklistDoc =
+  "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
+const surfaceBoundaryDoc =
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
+const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
+const cockpitRoutePreviewSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const cockpitRoutePreviewPlanSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
+const consumerScopeDecisionSmokeFile =
+  "scripts/smoke-readonly-api-route-local-only-consumer-scope-decision.mjs";
+const realAuthGatePlanSmokeFile =
+  "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
+const routeSmokeFile =
+  "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const routeReviewChecklistSmokeFile =
+  "scripts/smoke-readonly-api-route-review-checklist.mjs";
+const surfaceBoundarySmokeFile =
+  "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
+const newBrowserReportFile =
+  "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
 
 const inspectedFiles = [
   cockpitFile,
@@ -28,7 +60,26 @@ const inspectedFiles = [
 ];
 
 const boundaryScopeProfile = getProjectConstellationBoundaryScopeProfile({
-  ownedFiles: [browserReportFile],
+  ownedFiles: [
+    browserReportFile,
+    cockpitRoutePreviewDoc,
+    cockpitRoutePreviewPlanDoc,
+    consumerScopeDecisionDoc,
+    localDevAdapterDoc,
+    routeDoc,
+    routeReviewChecklistDoc,
+    surfaceBoundaryDoc,
+    authorityMatrixDoc,
+    cockpitRoutePreviewSmokeFile,
+    cockpitRoutePreviewPlanSmokeFile,
+    consumerScopeDecisionSmokeFile,
+    realAuthGatePlanSmokeFile,
+    localDevAdapterSmokeFile,
+    routeSmokeFile,
+    routeReviewChecklistSmokeFile,
+    surfaceBoundarySmokeFile,
+    newBrowserReportFile,
+  ],
 });
 
 const textByFile = loadTextByFile(inspectedFiles);

@@ -112,13 +112,18 @@ future real auth. The current route remains local-only with the Candidate D
 local dev adapter until a separate implementation PR changes route behavior.
 
 `docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` records
-the local-only consumer scope decision. It preserves that no consumer surface
-is currently connected and that any future local-only consumer needs a separate
-implementation PR.
+the local-only consumer scope decision. It selected Cockpit as the safest
+conditional local-only consumer path after PM approval. ChatGPT App/MCP
+consumers remain unconnected and require separate scope.
 
 `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` records the
-future Cockpit local-only route preview plan. No consumer is currently
-connected.
+Cockpit local-only route preview plan that preceded implementation.
+
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` records that a
+Cockpit local-only consumer now exists. No App/MCP consumer exists, and the
+route remains local-only and not production auth.
+
+For this route line, no App/MCP consumer exists.
 
 ## 4. Request shape
 

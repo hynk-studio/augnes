@@ -239,6 +239,12 @@ DB query, MCP/App tool, proof/evidence write, Codex execution, graph DB,
 persistence, publish, merge, retry, replay, deploy, approval, branch/PR, or
 runtime authority.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` documents that
+the Cockpit local-only route preview is local-only/read-only. It grants no
+App/MCP, write, proof/evidence, Codex, branch/PR, merge/publish/approval/
+retry/replay/deploy, DB, graph DB, persistence, hosted auth, production auth,
+session identity, or workspace membership authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

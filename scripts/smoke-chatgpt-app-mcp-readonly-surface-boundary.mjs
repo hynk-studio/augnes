@@ -78,6 +78,15 @@ const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
 const cockpitPlanSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const staticCockpitSmokeFile =
+  "scripts/smoke-project-constellation-cockpit-preview.mjs";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const cockpitBrowserReportFile =
+  "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [boundaryDoc, indexDoc, packageJsonFile, smokeFile];
@@ -118,6 +127,11 @@ const allowedChangedFiles = new Set([
   consumerScopeDecisionSmokeFile,
   cockpitPlanDoc,
   cockpitPlanSmokeFile,
+  cockpitImplementationDoc,
+  cockpitImplementationSmokeFile,
+  staticCockpitSmokeFile,
+  cockpitFile,
+  cockpitBrowserReportFile,
   authorityMatrixDoc,
 ]);
 
@@ -428,6 +442,7 @@ function assertNoForbiddenChangedPaths(files) {
   for (const file of files) {
     if (file === constellationPreviewRouteFile) continue;
     if (file === localDevAdapterFile) continue;
+    if (allowedChangedFiles.has(file)) continue;
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for ChatGPT App/MCP read-only surface boundary smoke: ${file}`,

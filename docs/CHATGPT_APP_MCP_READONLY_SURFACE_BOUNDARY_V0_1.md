@@ -160,6 +160,10 @@ boundary does not connect ChatGPT App or MCP to that route.
 Cockpit local-only route preview planning packet. ChatGPT App/MCP remain
 deferred while the Cockpit local-only preview is only planning.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` records the
+Cockpit local-only route preview implementation. ChatGPT App/MCP remain
+deferred and are not connected by the Cockpit preview.
+
 ## Authority boundaries
 
 Authority boundaries:

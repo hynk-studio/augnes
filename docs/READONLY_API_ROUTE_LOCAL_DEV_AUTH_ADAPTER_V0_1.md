@@ -56,6 +56,11 @@ connect a consumer.
 future Cockpit local-only route preview plan. Candidate D remains local-only
 and not production auth.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` documents the
+Cockpit local-only route preview implementation that consumes this local-only
+route line. Candidate D local-only semantics remain unchanged: not production
+auth, not hosted auth, not session identity, and not workspace membership.
+
 ## 2. Route and adapter summary
 
 The route remains:
