@@ -168,12 +168,18 @@ const forbiddenPositiveAuthoritySelfTests = [
   "A design packet may approve route deployment.",
   "A placeholder route may create proof records.",
   "A future GET route may execute Codex.",
+  "A future route may execute Codex after separate review.",
   "A route response may include mutation URLs.",
+  "A route response may include mutation URLs when required before implementation.",
   "A route response may create branches.",
+  "A route response may create branches in a separate implementation PR.",
   "A route response may open PRs.",
   "A route response may merge or publish.",
+  "A route response may publish after browser/computer-use validation.",
   "A route response may persist graph snapshots.",
   "A PR #381 browser report may grant API implementation authority.",
+  "A PR #381 browser report may grant API implementation authority as context only.",
+  "A placeholder route may deploy after fail-closed review.",
 ];
 
 const allowedBoundarySelfTests = [
@@ -507,7 +513,8 @@ function assertNoForbiddenPositiveClauses(file, text) {
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
     /\b(candidate route|placeholder route|GET route|read-only route|route response|route|endpoint|design packet|PR #381 browser report)\b.{0,140}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?|grants?)\b.{0,180}\b(expose credentials|include mutation URLs?|create proof|create evidence|create readiness|execute Codex|launch Codex|write Augnes state|create branches?|open PRs?|create PRs?|approve route deployment|approve merges?|approve|publish|merge|retry|replay|deploy|persist graph snapshots?|persist graphs?|grant API implementation authority)\b/i,
-    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|exposes?|includes?|persists?)\b.{0,180}\b(runtime behavior|UI code|API routes?|route files?|route handlers?|API contract|DB schema|migrations?|graph DB|persistence|MCP\/App tools?|ChatGPT App tools?|MCP tools?|auth implementation|external calls?|proof\/evidence writes?|proof writes?|evidence writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|mutation URLs?|Project Constellation runtime behavior)\b/i,
+    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|persists?)\b.{0,180}\b(runtime behavior|UI code|API routes?|route files?|route handlers?|API contract|DB schema|migrations?|graph DB|persistence|MCP\/App tools?|ChatGPT App tools?|MCP tools?|auth implementation|external calls?|proof\/evidence writes?|proof writes?|evidence writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|mutation URLs?|Project Constellation runtime behavior)\b/i,
+    /\b(exposes?|includes?)\b.{0,180}\b(credentials|secrets|provider credentials|mutation URLs?|hidden reasoning|chain-of-thought|raw DB rows?|proof\/evidence write handles?|approval\/publish\/merge controls?|Codex SDK execution handles?)\b/i,
     /\b(grants?|adds?|creates?|provides?|authori[sz]es?)\b.{0,140}\b(branch creation authority|PR creation authority|merge authority|publish authority|approval authority|proof\/evidence write authority|Codex SDK execution authority|deploy authority|API implementation authority|route implementation approval)\b/i,
     /\b(navigator\.clipboard|@openai\/codex-sdk|api\.github\.com|api\.openai\.com|fetch\s*\(|XMLHttpRequest|gh\s+(api|pr|issue|repo))\b/i,
   ];
@@ -517,7 +524,7 @@ function isForbiddenPositiveClause(clause) {
 }
 
 function isNegatedBoundary(clause) {
-  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself|context only|separate|requires separate|required before|fail closed|fail-closed|browser\/computer-use validation)\b/i.test(
+  return /\b(not|no|does not|do not|must not|never|is not|are not|cannot|can't|by itself)\b/i.test(
     clause,
   );
 }
