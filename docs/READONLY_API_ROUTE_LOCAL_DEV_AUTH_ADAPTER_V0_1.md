@@ -61,6 +61,10 @@ Cockpit local-only route preview implementation that consumes this local-only
 route line. Candidate D local-only semantics remain unchanged: not production
 auth, not hosted auth, not session identity, and not workspace membership.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records the
+closed local-only route/Cockpit consumer milestone. Candidate D remains
+local-only and not production auth after the closeout.
+
 ## 2. Route and adapter summary
 
 The route remains:

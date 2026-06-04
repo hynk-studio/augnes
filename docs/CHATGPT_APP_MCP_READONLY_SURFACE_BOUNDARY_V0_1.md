@@ -164,6 +164,10 @@ deferred while the Cockpit local-only preview is only planning.
 Cockpit local-only route preview implementation. ChatGPT App/MCP remain
 deferred and are not connected by the Cockpit preview.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records the
+local Cockpit closeout. ChatGPT App/MCP remain deferred after local Cockpit
+closeout.
+
 ## Authority boundaries
 
 Authority boundaries:

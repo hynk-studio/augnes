@@ -385,6 +385,13 @@ the Cockpit local-only route preview plan. The focused smoke is
 Cockpit local-only route preview implementation. The focused smoke is
 `npm run smoke:cockpit-local-only-constellation-route-preview`.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` documents
+that the local-only consumer milestone is closed. Future consumer/auth work
+needs new scope, and the focused closeout smoke is
+`npm run smoke:readonly-constellation-local-only-consumer-closeout`.
+
+future consumer/auth work needs new scope.
+
 ## Validation and smoke plan
 
 Required validation for this checklist PR:

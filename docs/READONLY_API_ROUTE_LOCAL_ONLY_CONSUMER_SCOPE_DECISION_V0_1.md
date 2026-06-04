@@ -62,6 +62,10 @@ decision packet. It does not connect a consumer.
 Cockpit local-only route preview. Cockpit was selected as the first local-only
 consumer implementation slice. ChatGPT App/MCP remain deferred.
 
+`docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records that
+the Cockpit local-only preview was implemented and validated. ChatGPT App/MCP
+remain deferred after this local-only consumer closeout.
+
 ## 3. Current route baseline
 
 The current route remains local-only.

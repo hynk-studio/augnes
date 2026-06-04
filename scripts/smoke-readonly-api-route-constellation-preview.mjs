@@ -53,6 +53,8 @@ const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
 const cockpitImplementationDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
+const closeoutDoc =
+  "docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const designDoc =
   "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
@@ -74,6 +76,8 @@ const browserReportFile =
   "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
 const cockpitImplementationSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const closeoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 const staticCockpitSmokeFile =
   "scripts/smoke-project-constellation-cockpit-preview.mjs";
 const accessGuardSmokeFile =
@@ -118,6 +122,7 @@ const inspectedFiles = [
   routeDoc,
   cockpitPlanDoc,
   cockpitImplementationDoc,
+  closeoutDoc,
   localDevAdapterDoc,
   realAuthGatePlanDoc,
   planDoc,
@@ -138,6 +143,7 @@ const allowedChangedFiles = new Set([
   cockpitFile,
   browserReportFile,
   cockpitImplementationSmokeFile,
+  closeoutSmokeFile,
   staticCockpitSmokeFile,
   authSourceSelectionDoc,
   adapterBoundaryDoc,
