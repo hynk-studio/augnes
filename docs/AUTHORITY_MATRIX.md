@@ -184,6 +184,13 @@ hosted auth, session identity, workspace membership, consumer authority, write
 authority, proof/evidence authority, Codex execution, DB query, graph DB,
 persistence, publish, merge, retry, replay, deploy, or approval authority.
 
+`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md` is a docs/smoke-only
+auth source selection packet for the read-only constellation preview route. It
+adds no authority and does not implement production auth, hosted auth, session
+identity, workspace membership, consumer authority, write authority,
+proof/evidence authority, Codex execution, DB query, graph DB, persistence,
+publish, merge, retry, replay, deploy, or approval authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |
