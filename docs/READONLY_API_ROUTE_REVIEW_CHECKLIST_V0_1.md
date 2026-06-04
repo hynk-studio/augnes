@@ -87,6 +87,11 @@ packet before any auth/scope adapter implementation. Future implementation PRs
 still require concrete auth/session/workspace evidence beyond this selection
 packet.
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md` and
+`types/readonly-api-auth-scope.ts` define the type-only auth/scope adapter
+boundary under this auth/session checklist. Future implementation PRs still
+need concrete auth/session/workspace evidence beyond that type vocabulary.
+
 ## Privacy boundary
 
 Future route implementation must answer:

@@ -82,6 +82,11 @@ The thesis is:
 Recommended decision: use Candidate E. Keep the route local-only, keep no
 consumer connected, and do not implement auth yet.
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md` and
+`types/readonly-api-auth-scope.ts` are the recommended next artifact after
+Candidate E. They define type-only auth/scope adapter vocabulary and preserve
+no auth implementation, no route behavior change, and no consumer surface.
+
 ## 4. Existing repo-local candidates inspected
 
 Inspected repo-local surfaces:

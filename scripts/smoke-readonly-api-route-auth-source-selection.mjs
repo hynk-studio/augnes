@@ -12,6 +12,9 @@ import {
 
 const sourceSelectionDoc =
   "docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md";
+const adapterBoundaryDoc =
+  "docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md";
+const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
 const authScopePlanDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
 const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
@@ -24,6 +27,8 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-readonly-api-route-auth-source-selection.mjs";
+const adapterBoundarySmokeFile =
+  "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs";
 
 const authScopePlanSmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs";
@@ -50,6 +55,9 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
+  adapterBoundaryDoc,
+  authScopeTypeFile,
+  adapterBoundarySmokeFile,
   authScopePlanSmokeFile,
   accessGuardSmokeFile,
   constellationPreviewSmokeFile,
