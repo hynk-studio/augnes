@@ -111,6 +111,11 @@ not workspace membership.
 future real auth. The current route remains local-only with the Candidate D
 local dev adapter until a separate implementation PR changes route behavior.
 
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` records
+the local-only consumer scope decision. It preserves that no consumer surface
+is currently connected and that any future local-only consumer needs a separate
+implementation PR.
+
 ## 4. Request shape
 
 Required request:

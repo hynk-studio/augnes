@@ -58,6 +58,10 @@ const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const reviewChecklistDoc =
   "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
+const surfaceBoundaryDoc =
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
+const consumerScopeDecisionDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
@@ -81,6 +85,8 @@ const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 const realAuthGatePlanSmokeFile =
   "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
+const consumerScopeDecisionSmokeFile =
+  "scripts/smoke-readonly-api-route-local-only-consumer-scope-decision.mjs";
 
 const inspectedFiles = [
   adapterFile,
@@ -97,6 +103,8 @@ const inspectedFiles = [
   accessGuardDoc,
   routeDoc,
   reviewChecklistDoc,
+  surfaceBoundaryDoc,
+  consumerScopeDecisionDoc,
   authorityMatrixDoc,
   indexDoc,
   packageJsonFile,
@@ -118,6 +126,8 @@ const allowedChangedFiles = new Set([
   accessGuardDoc,
   routeDoc,
   reviewChecklistDoc,
+  surfaceBoundaryDoc,
+  consumerScopeDecisionDoc,
   authorityMatrixDoc,
   indexDoc,
   smokeFile,
@@ -131,6 +141,7 @@ const allowedChangedFiles = new Set([
   reviewChecklistSmokeFile,
   surfaceSmokeFile,
   realAuthGatePlanSmokeFile,
+  consumerScopeDecisionSmokeFile,
 ]);
 
 const requiredSections = [

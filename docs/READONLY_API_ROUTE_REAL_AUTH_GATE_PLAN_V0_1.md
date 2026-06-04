@@ -44,6 +44,10 @@ and any future real hosted/session/workspace auth implementation for:
 GET /api/augnes/read/constellation-preview
 ```
 
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` is the
+separate local-only consumer scope decision packet referenced by this gate. It
+does not connect a consumer.
+
 ## 2. Purpose
 
 The purpose is to state what must be true before the read-only constellation
@@ -227,6 +231,11 @@ document as implementation approval.
 No Cockpit, ChatGPT App, MCP, plugin tool, or other consumer surface may connect
 before route-level real auth gates pass unless PM explicitly chooses local-only
 consumer scope in a separate PR.
+
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` documents
+that separate local-only consumer scope decision at planning level only. It
+keeps Option A, no consumer, as the default decision and does not connect
+Cockpit, ChatGPT App, MCP, plugin tools, or any browser-facing consumer.
 
 A future consumer PR must separately define:
 

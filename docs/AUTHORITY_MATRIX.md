@@ -223,6 +223,14 @@ authority, proof/evidence authority, DB query, graph DB, persistence, publish,
 merge, retry, replay, deploy, approval, branch/PR, or Codex execution
 authority.
 
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` is a
+docs/smoke-only local-only consumer scope decision packet for the read-only
+constellation preview route. It grants no consumer authority and adds no
+consumer implementation, route behavior change, real auth implementation,
+production auth, hosted auth, workspace membership, DB query, UI, MCP/App tool,
+proof/evidence write, Codex execution, graph DB, persistence, publish, merge,
+retry, replay, deploy, approval, branch/PR, or runtime authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

@@ -151,6 +151,11 @@ Future MCP/App tools need separate approved scope, implementation review,
 auth/security review, browser/computer-use validation, and authority matrix
 updates before any tool surface exists.
 
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` records
+the read-only constellation preview route local-only consumer scope decision.
+ChatGPT App/MCP consumers remain deferred unless separately scoped; this
+boundary does not connect ChatGPT App or MCP to that route.
+
 ## Authority boundaries
 
 Authority boundaries:

@@ -47,6 +47,11 @@ connect a consumer surface.
 for any future real hosted/session/workspace auth implementation. Candidate D
 remains local-only and is not the real auth gate.
 
+`docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` defines
+the local-only consumer scope decision after the real auth gate. It preserves
+that Candidate D remains local-only and not production auth, and it does not
+connect a consumer.
+
 ## 2. Route and adapter summary
 
 The route remains:
@@ -281,6 +286,7 @@ Related smokes:
 npm run smoke:readonly-api-route-constellation-preview
 npm run smoke:readonly-api-route-access-guard
 npm run smoke:readonly-api-route-local-dev-auth-adapter-plan
+npm run smoke:readonly-api-route-local-only-consumer-scope-decision
 ```
 
 ## 15. Browser/computer-use status
