@@ -9,6 +9,7 @@ Status:
   PR #383
 - GET/read-only only
 - explicitly local-authorized
+- Candidate D local-only development auth adapter required
 - scoped to `project:augnes`
 - static public-safe fixture backed
 - no consumer surface connected
@@ -34,6 +35,7 @@ This PR implements only the route slice:
 - `app/api/augnes/read/constellation-preview/route.ts`
 - `lib/readonly-api/constellation-preview.ts`
 - `lib/readonly-api/access-guard.ts`
+- `lib/readonly-api/local-dev-auth-adapter.ts`
 
 It does not connect Cockpit, ChatGPT App, MCP, plugin tools, or any consumer
 surface.
@@ -56,6 +58,7 @@ validation. It follows:
 - `docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md`
 - `docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`
 - `docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`
+- `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md`
 - `types/readonly-api-route-response.ts`
 
 The route path is now implemented for this local validation slice, but the
@@ -98,6 +101,11 @@ that concrete source, this route remains explicitly local-authorized only.
 source-selection packet. The route remains local-only until auth source is
 selected and separately implemented.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
+Candidate D local-only adapter now composed with the local guard. Candidate D
+is not production auth, not hosted auth, not OAuth, not session identity, and
+not workspace membership.
+
 ## 4. Request shape
 
 Required request:
@@ -111,6 +119,25 @@ Required header:
 ```text
 x-augnes-local-readonly: constellation-preview-v0.1
 ```
+
+Required Candidate D local-only declaration headers:
+
+```text
+x-augnes-local-operator-ref: operator:local-dev
+x-augnes-local-workspace-ref: workspace:local-dev
+x-augnes-local-project-scope: project:augnes
+```
+
+Optional display-only header:
+
+```text
+x-augnes-local-operator-label
+```
+
+The old marker-only request is no longer sufficient after this PR. Local
+operator declaration headers cannot prove hosted identity or hosted
+workspace/project membership. Route-provided text and local operator labels
+grant no authority.
 
 The route does not silently default scope. Missing scope fails closed with a
 minimal error body.

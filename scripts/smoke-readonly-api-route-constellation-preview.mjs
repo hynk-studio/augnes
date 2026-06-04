@@ -11,6 +11,7 @@ import {
 } from "./smoke-boundary-common.mjs";
 import routeModule from "../app/api/augnes/read/constellation-preview/route.ts";
 import helperModule from "../lib/readonly-api/constellation-preview.ts";
+import localDevAdapterModule from "../lib/readonly-api/local-dev-auth-adapter.ts";
 
 const { GET } = routeModule;
 const {
@@ -20,10 +21,19 @@ const {
   buildConstellationPreviewResponse,
   validateConstellationPreviewRequest,
 } = helperModule;
+const {
+  LOCAL_DEV_AUTH_OPERATOR_REF_HEADER,
+  LOCAL_DEV_AUTH_OPERATOR_REF_VALUE,
+  LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER,
+  LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE,
+  LOCAL_DEV_AUTH_WORKSPACE_REF_HEADER,
+  LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE,
+} = localDevAdapterModule;
 
 const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
 const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const helperFile = "lib/readonly-api/constellation-preview.ts";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
 const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
 const authScopePlanDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
@@ -33,6 +43,8 @@ const adapterBoundaryDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md";
 const localDevAdapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
@@ -55,6 +67,8 @@ const adapterBoundarySmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs";
 const localDevAdapterPlanSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 const planSmokeFile =
   "scripts/smoke-readonly-api-route-implementation-plan.mjs";
 const designSmokeFile =
@@ -75,9 +89,11 @@ const inspectedFiles = [
   routeFile,
   accessGuardFile,
   helperFile,
+  localDevAdapterFile,
   accessGuardDoc,
   authScopePlanDoc,
   routeDoc,
+  localDevAdapterDoc,
   planDoc,
   designDoc,
   planningDoc,
@@ -94,11 +110,14 @@ const allowedChangedFiles = new Set([
   adapterBoundaryDoc,
   authScopeTypeFile,
   localDevAdapterPlanDoc,
+  localDevAdapterDoc,
+  localDevAdapterFile,
   accessGuardSmokeFile,
   authScopePlanSmokeFile,
   authSourceSelectionSmokeFile,
   adapterBoundarySmokeFile,
   localDevAdapterPlanSmokeFile,
+  localDevAdapterSmokeFile,
   planSmokeFile,
   designSmokeFile,
   planningSmokeFile,
@@ -132,6 +151,7 @@ const requiredRouteDocPhrases = [
   "route-only local validation slice",
   "GET /api/augnes/read/constellation-preview",
   "explicitly local-authorized",
+  "Candidate D local-only development auth adapter required",
   "scoped to `project:augnes`",
   "static public-safe fixture backed",
   "no consumer surface connected",
@@ -145,6 +165,10 @@ const requiredRouteDocPhrases = [
   "no Codex SDK execution/provider behavior",
   "no merge/publish/approval/retry/replay/deploy authority",
   "x-augnes-local-readonly: constellation-preview-v0.1",
+  "x-augnes-local-operator-ref: operator:local-dev",
+  "x-augnes-local-workspace-ref: workspace:local-dev",
+  "x-augnes-local-project-scope: project:augnes",
+  "old marker-only request is no longer sufficient",
   staticFixtureFile,
   responseShapeTypeFile,
   "pointer_semantics: \"pointer_only\"",
@@ -153,6 +177,7 @@ const requiredRouteDocPhrases = [
   "No route-provided text grants authority",
   accessGuardDoc,
   "shared read-only access guard",
+  localDevAdapterDoc,
   "X-Forwarded-Host",
   "disallowed_forwarded_host",
   "method_not_allowed",
@@ -310,6 +335,7 @@ function assertRouteHelperBoundary() {
     [routeFile, routeSource],
     [accessGuardFile, textByFile.get(accessGuardFile)],
     [helperFile, helperSource],
+    [localDevAdapterFile, textByFile.get(localDevAdapterFile)],
   ]) {
     assertNoRuntimeImports({
       file,
@@ -335,7 +361,9 @@ function assertRouteHelperBoundary() {
 
   assertContainsAll(helperFile, [
     "@/lib/readonly-api/access-guard",
+    "@/lib/readonly-api/local-dev-auth-adapter",
     "validateReadonlyApiLocalAccess",
+    "validateReadonlyApiLocalDevAuthAdapter",
     "CONSTELLATION_PREVIEW_ACCESS_POLICY",
     staticFixtureFile,
     "@/types/readonly-api-route-response",
@@ -356,6 +384,15 @@ function assertRouteHelperBoundary() {
   ], { textByFile });
   assertContainsAll(routeFile, [
     "authorityBoundary: validation.authority_boundary",
+  ], { textByFile });
+  assertContainsAll(localDevAdapterFile, [
+    "LOCAL_DEV_AUTH_OPERATOR_REF_HEADER",
+    "LOCAL_DEV_AUTH_OPERATOR_REF_VALUE",
+    "LOCAL_DEV_AUTH_WORKSPACE_REF_HEADER",
+    "LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE",
+    "LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER",
+    "LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE",
+    "ReadonlyApiAuthScopeDecisionV0",
   ], { textByFile });
 }
 
@@ -380,6 +417,7 @@ function assertRequiredDocs() {
     planningDoc,
     authorityMatrixDoc,
     accessGuardDoc,
+    localDevAdapterDoc,
   ], { textByFile });
 
   assertContainsAll(planDoc, [routeDoc, "first route-only local validation slice", "no consumer"], { textByFile });
@@ -389,6 +427,7 @@ function assertRequiredDocs() {
   assertContainsAll(authorityMatrixDoc, [
     "GET /api/augnes/read/constellation-preview",
     "lib/readonly-api/access-guard.ts",
+    localDevAdapterFile,
     "project:augnes",
     "explicitly local-authorized",
     "fail-closed",
@@ -400,6 +439,8 @@ function assertRequiredDocs() {
   assertContainsAll(indexDoc, [
     routeDoc,
     accessGuardDoc,
+    localDevAdapterDoc,
+    "smoke:readonly-api-route-local-dev-auth-adapter",
     "route-only local validation implementation",
     "smoke:readonly-api-route-access-guard",
     "smoke:readonly-api-route-constellation-preview",
@@ -445,6 +486,10 @@ async function assertRouteBehavior() {
   assert.ok(Array.isArray(body.project_constellation.clusters) && body.project_constellation.clusters.length > 0);
   assert.equal(body.perspective_capsule_preview, undefined);
   assert.equal(body.copyable_handoff_preview, undefined);
+  assert.equal(body.identity_ref, undefined);
+  assert.equal(body.auth_decision, undefined);
+  assert.equal(JSON.stringify(body).includes(LOCAL_DEV_AUTH_OPERATOR_REF_VALUE), false);
+  assert.equal(JSON.stringify(body).includes(LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE), false);
   assert.equal(body.whole_perspective, undefined);
   assert.equal(body.boundary_next_review, undefined);
 
@@ -461,6 +506,16 @@ async function assertRouteBehavior() {
   assert.equal(directBody.response_version, "readonly_api_route_response.v0.1");
   assert.equal(directBody.meta.project_scope, CONSTELLATION_PREVIEW_SCOPE);
 
+  await assertErrorResponse({
+    label: "marker-only request",
+    request: makeRequest({
+      url: "http://127.0.0.1:3000/api/augnes/read/constellation-preview?scope=project:augnes",
+      marker: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+      localDevHeaders: false,
+    }),
+    status: 403,
+    code: "missing_identity",
+  });
   await assertErrorResponse({
     label: "missing scope",
     request: makeRequest({
@@ -566,10 +621,30 @@ async function assertRouteBehavior() {
   });
 }
 
-function makeRequest({ url, marker, method = "GET", headers = {} }) {
+function makeRequest({
+  url,
+  marker,
+  method = "GET",
+  headers = {},
+  localDevHeaders = true,
+}) {
   const requestHeaders = new Headers(headers);
   if (marker) {
     requestHeaders.set(CONSTELLATION_PREVIEW_LOCAL_READ_HEADER, marker);
+  }
+  if (localDevHeaders) {
+    requestHeaders.set(
+      LOCAL_DEV_AUTH_OPERATOR_REF_HEADER,
+      LOCAL_DEV_AUTH_OPERATOR_REF_VALUE,
+    );
+    requestHeaders.set(
+      LOCAL_DEV_AUTH_WORKSPACE_REF_HEADER,
+      LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE,
+    );
+    requestHeaders.set(
+      LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER,
+      LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE,
+    );
   }
   return new Request(url, { method, headers: requestHeaders });
 }
@@ -778,7 +853,7 @@ function assertChangedFilesBoundary() {
 
 function assertNoForbiddenChangedPaths(files) {
   const exactAllowedRouteFiles = new Set([routeFile, helperFile]);
-  const exactAllowedLibFiles = new Set([accessGuardFile]);
+  const exactAllowedLibFiles = new Set([accessGuardFile, localDevAdapterFile]);
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
     /^components\//,

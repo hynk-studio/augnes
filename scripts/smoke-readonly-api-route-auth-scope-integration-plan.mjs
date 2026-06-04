@@ -18,6 +18,11 @@ const adapterBoundaryDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md";
 const localDevAdapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
+const constellationPreviewHelperFile =
+  "lib/readonly-api/constellation-preview.ts";
 const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
 const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
 const constellationPreviewDoc =
@@ -37,6 +42,8 @@ const adapterBoundarySmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs";
 const localDevAdapterPlanSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
@@ -69,7 +76,11 @@ const allowedChangedFiles = new Set([
   authSourceSelectionSmokeFile,
   adapterBoundarySmokeFile,
   localDevAdapterPlanDoc,
+  localDevAdapterDoc,
+  localDevAdapterFile,
+  constellationPreviewHelperFile,
   localDevAdapterPlanSmokeFile,
+  localDevAdapterSmokeFile,
   accessGuardSmokeFile,
   constellationPreviewSmokeFile,
   implementationPlanSmokeFile,
@@ -504,6 +515,10 @@ function assertChangedFilesBoundary() {
 }
 
 function assertNoForbiddenChangedPaths(files) {
+  const exactAllowedRuntimeFiles = new Set([
+    localDevAdapterFile,
+    constellationPreviewHelperFile,
+  ]);
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
     /^app\//,
@@ -524,6 +539,9 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (exactAllowedRuntimeFiles.has(file)) {
+      continue;
+    }
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only route auth scope integration plan smoke: ${file}`,

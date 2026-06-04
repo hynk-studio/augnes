@@ -12,6 +12,11 @@ import {
 
 const localDevAdapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
+const constellationPreviewHelperFile =
+  "lib/readonly-api/constellation-preview.ts";
 const adapterBoundaryDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md";
 const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
@@ -20,6 +25,7 @@ const authSourceSelectionDoc =
 const authScopePlanDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
 const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
+const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const reviewChecklistDoc =
   "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
@@ -27,6 +33,8 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 
 const adapterBoundarySmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs";
@@ -45,11 +53,15 @@ const surfaceSmokeFile =
 
 const inspectedFiles = [
   localDevAdapterPlanDoc,
+  localDevAdapterDoc,
+  localDevAdapterFile,
+  constellationPreviewHelperFile,
   adapterBoundaryDoc,
   authScopeTypeFile,
   authSourceSelectionDoc,
   authScopePlanDoc,
   accessGuardDoc,
+  routeDoc,
   reviewChecklistDoc,
   authorityMatrixDoc,
   indexDoc,
@@ -59,15 +71,20 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   localDevAdapterPlanDoc,
+  localDevAdapterDoc,
+  localDevAdapterFile,
+  constellationPreviewHelperFile,
   adapterBoundaryDoc,
   authSourceSelectionDoc,
   authScopePlanDoc,
   accessGuardDoc,
+  routeDoc,
   reviewChecklistDoc,
   authorityMatrixDoc,
   indexDoc,
   packageJsonFile,
   smokeFile,
+  localDevAdapterSmokeFile,
   adapterBoundarySmokeFile,
   authSourceSelectionSmokeFile,
   authScopePlanSmokeFile,
@@ -124,9 +141,8 @@ const requiredPlanPhrases = [
   "Future implementation may use an explicit local operator identity token",
   "documented as local-only and not a secret-bearing production auth source",
   "Future implementation must map Candidate D request and decision results",
-  "Do not implement Candidate D yet",
-  "Candidate D can be the next implementation only if user/PM explicitly accepts local-only semantics",
-  "Otherwise keep the route marker-guarded and defer real auth",
+  "Candidate D local-only semantics were accepted for implementation",
+  "remains local-only and not production auth",
 ];
 
 const localOnlySourceVocabulary = [
@@ -246,6 +262,7 @@ console.log(
       local_dev_adapter_plan_doc_checked: localDevAdapterPlanDoc,
       docs_checked: [
         localDevAdapterPlanDoc,
+        localDevAdapterDoc,
         adapterBoundaryDoc,
         authSourceSelectionDoc,
         authScopePlanDoc,
@@ -383,6 +400,11 @@ function assertPlanContent() {
 }
 
 function assertDocPointers() {
+  assertContainsAll(localDevAdapterPlanDoc, [
+    localDevAdapterDoc,
+    "Candidate D local-only semantics were accepted",
+    "remains local-only and not production auth",
+  ], { textByFile });
   assertContainsAll(adapterBoundaryDoc, [
     localDevAdapterPlanDoc,
     "maps Candidate D",
@@ -393,7 +415,7 @@ function assertDocPointers() {
     localDevAdapterPlanDoc,
     "source-specific Candidate D plan",
     "local-only",
-    "not selected for implementation unless user/PM explicitly accepts local-only semantics",
+    "was not selected for implementation until user/PM explicitly accepted local-only semantics",
   ], { textByFile });
   assertContainsAll(authScopePlanDoc, [
     localDevAdapterPlanDoc,
@@ -419,7 +441,9 @@ function assertDocPointers() {
   ], { textByFile });
   assertContainsAll(indexDoc, [
     localDevAdapterPlanDoc,
+    localDevAdapterDoc,
     "smoke:readonly-api-route-local-dev-auth-adapter-plan",
+    "smoke:readonly-api-route-local-dev-auth-adapter",
     "docs/smoke/package-pointer only",
     "no auth implementation",
     "no production auth",
@@ -556,6 +580,10 @@ function assertChangedFilesBoundary() {
 }
 
 function assertNoForbiddenChangedPaths(files) {
+  const exactAllowedRuntimeFiles = new Set([
+    localDevAdapterFile,
+    constellationPreviewHelperFile,
+  ]);
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
     /^app\//,
@@ -577,6 +605,9 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (exactAllowedRuntimeFiles.has(file)) {
+      continue;
+    }
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only route local dev auth adapter plan smoke: ${file}`,

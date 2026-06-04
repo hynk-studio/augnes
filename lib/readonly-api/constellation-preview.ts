@@ -6,6 +6,11 @@ import {
   type ReadonlyApiAccessErrorStatus,
   type ReadonlyApiAccessPolicy,
 } from "@/lib/readonly-api/access-guard";
+import { validateReadonlyApiLocalDevAuthAdapter } from "@/lib/readonly-api/local-dev-auth-adapter";
+import type {
+  ReadonlyApiAuthScopeErrorCodeV0,
+  ReadonlyApiAuthScopeFailureV0,
+} from "@/types/readonly-api-auth-scope";
 import type {
   ReadonlyApiRouteConstellationCluster,
   ReadonlyApiRouteConstellationEdge,
@@ -133,10 +138,12 @@ type FixtureCluster = {
 
 export type ConstellationPreviewErrorCode =
   | ReadonlyApiAccessErrorCode
+  | ReadonlyApiAuthScopeErrorCodeV0
   | "unavailable";
 
 export type ConstellationPreviewErrorStatus =
   | ReadonlyApiAccessErrorStatus
+  | ReadonlyApiAuthScopeFailureV0["status"]
   | 500;
 
 export type ConstellationPreviewValidationResult =
@@ -173,6 +180,20 @@ export function validateConstellationPreviewRequest(
 
   if (!result.ok) {
     return result;
+  }
+
+  const localDevAuthResult = validateReadonlyApiLocalDevAuthAdapter({
+    request,
+    localGuardResult: result,
+  });
+
+  if (!localDevAuthResult.ok) {
+    return {
+      ok: false,
+      code: localDevAuthResult.code,
+      status: localDevAuthResult.status,
+      authority_boundary: [...localDevAuthResult.authority_boundary.notes],
+    };
   }
 
   return {

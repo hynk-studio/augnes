@@ -50,6 +50,11 @@ GET /api/augnes/read/constellation-preview
 Candidate D remains local-only and is not production auth. The current route
 remains local-only.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
+implementation slice after user/PM accepted Candidate D local-only semantics.
+That implementation remains local-only, is not production auth, and connects no
+consumer surface.
+
 ## 2. Purpose
 
 The purpose is to map Candidate D to the type-only auth/scope adapter boundary
@@ -77,9 +82,9 @@ Candidate D must remain local-only. It must not be used as hosted auth,
 production auth, OAuth, session identity, workspace membership, or consumer
 authorization. It may only be considered for local route validation.
 
-Recommended decision: Do not implement Candidate D yet. Candidate D can be the
-next implementation only if user/PM explicitly accepts local-only semantics.
-Otherwise keep the route marker-guarded and defer real auth.
+User/PM decision for the next slice: Candidate D local-only semantics were
+accepted for implementation. `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md`
+records that implementation. It remains local-only and not production auth.
 
 ## 4. Relationship to type-only auth/scope adapter boundary
 
@@ -425,14 +430,16 @@ authority.
 
 - Does user/PM accept Candidate D local-only semantics for a future adapter
   implementation?
-- Should the route remain marker-guarded only until a real hosted or Augnes
-  workspace membership source exists?
+- After this implementation slice, should the route keep Candidate D local-only
+  validation until a real hosted or Augnes workspace membership source exists?
 - What exact local operator declaration vocabulary is acceptable if Candidate D
   proceeds?
 - Should any future Candidate D implementation remain route-only with no
   consumer surface?
 
-Default answer for this plan: do not implement Candidate D yet.
+Updated answer after user/PM decision: implement Candidate D only as local-only
+route validation, preserve no consumer surface, and keep future real auth
+separate.
 
 ## 22. Validation and smoke plan
 

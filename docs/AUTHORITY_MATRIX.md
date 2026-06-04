@@ -206,6 +206,15 @@ OAuth, session identity, workspace membership, consumer authority, write
 authority, proof/evidence authority, Codex execution, DB query, graph DB,
 persistence, publish, merge, retry, replay, deploy, or approval authority.
 
+`lib/readonly-api/local-dev-auth-adapter.ts` and
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` implement Candidate D
+as a local-only route validation adapter for the read-only constellation
+preview route. The adapter grants no production auth, hosted auth, OAuth,
+session identity, workspace membership, consumer authority, write authority,
+proof/evidence authority, DB query authority, graph DB authority, persistence
+authority, publish authority, merge authority, retry/replay/deploy authority,
+approval authority, branch/PR authority, or Codex execution authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |
