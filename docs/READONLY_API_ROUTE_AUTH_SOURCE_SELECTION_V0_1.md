@@ -97,6 +97,10 @@ Candidate D local-only implementation after that user/PM acceptance. The
 implementation is still not real hosted auth and does not prove hosted identity
 or hosted workspace/project membership.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next gate
+after Candidate D. Candidate E remains the real auth source decision until a
+concrete identity and workspace/project membership source is selected.
+
 ## 4. Existing repo-local candidates inspected
 
 Inspected repo-local surfaces:

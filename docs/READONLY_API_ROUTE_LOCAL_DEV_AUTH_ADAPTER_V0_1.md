@@ -43,6 +43,10 @@ It composes with:
 Candidate D is now implemented only as local-only route validation. It does not
 connect a consumer surface.
 
+`docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next gate
+for any future real hosted/session/workspace auth implementation. Candidate D
+remains local-only and is not the real auth gate.
+
 ## 2. Route and adapter summary
 
 The route remains:

@@ -17,6 +17,8 @@ const localDevAdapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
 const localDevAdapterDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const realAuthGatePlanDoc =
+  "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
 const constellationPreviewHelperFile =
   "lib/readonly-api/constellation-preview.ts";
@@ -50,6 +52,8 @@ const reviewChecklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
+const realAuthGatePlanSmokeFile =
+  "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
 
 const inspectedFiles = [
   typeFile,
@@ -69,6 +73,7 @@ const allowedChangedFiles = new Set([
   routeDoc,
   localDevAdapterPlanDoc,
   localDevAdapterDoc,
+  realAuthGatePlanDoc,
   localDevAdapterFile,
   constellationPreviewHelperFile,
   localDevAdapterPlanSmokeFile,
@@ -79,6 +84,7 @@ const allowedChangedFiles = new Set([
   constellationPreviewSmokeFile,
   reviewChecklistSmokeFile,
   surfaceSmokeFile,
+  realAuthGatePlanSmokeFile,
 ]);
 
 const requiredExports = [

@@ -64,6 +64,10 @@ const localDevAdapterDoc =
 const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
 const localDevAdapterSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
+const realAuthGatePlanDoc =
+  "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
+const realAuthGatePlanSmokeFile =
+  "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
@@ -103,6 +107,8 @@ const allowedChangedFiles = new Set([
   localDevAdapterDoc,
   localDevAdapterFile,
   localDevAdapterSmokeFile,
+  realAuthGatePlanDoc,
+  realAuthGatePlanSmokeFile,
   authorityMatrixDoc,
 ]);
 

@@ -444,6 +444,19 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   fail-closed behavior, minimized route response, forbidden fields,
   docs/index/authority pointers, package pointer, scoped/content-only boundary
   behavior, and no forbidden positive authority grants를 확인한다.
+- `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md`: read-only
+  constellation preview route의 future real auth/scope implementation gate
+  plan이다. It is docs/smoke/package-pointer only and adds no real auth
+  implementation, no production auth, no hosted auth, no route behavior change,
+  no consumer, no DB query, no UI, no MCP/App tool, no proof/evidence write, no
+  Codex SDK execution, no graph DB, no persistence, and no
+  merge/publish/approval/retry/replay/deploy authority. `npm run
+  smoke:readonly-api-route-real-auth-gate-plan`는 current local-only baseline,
+  Candidate D transition boundary, required source evidence, identity and
+  workspace/project membership gates, fail-closed cases, forbidden fields,
+  future file/smoke candidates, docs/index/authority pointers,
+  scoped/content-only boundary behavior, package pointer, and no forbidden
+  positive authority grants를 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
