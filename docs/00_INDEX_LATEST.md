@@ -372,6 +372,20 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   forwarded-host hardening, method handling, route compatibility,
   docs/index/authority pointers, scoped/content-only boundary behavior, and no
   forbidden positive authority grants를 정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`: real
+  authenticated workspace/project scope integration planning pointer for
+  `GET /api/augnes/read/constellation-preview`다. It is
+  docs/smoke/package-pointer only and recommends keeping the route local-only
+  until a concrete auth/session/workspace source is selected. It adds no
+  production auth, no hosted/session/OAuth/multi-user auth, no route behavior
+  change, no consumer surface, no DB query, no UI, no MCP/App tool, no
+  proof/evidence write, no Codex SDK execution, no graph DB, no persistence,
+  and no merge/publish/approval/retry/replay/deploy authority. `npm run
+  smoke:readonly-api-route-auth-scope-integration-plan`는 required sections,
+  current local guard baseline, candidate auth/scope source options, safe
+  defer-default decision, fail-closed behavior plan, future slices,
+  package/index/authority pointers, scoped/content-only boundary behavior, and
+  no forbidden positive authority grants를 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

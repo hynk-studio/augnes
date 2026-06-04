@@ -42,6 +42,10 @@ const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
 const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
+const authScopePlanDoc =
+  "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
+const authScopePlanSmokeFile =
+  "scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
@@ -69,6 +73,8 @@ const allowedChangedFiles = new Set([
   accessGuardDoc,
   accessGuardFile,
   accessGuardSmokeFile,
+  authScopePlanDoc,
+  authScopePlanSmokeFile,
   authorityMatrixDoc,
 ]);
 

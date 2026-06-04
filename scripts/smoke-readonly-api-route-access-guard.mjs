@@ -27,6 +27,8 @@ const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const helperFile = "lib/readonly-api/constellation-preview.ts";
 const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
 const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
+const authScopePlanDoc =
+  "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const designDoc =
@@ -38,6 +40,8 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
+const authScopePlanSmokeFile =
+  "scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs";
 const routeSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
 const planSmokeFile =
@@ -58,6 +62,7 @@ const inspectedFiles = [
   helperFile,
   routeFile,
   accessGuardDoc,
+  authScopePlanDoc,
   routeDoc,
   planDoc,
   checklistDoc,
@@ -72,6 +77,7 @@ const allowedChangedFiles = new Set([
   ...inspectedFiles,
   designDoc,
   planningDoc,
+  authScopePlanSmokeFile,
   planSmokeFile,
   designSmokeFile,
   planningSmokeFile,

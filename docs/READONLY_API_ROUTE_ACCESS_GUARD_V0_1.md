@@ -36,6 +36,11 @@ It supports the current route-only local validation route:
 
 - `GET /api/augnes/read/constellation-preview`
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` is the next
+planning step beyond this local marker guard. It defines gates for future real
+authenticated workspace/project scope integration without implementing auth or
+changing route behavior.
+
 ## 2. Purpose
 
 The purpose is to extract the local host, marker header, method, and
@@ -176,6 +181,11 @@ requirements by itself. Future implementation beyond local validation still
 requires separate user/session identity, workspace membership, privacy review,
 prompt-injection review, logging/telemetry review, route tests, authority
 matrix update, and browser/computer-use validation if surfaced.
+
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` keeps that future
+real auth/session/workspace integration separate from this local marker guard.
+The current guard remains valid for route-only local validation and still is not
+production auth.
 
 ## 11. Security limits
 

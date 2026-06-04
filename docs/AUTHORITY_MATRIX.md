@@ -177,6 +177,13 @@ no approval authority, no retry/replay/deploy authority, no Codex execution
 authority, no DB query authority, no graph DB authority, and no persistence
 authority.
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` is a
+docs/smoke/package-pointer plan for future real authenticated workspace/project
+scope integration. It adds no authority and does not implement production auth,
+hosted auth, session identity, workspace membership, consumer authority, write
+authority, proof/evidence authority, Codex execution, DB query, graph DB,
+persistence, publish, merge, retry, replay, deploy, or approval authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |
