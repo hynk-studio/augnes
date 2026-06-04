@@ -160,6 +160,9 @@ const authorityGrantPatterns = [
   },
 ];
 
+const negationPattern =
+  /\b(no|not|does not|do not|must not|never|is not|are not|cannot|can't|by itself|forbidden|out of scope|skipped)\b/i;
+
 const textByFile = loadTextByFile(inspectedFiles);
 const plan = textByFile.get(planDoc);
 const smokeSource = textByFile.get(smokeFile);
@@ -498,6 +501,9 @@ function assertAuthorityClassifierSelfTests() {
     "The skill may call OpenAI during final reporting.",
     "The plan may deploy after review.",
     "The plan enables graph DB persistence.",
+    "This plan does not implement UI behavior, but the plan may record proof records.",
+    "No runtime behavior is added, but the handoff may create PRs without review.",
+    "This skill does not call OpenAI, but Codex may deploy after review.",
   ];
 
   for (const selfTest of forbiddenSelfTests) {
@@ -515,8 +521,8 @@ function assertAuthorityClassifierSelfTests() {
   const allowedSelfTests = [
     "This plan does not implement runtime behavior.",
     "No handoff may create PRs without review.",
-    "Proof-only closeout is skipped because this task must not record proof.",
     "This skill does not call OpenAI.",
+    "Proof-only closeout is skipped because this task must not record proof.",
     "The experiment execution PR requires explicit user scope.",
   ];
 
@@ -540,20 +546,41 @@ function assertNoForbiddenPositiveAuthorityGrant({ file, text }) {
 
   for (const clause of clauses) {
     for (const { label, regex } of authorityGrantPatterns) {
-      regex.lastIndex = 0;
-      const match = regex.exec(clause);
-      assert(
-        !match || isNegatedBoundary(clause),
-        `${file} contains forbidden positive authority grant (${label}): ${clause}`,
-      );
+      const matcher = toGlobalRegex(regex);
+      let match = matcher.exec(clause);
+      while (match) {
+        assert(
+          isNegatedBoundaryForMatch({ clause, matchIndex: match.index }),
+          `${file} contains forbidden positive authority grant (${label}): ${clause}`,
+        );
+        match = matcher.exec(clause);
+      }
     }
   }
 }
 
-function isNegatedBoundary(clause) {
-  return /\b(no|not|does not|do not|must not|never|is not|are not|cannot|can't|by itself|forbidden|out of scope|skipped)\b/i.test(
-    clause,
+function toGlobalRegex(regex) {
+  const flags = regex.flags.includes("g") ? regex.flags : `${regex.flags}g`;
+  return new RegExp(regex.source, flags);
+}
+
+function isNegatedBoundaryForMatch({ clause, matchIndex }) {
+  const beforeMatch = clause.slice(0, matchIndex);
+  const governingContext = beforeMatch.slice(
+    findLastContrastMarkerEnd(beforeMatch),
   );
+  return negationPattern.test(governingContext);
+}
+
+function findLastContrastMarkerEnd(text) {
+  let markerEnd = 0;
+  const contrastPattern = /\b(but|however|yet|although|though|except)\b/gi;
+  let match = contrastPattern.exec(text);
+  while (match) {
+    markerEnd = match.index + match[0].length;
+    match = contrastPattern.exec(text);
+  }
+  return markerEnd;
 }
 
 function extractSourceBetween(source, startMarker, endMarker) {
