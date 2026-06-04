@@ -29,6 +29,15 @@ const responseShapeSmokeFile =
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 const responseShapeTypeFile = "types/readonly-api-route-response.ts";
+const constellationPreviewRouteDoc =
+  "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
+const constellationPreviewRouteFile =
+  "app/api/augnes/read/constellation-preview/route.ts";
+const constellationPreviewHelperFile =
+  "lib/readonly-api/constellation-preview.ts";
+const constellationPreviewSmokeFile =
+  "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
   planDoc,
@@ -47,6 +56,11 @@ const allowedChangedFiles = new Set([
   checklistSmokeFile,
   responseShapeSmokeFile,
   surfaceSmokeFile,
+  constellationPreviewRouteDoc,
+  constellationPreviewRouteFile,
+  constellationPreviewHelperFile,
+  constellationPreviewSmokeFile,
+  authorityMatrixDoc,
 ]);
 
 const requiredSections = [
@@ -515,6 +529,7 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (file === constellationPreviewRouteFile) continue;
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only API route implementation plan smoke: ${file}`,

@@ -46,6 +46,14 @@ This PR does not implement any endpoint, route file, handler, auth behavior,
 database query, persistence layer, graph database, MCP/App tool, UI surface,
 proof/evidence writer, AG Resume behavior, or Codex SDK provider behavior.
 
+`docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md` documents the first
+route-only local validation slice for
+`GET /api/augnes/read/constellation-preview`. That implementation uses the
+planned `project:augnes` scope, local authorization marker, static public-safe
+fixture source, minimized response profile, and no-consumer decision. It
+preserves that no Cockpit, ChatGPT App, MCP, plugin tool, or other consumer
+surface is connected by the route implementation PR.
+
 ## 2. Purpose
 
 The purpose is to define a concrete but non-executable implementation plan for

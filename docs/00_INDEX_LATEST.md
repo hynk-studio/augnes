@@ -344,6 +344,21 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   implementation slices, future validation plan, scoped/content-only boundary
   behavior, package pointer, and no forbidden positive authority grants를
   정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md`: first route-only
+  local validation implementation for
+  `GET /api/augnes/read/constellation-preview`다. The route is GET/read-only,
+  explicitly local-authorized, fail-closed, scoped to `project:augnes`, backed
+  only by `fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json`,
+  and aligned with `types/readonly-api-route-response.ts`. It connects no
+  consumer surface and adds no DB query, no UI, no MCP/App tool, no
+  proof/evidence write, no Codex SDK execution, no graph DB, no persistence,
+  and no merge/publish/approval/retry/replay/deploy authority. `npm run
+  smoke:readonly-api-route-constellation-preview`는 route/helper existence,
+  GET-only route exports, nodejs/force-dynamic route flags, local authorization,
+  fail-closed scope behavior, static fixture provenance, minimized response,
+  forbidden fields, pointer-only evidence, advisory next actions, authority
+  matrix/index pointers, scoped/content-only boundary behavior, and no
+  forbidden positive authority grants를 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
