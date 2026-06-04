@@ -359,6 +359,19 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   forbidden fields, pointer-only evidence, advisory next actions, authority
   matrix/index pointers, scoped/content-only boundary behavior, and no
   forbidden positive authority grants를 정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md`: shared read-only local
+  access/scope guard for route-only local validation이다. It extracts local URL
+  host, `Host`, `X-Forwarded-Host`, GET method, marker header, and
+  `project:augnes` scope validation into `lib/readonly-api/access-guard.ts`.
+  This is not production auth and adds no hosted/session/OAuth/multi-user auth,
+  no secrets/env handling, no consumer surface, no DB query, no UI, no MCP/App
+  tool, no proof/evidence write, no Codex SDK execution, no graph DB, no
+  persistence, and no merge/publish/approval/retry/replay/deploy authority.
+  `npm run smoke:readonly-api-route-access-guard`는 guard exports,
+  runtime/import boundaries, local authorization, fail-closed scope,
+  forwarded-host hardening, method handling, route compatibility,
+  docs/index/authority pointers, scoped/content-only boundary behavior, and no
+  forbidden positive authority grants를 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

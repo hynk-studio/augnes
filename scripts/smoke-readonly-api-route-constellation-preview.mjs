@@ -22,7 +22,9 @@ const {
 } = helperModule;
 
 const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
+const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const helperFile = "lib/readonly-api/constellation-preview.ts";
+const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const designDoc =
@@ -34,6 +36,8 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const accessGuardSmokeFile =
+  "scripts/smoke-readonly-api-route-access-guard.mjs";
 const planSmokeFile =
   "scripts/smoke-readonly-api-route-implementation-plan.mjs";
 const designSmokeFile =
@@ -52,7 +56,9 @@ const staticFixtureFile =
 
 const inspectedFiles = [
   routeFile,
+  accessGuardFile,
   helperFile,
+  accessGuardDoc,
   routeDoc,
   planDoc,
   designDoc,
@@ -66,6 +72,7 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
+  accessGuardSmokeFile,
   planSmokeFile,
   designSmokeFile,
   planningSmokeFile,
@@ -118,6 +125,12 @@ const requiredRouteDocPhrases = [
   "proof_evidence_write_authority: false",
   "readiness_write_authority: false",
   "No route-provided text grants authority",
+  accessGuardDoc,
+  "shared read-only access guard",
+  "X-Forwarded-Host",
+  "disallowed_forwarded_host",
+  "method_not_allowed",
+  "npm run smoke:readonly-api-route-access-guard",
   "npm run smoke:readonly-api-route-constellation-preview",
 ];
 
@@ -191,7 +204,9 @@ console.log(
       pass: true,
       boundary_smoke_mode: changedFilesBoundary.mode,
       route_file_checked: routeFile,
+      access_guard_file_checked: accessGuardFile,
       helper_file_checked: helperFile,
+      access_guard_doc_checked: accessGuardDoc,
       route_doc_checked: routeDoc,
       package_script_checked: true,
       get_only_route_checked: true,
@@ -201,6 +216,9 @@ console.log(
       response_shape_type_alignment_checked: true,
       success_response_checked: true,
       fail_closed_auth_scope_checked: true,
+      access_guard_usage_checked: true,
+      forwarded_host_hardening_checked: true,
+      method_guard_checked: true,
       forbidden_fields_checked: forbiddenFields.length,
       evidence_pointer_semantics_checked: true,
       unresolved_tensions_separate_checked: true,
@@ -264,6 +282,7 @@ function assertRouteShape() {
 function assertRouteHelperBoundary() {
   for (const [file, source] of [
     [routeFile, routeSource],
+    [accessGuardFile, textByFile.get(accessGuardFile)],
     [helperFile, helperSource],
   ]) {
     assertNoRuntimeImports({
@@ -289,6 +308,9 @@ function assertRouteHelperBoundary() {
   }
 
   assertContainsAll(helperFile, [
+    "@/lib/readonly-api/access-guard",
+    "validateReadonlyApiLocalAccess",
+    "CONSTELLATION_PREVIEW_ACCESS_POLICY",
     staticFixtureFile,
     "@/types/readonly-api-route-response",
     "ReadonlyApiRouteResponseEnvelopeV0",
@@ -298,6 +320,16 @@ function assertRouteHelperBoundary() {
     "pointer_semantics: \"pointer_only\"",
     "proof_evidence_write_authority: false",
     "readiness_write_authority: false",
+  ], { textByFile });
+  assertContainsAll(accessGuardFile, [
+    "export const READONLY_LOCAL_HOSTS",
+    "export function validateReadonlyApiLocalAccess",
+    "x-forwarded-host",
+    "method_not_allowed",
+    "disallowed_forwarded_host",
+  ], { textByFile });
+  assertContainsAll(routeFile, [
+    "authorityBoundary: validation.authority_boundary",
   ], { textByFile });
 }
 
@@ -321,6 +353,7 @@ function assertRequiredDocs() {
     checklistDoc,
     planningDoc,
     authorityMatrixDoc,
+    accessGuardDoc,
   ], { textByFile });
 
   assertContainsAll(planDoc, [routeDoc, "first route-only local validation slice", "no consumer"], { textByFile });
@@ -329,6 +362,7 @@ function assertRequiredDocs() {
   assertContainsAll(planningDoc, [routeDoc, "first implemented read-only route slice", "no write behavior"], { textByFile });
   assertContainsAll(authorityMatrixDoc, [
     "GET /api/augnes/read/constellation-preview",
+    "lib/readonly-api/access-guard.ts",
     "project:augnes",
     "explicitly local-authorized",
     "fail-closed",
@@ -339,7 +373,9 @@ function assertRequiredDocs() {
   ], { textByFile });
   assertContainsAll(indexDoc, [
     routeDoc,
+    accessGuardDoc,
     "route-only local validation implementation",
+    "smoke:readonly-api-route-access-guard",
     "smoke:readonly-api-route-constellation-preview",
     "no consumer surface",
     "no DB query",
@@ -443,6 +479,47 @@ async function assertRouteBehavior() {
     status: 403,
     code: "local_authorization_required",
   });
+  await assertErrorResponse({
+    label: "non-local Host header",
+    request: makeRequest({
+      url: "http://127.0.0.1:3000/api/augnes/read/constellation-preview?scope=project:augnes",
+      marker: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+      headers: { Host: "example.com" },
+    }),
+    status: 403,
+    code: "local_authorization_required",
+  });
+  await assertErrorResponse({
+    label: "non-local forwarded host",
+    request: makeRequest({
+      url: "http://127.0.0.1:3000/api/augnes/read/constellation-preview?scope=project:augnes",
+      marker: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+      headers: { "X-Forwarded-Host": "example.com" },
+    }),
+    status: 403,
+    code: "disallowed_forwarded_host",
+  });
+
+  const methodValidation = validateConstellationPreviewRequest(
+    makeRequest({
+      url: "http://127.0.0.1:3000/api/augnes/read/constellation-preview?scope=project:augnes",
+      marker: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+      method: "POST",
+    }),
+  );
+  assert.deepEqual(methodValidation, {
+    ok: false,
+    code: "method_not_allowed",
+    status: 405,
+    authority_boundary: [
+      "local read-only route access guard",
+      "fail-closed local validation boundary",
+      "not production auth",
+      "no route-provided text grants authority",
+      "no consumer authority",
+      "no proof/evidence/readiness writes",
+    ],
+  });
 
   const malformedValidation = validateConstellationPreviewRequest({
     url: "not a valid url",
@@ -452,15 +529,23 @@ async function assertRouteBehavior() {
     ok: false,
     code: "malformed_request",
     status: 400,
+    authority_boundary: [
+      "local read-only route access guard",
+      "fail-closed local validation boundary",
+      "not production auth",
+      "no route-provided text grants authority",
+      "no consumer authority",
+      "no proof/evidence/readiness writes",
+    ],
   });
 }
 
-function makeRequest({ url, marker }) {
-  const headers = new Headers();
+function makeRequest({ url, marker, method = "GET", headers = {} }) {
+  const requestHeaders = new Headers(headers);
   if (marker) {
-    headers.set(CONSTELLATION_PREVIEW_LOCAL_READ_HEADER, marker);
+    requestHeaders.set(CONSTELLATION_PREVIEW_LOCAL_READ_HEADER, marker);
   }
-  return new Request(url, { headers });
+  return new Request(url, { method, headers: requestHeaders });
 }
 
 async function assertErrorResponse({ label, request, status, code }) {
@@ -667,6 +752,7 @@ function assertChangedFilesBoundary() {
 
 function assertNoForbiddenChangedPaths(files) {
   const exactAllowedRouteFiles = new Set([routeFile, helperFile]);
+  const exactAllowedLibFiles = new Set([accessGuardFile]);
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
     /^components\//,
@@ -687,7 +773,7 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
-    if (exactAllowedRouteFiles.has(file)) continue;
+    if (exactAllowedRouteFiles.has(file) || exactAllowedLibFiles.has(file)) continue;
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only constellation preview route smoke: ${file}`,

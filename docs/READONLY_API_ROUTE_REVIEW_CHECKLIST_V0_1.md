@@ -69,6 +69,13 @@ Future route implementation must answer:
 The default expectation is fail-closed auth/session handling. A read-only route
 does not justify public unauthenticated access by itself.
 
+`docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md` documents the shared local
+read-only access guard used by the current constellation preview route. The
+guard is a local validation boundary only. It is not production auth, does not
+add hosted/session/OAuth/multi-user auth, and does not satisfy concrete
+auth/session evidence required when a future implementation moves beyond local
+route validation.
+
 ## Privacy boundary
 
 Future route implementation must answer:
@@ -295,6 +302,12 @@ that connect Cockpit, ChatGPT App, MCP, plugin tools, or browser-facing
 surfaces must still run their own browser/computer-use validation and must not
 reuse this route-only validation as consumer-surface evidence.
 
+`docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md` documents the shared local
+access/scope guard for read-only route validation. The focused guard smoke is
+`npm run smoke:readonly-api-route-access-guard`. Future implementation PRs
+still need concrete auth/session evidence beyond this local guard when moving
+beyond explicitly local-authorized validation.
+
 ## Validation and smoke plan
 
 Required validation for this checklist PR:
@@ -305,6 +318,7 @@ Required validation for this checklist PR:
 - `npm run smoke:readonly-api-route-implementation-design-packet`
 - `npm run smoke:readonly-api-route-implementation-plan`
 - `npm run smoke:readonly-api-route-constellation-preview`
+- `npm run smoke:readonly-api-route-access-guard`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`

@@ -1,4 +1,11 @@
 import fixture from "@/fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
+import {
+  READONLY_LOCAL_HOSTS,
+  validateReadonlyApiLocalAccess,
+  type ReadonlyApiAccessErrorCode,
+  type ReadonlyApiAccessErrorStatus,
+  type ReadonlyApiAccessPolicy,
+} from "@/lib/readonly-api/access-guard";
 import type {
   ReadonlyApiRouteConstellationCluster,
   ReadonlyApiRouteConstellationEdge,
@@ -18,6 +25,16 @@ export const CONSTELLATION_PREVIEW_LOCAL_READ_HEADER =
 export const CONSTELLATION_PREVIEW_LOCAL_READ_MARKER =
   "constellation-preview-v0.1";
 export const CONSTELLATION_PREVIEW_ROUTE_FAMILY = "project_constellation";
+export const CONSTELLATION_PREVIEW_ROUTE_ID =
+  "augnes.read.constellation-preview.v0.1";
+export const CONSTELLATION_PREVIEW_ACCESS_POLICY: ReadonlyApiAccessPolicy = {
+  route_id: CONSTELLATION_PREVIEW_ROUTE_ID,
+  required_scope: CONSTELLATION_PREVIEW_SCOPE,
+  required_marker_header: CONSTELLATION_PREVIEW_LOCAL_READ_HEADER,
+  required_marker_value: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+  allowed_hosts: READONLY_LOCAL_HOSTS,
+  route_family: CONSTELLATION_PREVIEW_ROUTE_FAMILY,
+};
 
 const STATIC_FIXTURE_SOURCE_REF =
   "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
@@ -115,23 +132,26 @@ type FixtureCluster = {
 };
 
 export type ConstellationPreviewErrorCode =
-  | "missing_scope"
-  | "malformed_request"
-  | "unauthorized_scope"
-  | "local_authorization_required"
+  | ReadonlyApiAccessErrorCode
   | "unavailable";
 
-export type ConstellationPreviewErrorStatus = 400 | 403 | 500;
+export type ConstellationPreviewErrorStatus =
+  | ReadonlyApiAccessErrorStatus
+  | 500;
 
 export type ConstellationPreviewValidationResult =
   | {
       ok: true;
       scope: typeof CONSTELLATION_PREVIEW_SCOPE;
+      route_id: typeof CONSTELLATION_PREVIEW_ROUTE_ID;
+      route_family: typeof CONSTELLATION_PREVIEW_ROUTE_FAMILY;
+      local_authorized: true;
     }
   | {
       ok: false;
       code: ConstellationPreviewErrorCode;
       status: ConstellationPreviewErrorStatus;
+      authority_boundary: string[];
     };
 
 export type ConstellationPreviewErrorBody = {
@@ -146,35 +166,22 @@ export type ConstellationPreviewErrorBody = {
 export function validateConstellationPreviewRequest(
   request: Request,
 ): ConstellationPreviewValidationResult {
-  let url: URL;
+  const result = validateReadonlyApiLocalAccess(
+    request,
+    CONSTELLATION_PREVIEW_ACCESS_POLICY,
+  );
 
-  try {
-    url = new URL(request.url);
-  } catch {
-    return { ok: false, code: "malformed_request", status: 400 };
+  if (!result.ok) {
+    return result;
   }
 
-  const scope = url.searchParams.get("scope");
-  if (!scope) {
-    return { ok: false, code: "missing_scope", status: 400 };
-  }
-
-  if (!isLocalRequestHost(request, url)) {
-    return { ok: false, code: "local_authorization_required", status: 403 };
-  }
-
-  if (
-    request.headers.get(CONSTELLATION_PREVIEW_LOCAL_READ_HEADER) !==
-    CONSTELLATION_PREVIEW_LOCAL_READ_MARKER
-  ) {
-    return { ok: false, code: "local_authorization_required", status: 403 };
-  }
-
-  if (scope !== CONSTELLATION_PREVIEW_SCOPE) {
-    return { ok: false, code: "unauthorized_scope", status: 403 };
-  }
-
-  return { ok: true, scope: CONSTELLATION_PREVIEW_SCOPE };
+  return {
+    ok: true,
+    scope: CONSTELLATION_PREVIEW_SCOPE,
+    route_id: CONSTELLATION_PREVIEW_ROUTE_ID,
+    route_family: CONSTELLATION_PREVIEW_ROUTE_FAMILY,
+    local_authorized: true,
+  };
 }
 
 export function buildConstellationPreviewResponse({
@@ -215,9 +222,11 @@ export function buildConstellationPreviewResponse({
 export function buildConstellationPreviewError({
   code,
   status,
+  authorityBoundary,
 }: {
   code: ConstellationPreviewErrorCode;
   status: ConstellationPreviewErrorStatus;
+  authorityBoundary?: string[];
 }): ConstellationPreviewErrorBody {
   return {
     response_version: "readonly_api_route_response.v0.1",
@@ -225,7 +234,7 @@ export function buildConstellationPreviewError({
       code,
       status,
     },
-    authority_boundary: [
+    authority_boundary: authorityBoundary ?? [
       "minimal fail-closed error",
       "no private source details",
       "no route-provided text grants authority",
@@ -421,38 +430,6 @@ function buildNextActionCandidate({
     source_refs: sourceRefs,
     authority_boundary: NEXT_ACTION_AUTHORITY_BOUNDARY,
   };
-}
-
-function isLocalRequestHost(request: Request, url: URL): boolean {
-  const hostHeader = request.headers.get("host");
-  const hostsToCheck = hostHeader ? [hostHeader, url.host] : [url.host];
-
-  return hostsToCheck.every((host) => isLocalHost(host));
-}
-
-function isLocalHost(hostWithOptionalPort: string): boolean {
-  const normalized = normalizeHost(hostWithOptionalPort);
-
-  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
-}
-
-function normalizeHost(hostWithOptionalPort: string): string {
-  const host = hostWithOptionalPort.trim().toLowerCase();
-
-  if (host === "::1") {
-    return host;
-  }
-
-  if (host.startsWith("[") && host.includes("]")) {
-    return host.slice(1, host.indexOf("]"));
-  }
-
-  const colonIndex = host.indexOf(":");
-  if (colonIndex === -1) {
-    return host;
-  }
-
-  return host.slice(0, colonIndex);
 }
 
 function labelFromId(id: string): string {

@@ -140,6 +140,7 @@
     "smoke:readonly-api-route-response-shape-boundary": "node scripts/smoke-readonly-api-route-response-shape-boundary.mjs",
     "smoke:readonly-api-route-implementation-design-packet": "node scripts/smoke-readonly-api-route-implementation-design-packet.mjs",
     "smoke:readonly-api-route-implementation-plan": "node scripts/smoke-readonly-api-route-implementation-plan.mjs",
+    "smoke:readonly-api-route-access-guard": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-readonly-api-route-access-guard.mjs",
     "smoke:readonly-api-route-constellation-preview": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-readonly-api-route-constellation-preview.mjs",
     "smoke:augnes-operator-plugin-hooks": "node scripts/smoke-augnes-operator-plugin-hooks.mjs",
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",
