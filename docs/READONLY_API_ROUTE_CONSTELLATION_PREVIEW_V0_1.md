@@ -54,6 +54,7 @@ validation. It follows:
 - `docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md`
 - `docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md`
 - `docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md`
+- `docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`
 - `types/readonly-api-route-response.ts`
 
 The route path is now implemented for this local validation slice, but the
@@ -88,6 +89,10 @@ The route fails closed when:
 
 There is no public unauthenticated endpoint. Local authorization is deliberately
 narrow and is not a general auth implementation.
+
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` plans future real
+auth/session/workspace scope integration. Until a future implementation PR adds
+that concrete source, this route remains explicitly local-authorized only.
 
 ## 4. Request shape
 

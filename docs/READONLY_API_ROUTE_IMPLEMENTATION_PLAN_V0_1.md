@@ -61,6 +61,12 @@ extracts local host, `Host`, `X-Forwarded-Host`, GET method, marker header, and
 authenticated workspace/project integration remains separate scope and still
 requires concrete auth/session evidence beyond this local guard.
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` answers that next
+PM question at planning level only. It keeps the route local-only by default
+until a concrete auth/session/workspace source is selected and does not
+implement production auth, hosted auth, session identity, workspace membership,
+or route behavior.
+
 ## 2. Purpose
 
 The purpose is to define a concrete but non-executable implementation plan for

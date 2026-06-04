@@ -76,6 +76,12 @@ add hosted/session/OAuth/multi-user auth, and does not satisfy concrete
 auth/session evidence required when a future implementation moves beyond local
 route validation.
 
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` is the planning
+pointer for that future real authenticated workspace/project scope integration.
+It does not implement production auth or route behavior. Future implementation
+PRs still need concrete auth/session evidence beyond the local guard and beyond
+this plan.
+
 ## Privacy boundary
 
 Future route implementation must answer:
@@ -307,6 +313,10 @@ access/scope guard for read-only route validation. The focused guard smoke is
 `npm run smoke:readonly-api-route-access-guard`. Future implementation PRs
 still need concrete auth/session evidence beyond this local guard when moving
 beyond explicitly local-authorized validation.
+
+`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` documents the
+auth/scope integration plan. The focused plan smoke is
+`npm run smoke:readonly-api-route-auth-scope-integration-plan`.
 
 ## Validation and smoke plan
 
