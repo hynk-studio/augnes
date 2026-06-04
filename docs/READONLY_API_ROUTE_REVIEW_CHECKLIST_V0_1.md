@@ -278,6 +278,12 @@ the future Cockpit local-only route preview plan under this consumer/browser
 validation boundary. Future Cockpit implementation requires browser/computer-use
 validation and false-affordance review.
 
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` documents the
+Cockpit local-only route preview implementation. The focused smoke is
+`npm run smoke:cockpit-local-only-constellation-route-preview`. Browser/
+computer-use validation and false-affordance review were required for this
+consumer.
+
 ## Authority matrix boundary
 
 Future route implementation must answer:
@@ -374,6 +380,10 @@ the local-only consumer scope decision. The focused smoke is
 `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` documents
 the Cockpit local-only route preview plan. The focused smoke is
 `npm run smoke:cockpit-local-only-constellation-route-preview-plan`.
+
+`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` documents the
+Cockpit local-only route preview implementation. The focused smoke is
+`npm run smoke:cockpit-local-only-constellation-route-preview`.
 
 ## Validation and smoke plan
 

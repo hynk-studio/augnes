@@ -46,6 +46,8 @@ const typeFile = "types/readonly-api-auth-scope.ts";
 const adapterDoc = "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const adapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
 const realAuthGatePlanDoc =
@@ -71,6 +73,13 @@ const smokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 const cockpitPlanSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const browserReportFile =
+  "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const staticCockpitSmokeFile =
+  "scripts/smoke-project-constellation-cockpit-preview.mjs";
 const adapterPlanSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
 const routeSmokeFile =
@@ -100,6 +109,7 @@ const inspectedFiles = [
   typeFile,
   adapterDoc,
   cockpitPlanDoc,
+  cockpitImplementationDoc,
   adapterPlanDoc,
   realAuthGatePlanDoc,
   adapterBoundaryDoc,
@@ -124,6 +134,7 @@ const allowedChangedFiles = new Set([
   routeFile,
   adapterDoc,
   cockpitPlanDoc,
+  cockpitImplementationDoc,
   adapterPlanDoc,
   realAuthGatePlanDoc,
   adapterBoundaryDoc,
@@ -137,6 +148,10 @@ const allowedChangedFiles = new Set([
   authorityMatrixDoc,
   indexDoc,
   smokeFile,
+  cockpitFile,
+  browserReportFile,
+  cockpitImplementationSmokeFile,
+  staticCockpitSmokeFile,
   cockpitPlanSmokeFile,
   adapterPlanSmokeFile,
   routeSmokeFile,
@@ -902,7 +917,7 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
-    if (exactAllowedRuntimeFiles.has(file)) {
+    if (exactAllowedRuntimeFiles.has(file) || allowedChangedFiles.has(file)) {
       continue;
     }
     assert(

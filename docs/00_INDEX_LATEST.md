@@ -487,6 +487,21 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   browser/computer-use plan, future implementation file candidates,
   docs/index/authority pointers, package pointer, scoped/content-only boundary
   behavior, and no forbidden positive authority grants를 확인한다.
+- `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`: Cockpit
+  local-only constellation route preview implementation이다. It is a local-only
+  Cockpit implementation for
+  `GET /api/augnes/read/constellation-preview?scope=project:augnes` and uses
+  Candidate D local-only declaration headers. It adds no App/MCP, no
+  production auth, no hosted auth, no DB query, no proof/evidence write, no
+  Codex SDK execution, no graph DB, no persistence, and no
+  merge/publish/approval/retry/replay/deploy authority. The browser/
+  computer-use report is
+  `reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md`.
+  `npm run smoke:cockpit-local-only-constellation-route-preview`는 stable
+  Cockpit section id, visible local-only copy, required route headers,
+  displayed and omitted response field families, forbidden-control absence,
+  docs/index/authority/report pointers, package pointer, scoped/content-only
+  boundary behavior, and no forbidden positive authority grants를 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

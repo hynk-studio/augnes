@@ -51,6 +51,8 @@ const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const designDoc =
   "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
@@ -67,6 +69,13 @@ const smokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
 const cockpitPlanSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const browserReportFile =
+  "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const staticCockpitSmokeFile =
+  "scripts/smoke-project-constellation-cockpit-preview.mjs";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
 const authScopePlanSmokeFile =
@@ -108,6 +117,7 @@ const inspectedFiles = [
   authScopePlanDoc,
   routeDoc,
   cockpitPlanDoc,
+  cockpitImplementationDoc,
   localDevAdapterDoc,
   realAuthGatePlanDoc,
   planDoc,
@@ -125,6 +135,10 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
   cockpitPlanSmokeFile,
+  cockpitFile,
+  browserReportFile,
+  cockpitImplementationSmokeFile,
+  staticCockpitSmokeFile,
   authSourceSelectionDoc,
   adapterBoundaryDoc,
   authScopeTypeFile,
@@ -895,7 +909,13 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
-    if (exactAllowedRouteFiles.has(file) || exactAllowedLibFiles.has(file)) continue;
+    if (
+      exactAllowedRouteFiles.has(file) ||
+      exactAllowedLibFiles.has(file) ||
+      allowedChangedFiles.has(file)
+    ) {
+      continue;
+    }
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only constellation preview route smoke: ${file}`,

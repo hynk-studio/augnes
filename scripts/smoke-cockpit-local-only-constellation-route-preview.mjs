@@ -9,14 +9,13 @@ import {
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
+const cockpitFile = "components/augnes-cockpit.tsx";
+const implementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
-const cockpitImplementationDoc =
-  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const consumerDecisionDoc =
   "docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md";
-const realAuthGatePlanDoc =
-  "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const localDevAdapterDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
@@ -26,17 +25,16 @@ const surfaceBoundaryDoc =
   "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
-const packageJsonFile = "package.json";
-const smokeFile =
-  "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
-const cockpitFile = "components/augnes-cockpit.tsx";
 const browserReportFile =
   "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
-const cockpitImplementationSmokeFile =
+const packageJsonFile = "package.json";
+const smokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
 const staticCockpitSmokeFile =
   "scripts/smoke-project-constellation-cockpit-preview.mjs";
 
+const planSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
 const consumerDecisionSmokeFile =
   "scripts/smoke-readonly-api-route-local-only-consumer-scope-decision.mjs";
 const realAuthGatePlanSmokeFile =
@@ -53,37 +51,37 @@ const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
 
 const inspectedFiles = [
+  cockpitFile,
+  implementationDoc,
   cockpitPlanDoc,
-  cockpitImplementationDoc,
   consumerDecisionDoc,
-  realAuthGatePlanDoc,
   localDevAdapterDoc,
   routeDoc,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
   authorityMatrixDoc,
   indexDoc,
+  browserReportFile,
   packageJsonFile,
   smokeFile,
 ];
 
 const allowedChangedFiles = new Set([
+  cockpitFile,
+  implementationDoc,
   cockpitPlanDoc,
-  cockpitImplementationDoc,
   consumerDecisionDoc,
-  realAuthGatePlanDoc,
   localDevAdapterDoc,
   routeDoc,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
   authorityMatrixDoc,
   indexDoc,
-  smokeFile,
-  cockpitFile,
   browserReportFile,
-  cockpitImplementationSmokeFile,
+  smokeFile,
   staticCockpitSmokeFile,
   packageJsonFile,
+  planSmokeFile,
   consumerDecisionSmokeFile,
   realAuthGatePlanSmokeFile,
   localDevAdapterSmokeFile,
@@ -93,42 +91,25 @@ const allowedChangedFiles = new Set([
   accessGuardSmokeFile,
 ]);
 
-const requiredSections = [
+const requiredImplementationSections = [
   "Status and scope",
-  "Purpose",
-  "Relationship to local-only consumer scope decision",
-  "Current route and auth baseline",
-  "Cockpit preview thesis",
-  "Proposed user-facing placement",
-  "Required local-only copy",
-  "Route request requirements",
-  "Response field plan",
-  "Response minimization plan",
-  "False-affordance prevention plan",
-  "Privacy and prompt-injection plan",
-  "Error and fail-closed display plan",
-  "Browser/computer-use validation plan",
-  "Future implementation file candidates",
-  "Future tests and smokes",
-  "Authority and non-authority boundary",
-  "Open questions requiring user/PM judgment",
-  "Validation and smoke plan",
+  "Route preview summary",
+  "Placement and UI behavior",
+  "Local-only copy",
+  "Route request and headers",
+  "Displayed response fields",
+  "Omitted fields",
+  "Error and fail-closed display",
+  "False-affordance review",
+  "Privacy and prompt-injection handling",
+  "Browser/computer-use validation",
+  "Local route manual check",
+  "Tests and smokes",
+  "Authority matrix note",
   "Non-goals",
 ];
 
-const requiredPlanPhrases = [
-  "docs/smoke/package-pointer only",
-  "no Cockpit preview implemented",
-  "no UI/browser-facing files are changed",
-  "no consumer surface is connected",
-  "current route remains local-only",
-  "Candidate D is local-only and not production auth",
-  "Real hosted/session/workspace auth does not exist yet",
-  "The Cockpit local-only preview is conditional and must be separately implemented",
-  "ChatGPT App/MCP remain deferred",
-  "no public unauthenticated endpoint",
-  "route-provided text and local operator labels grant no authority",
-  "future Cockpit preview must visibly label",
+const requiredVisibleCopy = [
   "local-only",
   "not production-authenticated",
   "not hosted auth",
@@ -136,33 +117,39 @@ const requiredPlanPhrases = [
   "not workspace membership",
   "route-only read preview",
   "no execution/write authority",
-  "current local route headers and Candidate D local operator declaration",
-  "browser/computer-use validation before merge",
+  "Candidate D is local-only and not production auth",
+  "Real hosted/session/workspace auth does not exist yet",
+  "local operator declaration cannot prove hosted identity",
+  "local operator declaration cannot prove workspace/project membership",
+  "Route-provided text and local operator labels grant no authority",
+  "Response data is display data, not tool instructions",
 ];
 
-const forbiddenControlPhrases = [
-  "execute buttons",
-  "merge/publish/approve controls",
-  "proof/evidence write controls",
-  "Codex launch controls",
-  "branch/PR creation controls",
-  "retry/replay/deploy controls",
-  "graph persistence controls",
-  "snapshot/rollback controls",
-  "mutation controls",
+const requiredHeaders = [
+  "x-augnes-local-readonly",
+  "x-augnes-local-operator-ref",
+  "x-augnes-local-workspace-ref",
+  "x-augnes-local-project-scope",
 ];
 
-const responseFieldPhrases = [
+const requiredDisplayedFields = [
   "response_version",
   "meta.project_scope",
   "project_constellation.constellation_id",
   "project_constellation.thesis",
-  "bounded nodes/edges/clusters count or read-only list",
-  "evidence_pointers",
-  "unresolved_tensions",
-  "next_action_candidates",
+  "bounded nodes",
+  "bounded edges",
+  "bounded clusters",
+  "evidence pointers as pointer-only",
+  "unresolved tensions",
+  "next action candidates are advisory",
   "authority_boundary",
   "forbidden_fields_removed",
+];
+
+const omittedFieldPhrases = [
+  "perspective_capsule_preview",
+  "copyable_handoff_preview",
   "full auth decision payload",
   "raw DB rows",
   "raw private text",
@@ -172,18 +159,29 @@ const responseFieldPhrases = [
   "Codex SDK handles",
   "branch/PR handles",
   "merge/publish/approve controls",
-  "perspective_capsule_preview",
-  "copyable_handoff_preview",
 ];
 
-const futureFileCandidates = [
-  "app or component file for Cockpit preview",
-  "a focused smoke script for Cockpit local-only route preview",
-  "a browser report under `reports/browser` only in the implementation PR",
-  "docs updates",
-  "authority matrix update",
-  "`package.json` script",
-  "Exact filenames must be selected in the implementation PR",
+const browserReportPhrases = [
+  "Inspected Cockpit URL",
+  "Local runtime setup used",
+  "Local route manual check result",
+  "Visible local-only copy",
+  "Visible not-production-authenticated copy",
+  "Visible not-hosted-auth/session/workspace-membership copy",
+  "Route-only read preview placement",
+  "Displayed response fields",
+  "Omitted forbidden fields",
+  "False-affordance findings",
+  "Authority clarity findings",
+  "Privacy/prompt-injection display-data findings",
+  "no execution/write controls are visible",
+  "no merge/publish/approve controls are visible",
+  "no proof/evidence write controls are visible",
+  "no Codex launch controls are visible",
+  "no branch/PR creation controls are visible",
+  "no retry/replay/deploy controls are visible",
+  "no graph persistence or snapshot/rollback controls are visible",
+  "Skipped checks",
 ];
 
 const forbiddenPositiveAuthoritySelfTests = [
@@ -210,46 +208,64 @@ const allowedBoundarySelfTests = [
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
-const cockpitPlanText = textByFile.get(cockpitPlanDoc);
+const cockpitSource = textByFile.get(cockpitFile);
+const implementationDocText = textByFile.get(implementationDoc);
 const smokeSource = textByFile.get(smokeFile);
+const routePreviewSource = [
+  extractSourceBetween(
+    cockpitSource,
+    "const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =",
+    "const CANONICAL_MESSAGE =",
+  ),
+  extractSourceBetween(
+    cockpitSource,
+    "type ConstellationRoutePreviewEvidencePointer =",
+    "type CockpitTemporalAdmissionDecision =",
+  ),
+  extractSourceBetween(
+    cockpitSource,
+    "async function fetchConstellationRoutePreview",
+    "function getErrorMessage",
+  ),
+  extractSourceBetween(
+    cockpitSource,
+    "{/* Cockpit local-only constellation route preview start */}",
+    "{/* Cockpit local-only constellation route preview end */}",
+  ),
+].join("\n");
+const routePreviewSectionSource = extractSourceBetween(
+  cockpitSource,
+  "{/* Cockpit local-only constellation route preview start */}",
+  "{/* Cockpit local-only constellation route preview end */}",
+);
 
 assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertSmokeBoundary();
-assertRequiredSections();
-assertCockpitPlanContent();
+assertCockpitPreviewSource();
+assertImplementationDoc();
 assertDocPointers();
+assertBrowserReport();
 assertNoForbiddenPositiveAuthorityGrants();
 const changedFilesBoundary = assertChangedFilesBoundary();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "cockpit-local-only-constellation-route-preview-plan",
+      smoke: "cockpit-local-only-constellation-route-preview",
       pass: true,
       boundary_smoke_mode: changedFilesBoundary.mode,
-      cockpit_plan_doc_checked: cockpitPlanDoc,
-      docs_checked: [
-        cockpitPlanDoc,
-        consumerDecisionDoc,
-        realAuthGatePlanDoc,
-        localDevAdapterDoc,
-        routeDoc,
-        reviewChecklistDoc,
-        surfaceBoundaryDoc,
-        authorityMatrixDoc,
-        indexDoc,
-      ],
+      cockpit_file_checked: cockpitFile,
+      implementation_doc_checked: implementationDoc,
+      browser_report_checked: browserReportFile,
       package_script_checked: true,
-      required_sections_checked: requiredSections.length,
-      local_only_copy_checked: true,
-      forbidden_controls_checked: forbiddenControlPhrases.length,
-      response_field_plan_checked: responseFieldPhrases.length,
-      minimization_plan_checked: true,
-      browser_computer_use_plan_checked: true,
-      future_file_candidates_checked: futureFileCandidates.length,
-      authority_matrix_pointer_checked: true,
-      index_pointer_checked: true,
+      preview_id_checked: "perspective-constellation-route-preview",
+      visible_copy_checked: requiredVisibleCopy.length,
+      route_request_checked: true,
+      headers_checked: requiredHeaders,
+      displayed_fields_checked: requiredDisplayedFields.length,
+      forbidden_controls_checked: true,
+      docs_index_authority_report_pointers_checked: true,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
       changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
@@ -265,39 +281,30 @@ console.log(
       untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       untracked_files_observed: changedFilesBoundary.untracked_files,
       smoke_type:
-        "static-docs-smoke-package-pointer-cockpit-local-only-route-preview-plan-only",
-      cockpit_preview_implemented: false,
-      consumer_surface_connected: false,
-      ui_behavior_changed: false,
+        "static-cockpit-local-only-constellation-route-preview-implementation",
+      cockpit_local_only_preview_implemented: true,
+      app_mcp_consumer_connected: false,
       route_behavior_changed: false,
-      real_auth_implementation_added: false,
       production_auth_added: false,
-      hosted_session_oauth_multi_user_auth_added: false,
-      session_identity_implemented: false,
-      workspace_membership_implemented: false,
-      db_query_implemented: false,
-      db_schema_migration_changed: false,
-      mcp_app_tool_changes_added: false,
-      proof_evidence_readiness_writes_added: false,
-      ag_resume_behavior_added: false,
-      codex_sdk_execution_added: false,
+      hosted_auth_added: false,
+      db_query_added: false,
+      proof_evidence_writes_added: false,
+      codex_execution_added: false,
       graph_db_added: false,
       persistence_added: false,
-      external_calls_added: false,
-      merge_publish_authority_added: false,
     },
     null,
     2,
   ),
 );
-console.log("PASS smoke:cockpit-local-only-constellation-route-preview-plan");
+console.log("PASS smoke:cockpit-local-only-constellation-route-preview");
 
 function assertPackageJsonScript() {
   assertPackageScript({
     packageJsonText: textByFile.get(packageJsonFile),
-    scriptName: "smoke:cockpit-local-only-constellation-route-preview-plan",
+    scriptName: "smoke:cockpit-local-only-constellation-route-preview",
     expectedCommand:
-      "node scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs",
+      "node scripts/smoke-cockpit-local-only-constellation-route-preview.mjs",
   });
 }
 
@@ -310,81 +317,160 @@ function assertSmokeBoundary() {
   assert.doesNotMatch(smokeSource, /\bapi\.openai\.com\b/);
 }
 
-function assertRequiredSections() {
-  for (const section of requiredSections) {
+function assertCockpitPreviewSource() {
+  assertContainsAll(routePreviewSource, [
+    "perspective-constellation-route-preview",
+    "GET",
+    "/api/augnes/read/constellation-preview?scope=project:augnes",
+    ...requiredHeaders,
+    ...requiredVisibleCopy,
+    ...requiredDisplayedFields,
+    "CONSTELLATION_ROUTE_PREVIEW_HEADERS",
+    "fetchConstellationRoutePreview",
+    "method: \"GET\"",
+  ], { label: "Cockpit local-only route preview source" });
+
+  assert.equal(
+    routePreviewSectionSource.includes("<button"),
+    false,
+    "Cockpit local-only route preview section must not render buttons",
+  );
+  assert.equal(
+    /\bonClick\s*=/.test(routePreviewSectionSource),
+    false,
+    "Cockpit local-only route preview section must not add click handlers",
+  );
+
+  for (const forbidden of [
+    "execute",
+    "launch Codex",
+    "run Codex",
+    "record proof",
+    "record evidence",
+    "approve",
+    "publish",
+    "merge",
+    "retry",
+    "replay",
+    "deploy",
+    "save snapshot",
+    "rollback",
+    "create branch",
+    "open PR",
+    "persist graph",
+  ]) {
+    assert.equal(
+      normalizeText(routePreviewSectionSource).toLowerCase().includes(
+        normalizeText(forbidden).toLowerCase(),
+      ),
+      false,
+      `Cockpit local-only route preview section must not include forbidden control phrase: ${forbidden}`,
+    );
+  }
+
+  assert.doesNotMatch(routePreviewSource, /\bmethod:\s*"(POST|PUT|PATCH|DELETE)"/);
+  assert.doesNotMatch(routePreviewSource, /\bpost\b|\bput\b|\bpatch\b|\bdelete\b/i);
+  assert.doesNotMatch(routePreviewSource, /\b(db|migrations|apps\/augnes_apps)\b/);
+  assert.doesNotMatch(routePreviewSource, /@openai\/codex-sdk|\bopenai\b/i);
+  assert.doesNotMatch(routePreviewSource, /\bprovider modules?\b|\bproviders?\b/i);
+  assert.doesNotMatch(routePreviewSource, /\bapi\.github\.com\b|\bgithub\b/i);
+  assert.doesNotMatch(routePreviewSource, /\bnavigator\.clipboard\b/);
+  assert.doesNotMatch(routePreviewSource, /\bhttps?:\/\//);
+  assert.doesNotMatch(routePreviewSource, /\bXMLHttpRequest\b/);
+
+  for (const omitted of [
+    "perspective_capsule_preview",
+    "copyable_handoff_preview",
+    "identity_ref",
+    "workspace_ref",
+    "project_ref",
+    "auth decision payload",
+    "auth_scope_decision",
+  ]) {
+    assert.equal(
+      routePreviewSource.includes(omitted),
+      false,
+      `Cockpit local-only route preview source must not render omitted field: ${omitted}`,
+    );
+  }
+}
+
+function assertImplementationDoc() {
+  for (const section of requiredImplementationSections) {
     const headingPattern = new RegExp(
       `^##\\s+\\d+\\.\\s+${escapeRegExp(section)}\\s*$`,
       "m",
     );
     assert(
-      headingPattern.test(cockpitPlanText),
-      `${cockpitPlanDoc} must contain section: ${section}`,
+      headingPattern.test(implementationDocText),
+      `${implementationDoc} must contain section: ${section}`,
     );
   }
-}
 
-function assertCockpitPlanContent() {
-  assertContainsAll(cockpitPlanDoc, [
-    ...requiredPlanPhrases,
-    ...forbiddenControlPhrases,
-    ...responseFieldPhrases,
-    ...futureFileCandidates,
-    "Cockpit-local diagnostic/read preview",
-    "existing Project Constellation/Perspective area",
-    "not as a primary action surface",
-    "not as an App/MCP bridge",
+  assertContainsAll(implementationDoc, [
+    "Cockpit local-only read preview is implemented",
+    "local-only",
+    "not production-authenticated",
+    "not hosted auth",
+    "not session identity",
+    "not workspace membership",
+    "connects no App/MCP/ChatGPT App/plugin tool",
+    "grants no execution/write/proof/evidence/Codex/branch/PR/merge/publish/retry/replay/deploy/persistence authority",
+    "Candidate D local-only declaration headers",
     "response minimization",
-    "false-affordance",
-    "Privacy and prompt-injection plan",
+    "Browser/computer-use validation was run",
+    ...requiredHeaders,
+    ...omittedFieldPhrases,
+    "smoke:cockpit-local-only-constellation-route-preview",
+    browserReportFile,
   ], { textByFile });
 }
 
 function assertDocPointers() {
+  assertContainsAll(cockpitPlanDoc, [
+    implementationDoc,
+    "moved to implementation",
+    "no further Cockpit local-only preview planning PR should follow unless implementation is blocked",
+  ], { textByFile });
   assertContainsAll(consumerDecisionDoc, [
-    cockpitPlanDoc,
-    "planning-only Cockpit local-only route preview plan",
-    "does not connect a consumer",
-  ], { textByFile });
-  assertContainsAll(realAuthGatePlanDoc, [
-    cockpitPlanDoc,
-    "Real hosted/session/",
-    "workspace auth still does not exist",
-  ], { textByFile });
-  assertContainsAll(localDevAdapterDoc, [
-    cockpitPlanDoc,
-    "Candidate D remains local-only",
-    "not production auth",
-  ], { textByFile });
-  assertContainsAll(routeDoc, [
-    cockpitPlanDoc,
-    "Cockpit local-only route preview plan",
-  ], { textByFile });
-  assertContainsAll(reviewChecklistDoc, [
-    cockpitPlanDoc,
-    "browser/computer-use validation",
-    "false-affordance review",
-    "smoke:cockpit-local-only-constellation-route-preview-plan",
-  ], { textByFile });
-  assertContainsAll(surfaceBoundaryDoc, [
-    cockpitPlanDoc,
+    implementationDoc,
+    "Cockpit was selected as the first local-only consumer implementation slice",
     "ChatGPT App/MCP remain deferred",
   ], { textByFile });
+  assertContainsAll(localDevAdapterDoc, [
+    implementationDoc,
+    "Candidate D local-only semantics",
+  ], { textByFile });
+  assertContainsAll(routeDoc, [
+    implementationDoc,
+    "Cockpit local-only consumer now exists",
+    "no App/MCP consumer exists",
+  ], { textByFile });
+  assertContainsAll(reviewChecklistDoc, [
+    implementationDoc,
+    "smoke:cockpit-local-only-constellation-route-preview",
+    "browser/computer-use validation",
+    "false-affordance",
+  ], { textByFile });
+  assertContainsAll(surfaceBoundaryDoc, [
+    implementationDoc,
+    "ChatGPT App/MCP remain deferred",
+    "not connected by the Cockpit preview",
+  ], { textByFile });
   assertContainsAll(authorityMatrixDoc, [
-    cockpitPlanDoc,
-    "docs/smoke-only Cockpit local-only route preview plan",
-    "grants no consumer authority",
+    implementationDoc,
+    "Cockpit local-only route preview is local-only/read-only",
+    "grants no App/MCP",
   ], { textByFile });
   assertContainsAll(indexDoc, [
-    cockpitPlanDoc,
-    "smoke:cockpit-local-only-constellation-route-preview-plan",
-    "docs/smoke/package-pointer only",
-    "no Cockpit implementation",
-    "no consumer implementation",
-    "no route behavior change",
-    "no real auth implementation",
+    implementationDoc,
+    browserReportFile,
+    "smoke:cockpit-local-only-constellation-route-preview",
+    "local-only Cockpit implementation",
+    "no App/MCP",
+    "no production auth",
+    "no hosted auth",
     "no DB query",
-    "no UI",
-    "no MCP/App tool",
     "no proof/evidence write",
     "no Codex SDK execution",
     "no graph DB",
@@ -393,30 +479,34 @@ function assertDocPointers() {
   ], { textByFile });
 }
 
+function assertBrowserReport() {
+  assertContainsAll(browserReportFile, browserReportPhrases, { textByFile });
+}
+
 function assertNoForbiddenPositiveAuthorityGrants() {
   const scopedTexts = [
-    { file: cockpitPlanDoc, text: cockpitPlanText },
+    { file: implementationDoc, text: implementationDocText },
+    {
+      file: cockpitPlanDoc,
+      text: extractSourceBetween(
+        textByFile.get(cockpitPlanDoc),
+        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`",
+        "## 2. Purpose",
+      ),
+    },
     {
       file: consumerDecisionDoc,
       text: extractSourceBetween(
         textByFile.get(consumerDecisionDoc),
-        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`",
+        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`",
         "## 3. Current route baseline",
-      ),
-    },
-    {
-      file: realAuthGatePlanDoc,
-      text: extractSourceBetween(
-        textByFile.get(realAuthGatePlanDoc),
-        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`",
-        "## 2. Purpose",
       ),
     },
     {
       file: localDevAdapterDoc,
       text: extractSourceBetween(
         textByFile.get(localDevAdapterDoc),
-        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`",
+        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`",
         "## 2. Route and adapter summary",
       ),
     },
@@ -424,7 +514,7 @@ function assertNoForbiddenPositiveAuthorityGrants() {
       file: routeDoc,
       text: extractSourceBetween(
         textByFile.get(routeDoc),
-        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`",
+        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`",
         "## 4. Request shape",
       ),
     },
@@ -432,7 +522,7 @@ function assertNoForbiddenPositiveAuthorityGrants() {
       file: surfaceBoundaryDoc,
       text: extractSourceBetween(
         textByFile.get(surfaceBoundaryDoc),
-        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`",
+        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`",
         "## Authority boundaries",
       ),
     },
@@ -440,7 +530,7 @@ function assertNoForbiddenPositiveAuthorityGrants() {
       file: authorityMatrixDoc,
       text: extractSourceBetween(
         textByFile.get(authorityMatrixDoc),
-        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`",
+        "`docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`",
         "| Lane id |",
       ),
     },
@@ -448,7 +538,7 @@ function assertNoForbiddenPositiveAuthorityGrants() {
       file: indexDoc,
       text: extractSourceBetween(
         textByFile.get(indexDoc),
-        "- `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md`",
+        "- `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`",
         "- `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`",
       ),
     },
@@ -480,7 +570,7 @@ function assertAuthorityClassifierSelfTests() {
 function assertChangedFilesBoundary() {
   const result = assertChangedFilesWithin({
     allowedChangedFiles,
-    label: "Cockpit local-only constellation route preview plan smoke",
+    label: "Cockpit local-only constellation route preview smoke",
   });
   const untrackedFiles = collectUntrackedFiles();
   const contentOnly = result.mode === "content-only";
@@ -489,7 +579,7 @@ function assertChangedFilesBoundary() {
     for (const file of untrackedFiles) {
       assert(
         allowedChangedFiles.has(file),
-        `Unexpected untracked file for Cockpit local-only constellation route preview plan smoke: ${file}`,
+        `Unexpected untracked file for Cockpit local-only constellation route preview smoke: ${file}`,
       );
     }
   }
@@ -515,14 +605,12 @@ function assertChangedFilesBoundary() {
 function assertNoForbiddenChangedPaths(files) {
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
-    /^app\//,
+    /^app\/api\//,
     /^lib\//,
     /^types\//,
-    /^components\//,
     /^db\//,
     /^migrations\//,
     /^apps\/augnes_apps\//,
-    /^reports\/browser\//,
     /^screenshots\//,
     /(^|\/)(secret|secrets|env)(\/|$)/i,
     /(^|\/)\.env/i,
@@ -534,13 +622,9 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
-    if (allowedChangedFiles.has(file)) {
-      continue;
-    }
-
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
-      `Forbidden changed file for Cockpit local-only constellation route preview plan smoke: ${file}`,
+      `Forbidden changed file for Cockpit local-only constellation route preview smoke: ${file}`,
     );
   }
 }
@@ -563,10 +647,10 @@ function assertNoForbiddenPositiveClauses(file, text) {
 function isForbiddenPositiveClause(clause) {
   const forbiddenPatterns = [
     /\b(Cockpit local-only preview plan|Cockpit preview plan|Cockpit preview|Cockpit|consumer|route|response|surface)\b.{0,180}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?|grants?)\b.{0,220}\b(implement a consumer|implement consumer|connect|consume the route|create proof records?|create evidence|execute Codex|expose credentials|query the database|query DB|grant merge authority|grant consumer authority|publish|merge|approve work|approve|add branch creation controls|persist graph snapshots?|persist graphs?)\b/i,
-    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|persists?|connects?)\b.{0,220}\b(Cockpit implementation|consumer implementation|consumer surface|UI code|Cockpit integration|ChatGPT App component|ChatGPT App consumer|MCP\/App tools?|MCP tool|plugin tool|route behavior change|real auth implementation|production auth|hosted auth|OAuth|session identity|workspace membership|DB queries?|DB schema|migrations?|graph DB|persistence|external calls?|OpenAI calls?|GitHub calls?|proof\/evidence writes?|proof writes?|evidence writes?|readiness writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|branch creation controls|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|mutation URLs?|graph snapshots?)\b/i,
+    /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|persists?|connects?)\b.{0,220}\b(App\/MCP consumer|ChatGPT App component|MCP\/App tools?|MCP tool|plugin tool|route behavior change|real auth implementation|production auth|hosted auth|OAuth|session identity|workspace membership|DB queries?|DB schema|migrations?|graph DB|persistence|external calls?|OpenAI calls?|GitHub calls?|proof\/evidence writes?|proof writes?|evidence writes?|readiness writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|branch creation controls|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|mutation URLs?|graph snapshots?)\b/i,
     /\b(exposes?|includes?|returns?)\b.{0,180}\b(credentials|secrets|provider credentials|mutation URLs?|hidden reasoning|chain-of-thought|raw DB rows?|proof\/evidence write handles?|approval\/publish\/merge controls?|Codex SDK execution handles?|branch\/PR creation handles?)\b/i,
     /\b(grants?|adds?|creates?|provides?|authori[sz]es?)\b.{0,180}\b(branch creation authority|PR creation authority|merge authority|publish authority|approval authority|proof\/evidence write authority|Codex SDK execution authority|deploy authority|consumer authority|route implementation authority|implementation authority|production auth authority|hosted auth authority|workspace membership authority)\b/i,
-    /\b(navigator\.clipboard|@openai\/codex-sdk|api\.github\.com|api\.openai\.com|fetch\s*\(|XMLHttpRequest|gh\s+(api|pr|issue|repo))\b/i,
+    /\b(navigator\.clipboard|@openai\/codex-sdk|api\.github\.com|api\.openai\.com|XMLHttpRequest|gh\s+(api|pr|issue|repo))\b/i,
   ];
 
   if (!forbiddenPatterns.some((pattern) => pattern.test(clause))) return false;

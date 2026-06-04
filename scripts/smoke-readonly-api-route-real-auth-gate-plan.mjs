@@ -12,6 +12,8 @@ import {
 const gatePlanDoc = "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
 const localDevAdapterDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const localDevAdapterPlanDoc =
@@ -37,6 +39,13 @@ const smokeFile =
   "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
 const cockpitPlanSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview-plan.mjs";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const browserReportFile =
+  "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const staticCockpitSmokeFile =
+  "scripts/smoke-project-constellation-cockpit-preview.mjs";
 
 const localDevAdapterSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
@@ -62,6 +71,7 @@ const consumerScopeDecisionSmokeFile =
 const inspectedFiles = [
   gatePlanDoc,
   cockpitPlanDoc,
+  cockpitImplementationDoc,
   localDevAdapterDoc,
   localDevAdapterPlanDoc,
   adapterBoundaryDoc,
@@ -81,6 +91,7 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   gatePlanDoc,
   cockpitPlanDoc,
+  cockpitImplementationDoc,
   localDevAdapterDoc,
   localDevAdapterPlanDoc,
   adapterBoundaryDoc,
@@ -94,6 +105,10 @@ const allowedChangedFiles = new Set([
   authorityMatrixDoc,
   indexDoc,
   smokeFile,
+  cockpitFile,
+  browserReportFile,
+  cockpitImplementationSmokeFile,
+  staticCockpitSmokeFile,
   cockpitPlanSmokeFile,
   packageJsonFile,
   localDevAdapterSmokeFile,
@@ -609,6 +624,10 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (allowedChangedFiles.has(file)) {
+      continue;
+    }
+
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only route real auth gate plan smoke: ${file}`,

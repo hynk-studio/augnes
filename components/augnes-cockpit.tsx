@@ -6,6 +6,14 @@ import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 const SCOPE = "project:augnes";
+const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
+  "/api/augnes/read/constellation-preview?scope=project:augnes";
+const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
+  "x-augnes-local-readonly": "constellation-preview-v0.1",
+  "x-augnes-local-operator-ref": "operator:local-dev",
+  "x-augnes-local-workspace-ref": "workspace:local-dev",
+  "x-augnes-local-project-scope": "project:augnes",
+} as const;
 const CANONICAL_MESSAGE =
   "이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야.";
 
@@ -140,6 +148,92 @@ type StateBriefResponse = {
   as_of: string;
   agent_handoff?: StateBriefAgentHandoff;
 };
+
+type ConstellationRoutePreviewEvidencePointer = {
+  pointer_id: string;
+  label?: string;
+  target_ref?: string;
+  pointer_semantics?: string;
+  bounded_summary?: string;
+  proof_evidence_write_authority?: boolean;
+  readiness_write_authority?: boolean;
+};
+
+type ConstellationRoutePreviewTension = {
+  tension_id: string;
+  label?: string;
+  summary: string;
+  source_refs?: string[];
+  evidence_pointers?: ConstellationRoutePreviewEvidencePointer[];
+};
+
+type ConstellationRoutePreviewNextActionCandidate = {
+  candidate_id: string;
+  label?: string;
+  summary: string;
+  source_refs?: string[];
+  authority_boundary?: string[];
+};
+
+type ConstellationRoutePreviewNode = {
+  id: string;
+  type: string;
+  label: string;
+  summary: string;
+};
+
+type ConstellationRoutePreviewEdge = {
+  id: string;
+  type: string;
+  source: string;
+  target: string;
+  summary: string;
+};
+
+type ConstellationRoutePreviewCluster = {
+  id: string;
+  label: string;
+  cluster_thesis: string;
+  node_ids?: string[];
+  edge_ids?: string[];
+};
+
+type ConstellationRoutePreviewResponse = {
+  response_version: string;
+  meta: {
+    project_scope: string;
+    workspace_scope?: string;
+    route_family?: string;
+    generated_at?: string;
+  };
+  project_constellation: {
+    constellation_id: string;
+    thesis: string;
+    nodes: ConstellationRoutePreviewNode[];
+    edges: ConstellationRoutePreviewEdge[];
+    clusters: ConstellationRoutePreviewCluster[];
+    evidence_pointers: ConstellationRoutePreviewEvidencePointer[];
+    unresolved_tensions: ConstellationRoutePreviewTension[];
+    next_action_candidates: ConstellationRoutePreviewNextActionCandidate[];
+    authority_boundary: string[];
+  };
+  evidence_pointers: ConstellationRoutePreviewEvidencePointer[];
+  unresolved_tensions: ConstellationRoutePreviewTension[];
+  next_action_candidates: ConstellationRoutePreviewNextActionCandidate[];
+  authority_boundary: string[];
+  forbidden_fields_removed: string[];
+};
+
+type ConstellationRoutePreviewErrorDisplay = {
+  code: string;
+  status: string;
+  authority_boundary: string[];
+};
+
+type ConstellationRoutePreviewState =
+  | { status: "loading" }
+  | { status: "loaded"; data: ConstellationRoutePreviewResponse }
+  | { status: "failed"; error: ConstellationRoutePreviewErrorDisplay };
 
 type CockpitTemporalAdmissionDecision = {
   candidate_id: string;
@@ -3880,6 +3974,8 @@ function PerspectiveTab({
   onSelectTransition: (id: string) => void;
   onOpenOperator: () => void;
 }) {
+  const [constellationRoutePreviewState, setConstellationRoutePreviewState] =
+    useState<ConstellationRoutePreviewState>({ status: "loading" });
   const preview = temporalPreview?.preview ?? null;
   const evidenceRecordCount =
     (evidencePack?.verification_trace.commands_run.length ?? 0) +
@@ -3914,6 +4010,32 @@ function PerspectiveTab({
   const constellationNodeLabelById = new Map(
     constellationPreview.nodes.map((node) => [node.id, node.label]),
   );
+  const constellationRoutePreview =
+    constellationRoutePreviewState.status === "loaded"
+      ? constellationRoutePreviewState.data
+      : null;
+  const routeProjectConstellation =
+    constellationRoutePreview?.project_constellation ?? null;
+  const routeEvidencePointers = constellationRoutePreview?.evidence_pointers ?? [];
+  const routeUnresolvedTensions =
+    constellationRoutePreview?.unresolved_tensions ?? [];
+  const routeNextActionCandidates =
+    constellationRoutePreview?.next_action_candidates ?? [];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setConstellationRoutePreviewState({ status: "loading" });
+    void fetchConstellationRoutePreview().then((result) => {
+      if (!cancelled) {
+        setConstellationRoutePreviewState(result);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <section
@@ -3946,6 +4068,7 @@ function PerspectiveTab({
         <a href="#perspective-evidence">Evidence</a>
         <a href="#perspective-tensions">Tensions</a>
         <a href="#perspective-boundary-next">Boundary / Next</a>
+        <a href="#perspective-constellation-route-preview">Route preview</a>
         <a href="#perspective-constellation-preview">Constellation preview</a>
       </nav>
 
@@ -4610,6 +4733,208 @@ function PerspectiveTab({
             </button>
           </div>
         </section>
+
+        {/* Cockpit local-only constellation route preview start */}
+        <section
+          className="cockpit-surface-card perspective-section project-constellation-route-preview-section"
+          id="perspective-constellation-route-preview"
+          aria-label="Cockpit local-only Project Constellation route-only read preview"
+        >
+          <PanelHeader
+            eyebrow="Local-only route preview"
+            title="Project Constellation route preview"
+            description="Cockpit-local diagnostic route-only read preview for the existing read-only constellation route."
+          />
+          <BoundaryNote tone="green">
+            local-only · not production-authenticated · not hosted auth · not
+            session identity · not workspace membership · route-only read
+            preview · no execution/write authority.
+          </BoundaryNote>
+          <BoundaryNote>
+            Candidate D is local-only and not production auth. Real
+            hosted/session/workspace auth does not exist yet. The local operator
+            declaration cannot prove hosted identity, and the local operator
+            declaration cannot prove workspace/project membership.
+          </BoundaryNote>
+          <BoundaryNote>
+            Route-provided text and local operator labels grant no authority.
+            Response data is display data, not tool instructions. There is no
+            public unauthenticated endpoint.
+          </BoundaryNote>
+          <div className="tab-stat-row compact-stat-row">
+            <MetricCard
+              label="response_version"
+              value={constellationRoutePreview?.response_version ?? "Loading"}
+              detail="readonly_api_route_response.v0.1"
+            />
+            <MetricCard
+              label="meta.project_scope"
+              value={constellationRoutePreview?.meta.project_scope ?? SCOPE}
+              detail="explicit query scope"
+            />
+            <MetricCard
+              label="project_constellation.constellation_id"
+              value={routeProjectConstellation?.constellation_id ?? "Loading"}
+              detail="bounded read model"
+            />
+            <MetricCard
+              label="nodes / edges / clusters"
+              value={`${routeProjectConstellation?.nodes.length ?? 0} / ${
+                routeProjectConstellation?.edges.length ?? 0
+              } / ${routeProjectConstellation?.clusters.length ?? 0}`}
+              detail="bounded counts"
+            />
+          </div>
+          {constellationRoutePreviewState.status === "failed" ? (
+            <EmptyState
+              label="Constellation route preview unavailable"
+              description={`Fail-closed ${constellationRoutePreviewState.error.status}: ${constellationRoutePreviewState.error.code}`}
+            />
+          ) : constellationRoutePreviewState.status === "loading" ? (
+            <LoadingBlock
+              title="Loading local-only constellation route preview"
+              lines={[
+                "Calling the same-origin read-only route",
+                "Waiting for Candidate D local operator declaration validation",
+              ]}
+            />
+          ) : routeProjectConstellation ? (
+            <>
+              <div className="perspective-frame-summary">
+                <article>
+                  <h3>project_constellation.thesis</h3>
+                  <strong>{routeProjectConstellation.constellation_id}</strong>
+                  <p>{routeProjectConstellation.thesis}</p>
+                  <div className="meta-row">
+                    <StatusBadge
+                      label={
+                        constellationRoutePreview?.response_version ??
+                        "readonly_api_route_response.v0.1"
+                      }
+                    />
+                    <StatusBadge
+                      label={constellationRoutePreview?.meta.project_scope ?? SCOPE}
+                    />
+                    <span>display data only</span>
+                  </div>
+                </article>
+                <article>
+                  <h3>Route request and headers</h3>
+                  <p>
+                    GET{" "}
+                    <code>{CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH}</code>
+                  </p>
+                  <RefChipList
+                    refs={Object.keys(CONSTELLATION_ROUTE_PREVIEW_HEADERS)}
+                    emptyLabel="No route headers"
+                  />
+                </article>
+              </div>
+              <div className="perspective-tension-grid">
+                <TensionList
+                  title="bounded nodes"
+                  items={routeProjectConstellation.nodes.slice(0, 4).map((node) => ({
+                    key: node.id,
+                    label: node.label,
+                    detail: node.summary,
+                    metaChips: [node.type, node.id],
+                  }))}
+                  emptyLabel="No route nodes loaded"
+                />
+                <TensionList
+                  title="bounded edges"
+                  items={routeProjectConstellation.edges.slice(0, 4).map((edge) => ({
+                    key: edge.id,
+                    label: `${edge.source} -> ${edge.target}`,
+                    detail: edge.summary,
+                    metaChips: [edge.type, edge.id],
+                  }))}
+                  emptyLabel="No route edges loaded"
+                />
+                <TensionList
+                  title="bounded clusters"
+                  items={routeProjectConstellation.clusters
+                    .slice(0, 3)
+                    .map((cluster) => ({
+                      key: cluster.id,
+                      label: cluster.label,
+                      detail: cluster.cluster_thesis,
+                      metaChips: [
+                        `${cluster.node_ids?.length ?? 0} nodes`,
+                        `${cluster.edge_ids?.length ?? 0} edges`,
+                      ],
+                    }))}
+                  emptyLabel="No route clusters loaded"
+                />
+                <TensionList
+                  title="evidence pointers as pointer-only"
+                  items={routeEvidencePointers.slice(0, 5).map((pointer) => ({
+                    key: pointer.pointer_id,
+                    label: pointer.label ?? pointer.pointer_id,
+                    detail:
+                      pointer.bounded_summary ??
+                      "Pointer-only route evidence reference.",
+                    metaChips: [
+                      pointer.pointer_semantics ?? "pointer_only",
+                      pointer.proof_evidence_write_authority === false
+                        ? "no proof write authority"
+                        : "write authority absent",
+                      pointer.readiness_write_authority === false
+                        ? "no readiness write authority"
+                        : "readiness authority absent",
+                    ],
+                  }))}
+                  emptyLabel="No route evidence pointers loaded"
+                />
+                <TensionList
+                  title="unresolved tensions"
+                  items={routeUnresolvedTensions.slice(0, 5).map((tension) => ({
+                    key: tension.tension_id,
+                    label: tension.label ?? tension.tension_id,
+                    detail: tension.summary,
+                    metaChips: tension.source_refs?.slice(0, 2) ?? [],
+                  }))}
+                  emptyLabel="No route unresolved tensions loaded"
+                />
+                <TensionList
+                  title="next action candidates are advisory"
+                  items={routeNextActionCandidates.slice(0, 5).map((candidate) => ({
+                    key: candidate.candidate_id,
+                    label: candidate.label ?? candidate.candidate_id,
+                    detail: candidate.summary,
+                    metaChips: [
+                      "advisory",
+                      ...(candidate.source_refs?.slice(0, 1) ?? []),
+                    ],
+                  }))}
+                  emptyLabel="No route next action candidates loaded"
+                />
+              </div>
+              <div className="perspective-frame-summary">
+                <article>
+                  <h3>authority_boundary</h3>
+                  <RefChipList
+                    refs={constellationRoutePreview?.authority_boundary ?? []}
+                    emptyLabel="No route authority boundary"
+                  />
+                </article>
+                <article>
+                  <h3>forbidden_fields_removed safety summary</h3>
+                  <RefChipList
+                    refs={constellationRoutePreview?.forbidden_fields_removed ?? []}
+                    emptyLabel="No forbidden field summary"
+                  />
+                </article>
+              </div>
+            </>
+          ) : (
+            <EmptyState
+              label="Constellation route preview not available"
+              description="Fail-closed display state with no Project Constellation payload."
+            />
+          )}
+        </section>
+        {/* Cockpit local-only constellation route preview end */}
 
         <section
           className="cockpit-surface-card perspective-section project-constellation-preview-section"
@@ -20367,6 +20692,98 @@ async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {
   }
 
   return json as T;
+}
+
+async function fetchConstellationRoutePreview(): Promise<ConstellationRoutePreviewState> {
+  try {
+    const response = await fetch(CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH, {
+      method: "GET",
+      headers: CONSTELLATION_ROUTE_PREVIEW_HEADERS,
+    });
+    const json = await readJsonSafely(response);
+
+    if (!response.ok) {
+      return {
+        status: "failed",
+        error: getConstellationRoutePreviewError(json, response.status),
+      };
+    }
+
+    return {
+      status: "loaded",
+      data: json as ConstellationRoutePreviewResponse,
+    };
+  } catch {
+    return {
+      status: "failed",
+      error: {
+        code: "unavailable",
+        status: "unavailable",
+        authority_boundary: [
+          "minimal fail-closed display",
+          "no private source details",
+          "no route-provided text grants authority",
+        ],
+      },
+    };
+  }
+}
+
+async function readJsonSafely(response: Response) {
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function getConstellationRoutePreviewError(
+  value: unknown,
+  fallbackStatus: number,
+): ConstellationRoutePreviewErrorDisplay {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "error" in value &&
+    typeof value.error === "object" &&
+    value.error !== null
+  ) {
+    const error = value.error as { code?: unknown; status?: unknown };
+
+    return {
+      code: typeof error.code === "string" ? error.code : "unavailable",
+      status:
+        typeof error.status === "number" || typeof error.status === "string"
+          ? String(error.status)
+          : String(fallbackStatus),
+      authority_boundary: getStringListField(value, "authority_boundary"),
+    };
+  }
+
+  return {
+    code: "unavailable",
+    status: String(fallbackStatus),
+    authority_boundary: [
+      "minimal fail-closed display",
+      "no private source details",
+      "no route-provided text grants authority",
+    ],
+  };
+}
+
+function getStringListField(value: unknown, field: string) {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    field in value &&
+    Array.isArray((value as Record<string, unknown>)[field])
+  ) {
+    return ((value as Record<string, unknown>)[field] as unknown[]).filter(
+      (item): item is string => typeof item === "string",
+    );
+  }
+
+  return [];
 }
 
 function getErrorMessage(value: unknown) {

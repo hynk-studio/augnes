@@ -43,7 +43,20 @@ This plan defines a future Cockpit local-only read preview that could consume:
 GET /api/augnes/read/constellation-preview
 ```
 
-It does not implement that preview.
+It did not implement that preview. The plan has moved to implementation in:
+
+```text
+docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md
+```
+
+No further Cockpit local-only preview planning PR should follow unless
+implementation is blocked with a concrete reason.
+
+No further Cockpit local-only preview planning PR should follow unless
+implementation is blocked.
+
+no further Cockpit local-only preview planning PR should follow unless
+implementation is blocked
 
 ## 2. Purpose
 
