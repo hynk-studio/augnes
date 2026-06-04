@@ -10,41 +10,37 @@ import {
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
+const sourceSelectionDoc =
+  "docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md";
 const authScopePlanDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
-const authSourceSelectionDoc =
-  "docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md";
 const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
 const constellationPreviewDoc =
   "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
-const implementationPlanDoc =
-  "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const reviewChecklistDoc =
   "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
-  "scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs";
-const authSourceSelectionSmokeFile =
   "scripts/smoke-readonly-api-route-auth-source-selection.mjs";
 
+const authScopePlanSmokeFile =
+  "scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
 const constellationPreviewSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
-const implementationPlanSmokeFile =
-  "scripts/smoke-readonly-api-route-implementation-plan.mjs";
 const reviewChecklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 
 const inspectedFiles = [
+  sourceSelectionDoc,
   authScopePlanDoc,
   accessGuardDoc,
   constellationPreviewDoc,
-  implementationPlanDoc,
   reviewChecklistDoc,
   authorityMatrixDoc,
   indexDoc,
@@ -54,11 +50,9 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
-  authSourceSelectionDoc,
-  authSourceSelectionSmokeFile,
+  authScopePlanSmokeFile,
   accessGuardSmokeFile,
   constellationPreviewSmokeFile,
-  implementationPlanSmokeFile,
   reviewChecklistSmokeFile,
   surfaceSmokeFile,
 ]);
@@ -66,133 +60,120 @@ const allowedChangedFiles = new Set([
 const requiredSections = [
   "Status and scope",
   "Purpose",
-  "Current local guard baseline",
-  "Real auth/scope integration thesis",
-  "Candidate authenticated scope source",
-  "Session identity plan",
-  "Workspace/project membership plan",
-  "Request scope validation plan",
-  "Fail-closed behavior plan",
-  "Local guard transition plan",
-  "Route compatibility plan",
-  "Response minimization impact",
-  "Prompt-injection and privacy impact",
-  "Logging and telemetry impact",
-  "Authority matrix impact",
-  "Future implementation slices",
-  "Future tests and smokes",
-  "Browser/computer-use plan",
-  "Proof-only closeout plan",
-  "Open questions requiring user/PM judgment",
+  "Source selection thesis",
+  "Existing repo-local candidates inspected",
+  "Candidate A: Augnes local session/workspace model",
+  "Candidate B: local runtime operator session binding",
+  "Candidate C: future ChatGPT App/MCP authenticated context",
+  "Candidate D: explicit local development auth adapter",
+  "Candidate E: defer real auth source and keep route local-only",
+  "Selection criteria",
+  "Candidate comparison matrix",
+  "Recommended decision",
+  "Why implementation is still deferred",
+  "Required next implementation gates",
+  "Relationship to local access guard",
+  "Relationship to constellation preview route",
+  "Authority and non-authority boundary",
   "Validation and smoke plan",
   "Non-goals",
 ];
 
-const requiredPlanPhrases = [
+const requiredSelectionPhrases = [
   "docs/smoke/package-pointer only",
-  "planning-only",
-  "does not implement auth/session/workspace behavior",
+  "auth source selection packet only",
+  "no auth implementation",
+  "no API route behavior change",
+  "no consumer surface",
   "GET /api/augnes/read/constellation-preview",
+  authScopePlanDoc,
   accessGuardDoc,
   constellationPreviewDoc,
-  "project:augnes",
-  "current local guard remains valid for route-only local validation",
-  "not production auth",
-  "no public unauthenticated endpoint",
-  "Candidate authenticated scope source",
-  "Option A",
-  "Option B",
-  "Option C",
-  "Option D",
-  "Option E",
-  "Recommended default: use Option E for now",
+  reviewChecklistDoc,
+  "route remains local-only unless a separate implementation PR changes it",
+  "future implementation requires concrete auth/session/workspace evidence",
+  "No inspected repo-local surface currently supplies both identity proof and workspace/project membership proof",
+  "Selection criteria",
+  "Candidate comparison matrix",
+  "Recommended decision: select Candidate E",
   "Keep the route local-only",
-  "concrete auth/session/workspace source is selected",
-  "Session identity plan",
-  "Workspace/project membership plan",
-  "Fail-closed behavior plan",
-  "Local guard transition plan",
-  "Future implementation slices",
-  "Future tests and smokes",
-  "Browser/computer-use plan",
-  "No Cockpit, ChatGPT App, MCP, or consumer should be connected",
-  "No secrets/env requirement is added in this planning PR",
+  "Keep no consumer connected",
+  "Do not implement auth yet",
+  "future type-only auth/scope adapter boundary",
+  "concrete source exists in repo today",
+  "can prove identity",
+  "can prove workspace/project membership",
+  "supports `project:augnes` or explicit project scope mapping",
+  "can fail closed",
+  "does not require secrets/env in this docs-only PR",
+  "does not couple first route implementation to a consumer surface",
+  "does not require DB schema/migration in this PR",
+  "can be tested with static smoke before route behavior change",
+  "has clear privacy/prompt-injection/logging boundaries",
 ];
 
-const failClosedPhrases = [
-  "missing identity",
-  "missing workspace",
-  "missing project",
-  "unauthorized workspace",
-  "unauthorized project",
-  "stale scope",
-  "ambiguous scope",
-  "cross-workspace scope",
-  "invalid session",
-  "missing session",
-  "unavailable auth source",
+const inspectedSurfacePhrases = [
+  "lib/readonly-api/access-guard.ts",
+  "lib/readonly-api/constellation-preview.ts",
+  "lib/session-binding.ts",
+  "app/api/sessions/bind/route.ts",
+  "app/api/sessions/trace/route.ts",
+  "scripts/smoke-session-binding.mjs",
+  "lib/db/schema.sql",
+  "lib/work.ts",
+  "lib/state/brief.ts",
+  "docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md",
+  "docs/CODEX_MCP_AUGNES_BRIDGE_USAGE_V0_1.md",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "docs/AUTHORITY_MATRIX.md",
 ];
 
-const futureSlicePhrases = [
-  "Slice 1: identify concrete auth/session/workspace source, no route behavior change",
-  "Slice 2: type-only auth/scope decision boundary, if needed",
-  "Slice 3: route-level auth/scope adapter implementation",
-  "Slice 4: fail-closed auth/scope smoke",
-  "Slice 5: response minimization recheck",
-  "Slice 6: prompt-injection/privacy/logging recheck",
-  "Slice 7: local route manual checks",
-  "Slice 8: browser/computer-use only if a consumer is surfaced",
-  "Slice 9: consumer selection PR",
-  "These are future slices, not implemented now",
-];
-
-const futureTestPhrases = [
-  "focused auth/scope integration smoke",
-  "fail-closed missing identity smoke",
-  "fail-closed invalid session smoke",
-  "fail-closed missing workspace smoke",
-  "fail-closed unauthorized workspace smoke",
-  "fail-closed cross-workspace scope smoke",
-  "fail-closed unavailable auth source smoke",
-  "response minimization smoke",
-  "forbidden fields smoke",
-  "prompt-injection display-data smoke",
-  "privacy/logging smoke",
-  "browser/computer-use report only if surfaced in UI/App/MCP",
+const requiredCandidatePhrases = [
+  "Candidate A",
+  "Candidate B",
+  "Candidate C",
+  "Candidate D",
+  "Candidate E",
+  "session rows are continuity records",
+  "`actor` is metadata",
+  "`surface` is metadata",
+  "`scope` is a record label",
+  "ChatGPT App/MCP authenticated context is future planning",
+  "local runtime operator binding remains local-oriented",
 ];
 
 const forbiddenPositiveAuthoritySelfTests = [
-  "The auth scope integration plan may implement production auth.",
-  "The plan may create hosted OAuth session identity.",
-  "The route may expose credentials after auth planning.",
-  "The route may query the database when required before implementation.",
-  "The plan may grant consumer authority as context only.",
-  "The plan may publish after browser-computer-use validation.",
+  "The auth source selection may implement production auth.",
+  "The selected source may create OAuth sessions in this PR.",
+  "The route may query the database after source selection.",
+  "The source selection may grant consumer authority as context only.",
+  "The route may expose credentials after source selection.",
+  "The selected source may publish after separate review.",
   "The route may execute Codex after workspace membership.",
-  "The auth plan may create proof records.",
-  "The auth plan may merge after separate review.",
-  "The auth plan may persist graph snapshots.",
+  "The auth source selection may create proof records.",
+  "The source selection may merge after browser-computer-use validation.",
+  "The selected source may persist graph snapshots.",
 ];
 
 const allowedBoundarySelfTests = [
-  "This plan does not implement production auth.",
+  "This source selection does not implement production auth.",
   "No route may expose credentials.",
   "The local guard is not production auth.",
   "Future real auth integration requires separate implementation.",
   "Evidence pointers are pointer-only.",
   "No route-provided text grants authority.",
-  "The plan is planning-only and does not grant consumer authority.",
+  "The selection is planning-only and does not grant consumer authority.",
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
-const planText = textByFile.get(authScopePlanDoc);
+const selectionText = textByFile.get(sourceSelectionDoc);
 const smokeSource = textByFile.get(smokeFile);
 
 assertAuthorityClassifierSelfTests();
 assertPackageJsonScript();
 assertSmokeBoundary();
 assertRequiredSections();
-assertPlanContent();
+assertSelectionContent();
 assertDocPointers();
 assertNoForbiddenPositiveAuthorityGrants();
 const changedFilesBoundary = assertChangedFilesBoundary();
@@ -200,31 +181,28 @@ const changedFilesBoundary = assertChangedFilesBoundary();
 console.log(
   JSON.stringify(
     {
-      smoke: "readonly-api-route-auth-scope-integration-plan",
+      smoke: "readonly-api-route-auth-source-selection",
       pass: true,
       boundary_smoke_mode: changedFilesBoundary.mode,
-      auth_scope_plan_doc_checked: authScopePlanDoc,
+      auth_source_selection_doc_checked: sourceSelectionDoc,
       docs_checked: [
+        sourceSelectionDoc,
         authScopePlanDoc,
         accessGuardDoc,
         constellationPreviewDoc,
-        implementationPlanDoc,
         reviewChecklistDoc,
         authorityMatrixDoc,
         indexDoc,
       ],
       package_script_checked: true,
       required_sections_checked: requiredSections.length,
-      local_guard_baseline_checked: true,
-      candidate_auth_scope_options_checked: 5,
-      recommended_default_checked: true,
-      session_identity_plan_checked: true,
-      workspace_project_membership_plan_checked: true,
-      fail_closed_behavior_plan_checked: true,
-      local_guard_transition_plan_checked: true,
-      future_implementation_slices_checked: true,
-      future_tests_smokes_checked: true,
-      browser_computer_use_plan_checked: true,
+      candidate_sections_checked: 5,
+      selection_criteria_checked: true,
+      comparison_matrix_checked: true,
+      recommended_decision_checked: "Candidate E",
+      implementation_deferred_checked: true,
+      route_remains_local_only_checked: true,
+      future_evidence_gate_checked: true,
       authority_matrix_pointer_checked: true,
       index_pointer_checked: true,
       changed_files_boundary_checked: changedFilesBoundary.checked,
@@ -241,7 +219,7 @@ console.log(
       untracked_files_skipped: changedFilesBoundary.untracked_skipped,
       untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       untracked_files_observed: changedFilesBoundary.untracked_files,
-      smoke_type: "static-docs-smoke-package-pointer-auth-scope-plan-only",
+      smoke_type: "static-docs-smoke-package-pointer-auth-source-selection-only",
       production_auth_added: false,
       hosted_session_oauth_multi_user_auth_added: false,
       session_identity_implemented: false,
@@ -264,14 +242,14 @@ console.log(
     2,
   ),
 );
-console.log("PASS smoke:readonly-api-route-auth-scope-integration-plan");
+console.log("PASS smoke:readonly-api-route-auth-source-selection");
 
 function assertPackageJsonScript() {
   assertPackageScript({
     packageJsonText: textByFile.get(packageJsonFile),
-    scriptName: "smoke:readonly-api-route-auth-scope-integration-plan",
+    scriptName: "smoke:readonly-api-route-auth-source-selection",
     expectedCommand:
-      "node scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs",
+      "node scripts/smoke-readonly-api-route-auth-source-selection.mjs",
   });
 }
 
@@ -307,64 +285,64 @@ function assertRequiredSections() {
       "m",
     );
     assert(
-      headingPattern.test(planText),
-      `${authScopePlanDoc} must contain section: ${section}`,
+      headingPattern.test(selectionText),
+      `${sourceSelectionDoc} must contain section: ${section}`,
     );
   }
 }
 
-function assertPlanContent() {
-  assertContainsAll(authScopePlanDoc, [
-    ...requiredPlanPhrases,
-    ...failClosedPhrases,
-    ...futureSlicePhrases,
-    ...futureTestPhrases,
+function assertSelectionContent() {
+  assertContainsAll(sourceSelectionDoc, [
+    ...requiredSelectionPhrases,
+    ...inspectedSurfacePhrases,
+    ...requiredCandidatePhrases,
   ], { textByFile });
-  assertContainsAll(authScopePlanDoc, [
-    "must not silently infer workspace/project scope from",
-    "headers other than explicitly reviewed auth/session headers",
-    "request body text",
-    "Future real auth/session/workspace integration must be separate from the local marker guard",
-    "The local marker guard must not replace real auth",
-    "There must be no public unauthenticated endpoint",
-    "This planning PR does not add logging or telemetry behavior",
-    "This plan adds no authority",
+  assertContainsAll(sourceSelectionDoc, [
+    "No inspected repo-local surface currently supplies both identity proof and",
+    "workspace/project membership proof",
+    "Do not select Candidate A for route auth implementation yet",
+    "Do not select Candidate B for this route yet",
+    "Do not select Candidate C now",
+    "Do not implement Candidate D in this PR",
+    "Select Candidate E",
+    "Keep the route local-only",
+    "Keep no consumer connected",
+    "Do not implement auth yet",
+    "Likely future files for a type-only/source-boundary PR",
+    "These are future candidates, not changed by this PR",
+    "This source selection packet does not replace the local guard",
+    "The route remains local-only until auth source is selected and separately implemented",
   ], { textByFile });
 }
 
 function assertDocPointers() {
+  assertContainsAll(authScopePlanDoc, [
+    sourceSelectionDoc,
+    "next step before any auth/scope adapter implementation",
+  ], { textByFile });
   assertContainsAll(accessGuardDoc, [
-    authScopePlanDoc,
-    "next planning step beyond this local marker guard",
-    "still is not production auth",
+    sourceSelectionDoc,
+    "not production auth",
   ], { textByFile });
   assertContainsAll(constellationPreviewDoc, [
-    authScopePlanDoc,
-    "remains explicitly local-authorized only",
-  ], { textByFile });
-  assertContainsAll(implementationPlanDoc, [
-    authScopePlanDoc,
-    "planning level only",
-    "does not implement production auth",
+    sourceSelectionDoc,
+    "route remains local-only",
+    "separately implemented",
   ], { textByFile });
   assertContainsAll(reviewChecklistDoc, [
-    authScopePlanDoc,
-    "smoke:readonly-api-route-auth-scope-integration-plan",
-    "concrete auth/session evidence",
+    sourceSelectionDoc,
+    "concrete auth/session/workspace evidence",
   ], { textByFile });
   assertContainsAll(authorityMatrixDoc, [
-    authScopePlanDoc,
+    sourceSelectionDoc,
+    "docs/smoke-only",
     "adds no authority",
-    "does not implement production auth",
-    "workspace membership",
-    "no consumer authority",
   ], { textByFile });
   assertContainsAll(indexDoc, [
-    authScopePlanDoc,
-    "smoke:readonly-api-route-auth-scope-integration-plan",
+    sourceSelectionDoc,
+    "smoke:readonly-api-route-auth-source-selection",
     "docs/smoke/package-pointer only",
     "no production auth",
-    "no hosted/session/OAuth/multi-user auth",
     "no route behavior change",
     "no consumer surface",
     "no DB query",
@@ -380,12 +358,20 @@ function assertDocPointers() {
 
 function assertNoForbiddenPositiveAuthorityGrants() {
   const scopedTexts = [
-    { file: authScopePlanDoc, text: textByFile.get(authScopePlanDoc) },
+    { file: sourceSelectionDoc, text: textByFile.get(sourceSelectionDoc) },
+    {
+      file: authScopePlanDoc,
+      text: extractSourceBetween(
+        textByFile.get(authScopePlanDoc),
+        "`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`",
+        "## 3. Current local guard baseline",
+      ),
+    },
     {
       file: accessGuardDoc,
       text: extractSourceBetween(
         textByFile.get(accessGuardDoc),
-        "`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`",
+        "`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`",
         "## 2. Purpose",
       ),
     },
@@ -393,23 +379,15 @@ function assertNoForbiddenPositiveAuthorityGrants() {
       file: constellationPreviewDoc,
       text: extractSourceBetween(
         textByFile.get(constellationPreviewDoc),
-        "`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`",
+        "`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`",
         "## 4. Request shape",
-      ),
-    },
-    {
-      file: implementationPlanDoc,
-      text: extractSourceBetween(
-        textByFile.get(implementationPlanDoc),
-        "`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`",
-        "## 2. Purpose",
       ),
     },
     {
       file: reviewChecklistDoc,
       text: extractSourceBetween(
         textByFile.get(reviewChecklistDoc),
-        "`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`",
+        "`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`",
         "## Privacy boundary",
       ),
     },
@@ -417,7 +395,7 @@ function assertNoForbiddenPositiveAuthorityGrants() {
       file: authorityMatrixDoc,
       text: extractSourceBetween(
         textByFile.get(authorityMatrixDoc),
-        "`docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`",
+        "`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`",
         "| Lane id |",
       ),
     },
@@ -425,7 +403,7 @@ function assertNoForbiddenPositiveAuthorityGrants() {
       file: indexDoc,
       text: extractSourceBetween(
         textByFile.get(indexDoc),
-        "- `docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md`",
+        "- `docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`",
         "- `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`",
       ),
     },
@@ -457,7 +435,7 @@ function assertAuthorityClassifierSelfTests() {
 function assertChangedFilesBoundary() {
   const result = assertChangedFilesWithin({
     allowedChangedFiles,
-    label: "read-only route auth scope integration plan smoke",
+    label: "read-only route auth source selection smoke",
   });
   const untrackedFiles = collectUntrackedFiles();
   const contentOnly = result.mode === "content-only";
@@ -466,7 +444,7 @@ function assertChangedFilesBoundary() {
     for (const file of untrackedFiles) {
       assert(
         allowedChangedFiles.has(file),
-        `Unexpected untracked file for read-only route auth scope integration plan smoke: ${file}`,
+        `Unexpected untracked file for read-only route auth source selection smoke: ${file}`,
       );
     }
   }
@@ -512,7 +490,7 @@ function assertNoForbiddenChangedPaths(files) {
   for (const file of files) {
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
-      `Forbidden changed file for read-only route auth scope integration plan smoke: ${file}`,
+      `Forbidden changed file for read-only route auth source selection smoke: ${file}`,
     );
   }
 }
@@ -535,7 +513,7 @@ function assertNoForbiddenPositiveClauses(file, text) {
 function isForbiddenPositiveClause(clause) {
   const xhrPattern = "XMLHttp" + "Request";
   const forbiddenPatterns = [
-    /\b(auth scope integration plan|auth plan|plan|route response|route|response|endpoint)\b.{0,140}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?|grants?)\b.{0,180}\b(implement production auth|create hosted OAuth session identity|expose credentials|query the database|create proof records?|create evidence|create readiness|execute Codex|launch Codex|include mutation URLs?|include approval\/publish\/merge controls?|return raw DB rows?|create branches?|open PRs?|create PRs?|publish|merge|approve|retry|replay|deploy|persist graph snapshots?|persist graphs?|grant consumer authority)\b/i,
+    /\b(auth source selection|source selection|selected source|selection|route response|route|response|endpoint)\b.{0,140}\b(can|may|is allowed to|is permitted to|has authority to|is authorized to|authorizes?|grants?)\b.{0,180}\b(implement production auth|create OAuth sessions?|create hosted OAuth session identity|expose credentials|query the database|create proof records?|create evidence|create readiness|execute Codex|launch Codex|include mutation URLs?|include approval\/publish\/merge controls?|return raw DB rows?|create branches?|open PRs?|create PRs?|publish|merge|approve|retry|replay|deploy|persist graph snapshots?|persist graphs?|grant consumer authority)\b/i,
     /\b(adds?|implements?|enables?|activates?|creates?|records?|writes?|calls?|runs?|executes?|publishes?|approves?|retries|replays|merges?|deploys?|persists?|queries?)\b.{0,180}\b(production auth|hosted auth|OAuth|hosted OAuth|session identity|multi-user tenancy|workspace membership|UI code|consumer surface|Cockpit integration|ChatGPT App component|MCP\/App tools?|MCP tools?|DB queries?|database queries?|DB schema|migrations?|graph DB|persistence|external calls?|OpenAI calls?|GitHub calls?|proof\/evidence writes?|proof writes?|evidence writes?|readiness writes?|proof records?|evidence records?|readiness records?|AG Resume behavior|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|Codex SDK execution|provider implementation|credentials|secrets|provider credentials|mutation URLs?|graph snapshots?)\b/i,
     /\b(exposes?|includes?|returns?)\b.{0,180}\b(credentials|secrets|provider credentials|mutation URLs?|hidden reasoning|chain-of-thought|raw DB rows?|proof\/evidence write handles?|approval\/publish\/merge controls?|Codex SDK execution handles?|branch\/PR creation handles?)\b/i,
     /\b(grants?|adds?|creates?|provides?|authori[sz]es?)\b.{0,140}\b(consumer authority|branch creation authority|PR creation authority|merge authority|publish authority|approval authority|proof\/evidence write authority|Codex SDK execution authority|deploy authority|auth authority|implementation authority|route implementation authority)\b/i,

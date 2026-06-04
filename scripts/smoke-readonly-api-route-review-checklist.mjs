@@ -46,6 +46,10 @@ const authScopePlanDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
 const authScopePlanSmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs";
+const authSourceSelectionDoc =
+  "docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md";
+const authSourceSelectionSmokeFile =
+  "scripts/smoke-readonly-api-route-auth-source-selection.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
@@ -75,6 +79,8 @@ const allowedChangedFiles = new Set([
   accessGuardSmokeFile,
   authScopePlanDoc,
   authScopePlanSmokeFile,
+  authSourceSelectionDoc,
+  authSourceSelectionSmokeFile,
   authorityMatrixDoc,
 ]);
 

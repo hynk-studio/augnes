@@ -55,6 +55,11 @@ current route baseline. It answers the next PM/user judgment question at
 planning level only: which auth/session/workspace source should govern the
 read-only route before any consumer surface connects.
 
+`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md` is the next step
+before any auth/scope adapter implementation. It inspects repo-local
+session/workspace/auth-adjacent surfaces and records source selection at
+planning level only, without implementing auth or changing route behavior.
+
 ## 3. Current local guard baseline
 
 PR #384 implemented the first route-only local read validation slice for:

@@ -82,6 +82,11 @@ It does not implement production auth or route behavior. Future implementation
 PRs still need concrete auth/session evidence beyond the local guard and beyond
 this plan.
 
+`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md` is the source-selection
+packet before any auth/scope adapter implementation. Future implementation PRs
+still require concrete auth/session/workspace evidence beyond this selection
+packet.
+
 ## Privacy boundary
 
 Future route implementation must answer:

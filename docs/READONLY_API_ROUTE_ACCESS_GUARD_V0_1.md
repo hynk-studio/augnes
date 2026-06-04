@@ -41,6 +41,10 @@ planning step beyond this local marker guard. It defines gates for future real
 authenticated workspace/project scope integration without implementing auth or
 changing route behavior.
 
+`docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md` records the next
+source-selection packet for that future auth/scope line. It preserves that the
+current local guard is not production auth and adds no route behavior.
+
 ## 2. Purpose
 
 The purpose is to extract the local host, marker header, method, and

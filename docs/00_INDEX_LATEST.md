@@ -386,6 +386,20 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   defer-default decision, fail-closed behavior plan, future slices,
   package/index/authority pointers, scoped/content-only boundary behavior, and
   no forbidden positive authority grants를 정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md`: read-only
+  constellation preview route auth source selection packet이다. It inspects
+  repo-local session/workspace/auth-adjacent surfaces and recommends keeping
+  the route local-only because no concrete source was found that proves both
+  identity and workspace/project membership for this route line. It is
+  docs/smoke/package-pointer only and adds no production auth, no route
+  behavior change, no consumer surface, no DB query, no UI, no MCP/App tool, no
+  proof/evidence write, no Codex SDK execution, no graph DB, no persistence,
+  and no merge/publish/approval/retry/replay/deploy authority. `npm run
+  smoke:readonly-api-route-auth-source-selection`는 required sections,
+  candidates A-E, source selection criteria, comparison matrix, recommended
+  Candidate E decision, docs/index/authority pointers, scoped/content-only
+  boundary behavior, package pointer, and no forbidden positive authority
+  grants를 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`
