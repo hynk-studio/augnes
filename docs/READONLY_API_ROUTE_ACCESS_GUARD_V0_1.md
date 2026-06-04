@@ -45,6 +45,10 @@ changing route behavior.
 source-selection packet for that future auth/scope line. It preserves that the
 current local guard is not production auth and adds no route behavior.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` records the
+Candidate D local development auth adapter plan. Local guard composition
+remains local-only and is not production auth.
+
 ## 2. Purpose
 
 The purpose is to extract the local host, marker header, method, and

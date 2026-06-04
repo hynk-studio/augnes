@@ -87,6 +87,11 @@ consumer connected, and do not implement auth yet.
 Candidate E. They define type-only auth/scope adapter vocabulary and preserve
 no auth implementation, no route behavior change, and no consumer surface.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` is the
+source-specific Candidate D plan after the type-only boundary. Candidate D
+remains local-only and is not selected for implementation unless user/PM
+explicitly accepts local-only semantics.
+
 ## 4. Existing repo-local candidates inspected
 
 Inspected repo-local surfaces:
@@ -244,6 +249,9 @@ Decision:
 - Do not implement Candidate D in this PR.
 - If user/PM wants local-only hardening before real auth, add a future
   type-only adapter boundary first.
+- `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` records that
+  Candidate D remains local-only and is not selected for implementation unless
+  user/PM explicitly accepts local-only semantics.
 
 ## 9. Candidate E: defer real auth source and keep route local-only
 

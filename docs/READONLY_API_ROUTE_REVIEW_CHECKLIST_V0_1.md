@@ -92,6 +92,11 @@ packet.
 boundary under this auth/session checklist. Future implementation PRs still
 need concrete auth/session/workspace evidence beyond that type vocabulary.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` documents the
+Candidate D local development auth adapter plan under this auth/session
+checklist. Future implementation PRs still need concrete evidence and must not
+call Candidate D production auth.
+
 ## Privacy boundary
 
 Future route implementation must answer:
@@ -327,6 +332,10 @@ beyond explicitly local-authorized validation.
 `docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md` documents the
 auth/scope integration plan. The focused plan smoke is
 `npm run smoke:readonly-api-route-auth-scope-integration-plan`.
+
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` documents the
+Candidate D local dev adapter plan. The focused plan smoke is
+`npm run smoke:readonly-api-route-local-dev-auth-adapter-plan`.
 
 ## Validation and smoke plan
 

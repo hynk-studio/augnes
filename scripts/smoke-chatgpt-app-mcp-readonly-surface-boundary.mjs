@@ -57,6 +57,10 @@ const adapterBoundaryDoc =
 const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
 const adapterBoundarySmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs";
+const localDevAdapterPlanDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
+const localDevAdapterPlanSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [boundaryDoc, indexDoc, packageJsonFile, smokeFile];
@@ -86,6 +90,8 @@ const allowedChangedFiles = new Set([
   adapterBoundaryDoc,
   authScopeTypeFile,
   adapterBoundarySmokeFile,
+  localDevAdapterPlanDoc,
+  localDevAdapterPlanSmokeFile,
   authorityMatrixDoc,
 ]);
 
