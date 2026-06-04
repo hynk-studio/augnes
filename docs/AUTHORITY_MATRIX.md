@@ -199,6 +199,13 @@ membership, consumer authority, write authority, proof/evidence authority,
 Codex execution, DB query, graph DB, persistence, publish, merge, retry,
 replay, deploy, or approval authority.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` is a
+docs/smoke-only Candidate D local development auth adapter plan. It adds no
+authority and does not implement an adapter, production auth, hosted auth,
+OAuth, session identity, workspace membership, consumer authority, write
+authority, proof/evidence authority, Codex execution, DB query, graph DB,
+persistence, publish, merge, retry, replay, deploy, or approval authority.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

@@ -73,6 +73,11 @@ does not select a concrete source. Future implementation still requires a
 concrete source selected by user/PM before route behavior changes.
 In exact boundary terms, future implementation still requires a concrete source selected by user/PM.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` maps Candidate D
+to this type boundary at planning level only. It is docs/smoke/package-pointer
+only, adds no adapter implementation, and preserves that Candidate D is
+local-only and not production auth.
+
 ## 4. Type boundary overview
 
 `types/readonly-api-auth-scope.ts` exports type/interface vocabulary only.
