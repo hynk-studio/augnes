@@ -306,6 +306,23 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   exported type names, response concepts, forbidden-field vocabulary,
   package/index pointers, scoped/content-only boundary behavior, and
   non-authority wording을 정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md`: first
+  read-only API route implementation design packet for candidate
+  `GET /api/augnes/read/constellation-preview` vocabulary다. It applies the
+  planning boundary, review checklist, type-only response shape boundary, and
+  PR #381 Project Constellation user-intent validation baseline before any
+  future route implementation. It is docs/smoke/package-pointer only and has
+  no route, no API contract, no runtime behavior, no UI, no auth
+  implementation, no DB, no MCP/App tool, no proof/evidence write, no Codex SDK
+  execution, no provider implementation, no graph DB, no persistence, no AG
+  Resume behavior, and no merge/publish/approval/retry/replay/deploy authority.
+  `npm run smoke:readonly-api-route-implementation-design-packet`는 required
+  sections, placeholder/non-contract route wording, response shape mapping,
+  forbidden fields, auth/session, workspace/project scope, fail-closed,
+  prompt-injection, privacy/minimization, evidence pointer, capsule,
+  Project Constellation, browser/computer-use, package/index pointers,
+  scoped/content-only boundary behavior, and no forbidden positive authority
+  grants를 정적으로 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

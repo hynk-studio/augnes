@@ -23,6 +23,10 @@ const checklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
+const implementationDesignDoc =
+  "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
+const implementationDesignSmokeFile =
+  "scripts/smoke-readonly-api-route-implementation-design-packet.mjs";
 
 const inspectedFiles = [
   typeFile,
@@ -38,6 +42,8 @@ const allowedChangedFiles = new Set([
   planningSmokeFile,
   checklistSmokeFile,
   surfaceSmokeFile,
+  implementationDesignDoc,
+  implementationDesignSmokeFile,
 ]);
 
 const requiredExportedTypes = [

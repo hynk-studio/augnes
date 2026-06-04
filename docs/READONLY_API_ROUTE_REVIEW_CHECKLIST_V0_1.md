@@ -266,6 +266,16 @@ response shape in `types/readonly-api-route-response.ts`. That type boundary
 does not implement any API route, does not add runtime behavior, does not add
 auth implementation, and does not add proof/evidence writes.
 
+`docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md` is the next
+pre-route artifact before any candidate route implementation. It applies this
+checklist, `docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md`,
+`types/readonly-api-route-response.ts`, and the PR #381 user-intent validation
+baseline where applicable. The packet is docs/smoke/package-pointer only and
+does not implement a route. Future route implementation PRs must still answer
+this checklist before merge, including comparison against
+`types/readonly-api-route-response.ts` and the PR #381 user-intent validation
+baseline where applicable.
+
 ## Validation and smoke plan
 
 Required validation for this checklist PR:
@@ -273,6 +283,7 @@ Required validation for this checklist PR:
 - `npm run typecheck`
 - `npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-response-shape-boundary`
+- `npm run smoke:readonly-api-route-implementation-design-packet`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
