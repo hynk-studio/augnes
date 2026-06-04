@@ -15,11 +15,17 @@ const adapterBoundaryDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md";
 const localDevAdapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
+const constellationPreviewHelperFile =
+  "lib/readonly-api/constellation-preview.ts";
 const sourceSelectionDoc =
   "docs/READONLY_API_ROUTE_AUTH_SOURCE_SELECTION_V0_1.md";
 const authScopePlanDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_INTEGRATION_PLAN_V0_1.md";
 const accessGuardDoc = "docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md";
+const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const reviewChecklistDoc =
   "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
@@ -29,6 +35,8 @@ const smokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs";
 const localDevAdapterPlanSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 
 const sourceSelectionSmokeFile =
   "scripts/smoke-readonly-api-route-auth-source-selection.mjs";
@@ -58,8 +66,13 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
   accessGuardDoc,
+  routeDoc,
   localDevAdapterPlanDoc,
+  localDevAdapterDoc,
+  localDevAdapterFile,
+  constellationPreviewHelperFile,
   localDevAdapterPlanSmokeFile,
+  localDevAdapterSmokeFile,
   sourceSelectionSmokeFile,
   authScopePlanSmokeFile,
   accessGuardSmokeFile,
@@ -557,6 +570,10 @@ function assertChangedFilesBoundary() {
 }
 
 function assertNoForbiddenChangedPaths(files) {
+  const exactAllowedRuntimeFiles = new Set([
+    localDevAdapterFile,
+    constellationPreviewHelperFile,
+  ]);
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
     /^app\//,
@@ -577,6 +594,9 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (exactAllowedRuntimeFiles.has(file)) {
+      continue;
+    }
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only route auth scope adapter boundary smoke: ${file}`,

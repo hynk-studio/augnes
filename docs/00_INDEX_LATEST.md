@@ -429,6 +429,21 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   slices/tests, docs/index/authority pointers, scoped/content-only boundary
   behavior, package pointer, and no forbidden positive authority grants를
   정적으로 확인한다.
+- `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md`: Candidate D
+  explicit local development auth adapter implementation boundary다. It
+  documents the local-only route validation adapter in
+  `lib/readonly-api/local-dev-auth-adapter.ts` for
+  `GET /api/augnes/read/constellation-preview`. It is a local-only route
+  validation implementation and adds no production auth, no hosted auth, no
+  OAuth, no session identity, no workspace membership, no route consumer, no DB
+  query, no UI, no MCP/App tool, no proof/evidence write, no Codex SDK
+  execution, no graph DB, no persistence, and no
+  merge/publish/approval/retry/replay/deploy authority. `npm run
+  smoke:readonly-api-route-local-dev-auth-adapter`는 helper existence, type-only
+  boundary import, local guard composition, Candidate D declaration headers,
+  fail-closed behavior, minimized route response, forbidden fields,
+  docs/index/authority pointers, package pointer, scoped/content-only boundary
+  behavior, and no forbidden positive authority grants를 확인한다.
 - `PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md`: Perspective Capsule / Handoff
   Capsule의 repo-local, non-SSOT, docs-only, read-only/non-authoritative,
   contract/design-only pointer다. `npm run smoke:perspective-capsule-contract`

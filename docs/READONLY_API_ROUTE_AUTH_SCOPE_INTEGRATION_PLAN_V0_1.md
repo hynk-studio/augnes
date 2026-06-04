@@ -69,6 +69,10 @@ membership, or route behavior.
 to the type-only adapter boundary at planning level only. Candidate D remains
 local-only and future real auth remains separate.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
+Candidate D local-only implementation slice. Future real auth remains separate
+from that local development adapter.
+
 ## 3. Current local guard baseline
 
 PR #384 implemented the first route-only local read validation slice for:

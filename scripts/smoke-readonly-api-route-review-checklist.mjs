@@ -59,6 +59,11 @@ const localDevAdapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
 const localDevAdapterPlanSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
@@ -95,6 +100,9 @@ const allowedChangedFiles = new Set([
   adapterBoundarySmokeFile,
   localDevAdapterPlanDoc,
   localDevAdapterPlanSmokeFile,
+  localDevAdapterDoc,
+  localDevAdapterFile,
+  localDevAdapterSmokeFile,
   authorityMatrixDoc,
 ]);
 
@@ -438,6 +446,7 @@ function assertNoForbiddenChangedPaths(files) {
 
   for (const file of files) {
     if (file === constellationPreviewRouteFile) continue;
+    if (file === localDevAdapterFile) continue;
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only API route review checklist smoke: ${file}`,

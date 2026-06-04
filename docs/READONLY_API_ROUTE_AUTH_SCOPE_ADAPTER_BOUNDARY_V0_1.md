@@ -78,6 +78,11 @@ to this type boundary at planning level only. It is docs/smoke/package-pointer
 only, adds no adapter implementation, and preserves that Candidate D is
 local-only and not production auth.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
+Candidate D local-only implementation slice. It maps Candidate D to this type
+boundary locally only and does not add production auth, hosted auth, OAuth,
+session identity, workspace membership, or consumer authority.
+
 ## 4. Type boundary overview
 
 `types/readonly-api-auth-scope.ts` exports type/interface vocabulary only.

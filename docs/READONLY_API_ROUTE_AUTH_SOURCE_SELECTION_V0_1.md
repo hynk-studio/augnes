@@ -89,8 +89,13 @@ no auth implementation, no route behavior change, and no consumer surface.
 
 `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` is the
 source-specific Candidate D plan after the type-only boundary. Candidate D
-remains local-only and is not selected for implementation unless user/PM
-explicitly accepts local-only semantics.
+remains local-only. It was not selected for implementation until user/PM
+explicitly accepted local-only semantics.
+
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
+Candidate D local-only implementation after that user/PM acceptance. The
+implementation is still not real hosted auth and does not prove hosted identity
+or hosted workspace/project membership.
 
 ## 4. Existing repo-local candidates inspected
 
@@ -250,8 +255,11 @@ Decision:
 - If user/PM wants local-only hardening before real auth, add a future
   type-only adapter boundary first.
 - `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md` records that
-  Candidate D remains local-only and is not selected for implementation unless
-  user/PM explicitly accepts local-only semantics.
+  Candidate D remains local-only and was not selected for implementation until
+  user/PM explicitly accepted local-only semantics.
+- `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` records the
+  accepted local-only implementation slice. It remains not production auth and
+  not real hosted auth.
 
 ## 9. Candidate E: defer real auth source and keep route local-only
 

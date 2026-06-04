@@ -12,6 +12,7 @@ import {
 import routeModule from "../app/api/augnes/read/constellation-preview/route.ts";
 import accessGuardModule from "../lib/readonly-api/access-guard.ts";
 import helperModule from "../lib/readonly-api/constellation-preview.ts";
+import localDevAdapterModule from "../lib/readonly-api/local-dev-auth-adapter.ts";
 
 const { GET } = routeModule;
 const { READONLY_LOCAL_HOSTS, validateReadonlyApiLocalAccess } =
@@ -22,6 +23,14 @@ const {
   CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
   CONSTELLATION_PREVIEW_SCOPE,
 } = helperModule;
+const {
+  LOCAL_DEV_AUTH_OPERATOR_REF_HEADER,
+  LOCAL_DEV_AUTH_OPERATOR_REF_VALUE,
+  LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER,
+  LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE,
+  LOCAL_DEV_AUTH_WORKSPACE_REF_HEADER,
+  LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE,
+} = localDevAdapterModule;
 
 const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const helperFile = "lib/readonly-api/constellation-preview.ts";
@@ -35,6 +44,9 @@ const adapterBoundaryDoc =
   "docs/READONLY_API_ROUTE_AUTH_SCOPE_ADAPTER_BOUNDARY_V0_1.md";
 const localDevAdapterPlanDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_PLAN_V0_1.md";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
 const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
@@ -55,6 +67,8 @@ const adapterBoundarySmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs";
 const localDevAdapterPlanSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter-plan.mjs";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 const routeSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
 const planSmokeFile =
@@ -94,10 +108,13 @@ const allowedChangedFiles = new Set([
   adapterBoundaryDoc,
   authScopeTypeFile,
   localDevAdapterPlanDoc,
+  localDevAdapterDoc,
+  localDevAdapterFile,
   authScopePlanSmokeFile,
   authSourceSelectionSmokeFile,
   adapterBoundarySmokeFile,
   localDevAdapterPlanSmokeFile,
+  localDevAdapterSmokeFile,
   planSmokeFile,
   designSmokeFile,
   planningSmokeFile,
@@ -506,10 +523,25 @@ function makeRequest({
   marker = CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
   method = "GET",
   headers = {},
+  localDevHeaders = true,
 } = {}) {
   const requestHeaders = new Headers(headers);
   if (marker !== null) {
     requestHeaders.set(CONSTELLATION_PREVIEW_LOCAL_READ_HEADER, marker);
+  }
+  if (localDevHeaders) {
+    requestHeaders.set(
+      LOCAL_DEV_AUTH_OPERATOR_REF_HEADER,
+      LOCAL_DEV_AUTH_OPERATOR_REF_VALUE,
+    );
+    requestHeaders.set(
+      LOCAL_DEV_AUTH_WORKSPACE_REF_HEADER,
+      LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE,
+    );
+    requestHeaders.set(
+      LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER,
+      LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE,
+    );
   }
 
   const query = scope === null ? "" : `?scope=${encodeURIComponent(scope)}`;
@@ -627,7 +659,11 @@ function assertChangedFilesBoundary() {
 
 function assertNoForbiddenChangedPaths(files) {
   const exactAllowedRouteFiles = new Set([routeFile]);
-  const exactAllowedLibFiles = new Set([accessGuardFile, helperFile]);
+  const exactAllowedLibFiles = new Set([
+    accessGuardFile,
+    helperFile,
+    localDevAdapterFile,
+  ]);
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
     /^components\//,

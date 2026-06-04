@@ -49,6 +49,10 @@ current local guard is not production auth and adds no route behavior.
 Candidate D local development auth adapter plan. Local guard composition
 remains local-only and is not production auth.
 
+`docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
+Candidate D local-only implementation. The adapter composes with this local
+guard and does not replace it.
+
 ## 2. Purpose
 
 The purpose is to extract the local host, marker header, method, and
