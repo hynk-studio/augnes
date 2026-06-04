@@ -32,6 +32,15 @@ const implementationPlanDoc =
   "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const implementationPlanSmokeFile =
   "scripts/smoke-readonly-api-route-implementation-plan.mjs";
+const constellationPreviewRouteDoc =
+  "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
+const constellationPreviewRouteFile =
+  "app/api/augnes/read/constellation-preview/route.ts";
+const constellationPreviewHelperFile =
+  "lib/readonly-api/constellation-preview.ts";
+const constellationPreviewSmokeFile =
+  "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 
 const inspectedFiles = [
   routeDoc,
@@ -52,6 +61,11 @@ const allowedChangedFiles = new Set([
   implementationDesignSmokeFile,
   implementationPlanDoc,
   implementationPlanSmokeFile,
+  constellationPreviewRouteDoc,
+  constellationPreviewRouteFile,
+  constellationPreviewHelperFile,
+  constellationPreviewSmokeFile,
+  authorityMatrixDoc,
 ]);
 
 const requiredSections = [
@@ -385,6 +399,7 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (file === constellationPreviewRouteFile) continue;
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only API route planning boundary smoke: ${file}`,

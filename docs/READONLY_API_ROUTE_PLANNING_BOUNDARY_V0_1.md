@@ -197,6 +197,16 @@ proof/evidence write, AG Resume behavior, Codex SDK execution/provider
 behavior, graph DB, persistence, or merge/publish/approval/retry/replay/deploy
 authority.
 
+`docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md` documents the first
+implemented read-only route slice for
+`GET /api/augnes/read/constellation-preview`. The route is local-authorized,
+fail-closed, `project:augnes` scoped, static fixture backed, route-only, and
+connects no consumer surface. It preserves this planning boundary by adding no
+write behavior, mutation controls, DB query, DB schema/migrations, graph DB,
+persistence, proof/evidence/readiness writes, MCP/App tool, Codex SDK
+execution/provider behavior, branch/PR creation authority by itself, or
+merge/publish/approval/retry/replay/deploy authority.
+
 ## Validation and smoke plan
 
 Required validation for this planning note:
@@ -207,6 +217,7 @@ Required validation for this planning note:
 - `npm run smoke:readonly-api-route-response-shape-boundary`
 - `npm run smoke:readonly-api-route-implementation-design-packet`
 - `npm run smoke:readonly-api-route-implementation-plan`
+- `npm run smoke:readonly-api-route-constellation-preview`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries`

@@ -287,6 +287,14 @@ privacy, prompt-injection, browser/computer-use, or route implementation tests
 by itself. Future implementation PRs must still answer this checklist with
 concrete implementation evidence before merge.
 
+`docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md` documents the first
+route-only local validation implementation for
+`GET /api/augnes/read/constellation-preview`. The focused route smoke is
+`npm run smoke:readonly-api-route-constellation-preview`. Future consumer PRs
+that connect Cockpit, ChatGPT App, MCP, plugin tools, or browser-facing
+surfaces must still run their own browser/computer-use validation and must not
+reuse this route-only validation as consumer-surface evidence.
+
 ## Validation and smoke plan
 
 Required validation for this checklist PR:
@@ -296,6 +304,7 @@ Required validation for this checklist PR:
 - `npm run smoke:readonly-api-route-response-shape-boundary`
 - `npm run smoke:readonly-api-route-implementation-design-packet`
 - `npm run smoke:readonly-api-route-implementation-plan`
+- `npm run smoke:readonly-api-route-constellation-preview`
 - `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:readonly-api-route-review-checklist`
 - `npm run smoke:readonly-api-route-planning-boundary`
 - `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`

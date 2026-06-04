@@ -159,6 +159,16 @@ None of these are authority, proof, readiness, source of truth, Gate/SRF input,
 Claim confidence, Evidence status, publication readiness, proposal scoring,
 commit/reject input, or Cockpit action input.
 
+`GET /api/augnes/read/constellation-preview` is a read-only local route for the
+first Project Constellation route validation slice. It is scoped to
+`project:augnes`, explicitly local-authorized, fail-closed, and static fixture
+backed in its first implementation. It has no commit/reject authority, no
+proof/evidence write authority, no publish authority, no merge authority, no
+retry/replay/deploy authority, no branch/PR creation authority, no Codex
+execution authority, no DB schema/migration authority, no graph DB authority,
+no persistence authority, and no consumer authority. It does not connect
+Cockpit, ChatGPT App, MCP, plugin tools, or any UI/browser-facing consumer.
+
 | Lane id | Role | Examples | Authority summary |
 | --- | --- | --- | --- |
 | `augnes_core` | `core_runtime` | local runtime | Reads state, stores durable Core records, validates gates, and is the only commit/reject authority. |

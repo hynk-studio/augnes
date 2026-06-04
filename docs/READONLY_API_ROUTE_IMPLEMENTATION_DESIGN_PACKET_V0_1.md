@@ -66,6 +66,16 @@ runtime behavior, DB query, UI, MCP/App tool, proof/evidence write, AG Resume
 behavior, Codex SDK execution/provider behavior, graph DB, persistence, or
 merge/publish/approval/retry/replay/deploy authority.
 
+`docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md` documents the first
+route-only local implementation slice for
+`GET /api/augnes/read/constellation-preview`. That route implementation still
+follows this design packet boundary: GET/read-only only, explicitly
+local-authorized, `project:augnes` scoped, static public-safe fixture backed,
+minimized response aligned with `types/readonly-api-route-response.ts`, no
+consumer surface connected, no DB query, no persistence, no graph DB, no
+MCP/App tool, no proof/evidence/readiness writes, no Codex SDK execution, and
+no merge/publish/approval/retry/replay/deploy authority.
+
 ## 3. Candidate route
 
 Candidate route vocabulary:
