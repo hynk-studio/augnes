@@ -156,6 +156,8 @@ const requiredVisibleCopy = [
   "no execution/write authority",
   "Boundary class:",
   "read_only_local_static_preview",
+  "Copy Codex handoff",
+  "Copied",
 ];
 
 const requiredHeaders = [
@@ -175,6 +177,25 @@ const requiredDisplayedFields = [
   "evidence pointers as pointer-only",
   "unresolved tensions",
   "next action candidates are advisory",
+];
+
+const requiredHandoffBuilderPhrases = [
+  "buildProjectConstellationCodexHandoffPrompt",
+  "Repo: hynk-studio/augnes",
+  "Workflow: create a focused PR. Do not merge.",
+  "Task goal:",
+  "Project Constellation thesis:",
+  "Selected/current nodes:",
+  "Unresolved tensions that matter:",
+  "Evidence pointers as pointer-only context:",
+  "Recommended next action candidate:",
+  "Expected changed-file guidance:",
+  "Validation guidance:",
+  "Final report expectations:",
+  "PR number and URL",
+  "head commit SHA",
+  "browser/computer-use result when UI changes",
+  "next suggested goal",
 ];
 
 const omittedFieldPhrases = [
@@ -259,6 +280,11 @@ const routePreviewSource = [
   ),
   extractSourceBetween(
     cockpitSource,
+    "async function copyConstellationCodexHandoff",
+    "return (",
+  ),
+  extractSourceBetween(
+    cockpitSource,
     "{/* Cockpit local-only constellation route preview start */}",
     "{/* Cockpit local-only constellation route preview end */}",
   ),
@@ -267,6 +293,11 @@ const routePreviewSectionSource = extractSourceBetween(
   cockpitSource,
   "{/* Cockpit local-only constellation route preview start */}",
   "{/* Cockpit local-only constellation route preview end */}",
+);
+const handoffBuilderSource = extractSourceBetween(
+  cockpitSource,
+  "function buildProjectConstellationCodexHandoffPrompt",
+  "function getErrorMessage",
 );
 
 assertAuthorityClassifierSelfTests();
@@ -294,6 +325,7 @@ console.log(
       route_request_checked: true,
       headers_checked: requiredHeaders,
       displayed_fields_checked: requiredDisplayedFields.length,
+      handoff_builder_fields_checked: requiredHandoffBuilderPhrases.length,
       forbidden_controls_checked: true,
       docs_index_authority_report_pointers_checked: true,
       changed_files_boundary_checked: changedFilesBoundary.checked,
@@ -357,19 +389,43 @@ function assertCockpitPreviewSource() {
     ...requiredDisplayedFields,
     "CONSTELLATION_ROUTE_PREVIEW_HEADERS",
     "fetchConstellationRoutePreview",
+    "copyConstellationCodexHandoff",
+    "navigator.clipboard.writeText",
+    "document.execCommand(\"copy\")",
+    "buildProjectConstellationCodexHandoffPrompt",
     "method: \"GET\"",
   ], { label: "Cockpit local-only route preview source" });
 
   assert.equal(
     routePreviewSectionSource.includes("<button"),
-    false,
-    "Cockpit local-only route preview section must not render buttons",
+    true,
+    "Cockpit local-only route preview section must render the copy handoff button",
   );
   assert.equal(
     /\bonClick\s*=/.test(routePreviewSectionSource),
-    false,
-    "Cockpit local-only route preview section must not add click handlers",
+    true,
+    "Cockpit local-only route preview section must wire the copy handoff click handler",
   );
+  assertContainsAll(routePreviewSectionSource, [
+    "Copy Codex handoff",
+    "CopyFeedback",
+    "constellationHandoffCopyNotice",
+  ], { label: "Cockpit local-only route preview copy action" });
+  assertContainsAll(handoffBuilderSource, requiredHandoffBuilderPhrases, {
+    label: "Project Constellation Codex handoff builder",
+  });
+  for (const longDefaultDiagnostic of [
+    "authority_boundary",
+    "forbidden_fields_removed",
+    "diagnostics=authority",
+    "no merge/publish/approval/retry/replay/deploy authority",
+  ]) {
+    assert.equal(
+      handoffBuilderSource.includes(longDefaultDiagnostic),
+      false,
+      `Copied Codex handoff builder must not include long default diagnostic prose: ${longDefaultDiagnostic}`,
+    );
+  }
 
   for (const forbidden of [
     "execute",
@@ -404,7 +460,6 @@ function assertCockpitPreviewSource() {
   assert.doesNotMatch(routePreviewSource, /@openai\/codex-sdk|\bopenai\b/i);
   assert.doesNotMatch(routePreviewSource, /\bprovider modules?\b|\bproviders?\b/i);
   assert.doesNotMatch(routePreviewSource, /\bapi\.github\.com\b|\bgithub\b/i);
-  assert.doesNotMatch(routePreviewSource, /\bnavigator\.clipboard\b/);
   assert.doesNotMatch(routePreviewSource, /\bhttps?:\/\//);
   assert.doesNotMatch(routePreviewSource, /\bXMLHttpRequest\b/);
 
@@ -446,6 +501,10 @@ function assertImplementationDoc() {
     "read_only_local_static_preview",
     "boundary_class",
     "diagnostics=authority",
+    "Copy Codex handoff",
+    "Codex-ready prompt",
+    "local clipboard",
+    "does not include long default authority lists",
     "response minimization",
     "Browser/computer-use validation was run",
     ...requiredHeaders,
@@ -496,6 +555,7 @@ function assertDocPointers() {
     browserReportFile,
     "smoke:cockpit-local-only-constellation-route-preview",
     "local-only Cockpit implementation",
+    "Copy Codex handoff",
     "no App/MCP",
     "no production auth",
     "no hosted auth",

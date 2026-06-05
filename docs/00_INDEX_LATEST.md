@@ -518,17 +518,21 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   Cockpit implementation for
   `GET /api/augnes/read/constellation-preview?scope=project:augnes` and sends
   only the local read-only marker header by default. It displays boundary class
-  `read_only_local_static_preview` instead of long boundary lists. It adds no App/MCP, no
-  production auth, no hosted auth, no DB query, no proof/evidence write, no
-  Codex SDK execution, no graph DB, no persistence, and no
+  `read_only_local_static_preview` instead of long boundary lists and now has a
+  `Copy Codex handoff` action that copies a concise Codex-ready prompt from the
+  loaded Project Constellation preview. The copy action writes only to the
+  local clipboard. It adds no App/MCP, no production auth, no hosted auth, no
+  DB query, no proof/evidence write, no Codex SDK execution, no graph DB, no
+  persistence, and no
   merge/publish/approval/retry/replay/deploy authority. The browser/
   computer-use report is
   `reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md`.
   `npm run smoke:cockpit-local-only-constellation-route-preview`는 stable
-  Cockpit section id, visible local-only copy, required route headers,
-  displayed and omitted response field families, forbidden-control absence,
-  docs/index/authority/report pointers, package pointer, scoped/content-only
-  boundary behavior, and no forbidden positive authority grants를 확인한다.
+  Cockpit section id, visible local-only copy, copy handoff action, required
+  route headers, displayed and omitted response field families,
+  forbidden-control absence, docs/index/authority/report pointers, package
+  pointer, scoped/content-only boundary behavior, and no forbidden positive
+  authority grants를 확인한다.
 - `docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md`: read-only
   Project Constellation local-only route and Cockpit consumer loop closeout
   packet이다. It is closeout-only, marks the local-only route/Cockpit consumer

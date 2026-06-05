@@ -196,6 +196,11 @@ The first implementation intentionally does not return:
 - `copyable_handoff_preview`
 - `boundary_next_review`
 
+The Cockpit `Copy Codex handoff` action generates its first useful handoff
+client-side from this existing Project Constellation response. It does not
+require the route to return `copyable_handoff_preview` yet and does not change
+the route payload shape.
+
 The `meta` boundary booleans such as `api_route_implementation: false` and
 `auth_implementation: false` are response-content authority boundary flags from
 the type-only response shape. They mean the returned JSON does not grant
