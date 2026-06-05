@@ -163,6 +163,8 @@ const requiredVisibleCopy = [
   "Evidence ranked for selected action:",
   "Preview Codex handoff",
   "If clipboard is unavailable, select and copy this preview text manually.",
+  "Select preview text",
+  "Preview text selected",
 ];
 
 const requiredHeaders = [
@@ -409,10 +411,13 @@ function assertCockpitPreviewSource() {
     "selectedConstellationNextAction",
     "selectedConstellationHandoffEvidencePointers",
     "selectedConstellationHandoffPreviewText",
+    "selectedConstellationHandoffPreviewRef",
+    "selectConstellationHandoffPreviewText",
     "Use for handoff",
     "Selected for handoff",
     "Evidence ranked for selected action:",
     "Preview Codex handoff",
+    "Select preview text",
     "aria-pressed",
     "navigator.clipboard.writeText",
     "document.execCommand(\"copy\")",
@@ -440,6 +445,7 @@ function assertCockpitPreviewSource() {
     "Evidence ranked for selected action:",
     "Preview Codex handoff",
     "If clipboard is unavailable, select and copy this preview text manually.",
+    "Select preview text",
     "Selected Codex handoff text",
     "Use for handoff",
   ], { label: "Cockpit local-only route preview copy action" });
@@ -448,10 +454,25 @@ function assertCockpitPreviewSource() {
     "<summary>",
     "<textarea",
     "readOnly",
+    "ref={selectedConstellationHandoffPreviewRef}",
     "value={selectedConstellationHandoffPreviewText}",
   ], {
     label: "Project Constellation read-only selected handoff preview UI",
   });
+  assertContainsAll(cockpitSource, [
+    "selectedConstellationHandoffPreviewRef",
+    "selectConstellationHandoffPreviewText",
+    "previewTextarea.focus()",
+    "previewTextarea.select()",
+    "Preview text selected",
+  ], {
+    label: "Project Constellation manual preview text selection fallback",
+  });
+  assert.equal(
+    cockpitSource.includes("navigator.clipboard.writeText(selectedConstellationHandoffPreviewText)"),
+    false,
+    "Manual preview text selection fallback must not add a second clipboard writer",
+  );
   assertContainsAll(cockpitSource, [
     "const selectedConstellationHandoffPreviewText = constellationRoutePreview",
     "buildProjectConstellationCodexHandoffPrompt(",
@@ -583,6 +604,7 @@ function assertImplementationDoc() {
     "shows the top selected-action evidence refs beside the copy action",
     "read-only expanded handoff preview",
     "If clipboard is unavailable, select and copy this preview text manually.",
+    "Select preview text",
     "does not change the route payload shape",
     "does not include long default authority lists",
     "response minimization",
@@ -641,6 +663,7 @@ function assertDocPointers() {
     "shows the top selected-action evidence refs beside the copy action",
     "read-only expanded handoff preview",
     "uses the same generated handoff text as the copy action",
+    "Select preview text",
     "no App/MCP",
     "no production auth",
     "no hosted auth",
