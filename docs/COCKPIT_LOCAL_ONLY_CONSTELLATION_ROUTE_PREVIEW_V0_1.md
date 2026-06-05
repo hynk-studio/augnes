@@ -78,9 +78,11 @@ prompt built from the current route preview thesis, selected/current nodes,
 unresolved tensions, pointer-only evidence, and the advisory next action
 candidate selected by the user. Each visible next action candidate has a compact
 `Use for handoff` control and the chosen candidate is marked as selected. The
-button reports `Copied` on success or a clipboard failure message on failure.
-The section still has no refresh control, no retry control, no bypass control,
-and no mutation affordance.
+copy card also shows the top selected-action evidence refs beside the copy
+action, so users can see which pointer-only context will be emphasized before
+copying. The button reports `Copied` on success or a clipboard failure message
+on failure. The section still has no refresh control, no retry control, no
+bypass control, and no mutation affordance.
 
 The copied prompt prioritizes evidence pointers for the selected next action
 before falling back to the remaining pointer-only context. This keeps the
@@ -131,6 +133,7 @@ The preview displays only minimized read-only route fields:
 - `unresolved_tensions`
 - `next_action_candidates` as advisory
 - a `Copy Codex handoff` action and copy status
+- top selected-action evidence refs beside the copy action
 
 This is the response minimization boundary for the first Cockpit-local
 consumer slice.
