@@ -46,6 +46,20 @@ const perspectiveIngestDoc =
   "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md";
 const perspectiveIngestSmokeFile =
   "scripts/smoke-perspective-ingest-constellation-preview.mjs";
+const perspectiveIngestLocalPostGuardFile =
+  "lib/readonly-api/local-preview-post-guard.ts";
+const perspectiveIngestLocalValidationFile =
+  "lib/perspective-ingest/manual-pasted-text-validation.ts";
+const perspectiveIngestLocalAdapterFile =
+  "lib/perspective-ingest/manual-pasted-text-adapter.ts";
+const perspectiveIngestLocalRouteHelperFile =
+  "lib/readonly-api/perspective-ingest-local-preview.ts";
+const perspectiveIngestLocalRouteFile =
+  "app/api/augnes/read/perspective-ingest-local-preview/route.ts";
+const perspectiveIngestLocalDoc =
+  "docs/PERSPECTIVE_INGEST_LOCAL_PASTED_TEXT_PREVIEW_V0_1.md";
+const perspectiveIngestLocalSmokeFile =
+  "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs";
 
 const inspectedFiles = [
   contractDoc,
@@ -76,6 +90,13 @@ const allowedChangedFiles = new Set([
   perspectiveIngestRouteFile,
   perspectiveIngestDoc,
   perspectiveIngestSmokeFile,
+  perspectiveIngestLocalPostGuardFile,
+  perspectiveIngestLocalValidationFile,
+  perspectiveIngestLocalAdapterFile,
+  perspectiveIngestLocalRouteHelperFile,
+  perspectiveIngestLocalRouteFile,
+  perspectiveIngestLocalDoc,
+  perspectiveIngestLocalSmokeFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

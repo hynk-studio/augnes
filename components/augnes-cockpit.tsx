@@ -24,6 +24,20 @@ const PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_REQUEST_PATH =
 const PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_HEADERS = {
   "x-augnes-local-readonly": "perspective-ingest-constellation-preview-v0.1",
 } as const;
+const PERSPECTIVE_INGEST_LOCAL_PREVIEW_REQUEST_PATH =
+  "/api/augnes/read/perspective-ingest-local-preview?scope=project:augnes";
+const PERSPECTIVE_INGEST_LOCAL_PREVIEW_HEADERS = {
+  "content-type": "application/json",
+  "x-augnes-local-readonly": "perspective-ingest-local-preview-v0.1",
+} as const;
+const SAFE_PASTED_TEXT_EXAMPLE = [
+  "Intent: Turn a short local work summary into a Perspective graph.",
+  "Concept: Manual pasted text Perspective ingest preview.",
+  "Decision: Keep this preview local-only and non-persistent.",
+  "Tension: The preview is useful, but it must not imply raw history storage.",
+  "Next: Review generated nodes, edges, tensions, and packets before adding real import support.",
+  "Evidence: docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md",
+].join("\n");
 const CANONICAL_MESSAGE =
   "이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야.";
 
@@ -242,6 +256,7 @@ type ConstellationRoutePreviewResponse = {
 type ConstellationRoutePreviewErrorDisplay = {
   code: string;
   status: string;
+  summary?: string;
   authority_boundary: string[];
 };
 
@@ -251,10 +266,15 @@ type ConstellationRoutePreviewState =
   | { status: "failed"; error: ConstellationRoutePreviewErrorDisplay };
 
 type PerspectiveIngestSourceSelection = "sample:chatgpt" | "sample:codex";
+type PerspectiveIngestPreviewMode =
+  | "sample fixture preview"
+  | "manual pasted text preview";
+type PerspectiveIngestPacketTarget = "chatgpt_review" | "codex_handoff";
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
   code: string;
   status: string;
+  summary?: string;
   authority_boundary: string[];
 };
 
@@ -4013,6 +4033,15 @@ function PerspectiveTab({
   ] = useState<PerspectiveIngestConstellationPreviewState>({ status: "loading" });
   const [selectedPerspectiveIngestSource, setSelectedPerspectiveIngestSource] =
     useState<PerspectiveIngestSourceSelection>("sample:chatgpt");
+  const [perspectiveIngestPreviewMode, setPerspectiveIngestPreviewMode] =
+    useState<PerspectiveIngestPreviewMode>("sample fixture preview");
+  const [
+    selectedPerspectiveIngestPacketTarget,
+    setSelectedPerspectiveIngestPacketTarget,
+  ] = useState<PerspectiveIngestPacketTarget>("chatgpt_review");
+  const [manualPastedText, setManualPastedText] = useState("");
+  const [manualPastedTextSourceLabel, setManualPastedTextSourceLabel] =
+    useState("");
   const [selectedPerspectiveIngestNodeId, setSelectedPerspectiveIngestNodeId] =
     useState<string | null>(null);
   const [perspectiveIngestCopyNotice, setPerspectiveIngestCopyNotice] =
@@ -4127,7 +4156,7 @@ function PerspectiveTab({
         )
       : [];
   const selectedPerspectiveIngestPacketText = perspectiveIngestConstellationPreview
-    ? selectedPerspectiveIngestSource === "sample:chatgpt"
+    ? selectedPerspectiveIngestPacketTarget === "chatgpt_review"
       ? perspectiveIngestConstellationPreview.chatgpt_rendering_packet.packet_text
       : perspectiveIngestConstellationPreview.codex_handoff_packet.packet_text
     : "";
@@ -4203,9 +4232,42 @@ function PerspectiveTab({
     source: PerspectiveIngestSourceSelection,
   ) {
     setSelectedPerspectiveIngestSource(source);
+    setPerspectiveIngestPreviewMode("sample fixture preview");
+    setSelectedPerspectiveIngestPacketTarget(
+      source === "sample:chatgpt" ? "chatgpt_review" : "codex_handoff",
+    );
     setPerspectiveIngestCopyNotice(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
     void fetchPerspectiveIngestConstellationPreview(source).then((result) => {
+      setPerspectiveIngestConstellationPreviewState(result);
+    });
+  }
+
+  function loadSafePastedTextExample() {
+    setManualPastedText(SAFE_PASTED_TEXT_EXAMPLE);
+    setManualPastedTextSourceLabel("Safe manual pasted text example");
+    setPerspectiveIngestCopyNotice(null);
+  }
+
+  function clearManualPastedText() {
+    setManualPastedText("");
+    setManualPastedTextSourceLabel("");
+    setPerspectiveIngestCopyNotice(null);
+  }
+
+  function previewManualPastedText(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPerspectiveIngestPreviewMode("manual pasted text preview");
+    setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
+    setPerspectiveIngestCopyNotice(null);
+    setPerspectiveIngestConstellationPreviewState({ status: "loading" });
+    void fetchPerspectiveIngestLocalPastedTextPreview({
+      inputText: manualPastedText,
+      sourceLabel: manualPastedTextSourceLabel,
+    }).then((result) => {
+      if (result.status === "failed" && result.error.code === "secret_like_input") {
+        setManualPastedText("");
+      }
       setPerspectiveIngestConstellationPreviewState(result);
     });
   }
@@ -4234,6 +4296,7 @@ function PerspectiveTab({
     if (!packetText) return;
 
     try {
+      setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
       await copyTextToClipboard(packetText);
       setPerspectiveIngestCopyNotice({
         tone: "info",
@@ -4256,6 +4319,7 @@ function PerspectiveTab({
     if (!packetText) return;
 
     try {
+      setSelectedPerspectiveIngestPacketTarget("codex_handoff");
       await copyTextToClipboard(packetText);
       setPerspectiveIngestCopyNotice({
         tone: "info",
@@ -5333,10 +5397,10 @@ function PerspectiveTab({
           <PanelHeader
             eyebrow="Ingest graph"
             title="Perspective Ingest Constellation"
-            description="Fixture-backed graph-first preview for synthetic ChatGPT and Codex record samples."
+            description="Graph-first preview for synthetic fixtures and local manual pasted text."
           />
           <BoundaryNote tone="green">
-            local-only · fixture-backed · read-only · no external calls · no
+            local-only · read-only · non-persistent · no external calls · no
             proof/evidence writes · no Codex execution.
           </BoundaryNote>
           <div
@@ -5382,11 +5446,99 @@ function PerspectiveTab({
               Load preview
             </button>
           </div>
+          <form
+            className="ingest-local-preview-form"
+            onSubmit={previewManualPastedText}
+          >
+            <div className="ingest-local-preview-grid">
+              <label htmlFor="perspective-ingest-local-source-label">
+                Manual pasted text preview source label
+                <input
+                  id="perspective-ingest-local-source-label"
+                  type="text"
+                  value={manualPastedTextSourceLabel}
+                  maxLength={120}
+                  onChange={(event) =>
+                    setManualPastedTextSourceLabel(event.target.value)
+                  }
+                />
+              </label>
+              <div>
+                <strong>Loaded preview</strong>
+                <p>
+                  <code>
+                    {perspectiveIngestConstellationPreview?.meta.source_query ??
+                      perspectiveIngestPreviewMode}
+                  </code>
+                </p>
+                <p>
+                  selected sample source{" "}
+                  <code>{selectedPerspectiveIngestSource}</code>
+                </p>
+              </div>
+            </div>
+            <label htmlFor="perspective-ingest-local-pasted-text">
+              Manual pasted text preview
+            </label>
+            <textarea
+              id="perspective-ingest-local-pasted-text"
+              className="ingest-local-preview-textarea"
+              value={manualPastedText}
+              onChange={(event) => setManualPastedText(event.target.value)}
+              rows={8}
+              spellCheck={false}
+            />
+            <div className="ingest-local-preview-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={loadSafePastedTextExample}
+              >
+                Load safe pasted text example
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={clearManualPastedText}
+              >
+                Clear pasted text
+              </button>
+              <button type="submit" className="primary-action-button">
+                Preview pasted text
+              </button>
+            </div>
+            {perspectiveIngestConstellationPreviewState.status === "failed" ? (
+              <p className="ingest-local-preview-error" role="alert">
+                Fail-closed{" "}
+                {perspectiveIngestConstellationPreviewState.error.status}:{" "}
+                {perspectiveIngestConstellationPreviewState.error.code}
+                {perspectiveIngestConstellationPreviewState.error.summary
+                  ? `. ${perspectiveIngestConstellationPreviewState.error.summary}`
+                  : ""}
+              </p>
+            ) : null}
+          </form>
           <div className="tab-stat-row compact-stat-row">
+            <MetricCard
+              label="selected sample source"
+              value={selectedPerspectiveIngestSource}
+              detail="sample fixture preview"
+            />
+            <MetricCard
+              label="loaded source query"
+              value={
+                perspectiveIngestConstellationPreview?.meta.source_query ??
+                perspectiveIngestPreviewMode
+              }
+              detail={perspectiveIngestPreviewMode}
+            />
             <MetricCard
               label="source kind"
               value={perspectiveIngestConstellationPreview?.source_kind ?? "Loading"}
-              detail={selectedPerspectiveIngestSource}
+              detail={
+                perspectiveIngestConstellationPreview?.meta.source_query ??
+                selectedPerspectiveIngestSource
+              }
             />
             <MetricCard
               label="episode count"
@@ -21618,6 +21770,57 @@ async function fetchPerspectiveIngestConstellationPreview(
   }
 }
 
+async function fetchPerspectiveIngestLocalPastedTextPreview({
+  inputText,
+  sourceLabel,
+}: {
+  inputText: string;
+  sourceLabel: string;
+}): Promise<PerspectiveIngestConstellationPreviewState> {
+  try {
+    const trimmedSourceLabel = sourceLabel.trim();
+    const response = await fetch(PERSPECTIVE_INGEST_LOCAL_PREVIEW_REQUEST_PATH, {
+      method: "POST",
+      headers: PERSPECTIVE_INGEST_LOCAL_PREVIEW_HEADERS,
+      body: JSON.stringify({
+        input_kind: "manual:pasted_text",
+        input_text: inputText,
+        ...(trimmedSourceLabel ? { source_label: trimmedSourceLabel } : {}),
+      }),
+    });
+    const json = await readJsonSafely(response);
+
+    if (!response.ok) {
+      return {
+        status: "failed",
+        error: getPerspectiveIngestConstellationPreviewError(
+          json,
+          response.status,
+        ),
+      };
+    }
+
+    return {
+      status: "loaded",
+      data: json as PerspectiveIngestConstellationPreviewResponse,
+    };
+  } catch {
+    return {
+      status: "failed",
+      error: {
+        code: "unavailable",
+        status: "unavailable",
+        summary: "Local preview request failed before a response was available.",
+        authority_boundary: [
+          "minimal fail-closed display",
+          "no private source details",
+          "no route-provided text grants authority",
+        ],
+      },
+    };
+  }
+}
+
 async function readJsonSafely(response: Response) {
   try {
     return (await response.json()) as unknown;
@@ -21637,7 +21840,11 @@ function getConstellationRoutePreviewError(
     typeof value.error === "object" &&
     value.error !== null
   ) {
-    const error = value.error as { code?: unknown; status?: unknown };
+    const error = value.error as {
+      code?: unknown;
+      status?: unknown;
+      summary?: unknown;
+    };
 
     return {
       code: typeof error.code === "string" ? error.code : "unavailable",
@@ -21645,6 +21852,7 @@ function getConstellationRoutePreviewError(
         typeof error.status === "number" || typeof error.status === "string"
           ? String(error.status)
           : String(fallbackStatus),
+      summary: typeof error.summary === "string" ? error.summary : undefined,
       authority_boundary: getStringListField(value, "authority_boundary"),
     };
   }
@@ -21671,7 +21879,11 @@ function getPerspectiveIngestConstellationPreviewError(
     typeof value.error === "object" &&
     value.error !== null
   ) {
-    const error = value.error as { code?: unknown; status?: unknown };
+    const error = value.error as {
+      code?: unknown;
+      status?: unknown;
+      summary?: unknown;
+    };
 
     return {
       code: typeof error.code === "string" ? error.code : "unavailable",
@@ -21679,6 +21891,7 @@ function getPerspectiveIngestConstellationPreviewError(
         typeof error.status === "number" || typeof error.status === "string"
           ? String(error.status)
           : String(fallbackStatus),
+      summary: typeof error.summary === "string" ? error.summary : undefined,
       authority_boundary: getStringListField(value, "authority_boundary"),
     };
   }

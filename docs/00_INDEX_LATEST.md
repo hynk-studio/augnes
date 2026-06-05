@@ -573,6 +573,27 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   safety fields, type exports, exact helper and route file pointers, Cockpit
   copy button text and section id, CSS hooks, package pointer, graph packet
   fields, and route/helper network-call absence.
+- `docs/PERSPECTIVE_INGEST_LOCAL_PASTED_TEXT_PREVIEW_V0_1.md`: manual
+  pasted-text Perspective ingest preview v0.1 local-only implementation
+  boundary다. It records the first real user-provided local input loop from
+  `manual:pasted_text` to deterministic pasted-text parsing, a
+  `PerspectiveIngestSessionEpisode`, the existing
+  `PerspectiveIngestConstellationPreviewResponse` style packet, a POST-only
+  local preview guard, Cockpit SVG nodes/edges, selected-node details, and
+  copyable ChatGPT review and Codex handoff packets. The route is
+  `POST /api/augnes/read/perspective-ingest-local-preview?scope=project:augnes`
+  with `x-augnes-local-readonly: perspective-ingest-local-preview-v0.1`. The
+  preview rejects empty, too-large, unsupported, invalid JSON, and obvious
+  secret-like input without raw payload echo. The preview has no raw private
+  history persistence, no automatic ChatGPT account scraping, no OAuth, no
+  export zip parser, no real Codex thread import, no file upload, no external
+  calls, no OpenAI calls, no GitHub calls, no DB query, no DB writes, no graph
+  DB, no proof/evidence/readiness writes, no Codex execution, and no
+  branch/PR/merge/publish/approval/deploy authority. `npm run
+  smoke:perspective-ingest-local-pasted-text-preview` confirms the POST route,
+  guard, validation helper, manual adapter, packet-builder support, Cockpit
+  labels/buttons, docs boundaries, package pointer, and forbidden external
+  call/write patterns.
 - `CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md`: Codex SDK execution
   authority design v0.1의 repo-local, non-SSOT, docs/smoke/package-pointer
   only, design-only pointer다. It maps official Codex SDK thread/run/resume,

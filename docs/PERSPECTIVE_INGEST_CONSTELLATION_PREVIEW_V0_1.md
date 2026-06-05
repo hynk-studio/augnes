@@ -89,6 +89,20 @@ The SVG preview does not add a graph dependency.
 
 The SVG preview does not implement drag/save/manual gravity.
 
+## Manual pasted-text follow-up path
+
+The fixture preview now has a manual pasted-text local preview follow-up path:
+
+```text
+POST /api/augnes/read/perspective-ingest-local-preview?scope=project:augnes
+```
+
+The follow-up path is documented in
+`docs/PERSPECTIVE_INGEST_LOCAL_PASTED_TEXT_PREVIEW_V0_1.md`. It accepts only
+`manual:pasted_text`, uses a POST-only local preview guard, rejects obvious
+secret-like input without echoing payload content, and reuses the same Cockpit
+SVG graph/detail/packet display path.
+
 ## Route
 
 The local read route is:
