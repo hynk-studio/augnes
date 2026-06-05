@@ -80,6 +80,10 @@ button reports `Copied` on success or a clipboard failure message on failure.
 The section still has no refresh control, no retry control, no bypass control,
 and no mutation affordance.
 
+The copied prompt prioritizes evidence pointers for the recommended next action
+before falling back to the remaining pointer-only context. This keeps the
+handoff compact and does not change the route payload shape.
+
 ## 4. Local-only copy
 
 The preview visibly labels:
@@ -136,7 +140,7 @@ from the default UI. Route diagnostics can still be inspected with
 The copied prompt is generated client-side from the existing response. It is
 not buried behind diagnostics and does not include long default authority
 lists. It includes repo/workflow, task goal, thesis, selected/current nodes,
-tensions, pointer-only evidence, the recommended next action, focused
+tensions, evidence pointers prioritized for the recommended next action, focused
 validation guidance, and final report expectations for Codex.
 
 Future capsule, copyable handoff, or boundary-next-review display sections

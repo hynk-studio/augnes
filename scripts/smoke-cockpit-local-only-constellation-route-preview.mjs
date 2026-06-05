@@ -187,7 +187,7 @@ const requiredHandoffBuilderPhrases = [
   "Project Constellation thesis:",
   "Selected/current nodes:",
   "Unresolved tensions that matter:",
-  "Evidence pointers as pointer-only context:",
+  "Evidence pointers prioritized for this handoff:",
   "Recommended next action candidate:",
   "Expected changed-file guidance:",
   "Validation guidance:",
@@ -196,6 +196,9 @@ const requiredHandoffBuilderPhrases = [
   "head commit SHA",
   "browser/computer-use result when UI changes",
   "next suggested goal",
+  "getRankedConstellationHandoffEvidencePointers",
+  "scoreConstellationHandoffEvidencePointer",
+  "dedupeConstellationEvidencePointers",
 ];
 
 const omittedFieldPhrases = [
@@ -414,6 +417,20 @@ function assertCockpitPreviewSource() {
   assertContainsAll(handoffBuilderSource, requiredHandoffBuilderPhrases, {
     label: "Project Constellation Codex handoff builder",
   });
+  assertContainsAll(handoffBuilderSource, [
+    "const rankedEvidencePointers = getRankedConstellationHandoffEvidencePointers",
+    "rankedEvidencePointers.slice(0, 5)",
+    "recommendedNextAction?.source_refs",
+    "relatedNodeSourceRefs",
+    "countConstellationHandoffTokenOverlap",
+  ], {
+    label: "Project Constellation prioritized evidence handoff builder",
+  });
+  assert.equal(
+    handoffBuilderSource.includes("preview.evidence_pointers.slice(0, 5)"),
+    false,
+    "Copied Codex handoff builder must not take the first global evidence pointers without ranking",
+  );
   for (const longDefaultDiagnostic of [
     "authority_boundary",
     "forbidden_fields_removed",
@@ -504,6 +521,8 @@ function assertImplementationDoc() {
     "Copy Codex handoff",
     "Codex-ready prompt",
     "local clipboard",
+    "prioritizes evidence pointers for the recommended next action",
+    "does not change the route payload shape",
     "does not include long default authority lists",
     "response minimization",
     "Browser/computer-use validation was run",
@@ -556,6 +575,7 @@ function assertDocPointers() {
     "smoke:cockpit-local-only-constellation-route-preview",
     "local-only Cockpit implementation",
     "Copy Codex handoff",
+    "prioritizes evidence pointers for the recommended next action",
     "no App/MCP",
     "no production auth",
     "no hosted auth",
