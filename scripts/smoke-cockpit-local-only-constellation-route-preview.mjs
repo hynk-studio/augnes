@@ -161,6 +161,8 @@ const requiredVisibleCopy = [
   "Use for handoff",
   "Selected for handoff",
   "Evidence ranked for selected action:",
+  "Preview Codex handoff",
+  "If clipboard is unavailable, select and copy this preview text manually.",
 ];
 
 const requiredHeaders = [
@@ -406,9 +408,11 @@ function assertCockpitPreviewSource() {
     "setSelectedConstellationNextActionId",
     "selectedConstellationNextAction",
     "selectedConstellationHandoffEvidencePointers",
+    "selectedConstellationHandoffPreviewText",
     "Use for handoff",
     "Selected for handoff",
     "Evidence ranked for selected action:",
+    "Preview Codex handoff",
     "aria-pressed",
     "navigator.clipboard.writeText",
     "document.execCommand(\"copy\")",
@@ -432,9 +436,32 @@ function assertCockpitPreviewSource() {
     "constellationHandoffCopyNotice",
     "selectedConstellationNextAction",
     "selectedConstellationHandoffEvidencePointers",
+    "selectedConstellationHandoffPreviewText",
     "Evidence ranked for selected action:",
+    "Preview Codex handoff",
+    "If clipboard is unavailable, select and copy this preview text manually.",
+    "Selected Codex handoff text",
     "Use for handoff",
   ], { label: "Cockpit local-only route preview copy action" });
+  assertContainsAll(routePreviewSectionSource, [
+    "<details",
+    "<summary>",
+    "<textarea",
+    "readOnly",
+    "value={selectedConstellationHandoffPreviewText}",
+  ], {
+    label: "Project Constellation read-only selected handoff preview UI",
+  });
+  assertContainsAll(cockpitSource, [
+    "const selectedConstellationHandoffPreviewText = constellationRoutePreview",
+    "buildProjectConstellationCodexHandoffPrompt(",
+    "copyConstellationCodexHandoff(handoffText: string)",
+    "copyTextToClipboard(handoffText)",
+    "copyConstellationCodexHandoff(",
+    "selectedConstellationHandoffPreviewText",
+  ], {
+    label: "Project Constellation preview and copy shared handoff text",
+  });
   assertContainsAll(routePreviewSource, [
     "selectedConstellationHandoffEvidencePointers",
     "getRankedConstellationHandoffEvidencePointers(",
@@ -554,6 +581,8 @@ function assertImplementationDoc() {
     "Use for handoff",
     "prioritizes evidence pointers for the selected next action",
     "shows the top selected-action evidence refs beside the copy action",
+    "read-only expanded handoff preview",
+    "If clipboard is unavailable, select and copy this preview text manually.",
     "does not change the route payload shape",
     "does not include long default authority lists",
     "response minimization",
@@ -610,6 +639,8 @@ function assertDocPointers() {
     "Users can select which advisory next action drives the copied handoff",
     "prioritizes evidence pointers for that selected action",
     "shows the top selected-action evidence refs beside the copy action",
+    "read-only expanded handoff preview",
+    "uses the same generated handoff text as the copy action",
     "no App/MCP",
     "no production auth",
     "no hosted auth",
