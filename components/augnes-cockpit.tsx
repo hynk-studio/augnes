@@ -178,6 +178,7 @@ type ConstellationRoutePreviewNode = {
   type: string;
   label: string;
   summary: string;
+  source_refs?: string[];
 };
 
 type ConstellationRoutePreviewEdge = {
@@ -3977,6 +3978,8 @@ function PerspectiveTab({
 }) {
   const [constellationRoutePreviewState, setConstellationRoutePreviewState] =
     useState<ConstellationRoutePreviewState>({ status: "loading" });
+  const [constellationHandoffCopyNotice, setConstellationHandoffCopyNotice] =
+    useState<Notice | null>(null);
   const preview = temporalPreview?.preview ?? null;
   const evidenceRecordCount =
     (evidencePack?.verification_trace.commands_run.length ?? 0) +
@@ -4037,6 +4040,26 @@ function PerspectiveTab({
       cancelled = true;
     };
   }, []);
+
+  async function copyConstellationCodexHandoff(
+    preview: ConstellationRoutePreviewResponse,
+  ) {
+    try {
+      await copyTextToClipboard(buildProjectConstellationCodexHandoffPrompt(preview));
+      setConstellationHandoffCopyNotice({
+        tone: "info",
+        text: "Copied",
+      });
+    } catch (copyError) {
+      setConstellationHandoffCopyNotice({
+        tone: "error",
+        text:
+          copyError instanceof Error
+            ? copyError.message
+            : "Copy Codex handoff failed",
+      });
+    }
+  }
 
   return (
     <section
@@ -4830,6 +4853,27 @@ function PerspectiveTab({
                     refs={Object.keys(CONSTELLATION_ROUTE_PREVIEW_HEADERS)}
                     emptyLabel="No route headers"
                   />
+                </article>
+                <article>
+                  <h3>Copy Codex handoff</h3>
+                  <p>
+                    Build a Codex-ready prompt from this preview, using the top
+                    advisory next action and pointer-only context.
+                  </p>
+                  <div className="copy-control">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={!constellationRoutePreview}
+                      onClick={() => {
+                        if (!constellationRoutePreview) return;
+                        void copyConstellationCodexHandoff(constellationRoutePreview);
+                      }}
+                    >
+                      Copy Codex handoff
+                    </button>
+                    <CopyFeedback notice={constellationHandoffCopyNotice} />
+                  </div>
                 </article>
               </div>
               <div className="perspective-tension-grid">
@@ -20779,6 +20823,143 @@ function getStringListField(value: unknown, field: string) {
   }
 
   return [];
+}
+
+function buildProjectConstellationCodexHandoffPrompt(
+  preview: ConstellationRoutePreviewResponse,
+) {
+  const project = preview.project_constellation;
+  const recommendedNextAction =
+    preview.next_action_candidates[0] ??
+    project.next_action_candidates[0] ??
+    null;
+  const previewSourceRefs = getConstellationHandoffSourceRefs(
+    preview,
+    recommendedNextAction,
+  );
+
+  return [
+    "Repo: hynk-studio/augnes",
+    "Workflow: create a focused PR. Do not merge.",
+    "",
+    "Task goal:",
+    recommendedNextAction
+      ? `Implement the next focused slice from Project Constellation: ${recommendedNextAction.summary}`
+      : `Implement the next focused slice from Project Constellation: ${project.thesis}`,
+    "",
+    "Project Constellation thesis:",
+    project.thesis,
+    "",
+    "Selected/current nodes:",
+    formatConstellationHandoffList(
+      project.nodes.slice(0, 5),
+      (node) => `- ${node.label} (${node.id}, ${node.type}): ${node.summary}`,
+      "No Project Constellation nodes were present in the preview.",
+    ),
+    "",
+    "Unresolved tensions that matter:",
+    formatConstellationHandoffList(
+      preview.unresolved_tensions.slice(0, 5),
+      (tension) =>
+        `- ${tension.label ?? tension.tension_id}: ${tension.summary}`,
+      "No unresolved tensions were present in the preview.",
+    ),
+    "",
+    "Evidence pointers as pointer-only context:",
+    formatConstellationHandoffList(
+      preview.evidence_pointers.slice(0, 5),
+      (pointer) =>
+        `- ${pointer.label ?? pointer.pointer_id} (${pointer.pointer_id}) -> ${
+          pointer.target_ref ?? "target unavailable"
+        }; ${pointer.pointer_semantics ?? "pointer_only"}`,
+      "No evidence pointers were present in the preview.",
+    ),
+    "",
+    "Recommended next action candidate:",
+    recommendedNextAction
+      ? `- ${recommendedNextAction.label ?? recommendedNextAction.candidate_id}: ${
+          recommendedNextAction.summary
+        }`
+      : "- No next action candidate was present; derive one from the thesis.",
+    "",
+    "Expected changed-file guidance:",
+    previewSourceRefs.length
+      ? `Start from the preview source refs and keep the change set narrow: ${previewSourceRefs.join(", ")}.`
+      : "The preview does not name changed files; keep edits focused to the files directly needed for the selected task.",
+    "",
+    "Validation guidance:",
+    "- npm run typecheck",
+    "- npm run build",
+    "- git diff --check",
+    "- Run the focused smoke(s) for the files or UI behavior touched.",
+    "- Run browser/computer-use validation when UI changes.",
+    "",
+    "Final report expectations:",
+    "- PR number and URL",
+    "- branch",
+    "- head commit SHA",
+    "- changed files",
+    "- tests run and results",
+    "- browser/computer-use result when UI changes",
+    "- blockers or mismatches",
+    "- next suggested goal",
+  ].join("\n");
+}
+
+function getConstellationHandoffSourceRefs(
+  preview: ConstellationRoutePreviewResponse,
+  recommendedNextAction: ConstellationRoutePreviewNextActionCandidate | null,
+) {
+  const refs = [
+    ...(recommendedNextAction?.source_refs ?? []),
+    ...preview.project_constellation.nodes.flatMap((node) => node.source_refs ?? []),
+    ...preview.evidence_pointers.map((pointer) => pointer.target_ref ?? ""),
+  ].filter((ref): ref is string => Boolean(ref));
+
+  return Array.from(new Set(refs)).slice(0, 8);
+}
+
+function formatConstellationHandoffList<T>(
+  items: T[],
+  formatItem: (item: T) => string,
+  emptyLabel: string,
+) {
+  if (!items.length) {
+    return `- ${emptyLabel}`;
+  }
+
+  return items.map(formatItem).join("\n");
+}
+
+async function copyTextToClipboard(text: string) {
+  try {
+    if (!navigator.clipboard?.writeText) {
+      throw new Error("Clipboard API is unavailable.");
+    }
+
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-1000px";
+    textarea.style.left = "-1000px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+      const copied = document.execCommand("copy");
+
+      if (!copied) {
+        throw new Error("Clipboard copy is unavailable.");
+      }
+    } finally {
+      textarea.remove();
+    }
+  }
 }
 
 function getErrorMessage(value: unknown) {

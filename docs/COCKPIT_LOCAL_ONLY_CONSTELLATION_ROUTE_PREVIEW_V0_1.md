@@ -9,6 +9,7 @@ Status:
 - GET-only route fetch
 - static fixture backed
 - route-only read preview
+- copyable Codex handoff prompt
 - no execution/write authority
 - no App/MCP consumer
 - no ChatGPT App component
@@ -61,8 +62,10 @@ perspective-constellation-route-preview
 ```
 
 It consumes the existing local-only route and displays bounded response fields
-only. It is not a primary action surface and does not create a bridge to
-ChatGPT App, MCP, plugins, Codex, proof/evidence writers, or graph persistence.
+only. It also offers a compact `Copy Codex handoff` action that builds a
+Codex-ready prompt from the loaded preview data. The copy action writes only to
+the local clipboard and does not create a bridge to ChatGPT App, MCP, plugins,
+Codex execution, proof/evidence writers, or graph persistence.
 
 ## 3. Placement and UI behavior
 
@@ -70,8 +73,12 @@ The preview is placed in the Perspective tab near the existing Project
 Constellation/Perspective area and before the existing static fixture preview
 section `perspective-constellation-preview`.
 
-The section has no buttons, no click handlers, no refresh control, no retry
-control, no bypass control, and no mutation affordance.
+The section has one user action: `Copy Codex handoff`. It copies a prompt built
+from the current route preview thesis, selected/current nodes, unresolved
+tensions, pointer-only evidence, and top advisory next action candidate. The
+button reports `Copied` on success or a clipboard failure message on failure.
+The section still has no refresh control, no retry control, no bypass control,
+and no mutation affordance.
 
 ## 4. Local-only copy
 
@@ -117,6 +124,7 @@ The preview displays only minimized read-only route fields:
 - `evidence_pointers` as pointer-only
 - `unresolved_tensions`
 - `next_action_candidates` as advisory
+- a `Copy Codex handoff` action and copy status
 
 This is the response minimization boundary for the first Cockpit-local
 consumer slice.
@@ -124,6 +132,12 @@ consumer slice.
 Detailed `authority_boundary` and `forbidden_fields_removed` lists are omitted
 from the default UI. Route diagnostics can still be inspected with
 `diagnostics=authority`.
+
+The copied prompt is generated client-side from the existing response. It is
+not buried behind diagnostics and does not include long default authority
+lists. It includes repo/workflow, task goal, thesis, selected/current nodes,
+tensions, pointer-only evidence, the recommended next action, focused
+validation guidance, and final report expectations for Codex.
 
 Future capsule, copyable handoff, or boundary-next-review display sections
 should follow the same class-first model. The UI should render compact
