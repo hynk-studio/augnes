@@ -60,6 +60,20 @@ const perspectiveIngestDoc =
   "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md";
 const perspectiveIngestSmokeFile =
   "scripts/smoke-perspective-ingest-constellation-preview.mjs";
+const perspectiveIngestLocalPostGuardFile =
+  "lib/readonly-api/local-preview-post-guard.ts";
+const perspectiveIngestLocalValidationFile =
+  "lib/perspective-ingest/manual-pasted-text-validation.ts";
+const perspectiveIngestLocalAdapterFile =
+  "lib/perspective-ingest/manual-pasted-text-adapter.ts";
+const perspectiveIngestLocalRouteHelperFile =
+  "lib/readonly-api/perspective-ingest-local-preview.ts";
+const perspectiveIngestLocalRouteFile =
+  "app/api/augnes/read/perspective-ingest-local-preview/route.ts";
+const perspectiveIngestLocalDoc =
+  "docs/PERSPECTIVE_INGEST_LOCAL_PASTED_TEXT_PREVIEW_V0_1.md";
+const perspectiveIngestLocalSmokeFile =
+  "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs";
 const perspectiveCapsuleSmokeFile =
   "scripts/smoke-perspective-capsule-contract.mjs";
 const browserReportFile =
@@ -166,6 +180,13 @@ const allowedChangedFiles = new Set([
   perspectiveIngestRouteFile,
   perspectiveIngestDoc,
   perspectiveIngestSmokeFile,
+  perspectiveIngestLocalPostGuardFile,
+  perspectiveIngestLocalValidationFile,
+  perspectiveIngestLocalAdapterFile,
+  perspectiveIngestLocalRouteHelperFile,
+  perspectiveIngestLocalRouteFile,
+  perspectiveIngestLocalDoc,
+  perspectiveIngestLocalSmokeFile,
   perspectiveCapsuleSmokeFile,
 ]);
 
@@ -315,7 +336,7 @@ const routePreviewSource = [
   extractSourceBetween(
     cockpitSource,
     "const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =",
-    "const CANONICAL_MESSAGE =",
+    "const PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_REQUEST_PATH =",
   ),
   extractSourceBetween(
     cockpitSource,
@@ -329,13 +350,23 @@ const routePreviewSource = [
   ),
   extractSourceBetween(
     cockpitSource,
+    "const selectedConstellationHandoffEvidencePointers",
+    "const perspectiveIngestConstellationPreview",
+  ),
+  extractSourceBetween(
+    cockpitSource,
     "async function fetchConstellationRoutePreview",
-    "function getErrorMessage",
+    "async function fetchPerspectiveIngestLocalPastedTextPreview",
   ),
   extractSourceBetween(
     cockpitSource,
     "async function copyConstellationCodexHandoff",
     "return (",
+  ),
+  extractSourceBetween(
+    cockpitSource,
+    "async function copyTextToClipboard",
+    "function getErrorMessage",
   ),
   extractSourceBetween(
     cockpitSource,
@@ -865,6 +896,11 @@ function assertNoForbiddenChangedPaths(files) {
         responseShapeTypeFile,
         perspectiveIngestRouteFile,
         perspectiveIngestRouteHelperFile,
+        perspectiveIngestLocalPostGuardFile,
+        perspectiveIngestLocalValidationFile,
+        perspectiveIngestLocalAdapterFile,
+        perspectiveIngestLocalRouteFile,
+        perspectiveIngestLocalRouteHelperFile,
         perspectiveIngestTypeFile,
         perspectiveIngestSessionEpisodeFile,
         perspectiveIngestChatGptAdapterFile,

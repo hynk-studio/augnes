@@ -2,7 +2,6 @@ import { buildChatGptSampleSessionEpisode } from "@/lib/perspective-ingest/chatg
 import { buildCodexSampleSessionEpisode } from "@/lib/perspective-ingest/codex-record-adapter";
 import {
   buildPerspectiveIngestConstellationPreviewResponse,
-  type PerspectiveIngestSourceQuery,
 } from "@/lib/perspective-ingest/episode-to-constellation-packet";
 import {
   READONLY_LOCAL_HOSTS,
@@ -22,6 +21,7 @@ import type {
 import type {
   PerspectiveIngestConstellationPreviewErrorBody,
   PerspectiveIngestConstellationPreviewResponse,
+  PerspectiveIngestSourceQuery,
 } from "@/types/perspective-ingest-constellation-preview";
 
 export const PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_SCOPE =

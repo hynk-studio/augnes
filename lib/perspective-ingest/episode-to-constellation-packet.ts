@@ -9,16 +9,17 @@ import type {
   PerspectiveIngestNextActionCandidate,
   PerspectiveIngestPerspectiveCapsulePreview,
   PerspectiveIngestSessionEpisode,
+  PerspectiveIngestSourceQuery,
   PerspectiveIngestUnresolvedTension,
 } from "@/types/perspective-ingest-constellation-preview";
 
-export type PerspectiveIngestSourceQuery = "sample:chatgpt" | "sample:codex";
-
 const ROUTE_ID =
   "augnes.read.perspective-ingest-constellation-preview.v0.1" as const;
+const LOCAL_PREVIEW_ROUTE_ID =
+  "augnes.read.perspective-ingest-local-preview.v0.1" as const;
 const BOUNDARY_CLASS =
   "read_only_local_ingest_constellation_preview" as const;
-const REQUIRED_CHECKS = [
+const SAMPLE_REQUIRED_CHECKS = [
   "npm run typecheck",
   "npm run smoke:readonly-api-route-constellation-preview",
   "npm run smoke:cockpit-local-only-constellation-route-preview",
@@ -26,7 +27,16 @@ const REQUIRED_CHECKS = [
   "npm run smoke:perspective-ingest-constellation-preview",
   "git diff --check",
 ];
-const PR_BODY_REQUIREMENTS = [
+const LOCAL_PREVIEW_REQUIRED_CHECKS = [
+  "npm run typecheck",
+  "npm run smoke:perspective-ingest-constellation-preview",
+  "npm run smoke:perspective-ingest-local-pasted-text-preview",
+  "npm run smoke:readonly-api-route-constellation-preview",
+  "npm run smoke:cockpit-local-only-constellation-route-preview",
+  "npm run smoke:perspective-capsule-contract",
+  "git diff --check",
+];
+const SAMPLE_PR_BODY_REQUIREMENTS = [
   "Summary",
   "User-visible capability",
   "Files changed",
@@ -42,7 +52,28 @@ const PR_BODY_REQUIREMENTS = [
   "Questions requiring user/PM judgment",
   "Next suggested feature slice",
 ];
-const FINAL_REPORT_REQUIREMENTS = [
+const LOCAL_PREVIEW_PR_BODY_REQUIREMENTS = [
+  "Summary",
+  "User-visible capability",
+  "Files changed",
+  "Why this uses pasted text before export zip parsing",
+  "How pasted text becomes a SessionEpisode",
+  "How the POST-only local preview guard works",
+  "How Cockpit reuses the graph and packet display",
+  "What ChatGPT review packet contains",
+  "What Codex handoff packet contains",
+  "Local-only/read-only authority boundary",
+  "Validation results with exact commands and results",
+  "Browser/computer-use usability table",
+  "Skipped checks with concrete reasons",
+  "Blockers or risks",
+  "Repo/task mismatches",
+  "Scope risks",
+  "Assumptions",
+  "Questions requiring user/PM judgment",
+  "Next suggested feature slice",
+];
+const SAMPLE_FINAL_REPORT_REQUIREMENTS = [
   "PR number and URL",
   "branch",
   "commit SHA",
@@ -55,11 +86,27 @@ const FINAL_REPORT_REQUIREMENTS = [
   "questions requiring user/PM judgment",
   "next suggested goal",
 ];
+const LOCAL_PREVIEW_FINAL_REPORT_REQUIREMENTS = [
+  "PR number and URL",
+  "branch",
+  "commit SHA",
+  "changed files",
+  "tests run with exact results",
+  "browser/computer-use usability result",
+  "blockers",
+  "repo/task mismatches",
+  "scope risks",
+  "assumptions",
+  "questions requiring user/PM judgment",
+  "next suggested goal",
+];
 const FORBIDDEN_ACTIONS = [
   "no raw private history persistence",
   "no automatic account scraping",
   "no OAuth",
   "no external calls",
+  "no GitHub calls",
+  "no DB query",
   "no provider calls",
   "no DB writes",
   "no graph DB",
@@ -70,9 +117,11 @@ const FORBIDDEN_ACTIONS = [
 
 export function buildPerspectiveIngestConstellationPreviewResponse({
   episodes,
+  routeId = ROUTE_ID,
   source,
 }: {
   episodes: PerspectiveIngestSessionEpisode[];
+  routeId?: typeof ROUTE_ID | typeof LOCAL_PREVIEW_ROUTE_ID;
   source: PerspectiveIngestSourceQuery;
 }): PerspectiveIngestConstellationPreviewResponse {
   const [episode] = episodes;
@@ -93,22 +142,13 @@ export function buildPerspectiveIngestConstellationPreviewResponse({
     sourceKey,
     unresolved_tensions,
   );
-  const constellation =
-    episode.source_kind === "chatgpt_record_fixture"
-      ? buildChatGptConstellation({
-          episode,
-          evidence_pointers,
-          next_action_candidates,
-          sourceKey,
-          unresolved_tensions,
-        })
-      : buildCodexConstellation({
-          episode,
-          evidence_pointers,
-          next_action_candidates,
-          sourceKey,
-          unresolved_tensions,
-        });
+  const constellation = buildConstellationForEpisode({
+    episode,
+    evidence_pointers,
+    next_action_candidates,
+    sourceKey,
+    unresolved_tensions,
+  });
   const thesis = constellation.clusters[0]?.cluster_thesis ?? episode.summary;
   const perspective_capsule_preview = buildPerspectiveCapsulePreview({
     constellation,
@@ -138,13 +178,13 @@ export function buildPerspectiveIngestConstellationPreviewResponse({
     boundary_class: BOUNDARY_CLASS,
     meta: {
       generated_at: episode.synthetic_timestamp,
-      route_id: ROUTE_ID,
+      route_id: routeId,
       route_family: "perspective_ingest_constellation",
       workspace_scope: "project:augnes",
       project_scope: "project:augnes",
       request_scope_ref: "project:augnes",
       source_query: source,
-      deterministic_fixture_generation: true,
+      deterministic_fixture_generation: source !== "manual:pasted_text",
       local_only: true,
       read_only: true,
       external_calls: false,
@@ -159,7 +199,8 @@ export function buildPerspectiveIngestConstellationPreviewResponse({
       batch_id: `batch.${sourceKey}.v0_1`,
       episode_count: episodes.length,
       episode_ids: episodes.map((item) => item.episode_id),
-      fixture_only: true,
+      fixture_only: source !== "manual:pasted_text",
+      local_user_provided: source === "manual:pasted_text",
       public_safe: true,
       deterministic: true,
       boundary_notes: episode.public_safety.boundary_notes,
@@ -174,15 +215,60 @@ export function buildPerspectiveIngestConstellationPreviewResponse({
   };
 }
 
+function buildConstellationForEpisode({
+  episode,
+  evidence_pointers,
+  next_action_candidates,
+  sourceKey,
+  unresolved_tensions,
+}: {
+  episode: PerspectiveIngestSessionEpisode;
+  evidence_pointers: PerspectiveIngestEvidencePointer[];
+  next_action_candidates: PerspectiveIngestNextActionCandidate[];
+  sourceKey: string;
+  unresolved_tensions: PerspectiveIngestUnresolvedTension[];
+}) {
+  if (episode.source_kind === "chatgpt_record_fixture") {
+    return buildChatGptConstellation({
+      episode,
+      evidence_pointers,
+      next_action_candidates,
+      sourceKey,
+      unresolved_tensions,
+    });
+  }
+
+  if (episode.source_kind === "codex_record_fixture") {
+    return buildCodexConstellation({
+      episode,
+      evidence_pointers,
+      next_action_candidates,
+      sourceKey,
+      unresolved_tensions,
+    });
+  }
+
+  return buildManualPastedTextConstellation({
+    episode,
+    evidence_pointers,
+    next_action_candidates,
+    sourceKey,
+    unresolved_tensions,
+  });
+}
+
 function buildSourceRefs(episode: PerspectiveIngestSessionEpisode) {
+  const isManual = episode.source_kind === "manual_pasted_text";
+
   return [
     {
       source_ref: episode.source_ref,
       source_kind: episode.source_kind,
       source_label: episode.source_label,
       source_scope: "project:augnes" as const,
-      provenance_note:
-        "Synthetic public-safe sample fixture only; not raw private history.",
+      provenance_note: isManual
+        ? "Local user-provided pasted text preview; bounded extraction only and no raw private history persistence."
+        : "Synthetic public-safe sample fixture only; not raw private history.",
     },
     {
       source_ref: "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md",
@@ -213,20 +299,32 @@ function buildEvidencePointers(
   episode: PerspectiveIngestSessionEpisode,
   sourceKey: string,
 ): PerspectiveIngestEvidencePointer[] {
+  const isManual = episode.source_kind === "manual_pasted_text";
+
   return uniqueStrings([episode.source_ref, ...episode.evidence_refs]).map(
     (targetRef, index) => ({
       pointer_id: `pointer.${sourceKey}.${index + 1}`,
-      label: index === 0 ? "Fixture source" : `Source pointer ${index}`,
+      label:
+        index === 0
+          ? isManual
+            ? "Local pasted source"
+            : "Fixture source"
+          : `Source pointer ${index}`,
       target_ref: targetRef,
-      pointer_kind: targetRef.startsWith("docs/")
-        ? "document_pointer"
-        : targetRef.includes("smoke")
-          ? "validation_pointer"
-          : "fixture_pointer",
+      pointer_kind:
+        isManual && targetRef === episode.source_ref
+          ? "local_preview_pointer"
+          : targetRef.startsWith("docs/")
+            ? "document_pointer"
+            : targetRef.includes("smoke")
+              ? "validation_pointer"
+              : "fixture_pointer",
       pointer_semantics: "pointer_only",
       bounded_summary:
         index === 0
-          ? "Synthetic public-safe fixture source for this preview."
+          ? isManual
+            ? "Local pasted text preview source; raw input is not persisted."
+            : "Synthetic public-safe fixture source for this preview."
           : "Pointer-only context used to explain the preview graph.",
       source_episode_ids: [episode.episode_id],
       proof_evidence_write_authority: false,
@@ -464,6 +562,105 @@ function buildCodexConstellation({
   };
 }
 
+function buildManualPastedTextConstellation({
+  episode,
+  evidence_pointers,
+  next_action_candidates,
+  sourceKey,
+  unresolved_tensions,
+}: {
+  episode: PerspectiveIngestSessionEpisode;
+  evidence_pointers: PerspectiveIngestEvidencePointer[];
+  next_action_candidates: PerspectiveIngestNextActionCandidate[];
+  sourceKey: string;
+  unresolved_tensions: PerspectiveIngestUnresolvedTension[];
+}) {
+  const pointerIds = evidence_pointers.map((pointer) => pointer.pointer_id);
+  const tensionIds = unresolved_tensions.map((tension) => tension.tension_id);
+  const nextIds = next_action_candidates.map((candidate) => candidate.candidate_id);
+  const nodes: PerspectiveIngestConstellationNode[] = [
+    node({
+      id: `node.${sourceKey}.source`,
+      type: "source",
+      label: "Manual pasted text source",
+      summary: episode.summary,
+      episode,
+      pointerIds,
+    }),
+    node({
+      id: `node.${sourceKey}.user_intent`,
+      type: "user_intent",
+      label: "User intent",
+      summary: summarizeList(episode.user_intents),
+      episode,
+      pointerIds: pointerIds.slice(0, 2),
+    }),
+    node({
+      id: `node.${sourceKey}.concept`,
+      type: "product_concept",
+      label: "Concept",
+      summary: summarizeList(episode.product_concepts),
+      episode,
+      pointerIds: pointerIds.slice(0, 3),
+    }),
+    node({
+      id: `node.${sourceKey}.decision`,
+      type: "decision",
+      label: "Decision",
+      summary: summarizeList(episode.decisions),
+      episode,
+      pointerIds: pointerIds.slice(0, 3),
+    }),
+    node({
+      id: `node.${sourceKey}.tension`,
+      type: "unresolved_tension",
+      label: "Tension",
+      summary: summarizeList(episode.unresolved_tensions),
+      episode,
+      pointerIds: pointerIds.slice(0, 2),
+      tensionIds,
+    }),
+    node({
+      id: `node.${sourceKey}.next_move`,
+      type: "next_move",
+      label: "Next move",
+      summary: summarizeList(episode.next_actions),
+      episode,
+      pointerIds: pointerIds.slice(0, 2),
+      nextIds,
+    }),
+    node({
+      id: `node.${sourceKey}.packet`,
+      type: "packet",
+      label: "Copyable packets",
+      summary:
+        "ChatGPT review and Codex handoff packets are derived from bounded pasted-text extraction for manual copy only.",
+      episode,
+      pointerIds,
+      nextIds,
+    }),
+  ];
+  const edges = buildEdges(sourceKey, episode.episode_id, pointerIds, [
+    ["derived_from", "source", "user_intent", "The user intent is derived from bounded local pasted text extraction."],
+    ["refines", "user_intent", "concept", "The user intent refines the manual local Perspective ingest preview concept."],
+    ["supports", "concept", "decision", "The concept supports the local-only non-persistent decision."],
+    ["conflicts_with", "decision", "tension", "The decision keeps raw-history and import-scope tensions visible."],
+    ["warns_against", "tension", "next_move", "The tension qualifies the advisory next move."],
+    ["next_candidate", "decision", "next_move", "The decision points to a manual review next move."],
+    ["evidence_for", "source", "packet", "The bounded local source pointer is evidence for the copyable packets."],
+    ["depends_on", "next_move", "packet", "The packets depend on manual review before any future import slice."],
+  ]);
+
+  return {
+    constellation_id: `constellation.${sourceKey}.v0_1`,
+    thesis:
+      "A local pasted text summary can become a bounded Perspective ingest constellation with visible intent, concept, decision, tension, next move, and manual handoff packets.",
+    nodes,
+    edges,
+    clusters: buildClusters(sourceKey, nodes, edges, pointerIds, tensionIds, nextIds),
+  };
+}
+
 function node({
   episode,
   id,
@@ -526,14 +723,17 @@ function buildClusters(
   tensionIds: string[],
   nextIds: string[],
 ): PerspectiveIngestConstellationCluster[] {
+  const isManual = sourceKey === "manual_pasted_text";
+
   return [
     {
-      id: `cluster.${sourceKey}.fixture_ingest_preview`,
-      label: "Fixture ingest preview",
+      id: `cluster.${sourceKey}.ingest_preview`,
+      label: isManual ? "Manual pasted text preview" : "Fixture ingest preview",
       node_ids: nodes.map((item) => item.id),
       edge_ids: edges.map((item) => item.id),
-      cluster_thesis:
-        "Synthetic records become SessionEpisode-like input, then a bounded node-edge constellation with copyable review and handoff packets.",
+      cluster_thesis: isManual
+        ? "Bounded pasted text extraction becomes a local-only node-edge constellation with copyable review and handoff packets."
+        : "Synthetic records become SessionEpisode-like input, then a bounded node-edge constellation with copyable review and handoff packets.",
       evidence_pointer_ids: pointerIds,
       unresolved_tension_ids: tensionIds,
       next_action_candidate_ids: nextIds,
@@ -556,14 +756,18 @@ function buildPerspectiveCapsulePreview({
   thesis: string;
   unresolved_tensions: PerspectiveIngestUnresolvedTension[];
 }): PerspectiveIngestPerspectiveCapsulePreview {
+  const isManual = source === "manual:pasted_text";
+
   return {
-    capsule_id: `capsule.${getSourceKey(source)}.fixture_ingest_preview.v0_1`,
+    capsule_id: `capsule.${getSourceKey(source)}.ingest_preview.v0_1`,
     capsule_version: "perspective_capsule_preview.v0.1",
     source_surface: "perspective_ingest_constellation_preview",
     source_scope: "project:augnes",
     source_snapshot_ref: episode.source_ref,
     source_constellation_ref: constellation.constellation_id,
-    formation_mode: "fixture_episode_constellation",
+    formation_mode: isManual
+      ? "manual_pasted_text_constellation"
+      : "fixture_episode_constellation",
     thesis,
     selected_nodes: constellation.nodes.map((nodeItem) => nodeItem.id),
     selected_edges: constellation.edges.map((edgeItem) => edgeItem.id),
@@ -574,7 +778,7 @@ function buildPerspectiveCapsulePreview({
     next_action_candidates: next_action_candidates.map(
       (candidate) => candidate.candidate_id,
     ),
-    target_surface: source === "sample:chatgpt" ? "chatgpt_review" : "codex_handoff",
+    target_surface: source === "sample:codex" ? "codex_handoff" : "chatgpt_review",
     chatgpt_rendering_notes: [
       "Render nodes, edges, tensions, evidence pointers, and next actions as review material.",
       "Keep unresolved tensions visible and separate from support.",
@@ -600,6 +804,7 @@ function buildChatGptRenderingPacket({
   thesis: string;
   unresolved_tensions: PerspectiveIngestUnresolvedTension[];
 }): PerspectiveIngestChatGptRenderingPacket {
+  const isManual = source === "manual:pasted_text";
   const packetText = [
     "ChatGPT review packet",
     "",
@@ -639,8 +844,9 @@ function buildChatGptRenderingPacket({
     packet_id: `packet.${getSourceKey(source)}.chatgpt_review.v0_1`,
     target_surface: "chatgpt_review",
     title: "ChatGPT review packet",
-    summary:
-      "Manual review text for checking the fixture-backed graph, tensions, and next actions.",
+    summary: isManual
+      ? "Manual review text for checking the bounded pasted-text graph, tensions, and next actions."
+      : "Manual review text for checking the fixture-backed graph, tensions, and next actions.",
     packet_text: packetText,
     source_refs: [episode.source_ref, ...episode.evidence_refs],
     recommended_review_questions: [
@@ -663,56 +869,84 @@ function buildCodexHandoffPacket({
   source: PerspectiveIngestSourceQuery;
   thesis: string;
 }): PerspectiveIngestCodexHandoffPacket {
+  const isManual = source === "manual:pasted_text";
+  const workingBranchSuggestion = isManual
+    ? "codex/pasted-text-perspective-ingest-preview-v0-1"
+    : "codex/perspective-ingest-constellation-preview-v0-1";
+  const expectedPrTitle = isManual
+    ? "feat(cockpit): add pasted-text perspective ingest preview"
+    : "feat(cockpit): add graph-first perspective ingest constellation preview";
+  const contextAnchors = isManual
+    ? [
+        episode.source_ref,
+        "docs/PERSPECTIVE_INGEST_LOCAL_PASTED_TEXT_PREVIEW_V0_1.md",
+        "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md",
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+        "components/augnes-cockpit.tsx",
+      ]
+    : [
+        episode.source_ref,
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+        "components/augnes-cockpit.tsx",
+      ];
+  const expectedChangedFiles = episode.changed_files.length
+    ? episode.changed_files
+    : isManual
+      ? []
+      : [
+          "types/perspective-ingest-constellation-preview.ts",
+          "fixtures/perspective-ingest/*.json",
+          "lib/perspective-ingest/*.ts",
+          "lib/readonly-api/perspective-ingest-constellation-preview.ts",
+          "app/api/augnes/read/perspective-ingest-constellation-preview/route.ts",
+          "components/augnes-cockpit.tsx",
+          "app/globals.css",
+          "scripts/smoke-perspective-ingest-constellation-preview.mjs",
+          "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md",
+          "package.json",
+        ];
+  const requiredChecks = isManual
+    ? LOCAL_PREVIEW_REQUIRED_CHECKS
+    : SAMPLE_REQUIRED_CHECKS;
+  const prBodyRequirements = isManual
+    ? LOCAL_PREVIEW_PR_BODY_REQUIREMENTS
+    : SAMPLE_PR_BODY_REQUIREMENTS;
+  const finalReportRequirements = isManual
+    ? LOCAL_PREVIEW_FINAL_REPORT_REQUIREMENTS
+    : SAMPLE_FINAL_REPORT_REQUIREMENTS;
   const packetText = [
     "Repo: hynk-studio/augnes",
     "Base branch: main",
-    "Working branch suggestion: codex/perspective-ingest-constellation-preview-v0-1",
-    "Expected PR title: feat(cockpit): add graph-first perspective ingest constellation preview",
+    `Working branch suggestion: ${workingBranchSuggestion}`,
+    `Expected PR title: ${expectedPrTitle}`,
+    ...(isManual
+      ? [
+          "Packet note: this is a preview packet only; it is not an instruction to execute unless a user manually gives it to Codex.",
+        ]
+      : []),
     "",
     "Task goal:",
     thesis,
     "",
     "Context anchors:",
-    formatPacketList(
-      [
-        episode.source_ref,
-        "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
-        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
-        "components/augnes-cockpit.tsx",
-      ],
-      (item) => `- ${item}`,
-    ),
+    formatPacketList(contextAnchors, (item) => `- ${item}`),
     "",
     "Expected changed files:",
-    formatPacketList(
-      episode.changed_files.length
-        ? episode.changed_files
-        : [
-            "types/perspective-ingest-constellation-preview.ts",
-            "fixtures/perspective-ingest/*.json",
-            "lib/perspective-ingest/*.ts",
-            "lib/readonly-api/perspective-ingest-constellation-preview.ts",
-            "app/api/augnes/read/perspective-ingest-constellation-preview/route.ts",
-            "components/augnes-cockpit.tsx",
-            "app/globals.css",
-            "scripts/smoke-perspective-ingest-constellation-preview.mjs",
-            "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md",
-            "package.json",
-          ],
-      (item) => `- ${item}`,
-    ),
+    formatPacketList(expectedChangedFiles, (item) => `- ${item}`),
     "",
     "Hard constraints:",
     formatPacketList(FORBIDDEN_ACTIONS, (item) => `- ${item}`),
     "",
     "Required checks:",
-    formatPacketList(REQUIRED_CHECKS, (item) => `- ${item}`),
+    formatPacketList(requiredChecks, (item) => `- ${item}`),
     "",
     "PR body requirements:",
-    formatPacketList(PR_BODY_REQUIREMENTS, (item) => `- ${item}`),
+    formatPacketList(prBodyRequirements, (item) => `- ${item}`),
     "",
     "Final report requirements:",
-    formatPacketList(FINAL_REPORT_REQUIREMENTS, (item) => `- ${item}`),
+    formatPacketList(finalReportRequirements, (item) => `- ${item}`),
     "",
     "Graph summary:",
     `${constellation.nodes.length} nodes and ${constellation.edges.length} edges from ${source}.`,
@@ -723,28 +957,29 @@ function buildCodexHandoffPacket({
     target_surface: "codex_handoff",
     repo: "hynk-studio/augnes",
     base_branch: "main",
-    working_branch_suggestion:
-      "codex/perspective-ingest-constellation-preview-v0-1",
-    expected_pr_title:
-      "feat(cockpit): add graph-first perspective ingest constellation preview",
+    working_branch_suggestion: workingBranchSuggestion,
+    expected_pr_title: expectedPrTitle,
     task_goal: thesis,
-    context_anchors: [
-      episode.source_ref,
-      "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
-      "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
-      "components/augnes-cockpit.tsx",
-    ],
-    expected_changed_files: episode.changed_files,
+    context_anchors: contextAnchors,
+    expected_changed_files: expectedChangedFiles,
     hard_constraints: FORBIDDEN_ACTIONS,
-    required_checks: REQUIRED_CHECKS,
-    pr_body_requirements: PR_BODY_REQUIREMENTS,
-    final_report_requirements: FINAL_REPORT_REQUIREMENTS,
+    required_checks: requiredChecks,
+    pr_body_requirements: prBodyRequirements,
+    final_report_requirements: finalReportRequirements,
     packet_text: packetText,
   };
 }
 
 function getSourceKey(source: PerspectiveIngestSourceQuery) {
-  return source === "sample:chatgpt" ? "sample_chatgpt" : "sample_codex";
+  if (source === "sample:chatgpt") {
+    return "sample_chatgpt";
+  }
+
+  if (source === "sample:codex") {
+    return "sample_codex";
+  }
+
+  return "manual_pasted_text";
 }
 
 function summarizeList(items: string[]) {

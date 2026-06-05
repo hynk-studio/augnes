@@ -9,7 +9,13 @@
 
 export type PerspectiveIngestSourceKind =
   | "chatgpt_record_fixture"
-  | "codex_record_fixture";
+  | "codex_record_fixture"
+  | "manual_pasted_text";
+
+export type PerspectiveIngestSourceQuery =
+  | "sample:chatgpt"
+  | "sample:codex"
+  | "manual:pasted_text";
 
 export interface PerspectiveIngestSessionEpisode {
   episode_id: string;
@@ -21,9 +27,10 @@ export interface PerspectiveIngestSessionEpisode {
   synthetic_timestamp: string;
   actors: string[];
   public_safety: {
-    synthetic: true;
-    public_safe: true;
-    sample_fixture_only: true;
+    synthetic: boolean;
+    public_safe: boolean;
+    sample_fixture_only: boolean;
+    manual_local_preview?: boolean;
     not_raw_private_history: true;
     no_credentials_or_secrets: true;
     no_proof_evidence_readiness_write: true;
@@ -92,7 +99,11 @@ export interface PerspectiveIngestEvidencePointer {
   pointer_id: string;
   label: string;
   target_ref: string;
-  pointer_kind: "fixture_pointer" | "document_pointer" | "validation_pointer";
+  pointer_kind:
+    | "fixture_pointer"
+    | "document_pointer"
+    | "validation_pointer"
+    | "local_preview_pointer";
   pointer_semantics: "pointer_only";
   bounded_summary: string;
   source_episode_ids: string[];
@@ -126,7 +137,9 @@ export interface PerspectiveIngestPerspectiveCapsulePreview {
   source_scope: "project:augnes";
   source_snapshot_ref: string;
   source_constellation_ref: string;
-  formation_mode: "fixture_episode_constellation";
+  formation_mode:
+    | "fixture_episode_constellation"
+    | "manual_pasted_text_constellation";
   thesis: string;
   selected_nodes: string[];
   selected_edges: string[];
@@ -173,13 +186,15 @@ export interface PerspectiveIngestConstellationPreviewResponse {
   boundary_class: "read_only_local_ingest_constellation_preview";
   meta: {
     generated_at: string;
-    route_id: "augnes.read.perspective-ingest-constellation-preview.v0.1";
+    route_id:
+      | "augnes.read.perspective-ingest-constellation-preview.v0.1"
+      | "augnes.read.perspective-ingest-local-preview.v0.1";
     route_family: "perspective_ingest_constellation";
     workspace_scope: "project:augnes";
     project_scope: "project:augnes";
     request_scope_ref: "project:augnes";
-    source_query: "sample:chatgpt" | "sample:codex";
-    deterministic_fixture_generation: true;
+    source_query: PerspectiveIngestSourceQuery;
+    deterministic_fixture_generation: boolean;
     local_only: true;
     read_only: true;
     external_calls: false;
@@ -200,7 +215,8 @@ export interface PerspectiveIngestConstellationPreviewResponse {
     batch_id: string;
     episode_count: number;
     episode_ids: string[];
-    fixture_only: true;
+    fixture_only: boolean;
+    local_user_provided: boolean;
     public_safe: true;
     deterministic: true;
     boundary_notes: string[];
@@ -225,6 +241,22 @@ export interface PerspectiveIngestConstellationPreviewErrorBody {
   error: {
     code: string;
     status: number;
+  };
+  authority_boundary: string[];
+}
+
+export interface PerspectiveIngestLocalPastedTextPreviewRequest {
+  input_kind: "manual:pasted_text";
+  input_text: string;
+  source_label?: string;
+}
+
+export interface PerspectiveIngestLocalPreviewErrorBody {
+  response_version: "perspective_ingest_constellation_preview.v0.1";
+  error: {
+    code: string;
+    status: number;
+    summary: string;
   };
   authority_boundary: string[];
 }
