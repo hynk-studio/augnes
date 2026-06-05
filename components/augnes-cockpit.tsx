@@ -3980,6 +3980,10 @@ function PerspectiveTab({
     useState<ConstellationRoutePreviewState>({ status: "loading" });
   const [constellationHandoffCopyNotice, setConstellationHandoffCopyNotice] =
     useState<Notice | null>(null);
+  const [
+    selectedConstellationNextActionId,
+    setSelectedConstellationNextActionId,
+  ] = useState<string | null>(null);
   const preview = temporalPreview?.preview ?? null;
   const evidenceRecordCount =
     (evidencePack?.verification_trace.commands_run.length ?? 0) +
@@ -4025,6 +4029,14 @@ function PerspectiveTab({
     constellationRoutePreview?.unresolved_tensions ?? [];
   const routeNextActionCandidates =
     constellationRoutePreview?.next_action_candidates ?? [];
+  const selectedConstellationNextAction =
+    routeNextActionCandidates.find(
+      (candidate) =>
+        candidate.candidate_id === selectedConstellationNextActionId,
+    ) ??
+    routeNextActionCandidates[0] ??
+    routeProjectConstellation?.next_action_candidates[0] ??
+    null;
 
   useEffect(() => {
     let cancelled = false;
@@ -4041,11 +4053,36 @@ function PerspectiveTab({
     };
   }, []);
 
+  useEffect(() => {
+    if (constellationRoutePreviewState.status !== "loaded") {
+      setSelectedConstellationNextActionId(null);
+      return;
+    }
+
+    const candidates = constellationRoutePreviewState.data.next_action_candidates;
+    setSelectedConstellationNextActionId((currentId) => {
+      if (
+        currentId &&
+        candidates.some((candidate) => candidate.candidate_id === currentId)
+      ) {
+        return currentId;
+      }
+
+      return candidates[0]?.candidate_id ?? null;
+    });
+  }, [constellationRoutePreviewState]);
+
   async function copyConstellationCodexHandoff(
     preview: ConstellationRoutePreviewResponse,
+    selectedNextAction: ConstellationRoutePreviewNextActionCandidate | null,
   ) {
     try {
-      await copyTextToClipboard(buildProjectConstellationCodexHandoffPrompt(preview));
+      await copyTextToClipboard(
+        buildProjectConstellationCodexHandoffPrompt(
+          preview,
+          selectedNextAction,
+        ),
+      );
       setConstellationHandoffCopyNotice({
         tone: "info",
         text: "Copied",
@@ -4857,9 +4894,15 @@ function PerspectiveTab({
                 <article>
                   <h3>Copy Codex handoff</h3>
                   <p>
-                    Build a Codex-ready prompt from this preview, using the top
-                    advisory next action and pointer-only context.
+                    Build a Codex-ready prompt from this preview, using the
+                    selected advisory next action and pointer-only context.
                   </p>
+                  {selectedConstellationNextAction ? (
+                    <p>
+                      Selected handoff action:{" "}
+                      <strong>{selectedConstellationNextAction.summary}</strong>
+                    </p>
+                  ) : null}
                   <div className="copy-control">
                     <button
                       type="button"
@@ -4867,7 +4910,10 @@ function PerspectiveTab({
                       disabled={!constellationRoutePreview}
                       onClick={() => {
                         if (!constellationRoutePreview) return;
-                        void copyConstellationCodexHandoff(constellationRoutePreview);
+                        void copyConstellationCodexHandoff(
+                          constellationRoutePreview,
+                          selectedConstellationNextAction,
+                        );
                       }}
                     >
                       Copy Codex handoff
@@ -4942,19 +4988,76 @@ function PerspectiveTab({
                   }))}
                   emptyLabel="No route unresolved tensions loaded"
                 />
-                <TensionList
-                  title="next action candidates are advisory"
-                  items={routeNextActionCandidates.slice(0, 5).map((candidate) => ({
-                    key: candidate.candidate_id,
-                    label: candidate.label ?? candidate.candidate_id,
-                    detail: candidate.summary,
-                    metaChips: [
-                      "advisory",
-                      ...(candidate.source_refs?.slice(0, 1) ?? []),
-                    ],
-                  }))}
-                  emptyLabel="No route next action candidates loaded"
-                />
+                <section
+                  className="perspective-tension-list"
+                  aria-label="Next action candidates for copied Codex handoff"
+                >
+                  <h3>next action candidates are advisory</h3>
+                  {routeNextActionCandidates.length === 0 ? (
+                    <EmptyState label="No route next action candidates loaded" />
+                  ) : (
+                    <div
+                      className="compact-list"
+                      role="group"
+                      aria-label="Choose next action for handoff"
+                    >
+                      {routeNextActionCandidates.slice(0, 5).map((candidate) => {
+                        const selected =
+                          candidate.candidate_id ===
+                          selectedConstellationNextAction?.candidate_id;
+
+                        return (
+                          <article
+                            className="tension-diagnostic-card"
+                            key={candidate.candidate_id}
+                          >
+                            <header className="tension-card-header">
+                              <strong className="tension-card-title">
+                                {candidate.label ?? candidate.candidate_id}
+                              </strong>
+                              <div
+                                className="tension-chip-row"
+                                aria-label="Next action metadata"
+                              >
+                                <span className="tension-chip">advisory</span>
+                                {selected ? (
+                                  <span className="tension-chip">
+                                    selected for handoff
+                                  </span>
+                                ) : null}
+                                {candidate.source_refs?.slice(0, 1).map((ref) => (
+                                  <span className="tension-chip" key={ref}>
+                                    {ref}
+                                  </span>
+                                ))}
+                              </div>
+                            </header>
+                            <div className="tension-card-body">
+                              <p>{candidate.summary}</p>
+                              <div className="button-row">
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  aria-pressed={selected}
+                                  onClick={() => {
+                                    setSelectedConstellationNextActionId(
+                                      candidate.candidate_id,
+                                    );
+                                    setConstellationHandoffCopyNotice(null);
+                                  }}
+                                >
+                                  {selected
+                                    ? "Selected for handoff"
+                                    : "Use for handoff"}
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
               </div>
               <div className="perspective-frame-summary">
                 <article>
@@ -20827,9 +20930,12 @@ function getStringListField(value: unknown, field: string) {
 
 function buildProjectConstellationCodexHandoffPrompt(
   preview: ConstellationRoutePreviewResponse,
+  selectedNextActionCandidate: ConstellationRoutePreviewNextActionCandidate | null =
+    null,
 ) {
   const project = preview.project_constellation;
   const recommendedNextAction =
+    selectedNextActionCandidate ??
     preview.next_action_candidates[0] ??
     project.next_action_candidates[0] ??
     null;
@@ -20849,7 +20955,10 @@ function buildProjectConstellationCodexHandoffPrompt(
     "",
     "Task goal:",
     recommendedNextAction
-      ? `Implement the next focused slice from Project Constellation: ${recommendedNextAction.summary}`
+      ? [
+          "Implement the next focused slice from Project Constellation using",
+          `the selected next action: ${recommendedNextAction.summary}`,
+        ].join(" ")
       : `Implement the next focused slice from Project Constellation: ${project.thesis}`,
     "",
     "Project Constellation thesis:",
@@ -20880,7 +20989,7 @@ function buildProjectConstellationCodexHandoffPrompt(
       "No evidence pointers were present in the preview.",
     ),
     "",
-    "Recommended next action candidate:",
+    "Selected next action candidate:",
     recommendedNextAction
       ? `- ${recommendedNextAction.label ?? recommendedNextAction.candidate_id}: ${
           recommendedNextAction.summary
