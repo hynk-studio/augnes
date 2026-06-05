@@ -185,6 +185,7 @@ The planned minimal response profile maps to
 required for read-only decision support:
 
 - `meta`
+- `boundary_class`
 - `source_refs`
 - `project_constellation`, limited to bounded read model fields
 - `perspective_capsule_preview`, only if needed
@@ -192,8 +193,7 @@ required for read-only decision support:
 - `evidence_pointers`, pointer-only
 - `unresolved_tensions`
 - `next_action_candidates`
-- `forbidden_fields_removed`
-- `authority_boundary`
+- optional diagnostics for detailed authority and forbidden-field vocabulary
 
 Raw DB rows must not be returned. Raw private user text beyond explicitly scoped
 Augnes records must not be returned. Fields that are not needed for the first
@@ -210,6 +210,7 @@ Planned field-family decisions:
 | Field family | Why needed | Source/provenance expectation | Privacy risk | Minimization rule | Future test/smoke expectation |
 | --- | --- | --- | --- | --- | --- |
 | `meta` | Identifies route family, response version, generated time, and scope boundary. | Derived from route implementation constants and authenticated request scope. | Scope metadata can reveal project existence. | Return only route family, response version, generated time, workspace/project scope, and boundary flags needed for debugging. | Assert GET/read-only metadata, `project:augnes` scope, and no implementation-authority flags. |
+| `boundary_class` | Gives each display/advisory section a compact capability class. | Derived from route family and response section type. | Low privacy risk; it is fixed vocabulary. | Use the small union in `types/readonly-api-route-response.ts`; do not expand into long prose in default payloads. | Assert capsule/handoff/boundary-next-review sections use class fields and do not require `authority_boundary`. |
 | `source_refs` | Lets reviewers trace display data without raw records. | Bounded pointers to authorized Augnes records or approved static preview sources. | Source labels can leak record names or private identifiers. | Use stable bounded references and summaries only; no raw DB rows or private payloads. | Assert source refs are present only for authorized scope and omit raw private text. |
 | `project_constellation` | Carries the read-only constellation model for decision support. | Derived read model from authorized preview sources. | Nodes/edges can quote sensitive work context. | Include bounded node, edge, cluster, thesis, boundary, and status fields only. | Assert unresolved tensions remain separate and no runtime graph fields appear. |
 | `perspective_capsule_preview` | Optional display preview for bounded handoff context. | Derived from authorized capsule preview source. | Capsule text can contain user-authored content. | Include only fields needed for manual inspection; omit raw private text unless explicitly scoped. | Assert preview is display-only and has no Codex/provider launch handles. |
@@ -217,8 +218,7 @@ Planned field-family decisions:
 | `evidence_pointers` | Shows support pointers without creating proof/evidence records. | Pointer-only references to authorized evidence targets. | Pointer labels can leak private target details. | Return pointer labels, types, bounded summaries, and scope-safe refs only. | Assert pointer-only semantics and no proof/evidence/readiness writes. |
 | `unresolved_tensions` | Preserves uncertainty separately from support. | Derived from authorized preview/read model material. | Tension text can contain raw private context. | Keep bounded summaries and visible separation from support/evidence. | Assert tensions are not collapsed into evidence/support. |
 | `next_action_candidates` | Gives advisory follow-up options for human review. | Derived from authorized preview/read model material. | Candidate wording can be misread as commands. | Label candidates as advisory; omit execution handles and mutation targets. | Assert no branch/PR/Codex/publish/merge/deploy authority. |
-| `forbidden_fields_removed` | Provides review evidence that unsafe fields are excluded. | Static route-side removal vocabulary and response test output. | Low privacy risk when it lists field families only. | Return names of removed forbidden field families, not removed values. | Assert required forbidden field names are listed and values are absent. |
-| `authority_boundary` | Makes no-action boundaries visible to downstream surfaces. | Static route-side boundary text. | Low privacy risk, but wording can be misinterpreted. | Use concise negative boundary text; no instructions or action language. | Assert no route-provided text grants authority. |
+| `diagnostics` | Carries detailed authority and forbidden-field lists only when explicitly requested for debug/review. | Static route-side diagnostic vocabulary and response test output. | Low privacy risk when it lists field families only, but it can clutter or confuse product UI. | Keep `authority_boundary` and `forbidden_fields_removed` inside diagnostics/debug paths; default product payloads use `boundary_class`. | Assert default payloads omit detailed lists and `diagnostics=authority` keeps those lists available. |
 
 The future route must remove or never return:
 
@@ -274,7 +274,10 @@ or deploy.
 The default route-first local validation plan does not require capsule fields.
 If the future implementation PR includes capsule or copyable handoff preview
 fields, it must justify those fields under the minimization plan and preserve
-manual review/copy discipline.
+manual review/copy discipline. Those fields should use compact
+`perspective_capsule_preview` and `copyable_handoff_draft` boundary classes by
+default, with detailed authority prose available only through diagnostics or
+Authority Matrix references.
 
 Capsule text returned by the route is untrusted display data, not tool
 instructions.
@@ -403,7 +406,8 @@ Future route implementation PR requirements:
   browser/computer-use validation is required
 - validation must confirm read-only comprehension, absence of false action
   affordances, visible unresolved tensions, pointer-only evidence semantics,
-  advisory next action candidates, and display/copyable capsule boundaries
+  advisory next action candidates, compact boundary classes, and display plus
+  copyable capsule boundaries
 - validation must report inspected URL or skipped reason, local runtime setup,
   scenario results, authority clarity, false-affordance findings, and skipped
   checks with reasons

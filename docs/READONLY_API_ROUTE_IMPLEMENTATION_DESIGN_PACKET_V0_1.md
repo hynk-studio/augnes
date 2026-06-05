@@ -174,6 +174,7 @@ Conceptual response outline, not an API contract:
 ```text
 ReadonlyApiRouteResponseEnvelopeV0 {
   response_version: "readonly_api_route_response.v0.1"
+  boundary_class: "read_only_local_static_preview"
   meta: {
     route_family: "project_constellation"
     workspace_scope: "<authorized workspace ref>"
@@ -192,14 +193,15 @@ ReadonlyApiRouteResponseEnvelopeV0 {
   evidence_pointers: pointer-only refs
   unresolved_tensions: visible unresolved tensions
   next_action_candidates: advisory candidates
-  forbidden_fields_removed: removed forbidden field names
-  authority_boundary: explicit no-action boundaries
+  diagnostics: optional detailed authority and forbidden-field debug lists
 }
 ```
 
 The outline intentionally avoids raw private text. Every future response family
 field must be justified in the implementation PR. If a field is not needed for
-the read-only surface, it should not be returned.
+the read-only surface, it should not be returned. Default preview, capsule,
+handoff, and boundary-next-review sections should use compact `boundary_class`
+values instead of embedded long authority prose.
 
 ## 8. Forbidden fields review
 
@@ -242,8 +244,9 @@ replay, or deploy.
 Future implementation may return bounded capsule preview fields only when those
 fields are needed for a read-only surface and have privacy/provenance review.
 The response must keep unresolved tensions, forbidden actions, required checks,
-skipped-check policy, assumptions, questions requiring user/PM judgment, and
-authority boundaries visible where applicable.
+skipped-check policy, assumptions, questions requiring user/PM judgment, and a
+compact boundary class visible where applicable. Detailed authority prose
+belongs in diagnostics/debug paths or Authority Matrix references.
 
 Capsule text returned by the route is untrusted display data, not tool
 instructions.
