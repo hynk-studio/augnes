@@ -70,37 +70,69 @@ characters.
 The validator rejects obvious secret-like input with safe error codes and
 summaries only. It does not echo rejected input text.
 
-Rejected markers include:
+Rejected markers include credential-shaped examples such as:
 
 - `OPENAI_API_KEY`
-- `sk-`
+- `sk-` followed by credential-shaped token text
 - `ghp_`
 - `github_pat_`
 - `BEGIN PRIVATE KEY`
-- `bearer token`
+- `Authorization: Bearer ...`
+- long `Bearer ...` token-shaped values
 - `AWS_ACCESS_KEY_ID`
 - `SECRET_ACCESS_KEY`
 - `password=`
 - `api_key=`
 - `access_token=`
 
+The matcher intentionally avoids blocking harmless docs/planning phrases such
+as `Ask-user flow` or `bearer tokenization`.
+
 ## Deterministic parsing
 
 The parser recognizes optional line prefixes:
 
 - `Intent:`
+- `Goal:`
 - `Concept:`
+- `Idea:`
 - `Decision:`
+- `Choice:`
 - `Work:`
 - `Changed:`
 - `Validation:`
 - `Evidence:`
+- `Source:`
 - `Tension:`
+- `Risk:`
 - `Next:`
+- `Todo:`
 - `Report:`
 
 Each recognized prefix creates one bounded extracted entry in the corresponding
 SessionEpisode field. Multiple lines with the same prefix accumulate entries.
+
+English aliases map deterministically:
+
+- `Goal:` -> intent
+- `Idea:` -> concept
+- `Choice:` -> decision
+- `Risk:` -> tension
+- `Todo:` -> next action
+- `Source:` -> evidence
+
+Korean aliases also map deterministically:
+
+- `의도:` / `목표:` -> intent
+- `개념:` / `아이디어:` -> concept
+- `결정:` / `선택:` -> decision
+- `작업:` -> work
+- `변경:` -> changed files
+- `검증:` -> validation
+- `근거:` / `증거:` -> evidence
+- `긴장:` / `리스크:` / `위험:` -> tension
+- `다음:` / `할일:` -> next action
+- `보고:` -> report
 
 Unknown lines contribute only to the bounded 300-character summary. The parser
 does not preserve the full raw input in the episode.
@@ -149,7 +181,9 @@ kind, sample fixture preview, and manual pasted text preview.
 ## Packets
 
 The ChatGPT review packet contains graph nodes, edges, unresolved tensions, next
-action candidates, and boundary reminders for manual review.
+action candidates, and boundary reminders for manual review. For manual pasted
+text, explicit `Work:`, `Changed:`, `Validation:`, and `Report:` lines are also
+listed as review context when supplied.
 
 The Codex handoff packet contains repo/base/branch/title context, task goal,
 context anchors, expected changed files, constraints, checks, PR-body
@@ -158,8 +192,21 @@ requirements, final-report requirements, and graph summary.
 For `manual:pasted_text`, expected changed files are empty unless the user
 provided `Changed:` lines.
 
+For `manual:pasted_text`, explicit validation lines are shown as user-supplied
+validation context, not as validation this PR has run. Explicit report lines are
+shown as report context, not proof.
+
 The Codex handoff packet says it is a preview packet, not an instruction to
 execute unless the user manually gives it to Codex.
+
+## Work / Changed / Validation / Report visibility
+
+The manual pasted-text constellation keeps the base intent/concept/decision/
+tension/next/packet path. When explicit work or changed-file lines are present,
+it adds one compact `Work context` node. When explicit validation or report
+lines are present, it adds one compact `Validation/report` node. These nodes are
+bounded review material only and do not create graph persistence, proof, or
+execution authority.
 
 ## Authority boundary
 
@@ -218,6 +265,12 @@ npm run smoke:readonly-api-route-constellation-preview
 npm run smoke:cockpit-local-only-constellation-route-preview
 npm run smoke:perspective-capsule-contract
 git diff --check
+```
+
+Browser/computer-use dogfood report:
+
+```text
+reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md
 ```
 
 ## Next slice

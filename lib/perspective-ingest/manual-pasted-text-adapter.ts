@@ -25,6 +25,44 @@ type ManualPastedTextParsedFields = Pick<
   | "next_actions"
 >;
 
+type ManualPastedTextPrefix = keyof ManualPastedTextParsedFields;
+
+const PREFIX_ALIASES: Record<string, ManualPastedTextPrefix> = {
+  intent: "user_intents",
+  goal: "user_intents",
+  "의도": "user_intents",
+  "목표": "user_intents",
+  concept: "product_concepts",
+  idea: "product_concepts",
+  "개념": "product_concepts",
+  "아이디어": "product_concepts",
+  decision: "decisions",
+  choice: "decisions",
+  "결정": "decisions",
+  "선택": "decisions",
+  work: "work_units",
+  "작업": "work_units",
+  changed: "changed_files",
+  "변경": "changed_files",
+  validation: "validations",
+  "검증": "validations",
+  evidence: "evidence_refs",
+  source: "evidence_refs",
+  "근거": "evidence_refs",
+  "증거": "evidence_refs",
+  tension: "unresolved_tensions",
+  risk: "unresolved_tensions",
+  "긴장": "unresolved_tensions",
+  "리스크": "unresolved_tensions",
+  "위험": "unresolved_tensions",
+  next: "next_actions",
+  todo: "next_actions",
+  "다음": "next_actions",
+  "할일": "next_actions",
+  report: "final_report_points",
+  "보고": "final_report_points",
+};
+
 const DEFAULT_FIELDS: ManualPastedTextParsedFields = {
   user_intents: [
     "Review local user-provided pasted text as a Perspective ingest preview.",
@@ -114,17 +152,17 @@ function parseManualPastedText(
     const line = rawLine.trim();
     if (!line) continue;
 
-    const match = line.match(
-      /^(Intent|Concept|Decision|Work|Changed|Validation|Evidence|Tension|Next|Report):\s*(.*)$/i,
-    );
+    const match = line.match(/^([^:：]{1,32})[:：]\s*(.*)$/u);
     if (!match) continue;
 
-    const prefix = match[1].toLowerCase();
+    const field = getManualPastedTextPrefixField(match[1] ?? "");
+    if (!field) continue;
+
     const value = boundText(normalizeWhitespace(match[2] ?? ""), MAX_ENTRY_LENGTH);
     if (!value) continue;
 
     recognizedPrefixSeen = true;
-    addParsedValue(parsed, prefix, value);
+    appendBounded(parsed[field], value);
   }
 
   if (!recognizedPrefixSeen) {
@@ -154,32 +192,12 @@ function parseManualPastedText(
   };
 }
 
-function addParsedValue(
-  parsed: ManualPastedTextParsedFields,
-  prefix: string,
-  value: string,
-) {
-  if (prefix === "intent") {
-    appendBounded(parsed.user_intents, value);
-  } else if (prefix === "concept") {
-    appendBounded(parsed.product_concepts, value);
-  } else if (prefix === "decision") {
-    appendBounded(parsed.decisions, value);
-  } else if (prefix === "work") {
-    appendBounded(parsed.work_units, value);
-  } else if (prefix === "changed") {
-    appendBounded(parsed.changed_files, value);
-  } else if (prefix === "validation") {
-    appendBounded(parsed.validations, value);
-  } else if (prefix === "evidence") {
-    appendBounded(parsed.evidence_refs, value);
-  } else if (prefix === "tension") {
-    appendBounded(parsed.unresolved_tensions, value);
-  } else if (prefix === "next") {
-    appendBounded(parsed.next_actions, value);
-  } else if (prefix === "report") {
-    appendBounded(parsed.final_report_points, value);
-  }
+function getManualPastedTextPrefixField(
+  rawPrefix: string,
+): ManualPastedTextPrefix | null {
+  const normalizedPrefix = rawPrefix.trim().toLowerCase();
+
+  return PREFIX_ALIASES[normalizedPrefix] ?? null;
 }
 
 function appendBounded(items: string[], value: string) {

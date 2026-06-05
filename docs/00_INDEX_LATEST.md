@@ -593,7 +593,9 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   smoke:perspective-ingest-local-pasted-text-preview` confirms the POST route,
   guard, validation helper, manual adapter, packet-builder support, Cockpit
   labels/buttons, docs boundaries, package pointer, and forbidden external
-  call/write patterns.
+  call/write patterns. The browser/computer-use dogfood report for the
+  pasted-text UX is
+  `reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md`.
 - `CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md`: Codex SDK execution
   authority design v0.1의 repo-local, non-SSOT, docs/smoke/package-pointer
   only, design-only pointer다. It maps official Codex SDK thread/run/resume,

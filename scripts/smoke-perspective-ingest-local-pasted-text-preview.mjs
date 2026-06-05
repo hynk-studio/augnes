@@ -24,6 +24,8 @@ const boundaryDoc =
 const fixturePreviewDoc =
   "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
+const dogfoodReport =
+  "reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs";
@@ -41,6 +43,7 @@ const inspectedFiles = [
   boundaryDoc,
   fixturePreviewDoc,
   indexDoc,
+  dogfoodReport,
   packageJsonFile,
   smokeFile,
 ];
@@ -124,17 +127,21 @@ function assertRequestAndValidationShape() {
     "input_text_too_large",
     "secret_like_input",
     "OPENAI_API_KEY",
-    "sk-",
+    "sk-[A-Za-z0-9_-]{8,}",
     "ghp_",
     "github_pat_",
     "BEGIN PRIVATE KEY",
-    "bearer\\s+token",
+    "authorization:\\s*bearer",
+    "bearer\\s+[A-Za-z0-9._-]{16,}",
     "AWS_ACCESS_KEY_ID",
     "SECRET_ACCESS_KEY",
     "password=",
     "api_key=",
     "access_token=",
   ], { textByFile });
+  const validationText = textByFile.get(validationHelperFile);
+  assert(!/\/sk-\/i/.test(validationText), `${validationHelperFile} must not use broad /sk-/ secret matching`);
+  assert(!/\/bearer\\s\+token\/i/.test(validationText), `${validationHelperFile} must not reject bearer tokenization docs text`);
 }
 
 function assertAdapterAndPacketShape() {
@@ -145,7 +152,23 @@ function assertAdapterAndPacketShape() {
     "source_ref: MANUAL_PASTED_TEXT_SOURCE_REF",
     "local-user-provided:manual-pasted-text",
     "MAX_SUMMARY_LENGTH = 300",
-    "Intent|Concept|Decision|Work|Changed|Validation|Evidence|Tension|Next|Report",
+    "PREFIX_ALIASES",
+    "goal: \"user_intents\"",
+    "idea: \"product_concepts\"",
+    "choice: \"decisions\"",
+    "risk: \"unresolved_tensions\"",
+    "todo: \"next_actions\"",
+    "source: \"evidence_refs\"",
+    "\"의도\": \"user_intents\"",
+    "\"개념\": \"product_concepts\"",
+    "\"결정\": \"decisions\"",
+    "\"작업\": \"work_units\"",
+    "\"변경\": \"changed_files\"",
+    "\"검증\": \"validations\"",
+    "\"근거\": \"evidence_refs\"",
+    "\"긴장\": \"unresolved_tensions\"",
+    "\"다음\": \"next_actions\"",
+    "\"보고\": \"final_report_points\"",
     "not raw private history",
     "no external call",
     "no Codex execution authority",
@@ -155,6 +178,12 @@ function assertAdapterAndPacketShape() {
     "manual:pasted_text",
     "buildManualPastedTextConstellation",
     "Manual pasted text source",
+    "Work context",
+    "Validation/report",
+    "work_context",
+    "validation_report",
+    "User-supplied validation context (not rerun by this packet):",
+    "User-supplied report context (review context, not proof):",
     "derived_from",
     "refines",
     "supports",
@@ -179,6 +208,10 @@ function assertCockpitSurface() {
     "Load safe pasted text example",
     "Clear pasted text",
     "fetchPerspectiveIngestLocalPastedTextPreview",
+    "failed preview",
+    "unavailable",
+    "formatPerspectiveIngestGraphNodeLabel",
+    "formatPerspectiveIngestGraphEdgeLabel",
     "selected sample source",
     "loaded source query",
     "Copy ChatGPT review packet",
@@ -206,6 +239,10 @@ function assertBoundaryDocs() {
     "bounded 300-character summary",
     "does not preserve the full raw input",
     "rejects obvious secret-like input",
+    "English aliases",
+    "Korean aliases",
+    "Work / Changed / Validation / Report",
+    "credential-shaped",
     "Cockpit reuses the existing Perspective Ingest Constellation display path",
     "no raw private history persistence",
     "no automatic ChatGPT account scraping",
@@ -230,7 +267,17 @@ function assertBoundaryDocs() {
   ], { textByFile });
   assertContainsAll(indexDoc, [
     "PERSPECTIVE_INGEST_LOCAL_PASTED_TEXT_PREVIEW_V0_1.md",
+    "reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md",
     "smoke:perspective-ingest-local-pasted-text-preview",
+  ], { textByFile });
+  assertContainsAll(dogfoodReport, [
+    "Perspective Ingest Local Pasted Text Dogfood",
+    "False-Positive Secret Rejection Findings",
+    "True Secret Rejection Findings",
+    "Prefix Vocabulary Findings",
+    "Graph UX Findings",
+    "Packet Usefulness Findings",
+    "Next Suggested Goal",
   ], { textByFile });
 }
 

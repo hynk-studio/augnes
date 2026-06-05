@@ -78,6 +78,8 @@ const cockpitPlanSmokeFile =
 const cockpitFile = "components/augnes-cockpit.tsx";
 const browserReportFile =
   "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
+const pastedTextDogfoodReportFile =
+  "reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md";
 const cockpitImplementationSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
 const closeoutSmokeFile =
@@ -185,6 +187,7 @@ const allowedChangedFiles = new Set([
   cockpitPlanSmokeFile,
   cockpitFile,
   browserReportFile,
+  pastedTextDogfoodReportFile,
   cockpitImplementationSmokeFile,
   closeoutSmokeFile,
   staticCockpitSmokeFile,

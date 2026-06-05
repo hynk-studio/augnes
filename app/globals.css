@@ -1490,7 +1490,7 @@ h1 {
 
 .ingest-constellation-edge text {
   fill: #405168;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0;
   text-anchor: middle;
@@ -1509,7 +1509,7 @@ h1 {
 
 .ingest-constellation-node text {
   fill: #123c2f;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 760;
   letter-spacing: 0;
   text-anchor: middle;

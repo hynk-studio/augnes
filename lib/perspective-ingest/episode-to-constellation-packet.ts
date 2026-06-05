@@ -578,6 +578,10 @@ function buildManualPastedTextConstellation({
   const pointerIds = evidence_pointers.map((pointer) => pointer.pointer_id);
   const tensionIds = unresolved_tensions.map((tension) => tension.tension_id);
   const nextIds = next_action_candidates.map((candidate) => candidate.candidate_id);
+  const hasWorkContext =
+    episode.work_units.length > 0 || episode.changed_files.length > 0;
+  const hasValidationReport =
+    episode.validations.length > 0 || episode.final_report_points.length > 0;
   const nodes: PerspectiveIngestConstellationNode[] = [
     node({
       id: `node.${sourceKey}.source`,
@@ -611,6 +615,30 @@ function buildManualPastedTextConstellation({
       episode,
       pointerIds: pointerIds.slice(0, 3),
     }),
+    ...(hasWorkContext
+      ? [
+          node({
+            id: `node.${sourceKey}.work_context`,
+            type: "work_context",
+            label: "Work context",
+            summary: summarizeManualWorkContext(episode),
+            episode,
+            pointerIds: pointerIds.slice(0, 3),
+          }),
+        ]
+      : []),
+    ...(hasValidationReport
+      ? [
+          node({
+            id: `node.${sourceKey}.validation_report`,
+            type: "validation_report",
+            label: "Validation/report",
+            summary: summarizeManualValidationReport(episode),
+            episode,
+            pointerIds: pointerIds.slice(0, 3),
+          }),
+        ]
+      : []),
     node({
       id: `node.${sourceKey}.tension`,
       type: "unresolved_tension",
@@ -640,7 +668,12 @@ function buildManualPastedTextConstellation({
       nextIds,
     }),
   ];
-  const edges = buildEdges(sourceKey, episode.episode_id, pointerIds, [
+  const edgeSpecs: [
+    PerspectiveIngestConstellationEdge["type"],
+    string,
+    string,
+    string,
+  ][] = [
     ["derived_from", "source", "user_intent", "The user intent is derived from bounded local pasted text extraction."],
     ["refines", "user_intent", "concept", "The user intent refines the manual local Perspective ingest preview concept."],
     ["supports", "concept", "decision", "The concept supports the local-only non-persistent decision."],
@@ -649,7 +682,32 @@ function buildManualPastedTextConstellation({
     ["next_candidate", "decision", "next_move", "The decision points to a manual review next move."],
     ["evidence_for", "source", "packet", "The bounded local source pointer is evidence for the copyable packets."],
     ["depends_on", "next_move", "packet", "The packets depend on manual review before any future import slice."],
-  ]);
+  ];
+
+  if (hasWorkContext) {
+    edgeSpecs.push(
+      ["derived_from", "source", "work_context", "The work context is derived from explicit Work and Changed pasted-text lines."],
+      ["depends_on", "work_context", "next_move", "The advisory next move depends on the bounded work context."],
+    );
+  }
+
+  if (hasWorkContext && hasValidationReport) {
+    edgeSpecs.push(
+      ["validates", "work_context", "validation_report", "User-supplied validation and report context qualifies the work context without creating proof."],
+      ["supports", "validation_report", "packet", "Validation and report context supports packet review only."],
+    );
+  } else if (hasValidationReport) {
+    edgeSpecs.push(
+      ["derived_from", "source", "validation_report", "Validation and report context is derived from explicit pasted-text lines."],
+      ["supports", "validation_report", "packet", "Validation and report context supports packet review only."],
+    );
+  } else if (hasWorkContext) {
+    edgeSpecs.push(
+      ["supports", "work_context", "packet", "Work and changed-file context supports packet review only."],
+    );
+  }
+
+  const edges = buildEdges(sourceKey, episode.episode_id, pointerIds, edgeSpecs);
 
   return {
     constellation_id: `constellation.${sourceKey}.v0_1`,
@@ -805,6 +863,9 @@ function buildChatGptRenderingPacket({
   unresolved_tensions: PerspectiveIngestUnresolvedTension[];
 }): PerspectiveIngestChatGptRenderingPacket {
   const isManual = source === "manual:pasted_text";
+  const manualContextSections = isManual
+    ? buildManualContextPacketSections(episode)
+    : [];
   const packetText = [
     "ChatGPT review packet",
     "",
@@ -812,6 +873,7 @@ function buildChatGptRenderingPacket({
     `Episode: ${episode.episode_id}`,
     `Thesis: ${thesis}`,
     "",
+    ...manualContextSections,
     "Graph nodes:",
     formatPacketList(
       constellation.nodes,
@@ -916,6 +978,9 @@ function buildCodexHandoffPacket({
   const finalReportRequirements = isManual
     ? LOCAL_PREVIEW_FINAL_REPORT_REQUIREMENTS
     : SAMPLE_FINAL_REPORT_REQUIREMENTS;
+  const manualCodexContextSections = isManual
+    ? buildManualCodexContextPacketSections(episode)
+    : [];
   const packetText = [
     "Repo: hynk-studio/augnes",
     "Base branch: main",
@@ -936,6 +1001,7 @@ function buildCodexHandoffPacket({
     "Expected changed files:",
     formatPacketList(expectedChangedFiles, (item) => `- ${item}`),
     "",
+    ...manualCodexContextSections,
     "Hard constraints:",
     formatPacketList(FORBIDDEN_ACTIONS, (item) => `- ${item}`),
     "",
@@ -988,6 +1054,69 @@ function summarizeList(items: string[]) {
   }
 
   return items.join(" ");
+}
+
+function summarizeManualWorkContext(
+  episode: PerspectiveIngestSessionEpisode,
+) {
+  return summarizeLabeledManualItems([
+    ["Work", episode.work_units],
+    ["Changed", episode.changed_files],
+  ]);
+}
+
+function summarizeManualValidationReport(
+  episode: PerspectiveIngestSessionEpisode,
+) {
+  return summarizeLabeledManualItems([
+    ["Validation", episode.validations],
+    ["Report", episode.final_report_points],
+  ]);
+}
+
+function summarizeLabeledManualItems(items: [string, string[]][]) {
+  const lines = items
+    .filter(([, values]) => values.length > 0)
+    .map(([label, values]) => `${label}: ${values.join(" ")}`);
+
+  return lines.length
+    ? lines.join(" ")
+    : "No explicit manual work, validation, or report context supplied.";
+}
+
+function buildManualContextPacketSections(
+  episode: PerspectiveIngestSessionEpisode,
+) {
+  return [
+    ...formatOptionalPacketSection("Work:", episode.work_units),
+    ...formatOptionalPacketSection("Changed:", episode.changed_files),
+    ...formatOptionalPacketSection("Validation:", episode.validations),
+    ...formatOptionalPacketSection("Report:", episode.final_report_points),
+  ];
+}
+
+function buildManualCodexContextPacketSections(
+  episode: PerspectiveIngestSessionEpisode,
+) {
+  return [
+    ...formatOptionalPacketSection("User-supplied work context:", episode.work_units),
+    ...formatOptionalPacketSection(
+      "User-supplied validation context (not rerun by this packet):",
+      episode.validations,
+    ),
+    ...formatOptionalPacketSection(
+      "User-supplied report context (review context, not proof):",
+      episode.final_report_points,
+    ),
+  ];
+}
+
+function formatOptionalPacketSection(title: string, items: string[]) {
+  if (!items.length) {
+    return [];
+  }
+
+  return [title, formatPacketList(items, (item) => `- ${item}`), ""];
 }
 
 function formatPacketList<T>(items: T[], formatItem: (item: T) => string) {
