@@ -3980,6 +3980,8 @@ function PerspectiveTab({
     useState<ConstellationRoutePreviewState>({ status: "loading" });
   const [constellationHandoffCopyNotice, setConstellationHandoffCopyNotice] =
     useState<Notice | null>(null);
+  const selectedConstellationHandoffPreviewRef =
+    useRef<HTMLTextAreaElement | null>(null);
   const [
     selectedConstellationNextActionId,
     setSelectedConstellationNextActionId,
@@ -4101,6 +4103,18 @@ function PerspectiveTab({
             : "Copy Codex handoff failed",
       });
     }
+  }
+
+  function selectConstellationHandoffPreviewText() {
+    const previewTextarea = selectedConstellationHandoffPreviewRef.current;
+    if (!previewTextarea) return;
+
+    previewTextarea.focus();
+    previewTextarea.select();
+    setConstellationHandoffCopyNotice({
+      tone: "info",
+      text: "Preview text selected",
+    });
   }
 
   return (
@@ -4944,11 +4958,19 @@ function PerspectiveTab({
                         If clipboard is unavailable, select and copy this
                         preview text manually.
                       </p>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={selectConstellationHandoffPreviewText}
+                      >
+                        Select preview text
+                      </button>
                       <label htmlFor="perspective-constellation-codex-handoff-preview">
                         Selected Codex handoff text
                       </label>
                       <textarea
                         id="perspective-constellation-codex-handoff-preview"
+                        ref={selectedConstellationHandoffPreviewRef}
                         value={selectedConstellationHandoffPreviewText}
                         readOnly
                         rows={18}

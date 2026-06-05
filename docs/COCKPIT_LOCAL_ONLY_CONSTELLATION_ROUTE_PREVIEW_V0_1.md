@@ -82,10 +82,11 @@ copy card also shows the top selected-action evidence refs beside the copy
 action, so users can see which pointer-only context will be emphasized before
 copying. It also includes a collapsed read-only expanded handoff preview that
 uses the same generated handoff text as the copy action. If clipboard is
-unavailable, select and copy this preview text manually. The button reports
-`Copied` on success or a clipboard failure message on failure. The section still
-has no refresh control, no retry control, no bypass control, and no mutation
-affordance.
+unavailable, select and copy this preview text manually. A `Select preview text`
+button focuses and selects the read-only preview text without writing to the
+clipboard. The copy button reports `Copied` on success or a clipboard failure
+message on failure. The section still has no refresh control, no retry control,
+no bypass control, and no mutation affordance.
 
 The copied prompt prioritizes evidence pointers for the selected next action
 before falling back to the remaining pointer-only context. This keeps the
@@ -138,6 +139,7 @@ The preview displays only minimized read-only route fields:
 - a `Copy Codex handoff` action and copy status
 - top selected-action evidence refs beside the copy action
 - a read-only expanded handoff preview for manual fallback
+- a `Select preview text` action that selects the read-only preview text
 
 This is the response minimization boundary for the first Cockpit-local
 consumer slice.
@@ -155,6 +157,10 @@ validation guidance, and final report expectations for Codex.
 The expanded preview is generated client-side from the same builder used by the
 copy action. It does not add a server-side `copyable_handoff_preview` field and
 does not change the route payload shape.
+
+The `Select preview text` action is a manual selection affordance only. It does
+not create another clipboard writer and does not add execution, persistence, or
+route authority.
 
 Future capsule, copyable handoff, or boundary-next-review display sections
 should follow the same class-first model. The UI should render compact
