@@ -6,7 +6,10 @@ import {
   type ReadonlyApiAccessErrorStatus,
   type ReadonlyApiAccessPolicy,
 } from "@/lib/readonly-api/access-guard";
-import { validateReadonlyApiLocalDevAuthAdapter } from "@/lib/readonly-api/local-dev-auth-adapter";
+import {
+  shouldUseReadonlyApiLocalDevAuthStrictMode,
+  validateReadonlyApiLocalDevAuthAdapter,
+} from "@/lib/readonly-api/local-dev-auth-adapter";
 import type {
   ReadonlyApiAuthScopeErrorCodeV0,
   ReadonlyApiAuthScopeFailureV0,
@@ -25,6 +28,10 @@ import type {
 } from "@/types/readonly-api-route-response";
 
 export const CONSTELLATION_PREVIEW_SCOPE = "project:augnes";
+export const CONSTELLATION_PREVIEW_BOUNDARY_CLASS =
+  "read_only_local_static_preview";
+export const CONSTELLATION_PREVIEW_DIAGNOSTICS_QUERY_PARAM = "diagnostics";
+export const CONSTELLATION_PREVIEW_DIAGNOSTICS_VALUE = "authority";
 export const CONSTELLATION_PREVIEW_LOCAL_READ_HEADER =
   "x-augnes-local-readonly";
 export const CONSTELLATION_PREVIEW_LOCAL_READ_MARKER =
@@ -45,7 +52,7 @@ const STATIC_FIXTURE_SOURCE_REF =
   "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
 const CONSTELLATION_ID = "project_constellation.sample.sidecar_strategy_c.v0_1";
 
-const AUTHORITY_BOUNDARY = [
+const DIAGNOSTIC_AUTHORITY_BOUNDARY = [
   "read-only response",
   "static public-safe fixture source",
   "no route-provided text grants authority",
@@ -62,7 +69,7 @@ const AUTHORITY_BOUNDARY = [
   "no consumer surface connected",
 ];
 
-const NEXT_ACTION_AUTHORITY_BOUNDARY = [
+const DIAGNOSTIC_NEXT_ACTION_AUTHORITY_BOUNDARY = [
   "advisory only",
   "does not execute Codex",
   "does not create branches",
@@ -182,18 +189,20 @@ export function validateConstellationPreviewRequest(
     return result;
   }
 
-  const localDevAuthResult = validateReadonlyApiLocalDevAuthAdapter({
-    request,
-    localGuardResult: result,
-  });
+  if (shouldUseReadonlyApiLocalDevAuthStrictMode(request)) {
+    const localDevAuthResult = validateReadonlyApiLocalDevAuthAdapter({
+      request,
+      localGuardResult: result,
+    });
 
-  if (!localDevAuthResult.ok) {
-    return {
-      ok: false,
-      code: localDevAuthResult.code,
-      status: localDevAuthResult.status,
-      authority_boundary: [...localDevAuthResult.authority_boundary.notes],
-    };
+    if (!localDevAuthResult.ok) {
+      return {
+        ok: false,
+        code: localDevAuthResult.code,
+        status: localDevAuthResult.status,
+        authority_boundary: [...localDevAuthResult.authority_boundary.notes],
+      };
+    }
   }
 
   return {
@@ -205,11 +214,27 @@ export function validateConstellationPreviewRequest(
   };
 }
 
+export function shouldIncludeConstellationPreviewDiagnostics(
+  request: Request,
+): boolean {
+  try {
+    return (
+      new URL(request.url).searchParams.get(
+        CONSTELLATION_PREVIEW_DIAGNOSTICS_QUERY_PARAM,
+      ) === CONSTELLATION_PREVIEW_DIAGNOSTICS_VALUE
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function buildConstellationPreviewResponse({
   generatedAt = new Date().toISOString(),
+  includeDiagnostics = false,
   scope = CONSTELLATION_PREVIEW_SCOPE,
 }: {
   generatedAt?: string;
+  includeDiagnostics?: boolean;
   scope?: typeof CONSTELLATION_PREVIEW_SCOPE;
 } = {}): ReadonlyApiRouteResponseEnvelopeV0 {
   const source_refs = buildSourceRefs();
@@ -217,12 +242,14 @@ export function buildConstellationPreviewResponse({
 
   return {
     response_version: "readonly_api_route_response.v0.1",
+    boundary_class: CONSTELLATION_PREVIEW_BOUNDARY_CLASS,
     meta: {
       generated_at: generatedAt,
       route_family: CONSTELLATION_PREVIEW_ROUTE_FAMILY,
       workspace_scope: scope,
       project_scope: scope,
       request_scope_ref: scope,
+      boundary_class: CONSTELLATION_PREVIEW_BOUNDARY_CLASS,
       response_shape_boundary: "type_only",
       runtime_schema: false,
       api_route_implementation: false,
@@ -235,8 +262,16 @@ export function buildConstellationPreviewResponse({
     evidence_pointers: project_constellation.evidence_pointers,
     unresolved_tensions: project_constellation.unresolved_tensions,
     next_action_candidates: project_constellation.next_action_candidates,
-    forbidden_fields_removed: FORBIDDEN_FIELDS_REMOVED,
-    authority_boundary: AUTHORITY_BOUNDARY,
+    ...(includeDiagnostics
+      ? {
+          diagnostics: {
+            authority_boundary: DIAGNOSTIC_AUTHORITY_BOUNDARY,
+            forbidden_fields_removed: FORBIDDEN_FIELDS_REMOVED,
+            next_action_authority_boundary:
+              DIAGNOSTIC_NEXT_ACTION_AUTHORITY_BOUNDARY,
+          },
+        }
+      : {}),
   };
 }
 
@@ -317,7 +352,7 @@ function buildProjectConstellation(): ReadonlyApiRouteProjectConstellationReadMo
     evidence_pointers,
     unresolved_tensions,
     next_action_candidates,
-    authority_boundary: AUTHORITY_BOUNDARY,
+    boundary_class: CONSTELLATION_PREVIEW_BOUNDARY_CLASS,
   };
 }
 
@@ -449,7 +484,7 @@ function buildNextActionCandidate({
     label: `Advisory next action ${index + 1}`,
     summary,
     source_refs: sourceRefs,
-    authority_boundary: NEXT_ACTION_AUTHORITY_BOUNDARY,
+    boundary_class: CONSTELLATION_PREVIEW_BOUNDARY_CLASS,
   };
 }
 

@@ -15,6 +15,9 @@ import localDevAdapterModule from "../lib/readonly-api/local-dev-auth-adapter.ts
 
 const { GET } = routeModule;
 const {
+  CONSTELLATION_PREVIEW_BOUNDARY_CLASS,
+  CONSTELLATION_PREVIEW_DIAGNOSTICS_QUERY_PARAM,
+  CONSTELLATION_PREVIEW_DIAGNOSTICS_VALUE,
   CONSTELLATION_PREVIEW_LOCAL_READ_HEADER,
   CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
   CONSTELLATION_PREVIEW_SCOPE,
@@ -26,6 +29,7 @@ const {
   LOCAL_DEV_AUTH_OPERATOR_REF_VALUE,
   LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER,
   LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE,
+  LOCAL_DEV_AUTH_STRICT_MODE_HEADER,
   LOCAL_DEV_AUTH_WORKSPACE_REF_HEADER,
   LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE,
 } = localDevAdapterModule;
@@ -162,6 +166,7 @@ const allowedChangedFiles = new Set([
   planningSmokeFile,
   checklistSmokeFile,
   responseShapeSmokeFile,
+  responseShapeTypeFile,
   surfaceSmokeFile,
   realAuthGatePlanSmokeFile,
   consumerScopeDecisionSmokeFile,
@@ -192,24 +197,26 @@ const requiredRouteDocPhrases = [
   "route-only local validation slice",
   "GET /api/augnes/read/constellation-preview",
   "explicitly local-authorized",
-  "Candidate D local-only development auth adapter required",
+  "default local preview does not require Candidate D declaration headers",
+  "Candidate D strict debug mode remains available",
   "scoped to `project:augnes`",
   "static public-safe fixture backed",
-  "no consumer surface connected",
+  "route handler itself connects no consumer surface",
   "no public unauthenticated endpoint",
   "no DB query",
   "no persistence",
   "no graph DB",
-  "no UI",
+  "Cockpit local-only consumer now exists",
   "no MCP/App tool",
   "no proof/evidence/readiness writes",
   "no Codex SDK execution/provider behavior",
   "no merge/publish/approval/retry/replay/deploy authority",
   "x-augnes-local-readonly: constellation-preview-v0.1",
-  "x-augnes-local-operator-ref: operator:local-dev",
-  "x-augnes-local-workspace-ref: workspace:local-dev",
-  "x-augnes-local-project-scope: project:augnes",
-  "old marker-only request is no longer sufficient",
+  "strict_local_auth=1",
+  "marker-only local request is sufficient by default",
+  "boundary_class",
+  "read_only_local_static_preview",
+  "diagnostics=authority",
   staticFixtureFile,
   responseShapeTypeFile,
   "pointer_semantics: \"pointer_only\"",
@@ -405,7 +412,10 @@ function assertRouteHelperBoundary() {
     "@/lib/readonly-api/local-dev-auth-adapter",
     "validateReadonlyApiLocalAccess",
     "validateReadonlyApiLocalDevAuthAdapter",
+    "shouldUseReadonlyApiLocalDevAuthStrictMode",
     "CONSTELLATION_PREVIEW_ACCESS_POLICY",
+    "CONSTELLATION_PREVIEW_BOUNDARY_CLASS",
+    "CONSTELLATION_PREVIEW_DIAGNOSTICS_QUERY_PARAM",
     staticFixtureFile,
     "@/types/readonly-api-route-response",
     "ReadonlyApiRouteResponseEnvelopeV0",
@@ -425,6 +435,7 @@ function assertRouteHelperBoundary() {
   ], { textByFile });
   assertContainsAll(routeFile, [
     "authorityBoundary: validation.authority_boundary",
+    "shouldIncludeConstellationPreviewDiagnostics(request)",
   ], { textByFile });
   assertContainsAll(localDevAdapterFile, [
     "LOCAL_DEV_AUTH_OPERATOR_REF_HEADER",
@@ -433,6 +444,8 @@ function assertRouteHelperBoundary() {
     "LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE",
     "LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER",
     "LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE",
+    "LOCAL_DEV_AUTH_STRICT_MODE_HEADER",
+    "shouldUseReadonlyApiLocalDevAuthStrictMode",
     "ReadonlyApiAuthScopeDecisionV0",
   ], { textByFile });
 }
@@ -508,9 +521,11 @@ async function assertRouteBehavior() {
   const body = await validResponse.json();
 
   assert.equal(body.response_version, "readonly_api_route_response.v0.1");
+  assert.equal(body.boundary_class, CONSTELLATION_PREVIEW_BOUNDARY_CLASS);
   assert.equal(body.meta.project_scope, CONSTELLATION_PREVIEW_SCOPE);
   assert.equal(body.meta.workspace_scope, CONSTELLATION_PREVIEW_SCOPE);
   assert.equal(body.meta.route_family, "project_constellation");
+  assert.equal(body.meta.boundary_class, CONSTELLATION_PREVIEW_BOUNDARY_CLASS);
   assert.equal(body.meta.response_shape_boundary, "type_only");
   assert.equal(body.meta.api_route_implementation, false);
   assert.equal(body.meta.auth_implementation, false);
@@ -533,26 +548,53 @@ async function assertRouteBehavior() {
   assert.equal(JSON.stringify(body).includes(LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE), false);
   assert.equal(body.whole_perspective, undefined);
   assert.equal(body.boundary_next_review, undefined);
+  assert.equal(body.authority_boundary, undefined);
+  assert.equal(body.forbidden_fields_removed, undefined);
+  assert.equal(body.diagnostics, undefined);
+  assert.equal(
+    body.project_constellation.boundary_class,
+    CONSTELLATION_PREVIEW_BOUNDARY_CLASS,
+  );
+  assert.equal(body.project_constellation.authority_boundary, undefined);
 
   assertEvidencePointersArePointerOnly(body);
   assertUnresolvedTensionsAreSeparate(body);
   assertNextActionCandidatesAreAdvisory(body);
-  assertForbiddenFieldsRemoved(body);
   assertNoForbiddenHandles(body);
-  assertContainsAll(JSON.stringify(body.authority_boundary), authorityBoundaryPhrases);
+
+  const diagnosticsResponse = await GET(
+    makeRequest({
+      url:
+        "http://127.0.0.1:3000/api/augnes/read/constellation-preview?scope=project:augnes&" +
+        `${CONSTELLATION_PREVIEW_DIAGNOSTICS_QUERY_PARAM}=${CONSTELLATION_PREVIEW_DIAGNOSTICS_VALUE}`,
+      marker: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+    }),
+  );
+  assert.equal(diagnosticsResponse.status, 200);
+  const diagnosticsBody = await diagnosticsResponse.json();
+  assert.equal(diagnosticsBody.authority_boundary, undefined);
+  assert.equal(diagnosticsBody.forbidden_fields_removed, undefined);
+  assert.ok(diagnosticsBody.diagnostics);
+  assertContainsAll(
+    JSON.stringify(diagnosticsBody.diagnostics.authority_boundary),
+    authorityBoundaryPhrases,
+  );
+  assertForbiddenFieldsRemoved(diagnosticsBody);
 
   const directBody = buildConstellationPreviewResponse({
     generatedAt: "2026-06-04T00:00:00.000Z",
   });
   assert.equal(directBody.response_version, "readonly_api_route_response.v0.1");
+  assert.equal(directBody.boundary_class, CONSTELLATION_PREVIEW_BOUNDARY_CLASS);
   assert.equal(directBody.meta.project_scope, CONSTELLATION_PREVIEW_SCOPE);
 
   await assertErrorResponse({
-    label: "marker-only request",
+    label: "strict local auth without declaration headers",
     request: makeRequest({
       url: "http://127.0.0.1:3000/api/augnes/read/constellation-preview?scope=project:augnes",
       marker: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
       localDevHeaders: false,
+      strictLocalAuth: true,
     }),
     status: 403,
     code: "missing_identity",
@@ -667,11 +709,15 @@ function makeRequest({
   marker,
   method = "GET",
   headers = {},
-  localDevHeaders = true,
+  localDevHeaders = false,
+  strictLocalAuth = false,
 }) {
   const requestHeaders = new Headers(headers);
   if (marker) {
     requestHeaders.set(CONSTELLATION_PREVIEW_LOCAL_READ_HEADER, marker);
+  }
+  if (strictLocalAuth) {
+    requestHeaders.set(LOCAL_DEV_AUTH_STRICT_MODE_HEADER, "1");
   }
   if (localDevHeaders) {
     requestHeaders.set(
@@ -733,25 +779,16 @@ function assertNextActionCandidatesAreAdvisory(body) {
   assert.ok(candidates.length > 0, "response must include next action candidates");
   for (const candidate of candidates) {
     assert.ok(candidate.summary);
-    assert.ok(Array.isArray(candidate.authority_boundary));
-    assertContainsAll(JSON.stringify(candidate.authority_boundary), [
-      "advisory only",
-      "does not execute Codex",
-      "does not create branches",
-      "does not open PRs",
-      "does not publish",
-      "does not merge",
-      "does not approve",
-      "does not retry",
-      "does not replay",
-      "does not deploy",
-      "does not record proof/evidence",
-    ]);
+    assert.equal(candidate.boundary_class, CONSTELLATION_PREVIEW_BOUNDARY_CLASS);
+    assert.equal(candidate.authority_boundary, undefined);
   }
 }
 
 function assertForbiddenFieldsRemoved(body) {
-  assert.deepEqual([...body.forbidden_fields_removed].sort(), [...forbiddenFields].sort());
+  assert.deepEqual(
+    [...body.diagnostics.forbidden_fields_removed].sort(),
+    [...forbiddenFields].sort(),
+  );
 }
 
 function assertNoForbiddenHandles(body) {

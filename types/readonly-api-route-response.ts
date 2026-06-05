@@ -14,11 +14,12 @@
  * route_family, workspace_scope, project_scope, whole_perspective,
  * project_constellation, perspective_capsule_preview, copyable_handoff_preview,
  * boundary_next_review, evidence_pointers, unresolved_tensions,
- * next_action_candidates, forbidden_fields_removed, and authority_boundary.
+ * next_action_candidates, boundary_class, and optional diagnostics.
  */
 
 export interface ReadonlyApiRouteResponseEnvelopeV0 {
   response_version: "readonly_api_route_response.v0.1";
+  boundary_class: ReadonlyApiRouteBoundaryClass;
   meta: ReadonlyApiRouteResponseMeta;
   source_refs: ReadonlyApiRouteSourceRef[];
   whole_perspective?: ReadonlyApiRouteWholePerspectiveSummary;
@@ -29,8 +30,9 @@ export interface ReadonlyApiRouteResponseEnvelopeV0 {
   evidence_pointers: ReadonlyApiRouteEvidencePointer[];
   unresolved_tensions: ReadonlyApiRouteUnresolvedTension[];
   next_action_candidates: ReadonlyApiRouteNextActionCandidate[];
-  forbidden_fields_removed: ReadonlyApiRouteForbiddenField[];
-  authority_boundary: string[];
+  forbidden_fields_removed?: ReadonlyApiRouteForbiddenField[];
+  authority_boundary?: string[];
+  diagnostics?: ReadonlyApiRouteDiagnostics;
 }
 
 export interface ReadonlyApiRouteResponseMeta {
@@ -44,12 +46,22 @@ export interface ReadonlyApiRouteResponseMeta {
   workspace_scope: string;
   project_scope: string;
   request_scope_ref?: string;
+  boundary_class: ReadonlyApiRouteBoundaryClass;
   response_shape_boundary: "type_only";
   runtime_schema: false;
   api_route_implementation: false;
   auth_implementation: false;
   external_calls: false;
   source_of_truth: false;
+}
+
+export type ReadonlyApiRouteBoundaryClass =
+  "read_only_local_static_preview";
+
+export interface ReadonlyApiRouteDiagnostics {
+  authority_boundary: string[];
+  forbidden_fields_removed: ReadonlyApiRouteForbiddenField[];
+  next_action_authority_boundary?: string[];
 }
 
 export interface ReadonlyApiRouteSourceRef {
@@ -78,6 +90,7 @@ export interface ReadonlyApiRouteWholePerspectiveSummary {
 
 export interface ReadonlyApiRouteProjectConstellationReadModel {
   constellation_id: string;
+  boundary_class: ReadonlyApiRouteBoundaryClass;
   thesis: string;
   nodes: ReadonlyApiRouteConstellationNode[];
   edges: ReadonlyApiRouteConstellationEdge[];
@@ -85,7 +98,7 @@ export interface ReadonlyApiRouteProjectConstellationReadModel {
   evidence_pointers: ReadonlyApiRouteEvidencePointer[];
   unresolved_tensions: ReadonlyApiRouteUnresolvedTension[];
   next_action_candidates: ReadonlyApiRouteNextActionCandidate[];
-  authority_boundary: string[];
+  authority_boundary?: string[];
 }
 
 export interface ReadonlyApiRouteConstellationNode {
@@ -144,7 +157,8 @@ export interface ReadonlyApiRouteNextActionCandidate {
   summary: string;
   source_refs: string[];
   blocked_by?: string[];
-  authority_boundary: string[];
+  boundary_class?: ReadonlyApiRouteBoundaryClass;
+  authority_boundary?: string[];
 }
 
 export interface ReadonlyApiRoutePerspectiveCapsulePreview {

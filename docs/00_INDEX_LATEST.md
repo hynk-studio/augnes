@@ -371,10 +371,11 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   `GET /api/augnes/read/constellation-preview`다. The route is GET/read-only,
   explicitly local-authorized, fail-closed, scoped to `project:augnes`, backed
   only by `fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json`,
-  and aligned with `types/readonly-api-route-response.ts`. It connects no
-  consumer surface and adds no DB query, no UI, no MCP/App tool, no
-  proof/evidence write, no Codex SDK execution, no graph DB, no persistence,
-  and no merge/publish/approval/retry/replay/deploy authority. `npm run
+  and aligned with `types/readonly-api-route-response.ts`. The default response
+  uses boundary class `read_only_local_static_preview` and keeps detailed
+  boundary lists in `diagnostics=authority`. It adds no DB query, no MCP/App
+  tool, no proof/evidence write, no Codex SDK execution, no graph DB, no
+  persistence, and no merge/publish/approval/retry/replay/deploy authority. `npm run
   smoke:readonly-api-route-constellation-preview`는 route/helper existence,
   GET-only route exports, nodejs/force-dynamic route flags, local authorization,
   fail-closed scope behavior, static fixture provenance, minimized response,
@@ -453,17 +454,17 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   정적으로 확인한다.
 - `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md`: Candidate D
   explicit local development auth adapter implementation boundary다. It
-  documents the local-only route validation adapter in
+  documents the optional strict debug route validation adapter in
   `lib/readonly-api/local-dev-auth-adapter.ts` for
-  `GET /api/augnes/read/constellation-preview`. It is a local-only route
-  validation implementation and adds no production auth, no hosted auth, no
+  `GET /api/augnes/read/constellation-preview`. It is not required for the
+  default local Cockpit preview and adds no production auth, no hosted auth, no
   OAuth, no session identity, no workspace membership, no route consumer, no DB
   query, no UI, no MCP/App tool, no proof/evidence write, no Codex SDK
   execution, no graph DB, no persistence, and no
   merge/publish/approval/retry/replay/deploy authority. `npm run
   smoke:readonly-api-route-local-dev-auth-adapter`는 helper existence, type-only
-  boundary import, local guard composition, Candidate D declaration headers,
-  fail-closed behavior, minimized route response, forbidden fields,
+  boundary import, local guard composition, strict Candidate D declaration
+  headers, fail-closed behavior, minimized route response, forbidden fields,
   docs/index/authority pointers, package pointer, scoped/content-only boundary
   behavior, and no forbidden positive authority grants를 확인한다.
 - `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md`: read-only
@@ -512,8 +513,9 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
 - `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md`: Cockpit
   local-only constellation route preview implementation이다. It is a local-only
   Cockpit implementation for
-  `GET /api/augnes/read/constellation-preview?scope=project:augnes` and uses
-  Candidate D local-only declaration headers. It adds no App/MCP, no
+  `GET /api/augnes/read/constellation-preview?scope=project:augnes` and sends
+  only the local read-only marker header by default. It displays boundary class
+  `read_only_local_static_preview` instead of long boundary lists. It adds no App/MCP, no
   production auth, no hosted auth, no DB query, no proof/evidence write, no
   Codex SDK execution, no graph DB, no persistence, and no
   merge/publish/approval/retry/replay/deploy authority. The browser/

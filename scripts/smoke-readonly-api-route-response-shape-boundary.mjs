@@ -44,6 +44,20 @@ const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
+const localDevAdapterDoc =
+  "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
+const localDevAdapterSmokeFile =
+  "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const closeoutDoc =
+  "docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md";
+const closeoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 
 const inspectedFiles = [
   typeFile,
@@ -71,11 +85,21 @@ const allowedChangedFiles = new Set([
   accessGuardFile,
   accessGuardSmokeFile,
   authorityMatrixDoc,
+  localDevAdapterFile,
+  localDevAdapterDoc,
+  localDevAdapterSmokeFile,
+  cockpitFile,
+  cockpitImplementationDoc,
+  cockpitImplementationSmokeFile,
+  closeoutDoc,
+  closeoutSmokeFile,
 ]);
 
 const requiredExportedTypes = [
   "ReadonlyApiRouteResponseEnvelopeV0",
   "ReadonlyApiRouteResponseMeta",
+  "ReadonlyApiRouteBoundaryClass",
+  "ReadonlyApiRouteDiagnostics",
   "ReadonlyApiRouteSourceRef",
   "ReadonlyApiRouteWholePerspectiveSummary",
   "ReadonlyApiRouteProjectConstellationReadModel",
@@ -107,6 +131,8 @@ const requiredConcepts = [
   "evidence_pointers",
   "unresolved_tensions",
   "next_action_candidates",
+  "boundary_class",
+  "diagnostics",
   "forbidden_fields_removed",
   "authority_boundary",
 ];
@@ -411,7 +437,17 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
-    if (file === constellationPreviewRouteFile) continue;
+    if (
+      [
+        constellationPreviewRouteFile,
+        constellationPreviewHelperFile,
+        localDevAdapterFile,
+        cockpitFile,
+        cockpitImplementationSmokeFile,
+      ].includes(file)
+    ) {
+      continue;
+    }
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only API route response shape boundary smoke: ${file}`,

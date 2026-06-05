@@ -162,12 +162,15 @@ commit/reject input, or Cockpit action input.
 `GET /api/augnes/read/constellation-preview` is a read-only local route for the
 first Project Constellation route validation slice. It is scoped to
 `project:augnes`, explicitly local-authorized, fail-closed, and static fixture
-backed in its first implementation. It has no commit/reject authority, no
+backed in its first implementation. Boundary class:
+`read_only_local_static_preview`. The default local route requires only GET,
+local host, `scope=project:augnes`, and the local read-only marker header.
+Candidate D local declaration headers are optional strict debug validation, not
+the default Cockpit path. This class has no commit/reject authority, no
 proof/evidence write authority, no publish authority, no merge authority, no
 retry/replay/deploy authority, no branch/PR creation authority, no Codex
 execution authority, no DB schema/migration authority, no graph DB authority,
-no persistence authority, and no consumer authority. It does not connect
-Cockpit, ChatGPT App, MCP, plugin tools, or any UI/browser-facing consumer.
+no persistence authority, and no consumer authority.
 
 `lib/readonly-api/access-guard.ts` is the shared read-only local access guard
 for route-only local validation. It is local-only, fail-closed, and not
@@ -208,12 +211,13 @@ persistence, publish, merge, retry, replay, deploy, or approval authority.
 
 `lib/readonly-api/local-dev-auth-adapter.ts` and
 `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` implement Candidate D
-as a local-only route validation adapter for the read-only constellation
-preview route. The adapter grants no production auth, hosted auth, OAuth,
-session identity, workspace membership, consumer authority, write authority,
-proof/evidence authority, DB query authority, graph DB authority, persistence
-authority, publish authority, merge authority, retry/replay/deploy authority,
-approval authority, branch/PR authority, or Codex execution authority.
+as an optional strict debug adapter for the read-only constellation preview
+route. It is not required for default local Cockpit preview. The adapter grants
+no production auth, hosted auth, OAuth, session identity, workspace membership,
+consumer authority, write authority, proof/evidence authority, DB query
+authority, graph DB authority, persistence authority, publish authority, merge
+authority, retry/replay/deploy authority, approval authority, branch/PR
+authority, or Codex execution authority.
 
 `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` is a docs/smoke-only real
 auth gate plan for the read-only constellation preview route. It adds no real

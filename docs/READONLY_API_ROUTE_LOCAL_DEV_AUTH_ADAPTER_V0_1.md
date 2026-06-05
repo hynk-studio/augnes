@@ -5,7 +5,8 @@
 Status:
 
 - Candidate D local-only adapter implementation
-- route-only local validation implementation
+- strict debug mode route validation implementation
+- default local preview does not require these declaration headers
 - not production auth
 - not hosted auth
 - not OAuth
@@ -40,8 +41,9 @@ It composes with:
 - `lib/readonly-api/constellation-preview.ts`
 - `app/api/augnes/read/constellation-preview/route.ts`
 
-Candidate D is now implemented only as local-only route validation. It does not
-connect a consumer surface.
+Candidate D is implemented only as optional local-only strict debug validation.
+It does not connect a consumer surface and is not required for the default
+local Project Constellation preview.
 
 `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next gate
 for any future real hosted/session/workspace auth implementation. Candidate D
@@ -82,9 +84,9 @@ The route still requires:
 - `x-augnes-local-readonly: constellation-preview-v0.1`
 - `scope=project:augnes`
 
-This PR additionally requires a Candidate D local operator declaration. The
-declaration is local-only and is not production auth, hosted auth, OAuth,
-session identity, or workspace membership.
+Strict debug mode additionally requires a Candidate D local operator
+declaration. The declaration is local-only and is not production auth, hosted
+auth, OAuth, session identity, or workspace membership.
 
 There is no public unauthenticated endpoint.
 The local operator declaration cannot prove hosted identity or hosted
@@ -92,7 +94,7 @@ workspace/project membership.
 
 ## 3. Local-only declaration headers
 
-Required declaration headers:
+Strict debug declaration headers:
 
 ```text
 x-augnes-local-operator-ref: operator:local-dev
@@ -116,16 +118,16 @@ session secrets, or provider credentials are used.
 
 ## 4. Relationship to existing local guard
 
-The local dev adapter composes with the existing local guard. It does not
-replace the local guard.
+The local dev adapter composes with the existing local guard only when strict
+debug mode is requested. It does not replace the local guard.
 
-The route validation order is:
+The strict debug validation order is:
 
 1. Run `validateReadonlyApiLocalAccess`.
 2. If the local guard fails, preserve existing fail-closed route behavior.
-3. If the local guard passes, run
+3. If the local guard passes and strict mode is requested, run
    `validateReadonlyApiLocalDevAuthAdapter`.
-4. Return success only when both pass.
+4. Return strict-mode success only when both pass.
 
 The current local guard remains local-only and not production auth. The
 Candidate D adapter remains local-only and not production auth.
@@ -205,17 +207,16 @@ decision payloads, raw private data, or private source details.
 
 ## 8. Route behavior compatibility
 
-The successful route response remains minimized and still returns:
+The successful default route response remains minimized and returns:
 
 - `response_version`
+- `boundary_class`
 - `meta`
 - `source_refs`
 - `project_constellation`
 - `evidence_pointers`
 - `unresolved_tensions`
 - `next_action_candidates`
-- `forbidden_fields_removed`
-- `authority_boundary`
 
 The successful route response does not return:
 
@@ -227,13 +228,15 @@ The successful route response does not return:
 - mutation handles
 - proof/evidence write handles
 
-The previous marker-only request is no longer sufficient after this PR.
+The marker-only local request is sufficient by default. Strict debug mode
+marker-only requests fail closed with `missing_identity`.
 
 ## 9. Response minimization
 
-The adapter validates local-only declarations and does not add auth payloads to
-the route response. Successful responses remain Project Constellation
-read-model responses from the static public-safe fixture.
+The adapter validates local-only declarations only in strict debug mode and
+does not add auth payloads to the route response. Successful responses remain
+Project Constellation read-model responses from the static public-safe
+fixture.
 
 The adapter returns bounded decision data internally for validation only. Route
 responses do not expose raw identity payloads, raw membership graphs, raw

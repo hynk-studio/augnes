@@ -22,6 +22,11 @@ const realAuthGatePlanDoc =
 const localDevAdapterDoc =
   "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
+const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
+const routeHelperFile = "lib/readonly-api/constellation-preview.ts";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
+const responseShapeTypeFile = "types/readonly-api-route-response.ts";
+const cockpitFile = "components/augnes-cockpit.tsx";
 const reviewChecklistDoc =
   "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
 const surfaceBoundaryDoc =
@@ -44,6 +49,8 @@ const localDevAdapterSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 const routeSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const responseShapeSmokeFile =
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs";
 const reviewChecklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
 const surfaceSmokeFile =
@@ -73,6 +80,11 @@ const inspectedFiles = [
   realAuthGatePlanDoc,
   localDevAdapterDoc,
   routeDoc,
+  routeFile,
+  routeHelperFile,
+  localDevAdapterFile,
+  responseShapeTypeFile,
+  cockpitFile,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
   authorityMatrixDoc,
@@ -89,6 +101,11 @@ const allowedChangedFiles = new Set([
   realAuthGatePlanDoc,
   localDevAdapterDoc,
   routeDoc,
+  routeFile,
+  routeHelperFile,
+  localDevAdapterFile,
+  responseShapeTypeFile,
+  cockpitFile,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
   authorityMatrixDoc,
@@ -101,6 +118,7 @@ const allowedChangedFiles = new Set([
   realAuthGatePlanSmokeFile,
   localDevAdapterSmokeFile,
   routeSmokeFile,
+  responseShapeSmokeFile,
   reviewChecklistSmokeFile,
   surfaceSmokeFile,
   staticCockpitSmokeFile,
@@ -535,6 +553,18 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (
+      [
+        routeFile,
+        routeHelperFile,
+        localDevAdapterFile,
+        responseShapeTypeFile,
+        cockpitFile,
+      ].includes(file)
+    ) {
+      continue;
+    }
+
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only constellation local-only consumer closeout smoke: ${file}`,

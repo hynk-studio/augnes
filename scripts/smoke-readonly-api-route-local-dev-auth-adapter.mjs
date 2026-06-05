@@ -32,9 +32,11 @@ const {
   LOCAL_DEV_AUTH_OPERATOR_REF_VALUE,
   LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER,
   LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE,
+  LOCAL_DEV_AUTH_STRICT_MODE_HEADER,
   LOCAL_DEV_AUTH_WORKSPACE_REF_HEADER,
   LOCAL_DEV_AUTH_WORKSPACE_REF_VALUE,
   buildLocalDevAuthScopeRequest,
+  shouldUseReadonlyApiLocalDevAuthStrictMode,
   validateReadonlyApiLocalDevAuthAdapter,
 } = localDevAdapterModule;
 
@@ -43,6 +45,7 @@ const helperFile = "lib/readonly-api/constellation-preview.ts";
 const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
 const typeFile = "types/readonly-api-auth-scope.ts";
+const responseShapeTypeFile = "types/readonly-api-route-response.ts";
 const adapterDoc = "docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md";
 const cockpitPlanDoc =
   "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md";
@@ -98,6 +101,8 @@ const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
 const reviewChecklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
+const responseShapeSmokeFile =
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 const realAuthGatePlanSmokeFile =
@@ -154,6 +159,7 @@ const allowedChangedFiles = new Set([
   authorityMatrixDoc,
   indexDoc,
   smokeFile,
+  responseShapeTypeFile,
   cockpitFile,
   browserReportFile,
   cockpitImplementationSmokeFile,
@@ -168,6 +174,7 @@ const allowedChangedFiles = new Set([
   authScopePlanSmokeFile,
   accessGuardSmokeFile,
   reviewChecklistSmokeFile,
+  responseShapeSmokeFile,
   surfaceSmokeFile,
   realAuthGatePlanSmokeFile,
   consumerScopeDecisionSmokeFile,
@@ -203,6 +210,8 @@ const requiredAdapterExports = [
   "LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER",
   "LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE",
   "LOCAL_DEV_AUTH_OPERATOR_LABEL_HEADER",
+  "LOCAL_DEV_AUTH_STRICT_MODE_HEADER",
+  "shouldUseReadonlyApiLocalDevAuthStrictMode",
   "validateReadonlyApiLocalDevAuthAdapter",
   "buildLocalDevAuthScopeRequest",
   "ReadonlyApiLocalDevAuthAdapterResult",
@@ -278,9 +287,10 @@ console.log(
       exports_checked: requiredAdapterExports.length,
       type_boundary_import_checked: true,
       local_guard_composition_checked: true,
-      local_only_declaration_headers_checked: true,
+      strict_local_declaration_headers_checked: true,
       valid_route_request_checked: true,
-      marker_only_fail_closed_checked: true,
+      default_marker_only_route_checked: true,
+      strict_marker_only_fail_closed_checked: true,
       forbidden_fields_checked: forbiddenFields.length,
       docs_index_authority_pointers_checked: true,
       changed_files_boundary_checked: changedFilesBoundary.checked,
@@ -394,6 +404,7 @@ function assertRouteComposition() {
     "@/lib/readonly-api/local-dev-auth-adapter",
     "validateReadonlyApiLocalAccess",
     "validateReadonlyApiLocalDevAuthAdapter",
+    "shouldUseReadonlyApiLocalDevAuthStrictMode",
     "localGuardResult: result",
     "localDevAuthResult.authority_boundary.notes",
   ], { textByFile });
@@ -418,6 +429,8 @@ function assertRequiredDocs() {
 
   assertContainsAll(adapterDoc, [
     "Candidate D local-only adapter implementation",
+    "strict debug mode",
+    "default local preview does not require these declaration headers",
     "not production auth",
     "not hosted auth",
     "not OAuth",
@@ -451,14 +464,15 @@ function assertRequiredDocs() {
     "x-augnes-local-operator-ref: operator:local-dev",
     "x-augnes-local-workspace-ref: workspace:local-dev",
     "x-augnes-local-project-scope: project:augnes",
-    "old marker-only request is no longer sufficient",
+    "marker-only local request is sufficient by default",
+    "strict_local_auth=1",
     "no consumer surface",
   ], { textByFile });
   assertContainsAll(reviewChecklistDoc, [adapterDoc, "smoke:readonly-api-route-local-dev-auth-adapter", "local-only"], { textByFile });
   assertContainsAll(authorityMatrixDoc, [
     adapterFile,
     adapterDoc,
-    "local-only route validation adapter",
+    "optional strict debug adapter",
     "grants no production auth",
     "grants no production auth, hosted auth, OAuth, session identity, workspace membership",
   ], { textByFile });
@@ -466,7 +480,7 @@ function assertRequiredDocs() {
     adapterDoc,
     adapterFile,
     "smoke:readonly-api-route-local-dev-auth-adapter",
-    "local-only route validation implementation",
+    "optional strict debug route validation adapter",
     "no production auth",
     "no hosted auth",
     "no route consumer",
@@ -483,6 +497,22 @@ function assertRequiredDocs() {
 
 function assertAdapterDecisions() {
   const validRequest = makeRequest();
+  assert.equal(shouldUseReadonlyApiLocalDevAuthStrictMode(validRequest), false);
+  assert.equal(
+    shouldUseReadonlyApiLocalDevAuthStrictMode(
+      makeRequest({ strictLocalAuth: true }),
+    ),
+    true,
+  );
+  assert.equal(
+    shouldUseReadonlyApiLocalDevAuthStrictMode(
+      makeRequest({
+        url:
+          "http://127.0.0.1:3000/api/augnes/read/constellation-preview?scope=project:augnes&strict_local_auth=1",
+      }),
+    ),
+    true,
+  );
   const localGuardResult = validateReadonlyApiLocalAccess(
     validRequest,
     CONSTELLATION_PREVIEW_ACCESS_POLICY,
@@ -585,7 +615,21 @@ function assertAdapterDecisions() {
 }
 
 async function assertRouteBehavior() {
-  const validResponse = await GET(makeRequest({ operatorLabel: " Local Dev <script> " }));
+  const markerOnlyResponse = await GET(
+    makeRequest({
+      operatorRef: null,
+      workspaceRef: null,
+      projectScope: null,
+    }),
+  );
+  assert.equal(markerOnlyResponse.status, 200);
+
+  const validResponse = await GET(
+    makeRequest({
+      operatorLabel: " Local Dev <script> ",
+      strictLocalAuth: true,
+    }),
+  );
   assert.equal(validResponse.status, 200);
   const body = await validResponse.json();
   assert.equal(body.response_version, "readonly_api_route_response.v0.1");
@@ -610,42 +654,52 @@ async function assertRouteBehavior() {
   assertNoForbiddenHandles(body);
 
   await assertErrorResponse({
-    label: "marker-only request",
+    label: "strict marker-only request",
     request: makeRequest({
       operatorRef: null,
       workspaceRef: null,
       projectScope: null,
+      strictLocalAuth: true,
     }),
     status: 403,
     code: "missing_identity",
   });
   await assertErrorResponse({
     label: "invalid local operator",
-    request: makeRequest({ operatorRef: "operator:wrong" }),
+    request: makeRequest({
+      operatorRef: "operator:wrong",
+      strictLocalAuth: true,
+    }),
     status: 403,
     code: "invalid_identity",
   });
   await assertErrorResponse({
     label: "missing workspace",
-    request: makeRequest({ workspaceRef: null }),
+    request: makeRequest({ workspaceRef: null, strictLocalAuth: true }),
     status: 403,
     code: "missing_workspace",
   });
   await assertErrorResponse({
     label: "invalid workspace",
-    request: makeRequest({ workspaceRef: "workspace:wrong" }),
+    request: makeRequest({
+      workspaceRef: "workspace:wrong",
+      strictLocalAuth: true,
+    }),
     status: 403,
     code: "unauthorized_workspace",
   });
   await assertErrorResponse({
     label: "missing project declaration",
-    request: makeRequest({ projectScope: null }),
+    request: makeRequest({ projectScope: null, strictLocalAuth: true }),
     status: 403,
     code: "missing_project",
   });
   await assertErrorResponse({
     label: "wrong project declaration",
-    request: makeRequest({ projectScope: "project:wrong" }),
+    request: makeRequest({
+      projectScope: "project:wrong",
+      strictLocalAuth: true,
+    }),
     status: 403,
     code: "unauthorized_project",
   });
@@ -706,10 +760,14 @@ function makeRequest({
   operatorLabel,
   method = "GET",
   headers = {},
+  strictLocalAuth = false,
 } = {}) {
   const requestHeaders = new Headers(headers);
   if (marker !== null) {
     requestHeaders.set(CONSTELLATION_PREVIEW_LOCAL_READ_HEADER, marker);
+  }
+  if (strictLocalAuth) {
+    requestHeaders.set(LOCAL_DEV_AUTH_STRICT_MODE_HEADER, "1");
   }
   if (operatorRef !== null) {
     requestHeaders.set(LOCAL_DEV_AUTH_OPERATOR_REF_HEADER, operatorRef);

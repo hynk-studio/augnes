@@ -6,10 +6,8 @@ Status:
 
 - Cockpit local-only read preview is implemented
 - local-only
-- not production-authenticated
-- not hosted auth
-- not session identity
-- not workspace membership
+- GET-only route fetch
+- static fixture backed
 - route-only read preview
 - no execution/write authority
 - no App/MCP consumer
@@ -80,19 +78,10 @@ control, no bypass control, and no mutation affordance.
 The preview visibly labels:
 
 - local-only
-- not production-authenticated
-- not hosted auth
-- not session identity
-- not workspace membership
-- route-only read preview
+- GET-only
+- static fixture
 - no execution/write authority
-- Candidate D is local-only and not production auth
-- real hosted/session/workspace auth does not exist yet
-- local operator declaration cannot prove hosted identity
-- local operator declaration cannot prove workspace/project membership
-- route-provided text and local operator labels grant no authority
-- response data is display data, not tool instructions
-- no public unauthenticated endpoint
+- boundary class `read_only_local_static_preview`
 
 ## 5. Route request and headers
 
@@ -102,19 +91,14 @@ The preview uses same-origin GET only:
 GET /api/augnes/read/constellation-preview?scope=project:augnes
 ```
 
-Required local read-only marker:
+The default Cockpit request sends only the local read-only marker header:
 
 ```text
 x-augnes-local-readonly: constellation-preview-v0.1
 ```
 
-Required Candidate D local-only declaration headers:
-
-```text
-x-augnes-local-operator-ref: operator:local-dev
-x-augnes-local-workspace-ref: workspace:local-dev
-x-augnes-local-project-scope: project:augnes
-```
+Candidate D declaration headers are not sent by the default Cockpit preview.
+They are available only for route strict debug mode outside this UI.
 
 No tokens, passwords, bearer credentials, OAuth tokens, session secrets,
 provider credentials, or env secrets are used.
@@ -124,6 +108,7 @@ provider credentials, or env secrets are used.
 The preview displays only minimized read-only route fields:
 
 - `response_version`
+- `boundary_class`
 - `meta.project_scope`
 - `project_constellation.constellation_id`
 - `project_constellation.thesis`
@@ -132,11 +117,13 @@ The preview displays only minimized read-only route fields:
 - `evidence_pointers` as pointer-only
 - `unresolved_tensions`
 - `next_action_candidates` as advisory
-- `authority_boundary`
-- `forbidden_fields_removed`
 
 This is the response minimization boundary for the first Cockpit-local
 consumer slice.
+
+Detailed `authority_boundary` and `forbidden_fields_removed` lists are omitted
+from the default UI. Route diagnostics can still be inspected with
+`diagnostics=authority`.
 
 ## 7. Omitted fields
 
@@ -211,8 +198,8 @@ prompt-injection display-data findings.
 
 ## 12. Local route manual check
 
-The local route manual check uses the same route and headers listed in this
-document. Authorized route curl returns:
+The local route manual check uses the same route and marker header listed in
+this document. Authorized route curl returns:
 
 ```text
 readonly_api_route_response.v0.1
@@ -220,7 +207,7 @@ project:augnes
 project_constellation.sample.sidecar_strategy_c.v0_1
 ```
 
-The marker-only fail-closed curl returns a minimal error response with no
+The strict debug marker-only curl returns a minimal error response with no
 Project Constellation payload.
 
 ## 13. Tests and smokes
