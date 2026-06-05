@@ -78,6 +78,8 @@ const perspectiveCapsuleSmokeFile =
   "scripts/smoke-perspective-capsule-contract.mjs";
 const browserReportFile =
   "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
+const pastedTextDogfoodReportFile =
+  "reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
@@ -129,6 +131,7 @@ const inspectedFiles = [
   localDevAdapterFile,
   responseShapeTypeFile,
   browserReportFile,
+  pastedTextDogfoodReportFile,
   packageJsonFile,
   smokeFile,
 ];
@@ -153,6 +156,7 @@ const allowedChangedFiles = new Set([
   localDevAdapterFile,
   responseShapeTypeFile,
   browserReportFile,
+  pastedTextDogfoodReportFile,
   smokeFile,
   closeoutSmokeFile,
   staticCockpitSmokeFile,

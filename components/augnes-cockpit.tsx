@@ -4160,6 +4160,22 @@ function PerspectiveTab({
       ? perspectiveIngestConstellationPreview.chatgpt_rendering_packet.packet_text
       : perspectiveIngestConstellationPreview.codex_handoff_packet.packet_text
     : "";
+  const perspectiveIngestPreviewError =
+    perspectiveIngestConstellationPreviewState.status === "failed"
+      ? perspectiveIngestConstellationPreviewState.error
+      : null;
+  const perspectiveIngestLoadedSourceQuery =
+    perspectiveIngestConstellationPreview?.meta.source_query ??
+    (perspectiveIngestPreviewError ? "failed preview" : perspectiveIngestPreviewMode);
+  const perspectiveIngestLoadedSourceDetail =
+    perspectiveIngestPreviewError?.code ?? perspectiveIngestPreviewMode;
+  const perspectiveIngestSourceKind =
+    perspectiveIngestConstellationPreview?.source_kind ??
+    (perspectiveIngestPreviewError ? "unavailable" : "Loading");
+  const perspectiveIngestSourceKindDetail =
+    perspectiveIngestConstellationPreview?.meta.source_query ??
+    perspectiveIngestPreviewError?.code ??
+    selectedPerspectiveIngestSource;
 
   useEffect(() => {
     let cancelled = false;
@@ -5467,8 +5483,7 @@ function PerspectiveTab({
                 <strong>Loaded preview</strong>
                 <p>
                   <code>
-                    {perspectiveIngestConstellationPreview?.meta.source_query ??
-                      perspectiveIngestPreviewMode}
+                    {perspectiveIngestLoadedSourceQuery}
                   </code>
                 </p>
                 <p>
@@ -5526,19 +5541,13 @@ function PerspectiveTab({
             />
             <MetricCard
               label="loaded source query"
-              value={
-                perspectiveIngestConstellationPreview?.meta.source_query ??
-                perspectiveIngestPreviewMode
-              }
-              detail={perspectiveIngestPreviewMode}
+              value={perspectiveIngestLoadedSourceQuery}
+              detail={perspectiveIngestLoadedSourceDetail}
             />
             <MetricCard
               label="source kind"
-              value={perspectiveIngestConstellationPreview?.source_kind ?? "Loading"}
-              detail={
-                perspectiveIngestConstellationPreview?.meta.source_query ??
-                selectedPerspectiveIngestSource
-              }
+              value={perspectiveIngestSourceKind}
+              detail={perspectiveIngestSourceKindDetail}
             />
             <MetricCard
               label="episode count"
@@ -16282,12 +16291,12 @@ function PerspectiveIngestConstellationGraph({
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
 }) {
-  const width = 720;
-  const height = 360;
+  const width = 840;
+  const height = 420;
   const centerX = width / 2;
   const centerY = height / 2;
-  const radiusX = 250;
-  const radiusY = 120;
+  const radiusX = 315;
+  const radiusY = 150;
   const positions = new Map(
     nodes.map((node, index) => {
       const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
@@ -16317,6 +16326,7 @@ function PerspectiveIngestConstellationGraph({
 
           return (
             <g className="ingest-constellation-edge" key={edge.id}>
+              <title>{edge.type}</title>
               <line
                 x1={sourcePosition.x}
                 y1={sourcePosition.y}
@@ -16327,7 +16337,7 @@ function PerspectiveIngestConstellationGraph({
                 x={(sourcePosition.x + targetPosition.x) / 2}
                 y={(sourcePosition.y + targetPosition.y) / 2 - 4}
               >
-                {edge.type}
+                {formatPerspectiveIngestGraphEdgeLabel(edge.type)}
               </text>
             </g>
           );
@@ -16337,6 +16347,7 @@ function PerspectiveIngestConstellationGraph({
         {nodes.map((node) => {
           const position = positions.get(node.id) ?? { x: centerX, y: centerY };
           const selected = node.id === selectedNodeId;
+          const displayLabel = formatPerspectiveIngestGraphNodeLabel(node.label);
 
           return (
             <g
@@ -16354,9 +16365,10 @@ function PerspectiveIngestConstellationGraph({
                 }
               }}
             >
+              <title>{`${node.label}, ${node.type}`}</title>
               <circle cx={position.x} cy={position.y} r={selected ? 25 : 22} />
               <text x={position.x} y={position.y + 42}>
-                {node.label}
+                {displayLabel}
               </text>
             </g>
           );
@@ -16364,6 +16376,31 @@ function PerspectiveIngestConstellationGraph({
       </g>
     </svg>
   );
+}
+
+function formatPerspectiveIngestGraphNodeLabel(label: string) {
+  if (label.length <= 16) return label;
+
+  return `${label.slice(0, 13).trim()}...`;
+}
+
+function formatPerspectiveIngestGraphEdgeLabel(
+  type: PerspectiveIngestConstellationEdge["type"],
+) {
+  const labels: Record<PerspectiveIngestConstellationEdge["type"], string> = {
+    belongs_to: "belongs",
+    conflicts_with: "conflict",
+    depends_on: "depends",
+    derived_from: "derived",
+    evidence_for: "evidence",
+    next_candidate: "next",
+    refines: "refines",
+    supports: "supports",
+    validates: "validates",
+    warns_against: "warns",
+  };
+
+  return labels[type];
 }
 
 function PerspectiveStateBasis({

@@ -60,6 +60,8 @@ const perspectiveIngestLocalDoc =
   "docs/PERSPECTIVE_INGEST_LOCAL_PASTED_TEXT_PREVIEW_V0_1.md";
 const perspectiveIngestLocalSmokeFile =
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs";
+const pastedTextDogfoodReportFile =
+  "reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -97,6 +99,7 @@ const allowedChangedFiles = new Set([
   perspectiveIngestLocalRouteFile,
   perspectiveIngestLocalDoc,
   perspectiveIngestLocalSmokeFile,
+  pastedTextDogfoodReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

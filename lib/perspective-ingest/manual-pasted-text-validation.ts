@@ -41,11 +41,12 @@ const LOCAL_PASTED_TEXT_VALIDATION_BOUNDARY = [
 
 const SECRET_LIKE_PATTERNS = [
   /OPENAI_API_KEY/i,
-  /sk-/i,
+  /(^|[^A-Za-z0-9])sk-[A-Za-z0-9_-]{8,}/i,
   /ghp_/i,
   /github_pat_/i,
   /BEGIN PRIVATE KEY/i,
-  /bearer\s+token/i,
+  /authorization:\s*bearer\s+[A-Za-z0-9._-]{8,}/i,
+  /bearer\s+[A-Za-z0-9._-]{16,}/i,
   /AWS_ACCESS_KEY_ID/i,
   /SECRET_ACCESS_KEY/i,
   /password=/i,
