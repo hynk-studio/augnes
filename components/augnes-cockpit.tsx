@@ -4037,6 +4037,13 @@ function PerspectiveTab({
     routeNextActionCandidates[0] ??
     routeProjectConstellation?.next_action_candidates[0] ??
     null;
+  const selectedConstellationHandoffEvidencePointers =
+    constellationRoutePreview
+      ? getRankedConstellationHandoffEvidencePointers(
+          constellationRoutePreview,
+          selectedConstellationNextAction,
+        ).slice(0, 2)
+      : [];
 
   useEffect(() => {
     let cancelled = false;
@@ -4902,6 +4909,17 @@ function PerspectiveTab({
                       Selected handoff action:{" "}
                       <strong>{selectedConstellationNextAction.summary}</strong>
                     </p>
+                  ) : null}
+                  {selectedConstellationHandoffEvidencePointers.length ? (
+                    <>
+                      <p>Evidence ranked for selected action:</p>
+                      <RefChipList
+                        refs={selectedConstellationHandoffEvidencePointers.map(
+                          (pointer) => pointer.target_ref ?? pointer.pointer_id,
+                        )}
+                        emptyLabel="No selected handoff evidence"
+                      />
+                    </>
                   ) : null}
                   <div className="copy-control">
                     <button

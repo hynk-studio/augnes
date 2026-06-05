@@ -160,6 +160,7 @@ const requiredVisibleCopy = [
   "Copied",
   "Use for handoff",
   "Selected for handoff",
+  "Evidence ranked for selected action:",
 ];
 
 const requiredHeaders = [
@@ -404,8 +405,10 @@ function assertCockpitPreviewSource() {
     "selectedConstellationNextActionId",
     "setSelectedConstellationNextActionId",
     "selectedConstellationNextAction",
+    "selectedConstellationHandoffEvidencePointers",
     "Use for handoff",
     "Selected for handoff",
+    "Evidence ranked for selected action:",
     "aria-pressed",
     "navigator.clipboard.writeText",
     "document.execCommand(\"copy\")",
@@ -428,8 +431,18 @@ function assertCockpitPreviewSource() {
     "CopyFeedback",
     "constellationHandoffCopyNotice",
     "selectedConstellationNextAction",
+    "selectedConstellationHandoffEvidencePointers",
+    "Evidence ranked for selected action:",
     "Use for handoff",
   ], { label: "Cockpit local-only route preview copy action" });
+  assertContainsAll(routePreviewSource, [
+    "selectedConstellationHandoffEvidencePointers",
+    "getRankedConstellationHandoffEvidencePointers(",
+    ".slice(0, 2)",
+    "pointer.target_ref ?? pointer.pointer_id",
+  ], {
+    label: "Project Constellation selected handoff evidence preview",
+  });
   assertContainsAll(handoffBuilderSource, requiredHandoffBuilderPhrases, {
     label: "Project Constellation Codex handoff builder",
   });
@@ -540,6 +553,7 @@ function assertImplementationDoc() {
     "local clipboard",
     "Use for handoff",
     "prioritizes evidence pointers for the selected next action",
+    "shows the top selected-action evidence refs beside the copy action",
     "does not change the route payload shape",
     "does not include long default authority lists",
     "response minimization",
@@ -595,6 +609,7 @@ function assertDocPointers() {
     "Copy Codex handoff",
     "Users can select which advisory next action drives the copied handoff",
     "prioritizes evidence pointers for that selected action",
+    "shows the top selected-action evidence refs beside the copy action",
     "no App/MCP",
     "no production auth",
     "no hosted auth",
