@@ -178,6 +178,16 @@ Cockpit reuses the existing Perspective Ingest Constellation display path:
 The UI distinguishes selected sample source, currently loaded preview source
 kind, sample fixture preview, and manual pasted text preview.
 
+When a manual pasted-text preview is loaded, the sample source metric is marked
+inactive so the last selected fixture radio is not confused with the active
+manual preview. The loaded source query and source kind continue to show
+`manual:pasted_text` and `manual_pasted_text`.
+
+For dense manual graphs, such as the 9-node Codex closeout shape with Work
+context and Validation/report nodes, the SVG may hide edge text labels to avoid
+label collision. Edge types and summaries remain available through SVG title and
+ARIA text, and the full edge list remains visible below the graph.
+
 ## Packets
 
 The ChatGPT review packet contains graph nodes, edges, unresolved tensions, next
@@ -185,9 +195,9 @@ action candidates, and boundary reminders for manual review. For manual pasted
 text, explicit `Work:`, `Changed:`, `Validation:`, and `Report:` lines are also
 listed as review context when supplied.
 
-The Codex handoff packet contains repo/base/branch/title context, task goal,
-context anchors, expected changed files, constraints, checks, PR-body
-requirements, final-report requirements, and graph summary.
+The Codex handoff packet contains repo/base context, task goal, context anchors,
+expected changed files, constraints, checks, optional review/closeout section
+guidance, and graph summary.
 
 For `manual:pasted_text`, expected changed files are empty unless the user
 provided `Changed:` lines.
@@ -198,6 +208,13 @@ shown as report context, not proof.
 
 The Codex handoff packet says it is a preview packet, not an instruction to
 execute unless the user manually gives it to Codex.
+
+For `manual:pasted_text`, the Codex handoff packet does not suggest a branch or
+PR title by default. It uses `manual-review-only.no-branch-suggested` and
+`manual review only - no PR title suggested`, and says the preview packet is
+review material, not an execution request. If the user wants Codex to execute
+work from the packet, the user must supply a fresh task, branch, and title
+separately.
 
 ## Work / Changed / Validation / Report visibility
 

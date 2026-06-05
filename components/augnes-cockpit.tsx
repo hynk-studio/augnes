@@ -4176,6 +4176,29 @@ function PerspectiveTab({
     perspectiveIngestConstellationPreview?.meta.source_query ??
     perspectiveIngestPreviewError?.code ??
     selectedPerspectiveIngestSource;
+  const perspectiveIngestManualPreviewActive =
+    perspectiveIngestPreviewMode === "manual pasted text preview" ||
+    perspectiveIngestLoadedSourceQuery === "manual:pasted_text";
+  const perspectiveIngestSampleSourceMetric = perspectiveIngestManualPreviewActive
+    ? {
+        label: "sample source",
+        value: "inactive during manual preview",
+        detail:
+          perspectiveIngestLoadedSourceQuery === "manual:pasted_text"
+            ? "manual:pasted_text loaded"
+            : perspectiveIngestPreviewError?.code ?? "manual preview pending",
+      }
+    : {
+        label: "selected sample source",
+        value: selectedPerspectiveIngestSource,
+        detail: "sample fixture preview",
+      };
+  const perspectiveIngestHidesGraphEdgeLabels = perspectiveIngestConstellation
+    ? !shouldShowPerspectiveIngestGraphEdgeLabels(
+        perspectiveIngestConstellation.nodes,
+        perspectiveIngestConstellation.edges,
+      )
+    : false;
 
   useEffect(() => {
     let cancelled = false;
@@ -5487,8 +5510,8 @@ function PerspectiveTab({
                   </code>
                 </p>
                 <p>
-                  selected sample source{" "}
-                  <code>{selectedPerspectiveIngestSource}</code>
+                  {perspectiveIngestSampleSourceMetric.label}{" "}
+                  <code>{perspectiveIngestSampleSourceMetric.value}</code>
                 </p>
               </div>
             </div>
@@ -5535,9 +5558,9 @@ function PerspectiveTab({
           </form>
           <div className="tab-stat-row compact-stat-row">
             <MetricCard
-              label="selected sample source"
-              value={selectedPerspectiveIngestSource}
-              detail="sample fixture preview"
+              label={perspectiveIngestSampleSourceMetric.label}
+              value={perspectiveIngestSampleSourceMetric.value}
+              detail={perspectiveIngestSampleSourceMetric.detail}
             />
             <MetricCard
               label="loaded source query"
@@ -5611,6 +5634,11 @@ function PerspectiveTab({
                     setPerspectiveIngestCopyNotice(null);
                   }}
                 />
+                {perspectiveIngestHidesGraphEdgeLabels ? (
+                  <p className="ingest-constellation-dense-note">
+                    Dense graph: edge labels are available in the edge list below.
+                  </p>
+                ) : null}
               </div>
               <div className="ingest-constellation-detail-grid">
                 <article>
@@ -5695,6 +5723,7 @@ function PerspectiveTab({
                     detail: edge.summary,
                     metaChips: [edge.type],
                   }))}
+                  maxItems={perspectiveIngestConstellation.edges.length}
                   emptyLabel="No ingest edges"
                 />
                 <TensionList
@@ -16228,6 +16257,7 @@ function TensionList({
   title,
   items,
   emptyLabel,
+  maxItems = 8,
 }: {
   title: string;
   items: {
@@ -16238,6 +16268,7 @@ function TensionList({
     fields?: { label: string; value: string }[];
   }[];
   emptyLabel: string;
+  maxItems?: number;
 }) {
   return (
     <section className="perspective-tension-list">
@@ -16246,7 +16277,7 @@ function TensionList({
         <EmptyState label={emptyLabel} />
       ) : (
         <div className="compact-list">
-          {items.slice(0, 8).map((item) => (
+          {items.slice(0, maxItems).map((item) => (
             <article className="tension-diagnostic-card" key={item.key}>
               <header className="tension-card-header">
                 <strong className="tension-card-title">{item.label}</strong>
@@ -16297,6 +16328,7 @@ function PerspectiveIngestConstellationGraph({
   const centerY = height / 2;
   const radiusX = 315;
   const radiusY = 150;
+  const showEdgeLabels = shouldShowPerspectiveIngestGraphEdgeLabels(nodes, edges);
   const positions = new Map(
     nodes.map((node, index) => {
       const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
@@ -16325,20 +16357,26 @@ function PerspectiveIngestConstellationGraph({
           if (!sourcePosition || !targetPosition) return null;
 
           return (
-            <g className="ingest-constellation-edge" key={edge.id}>
-              <title>{edge.type}</title>
+            <g
+              className="ingest-constellation-edge"
+              key={edge.id}
+              aria-label={`${edge.type}: ${edge.summary}`}
+            >
+              <title>{`${edge.type}: ${edge.summary}`}</title>
               <line
                 x1={sourcePosition.x}
                 y1={sourcePosition.y}
                 x2={targetPosition.x}
                 y2={targetPosition.y}
               />
-              <text
-                x={(sourcePosition.x + targetPosition.x) / 2}
-                y={(sourcePosition.y + targetPosition.y) / 2 - 4}
-              >
-                {formatPerspectiveIngestGraphEdgeLabel(edge.type)}
-              </text>
+              {showEdgeLabels ? (
+                <text
+                  x={(sourcePosition.x + targetPosition.x) / 2}
+                  y={(sourcePosition.y + targetPosition.y) / 2 - 4}
+                >
+                  {formatPerspectiveIngestGraphEdgeLabel(edge.type)}
+                </text>
+              ) : null}
             </g>
           );
         })}
@@ -16376,6 +16414,13 @@ function PerspectiveIngestConstellationGraph({
       </g>
     </svg>
   );
+}
+
+function shouldShowPerspectiveIngestGraphEdgeLabels(
+  nodes: PerspectiveIngestConstellationNode[],
+  edges: PerspectiveIngestConstellationEdge[],
+) {
+  return nodes.length <= 8 && edges.length <= 10;
 }
 
 function formatPerspectiveIngestGraphNodeLabel(label: string) {

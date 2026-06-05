@@ -1374,6 +1374,13 @@ h1 {
   border-color: rgba(13, 79, 62, 0.22);
 }
 
+.ingest-constellation-dense-note {
+  margin: 8px 0 0;
+  color: #52645c;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
 .ingest-constellation-toolbar {
   display: flex;
   flex-wrap: wrap;

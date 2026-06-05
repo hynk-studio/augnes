@@ -192,9 +192,18 @@ function assertAdapterAndPacketShape() {
     "next_candidate",
     "evidence_for",
     "depends_on",
-    "preview packet only; it is not an instruction to execute unless a user manually gives it to Codex",
+    "manual-review-only.no-branch-suggested",
+    "manual review only - no PR title suggested",
+    "this preview packet is review material, not an execution request",
+    "Branch/PR title: none suggested by this preview",
+    "fresh branch, task, and title",
+    "Suggested review sections if the user supplies a fresh task:",
+    "Suggested closeout sections if the user supplies a fresh task:",
     "expectedChangedFiles",
   ], { textByFile });
+  const packetBuilderText = textByFile.get(packetBuilderFile);
+  assert(!packetBuilderText.includes("codex/pasted-text-perspective-ingest-preview-v0-1"), `${packetBuilderFile} must not suggest the stale manual pasted-text branch`);
+  assert(!packetBuilderText.includes("feat(cockpit): add pasted-text perspective ingest preview"), `${packetBuilderFile} must not suggest the stale manual pasted-text PR title`);
 }
 
 function assertCockpitSurface() {
@@ -210,9 +219,15 @@ function assertCockpitSurface() {
     "fetchPerspectiveIngestLocalPastedTextPreview",
     "failed preview",
     "unavailable",
+    "inactive during manual preview",
+    "manual:pasted_text loaded",
+    "shouldShowPerspectiveIngestGraphEdgeLabels",
+    "maxItems={perspectiveIngestConstellation.edges.length}",
     "formatPerspectiveIngestGraphNodeLabel",
     "formatPerspectiveIngestGraphEdgeLabel",
+    "Dense graph: edge labels are available in the edge list below.",
     "selected sample source",
+    "sample source",
     "loaded source query",
     "Copy ChatGPT review packet",
     "Copy Codex handoff packet",
@@ -244,6 +259,15 @@ function assertBoundaryDocs() {
     "Work / Changed / Validation / Report",
     "credential-shaped",
     "Cockpit reuses the existing Perspective Ingest Constellation display path",
+    "sample source metric is marked",
+    "dense manual graphs",
+    "hide edge text labels",
+    "SVG title",
+    "ARIA text",
+    "manual-review-only.no-branch-suggested",
+    "manual review only - no PR title suggested",
+    "review material, not an execution request",
+    "fresh task, branch, and title",
     "no raw private history persistence",
     "no automatic ChatGPT account scraping",
     "no OAuth",
