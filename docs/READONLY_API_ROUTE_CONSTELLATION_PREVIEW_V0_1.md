@@ -268,6 +268,10 @@ Evidence pointers do not create proof records, evidence records, readiness
 records, approval, publish readiness, merge readiness, QP evidence, `z_t`
 commits, or AG Resume records.
 
+When fixture nodes name more specific backing docs, fixtures, or scripts, the
+preview keeps source-specific `target_ref` values so copied handoffs point
+reviewers at those bounded refs instead of only at the static sample fixture.
+
 ## 10. Project Constellation read model
 
 The route maps the static fixture into:

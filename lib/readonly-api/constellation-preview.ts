@@ -324,14 +324,7 @@ function buildProjectConstellation(): ReadonlyApiRouteProjectConstellationReadMo
   const nodes = sample.nodes.map(mapNode);
   const edges = sample.edges.map(mapEdge);
   const clusters = sample.clusters.map(mapCluster);
-  const evidence_pointers = uniquePointerIds([
-    ...nodes.flatMap((node) => node.evidence_pointers.map((pointer) => pointer.pointer_id)),
-    ...edges.flatMap((edge) => edge.evidence_pointers.map((pointer) => pointer.pointer_id)),
-  ]).map((pointerId) =>
-    buildEvidencePointer(pointerId, {
-      sourceRef: STATIC_FIXTURE_SOURCE_REF,
-    }),
-  );
+  const evidence_pointers = buildTopLevelEvidencePointers(sample);
   const unresolved_tensions = [
     ...nodes.flatMap((node) => node.unresolved_tensions),
     ...clusters.flatMap((cluster) => cluster.unresolved_tensions),
@@ -358,7 +351,9 @@ function buildProjectConstellation(): ReadonlyApiRouteProjectConstellationReadMo
 
 function mapNode(node: FixtureNode): ReadonlyApiRouteConstellationNode {
   const evidencePointers = node.evidence_pointers.map((pointerId) =>
-    buildEvidencePointer(pointerId, { sourceRef: node.id }),
+    buildEvidencePointer(pointerId, {
+      sourceRef: selectEvidencePointerSourceRef(pointerId, node.source_refs),
+    }),
   );
 
   return {
@@ -429,6 +424,98 @@ function mapCluster(cluster: FixtureCluster): ReadonlyApiRouteConstellationClust
   };
 }
 
+function buildTopLevelEvidencePointers(
+  sample: ProjectConstellationFixture,
+): ReadonlyApiRouteEvidencePointer[] {
+  const pointerSourceRefById = new Map<string, string>();
+
+  for (const node of sample.nodes) {
+    for (const pointerId of node.evidence_pointers) {
+      rememberEvidencePointerSourceRef(
+        pointerSourceRefById,
+        pointerId,
+        selectEvidencePointerSourceRef(pointerId, node.source_refs),
+      );
+    }
+  }
+
+  for (const edge of sample.edges) {
+    for (const pointerId of edge.evidence_pointers) {
+      rememberEvidencePointerSourceRef(
+        pointerSourceRefById,
+        pointerId,
+        edge.id,
+      );
+    }
+  }
+
+  return Array.from(pointerSourceRefById.entries())
+    .sort(([leftPointerId], [rightPointerId]) =>
+      leftPointerId.localeCompare(rightPointerId),
+    )
+    .map(([pointerId, sourceRef]) =>
+      buildEvidencePointer(pointerId, { sourceRef }),
+    );
+}
+
+function rememberEvidencePointerSourceRef(
+  pointerSourceRefById: Map<string, string>,
+  pointerId: string,
+  sourceRef: string,
+) {
+  if (!pointerSourceRefById.has(pointerId)) {
+    pointerSourceRefById.set(pointerId, sourceRef);
+  }
+}
+
+function selectEvidencePointerSourceRef(
+  pointerId: string,
+  sourceRefs: string[],
+): string {
+  if (sourceRefs.length === 0) {
+    return STATIC_FIXTURE_SOURCE_REF;
+  }
+
+  const pointerTokens = tokenizeEvidenceRef(pointerId).filter(
+    (token) => !EVIDENCE_POINTER_KIND_TOKENS.has(token),
+  );
+  const [bestMatch] = sourceRefs
+    .map((sourceRef, index) => ({
+      sourceRef,
+      index,
+      score: scoreEvidenceSourceRef(pointerTokens, sourceRef),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+
+  return bestMatch?.sourceRef ?? STATIC_FIXTURE_SOURCE_REF;
+}
+
+const EVIDENCE_POINTER_KIND_TOKENS = new Set([
+  "pointer",
+  "doc",
+  "fixture",
+  "command",
+]);
+
+function scoreEvidenceSourceRef(
+  pointerTokens: string[],
+  sourceRef: string,
+): number {
+  const sourceTokens = new Set(tokenizeEvidenceRef(sourceRef));
+
+  return pointerTokens.reduce(
+    (score, token) => score + (sourceTokens.has(token) ? 1 : 0),
+    0,
+  );
+}
+
+function tokenizeEvidenceRef(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
 function buildEvidencePointer(
   pointerId: string,
   { sourceRef }: { sourceRef: string },
@@ -493,10 +580,6 @@ function labelFromId(id: string): string {
     .replace(/^pointer\./, "")
     .replace(/[._-]+/g, " ")
     .trim();
-}
-
-function uniquePointerIds(pointerIds: string[]): string[] {
-  return Array.from(new Set(pointerIds)).sort();
 }
 
 function typedFixture(): ProjectConstellationFixture {
