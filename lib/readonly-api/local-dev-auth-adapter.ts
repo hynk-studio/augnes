@@ -21,6 +21,9 @@ export const LOCAL_DEV_AUTH_PROJECT_SCOPE_HEADER =
 export const LOCAL_DEV_AUTH_PROJECT_SCOPE_VALUE = "project:augnes";
 export const LOCAL_DEV_AUTH_OPERATOR_LABEL_HEADER =
   "x-augnes-local-operator-label";
+export const LOCAL_DEV_AUTH_STRICT_MODE_HEADER =
+  "x-augnes-local-auth-strict";
+export const LOCAL_DEV_AUTH_STRICT_MODE_QUERY_PARAM = "strict_local_auth";
 
 export type ReadonlyApiLocalDevAuthAdapterResult =
   ReadonlyApiAuthScopeDecisionV0;
@@ -102,6 +105,24 @@ export function buildLocalDevAuthScopeRequest({
     local_guard_result_ref: localGuardResult.ok ? "local_guard:passed" : "local_guard:failed",
     source_kind: LOCAL_DEV_AUTH_ADAPTER_SOURCE_KIND,
   };
+}
+
+export function shouldUseReadonlyApiLocalDevAuthStrictMode(
+  request: Request,
+): boolean {
+  if (isTruthyDebugValue(headerValue(request, LOCAL_DEV_AUTH_STRICT_MODE_HEADER))) {
+    return true;
+  }
+
+  try {
+    return isTruthyDebugValue(
+      new URL(request.url).searchParams.get(
+        LOCAL_DEV_AUTH_STRICT_MODE_QUERY_PARAM,
+      ),
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function validateReadonlyApiLocalDevAuthAdapter({
@@ -195,6 +216,16 @@ function headerValue(request: Request, headerName: string): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isTruthyDebugValue(value: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  return ["1", "true", "yes", "strict", "required"].includes(
+    value.trim().toLowerCase(),
+  );
 }
 
 function normalizeLocalOperatorLabel(label: string | null): string | null {

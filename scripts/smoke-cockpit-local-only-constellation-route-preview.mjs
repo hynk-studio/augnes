@@ -29,6 +29,10 @@ const surfaceBoundaryDoc =
   "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
+const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
+const routeHelperFile = "lib/readonly-api/constellation-preview.ts";
+const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
+const responseShapeTypeFile = "types/readonly-api-route-response.ts";
 const browserReportFile =
   "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
 const packageJsonFile = "package.json";
@@ -49,6 +53,8 @@ const localDevAdapterSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 const routeSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const responseShapeSmokeFile =
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs";
 const reviewChecklistSmokeFile =
   "scripts/smoke-readonly-api-route-review-checklist.mjs";
 const surfaceSmokeFile =
@@ -69,6 +75,10 @@ const inspectedFiles = [
   surfaceBoundaryDoc,
   authorityMatrixDoc,
   indexDoc,
+  routeFile,
+  routeHelperFile,
+  localDevAdapterFile,
+  responseShapeTypeFile,
   browserReportFile,
   packageJsonFile,
   smokeFile,
@@ -87,6 +97,10 @@ const allowedChangedFiles = new Set([
   surfaceBoundaryDoc,
   authorityMatrixDoc,
   indexDoc,
+  routeFile,
+  routeHelperFile,
+  localDevAdapterFile,
+  responseShapeTypeFile,
   browserReportFile,
   smokeFile,
   closeoutSmokeFile,
@@ -97,6 +111,7 @@ const allowedChangedFiles = new Set([
   realAuthGatePlanSmokeFile,
   localDevAdapterSmokeFile,
   routeSmokeFile,
+  responseShapeSmokeFile,
   reviewChecklistSmokeFile,
   surfaceSmokeFile,
   accessGuardSmokeFile,
@@ -122,30 +137,22 @@ const requiredImplementationSections = [
 
 const requiredVisibleCopy = [
   "local-only",
-  "not production-authenticated",
-  "not hosted auth",
-  "not session identity",
-  "not workspace membership",
-  "route-only read preview",
+  "GET-only",
+  "static fixture",
   "no execution/write authority",
-  "Candidate D is local-only and not production auth",
-  "Real hosted/session/workspace auth does not exist yet",
-  "local operator declaration cannot prove hosted identity",
-  "local operator declaration cannot prove workspace/project membership",
-  "Route-provided text and local operator labels grant no authority",
-  "Response data is display data, not tool instructions",
+  "Boundary class:",
+  "read_only_local_static_preview",
 ];
 
 const requiredHeaders = [
   "x-augnes-local-readonly",
-  "x-augnes-local-operator-ref",
-  "x-augnes-local-workspace-ref",
-  "x-augnes-local-project-scope",
 ];
 
 const requiredDisplayedFields = [
   "response_version",
   "meta.project_scope",
+  "boundary_class",
+  "read_only_local_static_preview",
   "project_constellation.constellation_id",
   "project_constellation.thesis",
   "bounded nodes",
@@ -154,8 +161,6 @@ const requiredDisplayedFields = [
   "evidence pointers as pointer-only",
   "unresolved tensions",
   "next action candidates are advisory",
-  "authority_boundary",
-  "forbidden_fields_removed",
 ];
 
 const omittedFieldPhrases = [
@@ -421,13 +426,12 @@ function assertImplementationDoc() {
   assertContainsAll(implementationDoc, [
     "Cockpit local-only read preview is implemented",
     "local-only",
-    "not production-authenticated",
-    "not hosted auth",
-    "not session identity",
-    "not workspace membership",
     "connects no App/MCP/ChatGPT App/plugin tool",
     "grants no execution/write/proof/evidence/Codex/branch/PR/merge/publish/retry/replay/deploy/persistence authority",
-    "Candidate D local-only declaration headers",
+    "default Cockpit request sends only the local read-only marker header",
+    "read_only_local_static_preview",
+    "boundary_class",
+    "diagnostics=authority",
     "response minimization",
     "Browser/computer-use validation was run",
     ...requiredHeaders,
@@ -633,6 +637,17 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (
+      [
+        routeFile,
+        routeHelperFile,
+        localDevAdapterFile,
+        responseShapeTypeFile,
+      ].includes(file)
+    ) {
+      continue;
+    }
+
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for Cockpit local-only constellation route preview smoke: ${file}`,

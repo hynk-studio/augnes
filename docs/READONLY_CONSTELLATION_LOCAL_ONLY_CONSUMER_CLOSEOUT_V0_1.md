@@ -97,7 +97,8 @@ Completed local route state:
 - GET/read-only only
 - `project:augnes` scope remains required
 - original local read-only access guard remains required
-- Candidate D local-only declaration headers remain required
+- Candidate D local-only declaration headers are strict debug only
+- default local preview uses boundary class `read_only_local_static_preview`
 - response remains minimized
 - evidence pointers remain pointer-only
 - unresolved tensions remain separate from evidence/support

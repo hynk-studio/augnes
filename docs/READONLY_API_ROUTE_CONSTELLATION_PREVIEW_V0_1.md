@@ -9,12 +9,12 @@ Status:
   PR #383
 - GET/read-only only
 - explicitly local-authorized
-- Candidate D local-only development auth adapter required
+- default local preview does not require Candidate D declaration headers
+- Candidate D strict debug mode remains available
 - scoped to `project:augnes`
 - static public-safe fixture backed
-- no consumer surface connected
-- no UI
-- no Cockpit integration
+- route handler itself connects no consumer surface
+- Cockpit local-only consumer now exists
 - no ChatGPT App component
 - no MCP/App tool implementation
 - no DB query
@@ -62,17 +62,17 @@ validation. It follows:
 - `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md`
 - `types/readonly-api-route-response.ts`
 
-The route path is now implemented for this local validation slice, but the
-response text and returned boundary flags do not grant additional
-implementation, consumer, write, proof/evidence, branch/PR, publish, merge, or
-deployment authority.
+The route path is implemented for this local validation slice. The default
+response uses boundary class `read_only_local_static_preview`; detailed
+authority lists are available only through diagnostics.
 
 ## 3. Local authorization and fail-closed behavior
 
-The route requires both:
+The route requires:
 
 - local host access from `localhost`, `127.0.0.1`, or `::1`
 - header `x-augnes-local-readonly: constellation-preview-v0.1`
+- `scope=project:augnes`
 
 The route now uses the shared read-only access guard documented in
 `docs/READONLY_API_ROUTE_ACCESS_GUARD_V0_1.md`. The guard checks URL host,
@@ -103,9 +103,10 @@ source-selection packet. The route remains local-only until auth source is
 selected and separately implemented.
 
 `docs/READONLY_API_ROUTE_LOCAL_DEV_AUTH_ADAPTER_V0_1.md` documents the
-Candidate D local-only adapter now composed with the local guard. Candidate D
-is not production auth, not hosted auth, not OAuth, not session identity, and
-not workspace membership.
+Candidate D local-only adapter. It is optional strict debug validation for
+this route via `strict_local_auth=1` or `x-augnes-local-auth-strict: 1`.
+Candidate D is not production auth, not hosted auth, not OAuth, not session
+identity, and not workspace membership.
 
 `docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md` defines the next gate for
 future real auth. The current route remains local-only with the Candidate D
@@ -142,7 +143,7 @@ Required header:
 x-augnes-local-readonly: constellation-preview-v0.1
 ```
 
-Required Candidate D local-only declaration headers:
+Optional strict debug declaration headers:
 
 ```text
 x-augnes-local-operator-ref: operator:local-dev
@@ -156,10 +157,11 @@ Optional display-only header:
 x-augnes-local-operator-label
 ```
 
-The old marker-only request is no longer sufficient after this PR. Local
-operator declaration headers cannot prove hosted identity or hosted
-workspace/project membership. Route-provided text and local operator labels
-grant no authority.
+The marker-only local request is sufficient by default. Strict debug mode can
+be requested with `strict_local_auth=1` or `x-augnes-local-auth-strict: 1`; in
+that mode the declaration headers above are required. Local operator
+declaration headers cannot prove hosted identity or hosted workspace/project
+membership. Route-provided text and local operator labels grant no authority.
 
 The route does not silently default scope. Missing scope fails closed with a
 minimal error body.
@@ -169,14 +171,17 @@ minimal error body.
 The response aligns with `types/readonly-api-route-response.ts` and returns:
 
 - `response_version`
+- `boundary_class`
 - `meta`
 - `source_refs`
 - `project_constellation`
 - `evidence_pointers`
 - `unresolved_tensions`
 - `next_action_candidates`
-- `forbidden_fields_removed`
-- `authority_boundary`
+
+The default response does not include long `authority_boundary` or
+`forbidden_fields_removed` lists. Request `diagnostics=authority` to return
+those details under `diagnostics`.
 
 The first implementation intentionally does not return:
 
@@ -214,8 +219,7 @@ The route returns only fields needed for route-first local read validation:
 - pointer-only evidence references
 - unresolved tensions separate from support/evidence
 - advisory next action candidates
-- removed forbidden field family names
-- explicit authority boundary strings
+- compact boundary class `read_only_local_static_preview`
 
 Optional Perspective Capsule and copyable handoff fields remain omitted until a
 future PR justifies them under response minimization and connects a consumer
@@ -235,8 +239,9 @@ The route removes or never returns:
 - Codex SDK execution handles
 - provider credentials
 
-`forbidden_fields_removed` may list those field family names. It does not
-return values, handles, credentials, or private payloads.
+`diagnostics=authority` may list those field family names under
+`diagnostics.forbidden_fields_removed`. The default user-facing preview omits
+that list and never returns values, handles, credentials, or private payloads.
 
 ## 9. Evidence pointer semantics
 
@@ -262,7 +267,7 @@ The route maps the static fixture into:
 - `evidence_pointers`
 - `unresolved_tensions`
 - `next_action_candidates`
-- `authority_boundary`
+- `boundary_class`
 
 Nodes include id, type, label, summary, source refs, pointer-only evidence,
 unresolved tensions, and advisory next action candidates.

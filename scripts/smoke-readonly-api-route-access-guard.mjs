@@ -50,6 +50,12 @@ const realAuthGatePlanDoc =
   "docs/READONLY_API_ROUTE_REAL_AUTH_GATE_PLAN_V0_1.md";
 const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
 const authScopeTypeFile = "types/readonly-api-auth-scope.ts";
+const responseShapeTypeFile = "types/readonly-api-route-response.ts";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
+const closeoutDoc =
+  "docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md";
 const routeDoc = "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md";
 const planDoc = "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
 const designDoc =
@@ -73,6 +79,10 @@ const localDevAdapterSmokeFile =
   "scripts/smoke-readonly-api-route-local-dev-auth-adapter.mjs";
 const routeSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const closeoutSmokeFile =
+  "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 const planSmokeFile =
   "scripts/smoke-readonly-api-route-implementation-plan.mjs";
 const designSmokeFile =
@@ -111,6 +121,10 @@ const allowedChangedFiles = new Set([
   authSourceSelectionDoc,
   adapterBoundaryDoc,
   authScopeTypeFile,
+  responseShapeTypeFile,
+  cockpitFile,
+  cockpitImplementationDoc,
+  closeoutDoc,
   localDevAdapterPlanDoc,
   localDevAdapterDoc,
   realAuthGatePlanDoc,
@@ -120,6 +134,8 @@ const allowedChangedFiles = new Set([
   adapterBoundarySmokeFile,
   localDevAdapterPlanSmokeFile,
   localDevAdapterSmokeFile,
+  cockpitImplementationSmokeFile,
+  closeoutSmokeFile,
   planSmokeFile,
   designSmokeFile,
   planningSmokeFile,
@@ -670,6 +686,10 @@ function assertNoForbiddenChangedPaths(files) {
     helperFile,
     localDevAdapterFile,
   ]);
+  const exactAllowedBoundaryFiles = new Set([
+    cockpitFile,
+    responseShapeTypeFile,
+  ]);
   const forbiddenPatterns = [
     /^AGENTS\.md$/,
     /^components\//,
@@ -690,7 +710,13 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
-    if (exactAllowedRouteFiles.has(file) || exactAllowedLibFiles.has(file)) continue;
+    if (
+      exactAllowedRouteFiles.has(file) ||
+      exactAllowedLibFiles.has(file) ||
+      exactAllowedBoundaryFiles.has(file)
+    ) {
+      continue;
+    }
     assert(
       !forbiddenPatterns.some((pattern) => pattern.test(file)),
       `Forbidden changed file for read-only route access guard smoke: ${file}`,

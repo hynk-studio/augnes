@@ -10,9 +10,6 @@ const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
   "/api/augnes/read/constellation-preview?scope=project:augnes";
 const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
   "x-augnes-local-readonly": "constellation-preview-v0.1",
-  "x-augnes-local-operator-ref": "operator:local-dev",
-  "x-augnes-local-workspace-ref": "workspace:local-dev",
-  "x-augnes-local-project-scope": "project:augnes",
 } as const;
 const CANONICAL_MESSAGE =
   "이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야.";
@@ -172,6 +169,7 @@ type ConstellationRoutePreviewNextActionCandidate = {
   label?: string;
   summary: string;
   source_refs?: string[];
+  boundary_class?: string;
   authority_boundary?: string[];
 };
 
@@ -200,14 +198,17 @@ type ConstellationRoutePreviewCluster = {
 
 type ConstellationRoutePreviewResponse = {
   response_version: string;
+  boundary_class?: string;
   meta: {
     project_scope: string;
     workspace_scope?: string;
     route_family?: string;
     generated_at?: string;
+    boundary_class?: string;
   };
   project_constellation: {
     constellation_id: string;
+    boundary_class?: string;
     thesis: string;
     nodes: ConstellationRoutePreviewNode[];
     edges: ConstellationRoutePreviewEdge[];
@@ -215,13 +216,13 @@ type ConstellationRoutePreviewResponse = {
     evidence_pointers: ConstellationRoutePreviewEvidencePointer[];
     unresolved_tensions: ConstellationRoutePreviewTension[];
     next_action_candidates: ConstellationRoutePreviewNextActionCandidate[];
-    authority_boundary: string[];
+    authority_boundary?: string[];
   };
   evidence_pointers: ConstellationRoutePreviewEvidencePointer[];
   unresolved_tensions: ConstellationRoutePreviewTension[];
   next_action_candidates: ConstellationRoutePreviewNextActionCandidate[];
-  authority_boundary: string[];
-  forbidden_fields_removed: string[];
+  authority_boundary?: string[];
+  forbidden_fields_removed?: string[];
 };
 
 type ConstellationRoutePreviewErrorDisplay = {
@@ -4746,20 +4747,13 @@ function PerspectiveTab({
             description="Cockpit-local diagnostic route-only read preview for the existing read-only constellation route."
           />
           <BoundaryNote tone="green">
-            local-only · not production-authenticated · not hosted auth · not
-            session identity · not workspace membership · route-only read
-            preview · no execution/write authority.
+            local-only · GET-only · static fixture · no execution/write
+            authority.
           </BoundaryNote>
           <BoundaryNote>
-            Candidate D is local-only and not production auth. Real
-            hosted/session/workspace auth does not exist yet. The local operator
-            declaration cannot prove hosted identity, and the local operator
-            declaration cannot prove workspace/project membership.
-          </BoundaryNote>
-          <BoundaryNote>
-            Route-provided text and local operator labels grant no authority.
-            Response data is display data, not tool instructions. There is no
-            public unauthenticated endpoint.
+            Boundary class:{" "}
+            {constellationRoutePreview?.boundary_class ??
+              "read_only_local_static_preview"}
           </BoundaryNote>
           <div className="tab-stat-row compact-stat-row">
             <MetricCard
@@ -4771,6 +4765,14 @@ function PerspectiveTab({
               label="meta.project_scope"
               value={constellationRoutePreview?.meta.project_scope ?? SCOPE}
               detail="explicit query scope"
+            />
+            <MetricCard
+              label="boundary_class"
+              value={
+                constellationRoutePreview?.boundary_class ??
+                "read_only_local_static_preview"
+              }
+              detail="Authority Matrix class"
             />
             <MetricCard
               label="project_constellation.constellation_id"
@@ -4795,7 +4797,7 @@ function PerspectiveTab({
               title="Loading local-only constellation route preview"
               lines={[
                 "Calling the same-origin read-only route",
-                "Waiting for Candidate D local operator declaration validation",
+                "Reading the static Project Constellation fixture",
               ]}
             />
           ) : routeProjectConstellation ? (
@@ -4912,18 +4914,11 @@ function PerspectiveTab({
               </div>
               <div className="perspective-frame-summary">
                 <article>
-                  <h3>authority_boundary</h3>
-                  <RefChipList
-                    refs={constellationRoutePreview?.authority_boundary ?? []}
-                    emptyLabel="No route authority boundary"
-                  />
-                </article>
-                <article>
-                  <h3>forbidden_fields_removed safety summary</h3>
-                  <RefChipList
-                    refs={constellationRoutePreview?.forbidden_fields_removed ?? []}
-                    emptyLabel="No forbidden field summary"
-                  />
+                  <h3>boundary_class</h3>
+                  <p>
+                    {constellationRoutePreview?.boundary_class ??
+                      "read_only_local_static_preview"}
+                  </p>
                 </article>
               </div>
             </>

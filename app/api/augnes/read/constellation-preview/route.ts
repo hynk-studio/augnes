@@ -1,6 +1,7 @@
 import {
   buildConstellationPreviewError,
   buildConstellationPreviewResponse,
+  shouldIncludeConstellationPreviewDiagnostics,
   validateConstellationPreviewRequest,
 } from "@/lib/readonly-api/constellation-preview";
 import { NextResponse } from "next/server";
@@ -24,7 +25,10 @@ export function GET(request: Request) {
     }
 
     return NextResponse.json(
-      buildConstellationPreviewResponse({ scope: validation.scope }),
+      buildConstellationPreviewResponse({
+        includeDiagnostics: shouldIncludeConstellationPreviewDiagnostics(request),
+        scope: validation.scope,
+      }),
       { status: 200 },
     );
   } catch {
