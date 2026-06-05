@@ -30,6 +30,19 @@ const PERSPECTIVE_INGEST_LOCAL_PREVIEW_HEADERS = {
   "content-type": "application/json",
   "x-augnes-local-readonly": "perspective-ingest-local-preview-v0.1",
 } as const;
+const PERSPECTIVE_INGEST_MISSING_INPUT_ERROR: PerspectiveIngestConstellationPreviewErrorDisplay =
+  {
+    code: "missing_input_text",
+    status: "400",
+    summary: "Pasted text is required.",
+    authority_boundary: [
+      "manual pasted text preview validation",
+      "safe code and summary only",
+      "no rejected payload echo",
+      "stale graph is not presented as current preview",
+      "no raw private history storage",
+    ],
+  };
 const SAFE_PASTED_TEXT_EXAMPLE = [
   "Intent: Turn a short local work summary into a Perspective graph.",
   "Concept: Manual pasted text Perspective ingest preview.",
@@ -4052,6 +4065,7 @@ function PerspectiveTab({
     useRef<HTMLTextAreaElement | null>(null);
   const selectedPerspectiveIngestPacketTextRef =
     useRef<HTMLTextAreaElement | null>(null);
+  const manualPastedTextPreviewFormRef = useRef<HTMLFormElement | null>(null);
   const [
     selectedConstellationNextActionId,
     setSelectedConstellationNextActionId,
@@ -4296,13 +4310,35 @@ function PerspectiveTab({
 
   function previewManualPastedText(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    previewManualPastedTextFromForm(event.currentTarget);
+  }
+
+  function previewManualPastedTextFromForm(form: HTMLFormElement | null) {
+    const pastedTextInput =
+      form?.querySelector<HTMLTextAreaElement>(
+        "#perspective-ingest-local-pasted-text",
+      )?.value ?? manualPastedText;
+    const sourceLabelInput =
+      form?.querySelector<HTMLInputElement>(
+        "#perspective-ingest-local-source-label",
+      )?.value ?? manualPastedTextSourceLabel;
+
     setPerspectiveIngestPreviewMode("manual pasted text preview");
     setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
     setPerspectiveIngestCopyNotice(null);
+
+    if (!pastedTextInput.trim()) {
+      setPerspectiveIngestConstellationPreviewState({
+        status: "failed",
+        error: PERSPECTIVE_INGEST_MISSING_INPUT_ERROR,
+      });
+      return;
+    }
+
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
     void fetchPerspectiveIngestLocalPastedTextPreview({
-      inputText: manualPastedText,
-      sourceLabel: manualPastedTextSourceLabel,
+      inputText: pastedTextInput,
+      sourceLabel: sourceLabelInput,
     }).then((result) => {
       if (result.status === "failed" && result.error.code === "secret_like_input") {
         setManualPastedText("");
@@ -5486,6 +5522,7 @@ function PerspectiveTab({
             </button>
           </div>
           <form
+            ref={manualPastedTextPreviewFormRef}
             className="ingest-local-preview-form"
             onSubmit={previewManualPastedText}
           >
@@ -5541,7 +5578,15 @@ function PerspectiveTab({
               >
                 Clear pasted text
               </button>
-              <button type="submit" className="primary-action-button">
+              <button
+                type="button"
+                className="primary-action-button"
+                onClick={() =>
+                  previewManualPastedTextFromForm(
+                    manualPastedTextPreviewFormRef.current,
+                  )
+                }
+              >
                 Preview pasted text
               </button>
             </div>

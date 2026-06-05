@@ -67,6 +67,10 @@ characters.
 
 `source_label` is optional and must be at most 120 characters when supplied.
 
+Empty and whitespace-only manual preview input fails closed with
+`missing_input_text` and the safe summary `Pasted text is required.` The
+rejected empty input is not echoed.
+
 The validator rejects obvious secret-like input with safe error codes and
 summaries only. It does not echo rejected input text.
 
@@ -177,6 +181,12 @@ Cockpit reuses the existing Perspective Ingest Constellation display path:
 
 The UI distinguishes selected sample source, currently loaded preview source
 kind, sample fixture preview, and manual pasted text preview.
+
+When empty or whitespace-only manual input is previewed after a valid graph,
+Cockpit shows the fail-closed `missing_input_text` state, marks the loaded source
+query as `failed preview`, marks source kind as `unavailable`, and does not
+present the previous graph as the current preview. Recovery is immediate:
+pasting valid text afterward runs the normal local preview path.
 
 When a manual pasted-text preview is loaded, the sample source metric is marked
 inactive so the last selected fixture radio is not confused with the active
