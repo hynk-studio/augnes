@@ -220,6 +220,7 @@ const requiredRouteDocPhrases = [
   "Copy Codex handoff",
   "generates its first useful handoff client-side from this existing Project Constellation response",
   "does not change the route payload shape",
+  "source-specific `target_ref` values",
   staticFixtureFile,
   responseShapeTypeFile,
   "pointer_semantics: \"pointer_only\"",
@@ -561,6 +562,7 @@ async function assertRouteBehavior() {
   assert.equal(body.project_constellation.authority_boundary, undefined);
 
   assertEvidencePointersArePointerOnly(body);
+  assertTopLevelEvidencePointerTargets(body);
   assertUnresolvedTensionsAreSeparate(body);
   assertNextActionCandidatesAreAdvisory(body);
   assertNoForbiddenHandles(body);
@@ -765,6 +767,74 @@ function assertEvidencePointersArePointerOnly(body) {
     assert.ok(pointer.pointer_id);
     assert.ok(pointer.target_ref);
   }
+}
+
+function assertTopLevelEvidencePointerTargets(body) {
+  assert.deepEqual(
+    body.evidence_pointers,
+    body.project_constellation.evidence_pointers,
+    "top-level evidence pointers must mirror project_constellation.evidence_pointers",
+  );
+
+  const pointerById = new Map(
+    body.evidence_pointers.map((pointer) => [pointer.pointer_id, pointer]),
+  );
+
+  const expectedTargetRefs = new Map([
+    [
+      "pointer.command.smoke_sidecar_fixture_descriptors",
+      "scripts/smoke-sidecar-et-trace-pack-fixture-descriptors.mjs",
+    ],
+    [
+      "pointer.command.smoke_sidecar_manifest",
+      "scripts/smoke-sidecar-et-trace-pack-manifest.mjs",
+    ],
+    [
+      "pointer.doc.codex_sdk_execution_authority_design",
+      "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md",
+    ],
+    [
+      "pointer.doc.exact_fixture_descriptor_proposal",
+      "docs/SIDECAR_ET_TRACE_PACK_EXACT_FIXTURE_DESCRIPTOR_PROPOSAL_V0_1.md",
+    ],
+    [
+      "pointer.doc.lab_report_reference",
+      "docs/SIDECAR_ET_LAB_REPORT_REFERENCE_V0_1.md",
+    ],
+    [
+      "pointer.doc.lab_upstream_alignment",
+      "docs/SIDECAR_ET_LAB_UPSTREAM_ALIGNMENT_V0_1.md",
+    ],
+  ]);
+
+  for (const [pointerId, targetRef] of expectedTargetRefs) {
+    assert.equal(
+      pointerById.get(pointerId)?.target_ref,
+      targetRef,
+      `${pointerId} must keep its source-specific target_ref`,
+    );
+    assert.notEqual(
+      pointerById.get(pointerId)?.target_ref,
+      staticFixtureFile,
+      `${pointerId} must not collapse to the static sample fixture in the copied-handoff source list`,
+    );
+  }
+
+  const labNode = body.project_constellation.nodes.find(
+    (node) => node.id === "node.lab_evidence_baseline",
+  );
+  const labNodePointerById = new Map(
+    (labNode?.evidence_pointers ?? []).map((pointer) => [
+      pointer.pointer_id,
+      pointer,
+    ]),
+  );
+
+  assert.equal(
+    labNodePointerById.get("pointer.doc.lab_report_reference")?.target_ref,
+    "docs/SIDECAR_ET_LAB_REPORT_REFERENCE_V0_1.md",
+    "lab node evidence pointer target must remain directly reviewable",
+  );
 }
 
 function assertUnresolvedTensionsAreSeparate(body) {
