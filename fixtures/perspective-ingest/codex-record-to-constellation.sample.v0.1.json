@@ -1,0 +1,105 @@
+{
+  "fixture_version": "perspective_ingest_fixture.v0.1",
+  "fixture_kind": "sample:codex",
+  "source_kind": "codex_record_fixture",
+  "source_ref": "fixtures/perspective-ingest/codex-record-to-constellation.sample.v0.1.json",
+  "source_label": "Synthetic Codex record sample",
+  "episode_id": "episode.sample_codex.project_constellation_ingest_preview.v0_1",
+  "title": "Codex work session report for an Augnes ingest preview",
+  "synthetic_timestamp": "2026-06-05T00:00:00.000Z",
+  "actors": ["synthetic_user", "synthetic_codex"],
+  "public_safety": {
+    "synthetic": true,
+    "public_safe": true,
+    "sample_fixture_only": true,
+    "not_raw_private_history": true,
+    "no_credentials_or_secrets": true,
+    "no_proof_evidence_readiness_write": true,
+    "no_external_call": true,
+    "no_codex_execution_authority": true,
+    "boundary_notes": [
+      "synthetic",
+      "public-safe",
+      "sample fixture only",
+      "not raw private history",
+      "no credential/secrets",
+      "no proof/evidence/readiness write",
+      "no external call",
+      "no Codex execution authority"
+    ]
+  },
+  "summary": "A synthetic Codex closeout describes implementing a local-only Perspective ingest preview with fixtures, helper adapters, a guarded route, Cockpit SVG graph display, and focused smokes.",
+  "message_excerpt_summaries": [
+    "The synthetic Codex session reads existing route and Cockpit preview patterns.",
+    "It implements deterministic adapters from sample records into graph packets.",
+    "It reports validation expectations and remaining local-only boundary risks."
+  ],
+  "user_intents": [],
+  "product_concepts": [
+    "SessionEpisode normalization",
+    "PerspectiveIngestConstellationPreviewResponse",
+    "copyable handoff packets",
+    "local-only route guard"
+  ],
+  "decisions": [
+    "Do not add graph dependencies for the first preview.",
+    "Do not persist raw history or graph state.",
+    "Do not grant branch, PR, merge, publish, deploy, approval, or execution authority from the UI."
+  ],
+  "work_units": [
+    "Add perspective ingest type definitions.",
+    "Add synthetic fixtures and deterministic adapters.",
+    "Add a local-only read route.",
+    "Add Cockpit SVG node-edge rendering and copy buttons."
+  ],
+  "changed_files": [
+    "types/perspective-ingest-constellation-preview.ts",
+    "fixtures/perspective-ingest/chatgpt-record-to-constellation.sample.v0.1.json",
+    "fixtures/perspective-ingest/codex-record-to-constellation.sample.v0.1.json",
+    "lib/perspective-ingest/session-episode.ts",
+    "lib/perspective-ingest/chatgpt-record-adapter.ts",
+    "lib/perspective-ingest/codex-record-adapter.ts",
+    "lib/perspective-ingest/episode-to-constellation-packet.ts",
+    "lib/readonly-api/perspective-ingest-constellation-preview.ts",
+    "app/api/augnes/read/perspective-ingest-constellation-preview/route.ts",
+    "components/augnes-cockpit.tsx",
+    "app/globals.css",
+    "scripts/smoke-perspective-ingest-constellation-preview.mjs",
+    "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md",
+    "package.json"
+  ],
+  "validations": [
+    "npm run typecheck",
+    "npm run smoke:readonly-api-route-constellation-preview",
+    "npm run smoke:cockpit-local-only-constellation-route-preview",
+    "npm run smoke:perspective-capsule-contract",
+    "npm run smoke:perspective-ingest-constellation-preview",
+    "git diff --check"
+  ],
+  "final_report_points": [
+    "PR number and URL",
+    "branch",
+    "commit SHA",
+    "changed files",
+    "tests run with exact results",
+    "blockers",
+    "repo/task mismatches",
+    "scope risks",
+    "assumptions",
+    "questions requiring user/PM judgment",
+    "next suggested goal"
+  ],
+  "evidence_refs": [
+    "docs/READONLY_API_ROUTE_CONSTELLATION_PREVIEW_V0_1.md",
+    "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+    "components/augnes-cockpit.tsx"
+  ],
+  "unresolved_tensions": [
+    "Static smoke can verify boundary shape but cannot prove the eventual real import UX.",
+    "The SVG graph preview is useful for inspection but intentionally lacks drag, save, or manual gravity."
+  ],
+  "next_actions": [
+    "Run the local-only route and Cockpit static smokes after implementation.",
+    "Plan the next local user-provided import slice without automatic account scraping."
+  ]
+}

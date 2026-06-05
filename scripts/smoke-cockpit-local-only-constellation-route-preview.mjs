@@ -37,6 +37,31 @@ const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
 const routeHelperFile = "lib/readonly-api/constellation-preview.ts";
 const localDevAdapterFile = "lib/readonly-api/local-dev-auth-adapter.ts";
 const responseShapeTypeFile = "types/readonly-api-route-response.ts";
+const globalsCssFile = "app/globals.css";
+const perspectiveIngestTypeFile =
+  "types/perspective-ingest-constellation-preview.ts";
+const perspectiveIngestChatGptFixtureFile =
+  "fixtures/perspective-ingest/chatgpt-record-to-constellation.sample.v0.1.json";
+const perspectiveIngestCodexFixtureFile =
+  "fixtures/perspective-ingest/codex-record-to-constellation.sample.v0.1.json";
+const perspectiveIngestSessionEpisodeFile =
+  "lib/perspective-ingest/session-episode.ts";
+const perspectiveIngestChatGptAdapterFile =
+  "lib/perspective-ingest/chatgpt-record-adapter.ts";
+const perspectiveIngestCodexAdapterFile =
+  "lib/perspective-ingest/codex-record-adapter.ts";
+const perspectiveIngestPacketBuilderFile =
+  "lib/perspective-ingest/episode-to-constellation-packet.ts";
+const perspectiveIngestRouteHelperFile =
+  "lib/readonly-api/perspective-ingest-constellation-preview.ts";
+const perspectiveIngestRouteFile =
+  "app/api/augnes/read/perspective-ingest-constellation-preview/route.ts";
+const perspectiveIngestDoc =
+  "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md";
+const perspectiveIngestSmokeFile =
+  "scripts/smoke-perspective-ingest-constellation-preview.mjs";
+const perspectiveCapsuleSmokeFile =
+  "scripts/smoke-perspective-capsule-contract.mjs";
 const browserReportFile =
   "reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md";
 const packageJsonFile = "package.json";
@@ -129,6 +154,19 @@ const allowedChangedFiles = new Set([
   accessGuardSmokeFile,
   implementationPlanSmokeFile,
   implementationDesignSmokeFile,
+  globalsCssFile,
+  perspectiveIngestTypeFile,
+  perspectiveIngestChatGptFixtureFile,
+  perspectiveIngestCodexFixtureFile,
+  perspectiveIngestSessionEpisodeFile,
+  perspectiveIngestChatGptAdapterFile,
+  perspectiveIngestCodexAdapterFile,
+  perspectiveIngestPacketBuilderFile,
+  perspectiveIngestRouteHelperFile,
+  perspectiveIngestRouteFile,
+  perspectiveIngestDoc,
+  perspectiveIngestSmokeFile,
+  perspectiveCapsuleSmokeFile,
 ]);
 
 const requiredImplementationSections = [
@@ -825,6 +863,13 @@ function assertNoForbiddenChangedPaths(files) {
         routeHelperFile,
         localDevAdapterFile,
         responseShapeTypeFile,
+        perspectiveIngestRouteFile,
+        perspectiveIngestRouteHelperFile,
+        perspectiveIngestTypeFile,
+        perspectiveIngestSessionEpisodeFile,
+        perspectiveIngestChatGptAdapterFile,
+        perspectiveIngestCodexAdapterFile,
+        perspectiveIngestPacketBuilderFile,
       ].includes(file)
     ) {
       continue;

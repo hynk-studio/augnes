@@ -1370,6 +1370,109 @@ h1 {
   color: var(--danger);
 }
 
+.perspective-ingest-constellation-section {
+  border-color: rgba(13, 79, 62, 0.22);
+}
+
+.ingest-constellation-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.ingest-constellation-toolbar label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(13, 79, 62, 0.18);
+  border-radius: 8px;
+  color: #174434;
+  background: #f6fbf8;
+  font-size: 0.84rem;
+  font-weight: 720;
+}
+
+.ingest-constellation-stage {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid rgba(13, 79, 62, 0.16);
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.ingest-constellation-svg {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+  min-height: 320px;
+}
+
+.ingest-constellation-edge line {
+  stroke: rgba(64, 81, 104, 0.38);
+  stroke-width: 2;
+}
+
+.ingest-constellation-edge text {
+  fill: #405168;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-anchor: middle;
+}
+
+.ingest-constellation-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.ingest-constellation-node circle {
+  fill: #eef8f4;
+  stroke: rgba(13, 79, 62, 0.54);
+  stroke-width: 2;
+}
+
+.ingest-constellation-node text {
+  fill: #123c2f;
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-anchor: middle;
+}
+
+.ingest-constellation-node:hover circle,
+.ingest-constellation-node:focus-visible circle,
+.ingest-constellation-node.selected circle {
+  fill: #dff3ed;
+  stroke: #0d4f3e;
+  stroke-width: 3;
+}
+
+.ingest-constellation-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ingest-constellation-detail-grid article {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(13, 79, 62, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ingest-constellation-packet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .loading-block {
   display: grid;
   gap: 8px;
@@ -4227,6 +4330,14 @@ h1 {
 
   .perspective-anchor-nav {
     top: 8px;
+  }
+
+  .ingest-constellation-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ingest-constellation-svg {
+    min-width: 560px;
   }
 
   .perspective-trace-strip {

@@ -115,6 +115,31 @@ const consumerScopeDecisionSmokeFile =
 const responseShapeTypeFile = "types/readonly-api-route-response.ts";
 const staticFixtureFile =
   "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
+const globalsCssFile = "app/globals.css";
+const perspectiveIngestTypeFile =
+  "types/perspective-ingest-constellation-preview.ts";
+const perspectiveIngestChatGptFixtureFile =
+  "fixtures/perspective-ingest/chatgpt-record-to-constellation.sample.v0.1.json";
+const perspectiveIngestCodexFixtureFile =
+  "fixtures/perspective-ingest/codex-record-to-constellation.sample.v0.1.json";
+const perspectiveIngestSessionEpisodeFile =
+  "lib/perspective-ingest/session-episode.ts";
+const perspectiveIngestChatGptAdapterFile =
+  "lib/perspective-ingest/chatgpt-record-adapter.ts";
+const perspectiveIngestCodexAdapterFile =
+  "lib/perspective-ingest/codex-record-adapter.ts";
+const perspectiveIngestPacketBuilderFile =
+  "lib/perspective-ingest/episode-to-constellation-packet.ts";
+const perspectiveIngestRouteHelperFile =
+  "lib/readonly-api/perspective-ingest-constellation-preview.ts";
+const perspectiveIngestRouteFile =
+  "app/api/augnes/read/perspective-ingest-constellation-preview/route.ts";
+const perspectiveIngestDoc =
+  "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md";
+const perspectiveIngestSmokeFile =
+  "scripts/smoke-perspective-ingest-constellation-preview.mjs";
+const perspectiveCapsuleSmokeFile =
+  "scripts/smoke-perspective-capsule-contract.mjs";
 
 const inspectedFiles = [
   routeFile,
@@ -170,6 +195,19 @@ const allowedChangedFiles = new Set([
   surfaceSmokeFile,
   realAuthGatePlanSmokeFile,
   consumerScopeDecisionSmokeFile,
+  globalsCssFile,
+  perspectiveIngestTypeFile,
+  perspectiveIngestChatGptFixtureFile,
+  perspectiveIngestCodexFixtureFile,
+  perspectiveIngestSessionEpisodeFile,
+  perspectiveIngestChatGptAdapterFile,
+  perspectiveIngestCodexAdapterFile,
+  perspectiveIngestPacketBuilderFile,
+  perspectiveIngestRouteHelperFile,
+  perspectiveIngestRouteFile,
+  perspectiveIngestDoc,
+  perspectiveIngestSmokeFile,
+  perspectiveCapsuleSmokeFile,
 ]);
 
 const requiredSections = [

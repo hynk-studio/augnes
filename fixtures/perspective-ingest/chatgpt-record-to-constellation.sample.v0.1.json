@@ -1,0 +1,70 @@
+{
+  "fixture_version": "perspective_ingest_fixture.v0.1",
+  "fixture_kind": "sample:chatgpt",
+  "source_kind": "chatgpt_record_fixture",
+  "source_ref": "fixtures/perspective-ingest/chatgpt-record-to-constellation.sample.v0.1.json",
+  "source_label": "Synthetic ChatGPT record sample",
+  "episode_id": "episode.sample_chatgpt.project_constellation_ingest_preview.v0_1",
+  "title": "ChatGPT discussion about connecting history to Project Constellation",
+  "synthetic_timestamp": "2026-06-05T00:00:00.000Z",
+  "actors": ["synthetic_user", "synthetic_chatgpt"],
+  "public_safety": {
+    "synthetic": true,
+    "public_safe": true,
+    "sample_fixture_only": true,
+    "not_raw_private_history": true,
+    "no_credentials_or_secrets": true,
+    "no_proof_evidence_readiness_write": true,
+    "no_external_call": true,
+    "no_codex_execution_authority": true,
+    "boundary_notes": [
+      "synthetic",
+      "public-safe",
+      "sample fixture only",
+      "not raw private history",
+      "no credential/secrets",
+      "no proof/evidence/readiness write",
+      "no external call",
+      "no Codex execution authority"
+    ]
+  },
+  "summary": "A synthetic conversation asks how ChatGPT and Codex history might become a local-only Augnes Project Constellation preview inside Cockpit.",
+  "message_excerpt_summaries": [
+    "The synthetic user asks for a graph-first way to preview history as nodes, edges, tensions, and next actions.",
+    "The synthetic assistant recommends a fixture-backed ingest loop before any real import path.",
+    "Both sides keep the boundary manual, local-only, read-only, and packet-oriented."
+  ],
+  "user_intents": [
+    "Preview how ChatGPT/Codex history could be normalized into SessionEpisode-like inputs.",
+    "Render a graph-first constellation in Cockpit without adding graph storage.",
+    "Copy a ChatGPT review packet and a Codex handoff packet for manual review."
+  ],
+  "product_concepts": [
+    "Project Constellation nodes and typed edges",
+    "Perspective Capsule preview",
+    "Cockpit SVG constellation preview",
+    "Manual ChatGPT and Codex packets"
+  ],
+  "decisions": [
+    "Start with synthetic public-safe fixtures before real import parsing.",
+    "Use deterministic fixture-to-packet generation.",
+    "Keep all packets advisory and copyable, not executable."
+  ],
+  "work_units": [],
+  "changed_files": [],
+  "validations": [],
+  "final_report_points": [],
+  "evidence_refs": [
+    "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
+    "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+    "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md"
+  ],
+  "unresolved_tensions": [
+    "Real history import needs a separate local user-provided import path.",
+    "A graph preview can clarify relationships but must not imply graph DB persistence."
+  ],
+  "next_actions": [
+    "Review the synthetic ChatGPT fixture shape in Cockpit.",
+    "Decide the next local-only manual import slice after the fixture preview is understood."
+  ]
+}
