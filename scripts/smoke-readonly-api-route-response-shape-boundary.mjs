@@ -137,6 +137,47 @@ const requiredConcepts = [
   "authority_boundary",
 ];
 
+const expectedBoundaryClasses = [
+  "read_only_local_static_preview",
+  "whole_perspective_summary",
+  "perspective_capsule_preview",
+  "copyable_handoff_draft",
+  "boundary_next_review",
+];
+
+const productFacingBoundaryClassRequirements = [
+  {
+    interfaceName: "ReadonlyApiRouteProjectConstellationReadModel",
+    expectedField: 'boundary_class: "read_only_local_static_preview";',
+  },
+  {
+    interfaceName: "ReadonlyApiRouteWholePerspectiveSummary",
+    expectedField: 'boundary_class: "whole_perspective_summary";',
+  },
+  {
+    interfaceName: "ReadonlyApiRoutePerspectiveCapsulePreview",
+    expectedField: 'boundary_class: "perspective_capsule_preview";',
+  },
+  {
+    interfaceName: "ReadonlyApiRouteCopyableHandoffPreview",
+    expectedField: 'boundary_class: "copyable_handoff_draft";',
+  },
+  {
+    interfaceName: "ReadonlyApiRouteBoundaryNextReview",
+    expectedField: 'boundary_class: "boundary_next_review";',
+  },
+];
+
+const productFacingNoAuthorityListInterfaces = [
+  "ReadonlyApiRouteResponseEnvelopeV0",
+  "ReadonlyApiRouteWholePerspectiveSummary",
+  "ReadonlyApiRouteProjectConstellationReadModel",
+  "ReadonlyApiRouteNextActionCandidate",
+  "ReadonlyApiRoutePerspectiveCapsulePreview",
+  "ReadonlyApiRouteCopyableHandoffPreview",
+  "ReadonlyApiRouteBoundaryNextReview",
+];
+
 const forbiddenFieldVocabulary = [
   "secrets",
   "credentials/auth/env",
@@ -200,6 +241,11 @@ console.log(
       package_script_checked: true,
       exported_types_checked: requiredExportedTypes.length,
       required_concepts_checked: requiredConcepts.length,
+      boundary_classes_checked: expectedBoundaryClasses,
+      product_facing_boundary_class_fields_checked:
+        productFacingBoundaryClassRequirements.length,
+      product_facing_authority_lists_disallowed_checked:
+        productFacingNoAuthorityListInterfaces.length,
       forbidden_field_vocabulary_checked: forbiddenFieldVocabulary.length,
       type_only_boundary_checked: true,
       forbidden_positive_authority_self_tests_checked:
@@ -294,6 +340,7 @@ function assertTypeFileBoundary() {
 function assertRequiredTypeContent() {
   assertContainsAll(typeText, [
     ...requiredConcepts,
+    ...expectedBoundaryClasses,
     ...forbiddenFieldVocabulary,
     ...boundaryPhrases,
     "readonly_api_route_response.v0.1",
@@ -305,7 +352,76 @@ function assertRequiredTypeContent() {
     "proof_evidence_write_authority: false",
     "readiness_write_authority: false",
   ], { label: typeFile });
+  assertBoundaryClassUnion();
+  assertProductFacingBoundaryClasses();
+  assertDetailedAuthorityListsStayInDiagnostics();
   assertNoForbiddenPositiveClauses(typeFile, typeText);
+}
+
+function assertBoundaryClassUnion() {
+  const match = typeText.match(
+    /export\s+type\s+ReadonlyApiRouteBoundaryClass\s*=\s*([\s\S]*?);/m,
+  );
+  assert(match, `${typeFile} must export ReadonlyApiRouteBoundaryClass`);
+  const actualClasses = [...match[1].matchAll(/"([^"]+)"/g)].map(
+    ([, value]) => value,
+  );
+  assert.deepEqual(
+    uniqueSorted(actualClasses),
+    uniqueSorted(expectedBoundaryClasses),
+    `${typeFile} must keep a small explicit boundary_class union`,
+  );
+}
+
+function assertProductFacingBoundaryClasses() {
+  for (const { interfaceName, expectedField } of productFacingBoundaryClassRequirements) {
+    const body = getInterfaceBody(interfaceName);
+    assert(
+      body.includes(expectedField),
+      `${interfaceName} must use ${expectedField} as its product-facing boundary contract`,
+    );
+  }
+
+  const candidateBody = getInterfaceBody("ReadonlyApiRouteNextActionCandidate");
+  assert(
+    candidateBody.includes("boundary_class?: ReadonlyApiRouteBoundaryClass;"),
+    "ReadonlyApiRouteNextActionCandidate must keep compact optional boundary_class for advisory candidates",
+  );
+}
+
+function assertDetailedAuthorityListsStayInDiagnostics() {
+  const diagnosticsBody = getInterfaceBody("ReadonlyApiRouteDiagnostics");
+  assert(
+    /^\s+authority_boundary: string\[];/m.test(diagnosticsBody),
+    "ReadonlyApiRouteDiagnostics must retain detailed authority_boundary lists",
+  );
+  assert(
+    /^\s+forbidden_fields_removed: ReadonlyApiRouteForbiddenField\[];/m.test(
+      diagnosticsBody,
+    ),
+    "ReadonlyApiRouteDiagnostics must retain forbidden_fields_removed lists",
+  );
+  assertContainsAll(diagnosticsBody, [
+    "whole_perspective_authority_boundary?: string[];",
+    "perspective_capsule_authority_boundary?: string[];",
+    "copyable_handoff_authority_boundary?: string[];",
+    "boundary_next_review_authority_boundary?: string[];",
+    "next_action_authority_boundary?: string[];",
+  ], { label: "ReadonlyApiRouteDiagnostics" });
+
+  for (const interfaceName of productFacingNoAuthorityListInterfaces) {
+    const body = getInterfaceBody(interfaceName);
+    assert(
+      !/^\s+authority_boundary[?:]:/m.test(body),
+      `${interfaceName} must not require or expose authority_boundary in the default product-facing shape`,
+    );
+  }
+
+  const envelopeBody = getInterfaceBody("ReadonlyApiRouteResponseEnvelopeV0");
+  assert(
+    !/^\s+forbidden_fields_removed[?:]:/m.test(envelopeBody),
+    "ReadonlyApiRouteResponseEnvelopeV0 must keep forbidden_fields_removed out of the default product-facing shape",
+  );
 }
 
 function assertDocPointers() {
@@ -453,6 +569,17 @@ function assertNoForbiddenChangedPaths(files) {
       `Forbidden changed file for read-only API route response shape boundary smoke: ${file}`,
     );
   }
+}
+
+function getInterfaceBody(interfaceName) {
+  const match = typeText.match(
+    new RegExp(
+      `export\\s+interface\\s+${escapeRegExp(interfaceName)}\\s*\\{([\\s\\S]*?)\\n\\}`,
+      "m",
+    ),
+  );
+  assert(match, `${typeFile} must export interface ${interfaceName}`);
+  return match[1];
 }
 
 function assertNoForbiddenPositiveClauses(file, text) {

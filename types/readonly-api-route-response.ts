@@ -14,7 +14,10 @@
  * route_family, workspace_scope, project_scope, whole_perspective,
  * project_constellation, perspective_capsule_preview, copyable_handoff_preview,
  * boundary_next_review, evidence_pointers, unresolved_tensions,
- * next_action_candidates, boundary_class, and optional diagnostics.
+ * next_action_candidates, boundary_class, and optional diagnostics. Normal
+ * product-facing read-only payloads use boundary_class. Detailed authority
+ * lists belong in diagnostics/debug paths rather than the default display
+ * shape.
  */
 
 export interface ReadonlyApiRouteResponseEnvelopeV0 {
@@ -30,8 +33,6 @@ export interface ReadonlyApiRouteResponseEnvelopeV0 {
   evidence_pointers: ReadonlyApiRouteEvidencePointer[];
   unresolved_tensions: ReadonlyApiRouteUnresolvedTension[];
   next_action_candidates: ReadonlyApiRouteNextActionCandidate[];
-  forbidden_fields_removed?: ReadonlyApiRouteForbiddenField[];
-  authority_boundary?: string[];
   diagnostics?: ReadonlyApiRouteDiagnostics;
 }
 
@@ -56,11 +57,19 @@ export interface ReadonlyApiRouteResponseMeta {
 }
 
 export type ReadonlyApiRouteBoundaryClass =
-  "read_only_local_static_preview";
+  | "read_only_local_static_preview"
+  | "whole_perspective_summary"
+  | "perspective_capsule_preview"
+  | "copyable_handoff_draft"
+  | "boundary_next_review";
 
 export interface ReadonlyApiRouteDiagnostics {
   authority_boundary: string[];
   forbidden_fields_removed: ReadonlyApiRouteForbiddenField[];
+  whole_perspective_authority_boundary?: string[];
+  perspective_capsule_authority_boundary?: string[];
+  copyable_handoff_authority_boundary?: string[];
+  boundary_next_review_authority_boundary?: string[];
   next_action_authority_boundary?: string[];
 }
 
@@ -79,18 +88,18 @@ export interface ReadonlyApiRouteSourceRef {
 
 export interface ReadonlyApiRouteWholePerspectiveSummary {
   perspective_id: string;
+  boundary_class: "whole_perspective_summary";
   title: string;
   summary: string;
   source_refs: string[];
   evidence_pointers: ReadonlyApiRouteEvidencePointer[];
   unresolved_tensions: ReadonlyApiRouteUnresolvedTension[];
   next_action_candidates: ReadonlyApiRouteNextActionCandidate[];
-  authority_boundary: string[];
 }
 
 export interface ReadonlyApiRouteProjectConstellationReadModel {
   constellation_id: string;
-  boundary_class: ReadonlyApiRouteBoundaryClass;
+  boundary_class: "read_only_local_static_preview";
   thesis: string;
   nodes: ReadonlyApiRouteConstellationNode[];
   edges: ReadonlyApiRouteConstellationEdge[];
@@ -98,7 +107,6 @@ export interface ReadonlyApiRouteProjectConstellationReadModel {
   evidence_pointers: ReadonlyApiRouteEvidencePointer[];
   unresolved_tensions: ReadonlyApiRouteUnresolvedTension[];
   next_action_candidates: ReadonlyApiRouteNextActionCandidate[];
-  authority_boundary?: string[];
 }
 
 export interface ReadonlyApiRouteConstellationNode {
@@ -158,11 +166,11 @@ export interface ReadonlyApiRouteNextActionCandidate {
   source_refs: string[];
   blocked_by?: string[];
   boundary_class?: ReadonlyApiRouteBoundaryClass;
-  authority_boundary?: string[];
 }
 
 export interface ReadonlyApiRoutePerspectiveCapsulePreview {
   capsule_id: string;
+  boundary_class: "perspective_capsule_preview";
   thesis: string;
   source_refs: string[];
   selected_nodes: string[];
@@ -170,29 +178,28 @@ export interface ReadonlyApiRoutePerspectiveCapsulePreview {
   evidence_pointers: ReadonlyApiRouteEvidencePointer[];
   unresolved_tensions: ReadonlyApiRouteUnresolvedTension[];
   next_action_candidates: ReadonlyApiRouteNextActionCandidate[];
-  authority_boundary: string[];
 }
 
 export interface ReadonlyApiRouteCopyableHandoffPreview {
   handoff_id: string;
+  boundary_class: "copyable_handoff_draft";
   target_surface: "codex_handoff" | "chatgpt_review" | "manual_review";
   handoff_text: string;
   source_refs: string[];
   required_checks: string[];
   skipped_check_policy: string;
   final_report_requirements: string[];
-  authority_boundary: string[];
 }
 
 export interface ReadonlyApiRouteBoundaryNextReview {
   review_id: string;
+  boundary_class: "boundary_next_review";
   boundary_summary: string;
   skipped_checks: string[];
   blockers_or_risks: string[];
   assumptions: string[];
   questions_requiring_user_pm_judgment: string[];
   next_suggested_goal: string;
-  authority_boundary: string[];
 }
 
 export type ReadonlyApiRouteForbiddenField =

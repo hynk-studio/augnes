@@ -46,6 +46,10 @@ const authScopePlanDoc =
 const authScopePlanSmokeFile =
   "scripts/smoke-readonly-api-route-auth-scope-integration-plan.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
 
 const inspectedFiles = [
   planDoc,
@@ -63,6 +67,7 @@ const allowedChangedFiles = new Set([
   planningSmokeFile,
   checklistSmokeFile,
   responseShapeSmokeFile,
+  responseShapeTypeFile,
   surfaceSmokeFile,
   constellationPreviewRouteDoc,
   constellationPreviewRouteFile,
@@ -74,6 +79,8 @@ const allowedChangedFiles = new Set([
   authScopePlanDoc,
   authScopePlanSmokeFile,
   authorityMatrixDoc,
+  cockpitImplementationDoc,
+  cockpitImplementationSmokeFile,
 ]);
 
 const requiredSections = [

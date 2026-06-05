@@ -172,6 +172,17 @@ retry/replay/deploy authority, no branch/PR creation authority, no Codex
 execution authority, no DB schema/migration authority, no graph DB authority,
 no persistence authority, and no consumer authority.
 
+Read-only response sections use compact capability classes as the normal
+product-facing boundary model. Current response-shape classes are
+`read_only_local_static_preview`, `whole_perspective_summary`,
+`perspective_capsule_preview`, `copyable_handoff_draft`, and
+`boundary_next_review`. Detailed `authority_boundary` and
+`forbidden_fields_removed` lists belong in optional diagnostics/debug paths and
+Authority Matrix references, not in default preview, capsule, handoff, or
+boundary-next-review payload sections. This normalization does not remove GET,
+local-host, `scope=project:augnes`, local read-only marker, static fixture, or
+fail-closed access controls.
+
 `lib/readonly-api/access-guard.ts` is the shared read-only local access guard
 for route-only local validation. It is local-only, fail-closed, and not
 production auth. It grants no consumer authority, no write authority, no

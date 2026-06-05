@@ -125,6 +125,11 @@ Detailed `authority_boundary` and `forbidden_fields_removed` lists are omitted
 from the default UI. Route diagnostics can still be inspected with
 `diagnostics=authority`.
 
+Future capsule, copyable handoff, or boundary-next-review display sections
+should follow the same class-first model. The UI should render compact
+`boundary_class` values for normal review and leave detailed authority lists in
+diagnostics/debug views.
+
 ## 7. Omitted fields
 
 The preview does not display by default:

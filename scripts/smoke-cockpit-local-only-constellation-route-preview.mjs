@@ -27,6 +27,10 @@ const reviewChecklistDoc =
   "docs/READONLY_API_ROUTE_REVIEW_CHECKLIST_V0_1.md";
 const surfaceBoundaryDoc =
   "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md";
+const implementationPlanDoc =
+  "docs/READONLY_API_ROUTE_IMPLEMENTATION_PLAN_V0_1.md";
+const implementationDesignDoc =
+  "docs/READONLY_API_ROUTE_IMPLEMENTATION_DESIGN_PACKET_V0_1.md";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const routeFile = "app/api/augnes/read/constellation-preview/route.ts";
@@ -61,6 +65,10 @@ const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
+const implementationPlanSmokeFile =
+  "scripts/smoke-readonly-api-route-implementation-plan.mjs";
+const implementationDesignSmokeFile =
+  "scripts/smoke-readonly-api-route-implementation-design-packet.mjs";
 
 const inspectedFiles = [
   cockpitFile,
@@ -73,6 +81,8 @@ const inspectedFiles = [
   routeDoc,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
+  implementationPlanDoc,
+  implementationDesignDoc,
   authorityMatrixDoc,
   indexDoc,
   routeFile,
@@ -95,6 +105,8 @@ const allowedChangedFiles = new Set([
   routeDoc,
   reviewChecklistDoc,
   surfaceBoundaryDoc,
+  implementationPlanDoc,
+  implementationDesignDoc,
   authorityMatrixDoc,
   indexDoc,
   routeFile,
@@ -115,6 +127,8 @@ const allowedChangedFiles = new Set([
   reviewChecklistSmokeFile,
   surfaceSmokeFile,
   accessGuardSmokeFile,
+  implementationPlanSmokeFile,
+  implementationDesignSmokeFile,
 ]);
 
 const requiredImplementationSections = [

@@ -44,6 +44,10 @@ const accessGuardFile = "lib/readonly-api/access-guard.ts";
 const accessGuardSmokeFile =
   "scripts/smoke-readonly-api-route-access-guard.mjs";
 const authorityMatrixDoc = "docs/AUTHORITY_MATRIX.md";
+const cockpitImplementationDoc =
+  "docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md";
+const cockpitImplementationSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
 
 const inspectedFiles = [
   designDoc,
@@ -59,6 +63,7 @@ const allowedChangedFiles = new Set([
   planningSmokeFile,
   checklistSmokeFile,
   responseShapeSmokeFile,
+  responseShapeTypeFile,
   surfaceSmokeFile,
   implementationPlanDoc,
   implementationPlanSmokeFile,
@@ -70,6 +75,8 @@ const allowedChangedFiles = new Set([
   accessGuardFile,
   accessGuardSmokeFile,
   authorityMatrixDoc,
+  cockpitImplementationDoc,
+  cockpitImplementationSmokeFile,
 ]);
 
 const requiredSections = [

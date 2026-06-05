@@ -183,6 +183,12 @@ The default response does not include long `authority_boundary` or
 `forbidden_fields_removed` lists. Request `diagnostics=authority` to return
 those details under `diagnostics`.
 
+The shared read-only response model now treats `boundary_class` as the normal
+contract for future display sections. Whole Perspective summary, Perspective
+Capsule preview, copyable handoff draft, and boundary-next-review sections must
+use their compact class fields when they are introduced; detailed authority
+lists remain diagnostics/debug material rather than default product payload.
+
 The first implementation intentionally does not return:
 
 - `whole_perspective`
@@ -223,7 +229,9 @@ The route returns only fields needed for route-first local read validation:
 
 Optional Perspective Capsule and copyable handoff fields remain omitted until a
 future PR justifies them under response minimization and connects a consumer
-surface.
+surface. When those fields are added, their normal boundary contract should be
+`perspective_capsule_preview` and `copyable_handoff_draft`, not embedded long
+authority prose.
 
 ## 8. Forbidden fields
 
