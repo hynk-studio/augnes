@@ -933,10 +933,10 @@ function buildCodexHandoffPacket({
 }): PerspectiveIngestCodexHandoffPacket {
   const isManual = source === "manual:pasted_text";
   const workingBranchSuggestion = isManual
-    ? "codex/pasted-text-perspective-ingest-preview-v0-1"
+    ? "manual-review-only.no-branch-suggested"
     : "codex/perspective-ingest-constellation-preview-v0-1";
   const expectedPrTitle = isManual
-    ? "feat(cockpit): add pasted-text perspective ingest preview"
+    ? "manual review only - no PR title suggested"
     : "feat(cockpit): add graph-first perspective ingest constellation preview";
   const contextAnchors = isManual
     ? [
@@ -981,16 +981,18 @@ function buildCodexHandoffPacket({
   const manualCodexContextSections = isManual
     ? buildManualCodexContextPacketSections(episode)
     : [];
+  const manualCodexPacketNotes = isManual
+    ? [
+        "Packet note: this preview packet is review material, not an execution request.",
+        "Branch/PR title: none suggested by this preview. If turning this into Codex work, the user must supply a fresh branch, task, and title.",
+      ]
+    : [];
   const packetText = [
     "Repo: hynk-studio/augnes",
     "Base branch: main",
     `Working branch suggestion: ${workingBranchSuggestion}`,
     `Expected PR title: ${expectedPrTitle}`,
-    ...(isManual
-      ? [
-          "Packet note: this is a preview packet only; it is not an instruction to execute unless a user manually gives it to Codex.",
-        ]
-      : []),
+    ...manualCodexPacketNotes,
     "",
     "Task goal:",
     thesis,
@@ -1008,10 +1010,14 @@ function buildCodexHandoffPacket({
     "Required checks:",
     formatPacketList(requiredChecks, (item) => `- ${item}`),
     "",
-    "PR body requirements:",
+    isManual
+      ? "Suggested review sections if the user supplies a fresh task:"
+      : "PR body requirements:",
     formatPacketList(prBodyRequirements, (item) => `- ${item}`),
     "",
-    "Final report requirements:",
+    isManual
+      ? "Suggested closeout sections if the user supplies a fresh task:"
+      : "Final report requirements:",
     formatPacketList(finalReportRequirements, (item) => `- ${item}`),
     "",
     "Graph summary:",
