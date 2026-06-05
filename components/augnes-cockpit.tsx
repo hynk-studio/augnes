@@ -4044,6 +4044,12 @@ function PerspectiveTab({
           selectedConstellationNextAction,
         ).slice(0, 2)
       : [];
+  const selectedConstellationHandoffPreviewText = constellationRoutePreview
+    ? buildProjectConstellationCodexHandoffPrompt(
+        constellationRoutePreview,
+        selectedConstellationNextAction,
+      )
+    : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -4079,17 +4085,9 @@ function PerspectiveTab({
     });
   }, [constellationRoutePreviewState]);
 
-  async function copyConstellationCodexHandoff(
-    preview: ConstellationRoutePreviewResponse,
-    selectedNextAction: ConstellationRoutePreviewNextActionCandidate | null,
-  ) {
+  async function copyConstellationCodexHandoff(handoffText: string) {
     try {
-      await copyTextToClipboard(
-        buildProjectConstellationCodexHandoffPrompt(
-          preview,
-          selectedNextAction,
-        ),
-      );
+      await copyTextToClipboard(handoffText);
       setConstellationHandoffCopyNotice({
         tone: "info",
         text: "Copied",
@@ -4925,12 +4923,11 @@ function PerspectiveTab({
                     <button
                       type="button"
                       className="secondary-button"
-                      disabled={!constellationRoutePreview}
+                      disabled={!selectedConstellationHandoffPreviewText}
                       onClick={() => {
-                        if (!constellationRoutePreview) return;
+                        if (!selectedConstellationHandoffPreviewText) return;
                         void copyConstellationCodexHandoff(
-                          constellationRoutePreview,
-                          selectedConstellationNextAction,
+                          selectedConstellationHandoffPreviewText,
                         );
                       }}
                     >
@@ -4938,6 +4935,36 @@ function PerspectiveTab({
                     </button>
                     <CopyFeedback notice={constellationHandoffCopyNotice} />
                   </div>
+                  {selectedConstellationHandoffPreviewText ? (
+                    <details className="work-handoff-details">
+                      <summary>
+                        Preview Codex handoff <small>read-only</small>
+                      </summary>
+                      <p>
+                        If clipboard is unavailable, select and copy this
+                        preview text manually.
+                      </p>
+                      <label htmlFor="perspective-constellation-codex-handoff-preview">
+                        Selected Codex handoff text
+                      </label>
+                      <textarea
+                        id="perspective-constellation-codex-handoff-preview"
+                        value={selectedConstellationHandoffPreviewText}
+                        readOnly
+                        rows={18}
+                        spellCheck={false}
+                        aria-label="Selected Project Constellation Codex handoff preview text"
+                        style={{
+                          width: "100%",
+                          minHeight: "280px",
+                          resize: "vertical",
+                          fontFamily:
+                            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+                          lineHeight: 1.45,
+                        }}
+                      />
+                    </details>
+                  ) : null}
                 </article>
               </div>
               <div className="perspective-tension-grid">

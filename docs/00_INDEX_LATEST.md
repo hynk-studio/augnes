@@ -523,10 +523,12 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   loaded Project Constellation preview. Users can select which advisory next
   action drives the copied handoff, and the copied prompt prioritizes evidence
   pointers for that selected action. The copy card shows the top
-  selected-action evidence refs beside the copy action. The copy action writes
-  only to the local clipboard. It adds no App/MCP, no production auth, no hosted
-  auth, no DB query, no proof/evidence write, no Codex SDK execution, no graph
-  DB, no persistence, and no
+  selected-action evidence refs beside the copy action and has a read-only
+  expanded handoff preview that uses the same generated handoff text as the copy
+  action for manual fallback when clipboard is unavailable. The copy action
+  writes only to the local clipboard. It adds no App/MCP, no production auth, no
+  hosted auth, no DB query, no proof/evidence write, no Codex SDK execution, no
+  graph DB, no persistence, and no
   merge/publish/approval/retry/replay/deploy authority. The browser/
   computer-use report is
   `reports/browser/2026-06-04-cockpit-local-only-constellation-route-preview.md`.

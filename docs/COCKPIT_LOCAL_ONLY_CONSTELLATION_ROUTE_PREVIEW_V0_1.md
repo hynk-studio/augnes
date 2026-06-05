@@ -80,9 +80,12 @@ candidate selected by the user. Each visible next action candidate has a compact
 `Use for handoff` control and the chosen candidate is marked as selected. The
 copy card also shows the top selected-action evidence refs beside the copy
 action, so users can see which pointer-only context will be emphasized before
-copying. The button reports `Copied` on success or a clipboard failure message
-on failure. The section still has no refresh control, no retry control, no
-bypass control, and no mutation affordance.
+copying. It also includes a collapsed read-only expanded handoff preview that
+uses the same generated handoff text as the copy action. If clipboard is
+unavailable, select and copy this preview text manually. The button reports
+`Copied` on success or a clipboard failure message on failure. The section still
+has no refresh control, no retry control, no bypass control, and no mutation
+affordance.
 
 The copied prompt prioritizes evidence pointers for the selected next action
 before falling back to the remaining pointer-only context. This keeps the
@@ -134,6 +137,7 @@ The preview displays only minimized read-only route fields:
 - `next_action_candidates` as advisory
 - a `Copy Codex handoff` action and copy status
 - top selected-action evidence refs beside the copy action
+- a read-only expanded handoff preview for manual fallback
 
 This is the response minimization boundary for the first Cockpit-local
 consumer slice.
@@ -147,6 +151,10 @@ not buried behind diagnostics and does not include long default authority
 lists. It includes repo/workflow, task goal, thesis, selected/current nodes,
 tensions, evidence pointers prioritized for the selected next action, focused
 validation guidance, and final report expectations for Codex.
+
+The expanded preview is generated client-side from the same builder used by the
+copy action. It does not add a server-side `copyable_handoff_preview` field and
+does not change the route payload shape.
 
 Future capsule, copyable handoff, or boundary-next-review display sections
 should follow the same class-first model. The UI should render compact
