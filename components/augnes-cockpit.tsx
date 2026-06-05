@@ -2,6 +2,14 @@
 
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { TemporalPreviewResponse } from "@/lib/temporal-interpretation/types";
+import type {
+  PerspectiveIngestConstellationEdge,
+  PerspectiveIngestConstellationNode,
+  PerspectiveIngestConstellationPreviewResponse,
+  PerspectiveIngestEvidencePointer,
+  PerspectiveIngestNextActionCandidate,
+  PerspectiveIngestUnresolvedTension,
+} from "@/types/perspective-ingest-constellation-preview";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -10,6 +18,11 @@ const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
   "/api/augnes/read/constellation-preview?scope=project:augnes";
 const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
   "x-augnes-local-readonly": "constellation-preview-v0.1",
+} as const;
+const PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_REQUEST_PATH =
+  "/api/augnes/read/perspective-ingest-constellation-preview?scope=project:augnes";
+const PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_HEADERS = {
+  "x-augnes-local-readonly": "perspective-ingest-constellation-preview-v0.1",
 } as const;
 const CANONICAL_MESSAGE =
   "이번 출품작 이름은 Augnes로 가자. Next.js + SQLite + OpenAI API로 만들고, ChatGPT App 연결은 나중에 확장으로 미루자. 이번 제출 전까지는 README, 스크린샷, no API keys가 우선이야.";
@@ -236,6 +249,22 @@ type ConstellationRoutePreviewState =
   | { status: "loading" }
   | { status: "loaded"; data: ConstellationRoutePreviewResponse }
   | { status: "failed"; error: ConstellationRoutePreviewErrorDisplay };
+
+type PerspectiveIngestSourceSelection = "sample:chatgpt" | "sample:codex";
+
+type PerspectiveIngestConstellationPreviewErrorDisplay = {
+  code: string;
+  status: string;
+  authority_boundary: string[];
+};
+
+type PerspectiveIngestConstellationPreviewState =
+  | { status: "loading" }
+  | { status: "loaded"; data: PerspectiveIngestConstellationPreviewResponse }
+  | {
+      status: "failed";
+      error: PerspectiveIngestConstellationPreviewErrorDisplay;
+    };
 
 type CockpitTemporalAdmissionDecision = {
   candidate_id: string;
@@ -3978,9 +4007,21 @@ function PerspectiveTab({
 }) {
   const [constellationRoutePreviewState, setConstellationRoutePreviewState] =
     useState<ConstellationRoutePreviewState>({ status: "loading" });
+  const [
+    perspectiveIngestConstellationPreviewState,
+    setPerspectiveIngestConstellationPreviewState,
+  ] = useState<PerspectiveIngestConstellationPreviewState>({ status: "loading" });
+  const [selectedPerspectiveIngestSource, setSelectedPerspectiveIngestSource] =
+    useState<PerspectiveIngestSourceSelection>("sample:chatgpt");
+  const [selectedPerspectiveIngestNodeId, setSelectedPerspectiveIngestNodeId] =
+    useState<string | null>(null);
+  const [perspectiveIngestCopyNotice, setPerspectiveIngestCopyNotice] =
+    useState<Notice | null>(null);
   const [constellationHandoffCopyNotice, setConstellationHandoffCopyNotice] =
     useState<Notice | null>(null);
   const selectedConstellationHandoffPreviewRef =
+    useRef<HTMLTextAreaElement | null>(null);
+  const selectedPerspectiveIngestPacketTextRef =
     useRef<HTMLTextAreaElement | null>(null);
   const [
     selectedConstellationNextActionId,
@@ -4052,6 +4093,44 @@ function PerspectiveTab({
         selectedConstellationNextAction,
       )
     : "";
+  const perspectiveIngestConstellationPreview =
+    perspectiveIngestConstellationPreviewState.status === "loaded"
+      ? perspectiveIngestConstellationPreviewState.data
+      : null;
+  const perspectiveIngestConstellation =
+    perspectiveIngestConstellationPreview?.constellation ?? null;
+  const selectedPerspectiveIngestNode =
+    perspectiveIngestConstellation?.nodes.find(
+      (node) => node.id === selectedPerspectiveIngestNodeId,
+    ) ??
+    perspectiveIngestConstellation?.nodes[0] ??
+    null;
+  const selectedPerspectiveIngestNodeEvidencePointers =
+    perspectiveIngestConstellationPreview && selectedPerspectiveIngestNode
+      ? matchPerspectiveIngestEvidencePointers(
+          perspectiveIngestConstellationPreview.evidence_pointers,
+          selectedPerspectiveIngestNode.evidence_pointer_ids,
+        )
+      : [];
+  const selectedPerspectiveIngestNodeTensions =
+    perspectiveIngestConstellationPreview && selectedPerspectiveIngestNode
+      ? matchPerspectiveIngestTensions(
+          perspectiveIngestConstellationPreview.unresolved_tensions,
+          selectedPerspectiveIngestNode.unresolved_tension_ids,
+        )
+      : [];
+  const selectedPerspectiveIngestNodeNextActions =
+    perspectiveIngestConstellationPreview && selectedPerspectiveIngestNode
+      ? matchPerspectiveIngestNextActions(
+          perspectiveIngestConstellationPreview.next_action_candidates,
+          selectedPerspectiveIngestNode.next_action_candidate_ids,
+        )
+      : [];
+  const selectedPerspectiveIngestPacketText = perspectiveIngestConstellationPreview
+    ? selectedPerspectiveIngestSource === "sample:chatgpt"
+      ? perspectiveIngestConstellationPreview.chatgpt_rendering_packet.packet_text
+      : perspectiveIngestConstellationPreview.codex_handoff_packet.packet_text
+    : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -4087,6 +4166,50 @@ function PerspectiveTab({
     });
   }, [constellationRoutePreviewState]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    setPerspectiveIngestConstellationPreviewState({ status: "loading" });
+    void fetchPerspectiveIngestConstellationPreview("sample:chatgpt").then(
+      (result) => {
+        if (!cancelled) {
+          setPerspectiveIngestConstellationPreviewState(result);
+        }
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (perspectiveIngestConstellationPreviewState.status !== "loaded") {
+      setSelectedPerspectiveIngestNodeId(null);
+      return;
+    }
+
+    const nodes = perspectiveIngestConstellationPreviewState.data.constellation.nodes;
+    setSelectedPerspectiveIngestNodeId((currentId) => {
+      if (currentId && nodes.some((node) => node.id === currentId)) {
+        return currentId;
+      }
+
+      return nodes[0]?.id ?? null;
+    });
+  }, [perspectiveIngestConstellationPreviewState]);
+
+  function refreshPerspectiveIngestConstellationPreview(
+    source: PerspectiveIngestSourceSelection,
+  ) {
+    setSelectedPerspectiveIngestSource(source);
+    setPerspectiveIngestCopyNotice(null);
+    setPerspectiveIngestConstellationPreviewState({ status: "loading" });
+    void fetchPerspectiveIngestConstellationPreview(source).then((result) => {
+      setPerspectiveIngestConstellationPreviewState(result);
+    });
+  }
+
   async function copyConstellationCodexHandoff(handoffText: string) {
     try {
       await copyTextToClipboard(handoffText);
@@ -4103,6 +4226,62 @@ function PerspectiveTab({
             : "Copy Codex handoff failed",
       });
     }
+  }
+
+  async function copyPerspectiveIngestChatGptPacket() {
+    const packetText =
+      perspectiveIngestConstellationPreview?.chatgpt_rendering_packet.packet_text;
+    if (!packetText) return;
+
+    try {
+      await copyTextToClipboard(packetText);
+      setPerspectiveIngestCopyNotice({
+        tone: "info",
+        text: "Copied ChatGPT review packet",
+      });
+    } catch (copyError) {
+      setPerspectiveIngestCopyNotice({
+        tone: "error",
+        text:
+          copyError instanceof Error
+            ? copyError.message
+            : "Copy ChatGPT review packet failed",
+      });
+    }
+  }
+
+  async function copyPerspectiveIngestCodexHandoffPacket() {
+    const packetText =
+      perspectiveIngestConstellationPreview?.codex_handoff_packet.packet_text;
+    if (!packetText) return;
+
+    try {
+      await copyTextToClipboard(packetText);
+      setPerspectiveIngestCopyNotice({
+        tone: "info",
+        text: "Copied Codex handoff packet",
+      });
+    } catch (copyError) {
+      setPerspectiveIngestCopyNotice({
+        tone: "error",
+        text:
+          copyError instanceof Error
+            ? copyError.message
+            : "Copy Codex handoff packet failed",
+      });
+    }
+  }
+
+  function selectPerspectiveIngestPacketText() {
+    const packetTextarea = selectedPerspectiveIngestPacketTextRef.current;
+    if (!packetTextarea) return;
+
+    packetTextarea.focus();
+    packetTextarea.select();
+    setPerspectiveIngestCopyNotice({
+      tone: "info",
+      text: "Preview text selected",
+    });
   }
 
   function selectConstellationHandoffPreviewText() {
@@ -4149,6 +4328,7 @@ function PerspectiveTab({
         <a href="#perspective-tensions">Tensions</a>
         <a href="#perspective-boundary-next">Boundary / Next</a>
         <a href="#perspective-constellation-route-preview">Route preview</a>
+        <a href="#perspective-ingest-constellation-preview">Ingest graph</a>
         <a href="#perspective-constellation-preview">Constellation preview</a>
       </nav>
 
@@ -5144,6 +5324,366 @@ function PerspectiveTab({
           )}
         </section>
         {/* Cockpit local-only constellation route preview end */}
+
+        <section
+          className="cockpit-surface-card perspective-section perspective-ingest-constellation-section"
+          id="perspective-ingest-constellation-preview"
+          aria-label="Perspective Ingest Constellation preview"
+        >
+          <PanelHeader
+            eyebrow="Ingest graph"
+            title="Perspective Ingest Constellation"
+            description="Fixture-backed graph-first preview for synthetic ChatGPT and Codex record samples."
+          />
+          <BoundaryNote tone="green">
+            local-only · fixture-backed · read-only · no external calls · no
+            proof/evidence writes · no Codex execution.
+          </BoundaryNote>
+          <div
+            className="ingest-constellation-toolbar"
+            role="group"
+            aria-label="Perspective ingest source controls"
+          >
+            <label>
+              <input
+                type="radio"
+                name="perspective-ingest-source"
+                value="sample:chatgpt"
+                checked={selectedPerspectiveIngestSource === "sample:chatgpt"}
+                onChange={() => {
+                  setSelectedPerspectiveIngestSource("sample:chatgpt");
+                  setPerspectiveIngestCopyNotice(null);
+                }}
+              />
+              sample:chatgpt
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="perspective-ingest-source"
+                value="sample:codex"
+                checked={selectedPerspectiveIngestSource === "sample:codex"}
+                onChange={() => {
+                  setSelectedPerspectiveIngestSource("sample:codex");
+                  setPerspectiveIngestCopyNotice(null);
+                }}
+              />
+              sample:codex
+            </label>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                refreshPerspectiveIngestConstellationPreview(
+                  selectedPerspectiveIngestSource,
+                )
+              }
+            >
+              Load preview
+            </button>
+          </div>
+          <div className="tab-stat-row compact-stat-row">
+            <MetricCard
+              label="source kind"
+              value={perspectiveIngestConstellationPreview?.source_kind ?? "Loading"}
+              detail={selectedPerspectiveIngestSource}
+            />
+            <MetricCard
+              label="episode count"
+              value={
+                perspectiveIngestConstellationPreview?.ingest_batch
+                  .episode_count ?? 0
+              }
+              detail="SessionEpisode-like inputs"
+            />
+            <MetricCard
+              label="node count"
+              value={perspectiveIngestConstellation?.nodes.length ?? 0}
+              detail="constellation nodes"
+            />
+            <MetricCard
+              label="edge count"
+              value={perspectiveIngestConstellation?.edges.length ?? 0}
+              detail="typed edges"
+            />
+            <MetricCard
+              label="tension count"
+              value={
+                perspectiveIngestConstellationPreview?.unresolved_tensions
+                  .length ?? 0
+              }
+              detail="visible blockers"
+            />
+            <MetricCard
+              label="next action count"
+              value={
+                perspectiveIngestConstellationPreview?.next_action_candidates
+                  .length ?? 0
+              }
+              detail="advisory only"
+            />
+          </div>
+          {perspectiveIngestConstellationPreviewState.status === "failed" ? (
+            <EmptyState
+              label="Perspective ingest constellation unavailable"
+              description={`Fail-closed ${perspectiveIngestConstellationPreviewState.error.status}: ${perspectiveIngestConstellationPreviewState.error.code}`}
+            />
+          ) : perspectiveIngestConstellationPreviewState.status === "loading" ? (
+            <LoadingBlock
+              title="Loading local-only perspective ingest constellation"
+              lines={[
+                "Calling the guarded local read route",
+                "Normalizing synthetic fixture records",
+                "Building deterministic nodes and edges",
+              ]}
+            />
+          ) : perspectiveIngestConstellationPreview &&
+            perspectiveIngestConstellation ? (
+            <>
+              <div className="ingest-constellation-stage">
+                <PerspectiveIngestConstellationGraph
+                  nodes={perspectiveIngestConstellation.nodes}
+                  edges={perspectiveIngestConstellation.edges}
+                  selectedNodeId={selectedPerspectiveIngestNode?.id ?? null}
+                  onSelectNode={(nodeId) => {
+                    setSelectedPerspectiveIngestNodeId(nodeId);
+                    setPerspectiveIngestCopyNotice(null);
+                  }}
+                />
+              </div>
+              <div className="ingest-constellation-detail-grid">
+                <article>
+                  <h3>Selected node detail</h3>
+                  {selectedPerspectiveIngestNode ? (
+                    <>
+                      <div className="meta-row">
+                        <span>
+                          id <code>{selectedPerspectiveIngestNode.id}</code>
+                        </span>
+                        <span>
+                          type <code>{selectedPerspectiveIngestNode.type}</code>
+                        </span>
+                      </div>
+                      <h4>{selectedPerspectiveIngestNode.label}</h4>
+                      <p>{selectedPerspectiveIngestNode.summary}</p>
+                      <h4>Evidence pointers</h4>
+                      <RefChipList
+                        refs={selectedPerspectiveIngestNodeEvidencePointers.map(
+                          (pointer) => pointer.target_ref,
+                        )}
+                        emptyLabel="No selected node evidence pointers"
+                      />
+                      <h4>Unresolved tensions</h4>
+                      <RefChipList
+                        refs={selectedPerspectiveIngestNodeTensions.map(
+                          (tension) => tension.summary,
+                        )}
+                        emptyLabel="No selected node unresolved tensions"
+                      />
+                      <h4>Next action candidates</h4>
+                      <RefChipList
+                        refs={selectedPerspectiveIngestNodeNextActions.map(
+                          (candidate) => candidate.summary,
+                        )}
+                        emptyLabel="No selected node next action candidates"
+                      />
+                    </>
+                  ) : (
+                    <EmptyState label="No selected ingest node" />
+                  )}
+                </article>
+                <article>
+                  <h3>Capsule thesis</h3>
+                  <p>
+                    {
+                      perspectiveIngestConstellationPreview
+                        .perspective_capsule_preview.thesis
+                    }
+                  </p>
+                  <div className="meta-row">
+                    <StatusBadge
+                      label={
+                        perspectiveIngestConstellationPreview
+                          .perspective_capsule_preview.formation_mode
+                      }
+                    />
+                    <StatusBadge
+                      label={
+                        perspectiveIngestConstellationPreview.boundary_class
+                      }
+                    />
+                  </div>
+                </article>
+              </div>
+              <div className="perspective-tension-grid">
+                <TensionList
+                  title="node list fallback"
+                  items={perspectiveIngestConstellation.nodes.map((node) => ({
+                    key: node.id,
+                    label: node.label,
+                    detail: node.summary,
+                    metaChips: [node.type, node.id],
+                  }))}
+                  emptyLabel="No ingest nodes"
+                />
+                <TensionList
+                  title="edges"
+                  items={perspectiveIngestConstellation.edges.map((edge) => ({
+                    key: edge.id,
+                    label: `${edge.source} -> ${edge.target}`,
+                    detail: edge.summary,
+                    metaChips: [edge.type],
+                  }))}
+                  emptyLabel="No ingest edges"
+                />
+                <TensionList
+                  title="evidence pointers"
+                  items={perspectiveIngestConstellationPreview.evidence_pointers.map(
+                    (pointer) => ({
+                      key: pointer.pointer_id,
+                      label: pointer.label,
+                      detail: pointer.bounded_summary,
+                      metaChips: [
+                        pointer.target_ref,
+                        pointer.pointer_semantics,
+                        pointer.proof_evidence_write_authority === false
+                          ? "no proof write authority"
+                          : "write authority absent",
+                      ],
+                    }),
+                  )}
+                  emptyLabel="No ingest evidence pointers"
+                />
+                <TensionList
+                  title="unresolved tensions"
+                  items={perspectiveIngestConstellationPreview.unresolved_tensions.map(
+                    (tension) => ({
+                      key: tension.tension_id,
+                      label: tension.label,
+                      detail: tension.summary,
+                      metaChips: tension.evidence_pointer_ids,
+                    }),
+                  )}
+                  emptyLabel="No ingest unresolved tensions"
+                />
+                <TensionList
+                  title="next action candidates"
+                  items={perspectiveIngestConstellationPreview.next_action_candidates.map(
+                    (candidate) => ({
+                      key: candidate.candidate_id,
+                      label: candidate.label,
+                      detail: candidate.summary,
+                      metaChips: [
+                        candidate.advisory_only ? "advisory only" : "unknown",
+                        candidate.execution_authority === false
+                          ? "no execution authority"
+                          : "execution absent",
+                      ],
+                    }),
+                  )}
+                  emptyLabel="No ingest next action candidates"
+                />
+              </div>
+              <div className="ingest-constellation-detail-grid">
+                <article>
+                  <h3>ChatGPT rendering packet summary</h3>
+                  <p>
+                    {
+                      perspectiveIngestConstellationPreview
+                        .chatgpt_rendering_packet.summary
+                    }
+                  </p>
+                  <RefChipList
+                    refs={
+                      perspectiveIngestConstellationPreview
+                        .chatgpt_rendering_packet.recommended_review_questions
+                    }
+                    emptyLabel="No ChatGPT review questions"
+                  />
+                </article>
+                <article>
+                  <h3>Codex handoff packet summary</h3>
+                  <p>
+                    {
+                      perspectiveIngestConstellationPreview.codex_handoff_packet
+                        .task_goal
+                    }
+                  </p>
+                  <div className="meta-row">
+                    <span>
+                      repo{" "}
+                      <code>
+                        {
+                          perspectiveIngestConstellationPreview
+                            .codex_handoff_packet.repo
+                        }
+                      </code>
+                    </span>
+                    <span>
+                      base{" "}
+                      <code>
+                        {
+                          perspectiveIngestConstellationPreview
+                            .codex_handoff_packet.base_branch
+                        }
+                      </code>
+                    </span>
+                  </div>
+                </article>
+              </div>
+              <div className="ingest-constellation-packet-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => void copyPerspectiveIngestChatGptPacket()}
+                >
+                  Copy ChatGPT review packet
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => void copyPerspectiveIngestCodexHandoffPacket()}
+                >
+                  Copy Codex handoff packet
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={!selectedPerspectiveIngestPacketText}
+                  onClick={selectPerspectiveIngestPacketText}
+                >
+                  Select preview text
+                </button>
+                <CopyFeedback notice={perspectiveIngestCopyNotice} />
+              </div>
+              <label htmlFor="perspective-ingest-selected-packet-text">
+                Currently selected packet text
+              </label>
+              <textarea
+                id="perspective-ingest-selected-packet-text"
+                ref={selectedPerspectiveIngestPacketTextRef}
+                value={selectedPerspectiveIngestPacketText}
+                readOnly
+                rows={18}
+                spellCheck={false}
+                aria-label="Perspective ingest selected packet text"
+                style={{
+                  width: "100%",
+                  minHeight: "280px",
+                  resize: "vertical",
+                  fontFamily:
+                    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+                  lineHeight: 1.45,
+                }}
+              />
+            </>
+          ) : (
+            <EmptyState
+              label="Perspective ingest preview not available"
+              description="Fail-closed display state with no ingest constellation payload."
+            />
+          )}
+        </section>
 
         <section
           className="cockpit-surface-card perspective-section project-constellation-preview-section"
@@ -15579,6 +16119,101 @@ function TensionList({
   );
 }
 
+function PerspectiveIngestConstellationGraph({
+  edges,
+  nodes,
+  onSelectNode,
+  selectedNodeId,
+}: {
+  nodes: PerspectiveIngestConstellationNode[];
+  edges: PerspectiveIngestConstellationEdge[];
+  selectedNodeId: string | null;
+  onSelectNode: (nodeId: string) => void;
+}) {
+  const width = 720;
+  const height = 360;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radiusX = 250;
+  const radiusY = 120;
+  const positions = new Map(
+    nodes.map((node, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
+      return [
+        node.id,
+        {
+          x: centerX + Math.cos(angle) * radiusX,
+          y: centerY + Math.sin(angle) * radiusY,
+        },
+      ] as const;
+    }),
+  );
+
+  return (
+    <svg
+      className="ingest-constellation-svg"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label="Perspective ingest node-edge graph"
+    >
+      <title>Perspective ingest node-edge graph</title>
+      <g aria-label="Perspective ingest graph edges">
+        {edges.map((edge) => {
+          const sourcePosition = positions.get(edge.source);
+          const targetPosition = positions.get(edge.target);
+          if (!sourcePosition || !targetPosition) return null;
+
+          return (
+            <g className="ingest-constellation-edge" key={edge.id}>
+              <line
+                x1={sourcePosition.x}
+                y1={sourcePosition.y}
+                x2={targetPosition.x}
+                y2={targetPosition.y}
+              />
+              <text
+                x={(sourcePosition.x + targetPosition.x) / 2}
+                y={(sourcePosition.y + targetPosition.y) / 2 - 4}
+              >
+                {edge.type}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+      <g aria-label="Perspective ingest graph nodes">
+        {nodes.map((node) => {
+          const position = positions.get(node.id) ?? { x: centerX, y: centerY };
+          const selected = node.id === selectedNodeId;
+
+          return (
+            <g
+              className={`ingest-constellation-node${selected ? " selected" : ""}`}
+              key={node.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`${node.label}, ${node.type}`}
+              aria-pressed={selected}
+              onClick={() => onSelectNode(node.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectNode(node.id);
+                }
+              }}
+            >
+              <circle cx={position.x} cy={position.y} r={selected ? 25 : 22} />
+              <text x={position.x} y={position.y + 42}>
+                {node.label}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
 function PerspectiveStateBasis({
   title,
   summary,
@@ -20938,6 +21573,51 @@ async function fetchConstellationRoutePreview(): Promise<ConstellationRoutePrevi
   }
 }
 
+async function fetchPerspectiveIngestConstellationPreview(
+  source: PerspectiveIngestSourceSelection,
+): Promise<PerspectiveIngestConstellationPreviewState> {
+  try {
+    const response = await fetch(
+      `${PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_REQUEST_PATH}&source=${encodeURIComponent(
+        source,
+      )}`,
+      {
+        method: "GET",
+        headers: PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_HEADERS,
+      },
+    );
+    const json = await readJsonSafely(response);
+
+    if (!response.ok) {
+      return {
+        status: "failed",
+        error: getPerspectiveIngestConstellationPreviewError(
+          json,
+          response.status,
+        ),
+      };
+    }
+
+    return {
+      status: "loaded",
+      data: json as PerspectiveIngestConstellationPreviewResponse,
+    };
+  } catch {
+    return {
+      status: "failed",
+      error: {
+        code: "unavailable",
+        status: "unavailable",
+        authority_boundary: [
+          "minimal fail-closed display",
+          "no private source details",
+          "no route-provided text grants authority",
+        ],
+      },
+    };
+  }
+}
+
 async function readJsonSafely(response: Response) {
   try {
     return (await response.json()) as unknown;
@@ -20950,6 +21630,40 @@ function getConstellationRoutePreviewError(
   value: unknown,
   fallbackStatus: number,
 ): ConstellationRoutePreviewErrorDisplay {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "error" in value &&
+    typeof value.error === "object" &&
+    value.error !== null
+  ) {
+    const error = value.error as { code?: unknown; status?: unknown };
+
+    return {
+      code: typeof error.code === "string" ? error.code : "unavailable",
+      status:
+        typeof error.status === "number" || typeof error.status === "string"
+          ? String(error.status)
+          : String(fallbackStatus),
+      authority_boundary: getStringListField(value, "authority_boundary"),
+    };
+  }
+
+  return {
+    code: "unavailable",
+    status: String(fallbackStatus),
+    authority_boundary: [
+      "minimal fail-closed display",
+      "no private source details",
+      "no route-provided text grants authority",
+    ],
+  };
+}
+
+function getPerspectiveIngestConstellationPreviewError(
+  value: unknown,
+  fallbackStatus: number,
+): PerspectiveIngestConstellationPreviewErrorDisplay {
   if (
     typeof value === "object" &&
     value !== null &&
@@ -20993,6 +21707,37 @@ function getStringListField(value: unknown, field: string) {
   }
 
   return [];
+}
+
+function matchPerspectiveIngestEvidencePointers(
+  evidencePointers: PerspectiveIngestEvidencePointer[],
+  pointerIds: string[],
+) {
+  const selectedIds = new Set(pointerIds);
+
+  return evidencePointers.filter((pointer) =>
+    selectedIds.has(pointer.pointer_id),
+  );
+}
+
+function matchPerspectiveIngestTensions(
+  tensions: PerspectiveIngestUnresolvedTension[],
+  tensionIds: string[],
+) {
+  const selectedIds = new Set(tensionIds);
+
+  return tensions.filter((tension) => selectedIds.has(tension.tension_id));
+}
+
+function matchPerspectiveIngestNextActions(
+  nextActions: PerspectiveIngestNextActionCandidate[],
+  candidateIds: string[],
+) {
+  const selectedIds = new Set(candidateIds);
+
+  return nextActions.filter((candidate) =>
+    selectedIds.has(candidate.candidate_id),
+  );
 }
 
 function buildProjectConstellationCodexHandoffPrompt(

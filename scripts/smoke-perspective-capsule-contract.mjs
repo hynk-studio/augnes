@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import {
-  assertChangedFilesWithinBoundaryProfile,
+  assertChangedFilesWithin,
   assertContainsAll,
   assertNoRuntimeImports,
   assertPackageScript,
+  collectUntrackedFiles,
   getProjectConstellationBoundaryScopeProfile,
   loadTextByFile,
   normalizeText,
+  uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
 const contractDoc = "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md";
@@ -16,6 +18,34 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const smokeFile = "scripts/smoke-perspective-capsule-contract.mjs";
 const packageJsonFile = "package.json";
 const verificationDoc = "docs/VERIFICATION_EVIDENCE_PACK.md";
+const globalsCssFile = "app/globals.css";
+const cockpitFile = "components/augnes-cockpit.tsx";
+const readonlyRouteSmokeFile =
+  "scripts/smoke-readonly-api-route-constellation-preview.mjs";
+const cockpitRouteSmokeFile =
+  "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
+const perspectiveIngestTypeFile =
+  "types/perspective-ingest-constellation-preview.ts";
+const perspectiveIngestChatGptFixtureFile =
+  "fixtures/perspective-ingest/chatgpt-record-to-constellation.sample.v0.1.json";
+const perspectiveIngestCodexFixtureFile =
+  "fixtures/perspective-ingest/codex-record-to-constellation.sample.v0.1.json";
+const perspectiveIngestSessionEpisodeFile =
+  "lib/perspective-ingest/session-episode.ts";
+const perspectiveIngestChatGptAdapterFile =
+  "lib/perspective-ingest/chatgpt-record-adapter.ts";
+const perspectiveIngestCodexAdapterFile =
+  "lib/perspective-ingest/codex-record-adapter.ts";
+const perspectiveIngestPacketBuilderFile =
+  "lib/perspective-ingest/episode-to-constellation-packet.ts";
+const perspectiveIngestRouteHelperFile =
+  "lib/readonly-api/perspective-ingest-constellation-preview.ts";
+const perspectiveIngestRouteFile =
+  "app/api/augnes/read/perspective-ingest-constellation-preview/route.ts";
+const perspectiveIngestDoc =
+  "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md";
+const perspectiveIngestSmokeFile =
+  "scripts/smoke-perspective-ingest-constellation-preview.mjs";
 
 const inspectedFiles = [
   contractDoc,
@@ -29,6 +59,24 @@ const inspectedFiles = [
 const boundaryScopeProfile = getProjectConstellationBoundaryScopeProfile({
   ownedFiles: [pluginDoc, verificationDoc],
 });
+const allowedChangedFiles = new Set([
+  ...boundaryScopeProfile.exactAllowedFiles,
+  globalsCssFile,
+  cockpitFile,
+  readonlyRouteSmokeFile,
+  cockpitRouteSmokeFile,
+  perspectiveIngestTypeFile,
+  perspectiveIngestChatGptFixtureFile,
+  perspectiveIngestCodexFixtureFile,
+  perspectiveIngestSessionEpisodeFile,
+  perspectiveIngestChatGptAdapterFile,
+  perspectiveIngestCodexAdapterFile,
+  perspectiveIngestPacketBuilderFile,
+  perspectiveIngestRouteHelperFile,
+  perspectiveIngestRouteFile,
+  perspectiveIngestDoc,
+  perspectiveIngestSmokeFile,
+]);
 const textByFile = loadTextByFile(inspectedFiles);
 
 const requiredSections = [
@@ -395,10 +443,32 @@ function assertPointers() {
 }
 
 function assertChangedFilesBoundary() {
-  return assertChangedFilesWithinBoundaryProfile({
-    profile: boundaryScopeProfile,
+  const result = assertChangedFilesWithin({
+    allowedChangedFiles,
     label: "Perspective Capsule contract boundary smoke",
   });
+  const untrackedFiles = collectUntrackedFiles();
+  const contentOnly = result.mode === "content-only";
+
+  if (!contentOnly) {
+    for (const file of untrackedFiles) {
+      assert(
+        allowedChangedFiles.has(file),
+        `Unexpected untracked file for Perspective Capsule contract boundary smoke: ${file}`,
+      );
+    }
+  }
+
+  return {
+    ...result,
+    files: uniqueSorted([...result.files, ...untrackedFiles]),
+    untracked_checked: !contentOnly,
+    untracked_skipped: contentOnly,
+    untracked_skip_reason: contentOnly
+      ? "untracked-file boundary skipped because AUGNES_BOUNDARY_SMOKE_MODE=content-only"
+      : null,
+    untracked_files: untrackedFiles,
+  };
 }
 
 function assertNoForbiddenPositiveClauses(file, text) {
