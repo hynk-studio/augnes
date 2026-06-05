@@ -73,14 +73,16 @@ The preview is placed in the Perspective tab near the existing Project
 Constellation/Perspective area and before the existing static fixture preview
 section `perspective-constellation-preview`.
 
-The section has one user action: `Copy Codex handoff`. It copies a prompt built
-from the current route preview thesis, selected/current nodes, unresolved
-tensions, pointer-only evidence, and top advisory next action candidate. The
+The section has one primary copy action: `Copy Codex handoff`. It copies a
+prompt built from the current route preview thesis, selected/current nodes,
+unresolved tensions, pointer-only evidence, and the advisory next action
+candidate selected by the user. Each visible next action candidate has a compact
+`Use for handoff` control and the chosen candidate is marked as selected. The
 button reports `Copied` on success or a clipboard failure message on failure.
 The section still has no refresh control, no retry control, no bypass control,
 and no mutation affordance.
 
-The copied prompt prioritizes evidence pointers for the recommended next action
+The copied prompt prioritizes evidence pointers for the selected next action
 before falling back to the remaining pointer-only context. This keeps the
 handoff compact and does not change the route payload shape.
 
@@ -140,7 +142,7 @@ from the default UI. Route diagnostics can still be inspected with
 The copied prompt is generated client-side from the existing response. It is
 not buried behind diagnostics and does not include long default authority
 lists. It includes repo/workflow, task goal, thesis, selected/current nodes,
-tensions, evidence pointers prioritized for the recommended next action, focused
+tensions, evidence pointers prioritized for the selected next action, focused
 validation guidance, and final report expectations for Codex.
 
 Future capsule, copyable handoff, or boundary-next-review display sections

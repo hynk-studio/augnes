@@ -520,8 +520,9 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   only the local read-only marker header by default. It displays boundary class
   `read_only_local_static_preview` instead of long boundary lists and now has a
   `Copy Codex handoff` action that copies a concise Codex-ready prompt from the
-  loaded Project Constellation preview and prioritizes evidence pointers for
-  the recommended next action. The copy action writes only to the local
+  loaded Project Constellation preview. Users can select which advisory next
+  action drives the copied handoff, and the copied prompt prioritizes evidence
+  pointers for that selected action. The copy action writes only to the local
   clipboard. It adds no App/MCP, no production auth, no hosted auth, no DB
   query, no proof/evidence write, no Codex SDK execution, no graph DB, no
   persistence, and no

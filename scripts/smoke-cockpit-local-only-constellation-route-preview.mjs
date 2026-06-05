@@ -158,6 +158,8 @@ const requiredVisibleCopy = [
   "read_only_local_static_preview",
   "Copy Codex handoff",
   "Copied",
+  "Use for handoff",
+  "Selected for handoff",
 ];
 
 const requiredHeaders = [
@@ -188,7 +190,7 @@ const requiredHandoffBuilderPhrases = [
   "Selected/current nodes:",
   "Unresolved tensions that matter:",
   "Evidence pointers prioritized for this handoff:",
-  "Recommended next action candidate:",
+  "Selected next action candidate:",
   "Expected changed-file guidance:",
   "Validation guidance:",
   "Final report expectations:",
@@ -199,6 +201,7 @@ const requiredHandoffBuilderPhrases = [
   "getRankedConstellationHandoffEvidencePointers",
   "scoreConstellationHandoffEvidencePointer",
   "dedupeConstellationEvidencePointers",
+  "selectedNextActionCandidate",
 ];
 
 const omittedFieldPhrases = [
@@ -275,6 +278,11 @@ const routePreviewSource = [
     cockpitSource,
     "type ConstellationRoutePreviewEvidencePointer =",
     "type CockpitTemporalAdmissionDecision =",
+  ),
+  extractSourceBetween(
+    cockpitSource,
+    "const [constellationRoutePreviewState",
+    "const preview = temporalPreview?.preview",
   ),
   extractSourceBetween(
     cockpitSource,
@@ -393,6 +401,12 @@ function assertCockpitPreviewSource() {
     "CONSTELLATION_ROUTE_PREVIEW_HEADERS",
     "fetchConstellationRoutePreview",
     "copyConstellationCodexHandoff",
+    "selectedConstellationNextActionId",
+    "setSelectedConstellationNextActionId",
+    "selectedConstellationNextAction",
+    "Use for handoff",
+    "Selected for handoff",
+    "aria-pressed",
     "navigator.clipboard.writeText",
     "document.execCommand(\"copy\")",
     "buildProjectConstellationCodexHandoffPrompt",
@@ -413,12 +427,15 @@ function assertCockpitPreviewSource() {
     "Copy Codex handoff",
     "CopyFeedback",
     "constellationHandoffCopyNotice",
+    "selectedConstellationNextAction",
+    "Use for handoff",
   ], { label: "Cockpit local-only route preview copy action" });
   assertContainsAll(handoffBuilderSource, requiredHandoffBuilderPhrases, {
     label: "Project Constellation Codex handoff builder",
   });
   assertContainsAll(handoffBuilderSource, [
     "const rankedEvidencePointers = getRankedConstellationHandoffEvidencePointers",
+    "selectedNextActionCandidate ??",
     "rankedEvidencePointers.slice(0, 5)",
     "recommendedNextAction?.source_refs",
     "relatedNodeSourceRefs",
@@ -521,7 +538,8 @@ function assertImplementationDoc() {
     "Copy Codex handoff",
     "Codex-ready prompt",
     "local clipboard",
-    "prioritizes evidence pointers for the recommended next action",
+    "Use for handoff",
+    "prioritizes evidence pointers for the selected next action",
     "does not change the route payload shape",
     "does not include long default authority lists",
     "response minimization",
@@ -575,7 +593,8 @@ function assertDocPointers() {
     "smoke:cockpit-local-only-constellation-route-preview",
     "local-only Cockpit implementation",
     "Copy Codex handoff",
-    "prioritizes evidence pointers for the recommended next action",
+    "Users can select which advisory next action drives the copied handoff",
+    "prioritizes evidence pointers for that selected action",
     "no App/MCP",
     "no production auth",
     "no hosted auth",
