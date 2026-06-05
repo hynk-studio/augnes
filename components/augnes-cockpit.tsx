@@ -20833,9 +20833,14 @@ function buildProjectConstellationCodexHandoffPrompt(
     preview.next_action_candidates[0] ??
     project.next_action_candidates[0] ??
     null;
+  const rankedEvidencePointers = getRankedConstellationHandoffEvidencePointers(
+    preview,
+    recommendedNextAction,
+  );
   const previewSourceRefs = getConstellationHandoffSourceRefs(
     preview,
     recommendedNextAction,
+    rankedEvidencePointers,
   );
 
   return [
@@ -20865,9 +20870,9 @@ function buildProjectConstellationCodexHandoffPrompt(
       "No unresolved tensions were present in the preview.",
     ),
     "",
-    "Evidence pointers as pointer-only context:",
+    "Evidence pointers prioritized for this handoff:",
     formatConstellationHandoffList(
-      preview.evidence_pointers.slice(0, 5),
+      rankedEvidencePointers.slice(0, 5),
       (pointer) =>
         `- ${pointer.label ?? pointer.pointer_id} (${pointer.pointer_id}) -> ${
           pointer.target_ref ?? "target unavailable"
@@ -20909,14 +20914,164 @@ function buildProjectConstellationCodexHandoffPrompt(
 function getConstellationHandoffSourceRefs(
   preview: ConstellationRoutePreviewResponse,
   recommendedNextAction: ConstellationRoutePreviewNextActionCandidate | null,
+  rankedEvidencePointers: ConstellationRoutePreviewEvidencePointer[],
 ) {
   const refs = [
     ...(recommendedNextAction?.source_refs ?? []),
     ...preview.project_constellation.nodes.flatMap((node) => node.source_refs ?? []),
-    ...preview.evidence_pointers.map((pointer) => pointer.target_ref ?? ""),
+    ...rankedEvidencePointers.map((pointer) => pointer.target_ref ?? ""),
   ].filter((ref): ref is string => Boolean(ref));
 
   return Array.from(new Set(refs)).slice(0, 8);
+}
+
+function getRankedConstellationHandoffEvidencePointers(
+  preview: ConstellationRoutePreviewResponse,
+  recommendedNextAction: ConstellationRoutePreviewNextActionCandidate | null,
+) {
+  const evidencePointers = dedupeConstellationEvidencePointers(
+    preview.evidence_pointers,
+  );
+  const recommendedSourceRefs = new Set(recommendedNextAction?.source_refs ?? []);
+  const recommendedTokens = new Set(
+    tokenizeConstellationHandoffText(
+      [
+        recommendedNextAction?.label,
+        recommendedNextAction?.summary,
+        ...(recommendedNextAction?.source_refs ?? []),
+      ].join(" "),
+    ),
+  );
+  const relatedNodeSourceRefs = new Set(
+    preview.project_constellation.nodes
+      .filter((node) =>
+        isConstellationHandoffNodeRelevantToNextAction(
+          node,
+          recommendedSourceRefs,
+          recommendedTokens,
+        ),
+      )
+      .flatMap((node) => node.source_refs ?? []),
+  );
+
+  return evidencePointers
+    .map((pointer, index) => ({
+      pointer,
+      index,
+      score: scoreConstellationHandoffEvidencePointer(
+        pointer,
+        recommendedSourceRefs,
+        relatedNodeSourceRefs,
+        recommendedTokens,
+      ),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ pointer }) => pointer);
+}
+
+function dedupeConstellationEvidencePointers(
+  evidencePointers: ConstellationRoutePreviewEvidencePointer[],
+) {
+  const pointerByKey = new Map<string, ConstellationRoutePreviewEvidencePointer>();
+
+  for (const pointer of evidencePointers) {
+    const key = `${pointer.pointer_id}\u0000${pointer.target_ref ?? ""}`;
+    if (!pointerByKey.has(key)) {
+      pointerByKey.set(key, pointer);
+    }
+  }
+
+  return Array.from(pointerByKey.values());
+}
+
+function isConstellationHandoffNodeRelevantToNextAction(
+  node: ConstellationRoutePreviewNode,
+  recommendedSourceRefs: Set<string>,
+  recommendedTokens: Set<string>,
+) {
+  if (
+    (node.source_refs ?? []).some((sourceRef) =>
+      recommendedSourceRefs.has(sourceRef),
+    )
+  ) {
+    return true;
+  }
+
+  if (recommendedTokens.size === 0) {
+    return false;
+  }
+
+  const nodeTokens = new Set(
+    tokenizeConstellationHandoffText(
+      [node.id, node.label, node.summary, ...(node.source_refs ?? [])].join(" "),
+    ),
+  );
+
+  return countConstellationHandoffTokenOverlap(
+    recommendedTokens,
+    nodeTokens,
+  ) >= 2;
+}
+
+function scoreConstellationHandoffEvidencePointer(
+  pointer: ConstellationRoutePreviewEvidencePointer,
+  recommendedSourceRefs: Set<string>,
+  relatedNodeSourceRefs: Set<string>,
+  recommendedTokens: Set<string>,
+) {
+  const targetRef = pointer.target_ref ?? "";
+  const pointerTokens = new Set(
+    tokenizeConstellationHandoffText(
+      [
+        pointer.pointer_id,
+        pointer.label,
+        pointer.target_ref,
+        pointer.bounded_summary,
+      ].join(" "),
+    ),
+  );
+
+  return (
+    (targetRef && recommendedSourceRefs.has(targetRef) ? 1000 : 0) +
+    (targetRef && relatedNodeSourceRefs.has(targetRef) ? 500 : 0) +
+    countConstellationHandoffTokenOverlap(recommendedTokens, pointerTokens) * 10
+  );
+}
+
+function countConstellationHandoffTokenOverlap(
+  leftTokens: Set<string>,
+  rightTokens: Set<string>,
+) {
+  let overlap = 0;
+
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap;
+}
+
+const CONSTELLATION_HANDOFF_TOKEN_STOP_WORDS = new Set([
+  "and",
+  "for",
+  "from",
+  "the",
+  "this",
+  "that",
+  "when",
+  "with",
+]);
+
+function tokenizeConstellationHandoffText(value: string) {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(
+      (token) =>
+        token.length > 2 && !CONSTELLATION_HANDOFF_TOKEN_STOP_WORDS.has(token),
+    );
 }
 
 function formatConstellationHandoffList<T>(
