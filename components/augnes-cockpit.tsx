@@ -4096,6 +4096,10 @@ function PerspectiveTab({
   ] = useState<PerspectiveConstellationSelectionScope>("whole_constellation");
   const [selectedEventRailEntry, setSelectedEventRailEntry] =
     useState<PerspectiveEventRailEntryId>("current_view");
+  const [
+    formationBasisExplanationOpen,
+    setFormationBasisExplanationOpen,
+  ] = useState(false);
   const [manualPastedText, setManualPastedText] = useState("");
   const [manualPastedTextSourceLabel, setManualPastedTextSourceLabel] =
     useState("");
@@ -4472,6 +4476,45 @@ function PerspectiveTab({
           perspectiveConstellationFormationReceipt.edge_attributions,
         )
       : [];
+  const perspectiveConstellationFormationBasisExplanations = [
+    {
+      label: "Current",
+      status:
+        perspectiveConstellationFormationReceipt?.formation_basis === "current"
+          ? "active receipt basis"
+          : "available explanation",
+      copy:
+        "Active local PerspectiveUnitPreview formed from the current Perspective ingest Constellation preview.",
+    },
+    {
+      label: "Manual Selection",
+      status:
+        perspectiveConstellationFormationReceipt?.formation_basis ===
+        "manual_selection"
+          ? "active receipt basis"
+          : "available explanation",
+      copy:
+        "User-selected graph scope. Local-only, preview-only, no new facts, no persistence.",
+    },
+    {
+      label: "Historical Snapshot",
+      status: "future behavior / not implemented here",
+      copy:
+        "Future archive behavior. No frozen snapshot is created in this slice.",
+    },
+    {
+      label: "Auto Proposal",
+      status: "future behavior / no provider, model, API call, or billing",
+      copy:
+        "Future proposal behavior. No provider, model, API call, or billing occurs in this slice.",
+    },
+    {
+      label: "Experimental",
+      status: "future/internal reserved basis",
+      copy:
+        "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+    },
+  ];
   const perspectiveConstellationLensOptions: {
     id: PerspectiveConstellationLens;
     label: string;
@@ -4767,6 +4810,7 @@ function PerspectiveTab({
       setPerspectiveConstellationSelectionScope("whole_constellation");
       setSelectedPerspectiveConstellationLens("whole_constellation");
       setSelectedEventRailEntry("current_view");
+      setFormationBasisExplanationOpen(false);
       return;
     }
 
@@ -4877,6 +4921,7 @@ function PerspectiveTab({
     setPerspectiveConstellationSelectionScope("whole_constellation");
     setSelectedPerspectiveConstellationLens("whole_constellation");
     setSelectedEventRailEntry("current_view");
+    setFormationBasisExplanationOpen(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
@@ -4918,6 +4963,7 @@ function PerspectiveTab({
     setPerspectiveConstellationSelectionScope("whole_constellation");
     setSelectedPerspectiveConstellationLens("whole_constellation");
     setSelectedEventRailEntry("current_view");
+    setFormationBasisExplanationOpen(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
 
@@ -5139,13 +5185,26 @@ function PerspectiveTab({
               <p className="panel-eyebrow">Current Formation Receipt</p>
               <h3>Perspective Unit summary</h3>
             </div>
-            <div className="perspective-formation-summary-status">
-              <span className="perspective-formation-summary-status-label">
-                Status
-              </span>
-              {perspectiveConstellationSummaryStatus.map((status) => (
-                <span key={status}>{status}</span>
-              ))}
+            <div className="perspective-formation-summary-actions">
+              <button
+                type="button"
+                className="perspective-formation-basis-explanation-toggle"
+                aria-expanded={formationBasisExplanationOpen}
+                aria-controls="perspective-formation-basis-explanation-card"
+                onClick={() =>
+                  setFormationBasisExplanationOpen((isOpen) => !isOpen)
+                }
+              >
+                What does this basis mean?
+              </button>
+              <div className="perspective-formation-summary-status">
+                <span className="perspective-formation-summary-status-label">
+                  Status
+                </span>
+                {perspectiveConstellationSummaryStatus.map((status) => (
+                  <span key={status}>{status}</span>
+                ))}
+              </div>
             </div>
           </div>
           <div className="perspective-formation-summary-grid">
@@ -5223,6 +5282,41 @@ function PerspectiveTab({
             ))}
           </div>
         </section>
+        {formationBasisExplanationOpen ? (
+          <aside
+            id="perspective-formation-basis-explanation-card"
+            className="perspective-formation-basis-explanation-card"
+            aria-label="Formation Basis explanation card"
+          >
+            <div className="perspective-formation-basis-explanation-heading">
+              <p className="panel-eyebrow">Formation Basis explanation</p>
+              <h4>How this constellation was formed</h4>
+            </div>
+            <p>
+              Formation Basis explains how the current constellation arrangement
+              was formed. Lens explains how you inspect it. Scope explains what
+              part is selected.
+            </p>
+            <div className="perspective-formation-basis-explanation-list">
+              {perspectiveConstellationFormationBasisExplanations.map((basis) => (
+                <article key={basis.label}>
+                  <strong>{basis.label}</strong>
+                  <span>{basis.status}</span>
+                  <p>{basis.copy}</p>
+                </article>
+              ))}
+            </div>
+            <div className="perspective-formation-basis-explanation-boundary">
+              <span>Compare is a future view mode, not a Formation Basis.</span>
+              <span>Rulecraft is not exposed yet.</span>
+              <span>Auto Proposal is not executed here.</span>
+              <span>
+                No API calls, cost, persistence, graph DB writes, or external
+                calls occur.
+              </span>
+            </div>
+          </aside>
+        ) : null}
         <div className="perspective-constellation-workspace-grid">
           <aside
             className="perspective-lens-scope-panel"

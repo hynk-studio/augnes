@@ -620,6 +620,37 @@ code {
   min-width: 0;
 }
 
+.perspective-formation-summary-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-formation-basis-explanation-toggle {
+  min-width: 0;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgba(14, 116, 144, 0.28);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f766e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 820;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.perspective-formation-basis-explanation-toggle:hover,
+.perspective-formation-basis-explanation-toggle:focus-visible,
+.perspective-formation-basis-explanation-toggle[aria-expanded="true"] {
+  border-color: rgba(14, 116, 144, 0.5);
+  background: #ecfeff;
+}
+
 .perspective-formation-summary-status span {
   padding: 4px 7px;
   border: 1px solid rgba(20, 184, 166, 0.28);
@@ -704,6 +735,104 @@ code {
   color: #475569;
   font-size: 0.72rem;
   line-height: 1.25;
+}
+
+.perspective-formation-basis-explanation-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(14, 116, 144, 0.18);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+}
+
+.perspective-formation-basis-explanation-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.perspective-formation-basis-explanation-card h4,
+.perspective-formation-basis-explanation-card p {
+  margin: 0;
+}
+
+.perspective-formation-basis-explanation-card h4 {
+  color: #0f172a;
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.perspective-formation-basis-explanation-card > p {
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.perspective-formation-basis-explanation-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-formation-basis-explanation-list article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.perspective-formation-basis-explanation-list strong,
+.perspective-formation-basis-explanation-list span,
+.perspective-formation-basis-explanation-list p {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.perspective-formation-basis-explanation-list strong {
+  color: #0f172a;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.perspective-formation-basis-explanation-list span {
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.perspective-formation-basis-explanation-list p {
+  color: #475569;
+  font-size: 0.76rem;
+  line-height: 1.36;
+}
+
+.perspective-formation-basis-explanation-boundary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-formation-basis-explanation-boundary span {
+  max-width: 100%;
+  padding: 4px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 760;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .perspective-constellation-workspace-grid {
@@ -5151,6 +5280,10 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .perspective-formation-basis-explanation-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .perspective-formation-authority-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -5242,8 +5375,16 @@ h1 {
     justify-content: start;
   }
 
+  .perspective-formation-summary-actions {
+    justify-items: start;
+  }
+
   .perspective-formation-summary-grid,
   .perspective-formation-authority-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .perspective-formation-basis-explanation-list {
     grid-template-columns: minmax(0, 1fr);
   }
 
