@@ -353,6 +353,18 @@ type ManualGravityLocalDraftReceipt = {
   mark_count: number;
   target_count: number;
 };
+type ManualGravityLocalDraftStorageSnapshot = {
+  available: boolean;
+  rawDraftPresent: boolean;
+  draft: ManualGravityLocalDraft | null;
+  malformed: boolean;
+  unsafeMarksIgnored: boolean;
+};
+type ManualGravityLocalDraftRestoreNotice = {
+  title: string;
+  detail: string;
+  notes: string[];
+};
 type PerspectiveFormationBasisExplanationCandidate =
   | "current"
   | "manual_selection"
@@ -402,27 +414,47 @@ function countManualGravityPreviewTargets(
 function sanitizeManualGravityPreviewMarks(
   marksByTarget: unknown,
 ): Record<string, ManualGravityPreviewMark[]> {
-  if (!marksByTarget || typeof marksByTarget !== "object") return {};
+  return sanitizeManualGravityPreviewMarksWithReport(marksByTarget).marksByTarget;
+}
+
+function sanitizeManualGravityPreviewMarksWithReport(marksByTarget: unknown): {
+  marksByTarget: Record<string, ManualGravityPreviewMark[]>;
+  unsafeMarksIgnored: boolean;
+} {
+  if (!marksByTarget || typeof marksByTarget !== "object") {
+    return { marksByTarget: {}, unsafeMarksIgnored: Boolean(marksByTarget) };
+  }
 
   const sanitizedMarks: Record<string, ManualGravityPreviewMark[]> = {};
+  let unsafeMarksIgnored = false;
   for (const [targetKey, marks] of Object.entries(marksByTarget)) {
-    if (typeof targetKey !== "string" || !Array.isArray(marks)) continue;
+    if (typeof targetKey !== "string" || !Array.isArray(marks)) {
+      unsafeMarksIgnored = true;
+      continue;
+    }
 
     const safeMarks = marks.filter(
       (mark): mark is ManualGravityPreviewMark =>
         typeof mark === "string" &&
         MANUAL_GRAVITY_PREVIEW_MARK_IDS.has(mark as ManualGravityPreviewMark),
     );
+    if (safeMarks.length !== marks.length) unsafeMarksIgnored = true;
     if (safeMarks.length > 0) {
       sanitizedMarks[targetKey] = Array.from(new Set(safeMarks));
     }
   }
 
-  return sanitizedMarks;
+  return { marksByTarget: sanitizedMarks, unsafeMarksIgnored };
 }
 
 function parseManualGravityLocalDraft(rawDraft: string | null) {
-  if (!rawDraft) return null;
+  if (!rawDraft) {
+    return {
+      draft: null,
+      malformed: false,
+      unsafeMarksIgnored: false,
+    };
+  }
 
   try {
     const parsedDraft = JSON.parse(rawDraft) as Partial<ManualGravityLocalDraft>;
@@ -435,43 +467,76 @@ function parseManualGravityLocalDraft(rawDraft: string | null) {
       typeof parsedDraft.as_of !== "string" ||
       typeof parsedDraft.saved_at !== "string"
     ) {
-      return null;
+      return {
+        draft: null,
+        malformed: true,
+        unsafeMarksIgnored: false,
+      };
     }
 
-    const marksByTarget = sanitizeManualGravityPreviewMarks(
+    const sanitizedMarks = sanitizeManualGravityPreviewMarksWithReport(
       parsedDraft.marks_by_target,
     );
-    if (!hasManualGravityPreviewMarks(marksByTarget)) return null;
+    if (!hasManualGravityPreviewMarks(sanitizedMarks.marksByTarget)) {
+      return {
+        draft: null,
+        malformed: true,
+        unsafeMarksIgnored: sanitizedMarks.unsafeMarksIgnored,
+      };
+    }
 
     return {
-      version: MANUAL_GRAVITY_LOCAL_DRAFT_VERSION,
-      formation_id: parsedDraft.formation_id,
-      constellation_id: parsedDraft.constellation_id,
-      source_query: parsedDraft.source_query,
-      generated_at: parsedDraft.generated_at,
-      as_of: parsedDraft.as_of,
-      marks_by_target: marksByTarget,
-      saved_at: parsedDraft.saved_at,
-    } satisfies ManualGravityLocalDraft;
+      draft: {
+        version: MANUAL_GRAVITY_LOCAL_DRAFT_VERSION,
+        formation_id: parsedDraft.formation_id,
+        constellation_id: parsedDraft.constellation_id,
+        source_query: parsedDraft.source_query,
+        generated_at: parsedDraft.generated_at,
+        as_of: parsedDraft.as_of,
+        marks_by_target: sanitizedMarks.marksByTarget,
+        saved_at: parsedDraft.saved_at,
+      } satisfies ManualGravityLocalDraft,
+      malformed: false,
+      unsafeMarksIgnored: sanitizedMarks.unsafeMarksIgnored,
+    };
   } catch {
-    return null;
+    return {
+      draft: null,
+      malformed: true,
+      unsafeMarksIgnored: false,
+    };
   }
 }
 
 function readManualGravityLocalDraftFromStorage() {
   if (typeof window === "undefined") {
-    return { available: false, draft: null };
+    return {
+      available: false,
+      rawDraftPresent: false,
+      draft: null,
+      malformed: false,
+      unsafeMarksIgnored: false,
+    } satisfies ManualGravityLocalDraftStorageSnapshot;
   }
 
   try {
+    const rawDraft = window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY);
+    const parsedDraft = parseManualGravityLocalDraft(rawDraft);
     return {
       available: true,
-      draft: parseManualGravityLocalDraft(
-        window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY),
-      ),
-    };
+      rawDraftPresent: Boolean(rawDraft),
+      draft: parsedDraft.draft,
+      malformed: parsedDraft.malformed,
+      unsafeMarksIgnored: parsedDraft.unsafeMarksIgnored,
+    } satisfies ManualGravityLocalDraftStorageSnapshot;
   } catch {
-    return { available: false, draft: null };
+    return {
+      available: false,
+      rawDraftPresent: false,
+      draft: null,
+      malformed: false,
+      unsafeMarksIgnored: false,
+    } satisfies ManualGravityLocalDraftStorageSnapshot;
   }
 }
 
@@ -580,6 +645,155 @@ function manualGravityLocalDraftMatchesContext(
     draft.generated_at === context.generated_at &&
     draft.as_of === context.as_of
   );
+}
+
+function getManualGravityLocalDraftContextMismatches(
+  draft: ManualGravityLocalDraft,
+  context: Omit<ManualGravityLocalDraft, "marks_by_target" | "saved_at" | "version">,
+) {
+  const mismatches: string[] = [];
+
+  if (draft.source_query !== context.source_query) {
+    mismatches.push("source_query mismatch");
+  }
+  if (draft.formation_id !== context.formation_id) {
+    mismatches.push("formation_id mismatch");
+  }
+  if (draft.constellation_id !== context.constellation_id) {
+    mismatches.push("constellation_id mismatch");
+  }
+  if (draft.generated_at !== context.generated_at || draft.as_of !== context.as_of) {
+    mismatches.push("as_of/generated_at mismatch");
+  }
+
+  return mismatches;
+}
+
+function getManualGravityPreviewMissingTargetKeys(
+  marksByTarget: Record<string, ManualGravityPreviewMark[]>,
+  resolvableTargetKeys: Set<string>,
+) {
+  return Object.entries(marksByTarget)
+    .filter(([, marks]) => marks.length > 0)
+    .map(([targetKey]) => targetKey)
+    .filter((targetKey) => !resolvableTargetKeys.has(targetKey));
+}
+
+function filterManualGravityPreviewMarksByTargetKeys(
+  marksByTarget: Record<string, ManualGravityPreviewMark[]>,
+  resolvableTargetKeys: Set<string>,
+) {
+  return Object.entries(marksByTarget).reduce<
+    Record<string, ManualGravityPreviewMark[]>
+  >((filteredMarks, [targetKey, marks]) => {
+    if (marks.length > 0 && resolvableTargetKeys.has(targetKey)) {
+      filteredMarks[targetKey] = marks;
+    }
+
+    return filteredMarks;
+  }, {});
+}
+
+function buildManualGravityLocalDraftRestoreNotice({
+  context,
+  contextMismatches,
+  missingTargetCount,
+  status,
+  storageSnapshot,
+}: {
+  context: Omit<
+    ManualGravityLocalDraft,
+    "marks_by_target" | "saved_at" | "version"
+  > | null;
+  contextMismatches: string[];
+  missingTargetCount: number;
+  status: ManualGravityLocalDraftStatus;
+  storageSnapshot: ManualGravityLocalDraftStorageSnapshot | null;
+}): ManualGravityLocalDraftRestoreNotice | null {
+  if (!context || status === "cleared") return null;
+
+  const boundaryNotes = [
+    "Browser-local draft metadata only.",
+    "No automatic migration, overwrite, or conflict resolution is applied.",
+  ];
+
+  if (!storageSnapshot?.available) {
+    return {
+      title: "Local draft unavailable",
+      detail: "Browser-local draft metadata could not be read for this context.",
+      notes: boundaryNotes,
+    };
+  }
+
+  if (storageSnapshot.rawDraftPresent && storageSnapshot.malformed) {
+    return {
+      title: "Malformed draft ignored",
+      detail:
+        "The browser-local draft was ignored because it did not match the safe metadata shape.",
+      notes: [
+        ...(storageSnapshot.unsafeMarksIgnored
+          ? ["unsafe or unknown mark ids were ignored"]
+          : []),
+        ...boundaryNotes,
+      ],
+    };
+  }
+
+  if (
+    storageSnapshot.rawDraftPresent &&
+    storageSnapshot.draft &&
+    contextMismatches.length > 0
+  ) {
+    return {
+      title: "No matching local draft for this formation",
+      detail: "Draft exists for another source or formation.",
+      notes: [...contextMismatches, ...boundaryNotes],
+    };
+  }
+
+  if (!storageSnapshot.rawDraftPresent && status === "unsaved") {
+    return {
+      title: "No matching local draft for this formation",
+      detail: "No browser-local draft metadata exists for this formation yet.",
+      notes: boundaryNotes,
+    };
+  }
+
+  if (
+    (status === "restored_for_this_formation" ||
+      status === "saved_for_this_formation") &&
+    missingTargetCount > 0
+  ) {
+    return {
+      title: "Some saved targets are not present in the current graph",
+      detail:
+        "Only saved target keys that resolve to the current graph are restored as visible marks.",
+      notes: [`missing target count ${missingTargetCount}`, ...boundaryNotes],
+    };
+  }
+
+  if (status === "restored_for_this_formation") {
+    return {
+      title: "Restored from browser metadata",
+      detail: "Matching browser-local draft marks were restored for this formation.",
+      notes: [
+        ...(storageSnapshot.unsafeMarksIgnored
+          ? ["unsafe or unknown mark ids were ignored"]
+          : []),
+        ...boundaryNotes,
+      ],
+    };
+  }
+
+  if (status === "saved_for_this_formation") {
+    return {
+      title: "Saved for this formation",
+      detail: "Current Manual Gravity marks are saved as browser-local metadata.",
+      notes: boundaryNotes,
+    };
+  }
+
+  return null;
 }
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
@@ -4375,6 +4589,10 @@ function PerspectiveTab({
     useState<ManualGravityLocalDraftStatus>("unavailable");
   const [manualGravityLocalDraftReceipt, setManualGravityLocalDraftReceipt] =
     useState<ManualGravityLocalDraftReceipt | null>(null);
+  const [
+    manualGravityLocalDraftStorageSnapshot,
+    setManualGravityLocalDraftStorageSnapshot,
+  ] = useState<ManualGravityLocalDraftStorageSnapshot | null>(null);
   const [appliedGravityPreviewActive, setAppliedGravityPreviewActive] =
     useState(false);
   const [manualPastedText, setManualPastedText] = useState("");
@@ -4772,6 +4990,35 @@ function PerspectiveTab({
         manualGravityLocalDraftContext.as_of,
       ].join("|")
     : "unavailable";
+  const manualGravityPreviewResolvableTargetKeys = [
+    ...(perspectiveIngestConstellation?.nodes.map((node) => `node:${node.id}`) ??
+      []),
+    ...(perspectiveIngestConstellation?.clusters.map(
+      (cluster) => `cluster:${cluster.id}`,
+    ) ?? []),
+    ...(perspectiveConstellationUnitPreview
+      ? [`manual:${perspectiveConstellationUnitPreview.preview_id}`]
+      : []),
+  ];
+  const manualGravityPreviewResolvableTargetKeySet = new Set(
+    manualGravityPreviewResolvableTargetKeys,
+  );
+  const manualGravityPreviewResolvableTargetKeySignature =
+    manualGravityPreviewResolvableTargetKeys.join("|");
+  const manualGravityLocalDraftContextMismatches =
+    manualGravityLocalDraftStorageSnapshot?.draft && manualGravityLocalDraftContext
+      ? getManualGravityLocalDraftContextMismatches(
+          manualGravityLocalDraftStorageSnapshot.draft,
+          manualGravityLocalDraftContext,
+        )
+      : [];
+  const manualGravityLocalDraftMissingTargetKeys =
+    manualGravityLocalDraftStorageSnapshot?.draft
+      ? getManualGravityPreviewMissingTargetKeys(
+          manualGravityLocalDraftStorageSnapshot.draft.marks_by_target,
+          manualGravityPreviewResolvableTargetKeySet,
+        )
+      : [];
   const manualGravityLocalDraftStatusLabel =
     manualGravityLocalDraftStatus === "saved_for_this_formation"
       ? "saved for this formation"
@@ -4788,6 +5035,14 @@ function PerspectiveTab({
     Boolean(manualGravityLocalDraftReceipt) &&
     (manualGravityLocalDraftStatus === "saved_for_this_formation" ||
       manualGravityLocalDraftStatus === "restored_for_this_formation");
+  const manualGravityLocalDraftRestoreNotice =
+    buildManualGravityLocalDraftRestoreNotice({
+      context: manualGravityLocalDraftContext,
+      contextMismatches: manualGravityLocalDraftContextMismatches,
+      missingTargetCount: manualGravityLocalDraftMissingTargetKeys.length,
+      status: manualGravityLocalDraftStatus,
+      storageSnapshot: manualGravityLocalDraftStorageSnapshot,
+    });
   const perspectiveConstellationSummaryViewing =
     perspectiveConstellationUnitPreview?.scope_label ??
     (perspectiveIngestPreviewError ? "Unavailable" : "Loading");
@@ -5302,6 +5557,7 @@ function PerspectiveTab({
       setSelectedGravityPreviewMarks({});
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
+      setManualGravityLocalDraftStorageSnapshot(null);
       setAppliedGravityPreviewActive(false);
       return;
     }
@@ -5330,11 +5586,13 @@ function PerspectiveTab({
       restoredManualGravityLocalDraftContextRef.current = null;
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
+      setManualGravityLocalDraftStorageSnapshot(null);
       return;
     }
 
     const storedManualGravityLocalDraft =
       readManualGravityLocalDraftFromStorage();
+    setManualGravityLocalDraftStorageSnapshot(storedManualGravityLocalDraft);
     if (!storedManualGravityLocalDraft.available) {
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
@@ -5360,13 +5618,21 @@ function PerspectiveTab({
       restoredManualGravityLocalDraftContextRef.current !==
       manualGravityLocalDraftContextKey
     ) {
-      setSelectedGravityPreviewMarks(draft.marks_by_target);
+      setSelectedGravityPreviewMarks(
+        filterManualGravityPreviewMarksByTargetKeys(
+          draft.marks_by_target,
+          manualGravityPreviewResolvableTargetKeySet,
+        ),
+      );
       restoredManualGravityLocalDraftContextRef.current =
         manualGravityLocalDraftContextKey;
     }
     setManualGravityLocalDraftReceipt(getManualGravityLocalDraftReceipt(draft));
     setManualGravityLocalDraftStatus("restored_for_this_formation");
-  }, [manualGravityLocalDraftContextKey]);
+  }, [
+    manualGravityLocalDraftContextKey,
+    manualGravityPreviewResolvableTargetKeySignature,
+  ]);
 
   function selectPerspectiveConstellationLens(lens: PerspectiveConstellationLens) {
     setSelectedPerspectiveConstellationLens(lens);
@@ -5462,6 +5728,17 @@ function PerspectiveTab({
         manualGravityLocalDraftContext ? "unsaved" : "unavailable",
       );
       setManualGravityLocalDraftReceipt(null);
+      setManualGravityLocalDraftStorageSnapshot(
+        manualGravityLocalDraftContext
+          ? {
+              available: true,
+              rawDraftPresent: false,
+              draft: null,
+              malformed: false,
+              unsafeMarksIgnored: false,
+            }
+          : null,
+      );
       return;
     }
 
@@ -5477,12 +5754,26 @@ function PerspectiveTab({
     if (!writeManualGravityLocalDraftToStorage(draft)) {
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
+      setManualGravityLocalDraftStorageSnapshot({
+        available: false,
+        rawDraftPresent: false,
+        draft: null,
+        malformed: false,
+        unsafeMarksIgnored: false,
+      });
       return;
     }
 
     restoredManualGravityLocalDraftContextRef.current =
       manualGravityLocalDraftContextKey;
     setManualGravityLocalDraftReceipt(getManualGravityLocalDraftReceipt(draft));
+    setManualGravityLocalDraftStorageSnapshot({
+      available: true,
+      rawDraftPresent: true,
+      draft,
+      malformed: false,
+      unsafeMarksIgnored: false,
+    });
     setManualGravityLocalDraftStatus("saved_for_this_formation");
   }
 
@@ -5490,12 +5781,20 @@ function PerspectiveTab({
     if (!clearManualGravityLocalDraftStorage()) {
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
+      setManualGravityLocalDraftStorageSnapshot({
+        available: false,
+        rawDraftPresent: false,
+        draft: null,
+        malformed: false,
+        unsafeMarksIgnored: false,
+      });
       return;
     }
 
     restoredManualGravityLocalDraftContextRef.current = null;
     setSelectedGravityPreviewMarks({});
     setManualGravityLocalDraftReceipt(null);
+    setManualGravityLocalDraftStorageSnapshot(null);
     setAppliedGravityPreviewActive(false);
     setManualGravityLocalDraftStatus("cleared");
   }
@@ -5561,6 +5860,7 @@ function PerspectiveTab({
     setSelectedGravityPreviewMarks({});
     setManualGravityLocalDraftStatus("unsaved");
     setManualGravityLocalDraftReceipt(null);
+    setManualGravityLocalDraftStorageSnapshot(null);
     setAppliedGravityPreviewActive(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
@@ -5608,6 +5908,7 @@ function PerspectiveTab({
     setSelectedGravityPreviewMarks({});
     setManualGravityLocalDraftStatus("unsaved");
     setManualGravityLocalDraftReceipt(null);
+    setManualGravityLocalDraftStorageSnapshot(null);
     setAppliedGravityPreviewActive(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
@@ -5615,6 +5916,7 @@ function PerspectiveTab({
     if (!pastedTextInput.trim()) {
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
+      setManualGravityLocalDraftStorageSnapshot(null);
       setAppliedGravityPreviewActive(false);
       setPerspectiveIngestConstellationPreviewState({
         status: "failed",
@@ -6354,6 +6656,19 @@ function PerspectiveTab({
                   content, or private history are stored. Not server persistence.
                   Not FormationReceiptV0 authority.
                 </p>
+                {manualGravityLocalDraftRestoreNotice ? (
+                  <div
+                    className="perspective-manual-gravity-restore-notice"
+                    aria-label="Manual Gravity Restore Notice"
+                  >
+                    <strong>Manual Gravity Restore Notice</strong>
+                    <span>{manualGravityLocalDraftRestoreNotice.title}</span>
+                    <span>{manualGravityLocalDraftRestoreNotice.detail}</span>
+                    {manualGravityLocalDraftRestoreNotice.notes.map((note) => (
+                      <span key={note}>{note}</span>
+                    ))}
+                  </div>
+                ) : null}
                 {showManualGravityLocalDraftReceipt &&
                 manualGravityLocalDraftReceipt ? (
                   <div
@@ -8004,6 +8319,7 @@ function PerspectiveTab({
                   setSelectedGravityPreviewMarks({});
                   setManualGravityLocalDraftStatus("unsaved");
                   setManualGravityLocalDraftReceipt(null);
+                  setManualGravityLocalDraftStorageSnapshot(null);
                   setAppliedGravityPreviewActive(false);
                 }}
               />
@@ -8021,6 +8337,7 @@ function PerspectiveTab({
                   setSelectedGravityPreviewMarks({});
                   setManualGravityLocalDraftStatus("unsaved");
                   setManualGravityLocalDraftReceipt(null);
+                  setManualGravityLocalDraftStorageSnapshot(null);
                   setAppliedGravityPreviewActive(false);
                 }}
               />
