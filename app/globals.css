@@ -1187,6 +1187,49 @@ code {
   border-color: rgba(14, 116, 144, 0.18);
 }
 
+.perspective-manual-gravity-preview {
+  border-color: rgba(79, 70, 229, 0.16);
+  background: #f8fafc;
+}
+
+.perspective-manual-gravity-actions,
+.perspective-manual-gravity-chips,
+.perspective-manual-gravity-boundary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-manual-gravity-actions .secondary-button {
+  min-width: min(100%, 116px);
+}
+
+.perspective-manual-gravity-actions .secondary-button[aria-pressed="true"] {
+  border-color: rgba(79, 70, 229, 0.42);
+  background: #eef2ff;
+  color: #312e81;
+}
+
+.perspective-manual-gravity-chips span,
+.perspective-manual-gravity-boundary span {
+  max-width: 100%;
+  padding: 4px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 760;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.perspective-manual-gravity-chips span {
+  border-color: rgba(79, 70, 229, 0.18);
+  color: #3730a3;
+}
+
 .perspective-packet-target-toggle,
 .perspective-packet-copy-row {
   display: flex;

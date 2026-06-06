@@ -317,12 +317,24 @@ type PerspectiveEventRailEntry = {
   statusLabel: string;
   relatedRefs: string[];
 };
+type ManualGravityPreviewMark = "pin" | "watch" | "defer" | "boost";
 type PerspectiveFormationBasisExplanationCandidate =
   | "current"
   | "manual_selection"
   | "historical_snapshot"
   | "auto_proposal"
   | "experimental";
+
+const MANUAL_GRAVITY_PREVIEW_MARKS: {
+  id: ManualGravityPreviewMark;
+  actionLabel: string;
+  chipLabel: string;
+}[] = [
+  { id: "pin", actionLabel: "Pin Preview", chipLabel: "Pinned preview" },
+  { id: "watch", actionLabel: "Watch Preview", chipLabel: "Watch preview" },
+  { id: "defer", actionLabel: "Defer Preview", chipLabel: "Deferred preview" },
+  { id: "boost", actionLabel: "Boost Preview", chipLabel: "Boosted preview" },
+];
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
   code: string;
@@ -4110,6 +4122,9 @@ function PerspectiveTab({
     selectedFormationBasisExplanation,
     setSelectedFormationBasisExplanation,
   ] = useState<PerspectiveFormationBasisExplanationCandidate>("current");
+  const [selectedGravityPreviewMarks, setSelectedGravityPreviewMarks] = useState<
+    Record<string, ManualGravityPreviewMark[]>
+  >({});
   const [manualPastedText, setManualPastedText] = useState("");
   const [manualPastedTextSourceLabel, setManualPastedTextSourceLabel] =
     useState("");
@@ -4332,6 +4347,36 @@ function PerspectiveTab({
     perspectiveConstellationUnitPreview?.unresolved_tensions ?? [];
   const perspectiveConstellationShellNextActions =
     perspectiveConstellationUnitPreview?.next_action_candidates ?? [];
+  const manualGravityPreviewSelection =
+    perspectiveConstellationSelectionScope === "connected_node" &&
+    explicitSelectedPerspectiveIngestNode
+      ? {
+          key: `node:${explicitSelectedPerspectiveIngestNode.id}`,
+          label: explicitSelectedPerspectiveIngestNode.label,
+          scopeLabel: "Connected Node",
+        }
+      : perspectiveConstellationSelectionScope === "cluster" &&
+          perspectiveConstellationActiveCluster
+        ? {
+            key: `cluster:${perspectiveConstellationActiveCluster.id}`,
+            label: perspectiveConstellationActiveCluster.label,
+            scopeLabel: "Cluster",
+          }
+        : perspectiveConstellationSelectionScope === "manual_selection" &&
+            perspectiveConstellationUnitPreview
+          ? {
+              key: `manual:${perspectiveConstellationUnitPreview.preview_id}`,
+              label: perspectiveConstellationSelectionTitle,
+              scopeLabel: "Manual Selection",
+            }
+          : null;
+  const activeManualGravityPreviewMarks = manualGravityPreviewSelection
+    ? selectedGravityPreviewMarks[manualGravityPreviewSelection.key] ?? []
+    : [];
+  const activeManualGravityPreviewMarkLabels =
+    MANUAL_GRAVITY_PREVIEW_MARKS.filter((mark) =>
+      activeManualGravityPreviewMarks.includes(mark.id),
+    ).map((mark) => mark.chipLabel);
   const perspectiveConstellationScopedChatGptPacketText =
     perspectiveConstellationUnitPreview?.chatgpt_review_packet_text ?? "";
   const perspectiveConstellationScopedCodexHandoffPacketText =
@@ -4855,6 +4900,7 @@ function PerspectiveTab({
       setSelectedEventRailEntry("current_view");
       setFormationBasisExplanationOpen(false);
       setSelectedFormationBasisExplanation("current");
+      setSelectedGravityPreviewMarks({});
       return;
     }
 
@@ -4953,6 +4999,40 @@ function PerspectiveTab({
     });
   }
 
+  function toggleManualGravityPreviewMark(mark: ManualGravityPreviewMark) {
+    if (!manualGravityPreviewSelection) return;
+
+    const selectionKey = manualGravityPreviewSelection.key;
+    setSelectedGravityPreviewMarks((currentMarks) => {
+      const currentSelectionMarks = currentMarks[selectionKey] ?? [];
+      const nextSelectionMarks = currentSelectionMarks.includes(mark)
+        ? currentSelectionMarks.filter((currentMark) => currentMark !== mark)
+        : [...currentSelectionMarks, mark];
+
+      if (nextSelectionMarks.length === 0) {
+        const { [selectionKey]: _removedSelection, ...remainingMarks } =
+          currentMarks;
+        return remainingMarks;
+      }
+
+      return {
+        ...currentMarks,
+        [selectionKey]: nextSelectionMarks,
+      };
+    });
+  }
+
+  function clearManualGravityPreviewMarks() {
+    if (!manualGravityPreviewSelection) return;
+
+    const selectionKey = manualGravityPreviewSelection.key;
+    setSelectedGravityPreviewMarks((currentMarks) => {
+      const { [selectionKey]: _removedSelection, ...remainingMarks } =
+        currentMarks;
+      return remainingMarks;
+    });
+  }
+
   function refreshPerspectiveIngestConstellationPreview(
     source: PerspectiveIngestSourceSelection,
   ) {
@@ -4967,6 +5047,7 @@ function PerspectiveTab({
     setSelectedEventRailEntry("current_view");
     setFormationBasisExplanationOpen(false);
     setSelectedFormationBasisExplanation("current");
+    setSelectedGravityPreviewMarks({});
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
@@ -5010,6 +5091,7 @@ function PerspectiveTab({
     setSelectedEventRailEntry("current_view");
     setFormationBasisExplanationOpen(false);
     setSelectedFormationBasisExplanation("current");
+    setSelectedGravityPreviewMarks({});
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
 
@@ -5546,6 +5628,78 @@ function PerspectiveTab({
                   perspectiveConstellationWorkspaceCluster?.cluster_thesis ??
                   "Preview thesis pending."}
               </p>
+            </section>
+            <section
+              className="perspective-inspector-section perspective-manual-gravity-preview"
+              aria-label="Manual Gravity Preview"
+            >
+              <h4>Manual Gravity Preview</h4>
+              <p>
+                Local salience marks for the current selected graph material.
+                Preview-only. Not saved. Not written to FormationReceiptV0. No
+                graph DB write.
+              </p>
+              <div className="meta-row">
+                <span>
+                  target{" "}
+                  <code>
+                    {manualGravityPreviewSelection?.label ??
+                      "select a node, cluster, or manual selection first"}
+                  </code>
+                </span>
+                <span>
+                  scope{" "}
+                  <code>
+                    {manualGravityPreviewSelection?.scopeLabel ??
+                      perspectiveConstellationSelectionScopeLabel}
+                  </code>
+                </span>
+              </div>
+              <div
+                className="perspective-manual-gravity-actions"
+                aria-label="Manual Gravity Preview actions"
+              >
+                {MANUAL_GRAVITY_PREVIEW_MARKS.map((mark) => (
+                  <button
+                    key={mark.id}
+                    type="button"
+                    className="secondary-button"
+                    aria-pressed={activeManualGravityPreviewMarks.includes(
+                      mark.id,
+                    )}
+                    disabled={!manualGravityPreviewSelection}
+                    onClick={() => toggleManualGravityPreviewMark(mark.id)}
+                  >
+                    {mark.actionLabel}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={
+                    !manualGravityPreviewSelection ||
+                    activeManualGravityPreviewMarks.length === 0
+                  }
+                  onClick={clearManualGravityPreviewMarks}
+                >
+                  Clear Preview Marks
+                </button>
+              </div>
+              <div className="perspective-manual-gravity-chips">
+                {activeManualGravityPreviewMarkLabels.length ? (
+                  activeManualGravityPreviewMarkLabels.map((label) => (
+                    <span key={label}>{label}</span>
+                  ))
+                ) : (
+                  <span>No preview marks applied</span>
+                )}
+              </div>
+              <div className="perspective-manual-gravity-boundary">
+                <span>preview marks are not persisted</span>
+                <span>not receipt overrides yet</span>
+                <span>source graph remains read-only</span>
+                <span>no persistence, API route, or external call</span>
+              </div>
             </section>
             <section className="perspective-inspector-section">
               <h4>Evidence pointers</h4>
@@ -7057,6 +7211,7 @@ function PerspectiveTab({
                 onChange={() => {
                   setSelectedPerspectiveIngestSource("sample:chatgpt");
                   setPerspectiveIngestCopyNotice(null);
+                  setSelectedGravityPreviewMarks({});
                 }}
               />
               sample:chatgpt
@@ -7070,6 +7225,7 @@ function PerspectiveTab({
                 onChange={() => {
                   setSelectedPerspectiveIngestSource("sample:codex");
                   setPerspectiveIngestCopyNotice(null);
+                  setSelectedGravityPreviewMarks({});
                 }}
               />
               sample:codex

@@ -61,6 +61,7 @@ assertTypeExports();
 assertPerspectiveUnitPreviewBuilder();
 assertHelperAndRouteShape();
 assertCockpitSurface();
+assertManualGravityPreviewMarks();
 assertFormationSummaryOverlay();
 assertFormationBasisExplanationOverlay();
 assertFormationSubstratePanel();
@@ -363,6 +364,62 @@ function assertCockpitSurface() {
   ], { textByFile });
 }
 
+function assertManualGravityPreviewMarks() {
+  const cockpitText = textByFile.get(cockpitFile);
+
+  assertContainsAll(cockpitFile, [
+    "ManualGravityPreviewMark",
+    "MANUAL_GRAVITY_PREVIEW_MARKS",
+    "selectedGravityPreviewMarks",
+    "setSelectedGravityPreviewMarks",
+    "manualGravityPreviewSelection",
+    "activeManualGravityPreviewMarks",
+    "toggleManualGravityPreviewMark",
+    "clearManualGravityPreviewMarks",
+    "Manual Gravity Preview",
+    "Local salience marks for the current selected graph material.",
+    "Preview-only. Not saved. Not written to FormationReceiptV0. No graph DB write.",
+    "Pin Preview",
+    "Watch Preview",
+    "Defer Preview",
+    "Boost Preview",
+    "Clear Preview Marks",
+    "Pinned preview",
+    "Watch preview",
+    "Deferred preview",
+    "Boosted preview",
+    "No preview marks applied",
+    "select a node, cluster, or manual selection first",
+    "preview marks are not persisted",
+    "not receipt overrides yet",
+    "source graph remains read-only",
+    "no persistence, API route, or external call",
+    "disabled={!manualGravityPreviewSelection}",
+    "type=\"button\"",
+  ], { textByFile });
+
+  assert(
+    !/\blocalStorage\b/.test(cockpitText),
+    "Manual Gravity preview marks must not introduce localStorage",
+  );
+  assert(
+    !/\bpreview_overrides\s*[:=][\s\S]{0,240}selectedGravityPreviewMarks\b|\bselectedGravityPreviewMarks\b[\s\S]{0,240}\bpreview_overrides\s*[:=]/.test(
+      cockpitText,
+    ),
+    "Manual Gravity preview marks must not write into FormationReceiptV0 preview_overrides",
+  );
+  assert(
+    !/\bdb\.(insert|update|delete|execute|run)\b/i.test(cockpitText),
+    "Manual Gravity preview marks must not introduce DB writes",
+  );
+  assert(
+    !/\bfetch\s*\([^)]*selectedGravityPreviewMarks|\bselectedGravityPreviewMarks[\s\S]{0,160}\bfetch\s*\(/.test(
+      cockpitText,
+    ),
+    "Manual Gravity preview marks must not call APIs",
+  );
+}
+
 function assertFormationSummaryOverlay() {
   const cockpitText = textByFile.get(cockpitFile);
   const formationBasisMatch =
@@ -641,6 +698,11 @@ function assertCssHooks() {
     "perspective-selection-scope-row",
     "perspective-selection-action-menu",
     "perspective-action-button-grid",
+    "perspective-manual-gravity-preview",
+    "perspective-manual-gravity-actions",
+    "perspective-manual-gravity-actions .secondary-button[aria-pressed=\"true\"]",
+    "perspective-manual-gravity-chips",
+    "perspective-manual-gravity-boundary",
     "perspective-cluster-picker",
     "perspective-packet-preview",
     "perspective-time-axis-event-rail",
