@@ -1,9 +1,13 @@
 "use client";
 
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
+import {
+  buildPerspectiveUnitPreview,
+  getPerspectiveConstellationConnectedNodeIds,
+} from "@/lib/perspective-ingest/perspective-unit-preview";
 import type { TemporalPreviewResponse } from "@/lib/temporal-interpretation/types";
+import type { PerspectiveConstellationSelectionScopeV0 } from "@/types/perspective-constellation-formation";
 import type {
-  PerspectiveIngestConstellationCluster,
   PerspectiveIngestConstellationEdge,
   PerspectiveIngestConstellationNode,
   PerspectiveIngestConstellationPreviewResponse,
@@ -291,10 +295,7 @@ type PerspectiveConstellationLens =
   | "next_candidates"
   | "codex_handoff";
 type PerspectiveConstellationSelectionScope =
-  | "whole_constellation"
-  | "connected_node"
-  | "cluster"
-  | "manual_selection";
+  PerspectiveConstellationSelectionScopeV0;
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
   code: string;
@@ -4249,150 +4250,55 @@ function PerspectiveTab({
     selectedPerspectiveIngestCluster ?? perspectiveConstellationWorkspaceCluster;
   const perspectiveConstellationConnectedAnchorNode =
     explicitSelectedPerspectiveIngestNode ?? selectedPerspectiveIngestNode;
-  const selectedPerspectiveConstellationConnectedNodeIds =
-    perspectiveIngestConstellation && perspectiveConstellationConnectedAnchorNode
-      ? new Set(
-          perspectiveIngestConstellation.edges
-            .filter(
-              (edge) =>
-                edge.source === perspectiveConstellationConnectedAnchorNode.id ||
-                edge.target === perspectiveConstellationConnectedAnchorNode.id,
-            )
-            .flatMap((edge) => [edge.source, edge.target]),
-        )
-      : new Set<string>();
-  const perspectiveConstellationSelectionNodeIds = perspectiveIngestConstellation
-    ? getPerspectiveConstellationSelectionNodeIds({
-        cluster: perspectiveConstellationActiveCluster,
-        connectedNodeIds: selectedPerspectiveConstellationConnectedNodeIds,
-        nodes: perspectiveIngestConstellation.nodes,
-        scope: perspectiveConstellationSelectionScope,
-        selectedNode: explicitSelectedPerspectiveIngestNode,
-      })
-    : [];
-  const perspectiveConstellationSelectionNodes =
-    perspectiveIngestConstellation?.nodes.filter((node) =>
-      perspectiveConstellationSelectionNodeIds.includes(node.id),
-    ) ?? [];
-  const perspectiveConstellationSelectionEvidencePointerIds =
-    perspectiveIngestConstellationPreview
-      ? getPerspectiveConstellationSelectionRefIds({
-          cluster: perspectiveConstellationActiveCluster,
-          field: "evidence_pointer_ids",
-          nodes: perspectiveConstellationSelectionNodes,
-          scope: perspectiveConstellationSelectionScope,
-          wholeRefs: perspectiveIngestConstellationPreview.evidence_pointers.map(
-            (pointer) => pointer.pointer_id,
-          ),
+  const selectedPerspectiveConstellationConnectedNodeIds = new Set(
+    perspectiveIngestConstellation
+      ? getPerspectiveConstellationConnectedNodeIds({
+          edges: perspectiveIngestConstellation.edges,
+          selectedNode: perspectiveConstellationConnectedAnchorNode,
         })
-      : [];
-  const perspectiveConstellationSelectionTensionIds =
-    perspectiveIngestConstellationPreview
-      ? getPerspectiveConstellationSelectionRefIds({
-          cluster: perspectiveConstellationActiveCluster,
-          field: "unresolved_tension_ids",
-          nodes: perspectiveConstellationSelectionNodes,
-          scope: perspectiveConstellationSelectionScope,
-          wholeRefs: perspectiveIngestConstellationPreview.unresolved_tensions.map(
-            (tension) => tension.tension_id,
-          ),
-        })
-      : [];
-  const perspectiveConstellationSelectionNextActionIds =
-    perspectiveIngestConstellationPreview
-      ? getPerspectiveConstellationSelectionRefIds({
-          cluster: perspectiveConstellationActiveCluster,
-          field: "next_action_candidate_ids",
-          nodes: perspectiveConstellationSelectionNodes,
-          scope: perspectiveConstellationSelectionScope,
-          wholeRefs:
-            perspectiveIngestConstellationPreview.next_action_candidates.map(
-              (candidate) => candidate.candidate_id,
-            ),
-        })
-      : [];
-  const perspectiveConstellationShellEvidencePointers =
-    perspectiveIngestConstellationPreview
-      ? matchPerspectiveIngestEvidencePointers(
-          perspectiveIngestConstellationPreview.evidence_pointers,
-          perspectiveConstellationSelectionEvidencePointerIds,
-        )
-      : [];
-  const perspectiveConstellationShellTensions =
-    perspectiveIngestConstellationPreview
-      ? matchPerspectiveIngestTensions(
-          perspectiveIngestConstellationPreview.unresolved_tensions,
-          perspectiveConstellationSelectionTensionIds,
-        )
-      : [];
-  const perspectiveConstellationShellNextActions =
-    perspectiveIngestConstellationPreview
-      ? matchPerspectiveIngestNextActions(
-          perspectiveIngestConstellationPreview.next_action_candidates,
-          perspectiveConstellationSelectionNextActionIds,
-        )
-      : [];
-  const perspectiveConstellationSelectionScopeLabel =
-    formatPerspectiveConstellationSelectionScope(
-      perspectiveConstellationSelectionScope,
-    );
-  const perspectiveConstellationSelectionTitle =
-    getPerspectiveConstellationSelectionTitle({
-      cluster: perspectiveConstellationActiveCluster,
-      constellation: perspectiveIngestConstellation,
-      scope: perspectiveConstellationSelectionScope,
-      selectedNode: explicitSelectedPerspectiveIngestNode,
-    });
-  const perspectiveConstellationSelectionType =
-    perspectiveConstellationSelectionScope === "whole_constellation"
-      ? "constellation"
-      : perspectiveConstellationSelectionScope === "cluster"
-        ? "cluster"
-        : explicitSelectedPerspectiveIngestNode?.type ?? "selection";
-  const perspectiveConstellationSelectionSummary =
-    getPerspectiveConstellationSelectionSummary({
-      cluster: perspectiveConstellationActiveCluster,
-      constellation: perspectiveIngestConstellation,
-      scope: perspectiveConstellationSelectionScope,
-      selectedNode: explicitSelectedPerspectiveIngestNode,
-    });
-  const perspectiveConstellationScopedChatGptPacketText =
-    perspectiveIngestConstellationPreview
-      ? buildPerspectiveConstellationScopedPacketText({
-          basePacketText:
+      : [],
+  );
+  const perspectiveConstellationUnitPreview =
+    perspectiveIngestConstellationPreview && perspectiveIngestConstellation
+      ? buildPerspectiveUnitPreview({
+          baseChatGptPacketText:
             perspectiveIngestConstellationPreview.chatgpt_rendering_packet
               .packet_text,
-          evidencePointers: perspectiveConstellationShellEvidencePointers,
-          nextActions: perspectiveConstellationShellNextActions,
-          nodeLabels: perspectiveConstellationSelectionNodes.map(
-            (node) => node.label,
-          ),
-          packetTitle: "ChatGPT review packet scoped to current selection",
-          scopeLabel: perspectiveConstellationSelectionScopeLabel,
-          selectionSummary: perspectiveConstellationSelectionSummary,
-          selectionTitle: perspectiveConstellationSelectionTitle,
-          selectionType: perspectiveConstellationSelectionType,
-          tensions: perspectiveConstellationShellTensions,
-        })
-      : "";
-  const perspectiveConstellationScopedCodexHandoffPacketText =
-    perspectiveIngestConstellationPreview
-      ? buildPerspectiveConstellationScopedPacketText({
-          basePacketText:
+          baseCodexHandoffPacketText:
             perspectiveIngestConstellationPreview.codex_handoff_packet.packet_text,
-          evidencePointers: perspectiveConstellationShellEvidencePointers,
-          nextActions: perspectiveConstellationShellNextActions,
-          nodeLabels: perspectiveConstellationSelectionNodes.map(
-            (node) => node.label,
-          ),
-          packetTitle: "Codex handoff packet scoped to current selection",
-          scopeLabel: perspectiveConstellationSelectionScopeLabel,
-          selectionSummary: perspectiveConstellationSelectionSummary,
-          selectionTitle: perspectiveConstellationSelectionTitle,
-          selectionType: perspectiveConstellationSelectionType,
-          tensions: perspectiveConstellationShellTensions,
+          constellation: perspectiveIngestConstellation,
+          evidencePointers: perspectiveIngestConstellationPreview.evidence_pointers,
+          generatedAt: perspectiveIngestConstellationPreview.meta.generated_at,
+          nextActionCandidates:
+            perspectiveIngestConstellationPreview.next_action_candidates,
+          scope: perspectiveConstellationSelectionScope,
+          selectedCluster: perspectiveConstellationActiveCluster,
+          selectedNode: explicitSelectedPerspectiveIngestNode,
+          sourceQuery: perspectiveIngestConstellationPreview.meta.source_query,
+          sourceRefs: perspectiveIngestConstellationPreview.source_refs,
+          unresolvedTensions:
+            perspectiveIngestConstellationPreview.unresolved_tensions,
         })
-      : "";
+      : null;
+  const perspectiveConstellationSelectionScopeLabel =
+    perspectiveConstellationUnitPreview?.scope_label ?? "Whole Constellation";
+  const perspectiveConstellationSelectionTitle =
+    perspectiveConstellationUnitPreview?.selection_title ?? "Whole Constellation";
+  const perspectiveConstellationSelectionType =
+    perspectiveConstellationUnitPreview?.selection_type ?? "constellation";
+  const perspectiveConstellationSelectionSummary =
+    perspectiveConstellationUnitPreview?.selection_summary ??
+    "Whole constellation preview pending.";
+  const perspectiveConstellationShellEvidencePointers =
+    perspectiveConstellationUnitPreview?.evidence_pointers ?? [];
+  const perspectiveConstellationShellTensions =
+    perspectiveConstellationUnitPreview?.unresolved_tensions ?? [];
+  const perspectiveConstellationShellNextActions =
+    perspectiveConstellationUnitPreview?.next_action_candidates ?? [];
+  const perspectiveConstellationScopedChatGptPacketText =
+    perspectiveConstellationUnitPreview?.chatgpt_review_packet_text ?? "";
+  const perspectiveConstellationScopedCodexHandoffPacketText =
+    perspectiveConstellationUnitPreview?.codex_handoff_packet_text ?? "";
   const selectedPerspectiveConstellationPacketText =
     selectedPerspectiveIngestPacketTarget === "chatgpt_review"
       ? perspectiveConstellationScopedChatGptPacketText
@@ -22876,198 +22782,6 @@ function getStringListField(value: unknown, field: string) {
   }
 
   return [];
-}
-
-type PerspectiveConstellationSelectionRefField =
-  | "evidence_pointer_ids"
-  | "unresolved_tension_ids"
-  | "next_action_candidate_ids";
-
-function getPerspectiveConstellationSelectionNodeIds({
-  cluster,
-  connectedNodeIds,
-  nodes,
-  scope,
-  selectedNode,
-}: {
-  cluster: PerspectiveIngestConstellationCluster | null;
-  connectedNodeIds: Set<string>;
-  nodes: PerspectiveIngestConstellationNode[];
-  scope: PerspectiveConstellationSelectionScope;
-  selectedNode: PerspectiveIngestConstellationNode | null;
-}) {
-  if (scope === "whole_constellation") {
-    return nodes.map((node) => node.id);
-  }
-
-  if (scope === "cluster" && cluster) {
-    return uniquePerspectiveConstellationStrings(cluster.node_ids);
-  }
-
-  if (scope === "connected_node") {
-    const ids = Array.from(connectedNodeIds);
-    if (ids.length > 0) return uniquePerspectiveConstellationStrings(ids);
-  }
-
-  return selectedNode ? [selectedNode.id] : [];
-}
-
-function getPerspectiveConstellationSelectionRefIds({
-  cluster,
-  field,
-  nodes,
-  scope,
-  wholeRefs,
-}: {
-  cluster: PerspectiveIngestConstellationCluster | null;
-  field: PerspectiveConstellationSelectionRefField;
-  nodes: PerspectiveIngestConstellationNode[];
-  scope: PerspectiveConstellationSelectionScope;
-  wholeRefs: string[];
-}) {
-  if (scope === "whole_constellation") {
-    return uniquePerspectiveConstellationStrings(wholeRefs);
-  }
-
-  const nodeRefs = nodes.flatMap((node) => node[field]);
-  const clusterRefs = scope === "cluster" && cluster ? cluster[field] : [];
-
-  return uniquePerspectiveConstellationStrings([...clusterRefs, ...nodeRefs]);
-}
-
-function getPerspectiveConstellationSelectionTitle({
-  cluster,
-  constellation,
-  scope,
-  selectedNode,
-}: {
-  cluster: PerspectiveIngestConstellationCluster | null;
-  constellation: PerspectiveIngestConstellationPreviewResponse["constellation"] | null;
-  scope: PerspectiveConstellationSelectionScope;
-  selectedNode: PerspectiveIngestConstellationNode | null;
-}) {
-  if (scope === "whole_constellation") {
-    return "Whole Constellation";
-  }
-
-  if (scope === "cluster" && cluster) {
-    return cluster.label;
-  }
-
-  return selectedNode?.label ?? constellation?.constellation_id ?? "Manual Selection";
-}
-
-function getPerspectiveConstellationSelectionSummary({
-  cluster,
-  constellation,
-  scope,
-  selectedNode,
-}: {
-  cluster: PerspectiveIngestConstellationCluster | null;
-  constellation: PerspectiveIngestConstellationPreviewResponse["constellation"] | null;
-  scope: PerspectiveConstellationSelectionScope;
-  selectedNode: PerspectiveIngestConstellationNode | null;
-}) {
-  if (scope === "whole_constellation") {
-    return constellation?.thesis ?? "Whole constellation preview pending.";
-  }
-
-  if (scope === "cluster" && cluster) {
-    return cluster.cluster_thesis;
-  }
-
-  return selectedNode?.summary ?? "Manual selection preview pending.";
-}
-
-function formatPerspectiveConstellationSelectionScope(
-  scope: PerspectiveConstellationSelectionScope,
-) {
-  const labels: Record<PerspectiveConstellationSelectionScope, string> = {
-    cluster: "Cluster",
-    connected_node: "Connected Node",
-    manual_selection: "Manual Selection",
-    whole_constellation: "Whole Constellation",
-  };
-
-  return labels[scope];
-}
-
-function buildPerspectiveConstellationScopedPacketText({
-  basePacketText,
-  evidencePointers,
-  nextActions,
-  nodeLabels,
-  packetTitle,
-  scopeLabel,
-  selectionSummary,
-  selectionTitle,
-  selectionType,
-  tensions,
-}: {
-  basePacketText: string;
-  evidencePointers: PerspectiveIngestEvidencePointer[];
-  nextActions: PerspectiveIngestNextActionCandidate[];
-  nodeLabels: string[];
-  packetTitle: string;
-  scopeLabel: string;
-  selectionSummary: string;
-  selectionTitle: string;
-  selectionType: string;
-  tensions: PerspectiveIngestUnresolvedTension[];
-}) {
-  return [
-    packetTitle,
-    "",
-    `Selection scope: ${scopeLabel}`,
-    `Selected title: ${selectionTitle}`,
-    `Selected type: ${selectionType}`,
-    `Selected summary: ${selectionSummary}`,
-    "",
-    "Selected graph material:",
-    formatPerspectiveConstellationPacketList(
-      nodeLabels,
-      (label) => `- ${label}`,
-      "- Whole constellation material",
-    ),
-    "",
-    "Evidence pointers (support only):",
-    formatPerspectiveConstellationPacketList(
-      evidencePointers,
-      (pointer) => `- ${pointer.label}: ${pointer.target_ref}`,
-      "- No scoped evidence pointers",
-    ),
-    "",
-    "Unresolved tensions (kept separate):",
-    formatPerspectiveConstellationPacketList(
-      tensions,
-      (tension) => `- ${tension.label}: ${tension.summary}`,
-      "- No scoped unresolved tensions",
-    ),
-    "",
-    "Next action candidates (advisory only):",
-    formatPerspectiveConstellationPacketList(
-      nextActions,
-      (candidate) => `- ${candidate.label}: ${candidate.summary}`,
-      "- No scoped next action candidates",
-    ),
-    "",
-    "Boundary: preview/copy only. No Codex execution, GitHub call, state mutation, PR creation, proof/evidence/readiness write, persistence, or authority grant.",
-    "",
-    "Base packet text:",
-    basePacketText,
-  ].join("\n");
-}
-
-function formatPerspectiveConstellationPacketList<T>(
-  items: T[],
-  formatItem: (item: T) => string,
-  emptyLabel: string,
-) {
-  return items.length > 0 ? items.map(formatItem).join("\n") : emptyLabel;
-}
-
-function uniquePerspectiveConstellationStrings(items: string[]) {
-  return Array.from(new Set(items.filter(Boolean)));
 }
 
 function matchPerspectiveIngestEvidencePointers(

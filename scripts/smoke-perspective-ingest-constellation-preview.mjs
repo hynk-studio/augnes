@@ -8,6 +8,7 @@ import {
 } from "./smoke-boundary-common.mjs";
 
 const typeFile = "types/perspective-ingest-constellation-preview.ts";
+const formationTypeFile = "types/perspective-constellation-formation.ts";
 const chatGptFixtureFile =
   "fixtures/perspective-ingest/chatgpt-record-to-constellation.sample.v0.1.json";
 const codexFixtureFile =
@@ -18,6 +19,8 @@ const chatGptAdapterFile =
 const codexAdapterFile = "lib/perspective-ingest/codex-record-adapter.ts";
 const packetBuilderFile =
   "lib/perspective-ingest/episode-to-constellation-packet.ts";
+const perspectiveUnitPreviewBuilderFile =
+  "lib/perspective-ingest/perspective-unit-preview.ts";
 const routeHelperFile =
   "lib/readonly-api/perspective-ingest-constellation-preview.ts";
 const routeFile =
@@ -31,12 +34,14 @@ const smokeFile = "scripts/smoke-perspective-ingest-constellation-preview.mjs";
 
 const inspectedFiles = [
   typeFile,
+  formationTypeFile,
   chatGptFixtureFile,
   codexFixtureFile,
   sessionEpisodeHelperFile,
   chatGptAdapterFile,
   codexAdapterFile,
   packetBuilderFile,
+  perspectiveUnitPreviewBuilderFile,
   routeHelperFile,
   routeFile,
   cockpitFile,
@@ -53,6 +58,7 @@ assertPackageJsonScript();
 assertFixtureSafety(chatGptFixtureFile);
 assertFixtureSafety(codexFixtureFile);
 assertTypeExports();
+assertPerspectiveUnitPreviewBuilder();
 assertHelperAndRouteShape();
 assertCockpitSurface();
 assertCssHooks();
@@ -139,6 +145,109 @@ function assertTypeExports() {
     "export interface PerspectiveIngestConstellationPreviewResponse",
     "export interface PerspectiveIngestConstellationPreviewErrorBody",
   ], { textByFile });
+  assertContainsAll(formationTypeFile, [
+    "export type FormationBasisV0",
+    "\"current\"",
+    "\"manual_selection\"",
+    "\"auto_proposal\"",
+    "\"historical_snapshot\"",
+    "\"experimental\"",
+    "export type PerspectiveConstellationViewModeV0 = \"single\" | \"compare\"",
+    "export interface FormationReceiptV0",
+    "formation_id",
+    "constellation_id",
+    "formation_basis",
+    "view_mode",
+    "formed_by",
+    "source_refs",
+    "generated_at",
+    "as_of",
+    "criteria_summary",
+    "authority",
+    "preview_overrides",
+    "node_attributions",
+    "edge_attributions",
+    "export interface PerspectiveUnitPreview",
+    "preview_id",
+    "scope_label",
+    "selected_node_ids",
+    "selected_node_labels",
+    "selected_edge_ids",
+    "chatgpt_review_packet_text",
+    "codex_handoff_packet_text",
+    "formation_receipt",
+    "local_boundary_notes",
+  ], { textByFile });
+}
+
+function assertPerspectiveUnitPreviewBuilder() {
+  const builderText = textByFile.get(perspectiveUnitPreviewBuilderFile);
+  const cockpitText = textByFile.get(cockpitFile);
+  const formationText = textByFile.get(formationTypeFile);
+  const basisTypeMatch =
+    formationText.match(/export type FormationBasisV0 =([\s\S]*?);/);
+
+  assertContainsAll(perspectiveUnitPreviewBuilderFile, [
+    "buildPerspectiveUnitPreview",
+    "PerspectiveUnitPreview",
+    "FormationReceiptV0",
+    "buildFormationReceipt",
+    "buildPerspectiveConstellationScopedPacketText",
+    "Formation Basis records how this preview was formed",
+    "actor_type: \"augnes_builder\"",
+    "Augnes Perspective ingest / Constellation preview builder",
+    "external_calls: false",
+    "api_billable: false",
+    "persistence: false",
+    "graph_db_write: false",
+    "proof_evidence_write: false",
+    "codex_execution: false",
+    "preview_overrides",
+    "node_attributions",
+    "edge_attributions",
+    "Selection scope:",
+    "Selected graph material:",
+    "Evidence pointers (support only):",
+    "Unresolved tensions (kept separate):",
+    "Next action candidates (advisory only):",
+  ], { textByFile });
+  assertContainsAll(cockpitFile, [
+    "buildPerspectiveUnitPreview",
+    "perspectiveConstellationUnitPreview",
+    "PerspectiveConstellationLens",
+    "PerspectiveConstellationSelectionScopeV0",
+  ], { textByFile });
+  assert(
+    !/function\s+buildPerspectiveConstellationScopedPacketText/.test(cockpitText),
+    "Cockpit must not own the scoped packet assembly helper",
+  );
+  assert(basisTypeMatch, "FormationBasisV0 union must be inspectable");
+  const basisTypeText = basisTypeMatch?.[1] ?? "";
+  for (const forbiddenBasis of [
+    "compare",
+    "whole_constellation",
+    "connected_nodes",
+    "open_tensions",
+    "next_candidates",
+    "codex_handoff",
+  ]) {
+    assert(
+      !basisTypeText.includes(forbiddenBasis),
+      `FormationBasisV0 must not include ${forbiddenBasis}`,
+    );
+  }
+  assert(
+    /PerspectiveConstellationLens[\s\S]*"whole_constellation"[\s\S]*"codex_handoff"/.test(
+      cockpitText,
+    ),
+    "Lens values must remain component view lenses, separate from FormationBasisV0",
+  );
+  assertNoRulecraftSurface([
+    formationTypeFile,
+    perspectiveUnitPreviewBuilderFile,
+    cockpitFile,
+  ]);
+  assertNoNewPreviewBuilderAuthority();
 }
 
 function assertHelperAndRouteShape() {
@@ -218,11 +327,8 @@ function assertCockpitSurface() {
     "Copy ChatGPT Review Packet",
     "Copy Codex Handoff Packet",
     "Selection-scoped preview/copy only",
-    "buildPerspectiveConstellationScopedPacketText",
-    "Selection scope:",
-    "Selected graph material:",
-    "Unresolved tensions (kept separate):",
-    "Next action candidates (advisory only):",
+    "buildPerspectiveUnitPreview",
+    "perspectiveConstellationUnitPreview",
     "Time Axis / Event Rail",
     "Session",
     "Decision",
@@ -341,6 +447,7 @@ function assertNoExternalCallPatterns() {
     chatGptAdapterFile,
     codexAdapterFile,
     packetBuilderFile,
+    perspectiveUnitPreviewBuilderFile,
   ];
   const forbiddenPatterns = [
     { pattern: /\bfetch\s*\(/, label: "fetch(" },
@@ -348,6 +455,7 @@ function assertNoExternalCallPatterns() {
     { pattern: /github\.com/i, label: "github.com" },
     { pattern: /api\.github/i, label: "api.github" },
     { pattern: /\bdb\.(insert|update|delete|execute|run)\b/i, label: "DB write helper" },
+    { pattern: /\blocalStorage\b/, label: "localStorage" },
     { pattern: /\bwriteFile(Sync)?\b/, label: "filesystem write" },
   ];
 
@@ -356,5 +464,56 @@ function assertNoExternalCallPatterns() {
     for (const { pattern, label } of forbiddenPatterns) {
       assert(!pattern.test(text), `${file} must not contain ${label}`);
     }
+  }
+}
+
+function assertNoRulecraftSurface(files) {
+  for (const file of files) {
+    const text = textByFile.get(file);
+    assert(!/rulecraft/i.test(text), `${file} must not introduce Rulecraft`);
+  }
+}
+
+function assertNoNewPreviewBuilderAuthority() {
+  const builderText = textByFile.get(perspectiveUnitPreviewBuilderFile);
+
+  assert(
+    !/\bfetch\s*\(/.test(builderText),
+    "Perspective Unit preview builder must not make external calls",
+  );
+  assert(
+    !/\bOpenAI\b/.test(builderText),
+    "Perspective Unit preview builder must not introduce OpenAI calls",
+  );
+  assert(
+    !/github\.com|api\.github/i.test(builderText),
+    "Perspective Unit preview builder must not introduce GitHub calls",
+  );
+  assert(
+    !/\bdb\.(insert|update|delete|execute|run)\b/i.test(builderText),
+    "Perspective Unit preview builder must not introduce DB writes",
+  );
+  assert(
+    !/\bwriteFile(Sync)?\b/.test(builderText),
+    "Perspective Unit preview builder must not write files",
+  );
+  assert(
+    /read_only:\s*true/.test(builderText),
+    "Formation receipt authority must stay read-only",
+  );
+  for (const falseFlag of [
+    "proposal_only",
+    "cached",
+    "external_calls",
+    "api_billable",
+    "persistence",
+    "graph_db_write",
+    "proof_evidence_write",
+    "codex_execution",
+  ]) {
+    assert(
+      new RegExp(`${falseFlag}:\\s*false`).test(builderText),
+      `Formation receipt authority must keep ${falseFlag} false`,
+    );
   }
 }
