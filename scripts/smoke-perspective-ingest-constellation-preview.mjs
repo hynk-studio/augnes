@@ -63,6 +63,7 @@ assertHelperAndRouteShape();
 assertCockpitSurface();
 assertFormationSummaryOverlay();
 assertFormationSubstratePanel();
+assertEventRailArchiveEntryCards();
 assertCssHooks();
 assertPerspectiveConstellationStressRegressionFixes();
 assertBoundaryDocs();
@@ -338,6 +339,7 @@ function assertCockpitSurface() {
     "PR",
     "Review",
     "Closeout",
+    "Current View",
     "Next Perspective",
     "Formation / Archive",
     "Formation Receipt",
@@ -466,6 +468,55 @@ function assertFormationSubstratePanel() {
   );
 }
 
+function assertEventRailArchiveEntryCards() {
+  const cockpitText = textByFile.get(cockpitFile);
+
+  assertContainsAll(cockpitFile, [
+    "selectedEventRailEntry",
+    "PerspectiveEventRailEntryId",
+    "PerspectiveEventRailTemporalRole",
+    "PerspectiveEventRailEntry",
+    "getPerspectiveEventRailTemporalRoleLabel",
+    "perspectiveConstellationEventRail",
+    "selectedPerspectiveEventRailEntry",
+    "Event Rail archive entry card",
+    "Event Rail temporal entry card",
+    "Archive Entry Card",
+    "Current View Card",
+    "Future Candidate Card",
+    "Past / Archive",
+    "Present / Active View",
+    "Future / Candidate",
+    "Temporal role",
+    "Mutation",
+    "disabled",
+    "Source refs / related refs",
+    "Use as reference only",
+    "No snapshot persistence yet",
+    "No delta view",
+    "Possible next actions are candidates only",
+    "No Codex execution",
+    "No GitHub call",
+    "No mutation",
+    "Uses current PerspectiveUnitPreview / FormationReceiptV0",
+    "Local-only / read-only / preview-only",
+    "aria-pressed={event.id === selectedEventRailEntry}",
+    "onClick={() => setSelectedEventRailEntry(event.id)}",
+  ], { textByFile });
+  assert(
+    !/\blocalStorage\b/.test(cockpitText),
+    "Event Rail entry cards must not introduce localStorage",
+  );
+  assert(
+    !/\brulecraft\b/i.test(cockpitText),
+    "Event Rail entry cards must not introduce Rulecraft",
+  );
+  assert(
+    !/\bcompare to current\b/i.test(cockpitText),
+    "Event Rail entry cards must not add delta/compare behavior",
+  );
+}
+
 function assertCssHooks() {
   assertContainsAll(cssFile, [
     "perspective-constellation-workspace-shell",
@@ -489,6 +540,10 @@ function assertCssHooks() {
     "perspective-packet-preview",
     "perspective-time-axis-event-rail",
     "perspective-event-rail-track",
+    "perspective-event-rail-item[aria-pressed=\"true\"]",
+    "perspective-event-rail-entry-card",
+    "perspective-event-rail-entry-meta",
+    "perspective-event-rail-entry-notes",
     "perspective-formation-archive-drawer",
     "perspective-substrate-field-grid",
     "perspective-substrate-authority-list",
