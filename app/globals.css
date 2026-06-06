@@ -1230,6 +1230,50 @@ code {
   color: #3730a3;
 }
 
+.perspective-manual-gravity-local-draft {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-manual-gravity-local-draft > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-manual-gravity-local-draft strong,
+.perspective-manual-gravity-local-draft span,
+.perspective-manual-gravity-local-draft code {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.perspective-manual-gravity-local-draft > div:first-child strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+}
+
+.perspective-manual-gravity-local-draft > div:first-child span {
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 760;
+}
+
+.perspective-manual-gravity-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
 .perspective-packet-target-toggle,
 .perspective-packet-copy-row {
   display: flex;
