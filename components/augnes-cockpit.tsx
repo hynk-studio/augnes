@@ -329,6 +329,9 @@ type ManualGravityPreviewConflictNotice = {
   label: string;
   detail: string;
 };
+type ManualGravityGlobalConflictSummary = ManualGravityPreviewOverride & {
+  noticeLabels: string[];
+};
 type ManualGravityLocalDraft = {
   version: "manual_gravity_draft.v0.1";
   formation_id: string;
@@ -4984,6 +4987,27 @@ function PerspectiveTab({
   const appliedGravityPreviewNodeCount = Object.keys(
     appliedGravityPreviewNodeMarksById,
   ).length;
+  const manualGravityGlobalConflictSummaries: ManualGravityGlobalConflictSummary[] =
+    manualGravityPreviewOverrides
+      .map((override) => {
+        const conflictNotices = getManualGravityPreviewConflictNotices(
+          selectedGravityPreviewMarks[override.targetKey] ?? [],
+        );
+
+        if (conflictNotices.length === 0) return null;
+
+        return {
+          ...override,
+          noticeLabels: conflictNotices.map(
+            (notice) => `${notice.label}: ${notice.detail}`,
+          ),
+        };
+      })
+      .filter((summary): summary is ManualGravityGlobalConflictSummary =>
+        Boolean(summary),
+      );
+  const manualGravityGlobalConflictCount =
+    manualGravityGlobalConflictSummaries.length;
   const perspectiveConstellationScopedChatGptPacketText =
     perspectiveConstellationUnitPreview?.chatgpt_review_packet_text ?? "";
   const perspectiveConstellationScopedCodexHandoffPacketText =
@@ -6679,6 +6703,58 @@ function PerspectiveTab({
                   <span>No source graph changes.</span>
                   <span>No FormationReceiptV0 authority change.</span>
                   <span>No persistence or graph DB write.</span>
+                </div>
+              ) : null}
+              {appliedGravityPreviewActive ? (
+                <div
+                  className="perspective-manual-gravity-global-summary"
+                  aria-label="Manual Gravity Global Summary"
+                >
+                  <strong>Manual Gravity Global Summary</strong>
+                  <span>
+                    Applied targets <code>{manualGravityPreviewTargetCount}</code>
+                  </span>
+                  <span>
+                    Applied nodes <code>{appliedGravityPreviewNodeCount}</code>
+                  </span>
+                  <span>
+                    Total marks <code>{manualGravityPreviewMarkCount}</code>
+                  </span>
+                  <span>
+                    Mixed-mark conflicts{" "}
+                    <code>{manualGravityGlobalConflictCount}</code>
+                  </span>
+                  <span>Local visual emphasis only</span>
+                  <span>No automatic resolution</span>
+                  <span>No source graph changes</span>
+                  <span>No FormationReceiptV0 authority change</span>
+                  <span>No persistence or graph DB write</span>
+                  {manualGravityGlobalConflictSummaries.length > 0 ? (
+                    <div
+                      className="perspective-manual-gravity-global-conflict-rows"
+                      aria-label="Manual Gravity mixed-mark conflict targets"
+                    >
+                      {manualGravityGlobalConflictSummaries.map((summary) => (
+                        <div key={summary.targetKey}>
+                          <span>
+                            target <code>{summary.targetLabel}</code>
+                          </span>
+                          <span>
+                            scope <code>{summary.scopeLabel}</code>
+                          </span>
+                          <span>
+                            marks <code>{summary.markLabels.join(", ")}</code>
+                          </span>
+                          <span>
+                            notices{" "}
+                            <code>{summary.noticeLabels.join(" | ")}</code>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span>No mixed-mark conflict targets</span>
+                  )}
                 </div>
               ) : null}
               {appliedGravityPreviewActive &&
