@@ -4303,6 +4303,79 @@ function PerspectiveTab({
     selectedPerspectiveIngestPacketTarget === "chatgpt_review"
       ? perspectiveConstellationScopedChatGptPacketText
       : perspectiveConstellationScopedCodexHandoffPacketText;
+  const perspectiveConstellationFormationReceipt =
+    perspectiveConstellationUnitPreview?.formation_receipt ?? null;
+  const perspectiveConstellationFormationAuthority =
+    perspectiveConstellationFormationReceipt?.authority ?? null;
+  const perspectiveConstellationSummaryViewing =
+    perspectiveConstellationUnitPreview?.scope_label ??
+    (perspectiveIngestPreviewError ? "Unavailable" : "Loading");
+  const perspectiveConstellationSummaryTitle =
+    perspectiveConstellationUnitPreview?.selection_title ??
+    (perspectiveIngestPreviewError?.code ?? "Current preview pending");
+  const perspectiveConstellationSummarySource =
+    perspectiveConstellationFormationReceipt
+      ? perspectiveIngestConstellationPreview?.meta.source_query ??
+        getPerspectiveConstellationReceiptSourceLabel(
+          perspectiveConstellationFormationReceipt.source_refs,
+        )
+      : perspectiveIngestPreviewError
+        ? "failed preview"
+        : "loading preview";
+  const perspectiveConstellationSummarySourceDetail =
+    perspectiveConstellationFormationReceipt
+      ? getPerspectiveConstellationReceiptSourceDetail(
+          perspectiveConstellationFormationReceipt.source_refs,
+        )
+      : perspectiveIngestPreviewError?.code ?? "Preview response pending";
+  const perspectiveConstellationSummaryStatus =
+    perspectiveConstellationUnitPreview
+      ? getPerspectiveConstellationSummaryStatus(
+          perspectiveConstellationUnitPreview.local_boundary_notes,
+          perspectiveConstellationFormationReceipt?.formation_basis,
+          perspectiveConstellationFormationAuthority,
+        )
+      : perspectiveIngestPreviewError
+        ? ["fail-closed", "no current graph"]
+        : ["loading"];
+  const perspectiveConstellationSummaryAuthorityItems = [
+    {
+      label: "External calls",
+      value: formatPerspectiveConstellationAuthorityFlag(
+        perspectiveConstellationFormationAuthority?.external_calls,
+      ),
+    },
+    {
+      label: "API billing",
+      value: formatPerspectiveConstellationAuthorityFlag(
+        perspectiveConstellationFormationAuthority?.api_billable,
+      ),
+    },
+    {
+      label: "Persistence",
+      value: formatPerspectiveConstellationAuthorityFlag(
+        perspectiveConstellationFormationAuthority?.persistence,
+      ),
+    },
+    {
+      label: "Graph DB writes",
+      value: formatPerspectiveConstellationAuthorityFlag(
+        perspectiveConstellationFormationAuthority?.graph_db_write,
+      ),
+    },
+    {
+      label: "Proof/evidence writes",
+      value: formatPerspectiveConstellationAuthorityFlag(
+        perspectiveConstellationFormationAuthority?.proof_evidence_write,
+      ),
+    },
+    {
+      label: "Codex execution",
+      value: formatPerspectiveConstellationAuthorityFlag(
+        perspectiveConstellationFormationAuthority?.codex_execution,
+      ),
+    },
+  ];
   const perspectiveConstellationLensOptions: {
     id: PerspectiveConstellationLens;
     label: string;
@@ -4828,6 +4901,99 @@ function PerspectiveTab({
             <StatusBadge label="preview/copy only" />
           </div>
         </div>
+        <section
+          className="perspective-formation-summary-overlay"
+          aria-label="Perspective Constellation summary overlay"
+        >
+          <div className="perspective-formation-summary-heading">
+            <div>
+              <p className="panel-eyebrow">Current Formation Receipt</p>
+              <h3>Perspective Unit summary</h3>
+            </div>
+            <div className="perspective-formation-summary-status">
+              <span className="perspective-formation-summary-status-label">
+                Status
+              </span>
+              {perspectiveConstellationSummaryStatus.map((status) => (
+                <span key={status}>{status}</span>
+              ))}
+            </div>
+          </div>
+          <div className="perspective-formation-summary-grid">
+            <div>
+              <span>Viewing</span>
+              <strong>{perspectiveConstellationSummaryViewing}</strong>
+              <small>{perspectiveConstellationSummaryTitle}</small>
+            </div>
+            <div>
+              <span>Formed by</span>
+              <strong>
+                {perspectiveConstellationFormationReceipt?.formed_by.label ??
+                  "Preview formation pending"}
+              </strong>
+              <small>
+                {perspectiveConstellationFormationReceipt?.formed_by
+                  .actor_type ?? "unavailable"}
+              </small>
+            </div>
+            <div>
+              <span>Formation Basis</span>
+              <strong>
+                {perspectiveConstellationFormationReceipt?.formation_basis ??
+                  "unavailable"}
+              </strong>
+              <small>
+                view mode{" "}
+                {perspectiveConstellationFormationReceipt?.view_mode ??
+                  "unavailable"}
+              </small>
+            </div>
+            <div>
+              <span>Source</span>
+              <code>{perspectiveConstellationSummarySource}</code>
+              <small>{perspectiveConstellationSummarySourceDetail}</small>
+            </div>
+            <div>
+              <span>Generated</span>
+              {perspectiveConstellationFormationReceipt?.generated_at ? (
+                <time
+                  dateTime={
+                    perspectiveConstellationFormationReceipt.generated_at
+                  }
+                >
+                  {formatPerspectiveConstellationTimestamp(
+                    perspectiveConstellationFormationReceipt.generated_at,
+                  )}
+                </time>
+              ) : (
+                <strong>unavailable</strong>
+              )}
+            </div>
+            <div>
+              <span>As of</span>
+              {perspectiveConstellationFormationReceipt?.as_of ? (
+                <time dateTime={perspectiveConstellationFormationReceipt.as_of}>
+                  {formatPerspectiveConstellationTimestamp(
+                    perspectiveConstellationFormationReceipt.as_of,
+                  )}
+                </time>
+              ) : (
+                <strong>unavailable</strong>
+              )}
+            </div>
+          </div>
+          <div
+            className="perspective-formation-authority-grid"
+            aria-label="Formation Receipt authority"
+          >
+            {perspectiveConstellationSummaryAuthorityItems.map((item) => (
+              <div key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
         <div className="perspective-constellation-workspace-grid">
           <aside
             className="perspective-lens-scope-panel"
@@ -22782,6 +22948,61 @@ function getStringListField(value: unknown, field: string) {
   }
 
   return [];
+}
+
+function getPerspectiveConstellationReceiptSourceLabel(
+  sourceRefs: PerspectiveIngestConstellationPreviewResponse["source_refs"],
+) {
+  return sourceRefs[0]?.source_ref ?? "local preview source";
+}
+
+function getPerspectiveConstellationReceiptSourceDetail(
+  sourceRefs: PerspectiveIngestConstellationPreviewResponse["source_refs"],
+) {
+  if (sourceRefs.length === 0) {
+    return "No source refs in current receipt";
+  }
+
+  return sourceRefs
+    .map((sourceRef) =>
+      sourceRef.source_label
+        ? `${sourceRef.source_label}: ${sourceRef.source_ref}`
+        : sourceRef.source_ref,
+    )
+    .join(" · ");
+}
+
+function getPerspectiveConstellationSummaryStatus(
+  boundaryNotes: string[],
+  formationBasis: string | undefined,
+  authority:
+    | {
+        read_only: boolean;
+        proposal_only: boolean;
+        cached: boolean;
+        persistence: boolean;
+      }
+    | null,
+) {
+  const normalizedNotes = boundaryNotes.join(" ").toLowerCase();
+  const labels = [
+    normalizedNotes.includes("local-only") ? "local-only" : null,
+    authority?.read_only ? "read-only" : null,
+    normalizedNotes.includes("preview") ? "preview-only" : null,
+    formationBasis === "manual_selection" ? "non-persistent" : null,
+    authority?.proposal_only ? "proposal-only" : null,
+    authority?.cached ? "cached" : null,
+  ].filter((label): label is string => Boolean(label));
+
+  return Array.from(new Set(labels.length > 0 ? labels : ["preview-only"]));
+}
+
+function formatPerspectiveConstellationAuthorityFlag(value: boolean | undefined) {
+  return value ? "present" : "none";
+}
+
+function formatPerspectiveConstellationTimestamp(value: string) {
+  return value.replace("T", " ").replace(/\.000Z$/, "Z");
 }
 
 function matchPerspectiveIngestEvidencePointers(

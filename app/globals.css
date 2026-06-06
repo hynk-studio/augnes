@@ -585,6 +585,127 @@ code {
   gap: 6px;
 }
 
+.perspective-formation-summary-overlay {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(14, 116, 144, 0.2);
+  border-radius: 8px;
+  background: rgba(240, 253, 250, 0.78);
+  color: #134e4a;
+}
+
+.perspective-formation-summary-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.perspective-formation-summary-heading h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.perspective-formation-summary-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-formation-summary-status span {
+  padding: 4px 7px;
+  border: 1px solid rgba(20, 184, 166, 0.28);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.perspective-formation-summary-status-label {
+  border-color: rgba(100, 116, 139, 0.22);
+  color: #475569;
+  background: #f8fafc;
+}
+
+.perspective-formation-summary-grid,
+.perspective-formation-authority-grid {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-formation-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.perspective-formation-authority-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.perspective-formation-summary-grid > div,
+.perspective-formation-authority-grid > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(13, 148, 136, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.perspective-formation-summary-grid span,
+.perspective-formation-authority-grid span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.perspective-formation-summary-grid strong,
+.perspective-formation-summary-grid code,
+.perspective-formation-summary-grid time,
+.perspective-formation-summary-grid small,
+.perspective-formation-authority-grid strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.perspective-formation-summary-grid strong,
+.perspective-formation-summary-grid code,
+.perspective-formation-summary-grid time,
+.perspective-formation-authority-grid strong {
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 820;
+  line-height: 1.25;
+}
+
+.perspective-formation-summary-grid code {
+  font-family: var(--mono-font);
+}
+
+.perspective-formation-summary-grid small {
+  color: #475569;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
 .perspective-constellation-workspace-grid {
   display: grid;
   grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr) minmax(300px, 0.36fr);
@@ -4816,6 +4937,14 @@ h1 {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
+  .perspective-formation-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .perspective-formation-authority-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .temporal-preview-card.is-wide,
   .temporal-preview-card.is-hero {
     grid-column: auto;
@@ -4892,6 +5021,20 @@ h1 {
 
   .perspective-constellation-shell-header h2 {
     font-size: 1.55rem;
+  }
+
+  .perspective-formation-summary-overlay {
+    padding: 10px;
+  }
+
+  .perspective-formation-summary-heading,
+  .perspective-formation-summary-status {
+    justify-content: start;
+  }
+
+  .perspective-formation-summary-grid,
+  .perspective-formation-authority-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .perspective-constellation-game-window {
