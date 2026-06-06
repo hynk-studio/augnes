@@ -61,6 +61,7 @@ assertTypeExports();
 assertPerspectiveUnitPreviewBuilder();
 assertHelperAndRouteShape();
 assertCockpitSurface();
+assertFormationSummaryOverlay();
 assertCssHooks();
 assertPerspectiveConstellationStressRegressionFixes();
 assertBoundaryDocs();
@@ -356,9 +357,83 @@ function assertCockpitSurface() {
   ], { textByFile });
 }
 
+function assertFormationSummaryOverlay() {
+  const cockpitText = textByFile.get(cockpitFile);
+  const formationBasisMatch =
+    cockpitText.match(/type PerspectiveConstellationLens =([\s\S]*?);/);
+
+  assertContainsAll(cockpitFile, [
+    "perspectiveConstellationUnitPreview",
+    "perspectiveConstellationFormationReceipt",
+    "perspectiveConstellationFormationReceipt?.formation_basis",
+    "perspectiveConstellationFormationReceipt?.view_mode",
+    "perspectiveConstellationFormationReceipt?.formed_by.label",
+    "perspectiveConstellationFormationReceipt.source_refs",
+    "perspectiveConstellationFormationReceipt?.generated_at",
+    "perspectiveConstellationFormationReceipt?.as_of",
+    "perspectiveConstellationFormationReceipt?.authority",
+    "perspectiveConstellationUnitPreview.local_boundary_notes",
+    "Perspective Constellation summary overlay",
+    "Current Formation Receipt",
+    "Perspective Unit summary",
+    "Viewing",
+    "Formed by",
+    "Formation Basis",
+    "Source",
+    "Generated",
+    "As of",
+    "Status",
+    "External calls",
+    "API billing",
+    "Persistence",
+    "Graph DB writes",
+    "Proof/evidence writes",
+    "Codex execution",
+    "manual_selection",
+    "failed preview",
+    "no current graph",
+    "formatPerspectiveConstellationAuthorityFlag",
+    "getPerspectiveConstellationSummaryStatus",
+    "getPerspectiveConstellationReceiptSourceDetail",
+  ], { textByFile });
+  assertContainsAll(perspectiveUnitPreviewBuilderFile, [
+    "manual_selection",
+    "Manual Selection",
+  ], { textByFile });
+  assert(
+    formationBasisMatch,
+    "PerspectiveConstellationLens union must be inspectable",
+  );
+  const lensText = formationBasisMatch?.[1] ?? "";
+  for (const expectedLens of [
+    "whole_constellation",
+    "connected_nodes",
+    "open_tensions",
+    "next_candidates",
+    "codex_handoff",
+  ]) {
+    assert(lensText.includes(expectedLens), `Lens must keep ${expectedLens}`);
+  }
+  assert(
+    !lensText.includes("manual_selection"),
+    "Manual selection must remain scope/receipt behavior, not a Lens value",
+  );
+  assert(
+    !/\blocalStorage\b/.test(cockpitText),
+    "Cockpit must not introduce localStorage acknowledgement logic",
+  );
+}
+
 function assertCssHooks() {
   assertContainsAll(cssFile, [
     "perspective-constellation-workspace-shell",
+    "perspective-formation-summary-overlay",
+    "perspective-formation-summary-heading",
+    "perspective-formation-summary-status",
+    "perspective-formation-summary-status-label",
+    "perspective-formation-summary-grid",
+    "perspective-formation-authority-grid",
+    "overflow-wrap: anywhere",
     "perspective-constellation-workspace-grid",
     "perspective-lens-scope-panel",
     "perspective-lens-option",
