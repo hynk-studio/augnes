@@ -1341,6 +1341,7 @@ code {
 }
 
 .perspective-manual-gravity-local-draft-badge,
+.perspective-manual-gravity-restore-notice,
 .perspective-preview-overrides-draft-note {
   display: flex;
   flex-wrap: wrap;
@@ -1354,12 +1355,14 @@ code {
 }
 
 .perspective-manual-gravity-local-draft-badge strong,
+.perspective-manual-gravity-restore-notice strong,
 .perspective-preview-overrides-draft-note strong {
   color: #312e81;
   font-size: 0.74rem;
 }
 
 .perspective-manual-gravity-local-draft-badge span,
+.perspective-manual-gravity-restore-notice span,
 .perspective-preview-overrides-draft-note span,
 .perspective-preview-overrides-draft-note code {
   max-width: 100%;
