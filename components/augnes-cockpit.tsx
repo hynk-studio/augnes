@@ -296,6 +296,27 @@ type PerspectiveConstellationLens =
   | "codex_handoff";
 type PerspectiveConstellationSelectionScope =
   PerspectiveConstellationSelectionScopeV0;
+type PerspectiveEventRailTemporalRole = "archive" | "present" | "future";
+type PerspectiveEventRailEntryId =
+  | "session"
+  | "decision"
+  | "handoff"
+  | "pr"
+  | "review"
+  | "closeout"
+  | "current_view"
+  | "next_perspective";
+
+type PerspectiveEventRailEntry = {
+  id: PerspectiveEventRailEntryId;
+  label: string;
+  detail: string;
+  temporalRole: PerspectiveEventRailTemporalRole;
+  cardTitle: string;
+  cardSummary: string;
+  statusLabel: string;
+  relatedRefs: string[];
+};
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
   code: string;
@@ -4073,6 +4094,8 @@ function PerspectiveTab({
     perspectiveConstellationSelectionScope,
     setPerspectiveConstellationSelectionScope,
   ] = useState<PerspectiveConstellationSelectionScope>("whole_constellation");
+  const [selectedEventRailEntry, setSelectedEventRailEntry] =
+    useState<PerspectiveEventRailEntryId>("current_view");
   const [manualPastedText, setManualPastedText] = useState("");
   const [manualPastedTextSourceLabel, setManualPastedTextSourceLabel] =
     useState("");
@@ -4491,43 +4514,6 @@ function PerspectiveTab({
     perspectiveConstellationLensOptions.find(
       (option) => option.id === selectedPerspectiveConstellationLens,
     ) ?? perspectiveConstellationLensOptions[0];
-  const perspectiveConstellationEventRail = [
-    {
-      label: "Session",
-      detail:
-        perspectiveIngestConstellationPreview?.meta.source_query ??
-        "local preview source",
-    },
-    {
-      label: "Decision",
-      detail:
-        selectedPerspectiveIngestNode?.type === "decision"
-          ? selectedPerspectiveIngestNode.label
-          : "decision material remains graph material",
-    },
-    {
-      label: "Handoff",
-      detail:
-        perspectiveIngestConstellationPreview?.perspective_capsule_preview
-          .target_surface ?? "manual review surface",
-    },
-    {
-      label: "PR",
-      detail: "review packet pointer only; no GitHub mutation",
-    },
-    {
-      label: "Review",
-      detail: "ChatGPT/Codex packet preview and copy",
-    },
-    {
-      label: "Closeout",
-      detail: "validation and report refs stay archived",
-    },
-    {
-      label: "Next Perspective",
-      detail: "next candidates remain advisory",
-    },
-  ];
   const perspectiveConstellationArchiveDocs = [
     "docs/PROJECT_CONSTELLATION_IA_V0_1.md",
     "docs/PERSPECTIVE_INGEST_CONSTELLATION_PREVIEW_V0_1.md",
@@ -4555,6 +4541,173 @@ function PerspectiveTab({
       (pointer) => pointer.target_ref,
     ) ?? []),
   ];
+  const perspectiveConstellationCurrentViewRefs = [
+    ...(perspectiveConstellationFormationReceipt
+      ? [
+          perspectiveConstellationFormationReceipt.formation_id,
+          perspectiveConstellationFormationReceipt.constellation_id,
+        ]
+      : []),
+    ...perspectiveConstellationSubstrateSourceRefs.map(
+      (sourceRef) => sourceRef.source_ref,
+    ),
+  ];
+  const perspectiveConstellationDecisionRefs =
+    selectedPerspectiveIngestNode?.type === "decision"
+      ? [
+          selectedPerspectiveIngestNode.id,
+          ...selectedPerspectiveIngestNode.source_refs,
+          ...selectedPerspectiveIngestNode.evidence_pointer_ids,
+        ]
+      : [
+          ...(perspectiveIngestConstellation?.nodes
+            .filter((node) => node.type === "decision")
+            .map((node) => node.id) ?? []),
+          ...perspectiveConstellationArchiveSourceRefs.slice(0, 3),
+        ];
+  const perspectiveConstellationNextCandidateRefs = [
+    ...perspectiveConstellationShellNextActions.flatMap((candidate) => [
+      candidate.candidate_id,
+      ...candidate.source_refs,
+      ...candidate.blocked_by,
+    ]),
+  ];
+  const perspectiveConstellationEventRail = [
+    {
+      id: "session",
+      label: "Session",
+      detail:
+        perspectiveIngestConstellationPreview?.meta.source_query ??
+        "local preview source",
+      temporalRole: "archive",
+      cardTitle: "Archive Entry Card",
+      cardSummary:
+        "Session is past source context for the current read-only Perspective view. It is reference material only and does not create a historical snapshot.",
+      statusLabel: "read-only",
+      relatedRefs: perspectiveConstellationArchiveSourceRefs,
+    },
+    {
+      id: "decision",
+      label: "Decision",
+      detail:
+        selectedPerspectiveIngestNode?.type === "decision"
+          ? selectedPerspectiveIngestNode.label
+          : "decision material remains graph material",
+      temporalRole: "archive",
+      cardTitle: "Archive Entry Card",
+      cardSummary:
+        "Decision entries describe past or already-formed graph material. They can explain context, but mutation is disabled in the Event Rail.",
+      statusLabel: "read-only",
+      relatedRefs: perspectiveConstellationDecisionRefs,
+    },
+    {
+      id: "handoff",
+      label: "Handoff",
+      detail:
+        perspectiveIngestConstellationPreview?.perspective_capsule_preview
+          .target_surface ?? "manual review surface",
+      temporalRole: "archive",
+      cardTitle: "Archive Entry Card",
+      cardSummary:
+        "Handoff entries are archived manual review context. They remain copy/reference material and do not execute Codex.",
+      statusLabel: "read-only",
+      relatedRefs: perspectiveConstellationArchiveReports,
+    },
+    {
+      id: "pr",
+      label: "PR",
+      detail: "review packet pointer only; no GitHub mutation",
+      temporalRole: "archive",
+      cardTitle: "Archive Entry Card",
+      cardSummary:
+        "PR entries are review pointers only. They do not call GitHub, create branches, open PRs, merge, publish, or deploy.",
+      statusLabel: "read-only",
+      relatedRefs: ["GitHub PR review surface"],
+    },
+    {
+      id: "review",
+      label: "Review",
+      detail: "ChatGPT/Codex packet preview and copy",
+      temporalRole: "archive",
+      cardTitle: "Archive Entry Card",
+      cardSummary:
+        "Review entries keep packet context visible as reference material. They do not call providers or grant execution authority.",
+      statusLabel: "read-only",
+      relatedRefs: [
+        "ChatGPT review packet preview",
+        "Codex handoff packet preview",
+      ],
+    },
+    {
+      id: "closeout",
+      label: "Closeout",
+      detail: "validation and report refs stay archived",
+      temporalRole: "archive",
+      cardTitle: "Archive Entry Card",
+      cardSummary:
+        "Closeout entries preserve validation and report references. They do not write proof, evidence, readiness, or persistent archive records.",
+      statusLabel: "read-only",
+      relatedRefs: perspectiveConstellationArchiveValidationRefs,
+    },
+    {
+      id: "current_view",
+      label: "Current View",
+      detail:
+        perspectiveConstellationFormationReceipt?.formation_basis ??
+        "current formation pending",
+      temporalRole: "present",
+      cardTitle: "Current View Card",
+      cardSummary:
+        "The present entry uses the current PerspectiveUnitPreview / FormationReceiptV0 and shows the active local graph view without snapshot persistence.",
+      statusLabel: "local-only / read-only / preview-only",
+      relatedRefs: perspectiveConstellationCurrentViewRefs,
+    },
+    {
+      id: "next_perspective",
+      label: "Next Perspective",
+      detail: "next candidates remain advisory",
+      temporalRole: "future",
+      cardTitle: "Future Candidate Card",
+      cardSummary:
+        "Next Perspective is future candidate context. Possible next actions are candidates only and do not trigger Codex, GitHub, providers, or mutations.",
+      statusLabel: "advisory / preview-only",
+      relatedRefs: perspectiveConstellationNextCandidateRefs,
+    },
+  ] satisfies PerspectiveEventRailEntry[];
+  const selectedPerspectiveEventRailEntry =
+    perspectiveConstellationEventRail.find(
+      (event) => event.id === selectedEventRailEntry,
+    ) ??
+    perspectiveConstellationEventRail.find((event) => event.id === "current_view") ??
+    perspectiveConstellationEventRail[0];
+  const selectedPerspectiveEventRailTemporalRoleLabel =
+    getPerspectiveEventRailTemporalRoleLabel(
+      selectedPerspectiveEventRailEntry.temporalRole,
+    );
+  const selectedPerspectiveEventRailNotes =
+    selectedPerspectiveEventRailEntry.temporalRole === "archive"
+      ? [
+          "Use as reference only",
+          "Mutation disabled",
+          "No snapshot persistence yet",
+          "No delta view",
+        ]
+      : selectedPerspectiveEventRailEntry.temporalRole === "future"
+        ? [
+            "Possible next actions are candidates only",
+            "No Codex execution",
+            "No GitHub call",
+            "No mutation",
+            "No snapshot persistence yet",
+            "No delta view",
+          ]
+        : [
+            "Uses current PerspectiveUnitPreview / FormationReceiptV0",
+            "Local-only / read-only / preview-only",
+            "Mutation disabled",
+            "No snapshot persistence yet",
+            "No delta view",
+          ];
 
   useEffect(() => {
     let cancelled = false;
@@ -4613,6 +4766,7 @@ function PerspectiveTab({
       setSelectedPerspectiveIngestClusterId(null);
       setPerspectiveConstellationSelectionScope("whole_constellation");
       setSelectedPerspectiveConstellationLens("whole_constellation");
+      setSelectedEventRailEntry("current_view");
       return;
     }
 
@@ -4722,6 +4876,7 @@ function PerspectiveTab({
     setPerspectiveIngestCopyNotice(null);
     setPerspectiveConstellationSelectionScope("whole_constellation");
     setSelectedPerspectiveConstellationLens("whole_constellation");
+    setSelectedEventRailEntry("current_view");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
@@ -4762,6 +4917,7 @@ function PerspectiveTab({
     setPerspectiveIngestCopyNotice(null);
     setPerspectiveConstellationSelectionScope("whole_constellation");
     setSelectedPerspectiveConstellationLens("whole_constellation");
+    setSelectedEventRailEntry("current_view");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
 
@@ -5378,13 +5534,53 @@ function PerspectiveTab({
           </div>
           <div className="perspective-event-rail-track">
             {perspectiveConstellationEventRail.map((event, index) => (
-              <article key={event.label} className="perspective-event-rail-item">
+              <button
+                key={event.id}
+                type="button"
+                className="perspective-event-rail-item"
+                aria-pressed={event.id === selectedEventRailEntry}
+                onClick={() => setSelectedEventRailEntry(event.id)}
+              >
                 <span>{index + 1}</span>
                 <strong>{event.label}</strong>
                 <p>{event.detail}</p>
-              </article>
+              </button>
             ))}
           </div>
+          <aside
+            className={`perspective-event-rail-entry-card is-${selectedPerspectiveEventRailEntry.temporalRole}`}
+            aria-label="Event Rail archive entry card"
+          >
+            <p className="panel-eyebrow">Event Rail temporal entry card</p>
+            <h4>{selectedPerspectiveEventRailEntry.cardTitle}</h4>
+            <div className="perspective-event-rail-entry-meta">
+              <div>
+                <span>Temporal role</span>
+                <strong>{selectedPerspectiveEventRailTemporalRoleLabel}</strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong>{selectedPerspectiveEventRailEntry.statusLabel}</strong>
+              </div>
+              <div>
+                <span>Mutation</span>
+                <strong>disabled</strong>
+              </div>
+            </div>
+            <p>{selectedPerspectiveEventRailEntry.cardSummary}</p>
+            <div className="perspective-event-rail-entry-notes">
+              {selectedPerspectiveEventRailNotes.map((note) => (
+                <span key={note}>{note}</span>
+              ))}
+            </div>
+            <div>
+              <h5>Source refs / related refs</h5>
+              <RefChipList
+                refs={selectedPerspectiveEventRailEntry.relatedRefs}
+                emptyLabel="No source refs / related refs available for this local preview"
+              />
+            </div>
+          </aside>
         </section>
 
         <details className="perspective-formation-archive-drawer" open>
@@ -23273,6 +23469,14 @@ function formatPerspectiveConstellationAuthorityFlag(value: boolean | undefined)
 
 function formatPerspectiveConstellationTimestamp(value: string) {
   return value.replace("T", " ").replace(/\.000Z$/, "Z");
+}
+
+function getPerspectiveEventRailTemporalRoleLabel(
+  role: PerspectiveEventRailTemporalRole,
+) {
+  if (role === "archive") return "Past / Archive";
+  if (role === "future") return "Future / Candidate";
+  return "Present / Active View";
 }
 
 function matchPerspectiveIngestEvidencePointers(

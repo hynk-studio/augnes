@@ -1039,6 +1039,21 @@ code {
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 8px;
   background: #f8fafc;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.perspective-event-rail-item:hover,
+.perspective-event-rail-item:focus-visible,
+.perspective-event-rail-item[aria-pressed="true"] {
+  border-color: rgba(14, 116, 144, 0.45);
+  background: #ecfeff;
+}
+
+.perspective-event-rail-item[aria-pressed="true"] {
+  box-shadow: inset 3px 0 0 #0891b2;
 }
 
 .perspective-event-rail-item span {
@@ -1063,6 +1078,103 @@ code {
   color: #475569;
   font-size: 0.78rem;
   line-height: 1.35;
+}
+
+.perspective-event-rail-entry-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.11);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-event-rail-entry-card.is-present {
+  border-color: rgba(14, 116, 144, 0.24);
+  background: #f0fdfa;
+}
+
+.perspective-event-rail-entry-card.is-future {
+  border-color: rgba(124, 58, 237, 0.2);
+  background: #faf5ff;
+}
+
+.perspective-event-rail-entry-card h4,
+.perspective-event-rail-entry-card h5,
+.perspective-event-rail-entry-card p {
+  margin: 0;
+}
+
+.perspective-event-rail-entry-card h4 {
+  color: #0f172a;
+  font-size: 0.96rem;
+  line-height: 1.25;
+}
+
+.perspective-event-rail-entry-card h5 {
+  color: #334155;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.perspective-event-rail-entry-card p {
+  color: #475569;
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.perspective-event-rail-entry-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-event-rail-entry-meta div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.perspective-event-rail-entry-meta span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.perspective-event-rail-entry-meta strong {
+  color: #0f172a;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.perspective-event-rail-entry-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-event-rail-entry-notes span {
+  max-width: 100%;
+  padding: 4px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 760;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .perspective-formation-archive-drawer {
@@ -5136,7 +5248,8 @@ h1 {
   }
 
   .perspective-substrate-field-grid,
-  .perspective-substrate-authority-list {
+  .perspective-substrate-authority-list,
+  .perspective-event-rail-entry-meta {
     grid-template-columns: minmax(0, 1fr);
   }
 
