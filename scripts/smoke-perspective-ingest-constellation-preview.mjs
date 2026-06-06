@@ -76,23 +76,93 @@ assertNoExternalCallPatterns();
 
 console.log("perspective ingest constellation preview smoke passed");
 
+function getNamedFunctionText(sourceText, functionName) {
+  const startNeedle = `function ${functionName}(`;
+  const startIndex = sourceText.indexOf(startNeedle);
+  assert(startIndex >= 0, `${functionName} helper must exist`);
+
+  const bodyStartIndex = sourceText.indexOf("{", startIndex);
+  assert(bodyStartIndex >= 0, `${functionName} helper must have a body`);
+
+  let braceDepth = 0;
+  for (let index = bodyStartIndex; index < sourceText.length; index += 1) {
+    const character = sourceText[index];
+    if (character === "{") braceDepth += 1;
+    if (character === "}") braceDepth -= 1;
+    if (braceDepth === 0) {
+      return sourceText.slice(startIndex, index + 1);
+    }
+  }
+
+  assert.fail(`${functionName} helper body must be closed`);
+}
+
 function stripAllowedManualGravityLocalDraftStorage(cockpitText) {
-  return cockpitText.replace(
-    /\bwindow\.localStorage\.(?:getItem|setItem|removeItem)\(\s*MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY[\s\S]*?\);/g,
-    "",
+  return [
+    "readManualGravityLocalDraftFromStorage",
+    "writeManualGravityLocalDraftToStorage",
+    "clearManualGravityLocalDraftStorage",
+  ].reduce(
+    (remainingText, functionName) =>
+      remainingText.replace(getNamedFunctionText(cockpitText, functionName), ""),
+    cockpitText,
   );
 }
 
 function assertOnlyManualGravityLocalDraftStorage(cockpitText) {
+  const readHelperText = getNamedFunctionText(
+    cockpitText,
+    "readManualGravityLocalDraftFromStorage",
+  );
+  const writeHelperText = getNamedFunctionText(
+    cockpitText,
+    "writeManualGravityLocalDraftToStorage",
+  );
+  const clearHelperText = getNamedFunctionText(
+    cockpitText,
+    "clearManualGravityLocalDraftStorage",
+  );
+
   assertContainsAll(cockpitFile, [
     "MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY",
     manualGravityLocalDraftStorageKey,
     "MANUAL_GRAVITY_LOCAL_DRAFT_VERSION",
     manualGravityLocalDraftVersion,
-    "window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY)",
-    "window.localStorage.setItem(",
-    "window.localStorage.removeItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY)",
+    "readManualGravityLocalDraftFromStorage",
+    "writeManualGravityLocalDraftToStorage",
+    "clearManualGravityLocalDraftStorage",
+    "const storedManualGravityLocalDraft =",
+    "readManualGravityLocalDraftFromStorage();",
+    "if (!writeManualGravityLocalDraftToStorage(draft))",
+    "if (!clearManualGravityLocalDraftStorage())",
+    "storedManualGravityLocalDraft.available",
+    "setManualGravityLocalDraftStatus(\"unavailable\")",
   ], { textByFile });
+
+  [
+    [
+      "readManualGravityLocalDraftFromStorage",
+      readHelperText,
+      "window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY)",
+    ],
+    [
+      "writeManualGravityLocalDraftToStorage",
+      writeHelperText,
+      "window.localStorage.setItem(",
+    ],
+    [
+      "clearManualGravityLocalDraftStorage",
+      clearHelperText,
+      "window.localStorage.removeItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY)",
+    ],
+  ].forEach(([functionName, helperText, localStorageCall]) => {
+    assert(
+      helperText.includes("try {") &&
+        helperText.includes(localStorageCall) &&
+        helperText.includes("catch {"),
+      `${functionName} must wrap ${localStorageCall} in try/catch`,
+    );
+  });
 
   const withoutAllowedDraftStorage =
     stripAllowedManualGravityLocalDraftStorage(cockpitText);

@@ -432,6 +432,50 @@ function parseManualGravityLocalDraft(rawDraft: string | null) {
   }
 }
 
+function readManualGravityLocalDraftFromStorage() {
+  if (typeof window === "undefined") {
+    return { available: false, draft: null };
+  }
+
+  try {
+    return {
+      available: true,
+      draft: parseManualGravityLocalDraft(
+        window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY),
+      ),
+    };
+  } catch {
+    return { available: false, draft: null };
+  }
+}
+
+function writeManualGravityLocalDraftToStorage(
+  draft: ManualGravityLocalDraft,
+) {
+  if (typeof window === "undefined") return false;
+
+  try {
+    window.localStorage.setItem(
+      MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY,
+      JSON.stringify(draft),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearManualGravityLocalDraftStorage() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    window.localStorage.removeItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function manualGravityLocalDraftMatchesContext(
   draft: ManualGravityLocalDraft,
   context: Omit<ManualGravityLocalDraft, "marks_by_target" | "saved_at" | "version">,
@@ -5127,14 +5171,14 @@ function PerspectiveTab({
       return;
     }
 
-    if (typeof window === "undefined") {
+    const storedManualGravityLocalDraft =
+      readManualGravityLocalDraftFromStorage();
+    if (!storedManualGravityLocalDraft.available) {
       setManualGravityLocalDraftStatus("unavailable");
       return;
     }
 
-    const draft = parseManualGravityLocalDraft(
-      window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY),
-    );
+    const draft = storedManualGravityLocalDraft.draft;
     if (!draft) {
       restoredManualGravityLocalDraftContextRef.current = null;
       setManualGravityLocalDraftStatus("unsaved");
@@ -5237,8 +5281,7 @@ function PerspectiveTab({
   function saveManualGravityLocalDraftMarks() {
     if (
       !manualGravityLocalDraftContext ||
-      !hasManualGravityPreviewMarks(selectedGravityPreviewMarks) ||
-      typeof window === "undefined"
+      !hasManualGravityPreviewMarks(selectedGravityPreviewMarks)
     ) {
       setManualGravityLocalDraftStatus(
         manualGravityLocalDraftContext ? "unsaved" : "unavailable",
@@ -5255,18 +5298,20 @@ function PerspectiveTab({
       saved_at: new Date().toISOString(),
     } satisfies ManualGravityLocalDraft;
 
-    window.localStorage.setItem(
-      MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY,
-      JSON.stringify(draft),
-    );
+    if (!writeManualGravityLocalDraftToStorage(draft)) {
+      setManualGravityLocalDraftStatus("unavailable");
+      return;
+    }
+
     restoredManualGravityLocalDraftContextRef.current =
       manualGravityLocalDraftContextKey;
     setManualGravityLocalDraftStatus("saved_for_this_formation");
   }
 
   function clearManualGravityLocalDraftMarks() {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY);
+    if (!clearManualGravityLocalDraftStorage()) {
+      setManualGravityLocalDraftStatus("unavailable");
+      return;
     }
 
     restoredManualGravityLocalDraftContextRef.current = null;
