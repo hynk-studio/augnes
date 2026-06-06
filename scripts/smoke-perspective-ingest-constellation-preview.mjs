@@ -62,6 +62,7 @@ assertPerspectiveUnitPreviewBuilder();
 assertHelperAndRouteShape();
 assertCockpitSurface();
 assertFormationSummaryOverlay();
+assertFormationBasisExplanationOverlay();
 assertFormationSubstratePanel();
 assertEventRailArchiveEntryCards();
 assertCssHooks();
@@ -429,6 +430,57 @@ function assertFormationSummaryOverlay() {
   );
 }
 
+function assertFormationBasisExplanationOverlay() {
+  const cockpitText = textByFile.get(cockpitFile);
+
+  assertContainsAll(cockpitFile, [
+    "formationBasisExplanationOpen",
+    "setFormationBasisExplanationOpen",
+    "perspectiveConstellationFormationBasisExplanations",
+    "perspective-formation-basis-explanation-card",
+    "Formation Basis explanation card",
+    "What does this basis mean?",
+    "Formation Basis explanation",
+    "How this constellation was formed",
+    "Formation Basis explains how the current constellation arrangement was formed. Lens explains how you inspect it. Scope explains what part is selected.",
+    "Current",
+    "Active local PerspectiveUnitPreview formed from the current Perspective ingest Constellation preview.",
+    "Manual Selection",
+    "User-selected graph scope. Local-only, preview-only, no new facts, no persistence.",
+    "Historical Snapshot",
+    "future behavior / not implemented here",
+    "Future archive behavior. No frozen snapshot is created in this slice.",
+    "Auto Proposal",
+    "future behavior / no provider, model, API call, or billing",
+    "Future proposal behavior. No provider, model, API call, or billing occurs in this slice.",
+    "Experimental",
+    "future/internal reserved basis",
+    "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+    "Compare is a future view mode, not a Formation Basis.",
+    "Rulecraft is not exposed yet.",
+    "Auto Proposal is not executed here.",
+    "No API calls, cost, persistence, graph DB writes, or external calls occur.",
+    "aria-expanded={formationBasisExplanationOpen}",
+    "aria-controls=\"perspective-formation-basis-explanation-card\"",
+  ], { textByFile });
+  assert(
+    !/\blocalStorage\b/.test(cockpitText),
+    "Formation Basis explanation must not introduce localStorage",
+  );
+  assert(
+    !/\bOK-skip\b|\bok skip\b|\backnowledgement\b|\backnowledgment\b/i.test(
+      cockpitText,
+    ),
+    "Formation Basis explanation must not introduce OK-skip acknowledgement logic",
+  );
+  assert(
+    !/\bprovider selector\b|\bmodel selector\b|\brearrange view\b|\bcompare to current\b/i.test(
+      cockpitText,
+    ),
+    "Formation Basis explanation must not add switching, provider, model, or compare controls",
+  );
+}
+
 function assertFormationSubstratePanel() {
   const cockpitText = textByFile.get(cockpitFile);
 
@@ -508,7 +560,14 @@ function assertEventRailArchiveEntryCards() {
     "Event Rail entry cards must not introduce localStorage",
   );
   assert(
-    !/\brulecraft\b/i.test(cockpitText),
+    !/\brulecraft\b/i.test(
+      cockpitText
+        .replaceAll("Rulecraft is not exposed yet.", "")
+        .replaceAll(
+          "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+          "",
+        ),
+    ),
     "Event Rail entry cards must not introduce Rulecraft",
   );
   assert(
@@ -526,6 +585,11 @@ function assertCssHooks() {
     "perspective-formation-summary-status-label",
     "perspective-formation-summary-grid",
     "perspective-formation-authority-grid",
+    "perspective-formation-summary-actions",
+    "perspective-formation-basis-explanation-toggle",
+    "perspective-formation-basis-explanation-card",
+    "perspective-formation-basis-explanation-list",
+    "perspective-formation-basis-explanation-boundary",
     "overflow-wrap: anywhere",
     "perspective-constellation-workspace-grid",
     "perspective-lens-scope-panel",
@@ -645,7 +709,13 @@ function assertNoExternalCallPatterns() {
 
 function assertNoRulecraftSurface(files) {
   for (const file of files) {
-    const text = textByFile.get(file);
+    const text = textByFile
+      .get(file)
+      .replaceAll("Rulecraft is not exposed yet.", "")
+      .replaceAll(
+        "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+        "",
+      );
     assert(!/rulecraft/i.test(text), `${file} must not introduce Rulecraft`);
   }
 }
