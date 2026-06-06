@@ -324,12 +324,34 @@ type ManualGravityPreviewOverride = {
   scopeLabel: string;
   markLabels: string[];
 };
+type ManualGravityLocalDraft = {
+  version: "manual_gravity_draft.v0.1";
+  formation_id: string;
+  constellation_id: string;
+  source_query: string;
+  generated_at: string;
+  as_of: string;
+  marks_by_target: Record<string, ManualGravityPreviewMark[]>;
+  saved_at: string;
+};
+type ManualGravityLocalDraftStatus =
+  | "unavailable"
+  | "unsaved"
+  | "unsaved_changes"
+  | "saved_for_this_formation"
+  | "restored_for_this_formation"
+  | "no_matching_local_draft"
+  | "cleared";
 type PerspectiveFormationBasisExplanationCandidate =
   | "current"
   | "manual_selection"
   | "historical_snapshot"
   | "auto_proposal"
   | "experimental";
+
+const MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY =
+  "augnes:perspective-constellation:manual-gravity-draft:v0.1";
+const MANUAL_GRAVITY_LOCAL_DRAFT_VERSION = "manual_gravity_draft.v0.1";
 
 const MANUAL_GRAVITY_PREVIEW_MARKS: {
   id: ManualGravityPreviewMark;
@@ -341,6 +363,131 @@ const MANUAL_GRAVITY_PREVIEW_MARKS: {
   { id: "defer", actionLabel: "Defer Preview", chipLabel: "Deferred preview" },
   { id: "boost", actionLabel: "Boost Preview", chipLabel: "Boosted preview" },
 ];
+const MANUAL_GRAVITY_PREVIEW_MARK_IDS = new Set<ManualGravityPreviewMark>(
+  MANUAL_GRAVITY_PREVIEW_MARKS.map((mark) => mark.id),
+);
+
+function hasManualGravityPreviewMarks(
+  marksByTarget: Record<string, ManualGravityPreviewMark[]>,
+) {
+  return Object.values(marksByTarget).some((marks) => marks.length > 0);
+}
+
+function sanitizeManualGravityPreviewMarks(
+  marksByTarget: unknown,
+): Record<string, ManualGravityPreviewMark[]> {
+  if (!marksByTarget || typeof marksByTarget !== "object") return {};
+
+  const sanitizedMarks: Record<string, ManualGravityPreviewMark[]> = {};
+  for (const [targetKey, marks] of Object.entries(marksByTarget)) {
+    if (typeof targetKey !== "string" || !Array.isArray(marks)) continue;
+
+    const safeMarks = marks.filter(
+      (mark): mark is ManualGravityPreviewMark =>
+        typeof mark === "string" &&
+        MANUAL_GRAVITY_PREVIEW_MARK_IDS.has(mark as ManualGravityPreviewMark),
+    );
+    if (safeMarks.length > 0) {
+      sanitizedMarks[targetKey] = Array.from(new Set(safeMarks));
+    }
+  }
+
+  return sanitizedMarks;
+}
+
+function parseManualGravityLocalDraft(rawDraft: string | null) {
+  if (!rawDraft) return null;
+
+  try {
+    const parsedDraft = JSON.parse(rawDraft) as Partial<ManualGravityLocalDraft>;
+    if (
+      parsedDraft.version !== MANUAL_GRAVITY_LOCAL_DRAFT_VERSION ||
+      typeof parsedDraft.formation_id !== "string" ||
+      typeof parsedDraft.constellation_id !== "string" ||
+      typeof parsedDraft.source_query !== "string" ||
+      typeof parsedDraft.generated_at !== "string" ||
+      typeof parsedDraft.as_of !== "string" ||
+      typeof parsedDraft.saved_at !== "string"
+    ) {
+      return null;
+    }
+
+    const marksByTarget = sanitizeManualGravityPreviewMarks(
+      parsedDraft.marks_by_target,
+    );
+    if (!hasManualGravityPreviewMarks(marksByTarget)) return null;
+
+    return {
+      version: MANUAL_GRAVITY_LOCAL_DRAFT_VERSION,
+      formation_id: parsedDraft.formation_id,
+      constellation_id: parsedDraft.constellation_id,
+      source_query: parsedDraft.source_query,
+      generated_at: parsedDraft.generated_at,
+      as_of: parsedDraft.as_of,
+      marks_by_target: marksByTarget,
+      saved_at: parsedDraft.saved_at,
+    } satisfies ManualGravityLocalDraft;
+  } catch {
+    return null;
+  }
+}
+
+function readManualGravityLocalDraftFromStorage() {
+  if (typeof window === "undefined") {
+    return { available: false, draft: null };
+  }
+
+  try {
+    return {
+      available: true,
+      draft: parseManualGravityLocalDraft(
+        window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY),
+      ),
+    };
+  } catch {
+    return { available: false, draft: null };
+  }
+}
+
+function writeManualGravityLocalDraftToStorage(
+  draft: ManualGravityLocalDraft,
+) {
+  if (typeof window === "undefined") return false;
+
+  try {
+    window.localStorage.setItem(
+      MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY,
+      JSON.stringify(draft),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearManualGravityLocalDraftStorage() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    window.localStorage.removeItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function manualGravityLocalDraftMatchesContext(
+  draft: ManualGravityLocalDraft,
+  context: Omit<ManualGravityLocalDraft, "marks_by_target" | "saved_at" | "version">,
+) {
+  return (
+    draft.formation_id === context.formation_id &&
+    draft.constellation_id === context.constellation_id &&
+    draft.source_query === context.source_query &&
+    draft.generated_at === context.generated_at &&
+    draft.as_of === context.as_of
+  );
+}
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
   code: string;
@@ -4131,6 +4278,8 @@ function PerspectiveTab({
   const [selectedGravityPreviewMarks, setSelectedGravityPreviewMarks] = useState<
     Record<string, ManualGravityPreviewMark[]>
   >({});
+  const [manualGravityLocalDraftStatus, setManualGravityLocalDraftStatus] =
+    useState<ManualGravityLocalDraftStatus>("unavailable");
   const [manualPastedText, setManualPastedText] = useState("");
   const [manualPastedTextSourceLabel, setManualPastedTextSourceLabel] =
     useState("");
@@ -4149,6 +4298,7 @@ function PerspectiveTab({
   const selectedPerspectiveIngestPacketTextRef =
     useRef<HTMLTextAreaElement | null>(null);
   const manualPastedTextPreviewFormRef = useRef<HTMLFormElement | null>(null);
+  const restoredManualGravityLocalDraftContextRef = useRef<string | null>(null);
   const [
     selectedConstellationNextActionId,
     setSelectedConstellationNextActionId,
@@ -4445,6 +4595,40 @@ function PerspectiveTab({
     perspectiveConstellationUnitPreview?.formation_receipt ?? null;
   const perspectiveConstellationFormationAuthority =
     perspectiveConstellationFormationReceipt?.authority ?? null;
+  const manualGravityLocalDraftContext =
+    perspectiveConstellationFormationReceipt && perspectiveIngestConstellationPreview
+      ? {
+          formation_id: perspectiveConstellationFormationReceipt.formation_id,
+          constellation_id:
+            perspectiveConstellationFormationReceipt.constellation_id,
+          source_query: perspectiveIngestConstellationPreview.meta.source_query,
+          generated_at: perspectiveConstellationFormationReceipt.generated_at,
+          as_of: perspectiveConstellationFormationReceipt.as_of,
+        }
+      : null;
+  const manualGravityLocalDraftContextKey = manualGravityLocalDraftContext
+    ? [
+        manualGravityLocalDraftContext.formation_id,
+        manualGravityLocalDraftContext.constellation_id,
+        manualGravityLocalDraftContext.source_query,
+        manualGravityLocalDraftContext.generated_at,
+        manualGravityLocalDraftContext.as_of,
+      ].join("|")
+    : "unavailable";
+  const manualGravityLocalDraftStatusLabel =
+    manualGravityLocalDraftStatus === "saved_for_this_formation"
+      ? "saved for this formation"
+      : manualGravityLocalDraftStatus === "restored_for_this_formation"
+        ? "restored for this formation"
+        : manualGravityLocalDraftStatus === "no_matching_local_draft"
+          ? "no matching local draft"
+          : manualGravityLocalDraftStatus === "cleared"
+            ? "cleared"
+            : manualGravityLocalDraftStatus === "unsaved_changes"
+              ? "unsaved local changes"
+              : manualGravityLocalDraftStatus === "unsaved"
+                ? "unsaved"
+                : "unavailable";
   const perspectiveConstellationSummaryViewing =
     perspectiveConstellationUnitPreview?.scope_label ??
     (perspectiveIngestPreviewError ? "Unavailable" : "Loading");
@@ -4957,6 +5141,7 @@ function PerspectiveTab({
       setFormationBasisExplanationOpen(false);
       setSelectedFormationBasisExplanation("current");
       setSelectedGravityPreviewMarks({});
+      setManualGravityLocalDraftStatus("unavailable");
       return;
     }
 
@@ -4978,6 +5163,44 @@ function PerspectiveTab({
       return null;
     });
   }, [perspectiveIngestConstellationPreviewState]);
+
+  useEffect(() => {
+    if (!manualGravityLocalDraftContext) {
+      restoredManualGravityLocalDraftContextRef.current = null;
+      setManualGravityLocalDraftStatus("unavailable");
+      return;
+    }
+
+    const storedManualGravityLocalDraft =
+      readManualGravityLocalDraftFromStorage();
+    if (!storedManualGravityLocalDraft.available) {
+      setManualGravityLocalDraftStatus("unavailable");
+      return;
+    }
+
+    const draft = storedManualGravityLocalDraft.draft;
+    if (!draft) {
+      restoredManualGravityLocalDraftContextRef.current = null;
+      setManualGravityLocalDraftStatus("unsaved");
+      return;
+    }
+
+    if (!manualGravityLocalDraftMatchesContext(draft, manualGravityLocalDraftContext)) {
+      restoredManualGravityLocalDraftContextRef.current = null;
+      setManualGravityLocalDraftStatus("no_matching_local_draft");
+      return;
+    }
+
+    if (
+      restoredManualGravityLocalDraftContextRef.current !==
+      manualGravityLocalDraftContextKey
+    ) {
+      setSelectedGravityPreviewMarks(draft.marks_by_target);
+      restoredManualGravityLocalDraftContextRef.current =
+        manualGravityLocalDraftContextKey;
+    }
+    setManualGravityLocalDraftStatus("restored_for_this_formation");
+  }, [manualGravityLocalDraftContextKey]);
 
   function selectPerspectiveConstellationLens(lens: PerspectiveConstellationLens) {
     setSelectedPerspectiveConstellationLens(lens);
@@ -5055,10 +5278,54 @@ function PerspectiveTab({
     });
   }
 
+  function saveManualGravityLocalDraftMarks() {
+    if (
+      !manualGravityLocalDraftContext ||
+      !hasManualGravityPreviewMarks(selectedGravityPreviewMarks)
+    ) {
+      setManualGravityLocalDraftStatus(
+        manualGravityLocalDraftContext ? "unsaved" : "unavailable",
+      );
+      return;
+    }
+
+    const draft = {
+      version: MANUAL_GRAVITY_LOCAL_DRAFT_VERSION,
+      ...manualGravityLocalDraftContext,
+      marks_by_target: sanitizeManualGravityPreviewMarks(
+        selectedGravityPreviewMarks,
+      ),
+      saved_at: new Date().toISOString(),
+    } satisfies ManualGravityLocalDraft;
+
+    if (!writeManualGravityLocalDraftToStorage(draft)) {
+      setManualGravityLocalDraftStatus("unavailable");
+      return;
+    }
+
+    restoredManualGravityLocalDraftContextRef.current =
+      manualGravityLocalDraftContextKey;
+    setManualGravityLocalDraftStatus("saved_for_this_formation");
+  }
+
+  function clearManualGravityLocalDraftMarks() {
+    if (!clearManualGravityLocalDraftStorage()) {
+      setManualGravityLocalDraftStatus("unavailable");
+      return;
+    }
+
+    restoredManualGravityLocalDraftContextRef.current = null;
+    setSelectedGravityPreviewMarks({});
+    setManualGravityLocalDraftStatus("cleared");
+  }
+
   function toggleManualGravityPreviewMark(mark: ManualGravityPreviewMark) {
     if (!manualGravityPreviewSelection) return;
 
     const selectionKey = manualGravityPreviewSelection.key;
+    setManualGravityLocalDraftStatus(
+      manualGravityLocalDraftContext ? "unsaved_changes" : "unavailable",
+    );
     setSelectedGravityPreviewMarks((currentMarks) => {
       const currentSelectionMarks = currentMarks[selectionKey] ?? [];
       const nextSelectionMarks = currentSelectionMarks.includes(mark)
@@ -5082,6 +5349,9 @@ function PerspectiveTab({
     if (!manualGravityPreviewSelection) return;
 
     const selectionKey = manualGravityPreviewSelection.key;
+    setManualGravityLocalDraftStatus(
+      manualGravityLocalDraftContext ? "unsaved_changes" : "unavailable",
+    );
     setSelectedGravityPreviewMarks((currentMarks) => {
       const { [selectionKey]: _removedSelection, ...remainingMarks } =
         currentMarks;
@@ -5104,6 +5374,7 @@ function PerspectiveTab({
     setFormationBasisExplanationOpen(false);
     setSelectedFormationBasisExplanation("current");
     setSelectedGravityPreviewMarks({});
+    setManualGravityLocalDraftStatus("unsaved");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
@@ -5148,10 +5419,12 @@ function PerspectiveTab({
     setFormationBasisExplanationOpen(false);
     setSelectedFormationBasisExplanation("current");
     setSelectedGravityPreviewMarks({});
+    setManualGravityLocalDraftStatus("unsaved");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
 
     if (!pastedTextInput.trim()) {
+      setManualGravityLocalDraftStatus("unavailable");
       setPerspectiveIngestConstellationPreviewState({
         status: "failed",
         error: PERSPECTIVE_INGEST_MISSING_INPUT_ERROR,
@@ -5759,6 +6032,47 @@ function PerspectiveTab({
                 <span>not receipt overrides yet</span>
                 <span>source graph remains read-only</span>
                 <span>no persistence, API route, or external call</span>
+              </div>
+              <div className="perspective-manual-gravity-local-draft">
+                <div>
+                  <strong>Manual Gravity Local Draft</strong>
+                  <span>Local draft: {manualGravityLocalDraftStatusLabel}</span>
+                </div>
+                <p>
+                  Browser-local mark metadata only. No pasted text, source text,
+                  graph data, packet text, prompts, model outputs, evidence
+                  content, or private history are stored. Not server persistence.
+                  Not FormationReceiptV0 authority.
+                </p>
+                <div className="meta-row">
+                  <span>
+                    storage key{" "}
+                    <code>{MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY}</code>
+                  </span>
+                  <span>
+                    version <code>{MANUAL_GRAVITY_LOCAL_DRAFT_VERSION}</code>
+                  </span>
+                </div>
+                <div className="perspective-manual-gravity-draft-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={
+                      !manualGravityLocalDraftContext ||
+                      !hasManualGravityPreviewMarks(selectedGravityPreviewMarks)
+                    }
+                    onClick={saveManualGravityLocalDraftMarks}
+                  >
+                    Save Local Draft Marks
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={clearManualGravityLocalDraftMarks}
+                  >
+                    Clear Local Draft Marks
+                  </button>
+                </div>
               </div>
             </section>
             <section className="perspective-inspector-section">
@@ -7315,6 +7629,7 @@ function PerspectiveTab({
                   setSelectedPerspectiveIngestSource("sample:chatgpt");
                   setPerspectiveIngestCopyNotice(null);
                   setSelectedGravityPreviewMarks({});
+                  setManualGravityLocalDraftStatus("unsaved");
                 }}
               />
               sample:chatgpt
@@ -7329,6 +7644,7 @@ function PerspectiveTab({
                   setSelectedPerspectiveIngestSource("sample:codex");
                   setPerspectiveIngestCopyNotice(null);
                   setSelectedGravityPreviewMarks({});
+                  setManualGravityLocalDraftStatus("unsaved");
                 }}
               />
               sample:codex

@@ -53,6 +53,9 @@ const inspectedFiles = [
 ];
 
 const textByFile = loadTextByFile(inspectedFiles);
+const manualGravityLocalDraftStorageKey =
+  "augnes:perspective-constellation:manual-gravity-draft:v0.1";
+const manualGravityLocalDraftVersion = "manual_gravity_draft.v0.1";
 
 assertPackageJsonScript();
 assertFixtureSafety(chatGptFixtureFile);
@@ -72,6 +75,102 @@ assertBoundaryDocs();
 assertNoExternalCallPatterns();
 
 console.log("perspective ingest constellation preview smoke passed");
+
+function getNamedFunctionText(sourceText, functionName) {
+  const startNeedle = `function ${functionName}(`;
+  const startIndex = sourceText.indexOf(startNeedle);
+  assert(startIndex >= 0, `${functionName} helper must exist`);
+
+  const bodyStartIndex = sourceText.indexOf("{", startIndex);
+  assert(bodyStartIndex >= 0, `${functionName} helper must have a body`);
+
+  let braceDepth = 0;
+  for (let index = bodyStartIndex; index < sourceText.length; index += 1) {
+    const character = sourceText[index];
+    if (character === "{") braceDepth += 1;
+    if (character === "}") braceDepth -= 1;
+    if (braceDepth === 0) {
+      return sourceText.slice(startIndex, index + 1);
+    }
+  }
+
+  assert.fail(`${functionName} helper body must be closed`);
+}
+
+function stripAllowedManualGravityLocalDraftStorage(cockpitText) {
+  return [
+    "readManualGravityLocalDraftFromStorage",
+    "writeManualGravityLocalDraftToStorage",
+    "clearManualGravityLocalDraftStorage",
+  ].reduce(
+    (remainingText, functionName) =>
+      remainingText.replace(getNamedFunctionText(cockpitText, functionName), ""),
+    cockpitText,
+  );
+}
+
+function assertOnlyManualGravityLocalDraftStorage(cockpitText) {
+  const readHelperText = getNamedFunctionText(
+    cockpitText,
+    "readManualGravityLocalDraftFromStorage",
+  );
+  const writeHelperText = getNamedFunctionText(
+    cockpitText,
+    "writeManualGravityLocalDraftToStorage",
+  );
+  const clearHelperText = getNamedFunctionText(
+    cockpitText,
+    "clearManualGravityLocalDraftStorage",
+  );
+
+  assertContainsAll(cockpitFile, [
+    "MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY",
+    manualGravityLocalDraftStorageKey,
+    "MANUAL_GRAVITY_LOCAL_DRAFT_VERSION",
+    manualGravityLocalDraftVersion,
+    "readManualGravityLocalDraftFromStorage",
+    "writeManualGravityLocalDraftToStorage",
+    "clearManualGravityLocalDraftStorage",
+    "const storedManualGravityLocalDraft =",
+    "readManualGravityLocalDraftFromStorage();",
+    "if (!writeManualGravityLocalDraftToStorage(draft))",
+    "if (!clearManualGravityLocalDraftStorage())",
+    "storedManualGravityLocalDraft.available",
+    "setManualGravityLocalDraftStatus(\"unavailable\")",
+  ], { textByFile });
+
+  [
+    [
+      "readManualGravityLocalDraftFromStorage",
+      readHelperText,
+      "window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY)",
+    ],
+    [
+      "writeManualGravityLocalDraftToStorage",
+      writeHelperText,
+      "window.localStorage.setItem(",
+    ],
+    [
+      "clearManualGravityLocalDraftStorage",
+      clearHelperText,
+      "window.localStorage.removeItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY)",
+    ],
+  ].forEach(([functionName, helperText, localStorageCall]) => {
+    assert(
+      helperText.includes("try {") &&
+        helperText.includes(localStorageCall) &&
+        helperText.includes("catch {"),
+      `${functionName} must wrap ${localStorageCall} in try/catch`,
+    );
+  });
+
+  const withoutAllowedDraftStorage =
+    stripAllowedManualGravityLocalDraftStorage(cockpitText);
+  assert(
+    !/\blocalStorage\b/.test(withoutAllowedDraftStorage),
+    "localStorage must only be used for Manual Gravity local draft metadata",
+  );
+}
 
 function assertPackageJsonScript() {
   assertPackageScript({
@@ -378,6 +477,14 @@ function assertManualGravityPreviewMarks() {
     "manualGravityPreviewOverrides",
     "toggleManualGravityPreviewMark",
     "clearManualGravityPreviewMarks",
+    "saveManualGravityLocalDraftMarks",
+    "clearManualGravityLocalDraftMarks",
+    "parseManualGravityLocalDraft",
+    "manualGravityLocalDraftMatchesContext",
+    "sanitizeManualGravityPreviewMarks",
+    "manualGravityLocalDraftStatus",
+    "manualGravityLocalDraftContext",
+    "manualGravityLocalDraftContextKey",
     "Manual Gravity Preview",
     "Local salience marks for the current selected graph material.",
     "Preview-only. Not saved. Not written to FormationReceiptV0. No graph DB write.",
@@ -405,14 +512,25 @@ function assertManualGravityPreviewMarks() {
     "authority",
     "preview-only",
     "No UI-only preview overrides",
+    "Manual Gravity Local Draft",
+    "Local draft:",
+    "Browser-local mark metadata only.",
+    "No pasted text, source text, graph data, packet text, prompts, model outputs, evidence",
+    "content, or private history are stored.",
+    "Not server persistence.",
+    "Not FormationReceiptV0 authority.",
+    "Save Local Draft Marks",
+    "Clear Local Draft Marks",
+    "saved for this formation",
+    "restored for this formation",
+    "no matching local draft",
+    "storage key",
+    "version",
     "disabled={!manualGravityPreviewSelection}",
     "type=\"button\"",
   ], { textByFile });
 
-  assert(
-    !/\blocalStorage\b/.test(cockpitText),
-    "Manual Gravity preview marks must not introduce localStorage",
-  );
+  assertOnlyManualGravityLocalDraftStorage(cockpitText);
   assert(
     !/\bpreview_overrides\s*[:=][\s\S]{0,240}selectedGravityPreviewMarks\b|\bselectedGravityPreviewMarks\b[\s\S]{0,240}\bpreview_overrides\s*[:=]/.test(
       cockpitText,
@@ -438,6 +556,8 @@ function assertManualGravityPreviewMarks() {
 
 function assertFormationSummaryOverlay() {
   const cockpitText = textByFile.get(cockpitFile);
+  const cockpitTextWithoutAllowedDraftStorage =
+    stripAllowedManualGravityLocalDraftStorage(cockpitText);
   const formationBasisMatch =
     cockpitText.match(/type PerspectiveConstellationLens =([\s\S]*?);/);
 
@@ -498,13 +618,15 @@ function assertFormationSummaryOverlay() {
     "Manual selection must remain scope/receipt behavior, not a Lens value",
   );
   assert(
-    !/\blocalStorage\b/.test(cockpitText),
+    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
     "Cockpit must not introduce localStorage acknowledgement logic",
   );
 }
 
 function assertFormationBasisExplanationOverlay() {
   const cockpitText = textByFile.get(cockpitFile);
+  const cockpitTextWithoutAllowedDraftStorage =
+    stripAllowedManualGravityLocalDraftStorage(cockpitText);
 
   assertContainsAll(cockpitFile, [
     "formationBasisExplanationOpen",
@@ -555,7 +677,7 @@ function assertFormationBasisExplanationOverlay() {
     "aria-controls=\"perspective-formation-basis-explanation-card\"",
   ], { textByFile });
   assert(
-    !/\blocalStorage\b/.test(cockpitText),
+    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
     "Formation Basis explanation must not introduce localStorage",
   );
   assert(
@@ -574,6 +696,8 @@ function assertFormationBasisExplanationOverlay() {
 
 function assertFormationSubstratePanel() {
   const cockpitText = textByFile.get(cockpitFile);
+  const cockpitTextWithoutAllowedDraftStorage =
+    stripAllowedManualGravityLocalDraftStorage(cockpitText);
 
   assertContainsAll(cockpitFile, [
     "perspectiveConstellationSubstrateSourceRefs",
@@ -606,13 +730,15 @@ function assertFormationSubstratePanel() {
     "No scoped next action candidates",
   ], { textByFile });
   assert(
-    !/\blocalStorage\b/.test(cockpitText),
+    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
     "Formation Substrate panel must not introduce localStorage",
   );
 }
 
 function assertEventRailArchiveEntryCards() {
   const cockpitText = textByFile.get(cockpitFile);
+  const cockpitTextWithoutAllowedDraftStorage =
+    stripAllowedManualGravityLocalDraftStorage(cockpitText);
 
   assertContainsAll(cockpitFile, [
     "selectedEventRailEntry",
@@ -660,7 +786,7 @@ function assertEventRailArchiveEntryCards() {
     "selectedPerspectiveEventRailEntry.temporalRole === \"archive\"",
   ], { textByFile });
   assert(
-    !/\blocalStorage\b/.test(cockpitText),
+    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
     "Event Rail entry cards must not introduce localStorage",
   );
   assert(
@@ -719,6 +845,8 @@ function assertCssHooks() {
     "perspective-manual-gravity-actions .secondary-button[aria-pressed=\"true\"]",
     "perspective-manual-gravity-chips",
     "perspective-manual-gravity-boundary",
+    "perspective-manual-gravity-local-draft",
+    "perspective-manual-gravity-draft-actions",
     "perspective-cluster-picker",
     "perspective-packet-preview",
     "perspective-time-axis-event-rail",
