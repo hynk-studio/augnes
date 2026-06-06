@@ -324,6 +324,11 @@ type ManualGravityPreviewOverride = {
   scopeLabel: string;
   markLabels: string[];
 };
+type ManualGravityPreviewConflictNotice = {
+  id: string;
+  label: string;
+  detail: string;
+};
 type ManualGravityLocalDraft = {
   version: "manual_gravity_draft.v0.1";
   formation_id: string;
@@ -520,6 +525,48 @@ function getManualGravityPreviewMarkClassName(mark: ManualGravityPreviewMark) {
   if (mark === "watch") return "is-gravity-preview-watched";
   if (mark === "defer") return "is-gravity-preview-deferred";
   return "is-gravity-preview-boosted";
+}
+
+function getManualGravityPreviewConflictNotices(
+  marks: ManualGravityPreviewMark[],
+) {
+  const markSet = new Set(marks);
+  const notices: ManualGravityPreviewConflictNotice[] = [];
+
+  if (markSet.has("pin") && markSet.has("defer")) {
+    notices.push({
+      id: "pin_defer",
+      label: "Pin + Defer",
+      detail: "pinned and deferred marks both active; review context only.",
+    });
+  }
+
+  if (markSet.has("boost") && markSet.has("defer")) {
+    notices.push({
+      id: "boost_defer",
+      label: "Boost + Defer",
+      detail: "boosted and deferred marks both active; no automatic resolution.",
+    });
+  }
+
+  if (markSet.has("pin") && markSet.has("boost")) {
+    notices.push({
+      id: "pin_boost",
+      label: "Pin + Boost",
+      detail: "priority emphasis only; no source graph update.",
+    });
+  }
+
+  if (markSet.has("watch") && markSet.has("defer")) {
+    notices.push({
+      id: "watch_defer",
+      label: "Watch + Defer",
+      detail:
+        "watch/defer combination is allowed as local review context.",
+    });
+  }
+
+  return notices;
 }
 
 function manualGravityLocalDraftMatchesContext(
@@ -4583,6 +4630,8 @@ function PerspectiveTab({
     MANUAL_GRAVITY_PREVIEW_MARKS.filter((mark) =>
       activeManualGravityPreviewMarks.includes(mark.id),
     ).map((mark) => mark.chipLabel);
+  const activeManualGravityPreviewConflictNotices =
+    getManualGravityPreviewConflictNotices(activeManualGravityPreviewMarks);
   const manualGravityPreviewOverrides: ManualGravityPreviewOverride[] =
     Object.entries(selectedGravityPreviewMarks)
       .map(([targetKey, marks]) => {
@@ -6226,6 +6275,48 @@ function PerspectiveTab({
                   </span>
                 ) : null}
               </div>
+              {appliedGravityPreviewActive ? (
+                <div
+                  className="perspective-manual-gravity-applied-legend"
+                  aria-label="Manual Gravity Applied Preview Legend"
+                >
+                  <strong>Manual Gravity Applied Preview Legend</strong>
+                  <span aria-label="P = Pin Preview">
+                    <code>P</code> = Pin Preview
+                  </span>
+                  <span aria-label="W = Watch Preview">
+                    <code>W</code> = Watch Preview
+                  </span>
+                  <span aria-label="D = Defer Preview">
+                    <code>D</code> = Defer Preview
+                  </span>
+                  <span aria-label="B = Boost Preview">
+                    <code>B</code> = Boost Preview
+                  </span>
+                  <span>Local visual emphasis only.</span>
+                  <span>No source graph changes.</span>
+                  <span>No FormationReceiptV0 authority change.</span>
+                  <span>No persistence or graph DB write.</span>
+                </div>
+              ) : null}
+              {appliedGravityPreviewActive &&
+              activeManualGravityPreviewConflictNotices.length > 0 ? (
+                <div
+                  className="perspective-manual-gravity-conflict-notice"
+                  aria-label="Manual Gravity Preview conflict notice"
+                >
+                  <strong>Conflict notice</strong>
+                  <span aria-label="Mixed preview marks are allowed as local review context only. No automatic resolution is applied.">
+                    Mixed preview marks are allowed as local review context only.
+                    No automatic resolution is applied.
+                  </span>
+                  {activeManualGravityPreviewConflictNotices.map((notice) => (
+                    <span key={notice.id}>
+                      {notice.label}: {notice.detail}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="perspective-manual-gravity-chips">
                 {activeManualGravityPreviewMarkLabels.length ? (
                   activeManualGravityPreviewMarkLabels.map((label) => (
