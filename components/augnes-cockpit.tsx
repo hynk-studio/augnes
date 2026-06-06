@@ -4376,6 +4376,79 @@ function PerspectiveTab({
       ),
     },
   ];
+  const perspectiveConstellationSubstrateAuthorityItems =
+    perspectiveConstellationFormationAuthority
+      ? [
+          {
+            label: "read_only",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.read_only,
+            ),
+          },
+          {
+            label: "proposal_only",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.proposal_only,
+            ),
+          },
+          {
+            label: "cached",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.cached,
+            ),
+          },
+          {
+            label: "external_calls",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.external_calls,
+            ),
+          },
+          {
+            label: "api_billable",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.api_billable,
+            ),
+          },
+          {
+            label: "persistence",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.persistence,
+            ),
+          },
+          {
+            label: "graph_db_write",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.graph_db_write,
+            ),
+          },
+          {
+            label: "proof_evidence_write",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.proof_evidence_write,
+            ),
+          },
+          {
+            label: "codex_execution",
+            value: formatPerspectiveConstellationAuthorityFlag(
+              perspectiveConstellationFormationAuthority.codex_execution,
+            ),
+          },
+        ]
+      : [];
+  const perspectiveConstellationSubstrateSourceRefs =
+    perspectiveConstellationFormationReceipt?.source_refs ?? [];
+  const perspectiveConstellationSubstrateNodeAttributions =
+    perspectiveConstellationFormationReceipt
+      ? Object.entries(
+          perspectiveConstellationFormationReceipt.node_attributions,
+        )
+      : [];
+  const perspectiveConstellationSubstrateEdgeAttributions =
+    perspectiveConstellationFormationReceipt
+      ? Object.entries(
+          perspectiveConstellationFormationReceipt.edge_attributions,
+        )
+      : [];
   const perspectiveConstellationLensOptions: {
     id: PerspectiveConstellationLens;
     label: string;
@@ -5322,33 +5395,221 @@ function PerspectiveTab({
             </small>
           </summary>
           <div className="perspective-formation-archive-grid">
+            <section className="is-wide">
+              <h4>Formation Receipt</h4>
+              {perspectiveConstellationFormationReceipt ? (
+                <div className="perspective-substrate-field-grid">
+                  <div>
+                    <span>formation id</span>
+                    <code>
+                      {perspectiveConstellationFormationReceipt.formation_id}
+                    </code>
+                  </div>
+                  <div>
+                    <span>constellation id</span>
+                    <code>
+                      {perspectiveConstellationFormationReceipt.constellation_id}
+                    </code>
+                  </div>
+                  <div>
+                    <span>formation basis</span>
+                    <code>
+                      {perspectiveConstellationFormationReceipt.formation_basis}
+                    </code>
+                  </div>
+                  <div>
+                    <span>view mode</span>
+                    <code>
+                      {perspectiveConstellationFormationReceipt.view_mode}
+                    </code>
+                  </div>
+                  <div>
+                    <span>formed by</span>
+                    <strong>
+                      {perspectiveConstellationFormationReceipt.formed_by.label}
+                    </strong>
+                    <code>
+                      {
+                        perspectiveConstellationFormationReceipt.formed_by
+                          .actor_type
+                      }
+                    </code>
+                  </div>
+                  <div>
+                    <span>generated / as of</span>
+                    <time
+                      dateTime={
+                        perspectiveConstellationFormationReceipt.generated_at
+                      }
+                    >
+                      {formatPerspectiveConstellationTimestamp(
+                        perspectiveConstellationFormationReceipt.generated_at,
+                      )}
+                    </time>
+                    <time
+                      dateTime={perspectiveConstellationFormationReceipt.as_of}
+                    >
+                      {formatPerspectiveConstellationTimestamp(
+                        perspectiveConstellationFormationReceipt.as_of,
+                      )}
+                    </time>
+                  </div>
+                </div>
+              ) : (
+                <EmptyState label="No current Formation Receipt" />
+              )}
+            </section>
+            <section className="is-wide">
+              <h4>Source refs</h4>
+              {perspectiveConstellationSubstrateSourceRefs.length > 0 ? (
+                <div className="perspective-substrate-card-list">
+                  {perspectiveConstellationSubstrateSourceRefs.map((sourceRef) => (
+                    <article key={sourceRef.source_ref}>
+                      <strong>{sourceRef.source_label}</strong>
+                      <code>{sourceRef.source_ref}</code>
+                      <p>{sourceRef.provenance_note}</p>
+                      <div className="meta-row">
+                        <span>{sourceRef.source_kind}</span>
+                        <span>{sourceRef.source_scope}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No source refs in current receipt" />
+              )}
+            </section>
             <section>
-              <h4>Source docs</h4>
+              <h4>Criteria summary</h4>
               <RefChipList
-                refs={perspectiveConstellationArchiveDocs}
-                emptyLabel="No source docs listed"
+                refs={
+                  perspectiveConstellationFormationReceipt?.criteria_summary ?? []
+                }
+                emptyLabel="No criteria summary in current receipt"
               />
             </section>
             <section>
-              <h4>Source reports</h4>
-              <RefChipList
-                refs={perspectiveConstellationArchiveReports}
-                emptyLabel="No source reports listed"
-              />
+              <h4>Authority flags</h4>
+              {perspectiveConstellationSubstrateAuthorityItems.length > 0 ? (
+                <div className="perspective-substrate-authority-list">
+                  {perspectiveConstellationSubstrateAuthorityItems.map((item) => (
+                    <div key={item.label}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No authority flags in current receipt" />
+              )}
             </section>
             <section>
-              <h4>Validation results</h4>
+              <h4>Local boundary notes</h4>
               <RefChipList
-                refs={perspectiveConstellationArchiveValidationRefs}
-                emptyLabel="No validation refs listed"
+                refs={perspectiveConstellationUnitPreview?.local_boundary_notes ?? []}
+                emptyLabel="No local boundary notes in current preview"
               />
             </section>
+            <section className="is-wide">
+              <h4>Node attributions</h4>
+              {perspectiveConstellationSubstrateNodeAttributions.length > 0 ? (
+                <div className="perspective-substrate-card-list">
+                  {perspectiveConstellationSubstrateNodeAttributions.map(
+                    ([nodeId, attribution]) => (
+                      <article key={nodeId}>
+                        <strong>{nodeId}</strong>
+                        <p>{attribution.criteria.join(" · ")}</p>
+                        <RefChipList
+                          refs={[
+                            ...attribution.source_refs,
+                            ...attribution.source_episode_ids,
+                            ...attribution.evidence_pointer_ids,
+                          ]}
+                          emptyLabel="No node attribution refs"
+                        />
+                      </article>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <EmptyState label="No node attributions for current selection" />
+              )}
+            </section>
+            <section className="is-wide">
+              <h4>Edge attributions</h4>
+              {perspectiveConstellationSubstrateEdgeAttributions.length > 0 ? (
+                <div className="perspective-substrate-card-list">
+                  {perspectiveConstellationSubstrateEdgeAttributions.map(
+                    ([edgeId, attribution]) => (
+                      <article key={edgeId}>
+                        <strong>{edgeId}</strong>
+                        <p>{attribution.criteria.join(" · ")}</p>
+                        <RefChipList
+                          refs={[
+                            ...attribution.source_refs,
+                            ...attribution.source_episode_ids,
+                            ...attribution.evidence_pointer_ids,
+                          ]}
+                          emptyLabel="No edge attribution refs"
+                        />
+                      </article>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <EmptyState label="No edge attributions for current selection" />
+              )}
+            </section>
             <section>
-              <h4>Raw fixture/source refs</h4>
-              <RefChipList
-                refs={perspectiveConstellationArchiveSourceRefs}
-                emptyLabel="No raw fixture/source refs loaded"
-              />
+              <h4>Evidence pointers</h4>
+              <div className="perspective-substrate-card-list">
+                {perspectiveConstellationShellEvidencePointers.map((pointer) => (
+                  <article key={pointer.pointer_id}>
+                    <strong>{pointer.label}</strong>
+                    <code>{pointer.target_ref}</code>
+                    <p>{pointer.bounded_summary}</p>
+                  </article>
+                ))}
+              </div>
+              {perspectiveConstellationShellEvidencePointers.length === 0 ? (
+                <EmptyState label="No scoped evidence pointers" />
+              ) : null}
+            </section>
+            <section>
+              <h4>Unresolved tensions</h4>
+              <div className="perspective-substrate-card-list">
+                {perspectiveConstellationShellTensions.map((tension) => (
+                  <article key={tension.tension_id}>
+                    <strong>{tension.label}</strong>
+                    <p>{tension.summary}</p>
+                    <RefChipList
+                      refs={[...tension.source_refs, ...tension.evidence_pointer_ids]}
+                      emptyLabel="No tension refs"
+                    />
+                  </article>
+                ))}
+              </div>
+              {perspectiveConstellationShellTensions.length === 0 ? (
+                <EmptyState label="No scoped unresolved tensions" />
+              ) : null}
+            </section>
+            <section>
+              <h4>Next action candidates</h4>
+              <div className="perspective-substrate-card-list">
+                {perspectiveConstellationShellNextActions.map((candidate) => (
+                  <article key={candidate.candidate_id}>
+                    <strong>{candidate.label}</strong>
+                    <p>{candidate.summary}</p>
+                    <RefChipList
+                      refs={[...candidate.source_refs, ...candidate.blocked_by]}
+                      emptyLabel="No candidate refs"
+                    />
+                  </article>
+                ))}
+              </div>
+              {perspectiveConstellationShellNextActions.length === 0 ? (
+                <EmptyState label="No scoped next action candidates" />
+              ) : null}
             </section>
             <section>
               <h4>Archive/source material</h4>
@@ -5358,6 +5619,15 @@ function PerspectiveTab({
                 review material are preserved as inputs and outputs around this
                 work surface.
               </p>
+              <RefChipList
+                refs={[
+                  ...perspectiveConstellationArchiveDocs,
+                  ...perspectiveConstellationArchiveReports,
+                  ...perspectiveConstellationArchiveValidationRefs,
+                  ...perspectiveConstellationArchiveSourceRefs,
+                ]}
+                emptyLabel="No archive/source refs loaded"
+              />
             </section>
           </div>
         </details>
