@@ -1193,6 +1193,7 @@ code {
 }
 
 .perspective-manual-gravity-actions,
+.perspective-manual-gravity-apply-actions,
 .perspective-manual-gravity-chips,
 .perspective-manual-gravity-boundary {
   display: flex;
@@ -1201,7 +1202,8 @@ code {
   min-width: 0;
 }
 
-.perspective-manual-gravity-actions .secondary-button {
+.perspective-manual-gravity-actions .secondary-button,
+.perspective-manual-gravity-apply-actions .secondary-button {
   min-width: min(100%, 116px);
 }
 
@@ -1228,6 +1230,49 @@ code {
 .perspective-manual-gravity-chips span {
   border-color: rgba(79, 70, 229, 0.18);
   color: #3730a3;
+}
+
+.perspective-manual-gravity-applied-state,
+.perspective-manual-gravity-applied-summary,
+.perspective-preview-overrides-gravity-applied-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(14, 116, 144, 0.16);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.perspective-manual-gravity-applied-state.is-applied,
+.perspective-manual-gravity-applied-summary,
+.perspective-preview-overrides-gravity-applied-note {
+  border-color: rgba(13, 148, 136, 0.24);
+  background: #ecfdf5;
+}
+
+.perspective-manual-gravity-applied-state strong,
+.perspective-manual-gravity-applied-summary strong,
+.perspective-preview-overrides-gravity-applied-note strong {
+  max-width: 100%;
+  color: #0f766e;
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.perspective-manual-gravity-applied-state span,
+.perspective-manual-gravity-applied-state code,
+.perspective-manual-gravity-applied-summary span,
+.perspective-preview-overrides-gravity-applied-note span,
+.perspective-preview-overrides-gravity-applied-note code {
+  max-width: 100%;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 760;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .perspective-manual-gravity-local-draft {
@@ -2764,6 +2809,52 @@ h1 {
   fill: #dff3ed;
   stroke: #0d4f3e;
   stroke-width: 3;
+}
+
+.perspective-constellation-game-window
+  .ingest-constellation-node.is-gravity-preview-marked
+  circle {
+  filter: drop-shadow(0 0 8px rgba(20, 184, 166, 0.48));
+  stroke-width: 4;
+}
+
+.perspective-constellation-game-window
+  .ingest-constellation-node.is-gravity-preview-pinned
+  circle {
+  fill: #fef3c7;
+  stroke: #f59e0b;
+}
+
+.perspective-constellation-game-window
+  .ingest-constellation-node.is-gravity-preview-watched
+  circle {
+  fill: #dbeafe;
+  stroke: #2563eb;
+}
+
+.perspective-constellation-game-window
+  .ingest-constellation-node.is-gravity-preview-deferred
+  circle {
+  fill: #e2e8f0;
+  stroke: #64748b;
+}
+
+.perspective-constellation-game-window
+  .ingest-constellation-node.is-gravity-preview-boosted
+  circle {
+  fill: #dcfce7;
+  stroke: #16a34a;
+}
+
+.perspective-constellation-game-window
+  .ingest-constellation-node
+  .gravity-preview-node-badge {
+  fill: #f8fafc;
+  font-size: 0.62rem;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(15, 23, 42, 0.78);
+  stroke-width: 3px;
 }
 
 .ingest-constellation-detail-grid {

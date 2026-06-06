@@ -508,6 +508,20 @@ function getManualGravityLocalDraftReceipt(
   };
 }
 
+function mergeManualGravityPreviewMarks(
+  currentMarks: ManualGravityPreviewMark[] | undefined,
+  nextMarks: ManualGravityPreviewMark[],
+) {
+  return Array.from(new Set([...(currentMarks ?? []), ...nextMarks]));
+}
+
+function getManualGravityPreviewMarkClassName(mark: ManualGravityPreviewMark) {
+  if (mark === "pin") return "is-gravity-preview-pinned";
+  if (mark === "watch") return "is-gravity-preview-watched";
+  if (mark === "defer") return "is-gravity-preview-deferred";
+  return "is-gravity-preview-boosted";
+}
+
 function manualGravityLocalDraftMatchesContext(
   draft: ManualGravityLocalDraft,
   context: Omit<ManualGravityLocalDraft, "marks_by_target" | "saved_at" | "version">,
@@ -4314,6 +4328,8 @@ function PerspectiveTab({
     useState<ManualGravityLocalDraftStatus>("unavailable");
   const [manualGravityLocalDraftReceipt, setManualGravityLocalDraftReceipt] =
     useState<ManualGravityLocalDraftReceipt | null>(null);
+  const [appliedGravityPreviewActive, setAppliedGravityPreviewActive] =
+    useState(false);
   const [manualPastedText, setManualPastedText] = useState("");
   const [manualPastedTextSourceLabel, setManualPastedTextSourceLabel] =
     useState("");
@@ -4624,6 +4640,57 @@ function PerspectiveTab({
     selectedGravityPreviewMarks,
   );
   const hasManualGravityDraftableMarks = manualGravityPreviewMarkCount > 0;
+  const appliedGravityPreviewNodeMarksById: Record<
+    string,
+    ManualGravityPreviewMark[]
+  > = appliedGravityPreviewActive
+    ? Object.entries(selectedGravityPreviewMarks).reduce<
+        Record<string, ManualGravityPreviewMark[]>
+      >((nodeMarksById, [targetKey, marks]) => {
+        if (marks.length === 0) return nodeMarksById;
+
+        if (targetKey.startsWith("node:")) {
+          const nodeId = targetKey.slice("node:".length);
+          nodeMarksById[nodeId] = mergeManualGravityPreviewMarks(
+            nodeMarksById[nodeId],
+            marks,
+          );
+          return nodeMarksById;
+        }
+
+        if (targetKey.startsWith("cluster:")) {
+          const clusterId = targetKey.slice("cluster:".length);
+          const cluster = perspectiveIngestConstellation?.clusters.find(
+            (candidateCluster) => candidateCluster.id === clusterId,
+          );
+          cluster?.node_ids.forEach((nodeId) => {
+            nodeMarksById[nodeId] = mergeManualGravityPreviewMarks(
+              nodeMarksById[nodeId],
+              marks,
+            );
+          });
+          return nodeMarksById;
+        }
+
+        if (
+          targetKey === `manual:${perspectiveConstellationUnitPreview?.preview_id}`
+        ) {
+          perspectiveConstellationUnitPreview?.selected_node_ids.forEach(
+            (nodeId) => {
+              nodeMarksById[nodeId] = mergeManualGravityPreviewMarks(
+                nodeMarksById[nodeId],
+                marks,
+              );
+            },
+          );
+        }
+
+        return nodeMarksById;
+      }, {})
+    : {};
+  const appliedGravityPreviewNodeCount = Object.keys(
+    appliedGravityPreviewNodeMarksById,
+  ).length;
   const perspectiveConstellationScopedChatGptPacketText =
     perspectiveConstellationUnitPreview?.chatgpt_review_packet_text ?? "";
   const perspectiveConstellationScopedCodexHandoffPacketText =
@@ -5186,6 +5253,7 @@ function PerspectiveTab({
       setSelectedGravityPreviewMarks({});
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
+      setAppliedGravityPreviewActive(false);
       return;
     }
 
@@ -5327,6 +5395,15 @@ function PerspectiveTab({
     });
   }
 
+  function applyManualGravityPreview() {
+    if (!hasManualGravityDraftableMarks) return;
+    setAppliedGravityPreviewActive(true);
+  }
+
+  function resetManualGravityPreviewApplication() {
+    setAppliedGravityPreviewActive(false);
+  }
+
   function saveManualGravityLocalDraftMarks() {
     if (
       !manualGravityLocalDraftContext ||
@@ -5370,6 +5447,7 @@ function PerspectiveTab({
     restoredManualGravityLocalDraftContextRef.current = null;
     setSelectedGravityPreviewMarks({});
     setManualGravityLocalDraftReceipt(null);
+    setAppliedGravityPreviewActive(false);
     setManualGravityLocalDraftStatus("cleared");
   }
 
@@ -5381,6 +5459,7 @@ function PerspectiveTab({
       manualGravityLocalDraftContext ? "unsaved_changes" : "unavailable",
     );
     setManualGravityLocalDraftReceipt(null);
+    setAppliedGravityPreviewActive(false);
     setSelectedGravityPreviewMarks((currentMarks) => {
       const currentSelectionMarks = currentMarks[selectionKey] ?? [];
       const nextSelectionMarks = currentSelectionMarks.includes(mark)
@@ -5408,6 +5487,7 @@ function PerspectiveTab({
       manualGravityLocalDraftContext ? "unsaved_changes" : "unavailable",
     );
     setManualGravityLocalDraftReceipt(null);
+    setAppliedGravityPreviewActive(false);
     setSelectedGravityPreviewMarks((currentMarks) => {
       const { [selectionKey]: _removedSelection, ...remainingMarks } =
         currentMarks;
@@ -5432,6 +5512,7 @@ function PerspectiveTab({
     setSelectedGravityPreviewMarks({});
     setManualGravityLocalDraftStatus("unsaved");
     setManualGravityLocalDraftReceipt(null);
+    setAppliedGravityPreviewActive(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
@@ -5478,12 +5559,14 @@ function PerspectiveTab({
     setSelectedGravityPreviewMarks({});
     setManualGravityLocalDraftStatus("unsaved");
     setManualGravityLocalDraftReceipt(null);
+    setAppliedGravityPreviewActive(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
 
     if (!pastedTextInput.trim()) {
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
+      setAppliedGravityPreviewActive(false);
       setPerspectiveIngestConstellationPreviewState({
         status: "failed",
         error: PERSPECTIVE_INGEST_MISSING_INPUT_ERROR,
@@ -5797,6 +5880,17 @@ function PerspectiveTab({
               </div>
             ))}
           </div>
+          {appliedGravityPreviewActive ? (
+            <div
+              className="perspective-manual-gravity-applied-summary"
+              aria-label="Manual Gravity applied preview summary"
+            >
+              <strong>Manual Gravity preview applied</strong>
+              <span>Local visual emphasis only</span>
+              <span>No source graph changes</span>
+              <span>No persistence or graph DB write</span>
+            </div>
+          ) : null}
         </section>
         {formationBasisExplanationOpen ? (
           <aside
@@ -5959,6 +6053,9 @@ function PerspectiveTab({
                   edges={perspectiveIngestConstellation.edges}
                   selectedNodeId={selectedPerspectiveIngestNodeId}
                   surface="workspace"
+                  gravityPreviewNodeMarksById={
+                    appliedGravityPreviewNodeMarksById
+                  }
                   onSelectNode={selectPerspectiveConstellationNode}
                 />
               ) : (
@@ -6086,6 +6183,48 @@ function PerspectiveTab({
                 >
                   Clear Preview Marks
                 </button>
+              </div>
+              <div
+                className="perspective-manual-gravity-apply-actions"
+                aria-label="Manual Gravity Apply Preview actions"
+              >
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={!hasManualGravityDraftableMarks}
+                  onClick={applyManualGravityPreview}
+                >
+                  Apply Gravity Preview
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={!appliedGravityPreviewActive}
+                  onClick={resetManualGravityPreviewApplication}
+                >
+                  Reset Gravity Preview
+                </button>
+              </div>
+              <div
+                className={`perspective-manual-gravity-applied-state${
+                  appliedGravityPreviewActive ? " is-applied" : ""
+                }`}
+                aria-label="Manual Gravity Apply Preview status"
+              >
+                <strong>
+                  {appliedGravityPreviewActive
+                    ? "Gravity Preview Applied"
+                    : "Gravity Preview not applied"}
+                </strong>
+                <span>Local visual emphasis only.</span>
+                <span>No source graph changes.</span>
+                <span>No FormationReceiptV0 authority change.</span>
+                <span>No persistence or graph DB write.</span>
+                {appliedGravityPreviewActive ? (
+                  <span>
+                    applied nodes <code>{appliedGravityPreviewNodeCount}</code>
+                  </span>
+                ) : null}
               </div>
               <div className="perspective-manual-gravity-chips">
                 {activeManualGravityPreviewMarkLabels.length ? (
@@ -6502,6 +6641,19 @@ function PerspectiveTab({
                 graph changes. Not written as stored FormationReceiptV0
                 authority. No graph DB write.
               </p>
+              {appliedGravityPreviewActive ? (
+                <div className="perspective-preview-overrides-gravity-applied-note">
+                  <strong>Gravity Preview Applied</strong>
+                  <span>
+                    Local visual emphasis only · No source graph changes · No
+                    FormationReceiptV0 authority change · No persistence or
+                    graph DB write
+                  </span>
+                  <span>
+                    applied nodes <code>{appliedGravityPreviewNodeCount}</code>
+                  </span>
+                </div>
+              ) : null}
               {showManualGravityLocalDraftReceipt &&
               manualGravityLocalDraftReceipt ? (
                 <div className="perspective-preview-overrides-draft-note">
@@ -7761,6 +7913,7 @@ function PerspectiveTab({
                   setSelectedGravityPreviewMarks({});
                   setManualGravityLocalDraftStatus("unsaved");
                   setManualGravityLocalDraftReceipt(null);
+                  setAppliedGravityPreviewActive(false);
                 }}
               />
               sample:chatgpt
@@ -7777,6 +7930,7 @@ function PerspectiveTab({
                   setSelectedGravityPreviewMarks({});
                   setManualGravityLocalDraftStatus("unsaved");
                   setManualGravityLocalDraftReceipt(null);
+                  setAppliedGravityPreviewActive(false);
                 }}
               />
               sample:codex
@@ -18636,6 +18790,7 @@ function TensionList({
 
 function PerspectiveIngestConstellationGraph({
   edges,
+  gravityPreviewNodeMarksById = {},
   nodes,
   onSelectNode,
   selectedNodeId,
@@ -18646,6 +18801,7 @@ function PerspectiveIngestConstellationGraph({
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
   surface?: "preview" | "workspace";
+  gravityPreviewNodeMarksById?: Record<string, ManualGravityPreviewMark[]>;
 }) {
   const workspace = surface === "workspace";
   const width = workspace ? 1080 : 840;
@@ -18712,10 +18868,20 @@ function PerspectiveIngestConstellationGraph({
           const position = positions.get(node.id) ?? { x: centerX, y: centerY };
           const selected = node.id === selectedNodeId;
           const displayLabel = formatPerspectiveIngestGraphNodeLabel(node.label);
+          const gravityPreviewMarks = gravityPreviewNodeMarksById[node.id] ?? [];
+          const gravityPreviewClassName =
+            gravityPreviewMarks.length > 0
+              ? ` is-gravity-preview-marked ${gravityPreviewMarks
+                  .map((mark) => getManualGravityPreviewMarkClassName(mark))
+                  .join(" ")}`
+              : "";
+          const gravityPreviewBadgeLabel = gravityPreviewMarks
+            .map((mark) => mark.slice(0, 1).toUpperCase())
+            .join("");
 
           return (
             <g
-              className={`ingest-constellation-node${selected ? " selected" : ""}`}
+              className={`ingest-constellation-node${selected ? " selected" : ""}${gravityPreviewClassName}`}
               key={node.id}
               role="button"
               tabIndex={0}
@@ -18731,6 +18897,15 @@ function PerspectiveIngestConstellationGraph({
             >
               <title>{`${node.label}, ${node.type}`}</title>
               <circle cx={position.x} cy={position.y} r={selected ? 25 : 22} />
+              {gravityPreviewMarks.length > 0 ? (
+                <text
+                  className="gravity-preview-node-badge"
+                  x={position.x}
+                  y={position.y - 29}
+                >
+                  {gravityPreviewBadgeLabel}
+                </text>
+              ) : null}
               <text x={position.x} y={position.y + 42}>
                 {displayLabel}
               </text>
