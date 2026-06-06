@@ -1103,6 +1103,10 @@ code {
   background: #f8fafc;
 }
 
+.perspective-formation-archive-grid section.is-wide {
+  grid-column: 1 / -1;
+}
+
 .perspective-formation-archive-grid h4 {
   margin: 0 0 8px;
   color: #0f172a;
@@ -1114,6 +1118,100 @@ code {
   color: #475569;
   font-size: 0.82rem;
   line-height: 1.42;
+}
+
+.perspective-substrate-field-grid,
+.perspective-substrate-authority-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-substrate-field-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.perspective-substrate-authority-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.perspective-substrate-field-grid > div,
+.perspective-substrate-authority-list > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-substrate-field-grid span,
+.perspective-substrate-authority-list span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.perspective-substrate-field-grid strong,
+.perspective-substrate-field-grid code,
+.perspective-substrate-field-grid time,
+.perspective-substrate-authority-list strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.perspective-substrate-field-grid strong,
+.perspective-substrate-field-grid code,
+.perspective-substrate-field-grid time,
+.perspective-substrate-authority-list strong {
+  color: #0f172a;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.perspective-substrate-card-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.perspective-substrate-card-list article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-substrate-card-list strong,
+.perspective-substrate-card-list code,
+.perspective-substrate-card-list p {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.perspective-substrate-card-list strong {
+  color: #0f172a;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.perspective-substrate-card-list code {
+  color: #0f766e;
+  font-size: 0.74rem;
 }
 
 .perspective-hero-heading {
@@ -5034,6 +5132,11 @@ h1 {
 
   .perspective-formation-summary-grid,
   .perspective-formation-authority-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .perspective-substrate-field-grid,
+  .perspective-substrate-authority-list {
     grid-template-columns: minmax(0, 1fr);
   }
 

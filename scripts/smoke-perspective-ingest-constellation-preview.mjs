@@ -62,6 +62,7 @@ assertPerspectiveUnitPreviewBuilder();
 assertHelperAndRouteShape();
 assertCockpitSurface();
 assertFormationSummaryOverlay();
+assertFormationSubstratePanel();
 assertCssHooks();
 assertPerspectiveConstellationStressRegressionFixes();
 assertBoundaryDocs();
@@ -339,10 +340,12 @@ function assertCockpitSurface() {
     "Closeout",
     "Next Perspective",
     "Formation / Archive",
-    "Source docs",
-    "Source reports",
-    "Validation results",
-    "Raw fixture/source refs",
+    "Formation Receipt",
+    "Source refs",
+    "Criteria summary",
+    "Authority flags",
+    "Node attributions",
+    "Edge attributions",
     "Archive/source material",
     "id=\"perspective-ingest-constellation-preview\"",
     "Perspective Ingest Constellation",
@@ -424,6 +427,45 @@ function assertFormationSummaryOverlay() {
   );
 }
 
+function assertFormationSubstratePanel() {
+  const cockpitText = textByFile.get(cockpitFile);
+
+  assertContainsAll(cockpitFile, [
+    "perspectiveConstellationSubstrateSourceRefs",
+    "perspectiveConstellationSubstrateAuthorityItems",
+    "perspectiveConstellationSubstrateNodeAttributions",
+    "perspectiveConstellationSubstrateEdgeAttributions",
+    "perspectiveConstellationFormationReceipt.node_attributions",
+    "perspectiveConstellationFormationReceipt.edge_attributions",
+    "perspectiveConstellationFormationReceipt?.criteria_summary",
+    "perspectiveConstellationUnitPreview?.local_boundary_notes",
+    "Formation / Archive",
+    "Formation Receipt",
+    "Source refs",
+    "Criteria summary",
+    "Authority flags",
+    "Local boundary notes",
+    "Node attributions",
+    "Edge attributions",
+    "Evidence pointers",
+    "Unresolved tensions",
+    "Next action candidates",
+    "No current Formation Receipt",
+    "No source refs in current receipt",
+    "No criteria summary in current receipt",
+    "No authority flags in current receipt",
+    "No node attributions for current selection",
+    "No edge attributions for current selection",
+    "No scoped evidence pointers",
+    "No scoped unresolved tensions",
+    "No scoped next action candidates",
+  ], { textByFile });
+  assert(
+    !/\blocalStorage\b/.test(cockpitText),
+    "Formation Substrate panel must not introduce localStorage",
+  );
+}
+
 function assertCssHooks() {
   assertContainsAll(cssFile, [
     "perspective-constellation-workspace-shell",
@@ -448,6 +490,10 @@ function assertCssHooks() {
     "perspective-time-axis-event-rail",
     "perspective-event-rail-track",
     "perspective-formation-archive-drawer",
+    "perspective-substrate-field-grid",
+    "perspective-substrate-authority-list",
+    "perspective-substrate-card-list",
+    "section.is-wide",
     "perspective-ingest-constellation-section",
     "ingest-constellation-toolbar",
     "ingest-constellation-stage",
