@@ -56,6 +56,7 @@ assertTypeExports();
 assertHelperAndRouteShape();
 assertCockpitSurface();
 assertCssHooks();
+assertPerspectiveConstellationStressRegressionFixes();
 assertBoundaryDocs();
 assertNoExternalCallPatterns();
 
@@ -275,6 +276,33 @@ function assertCssHooks() {
     "ingest-constellation-detail-grid",
     "ingest-constellation-packet-actions",
   ], { textByFile });
+}
+
+function assertPerspectiveConstellationStressRegressionFixes() {
+  const cockpitText = textByFile.get(cockpitFile);
+  const cssText = textByFile.get(cssFile);
+  const wholeConstellationResetPairPattern =
+    /setPerspectiveConstellationSelectionScope\("whole_constellation"\);\s+setSelectedPerspectiveConstellationLens\("whole_constellation"\);/g;
+
+  assert(
+    cockpitText.match(wholeConstellationResetPairPattern)?.length >= 3,
+    "source/manual preview resets must reset active lens with whole-constellation scope",
+  );
+  assertContainsAll(cssFile, [
+    ".perspective-ingest-constellation-section .ingest-constellation-stage",
+    ".perspective-ingest-constellation-section .ingest-constellation-svg",
+    "overflow-wrap: anywhere",
+  ], { textByFile });
+  assert(
+    /@media \(max-width: 760px\)[\s\S]*\.perspective-ingest-constellation-section \.ingest-constellation-svg\s*\{[\s\S]*min-width: 0;/m.test(
+      cssText,
+    ),
+    "mobile lower ingest preview SVG must not force page-level horizontal overflow",
+  );
+  assert(
+    !cssText.includes("min-width: 560px"),
+    "mobile ingest constellation SVG must not keep a 560px forced min-width",
+  );
 }
 
 function assertBoundaryDocs() {

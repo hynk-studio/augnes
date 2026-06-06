@@ -1825,6 +1825,7 @@ h1 {
 
 .perspective-ingest-constellation-section {
   border-color: rgba(13, 79, 62, 0.22);
+  min-width: 0;
 }
 
 .ingest-constellation-dense-note {
@@ -1938,6 +1939,7 @@ h1 {
 .ingest-constellation-svg {
   display: block;
   width: 100%;
+  max-width: 100%;
   min-width: 620px;
   height: auto;
   min-height: 320px;
@@ -4857,6 +4859,32 @@ h1 {
     scroll-margin-top: 94px;
   }
 
+  .perspective-tab,
+  .perspective-grid,
+  .perspective-frame-summary,
+  .project-constellation-route-preview-section,
+  .project-constellation-preview-section,
+  .perspective-tab .tab-stat-row,
+  .perspective-tab .metric-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .perspective-tab .metric-card span,
+  .perspective-tab .metric-card strong,
+  .perspective-tab .metric-card small,
+  .perspective-tab .meta-row,
+  .perspective-tab .meta-row span,
+  .perspective-tab .meta-row code,
+  .perspective-tab .meta-row time,
+  .perspective-frame-summary strong,
+  .perspective-frame-summary code {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   .perspective-constellation-workspace-shell {
     padding: 12px;
     scroll-margin-top: 120px;
@@ -4896,8 +4924,17 @@ h1 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .ingest-constellation-svg {
-    min-width: 560px;
+  .perspective-ingest-constellation-section .ingest-constellation-stage,
+  .perspective-ingest-constellation-section .meta-row,
+  .perspective-ingest-constellation-section .meta-row span,
+  .perspective-ingest-constellation-section .meta-row code {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .perspective-ingest-constellation-section .ingest-constellation-svg {
+    min-width: 0;
   }
 
   .perspective-trace-strip {

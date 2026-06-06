@@ -4546,6 +4546,7 @@ function PerspectiveTab({
       setSelectedPerspectiveIngestNodeId(null);
       setSelectedPerspectiveIngestClusterId(null);
       setPerspectiveConstellationSelectionScope("whole_constellation");
+      setSelectedPerspectiveConstellationLens("whole_constellation");
       return;
     }
 
@@ -4654,6 +4655,7 @@ function PerspectiveTab({
     );
     setPerspectiveIngestCopyNotice(null);
     setPerspectiveConstellationSelectionScope("whole_constellation");
+    setSelectedPerspectiveConstellationLens("whole_constellation");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
@@ -4680,6 +4682,7 @@ function PerspectiveTab({
     setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
     setPerspectiveIngestCopyNotice(null);
     setPerspectiveConstellationSelectionScope("whole_constellation");
+    setSelectedPerspectiveConstellationLens("whole_constellation");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
 
