@@ -542,6 +542,459 @@ code {
     var(--shadow);
 }
 
+.perspective-constellation-workspace-shell {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #ffffff 64%),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.08), transparent 38%);
+  box-shadow: var(--shadow);
+  scroll-margin-top: 188px;
+}
+
+.perspective-constellation-shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.perspective-constellation-shell-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 2rem;
+  line-height: 1.08;
+}
+
+.perspective-constellation-shell-header p:not(.panel-eyebrow) {
+  max-width: 880px;
+  margin-top: 6px;
+  color: #334155;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.perspective-constellation-shell-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.perspective-constellation-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr) minmax(300px, 0.36fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.perspective-lens-scope-panel,
+.perspective-inspector-handoff-panel,
+.perspective-time-axis-event-rail,
+.perspective-formation-archive-drawer {
+  min-width: 0;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.perspective-lens-scope-panel,
+.perspective-inspector-handoff-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 12px;
+}
+
+.perspective-shell-panel-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.perspective-shell-panel-heading h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.perspective-lens-option-list {
+  display: grid;
+  gap: 8px;
+}
+
+.perspective-lens-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  color: #1e293b;
+  background: #f8fafc;
+  text-align: left;
+  cursor: pointer;
+}
+
+.perspective-lens-option[aria-pressed="true"] {
+  border-color: rgba(14, 116, 144, 0.48);
+  background: #ecfeff;
+  box-shadow: inset 3px 0 0 #0891b2;
+}
+
+.perspective-lens-option span,
+.perspective-lens-option strong {
+  font-size: 0.84rem;
+  line-height: 1.2;
+}
+
+.perspective-lens-option strong {
+  color: #0f766e;
+}
+
+.perspective-lens-option small {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.perspective-lens-scope-summary,
+.perspective-lens-source-summary {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.82rem;
+}
+
+.perspective-lens-scope-summary strong,
+.perspective-lens-source-summary code {
+  overflow-wrap: anywhere;
+}
+
+.perspective-constellation-game-window {
+  display: grid;
+  grid-template-rows: auto minmax(500px, auto) auto;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.28);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(14, 165, 233, 0.2), transparent 42%),
+    linear-gradient(180deg, #111827 0%, #0f172a 100%);
+  color: #e5e7eb;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.perspective-game-window-topbar,
+.perspective-game-window-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.perspective-game-window-topbar h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.05rem;
+}
+
+.perspective-game-window-topbar .panel-eyebrow {
+  border-color: rgba(125, 211, 252, 0.35);
+  background: rgba(8, 47, 73, 0.7);
+  color: #bae6fd;
+}
+
+.perspective-game-window-metrics,
+.perspective-game-window-caption {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.perspective-game-window-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.perspective-game-window-metrics span,
+.perspective-game-window-caption span {
+  padding: 4px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.66);
+}
+
+.perspective-constellation-canvas-frame {
+  min-width: 0;
+  min-height: 500px;
+  max-height: 620px;
+  overflow: auto;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    rgba(2, 6, 23, 0.58);
+  background-size: 28px 28px;
+}
+
+.perspective-constellation-game-window .ingest-constellation-svg {
+  width: 100%;
+  min-width: 0;
+  min-height: 500px;
+  height: 100%;
+}
+
+.perspective-constellation-game-window .ingest-constellation-edge line {
+  stroke: rgba(125, 211, 252, 0.42);
+}
+
+.perspective-constellation-game-window .ingest-constellation-edge text {
+  fill: #fcd34d;
+}
+
+.perspective-constellation-game-window .ingest-constellation-node circle {
+  fill: #0f766e;
+  stroke: #bae6fd;
+}
+
+.perspective-constellation-game-window .ingest-constellation-node text {
+  fill: #f8fafc;
+}
+
+.perspective-constellation-game-window .ingest-constellation-node:hover circle,
+.perspective-constellation-game-window .ingest-constellation-node:focus-visible circle,
+.perspective-constellation-game-window .ingest-constellation-node.selected circle {
+  fill: #f59e0b;
+  stroke: #fef3c7;
+}
+
+.perspective-inspector-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.perspective-inspector-section h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.perspective-selection-scope-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.perspective-selection-scope-row span {
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.perspective-selection-scope-row strong {
+  padding: 4px 7px;
+  border: 1px solid rgba(14, 116, 144, 0.24);
+  border-radius: 999px;
+  color: #0f766e;
+  background: #ecfeff;
+  font-size: 0.76rem;
+}
+
+.perspective-inspector-section p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.perspective-inspector-handoff-panel .meta-row,
+.perspective-formation-archive-grid .meta-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.perspective-inspector-handoff-panel .meta-row span,
+.perspective-formation-archive-grid .meta-row span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.perspective-inspector-handoff-panel .meta-row code,
+.perspective-formation-archive-grid .meta-row code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.perspective-inspector-section.is-tension {
+  border-color: rgba(217, 119, 6, 0.24);
+  background: #fffbeb;
+}
+
+.perspective-selection-action-menu {
+  border-color: rgba(14, 116, 144, 0.18);
+}
+
+.perspective-packet-target-toggle,
+.perspective-packet-copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.perspective-action-button-grid,
+.perspective-cluster-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.perspective-action-button-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.perspective-cluster-picker span {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 760;
+}
+
+.perspective-packet-preview textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.perspective-time-axis-event-rail {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.perspective-event-rail-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.perspective-event-rail-item {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.perspective-event-rail-item span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: #0f172a;
+  background: #bae6fd;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.perspective-event-rail-item strong {
+  color: #0f172a;
+  font-size: 0.84rem;
+}
+
+.perspective-event-rail-item p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.perspective-formation-archive-drawer {
+  padding: 0;
+}
+
+.perspective-formation-archive-drawer summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.perspective-formation-archive-drawer summary span {
+  font-weight: 780;
+}
+
+.perspective-formation-archive-drawer summary small {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.perspective-formation-archive-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.perspective-formation-archive-grid section {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.perspective-formation-archive-grid h4 {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 0.84rem;
+}
+
+.perspective-formation-archive-grid p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
 .perspective-hero-heading {
   display: flex;
   flex-wrap: wrap;
@@ -1372,6 +1825,7 @@ h1 {
 
 .perspective-ingest-constellation-section {
   border-color: rgba(13, 79, 62, 0.22);
+  min-width: 0;
 }
 
 .ingest-constellation-dense-note {
@@ -1485,6 +1939,7 @@ h1 {
 .ingest-constellation-svg {
   display: block;
   width: 100%;
+  max-width: 100%;
   min-width: 620px;
   height: auto;
   min-height: 320px;
@@ -4325,6 +4780,8 @@ h1 {
   .bridge-grid,
   .perspective-trace-strip,
   .perspective-frame-summary,
+  .perspective-constellation-workspace-grid,
+  .perspective-formation-archive-grid,
   .perspective-evidence-grid,
   .perspective-evidence-handoff-grid,
   .perspective-evidence-handoff-next,
@@ -4402,6 +4859,55 @@ h1 {
     scroll-margin-top: 94px;
   }
 
+  .perspective-tab,
+  .perspective-grid,
+  .perspective-frame-summary,
+  .project-constellation-route-preview-section,
+  .project-constellation-preview-section,
+  .perspective-tab .tab-stat-row,
+  .perspective-tab .metric-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .perspective-tab .metric-card span,
+  .perspective-tab .metric-card strong,
+  .perspective-tab .metric-card small,
+  .perspective-tab .meta-row,
+  .perspective-tab .meta-row span,
+  .perspective-tab .meta-row code,
+  .perspective-tab .meta-row time,
+  .perspective-frame-summary strong,
+  .perspective-frame-summary code {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .perspective-constellation-workspace-shell {
+    padding: 12px;
+    scroll-margin-top: 120px;
+  }
+
+  .perspective-constellation-shell-header h2 {
+    font-size: 1.55rem;
+  }
+
+  .perspective-constellation-game-window {
+    grid-template-rows: auto minmax(340px, auto) auto;
+  }
+
+  .perspective-constellation-canvas-frame {
+    min-height: 360px;
+    max-height: 520px;
+  }
+
+  .perspective-constellation-game-window .ingest-constellation-svg {
+    min-width: 0;
+    min-height: 380px;
+  }
+
   .perspective-frame-section {
     scroll-margin-top: 120px;
   }
@@ -4418,8 +4924,17 @@ h1 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .ingest-constellation-svg {
-    min-width: 560px;
+  .perspective-ingest-constellation-section .ingest-constellation-stage,
+  .perspective-ingest-constellation-section .meta-row,
+  .perspective-ingest-constellation-section .meta-row span,
+  .perspective-ingest-constellation-section .meta-row code {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .perspective-ingest-constellation-section .ingest-constellation-svg {
+    min-width: 0;
   }
 
   .perspective-trace-strip {

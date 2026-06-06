@@ -56,6 +56,7 @@ assertTypeExports();
 assertHelperAndRouteShape();
 assertCockpitSurface();
 assertCssHooks();
+assertPerspectiveConstellationStressRegressionFixes();
 assertBoundaryDocs();
 assertNoExternalCallPatterns();
 
@@ -192,6 +193,50 @@ function assertCockpitSurface() {
     "copyPerspectiveIngestCodexHandoffPacket",
     "selectPerspectiveIngestPacketText",
     "Ingest graph",
+    'useState<CockpitTab>("perspective")',
+    'id="perspective-constellation-workspace"',
+    "Perspective Constellation",
+    "Constellation workspace",
+    "Lens / Scope",
+    "Whole Constellation",
+    "Connected Nodes",
+    "Open Tensions",
+    "Next Candidates",
+    "Codex Handoff",
+    "Central Constellation Game Window",
+    "Inspector / Action / Handoff",
+    "Selection scope",
+    "Selected node / cluster summary",
+    "Thesis / capsule summary",
+    "Node / Cluster Action Menu",
+    "Inspect connected nodes",
+    "Preview Perspective Unit",
+    "Mark as Next Candidate Preview",
+    "ChatGPT review packet preview",
+    "Codex handoff packet preview",
+    "ChatGPT / Codex handoff preview scoped to selection",
+    "Copy ChatGPT Review Packet",
+    "Copy Codex Handoff Packet",
+    "Selection-scoped preview/copy only",
+    "buildPerspectiveConstellationScopedPacketText",
+    "Selection scope:",
+    "Selected graph material:",
+    "Unresolved tensions (kept separate):",
+    "Next action candidates (advisory only):",
+    "Time Axis / Event Rail",
+    "Session",
+    "Decision",
+    "Handoff",
+    "PR",
+    "Review",
+    "Closeout",
+    "Next Perspective",
+    "Formation / Archive",
+    "Source docs",
+    "Source reports",
+    "Validation results",
+    "Raw fixture/source refs",
+    "Archive/source material",
     "id=\"perspective-ingest-constellation-preview\"",
     "Perspective Ingest Constellation",
     "sample:chatgpt",
@@ -201,11 +246,27 @@ function assertCockpitSurface() {
     "Copy Codex handoff packet",
     "Currently selected packet text",
     "PerspectiveIngestConstellationGraph",
+    'surface="workspace"',
   ], { textByFile });
 }
 
 function assertCssHooks() {
   assertContainsAll(cssFile, [
+    "perspective-constellation-workspace-shell",
+    "perspective-constellation-workspace-grid",
+    "perspective-lens-scope-panel",
+    "perspective-lens-option",
+    "perspective-constellation-game-window",
+    "perspective-constellation-canvas-frame",
+    "perspective-inspector-handoff-panel",
+    "perspective-selection-scope-row",
+    "perspective-selection-action-menu",
+    "perspective-action-button-grid",
+    "perspective-cluster-picker",
+    "perspective-packet-preview",
+    "perspective-time-axis-event-rail",
+    "perspective-event-rail-track",
+    "perspective-formation-archive-drawer",
     "perspective-ingest-constellation-section",
     "ingest-constellation-toolbar",
     "ingest-constellation-stage",
@@ -215,6 +276,33 @@ function assertCssHooks() {
     "ingest-constellation-detail-grid",
     "ingest-constellation-packet-actions",
   ], { textByFile });
+}
+
+function assertPerspectiveConstellationStressRegressionFixes() {
+  const cockpitText = textByFile.get(cockpitFile);
+  const cssText = textByFile.get(cssFile);
+  const wholeConstellationResetPairPattern =
+    /setPerspectiveConstellationSelectionScope\("whole_constellation"\);\s+setSelectedPerspectiveConstellationLens\("whole_constellation"\);/g;
+
+  assert(
+    cockpitText.match(wholeConstellationResetPairPattern)?.length >= 3,
+    "source/manual preview resets must reset active lens with whole-constellation scope",
+  );
+  assertContainsAll(cssFile, [
+    ".perspective-ingest-constellation-section .ingest-constellation-stage",
+    ".perspective-ingest-constellation-section .ingest-constellation-svg",
+    "overflow-wrap: anywhere",
+  ], { textByFile });
+  assert(
+    /@media \(max-width: 760px\)[\s\S]*\.perspective-ingest-constellation-section \.ingest-constellation-svg\s*\{[\s\S]*min-width: 0;/m.test(
+      cssText,
+    ),
+    "mobile lower ingest preview SVG must not force page-level horizontal overflow",
+  );
+  assert(
+    !cssText.includes("min-width: 560px"),
+    "mobile ingest constellation SVG must not keep a 560px forced min-width",
+  );
 }
 
 function assertBoundaryDocs() {
