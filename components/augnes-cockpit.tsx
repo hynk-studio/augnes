@@ -317,6 +317,12 @@ type PerspectiveEventRailEntry = {
   statusLabel: string;
   relatedRefs: string[];
 };
+type PerspectiveFormationBasisExplanationCandidate =
+  | "current"
+  | "manual_selection"
+  | "historical_snapshot"
+  | "auto_proposal"
+  | "experimental";
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
   code: string;
@@ -4100,6 +4106,10 @@ function PerspectiveTab({
     formationBasisExplanationOpen,
     setFormationBasisExplanationOpen,
   ] = useState(false);
+  const [
+    selectedFormationBasisExplanation,
+    setSelectedFormationBasisExplanation,
+  ] = useState<PerspectiveFormationBasisExplanationCandidate>("current");
   const [manualPastedText, setManualPastedText] = useState("");
   const [manualPastedTextSourceLabel, setManualPastedTextSourceLabel] =
     useState("");
@@ -4476,8 +4486,18 @@ function PerspectiveTab({
           perspectiveConstellationFormationReceipt.edge_attributions,
         )
       : [];
-  const perspectiveConstellationFormationBasisExplanations = [
+  const perspectiveConstellationActiveReceiptBasis =
+    perspectiveConstellationFormationReceipt?.formation_basis ?? "unavailable";
+  const perspectiveConstellationFormationBasisExplanations: {
+    id: PerspectiveFormationBasisExplanationCandidate;
+    label: string;
+    status: string;
+    copy: string;
+    previewTitle: string;
+    previewCopy: string;
+  }[] = [
     {
+      id: "current",
       label: "Current",
       status:
         perspectiveConstellationFormationReceipt?.formation_basis === "current"
@@ -4485,8 +4505,12 @@ function PerspectiveTab({
           : "available explanation",
       copy:
         "Active local PerspectiveUnitPreview formed from the current Perspective ingest Constellation preview.",
+      previewTitle: "Current preview",
+      previewCopy:
+        "This is already the active local PerspectiveUnitPreview when the receipt basis is current. Selecting this explanation candidate does not re-run ingest, rearrange the graph, or change the active receipt basis.",
     },
     {
+      id: "manual_selection",
       label: "Manual Selection",
       status:
         perspectiveConstellationFormationReceipt?.formation_basis ===
@@ -4495,26 +4519,45 @@ function PerspectiveTab({
           : "available explanation",
       copy:
         "User-selected graph scope. Local-only, preview-only, no new facts, no persistence.",
+      previewTitle: "Manual Selection candidate preview",
+      previewCopy:
+        "If supported as a formation basis, this would remain local-only and would be based on selected graph material. It would add no new facts, create no persistence, and apply no rearranged view in this slice.",
     },
     {
+      id: "historical_snapshot",
       label: "Historical Snapshot",
       status: "future behavior / not implemented here",
       copy:
         "Future archive behavior. No frozen snapshot is created in this slice.",
+      previewTitle: "Historical Snapshot candidate preview",
+      previewCopy:
+        "This is future archive behavior. No frozen snapshot exists in this slice, no snapshot is created, and no archive state is persisted.",
     },
     {
+      id: "auto_proposal",
       label: "Auto Proposal",
       status: "future behavior / no provider, model, API call, or billing",
       copy:
         "Future proposal behavior. No provider, model, API call, or billing occurs in this slice.",
+      previewTitle: "Auto Proposal candidate preview",
+      previewCopy:
+        "This is future proposal behavior only. No provider, model, API call, billing, graph rearrangement, or proposal execution occurs here.",
     },
     {
+      id: "experimental",
       label: "Experimental",
       status: "future/internal reserved basis",
       copy:
         "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+      previewTitle: "Experimental candidate preview",
+      previewCopy:
+        "This remains reserved future/internal behavior. It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
     },
   ];
+  const selectedPerspectiveFormationBasisExplanation =
+    perspectiveConstellationFormationBasisExplanations.find(
+      (basis) => basis.id === selectedFormationBasisExplanation,
+    ) ?? perspectiveConstellationFormationBasisExplanations[0];
   const perspectiveConstellationLensOptions: {
     id: PerspectiveConstellationLens;
     label: string;
@@ -4811,6 +4854,7 @@ function PerspectiveTab({
       setSelectedPerspectiveConstellationLens("whole_constellation");
       setSelectedEventRailEntry("current_view");
       setFormationBasisExplanationOpen(false);
+      setSelectedFormationBasisExplanation("current");
       return;
     }
 
@@ -4922,6 +4966,7 @@ function PerspectiveTab({
     setSelectedPerspectiveConstellationLens("whole_constellation");
     setSelectedEventRailEntry("current_view");
     setFormationBasisExplanationOpen(false);
+    setSelectedFormationBasisExplanation("current");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
     setPerspectiveIngestConstellationPreviewState({ status: "loading" });
@@ -4964,6 +5009,7 @@ function PerspectiveTab({
     setSelectedPerspectiveConstellationLens("whole_constellation");
     setSelectedEventRailEntry("current_view");
     setFormationBasisExplanationOpen(false);
+    setSelectedFormationBasisExplanation("current");
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
 
@@ -5299,13 +5345,48 @@ function PerspectiveTab({
             </p>
             <div className="perspective-formation-basis-explanation-list">
               {perspectiveConstellationFormationBasisExplanations.map((basis) => (
-                <article key={basis.label}>
+                <button
+                  key={basis.id}
+                  type="button"
+                  aria-pressed={basis.id === selectedFormationBasisExplanation}
+                  onClick={() => setSelectedFormationBasisExplanation(basis.id)}
+                >
                   <strong>{basis.label}</strong>
                   <span>{basis.status}</span>
                   <p>{basis.copy}</p>
-                </article>
+                </button>
               ))}
             </div>
+            <section
+              className="perspective-formation-basis-selected-preview"
+              aria-label="Selected basis preview"
+            >
+              <div className="perspective-formation-basis-selected-preview-heading">
+                <div>
+                  <p className="panel-eyebrow">Selected basis preview</p>
+                  <h5>{selectedPerspectiveFormationBasisExplanation.previewTitle}</h5>
+                </div>
+                <div className="perspective-formation-basis-selected-preview-meta">
+                  <span>
+                    active receipt basis{" "}
+                    <strong>{perspectiveConstellationActiveReceiptBasis}</strong>
+                  </span>
+                  <span>
+                    selected explanation candidate{" "}
+                    <strong>
+                      {selectedPerspectiveFormationBasisExplanation.label}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+              <p>{selectedPerspectiveFormationBasisExplanation.previewCopy}</p>
+              <div className="perspective-formation-basis-selected-preview-boundary">
+                <span>Active receipt basis remains unchanged.</span>
+                <span>Visible graph remains unchanged.</span>
+                <span>No apply, OK, Cancel, or rearrange flow is available.</span>
+                <span>No snapshots, delta view, API calls, or persistence occur.</span>
+              </div>
+            </section>
             <div className="perspective-formation-basis-explanation-boundary">
               <span>Compare is a future view mode, not a Formation Basis.</span>
               <span>Rulecraft is not exposed yet.</span>

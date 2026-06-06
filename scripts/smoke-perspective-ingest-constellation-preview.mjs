@@ -436,7 +436,12 @@ function assertFormationBasisExplanationOverlay() {
   assertContainsAll(cockpitFile, [
     "formationBasisExplanationOpen",
     "setFormationBasisExplanationOpen",
+    "selectedFormationBasisExplanation",
+    "setSelectedFormationBasisExplanation",
+    "PerspectiveFormationBasisExplanationCandidate",
     "perspectiveConstellationFormationBasisExplanations",
+    "perspectiveConstellationActiveReceiptBasis",
+    "selectedPerspectiveFormationBasisExplanation",
     "perspective-formation-basis-explanation-card",
     "Formation Basis explanation card",
     "What does this basis mean?",
@@ -460,6 +465,19 @@ function assertFormationBasisExplanationOverlay() {
     "Rulecraft is not exposed yet.",
     "Auto Proposal is not executed here.",
     "No API calls, cost, persistence, graph DB writes, or external calls occur.",
+    "Selected basis preview",
+    "active receipt basis",
+    "selected explanation candidate",
+    "Active receipt basis remains unchanged.",
+    "Visible graph remains unchanged.",
+    "No apply, OK, Cancel, or rearrange flow is available.",
+    "No snapshots, delta view, API calls, or persistence occur.",
+    "Selecting this explanation candidate does not re-run ingest, rearrange the graph, or change the active receipt basis.",
+    "If supported as a formation basis, this would remain local-only and would be based on selected graph material.",
+    "No frozen snapshot exists in this slice, no snapshot is created, and no archive state is persisted.",
+    "No provider, model, API call, billing, graph rearrangement, or proposal execution occurs here.",
+    "It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
+    "aria-pressed={basis.id === selectedFormationBasisExplanation}",
     "aria-expanded={formationBasisExplanationOpen}",
     "aria-controls=\"perspective-formation-basis-explanation-card\"",
   ], { textByFile });
@@ -474,7 +492,7 @@ function assertFormationBasisExplanationOverlay() {
     "Formation Basis explanation must not introduce OK-skip acknowledgement logic",
   );
   assert(
-    !/\bprovider selector\b|\bmodel selector\b|\brearrange view\b|\bcompare to current\b/i.test(
+    !/\bprovider selector\b|\bmodel selector\b|\brearrange view\b|\bcompare to current\b|\bapply basis\b/i.test(
       cockpitText,
     ),
     "Formation Basis explanation must not add switching, provider, model, or compare controls",
@@ -564,9 +582,13 @@ function assertEventRailArchiveEntryCards() {
       cockpitText
         .replaceAll("Rulecraft is not exposed yet.", "")
         .replaceAll(
-          "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
-          "",
-        ),
+        "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+        "",
+      )
+      .replaceAll(
+        "It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
+        "",
+      ),
     ),
     "Event Rail entry cards must not introduce Rulecraft",
   );
@@ -589,6 +611,10 @@ function assertCssHooks() {
     "perspective-formation-basis-explanation-toggle",
     "perspective-formation-basis-explanation-card",
     "perspective-formation-basis-explanation-list",
+    "perspective-formation-basis-explanation-list button[aria-pressed=\"true\"]",
+    "perspective-formation-basis-selected-preview",
+    "perspective-formation-basis-selected-preview-meta",
+    "perspective-formation-basis-selected-preview-boundary",
     "perspective-formation-basis-explanation-boundary",
     "overflow-wrap: anywhere",
     "perspective-constellation-workspace-grid",
@@ -714,6 +740,10 @@ function assertNoRulecraftSurface(files) {
       .replaceAll("Rulecraft is not exposed yet.", "")
       .replaceAll(
         "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+        "",
+      )
+      .replaceAll(
+        "It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
         "",
       );
     assert(!/rulecraft/i.test(text), `${file} must not introduce Rulecraft`);
