@@ -365,6 +365,11 @@ type ManualGravityLocalDraftRestoreNotice = {
   detail: string;
   notes: string[];
 };
+type ManualGravityDraftOverwriteConfirmation = {
+  existingReceipt: ManualGravityLocalDraftReceipt;
+  newDraft: ManualGravityLocalDraft;
+  newReceipt: ManualGravityLocalDraftReceipt;
+};
 type PerspectiveFormationBasisExplanationCandidate =
   | "current"
   | "manual_selection"
@@ -575,6 +580,23 @@ function getManualGravityLocalDraftReceipt(
     saved_at: draft.saved_at,
     mark_count: countManualGravityPreviewMarks(draft.marks_by_target),
     target_count: countManualGravityPreviewTargets(draft.marks_by_target),
+  };
+}
+
+function getManualGravityLocalDraftOverwriteReceipt(
+  snapshot: ManualGravityLocalDraftStorageSnapshot,
+): ManualGravityLocalDraftReceipt {
+  if (snapshot.draft) {
+    return getManualGravityLocalDraftReceipt(snapshot.draft);
+  }
+
+  return {
+    source_query: snapshot.malformed
+      ? "malformed draft ignored"
+      : "browser-local draft metadata",
+    saved_at: "unavailable",
+    mark_count: 0,
+    target_count: 0,
   };
 }
 
@@ -4593,6 +4615,10 @@ function PerspectiveTab({
     manualGravityLocalDraftStorageSnapshot,
     setManualGravityLocalDraftStorageSnapshot,
   ] = useState<ManualGravityLocalDraftStorageSnapshot | null>(null);
+  const [
+    manualGravityDraftOverwritePending,
+    setManualGravityDraftOverwritePending,
+  ] = useState<ManualGravityDraftOverwriteConfirmation | null>(null);
   const [appliedGravityPreviewActive, setAppliedGravityPreviewActive] =
     useState(false);
   const [manualPastedText, setManualPastedText] = useState("");
@@ -5558,6 +5584,7 @@ function PerspectiveTab({
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
       setManualGravityLocalDraftStorageSnapshot(null);
+      setManualGravityDraftOverwritePending(null);
       setAppliedGravityPreviewActive(false);
       return;
     }
@@ -5587,6 +5614,7 @@ function PerspectiveTab({
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
       setManualGravityLocalDraftStorageSnapshot(null);
+      setManualGravityDraftOverwritePending(null);
       return;
     }
 
@@ -5637,6 +5665,7 @@ function PerspectiveTab({
   function selectPerspectiveConstellationLens(lens: PerspectiveConstellationLens) {
     setSelectedPerspectiveConstellationLens(lens);
     setPerspectiveIngestCopyNotice(null);
+    setManualGravityDraftOverwritePending(null);
 
     if (lens === "whole_constellation") {
       setPerspectiveConstellationSelectionScope("whole_constellation");
@@ -5664,6 +5693,7 @@ function PerspectiveTab({
     setPerspectiveConstellationSelectionScope("connected_node");
     setSelectedPerspectiveConstellationLens("connected_nodes");
     setPerspectiveIngestCopyNotice(null);
+    setManualGravityDraftOverwritePending(null);
   }
 
   function selectPerspectiveConstellationCluster(clusterId: string) {
@@ -5671,6 +5701,7 @@ function PerspectiveTab({
     setSelectedPerspectiveIngestNodeId(null);
     setPerspectiveConstellationSelectionScope("cluster");
     setPerspectiveIngestCopyNotice(null);
+    setManualGravityDraftOverwritePending(null);
   }
 
   function inspectPerspectiveConstellationConnectedNodes() {
@@ -5685,6 +5716,7 @@ function PerspectiveTab({
     setPerspectiveConstellationSelectionScope("connected_node");
     setSelectedPerspectiveConstellationLens("connected_nodes");
     setPerspectiveIngestCopyNotice(null);
+    setManualGravityDraftOverwritePending(null);
   }
 
   function previewPerspectiveConstellationUnit() {
@@ -5699,6 +5731,7 @@ function PerspectiveTab({
     setPerspectiveConstellationSelectionScope("cluster");
     setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
     setPerspectiveIngestCopyNotice(null);
+    setManualGravityDraftOverwritePending(null);
   }
 
   function markPerspectiveConstellationNextCandidatePreview() {
@@ -5708,6 +5741,7 @@ function PerspectiveTab({
       tone: "info",
       text: "Marked as next candidate preview",
     });
+    setManualGravityDraftOverwritePending(null);
   }
 
   function applyManualGravityPreview() {
@@ -5717,6 +5751,36 @@ function PerspectiveTab({
 
   function resetManualGravityPreviewApplication() {
     setAppliedGravityPreviewActive(false);
+  }
+
+  function commitManualGravityLocalDraft(draft: ManualGravityLocalDraft) {
+    if (!writeManualGravityLocalDraftToStorage(draft)) {
+      setManualGravityLocalDraftStatus("unavailable");
+      setManualGravityLocalDraftReceipt(null);
+      setManualGravityLocalDraftStorageSnapshot({
+        available: false,
+        rawDraftPresent: false,
+        draft: null,
+        malformed: false,
+        unsafeMarksIgnored: false,
+      });
+      setManualGravityDraftOverwritePending(null);
+      return false;
+    }
+
+    restoredManualGravityLocalDraftContextRef.current =
+      manualGravityLocalDraftContextKey;
+    setManualGravityLocalDraftReceipt(getManualGravityLocalDraftReceipt(draft));
+    setManualGravityLocalDraftStorageSnapshot({
+      available: true,
+      rawDraftPresent: true,
+      draft,
+      malformed: false,
+      unsafeMarksIgnored: false,
+    });
+    setManualGravityDraftOverwritePending(null);
+    setManualGravityLocalDraftStatus("saved_for_this_formation");
+    return true;
   }
 
   function saveManualGravityLocalDraftMarks() {
@@ -5739,6 +5803,7 @@ function PerspectiveTab({
             }
           : null,
       );
+      setManualGravityDraftOverwritePending(null);
       return;
     }
 
@@ -5751,30 +5816,38 @@ function PerspectiveTab({
       saved_at: new Date().toISOString(),
     } satisfies ManualGravityLocalDraft;
 
-    if (!writeManualGravityLocalDraftToStorage(draft)) {
+    const existingManualGravityLocalDraft =
+      readManualGravityLocalDraftFromStorage();
+    setManualGravityLocalDraftStorageSnapshot(existingManualGravityLocalDraft);
+    if (!existingManualGravityLocalDraft.available) {
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
-      setManualGravityLocalDraftStorageSnapshot({
-        available: false,
-        rawDraftPresent: false,
-        draft: null,
-        malformed: false,
-        unsafeMarksIgnored: false,
+      setManualGravityDraftOverwritePending(null);
+      return;
+    }
+
+    if (existingManualGravityLocalDraft.rawDraftPresent) {
+      setManualGravityDraftOverwritePending({
+        existingReceipt: getManualGravityLocalDraftOverwriteReceipt(
+          existingManualGravityLocalDraft,
+        ),
+        newDraft: draft,
+        newReceipt: getManualGravityLocalDraftReceipt(draft),
       });
       return;
     }
 
-    restoredManualGravityLocalDraftContextRef.current =
-      manualGravityLocalDraftContextKey;
-    setManualGravityLocalDraftReceipt(getManualGravityLocalDraftReceipt(draft));
-    setManualGravityLocalDraftStorageSnapshot({
-      available: true,
-      rawDraftPresent: true,
-      draft,
-      malformed: false,
-      unsafeMarksIgnored: false,
-    });
-    setManualGravityLocalDraftStatus("saved_for_this_formation");
+    commitManualGravityLocalDraft(draft);
+  }
+
+  function replaceManualGravityLocalDraftMarks() {
+    if (!manualGravityDraftOverwritePending) return;
+
+    commitManualGravityLocalDraft(manualGravityDraftOverwritePending.newDraft);
+  }
+
+  function cancelManualGravityLocalDraftOverwrite() {
+    setManualGravityDraftOverwritePending(null);
   }
 
   function clearManualGravityLocalDraftMarks() {
@@ -5788,6 +5861,7 @@ function PerspectiveTab({
         malformed: false,
         unsafeMarksIgnored: false,
       });
+      setManualGravityDraftOverwritePending(null);
       return;
     }
 
@@ -5795,6 +5869,7 @@ function PerspectiveTab({
     setSelectedGravityPreviewMarks({});
     setManualGravityLocalDraftReceipt(null);
     setManualGravityLocalDraftStorageSnapshot(null);
+    setManualGravityDraftOverwritePending(null);
     setAppliedGravityPreviewActive(false);
     setManualGravityLocalDraftStatus("cleared");
   }
@@ -5807,6 +5882,7 @@ function PerspectiveTab({
       manualGravityLocalDraftContext ? "unsaved_changes" : "unavailable",
     );
     setManualGravityLocalDraftReceipt(null);
+    setManualGravityDraftOverwritePending(null);
     setAppliedGravityPreviewActive(false);
     setSelectedGravityPreviewMarks((currentMarks) => {
       const currentSelectionMarks = currentMarks[selectionKey] ?? [];
@@ -5835,6 +5911,7 @@ function PerspectiveTab({
       manualGravityLocalDraftContext ? "unsaved_changes" : "unavailable",
     );
     setManualGravityLocalDraftReceipt(null);
+    setManualGravityDraftOverwritePending(null);
     setAppliedGravityPreviewActive(false);
     setSelectedGravityPreviewMarks((currentMarks) => {
       const { [selectionKey]: _removedSelection, ...remainingMarks } =
@@ -5861,6 +5938,7 @@ function PerspectiveTab({
     setManualGravityLocalDraftStatus("unsaved");
     setManualGravityLocalDraftReceipt(null);
     setManualGravityLocalDraftStorageSnapshot(null);
+    setManualGravityDraftOverwritePending(null);
     setAppliedGravityPreviewActive(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
@@ -5909,6 +5987,7 @@ function PerspectiveTab({
     setManualGravityLocalDraftStatus("unsaved");
     setManualGravityLocalDraftReceipt(null);
     setManualGravityLocalDraftStorageSnapshot(null);
+    setManualGravityDraftOverwritePending(null);
     setAppliedGravityPreviewActive(false);
     setSelectedPerspectiveIngestNodeId(null);
     setSelectedPerspectiveIngestClusterId(null);
@@ -5917,6 +5996,7 @@ function PerspectiveTab({
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
       setManualGravityLocalDraftStorageSnapshot(null);
+      setManualGravityDraftOverwritePending(null);
       setAppliedGravityPreviewActive(false);
       setPerspectiveIngestConstellationPreviewState({
         status: "failed",
@@ -6667,6 +6747,87 @@ function PerspectiveTab({
                     {manualGravityLocalDraftRestoreNotice.notes.map((note) => (
                       <span key={note}>{note}</span>
                     ))}
+                  </div>
+                ) : null}
+                {manualGravityDraftOverwritePending ? (
+                  <div
+                    className="perspective-manual-gravity-overwrite-confirmation"
+                    aria-label="Manual Gravity draft overwrite confirmation"
+                  >
+                    <strong>Overwrite local draft?</strong>
+                    <span>
+                      A browser-local Manual Gravity draft already exists.
+                    </span>
+                    <span>Replacing it updates local metadata only.</span>
+                    <span>No raw content is stored.</span>
+                    <span>No source graph changes.</span>
+                    <span>No FormationReceiptV0 authority change.</span>
+                    <span>No DB, API, or graph DB write.</span>
+                    <div>
+                      <span>Existing draft</span>
+                      <code>
+                        source_query{" "}
+                        {
+                          manualGravityDraftOverwritePending.existingReceipt
+                            .source_query
+                        }
+                      </code>
+                      <code>
+                        saved_at{" "}
+                        {
+                          manualGravityDraftOverwritePending.existingReceipt
+                            .saved_at
+                        }
+                      </code>
+                      <code>
+                        mark count{" "}
+                        {
+                          manualGravityDraftOverwritePending.existingReceipt
+                            .mark_count
+                        }
+                      </code>
+                      <code>
+                        target count{" "}
+                        {
+                          manualGravityDraftOverwritePending.existingReceipt
+                            .target_count
+                        }
+                      </code>
+                    </div>
+                    <div>
+                      <span>New draft</span>
+                      <code>
+                        source_query{" "}
+                        {manualGravityDraftOverwritePending.newReceipt.source_query}
+                      </code>
+                      <code>
+                        mark count{" "}
+                        {manualGravityDraftOverwritePending.newReceipt.mark_count}
+                      </code>
+                      <code>
+                        target count{" "}
+                        {
+                          manualGravityDraftOverwritePending.newReceipt
+                            .target_count
+                        }
+                      </code>
+                    </div>
+                    <div className="perspective-manual-gravity-overwrite-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={replaceManualGravityLocalDraftMarks}
+                      >
+                        Replace Local Draft
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={cancelManualGravityLocalDraftOverwrite}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : null}
                 {showManualGravityLocalDraftReceipt &&
@@ -8320,6 +8481,7 @@ function PerspectiveTab({
                   setManualGravityLocalDraftStatus("unsaved");
                   setManualGravityLocalDraftReceipt(null);
                   setManualGravityLocalDraftStorageSnapshot(null);
+                  setManualGravityDraftOverwritePending(null);
                   setAppliedGravityPreviewActive(false);
                 }}
               />
@@ -8338,6 +8500,7 @@ function PerspectiveTab({
                   setManualGravityLocalDraftStatus("unsaved");
                   setManualGravityLocalDraftReceipt(null);
                   setManualGravityLocalDraftStorageSnapshot(null);
+                  setManualGravityDraftOverwritePending(null);
                   setAppliedGravityPreviewActive(false);
                 }}
               />

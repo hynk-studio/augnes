@@ -1342,6 +1342,7 @@ code {
 
 .perspective-manual-gravity-local-draft-badge,
 .perspective-manual-gravity-restore-notice,
+.perspective-manual-gravity-overwrite-confirmation,
 .perspective-preview-overrides-draft-note {
   display: flex;
   flex-wrap: wrap;
@@ -1354,15 +1355,27 @@ code {
   background: #f8fafc;
 }
 
+.perspective-manual-gravity-overwrite-confirmation {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: #fffbeb;
+}
+
 .perspective-manual-gravity-local-draft-badge strong,
 .perspective-manual-gravity-restore-notice strong,
+.perspective-manual-gravity-overwrite-confirmation strong,
 .perspective-preview-overrides-draft-note strong {
   color: #312e81;
   font-size: 0.74rem;
 }
 
+.perspective-manual-gravity-overwrite-confirmation strong {
+  color: #92400e;
+}
+
 .perspective-manual-gravity-local-draft-badge span,
 .perspective-manual-gravity-restore-notice span,
+.perspective-manual-gravity-overwrite-confirmation span,
+.perspective-manual-gravity-overwrite-confirmation code,
 .perspective-preview-overrides-draft-note span,
 .perspective-preview-overrides-draft-note code {
   max-width: 100%;
@@ -1371,6 +1384,19 @@ code {
   font-weight: 760;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.perspective-manual-gravity-overwrite-confirmation > div:not(.perspective-manual-gravity-overwrite-actions) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+}
+
+.perspective-manual-gravity-overwrite-confirmation > div > span {
+  grid-column: 1 / -1;
+  color: #78350f;
 }
 
 .perspective-manual-gravity-local-draft-receipt {
@@ -1394,6 +1420,13 @@ code {
 }
 
 .perspective-manual-gravity-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-manual-gravity-overwrite-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
