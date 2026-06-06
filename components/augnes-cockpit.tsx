@@ -5748,6 +5748,38 @@ function PerspectiveTab({
                 <span key={note}>{note}</span>
               ))}
             </div>
+            {selectedPerspectiveEventRailEntry.temporalRole === "archive" ? (
+              <section
+                className="perspective-event-rail-snapshot-preview"
+                aria-label="Snapshot Archive Card v0 preview"
+              >
+                <div className="perspective-event-rail-snapshot-preview-heading">
+                  <div>
+                    <p className="panel-eyebrow">Snapshot Archive Card v0</p>
+                    <h5>Archive stage: preview-only</h5>
+                  </div>
+                  <div className="perspective-event-rail-snapshot-preview-status">
+                    <span>Frozen snapshot: not stored</span>
+                    <span>Mutation: disabled</span>
+                    <span>Compare to Current: not implemented</span>
+                    <span>Use as Reference: informational only</span>
+                  </div>
+                </div>
+                <p>
+                  This archive-style card uses current local receipt and preview
+                  refs as context only. It does not store a frozen snapshot,
+                  compute a delta, compare to the current view, or mutate the
+                  Event Rail.
+                </p>
+                <div>
+                  <h5>Formation context</h5>
+                  <RefChipList
+                    refs={perspectiveConstellationCurrentViewRefs}
+                    emptyLabel="No current local receipt / preview refs available"
+                  />
+                </div>
+              </section>
+            ) : null}
             <div>
               <h5>Source refs / related refs</h5>
               <RefChipList

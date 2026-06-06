@@ -492,7 +492,7 @@ function assertFormationBasisExplanationOverlay() {
     "Formation Basis explanation must not introduce OK-skip acknowledgement logic",
   );
   assert(
-    !/\bprovider selector\b|\bmodel selector\b|\brearrange view\b|\bcompare to current\b|\bapply basis\b/i.test(
+    !/\bprovider selector\b|\bmodel selector\b|\brearrange view\b|\bapply basis\b|\bcompareToCurrent\b|\bsetCompare\b/i.test(
       cockpitText,
     ),
     "Formation Basis explanation must not add switching, provider, model, or compare controls",
@@ -554,6 +554,18 @@ function assertEventRailArchiveEntryCards() {
     "Archive Entry Card",
     "Current View Card",
     "Future Candidate Card",
+    "Snapshot Archive Card v0",
+    "Snapshot Archive Card v0 preview",
+    "Archive stage: preview-only",
+    "Frozen snapshot: not stored",
+    "Compare to Current: not implemented",
+    "Use as Reference: informational only",
+    "Formation context",
+    "current local receipt and preview refs as context only",
+    "does not store a frozen snapshot",
+    "compute a delta",
+    "mutate the Event Rail",
+    "No current local receipt / preview refs available",
     "Past / Archive",
     "Present / Active View",
     "Future / Candidate",
@@ -572,6 +584,7 @@ function assertEventRailArchiveEntryCards() {
     "Local-only / read-only / preview-only",
     "aria-pressed={event.id === selectedEventRailEntry}",
     "onClick={() => setSelectedEventRailEntry(event.id)}",
+    "selectedPerspectiveEventRailEntry.temporalRole === \"archive\"",
   ], { textByFile });
   assert(
     !/\blocalStorage\b/.test(cockpitText),
@@ -593,8 +606,10 @@ function assertEventRailArchiveEntryCards() {
     "Event Rail entry cards must not introduce Rulecraft",
   );
   assert(
-    !/\bcompare to current\b/i.test(cockpitText),
-    "Event Rail entry cards must not add delta/compare behavior",
+    !/\bcompareToCurrent\b|\bsetCompare\b|\bdeltaEngine\b|\bviewSnapshot\b|\buseAsReference\b/.test(
+      cockpitText,
+    ),
+    "Event Rail entry cards must not add snapshot/delta/compare/reference mutation behavior",
   );
 }
 
@@ -634,6 +649,9 @@ function assertCssHooks() {
     "perspective-event-rail-entry-card",
     "perspective-event-rail-entry-meta",
     "perspective-event-rail-entry-notes",
+    "perspective-event-rail-snapshot-preview",
+    "perspective-event-rail-snapshot-preview-heading",
+    "perspective-event-rail-snapshot-preview-status",
     "perspective-formation-archive-drawer",
     "perspective-substrate-field-grid",
     "perspective-substrate-authority-list",
