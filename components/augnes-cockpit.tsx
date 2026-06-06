@@ -318,6 +318,12 @@ type PerspectiveEventRailEntry = {
   relatedRefs: string[];
 };
 type ManualGravityPreviewMark = "pin" | "watch" | "defer" | "boost";
+type ManualGravityPreviewOverride = {
+  targetKey: string;
+  targetLabel: string;
+  scopeLabel: string;
+  markLabels: string[];
+};
 type PerspectiveFormationBasisExplanationCandidate =
   | "current"
   | "manual_selection"
@@ -4377,6 +4383,56 @@ function PerspectiveTab({
     MANUAL_GRAVITY_PREVIEW_MARKS.filter((mark) =>
       activeManualGravityPreviewMarks.includes(mark.id),
     ).map((mark) => mark.chipLabel);
+  const manualGravityPreviewOverrides: ManualGravityPreviewOverride[] =
+    Object.entries(selectedGravityPreviewMarks)
+      .map(([targetKey, marks]) => {
+        const markLabels = MANUAL_GRAVITY_PREVIEW_MARKS.filter((mark) =>
+          marks.includes(mark.id),
+        ).map((mark) => mark.chipLabel);
+
+        if (markLabels.length === 0) return null;
+
+        if (targetKey.startsWith("node:")) {
+          const nodeId = targetKey.slice("node:".length);
+          const node = perspectiveIngestConstellation?.nodes.find(
+            (candidateNode) => candidateNode.id === nodeId,
+          );
+
+          return {
+            targetKey,
+            targetLabel: node?.label ?? nodeId,
+            scopeLabel: "Connected Node",
+            markLabels,
+          };
+        }
+
+        if (targetKey.startsWith("cluster:")) {
+          const clusterId = targetKey.slice("cluster:".length);
+          const cluster = perspectiveIngestConstellation?.clusters.find(
+            (candidateCluster) => candidateCluster.id === clusterId,
+          );
+
+          return {
+            targetKey,
+            targetLabel: cluster?.label ?? clusterId,
+            scopeLabel: "Cluster",
+            markLabels,
+          };
+        }
+
+        return {
+          targetKey,
+          targetLabel:
+            targetKey === `manual:${perspectiveConstellationUnitPreview?.preview_id}`
+              ? perspectiveConstellationSelectionTitle
+              : targetKey,
+          scopeLabel: "Manual Selection",
+          markLabels,
+        };
+      })
+      .filter((override): override is ManualGravityPreviewOverride =>
+        Boolean(override),
+      );
   const perspectiveConstellationScopedChatGptPacketText =
     perspectiveConstellationUnitPreview?.chatgpt_review_packet_text ?? "";
   const perspectiveConstellationScopedCodexHandoffPacketText =
@@ -5654,6 +5710,10 @@ function PerspectiveTab({
                       perspectiveConstellationSelectionScopeLabel}
                   </code>
                 </span>
+                <span>
+                  preview overrides{" "}
+                  <code>{manualGravityPreviewOverrides.length}</code>
+                </span>
               </div>
               <div
                 className="perspective-manual-gravity-actions"
@@ -6014,6 +6074,49 @@ function PerspectiveTab({
                 </div>
               ) : (
                 <EmptyState label="No current Formation Receipt" />
+              )}
+            </section>
+            <section className="is-wide perspective-preview-overrides-panel">
+              <h4>Preview overrides</h4>
+              <p>
+                Manual Gravity preview marks are UI-only salience signals for
+                the current selected graph material. Not persisted. Not source
+                graph changes. Not written as stored FormationReceiptV0
+                authority. No graph DB write.
+              </p>
+              {manualGravityPreviewOverrides.length > 0 ? (
+                <div className="perspective-preview-overrides-list">
+                  {manualGravityPreviewOverrides.map((override) => (
+                    <article key={override.targetKey}>
+                      <div>
+                        <span>target</span>
+                        <strong>{override.targetLabel}</strong>
+                        <code>{override.targetKey}</code>
+                      </div>
+                      <div>
+                        <span>scope</span>
+                        <strong>{override.scopeLabel}</strong>
+                      </div>
+                      <div>
+                        <span>marks</span>
+                        <RefChipList
+                          refs={override.markLabels}
+                          emptyLabel="No UI-only preview override marks"
+                        />
+                      </div>
+                      <div>
+                        <span>storage</span>
+                        <strong>none</strong>
+                      </div>
+                      <div>
+                        <span>authority</span>
+                        <strong>preview-only</strong>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState label="No UI-only preview overrides" />
               )}
             </section>
             <section className="is-wide">

@@ -369,11 +369,13 @@ function assertManualGravityPreviewMarks() {
 
   assertContainsAll(cockpitFile, [
     "ManualGravityPreviewMark",
+    "ManualGravityPreviewOverride",
     "MANUAL_GRAVITY_PREVIEW_MARKS",
     "selectedGravityPreviewMarks",
     "setSelectedGravityPreviewMarks",
     "manualGravityPreviewSelection",
     "activeManualGravityPreviewMarks",
+    "manualGravityPreviewOverrides",
     "toggleManualGravityPreviewMark",
     "clearManualGravityPreviewMarks",
     "Manual Gravity Preview",
@@ -394,6 +396,15 @@ function assertManualGravityPreviewMarks() {
     "not receipt overrides yet",
     "source graph remains read-only",
     "no persistence, API route, or external call",
+    "preview overrides",
+    "Preview overrides",
+    "Manual Gravity preview marks are UI-only salience signals for",
+    "the current selected graph material.",
+    "Not persisted. Not source graph changes. Not written as stored FormationReceiptV0 authority. No graph DB write.",
+    "storage",
+    "authority",
+    "preview-only",
+    "No UI-only preview overrides",
     "disabled={!manualGravityPreviewSelection}",
     "type=\"button\"",
   ], { textByFile });
@@ -417,6 +428,11 @@ function assertManualGravityPreviewMarks() {
       cockpitText,
     ),
     "Manual Gravity preview marks must not call APIs",
+  );
+  assert(
+    (cockpitText.match(/setSelectedGravityPreviewMarks\(\{\}\)/g) ?? [])
+      .length >= 3,
+    "Manual Gravity preview marks and UI-only preview overrides must reset on source/manual/fail-closed paths",
   );
 }
 
@@ -718,6 +734,8 @@ function assertCssHooks() {
     "perspective-substrate-field-grid",
     "perspective-substrate-authority-list",
     "perspective-substrate-card-list",
+    "perspective-preview-overrides-panel",
+    "perspective-preview-overrides-list",
     "section.is-wide",
     "perspective-ingest-constellation-section",
     "ingest-constellation-toolbar",

@@ -1553,6 +1553,56 @@ code {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.perspective-preview-overrides-panel {
+  border-color: rgba(79, 70, 229, 0.16);
+  background: #f8fafc;
+}
+
+.perspective-preview-overrides-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-preview-overrides-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-preview-overrides-list article > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.perspective-preview-overrides-list span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.perspective-preview-overrides-list strong,
+.perspective-preview-overrides-list code {
+  min-width: 0;
+  max-width: 100%;
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .perspective-substrate-field-grid > div,
 .perspective-substrate-authority-list > div {
   display: grid;
@@ -5575,6 +5625,7 @@ h1 {
 
   .perspective-substrate-field-grid,
   .perspective-substrate-authority-list,
+  .perspective-preview-overrides-list article,
   .perspective-event-rail-entry-meta {
     grid-template-columns: minmax(0, 1fr);
   }
