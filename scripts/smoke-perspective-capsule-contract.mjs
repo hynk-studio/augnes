@@ -20,12 +20,16 @@ const packageJsonFile = "package.json";
 const verificationDoc = "docs/VERIFICATION_EVIDENCE_PACK.md";
 const globalsCssFile = "app/globals.css";
 const cockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPerspectiveIaCoreSmokeFile =
+  "scripts/smoke-cockpit-perspective-ia-core.mjs";
 const readonlyRouteSmokeFile =
   "scripts/smoke-readonly-api-route-constellation-preview.mjs";
 const cockpitRouteSmokeFile =
   "scripts/smoke-cockpit-local-only-constellation-route-preview.mjs";
 const perspectiveIngestTypeFile =
   "types/perspective-ingest-constellation-preview.ts";
+const perspectiveConstellationFormationTypeFile =
+  "types/perspective-constellation-formation.ts";
 const perspectiveIngestChatGptFixtureFile =
   "fixtures/perspective-ingest/chatgpt-record-to-constellation.sample.v0.1.json";
 const perspectiveIngestCodexFixtureFile =
@@ -38,6 +42,8 @@ const perspectiveIngestCodexAdapterFile =
   "lib/perspective-ingest/codex-record-adapter.ts";
 const perspectiveIngestPacketBuilderFile =
   "lib/perspective-ingest/episode-to-constellation-packet.ts";
+const perspectiveUnitPreviewBuilderFile =
+  "lib/perspective-ingest/perspective-unit-preview.ts";
 const perspectiveIngestRouteHelperFile =
   "lib/readonly-api/perspective-ingest-constellation-preview.ts";
 const perspectiveIngestRouteFile =
@@ -79,15 +85,18 @@ const allowedChangedFiles = new Set([
   ...boundaryScopeProfile.exactAllowedFiles,
   globalsCssFile,
   cockpitFile,
+  cockpitPerspectiveIaCoreSmokeFile,
   readonlyRouteSmokeFile,
   cockpitRouteSmokeFile,
   perspectiveIngestTypeFile,
+  perspectiveConstellationFormationTypeFile,
   perspectiveIngestChatGptFixtureFile,
   perspectiveIngestCodexFixtureFile,
   perspectiveIngestSessionEpisodeFile,
   perspectiveIngestChatGptAdapterFile,
   perspectiveIngestCodexAdapterFile,
   perspectiveIngestPacketBuilderFile,
+  perspectiveUnitPreviewBuilderFile,
   perspectiveIngestRouteHelperFile,
   perspectiveIngestRouteFile,
   perspectiveIngestDoc,
