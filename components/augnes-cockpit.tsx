@@ -5732,31 +5732,37 @@ function PerspectiveTab({
         description="Temporal Perspective reframed as the central Augnes work surface. How the current interpretive frame was formed is shown through the constellation, with ChatGPT, Codex, GitHub, browser reports, smokes, docs, and validation outputs kept as surrounding source and handoff surfaces."
       />
 
-      <BoundaryNote>
-        Perspective is a read-only interpretation surface. It does not commit
-        state, approve work, publish proof, admit memory, replay delivery, route
-        agents, execute Codex, or mutate external systems.
-      </BoundaryNote>
+      <details className="perspective-surface-details">
+        <summary>
+          <span>Surface boundaries and shortcuts</span>
+          <small>read-only authority plus section links</small>
+        </summary>
+        <BoundaryNote>
+          Perspective is a read-only interpretation surface. It does not commit
+          state, approve work, publish proof, admit memory, replay delivery, route
+          agents, execute Codex, or mutate external systems.
+        </BoundaryNote>
 
-      <BoundaryNote tone="green">
-        PerspectiveSnapshot is a derived-view-only read model loaded from{" "}
-        <code>/api/perspective/snapshot</code>. It is not source of truth and
-        has no approve, publish, retry, proof recording, evidence creation, work
-        update, commit/reject, mailbox, publication, GitHub/OpenAI, or temporal
-        review artifact write authority.
-      </BoundaryNote>
+        <BoundaryNote tone="green">
+          PerspectiveSnapshot is a derived-view-only read model loaded from{" "}
+          <code>/api/perspective/snapshot</code>. It is not source of truth and
+          has no approve, publish, retry, proof recording, evidence creation, work
+          update, commit/reject, mailbox, publication, GitHub/OpenAI, or temporal
+          review artifact write authority.
+        </BoundaryNote>
 
-      <nav className="perspective-anchor-nav" aria-label="Perspective sections">
-        <a href="#perspective-constellation-workspace">Workspace</a>
-        <a href="#perspective-frame">Frame</a>
-        <a href="#perspective-ledger-basis">Ledger Basis</a>
-        <a href="#perspective-evidence">Evidence</a>
-        <a href="#perspective-tensions">Tensions</a>
-        <a href="#perspective-boundary-next">Boundary / Next</a>
-        <a href="#perspective-constellation-route-preview">Route preview</a>
-        <a href="#perspective-ingest-constellation-preview">Ingest graph</a>
-        <a href="#perspective-constellation-preview">Constellation preview</a>
-      </nav>
+        <nav className="perspective-anchor-nav" aria-label="Perspective sections">
+          <a href="#perspective-constellation-workspace">Workspace</a>
+          <a href="#perspective-frame">Frame</a>
+          <a href="#perspective-ledger-basis">Ledger Basis</a>
+          <a href="#perspective-evidence">Evidence</a>
+          <a href="#perspective-tensions">Tensions</a>
+          <a href="#perspective-boundary-next">Boundary / Next</a>
+          <a href="#perspective-constellation-route-preview">Route preview</a>
+          <a href="#perspective-ingest-constellation-preview">Ingest graph</a>
+          <a href="#perspective-constellation-preview">Constellation preview</a>
+        </nav>
+      </details>
 
       <section
         className="perspective-section perspective-constellation-workspace-shell"
@@ -5818,18 +5824,7 @@ function PerspectiveTab({
               <small>{perspectiveConstellationSummaryTitle}</small>
             </div>
             <div>
-              <span>Formed by</span>
-              <strong>
-                {perspectiveConstellationFormationReceipt?.formed_by.label ??
-                  "Preview formation pending"}
-              </strong>
-              <small>
-                {perspectiveConstellationFormationReceipt?.formed_by
-                  .actor_type ?? "unavailable"}
-              </small>
-            </div>
-            <div>
-              <span>Formation Basis</span>
+              <span>Basis</span>
               <strong>
                 {perspectiveConstellationFormationReceipt?.formation_basis ??
                   "unavailable"}
@@ -5846,45 +5841,69 @@ function PerspectiveTab({
               <small>{perspectiveConstellationSummarySourceDetail}</small>
             </div>
             <div>
-              <span>Generated</span>
-              {perspectiveConstellationFormationReceipt?.generated_at ? (
-                <time
-                  dateTime={
-                    perspectiveConstellationFormationReceipt.generated_at
-                  }
-                >
-                  {formatPerspectiveConstellationTimestamp(
-                    perspectiveConstellationFormationReceipt.generated_at,
-                  )}
-                </time>
-              ) : (
-                <strong>unavailable</strong>
-              )}
-            </div>
-            <div>
-              <span>As of</span>
-              {perspectiveConstellationFormationReceipt?.as_of ? (
-                <time dateTime={perspectiveConstellationFormationReceipt.as_of}>
-                  {formatPerspectiveConstellationTimestamp(
-                    perspectiveConstellationFormationReceipt.as_of,
-                  )}
-                </time>
-              ) : (
-                <strong>unavailable</strong>
-              )}
+              <span>Status</span>
+              <strong>{perspectiveConstellationSummaryStatus.join(" / ")}</strong>
+              <small>read-only preview surface</small>
             </div>
           </div>
-          <div
-            className="perspective-formation-authority-grid"
-            aria-label="Formation Receipt authority"
-          >
-            {perspectiveConstellationSummaryAuthorityItems.map((item) => (
-              <div key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
+          <details className="perspective-formation-receipt-details">
+            <summary>
+              <span>Formation receipt details</span>
+              <small>formed by, timestamps, authority</small>
+            </summary>
+            <div className="perspective-formation-receipt-detail-grid">
+              <div>
+                <span>Formed by</span>
+                <strong>
+                  {perspectiveConstellationFormationReceipt?.formed_by.label ??
+                    "Preview formation pending"}
+                </strong>
+                <small>
+                  {perspectiveConstellationFormationReceipt?.formed_by
+                    .actor_type ?? "unavailable"}
+                </small>
               </div>
-            ))}
-          </div>
+              <div>
+                <span>Generated</span>
+                {perspectiveConstellationFormationReceipt?.generated_at ? (
+                  <time
+                    dateTime={
+                      perspectiveConstellationFormationReceipt.generated_at
+                    }
+                  >
+                    {formatPerspectiveConstellationTimestamp(
+                      perspectiveConstellationFormationReceipt.generated_at,
+                    )}
+                  </time>
+                ) : (
+                  <strong>unavailable</strong>
+                )}
+              </div>
+              <div>
+                <span>As of</span>
+                {perspectiveConstellationFormationReceipt?.as_of ? (
+                  <time dateTime={perspectiveConstellationFormationReceipt.as_of}>
+                    {formatPerspectiveConstellationTimestamp(
+                      perspectiveConstellationFormationReceipt.as_of,
+                    )}
+                  </time>
+                ) : (
+                  <strong>unavailable</strong>
+                )}
+              </div>
+            </div>
+            <div
+              className="perspective-formation-authority-grid"
+              aria-label="Formation Receipt authority"
+            >
+              {perspectiveConstellationSummaryAuthorityItems.map((item) => (
+                <div key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+          </details>
           {appliedGravityPreviewActive ? (
             <div
               className="perspective-manual-gravity-applied-summary"
@@ -6210,28 +6229,37 @@ function PerspectiveTab({
                   Reset Gravity Preview
                 </button>
               </div>
-              <div
-                className={`perspective-manual-gravity-applied-state${
-                  appliedGravityPreviewActive ? " is-applied" : ""
-                }`}
-                aria-label="Manual Gravity Apply Preview status"
-              >
-                <strong>
-                  {appliedGravityPreviewActive
-                    ? "Gravity Preview Applied"
-                    : "Gravity Preview not applied"}
-                </strong>
-                <span>Local visual emphasis only.</span>
-                <span>No source graph changes.</span>
-                <span>No FormationReceiptV0 authority change.</span>
-                <span>No persistence or graph DB write.</span>
+              <details className="perspective-manual-gravity-details">
+                <summary>
+                  <span>Manual Gravity details</span>
+                  <small>
+                    {appliedGravityPreviewActive
+                      ? `${appliedGravityPreviewNodeCount} applied nodes`
+                      : "legend, conflicts, proposals, boundaries"}
+                  </small>
+                </summary>
+                <div
+                  className={`perspective-manual-gravity-applied-state${
+                    appliedGravityPreviewActive ? " is-applied" : ""
+                  }`}
+                  aria-label="Manual Gravity Apply Preview status"
+                >
+                  <strong>
+                    {appliedGravityPreviewActive
+                      ? "Gravity Preview Applied"
+                      : "Gravity Preview not applied"}
+                  </strong>
+                  <span>Local visual emphasis only.</span>
+                  <span>No source graph changes.</span>
+                  <span>No FormationReceiptV0 authority change.</span>
+                  <span>No persistence or graph DB write.</span>
+                  {appliedGravityPreviewActive ? (
+                    <span>
+                      applied nodes <code>{appliedGravityPreviewNodeCount}</code>
+                    </span>
+                  ) : null}
+                </div>
                 {appliedGravityPreviewActive ? (
-                  <span>
-                    applied nodes <code>{appliedGravityPreviewNodeCount}</code>
-                  </span>
-                ) : null}
-              </div>
-              {appliedGravityPreviewActive ? (
                 <div
                   className="perspective-manual-gravity-applied-legend"
                   aria-label="Manual Gravity Applied Preview Legend"
@@ -6254,8 +6282,8 @@ function PerspectiveTab({
                   <span>No FormationReceiptV0 authority change.</span>
                   <span>No persistence or graph DB write.</span>
                 </div>
-              ) : null}
-              {appliedGravityPreviewActive ? (
+                ) : null}
+                {appliedGravityPreviewActive ? (
                 <div
                   className="perspective-manual-gravity-global-summary"
                   aria-label="Manual Gravity Global Summary"
@@ -6306,9 +6334,9 @@ function PerspectiveTab({
                     <span>No mixed-mark conflict targets</span>
                   )}
                 </div>
-              ) : null}
-              {appliedGravityPreviewActive &&
-              activeManualGravityPreviewConflictNotices.length > 0 ? (
+                ) : null}
+                {appliedGravityPreviewActive &&
+                activeManualGravityPreviewConflictNotices.length > 0 ? (
                 <div
                   className="perspective-manual-gravity-conflict-notice"
                   aria-label="Manual Gravity Preview conflict notice"
@@ -6324,9 +6352,9 @@ function PerspectiveTab({
                     </span>
                   ))}
                 </div>
-              ) : null}
-              {appliedGravityPreviewActive &&
-              manualGravityResolutionProposalCards.length > 0 ? (
+                ) : null}
+                {appliedGravityPreviewActive &&
+                manualGravityResolutionProposalCards.length > 0 ? (
                 <div
                   className="perspective-manual-gravity-resolution-proposals"
                   aria-label="Manual Gravity Resolution Proposal"
@@ -6361,7 +6389,14 @@ function PerspectiveTab({
                     </div>
                   ))}
                 </div>
-              ) : null}
+                ) : null}
+                <div className="perspective-manual-gravity-boundary">
+                  <span>preview marks are not persisted</span>
+                  <span>not receipt overrides yet</span>
+                  <span>source graph remains read-only</span>
+                  <span>no persistence, API route, or external call</span>
+                </div>
+              </details>
               <div className="perspective-manual-gravity-chips">
                 {activeManualGravityPreviewMarkLabels.length ? (
                   activeManualGravityPreviewMarkLabels.map((label) => (
@@ -6371,13 +6406,15 @@ function PerspectiveTab({
                   <span>No preview marks applied</span>
                 )}
               </div>
-              <div className="perspective-manual-gravity-boundary">
-                <span>preview marks are not persisted</span>
-                <span>not receipt overrides yet</span>
-                <span>source graph remains read-only</span>
-                <span>no persistence, API route, or external call</span>
-              </div>
-              <div className="perspective-manual-gravity-local-draft">
+              <details
+                className="perspective-manual-gravity-local-draft"
+                open={Boolean(manualGravityDraftOverwritePending)}
+              >
+                <summary>
+                  <span>Manual Gravity Local Draft</span>
+                  <small>Local draft: {manualGravityLocalDraftStatusLabel}</small>
+                </summary>
+                <div className="perspective-manual-gravity-local-draft-body">
                 <div>
                   <strong>Manual Gravity Local Draft</strong>
                   <span>Local draft: {manualGravityLocalDraftStatusLabel}</span>
@@ -6546,35 +6583,42 @@ function PerspectiveTab({
                     Clear Local Draft Marks
                   </button>
                 </div>
-              </div>
+                </div>
+              </details>
             </section>
-            <section className="perspective-inspector-section">
-              <h4>Evidence pointers</h4>
-              <RefChipList
-                refs={perspectiveConstellationShellEvidencePointers.map(
-                  (pointer) => pointer.target_ref,
-                )}
-                emptyLabel="No selected evidence pointers"
-              />
-            </section>
-            <section className="perspective-inspector-section is-tension">
-              <h4>Unresolved tensions</h4>
-              <RefChipList
-                refs={perspectiveConstellationShellTensions.map(
-                  (tension) => tension.summary,
-                )}
-                emptyLabel="No selected unresolved tensions"
-              />
-            </section>
-            <section className="perspective-inspector-section">
-              <h4>Next action candidates</h4>
-              <RefChipList
-                refs={perspectiveConstellationShellNextActions.map(
-                  (candidate) => candidate.summary,
-                )}
-                emptyLabel="No selected next action candidates"
-              />
-            </section>
+            <details className="perspective-inspector-section perspective-inspector-details">
+              <summary>
+                <span>Selection details</span>
+                <small>evidence, tensions, next candidates</small>
+              </summary>
+              <section>
+                <h4>Evidence pointers</h4>
+                <RefChipList
+                  refs={perspectiveConstellationShellEvidencePointers.map(
+                    (pointer) => pointer.target_ref,
+                  )}
+                  emptyLabel="No selected evidence pointers"
+                />
+              </section>
+              <section className="is-tension">
+                <h4>Unresolved tensions</h4>
+                <RefChipList
+                  refs={perspectiveConstellationShellTensions.map(
+                    (tension) => tension.summary,
+                  )}
+                  emptyLabel="No selected unresolved tensions"
+                />
+              </section>
+              <section>
+                <h4>Next action candidates</h4>
+                <RefChipList
+                  refs={perspectiveConstellationShellNextActions.map(
+                    (candidate) => candidate.summary,
+                  )}
+                  emptyLabel="No selected next action candidates"
+                />
+              </section>
+            </details>
             <section className="perspective-inspector-section perspective-selection-action-menu">
               <h4>Node / Cluster Action Menu</h4>
               <div className="perspective-action-button-grid">
@@ -6626,76 +6670,82 @@ function PerspectiveTab({
               ) : null}
             </section>
             <section className="perspective-inspector-section perspective-packet-preview">
-              <h4>ChatGPT / Codex handoff preview scoped to selection</h4>
-              <div
-                className="perspective-packet-target-toggle"
-                role="group"
-                aria-label="Handoff preview target"
-              >
-                <button
-                  type="button"
-                  className="secondary-button"
-                  aria-pressed={
-                    selectedPerspectiveIngestPacketTarget === "chatgpt_review"
-                  }
-                  onClick={() =>
-                    setSelectedPerspectiveIngestPacketTarget("chatgpt_review")
-                  }
+              <details className="perspective-packet-preview-details">
+                <summary>
+                  <span>Handoff packet</span>
+                  <small>ChatGPT / Codex previews and copy controls</small>
+                </summary>
+                <h4>ChatGPT / Codex handoff preview scoped to selection</h4>
+                <div
+                  className="perspective-packet-target-toggle"
+                  role="group"
+                  aria-label="Handoff preview target"
                 >
-                  ChatGPT review packet preview
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  aria-pressed={
-                    selectedPerspectiveIngestPacketTarget === "codex_handoff"
-                  }
-                  onClick={() =>
-                    setSelectedPerspectiveIngestPacketTarget("codex_handoff")
-                  }
-                >
-                  Codex handoff packet preview
-                </button>
-              </div>
-              <div className="perspective-packet-copy-row">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    void copyPerspectiveConstellationScopedChatGptPacket()
-                  }
-                  disabled={!perspectiveConstellationScopedChatGptPacketText}
-                >
-                  Copy ChatGPT Review Packet
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    void copyPerspectiveConstellationScopedCodexHandoffPacket()
-                  }
-                  disabled={!perspectiveConstellationScopedCodexHandoffPacketText}
-                >
-                  Copy Codex Handoff Packet
-                </button>
-                <CopyFeedback notice={perspectiveIngestCopyNotice} />
-              </div>
-              <BoundaryNote>
-                Selection-scoped preview/copy only: these controls do not
-                execute Codex, call GitHub, mutate state, create PRs, record
-                evidence, or grant authority.
-              </BoundaryNote>
-              <label htmlFor="perspective-constellation-shell-packet-preview">
-                Currently selected scoped handoff preview text
-              </label>
-              <textarea
-                id="perspective-constellation-shell-packet-preview"
-                value={selectedPerspectiveConstellationPacketText}
-                readOnly
-                rows={10}
-                spellCheck={false}
-                aria-label="Perspective Constellation handoff packet preview text"
-              />
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    aria-pressed={
+                      selectedPerspectiveIngestPacketTarget === "chatgpt_review"
+                    }
+                    onClick={() =>
+                      setSelectedPerspectiveIngestPacketTarget("chatgpt_review")
+                    }
+                  >
+                    ChatGPT review packet preview
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    aria-pressed={
+                      selectedPerspectiveIngestPacketTarget === "codex_handoff"
+                    }
+                    onClick={() =>
+                      setSelectedPerspectiveIngestPacketTarget("codex_handoff")
+                    }
+                  >
+                    Codex handoff packet preview
+                  </button>
+                </div>
+                <div className="perspective-packet-copy-row">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      void copyPerspectiveConstellationScopedChatGptPacket()
+                    }
+                    disabled={!perspectiveConstellationScopedChatGptPacketText}
+                  >
+                    Copy ChatGPT Review Packet
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      void copyPerspectiveConstellationScopedCodexHandoffPacket()
+                    }
+                    disabled={!perspectiveConstellationScopedCodexHandoffPacketText}
+                  >
+                    Copy Codex Handoff Packet
+                  </button>
+                  <CopyFeedback notice={perspectiveIngestCopyNotice} />
+                </div>
+                <BoundaryNote>
+                  Selection-scoped preview/copy only: these controls do not
+                  execute Codex, call GitHub, mutate state, create PRs, record
+                  evidence, or grant authority.
+                </BoundaryNote>
+                <label htmlFor="perspective-constellation-shell-packet-preview">
+                  Currently selected scoped handoff preview text
+                </label>
+                <textarea
+                  id="perspective-constellation-shell-packet-preview"
+                  value={selectedPerspectiveConstellationPacketText}
+                  readOnly
+                  rows={10}
+                  spellCheck={false}
+                  aria-label="Perspective Constellation handoff packet preview text"
+                />
+              </details>
             </section>
           </aside>
         </div>
@@ -6727,8 +6777,13 @@ function PerspectiveTab({
             className={`perspective-event-rail-entry-card is-${selectedPerspectiveEventRailEntry.temporalRole}`}
             aria-label="Event Rail archive entry card"
           >
-            <p className="panel-eyebrow">Event Rail temporal entry card</p>
-            <h4>{selectedPerspectiveEventRailEntry.cardTitle}</h4>
+            <div className="perspective-event-rail-entry-summary">
+              <div>
+                <p className="panel-eyebrow">Event Rail temporal entry card</p>
+                <h4>{selectedPerspectiveEventRailEntry.cardTitle}</h4>
+              </div>
+              <p>{selectedPerspectiveEventRailEntry.cardSummary}</p>
+            </div>
             <div className="perspective-event-rail-entry-meta">
               <div>
                 <span>Temporal role</span>
@@ -6743,55 +6798,60 @@ function PerspectiveTab({
                 <strong>disabled</strong>
               </div>
             </div>
-            <p>{selectedPerspectiveEventRailEntry.cardSummary}</p>
-            <div className="perspective-event-rail-entry-notes">
-              {selectedPerspectiveEventRailNotes.map((note) => (
-                <span key={note}>{note}</span>
-              ))}
-            </div>
-            {selectedPerspectiveEventRailEntry.temporalRole === "archive" ? (
-              <section
-                className="perspective-event-rail-snapshot-preview"
-                aria-label="Snapshot Archive Card v0 preview"
-              >
-                <div className="perspective-event-rail-snapshot-preview-heading">
+            <details className="perspective-event-rail-entry-details">
+              <summary>
+                <span>Event details</span>
+                <small>notes, snapshot context, source refs</small>
+              </summary>
+              <div className="perspective-event-rail-entry-notes">
+                {selectedPerspectiveEventRailNotes.map((note) => (
+                  <span key={note}>{note}</span>
+                ))}
+              </div>
+              {selectedPerspectiveEventRailEntry.temporalRole === "archive" ? (
+                <section
+                  className="perspective-event-rail-snapshot-preview"
+                  aria-label="Snapshot Archive Card v0 preview"
+                >
+                  <div className="perspective-event-rail-snapshot-preview-heading">
+                    <div>
+                      <p className="panel-eyebrow">Snapshot Archive Card v0</p>
+                      <h5>Archive stage: preview-only</h5>
+                    </div>
+                    <div className="perspective-event-rail-snapshot-preview-status">
+                      <span>Frozen snapshot: not stored</span>
+                      <span>Mutation: disabled</span>
+                      <span>Compare to Current: not implemented</span>
+                      <span>Use as Reference: informational only</span>
+                    </div>
+                  </div>
+                  <p>
+                    This archive-style card uses current local receipt and preview
+                    refs as context only. It does not store a frozen snapshot,
+                    compute a delta, compare to the current view, or mutate the
+                    Event Rail.
+                  </p>
                   <div>
-                    <p className="panel-eyebrow">Snapshot Archive Card v0</p>
-                    <h5>Archive stage: preview-only</h5>
+                    <h5>Formation context</h5>
+                    <RefChipList
+                      refs={perspectiveConstellationCurrentViewRefs}
+                      emptyLabel="No current local receipt / preview refs available"
+                    />
                   </div>
-                  <div className="perspective-event-rail-snapshot-preview-status">
-                    <span>Frozen snapshot: not stored</span>
-                    <span>Mutation: disabled</span>
-                    <span>Compare to Current: not implemented</span>
-                    <span>Use as Reference: informational only</span>
-                  </div>
-                </div>
-                <p>
-                  This archive-style card uses current local receipt and preview
-                  refs as context only. It does not store a frozen snapshot,
-                  compute a delta, compare to the current view, or mutate the
-                  Event Rail.
-                </p>
-                <div>
-                  <h5>Formation context</h5>
-                  <RefChipList
-                    refs={perspectiveConstellationCurrentViewRefs}
-                    emptyLabel="No current local receipt / preview refs available"
-                  />
-                </div>
-              </section>
-            ) : null}
-            <div>
-              <h5>Source refs / related refs</h5>
-              <RefChipList
-                refs={selectedPerspectiveEventRailEntry.relatedRefs}
-                emptyLabel="No source refs / related refs available for this local preview"
-              />
-            </div>
+                </section>
+              ) : null}
+              <div>
+                <h5>Source refs / related refs</h5>
+                <RefChipList
+                  refs={selectedPerspectiveEventRailEntry.relatedRefs}
+                  emptyLabel="No source refs / related refs available for this local preview"
+                />
+              </div>
+            </details>
           </aside>
         </section>
 
-        <details className="perspective-formation-archive-drawer" open>
+        <details className="perspective-formation-archive-drawer">
           <summary>
             <span>Formation / Archive</span>
             <small>
@@ -9438,6 +9498,42 @@ function OperatorTab({
   onRefreshSessionTrace: () => void;
   onSelectEvent: (eventId: string) => void;
 }) {
+  const publicationReviewCount = publicationSummary
+    ? publicationSummary.summary.drafts.length +
+      publicationSummary.summary.approved_previews.length +
+      publicationSummary.summary.failed.length +
+      publicationSummary.summary.failed_deliveries.length
+    : 0;
+  const approvalGateReviewCount = approvalGateState
+    ? approvalGateState.counts.requested_count +
+      approvalGateState.counts.blocked_count +
+      approvalGateState.counts.ready_for_review_count +
+      approvalGateState.counts.dry_run_ready_count
+    : 0;
+  const operatorBlockedCount = approvalGateState?.counts.blocked_count ?? 0;
+  const operatorRequestedCount =
+    approvalGateState?.counts.requested_count ?? 0;
+  const operatorOpenReviewCount =
+    pendingDecisionCount +
+    mailboxReviewCount +
+    publicationReviewCount +
+    approvalGateReviewCount;
+  const operatorCurrentFocus = busy
+    ? `Running ${busy}`
+    : pendingDecisionCount > 0
+      ? "Review pending proposals"
+      : mailboxReviewCount > 0
+        ? "Review mailbox handoffs"
+        : "Review local handoff state";
+  const operatorDecisionSummary =
+    operatorBlockedCount > 0
+      ? `${operatorBlockedCount} blocked gate items`
+      : operatorRequestedCount > 0
+        ? `${operatorRequestedCount} requested gate items`
+        : pendingDecisionCount > 0
+          ? `${pendingDecisionCount} pending proposal decisions`
+          : "No blocking user decision loaded";
+
   return (
     <section className="cockpit-tab-panel operator-tab" aria-label="Operator">
       <PageHeader
@@ -9445,34 +9541,85 @@ function OperatorTab({
         title="Operator"
         description="Operator actions affect the local Augnes runtime only. No publish, merge, retry, backup, live exchange, or external execution controls live here."
       />
-      <div className="tab-stat-row">
-        <MetricCard label="Local Runtime" value="Available" detail="demo metadata" />
-        <MetricCard label="State Authority" value="Local Runtime" detail="owns and commits state" />
-        <MetricCard
-          label="Pending Decisions"
-          value={pendingDecisionCount}
-          detail="commit/reject needed"
+      <section
+        className="operator-action-review-grid"
+        aria-label="Operator compact action review"
+      >
+        <article className="operator-action-card is-focus">
+          <span>Current operator focus</span>
+          <strong>{operatorCurrentFocus}</strong>
+          <small>safe local controls only</small>
+        </article>
+        <article className="operator-action-card">
+          <span>Pending handoff / review</span>
+          <strong>{operatorOpenReviewCount}</strong>
+          <small>
+            {pendingDecisionCount} proposals · {mailboxReviewCount} mailbox ·{" "}
+            {publicationReviewCount} publication · {approvalGateReviewCount} gate
+          </small>
+        </article>
+        <article className="operator-action-card">
+          <span>Recent validation status</span>
+          <strong>
+            {evidencePackLoaded || sessionTraceLoaded
+              ? "Local material loaded"
+              : "Not loaded"}
+          </strong>
+          <small>
+            Evidence {evidencePackLoaded ? "loaded" : "not loaded"} · Trace{" "}
+            {sessionTraceLoaded ? "loaded" : "not loaded"}
+          </small>
+        </article>
+        <article
+          className={`operator-action-card${
+            operatorBlockedCount > 0 ? " is-blocked" : ""
+          }`}
+        >
+          <span>Blocked / needs user decision</span>
+          <strong>{operatorDecisionSummary}</strong>
+          <small>no external execution from this surface</small>
+        </article>
+      </section>
+      <details className="operator-runtime-details">
+        <summary>
+          <span>Runtime status details</span>
+          <small>authority, queues, evidence, shell status</small>
+        </summary>
+        <div className="tab-stat-row operator-runtime-stat-row">
+          <MetricCard label="Local Runtime" value="Available" detail="demo metadata" />
+          <MetricCard label="State Authority" value="Local Runtime" detail="owns and commits state" />
+          <MetricCard
+            label="Pending Decisions"
+            value={pendingDecisionCount}
+            detail="commit/reject needed"
+          />
+          <MetricCard
+            label="Mailbox Review Items"
+            value={mailboxReviewCount}
+            detail="read-only buckets"
+          />
+          <MetricCard
+            label="Evidence Pack"
+            value={evidencePackLoaded ? "Available" : "Not loaded"}
+            detail="read-only proof bundle"
+          />
+          <MetricCard label="Shell Status" value="MVP shell" detail="demo readiness" />
+        </div>
+      </details>
+      <details className="operator-handoff-snapshot-shell">
+        <summary>
+          <span>Operator Handoff Snapshot</span>
+          <small>raw local handoff counts and read-only boundary copy</small>
+        </summary>
+        <OperatorHandoffSnapshot
+          pendingDecisionCount={pendingDecisionCount}
+          mailboxReviewCount={mailboxReviewCount}
+          evidencePackLoaded={evidencePackLoaded}
+          sessionTraceLoaded={sessionTraceLoaded}
+          publicationSummary={publicationSummary}
+          approvalGateState={approvalGateState}
         />
-        <MetricCard
-          label="Mailbox Review Items"
-          value={mailboxReviewCount}
-          detail="read-only buckets"
-        />
-        <MetricCard
-          label="Evidence Pack"
-          value={evidencePackLoaded ? "Available" : "Not loaded"}
-          detail="read-only proof bundle"
-        />
-        <MetricCard label="Shell Status" value="MVP shell" detail="demo readiness" />
-      </div>
-      <OperatorHandoffSnapshot
-        pendingDecisionCount={pendingDecisionCount}
-        mailboxReviewCount={mailboxReviewCount}
-        evidencePackLoaded={evidencePackLoaded}
-        sessionTraceLoaded={sessionTraceLoaded}
-        publicationSummary={publicationSummary}
-        approvalGateState={approvalGateState}
-      />
+      </details>
       <div className="operator-layout-grid">
         <aside className="operator-side-stack">
           <BoundaryNote tone="green">
@@ -9480,6 +9627,17 @@ function OperatorTab({
             state keys, and work context. External systems are never directly
             controlled.
           </BoundaryNote>
+          <SafeLocalActions
+            busy={busy}
+            evidencePackLoaded={evidencePackLoaded}
+            sessionTraceLoaded={sessionTraceLoaded}
+            sessionTraceBusy={sessionTraceBusy}
+            plan={plan}
+            onRequestPlan={onRequestPlan}
+            onRunTool={onRunTool}
+            onLoadEvidencePack={onLoadEvidencePack}
+            onRefreshSessionTrace={onRefreshSessionTrace}
+          />
           <details className="operator-advanced-observe">
             <summary>Observe advanced local proposal input</summary>
             <form onSubmit={onObserve} className="observe-form">
@@ -9499,54 +9657,57 @@ function OperatorTab({
               </div>
             </form>
           </details>
-          <SafeLocalActions
-            busy={busy}
-            evidencePackLoaded={evidencePackLoaded}
-            sessionTraceLoaded={sessionTraceLoaded}
-            sessionTraceBusy={sessionTraceBusy}
-            plan={plan}
-            onRequestPlan={onRequestPlan}
-            onRunTool={onRunTool}
-            onLoadEvidencePack={onLoadEvidencePack}
-            onRefreshSessionTrace={onRefreshSessionTrace}
-          />
         </aside>
         <section className="operator-main-stack">
-          <AgResumeTargetPreviewPanel />
-          <AgResumeMappingProposalPreviewPanel />
-          <AgResumeMappingProposalRecordReviewPanel />
-          <AgResumeMappingProposalLifecycleActionPanel />
-          <AgResumeConfirmedMappingCreatePanel />
-          <AgResumeConfirmedMappingReadPanel />
-          <AgResumeImportedContextCreatePanel />
-          <AgResumeImportedContextReadPanel />
-          <AgResumeReconciliationCandidateCreatePanel />
-          <AgResumeReconciliationCandidateLifecycleActionPanel />
-          <AgResumeReconciliationCandidateReadPanel />
-          <AgResumeProofEvidenceRecordingGatePanel />
-          <CoordinationEventTimeline
-            events={coordinationEvents}
-            selectedEvent={selectedCoordinationEvent}
-            error={eventError}
-            onSelectEvent={onSelectEvent}
-          />
           <PendingProposalQueue
             proposals={proposals}
             busy={busy}
             onConsolidateCandidates={onConsolidateCandidates}
             onDecideProposal={onDecideProposal}
           />
+          <details className="operator-technical-details">
+            <summary>
+              <span>Technical review surfaces</span>
+              <small>AG Resume, timeline, raw local review panels</small>
+            </summary>
+            <div className="operator-technical-panel-stack">
+              <AgResumeTargetPreviewPanel />
+              <AgResumeMappingProposalPreviewPanel />
+              <AgResumeMappingProposalRecordReviewPanel />
+              <AgResumeMappingProposalLifecycleActionPanel />
+              <AgResumeConfirmedMappingCreatePanel />
+              <AgResumeConfirmedMappingReadPanel />
+              <AgResumeImportedContextCreatePanel />
+              <AgResumeImportedContextReadPanel />
+              <AgResumeReconciliationCandidateCreatePanel />
+              <AgResumeReconciliationCandidateLifecycleActionPanel />
+              <AgResumeReconciliationCandidateReadPanel />
+              <AgResumeProofEvidenceRecordingGatePanel />
+              <CoordinationEventTimeline
+                events={coordinationEvents}
+                selectedEvent={selectedCoordinationEvent}
+                error={eventError}
+                onSelectEvent={onSelectEvent}
+              />
+            </div>
+          </details>
         </section>
         <aside className="operator-summary-stack">
-          <MailboxSummaryPanel mailboxSummary={mailboxSummary} error={mailboxError} />
-          <PublicationSummaryPanel
-            publicationSummary={publicationSummary}
-            error={publicationError}
-          />
-          <ApprovalGateStatePanel
-            approvalGateState={approvalGateState}
-            error={approvalGateError}
-          />
+          <details className="operator-summary-details">
+            <summary>
+              <span>Review summaries</span>
+              <small>mailbox, publication, approval gate</small>
+            </summary>
+            <MailboxSummaryPanel mailboxSummary={mailboxSummary} error={mailboxError} />
+            <PublicationSummaryPanel
+              publicationSummary={publicationSummary}
+              error={publicationError}
+            />
+            <ApprovalGateStatePanel
+              approvalGateState={approvalGateState}
+              error={approvalGateError}
+            />
+          </details>
         </aside>
       </div>
       <BoundaryNote>
