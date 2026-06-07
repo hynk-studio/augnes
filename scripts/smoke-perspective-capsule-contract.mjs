@@ -169,6 +169,9 @@ const allowedChangedFiles = new Set([
   perspectiveIngestCodexAdapterFile,
   perspectiveIngestPacketBuilderFile,
   perspectiveUnitPreviewBuilderFile,
+  "lib/perspective-ingest/perspective-agent-brief.ts",
+  "lib/perspective-ingest/perspective-temporal-spatial-map.ts",
+  "lib/perspective-ingest/perspective-workbench-projection.ts",
   manualGravityPreviewHelperFile,
   perspectiveIngestRouteHelperFile,
   perspectiveIngestRouteFile,
@@ -217,6 +220,9 @@ const allowedChangedFiles = new Set([
   authorityCopyCollapseDoc,
   authorityCopyCollapseSmokeFile,
   authorityCopyCollapseBrowserReportFile,
+  "docs/PERSPECTIVE_TEMPORAL_SPATIAL_PROJECTION_BUILDERS_V0_1.md",
+  "reports/2026-06-07-perspective-temporal-spatial-projection-builders.md",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 
