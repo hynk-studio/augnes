@@ -5786,6 +5786,15 @@ function PerspectiveTab({
             <StatusBadge label="preview/copy only" />
           </div>
         </div>
+        <div className="perspective-start-here-strip" aria-label="Start here">
+          <span>Start here</span>
+          <ol>
+            <li>Select a node</li>
+            <li>Mark focus</li>
+            <li>Preview focus</li>
+            <li>Open handoff packet</li>
+          </ol>
+        </div>
         <section
           className="perspective-formation-summary-overlay"
           aria-label="Perspective Constellation summary overlay"
@@ -6144,9 +6153,9 @@ function PerspectiveTab({
             >
               <h4>Manual Gravity Preview</h4>
               <p>
+                <strong>Focus marks for this constellation.</strong>{" "}
                 Local salience marks for the current selected graph material.
-                Preview-only. Not saved. Not written to FormationReceiptV0. No
-                graph DB write.
+                Preview-only. Not saved. Not written to FormationReceiptV0. No graph DB write.
               </p>
               <div className="meta-row">
                 <span>
@@ -6672,8 +6681,8 @@ function PerspectiveTab({
             <section className="perspective-inspector-section perspective-packet-preview">
               <details className="perspective-packet-preview-details">
                 <summary>
-                  <span>Handoff packet</span>
-                  <small>ChatGPT / Codex previews and copy controls</small>
+                  <span>Handoff packet · ChatGPT/Codex · copy-ready</span>
+                  <small>review and handoff previews stay reachable</small>
                 </summary>
                 <h4>ChatGPT / Codex handoff preview scoped to selection</h4>
                 <div
@@ -9546,12 +9555,21 @@ function OperatorTab({
         aria-label="Operator compact action review"
       >
         <article className="operator-action-card is-focus">
-          <span>Current operator focus</span>
+          <span>Now</span>
           <strong>{operatorCurrentFocus}</strong>
           <small>safe local controls only</small>
         </article>
+        <article
+          className={`operator-action-card${
+            operatorBlockedCount > 0 ? " is-blocked" : ""
+          }`}
+        >
+          <span>Needs user decision</span>
+          <strong>{operatorDecisionSummary}</strong>
+          <small>no external execution from this surface</small>
+        </article>
         <article className="operator-action-card">
-          <span>Pending handoff / review</span>
+          <span>Ready to handoff</span>
           <strong>{operatorOpenReviewCount}</strong>
           <small>
             {pendingDecisionCount} proposals · {mailboxReviewCount} mailbox ·{" "}
@@ -9559,7 +9577,7 @@ function OperatorTab({
           </small>
         </article>
         <article className="operator-action-card">
-          <span>Recent validation status</span>
+          <span>Recent validation</span>
           <strong>
             {evidencePackLoaded || sessionTraceLoaded
               ? "Local material loaded"
@@ -9570,16 +9588,16 @@ function OperatorTab({
             {sessionTraceLoaded ? "loaded" : "not loaded"}
           </small>
         </article>
-        <article
-          className={`operator-action-card${
-            operatorBlockedCount > 0 ? " is-blocked" : ""
-          }`}
-        >
-          <span>Blocked / needs user decision</span>
-          <strong>{operatorDecisionSummary}</strong>
-          <small>no external execution from this surface</small>
-        </article>
       </section>
+      {operatorOpenReviewCount > 0 ? (
+        <p className="operator-next-step-line">
+          <strong>What to do next</strong>
+          <span>
+            Open ready handoff or review material; keep commit and external
+            action outside this surface.
+          </span>
+        </p>
+      ) : null}
       <details className="operator-runtime-details">
         <summary>
           <span>Runtime status details</span>
