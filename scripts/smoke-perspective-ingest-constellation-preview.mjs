@@ -21,6 +21,8 @@ const packetBuilderFile =
   "lib/perspective-ingest/episode-to-constellation-packet.ts";
 const perspectiveUnitPreviewBuilderFile =
   "lib/perspective-ingest/perspective-unit-preview.ts";
+const manualGravityHelperFile =
+  "lib/perspective-ingest/manual-gravity-preview.ts";
 const routeHelperFile =
   "lib/readonly-api/perspective-ingest-constellation-preview.ts";
 const routeFile =
@@ -42,6 +44,7 @@ const inspectedFiles = [
   codexAdapterFile,
   packetBuilderFile,
   perspectiveUnitPreviewBuilderFile,
+  manualGravityHelperFile,
   routeHelperFile,
   routeFile,
   cockpitFile,
@@ -76,10 +79,18 @@ assertNoExternalCallPatterns();
 
 console.log("perspective ingest constellation preview smoke passed");
 
-function getNamedFunctionText(sourceText, functionName) {
-  const startNeedle = `function ${functionName}(`;
-  const startIndex = sourceText.indexOf(startNeedle);
-  assert(startIndex >= 0, `${functionName} helper must exist`);
+function findNamedFunctionText(sourceText, functionName) {
+  const startNeedles = [
+    `export function ${functionName}(`,
+    `function ${functionName}(`,
+  ];
+  const startIndex = startNeedles.reduce((nearestIndex, startNeedle) => {
+    const candidateIndex = sourceText.indexOf(startNeedle);
+    if (candidateIndex < 0) return nearestIndex;
+    if (nearestIndex < 0) return candidateIndex;
+    return Math.min(nearestIndex, candidateIndex);
+  }, -1);
+  if (startIndex < 0) return null;
 
   const bodyStartIndex = sourceText.indexOf("{", startIndex);
   assert(bodyStartIndex >= 0, `${functionName} helper must have a body`);
@@ -97,21 +108,33 @@ function getNamedFunctionText(sourceText, functionName) {
   assert.fail(`${functionName} helper body must be closed`);
 }
 
-function stripAllowedManualGravityLocalDraftStorage(cockpitText) {
+function getNamedFunctionText(sourceText, functionName) {
+  const functionText = findNamedFunctionText(sourceText, functionName);
+  assert(functionText, `${functionName} helper must exist`);
+  return functionText;
+}
+
+function stripAllowedManualGravityLocalDraftStorage(sourceText) {
   return [
     "readManualGravityLocalDraftFromStorage",
     "writeManualGravityLocalDraftToStorage",
     "clearManualGravityLocalDraftStorage",
   ].reduce(
-    (remainingText, functionName) =>
-      remainingText.replace(getNamedFunctionText(cockpitText, functionName), ""),
-    cockpitText,
+    (remainingText, functionName) => {
+      const functionText = findNamedFunctionText(remainingText, functionName);
+      return functionText ? remainingText.replace(functionText, "") : remainingText;
+    },
+    sourceText,
   );
 }
 
 function assertOnlyManualGravityLocalDraftStorage(cockpitText) {
+  const helperText = textByFile.get(manualGravityHelperFile);
+  const combinedManualGravityText = `${cockpitText}\n${helperText}`;
   const storageKeyLiterals = [
-    ...cockpitText.matchAll(/"augnes:perspective-constellation:[^"]+"/g),
+    ...combinedManualGravityText.matchAll(
+      /"augnes:perspective-constellation:[^"]+"/g,
+    ),
   ].map((match) => match[0].slice(1, -1));
   assert.deepEqual(
     Array.from(new Set(storageKeyLiterals)),
@@ -120,23 +143,71 @@ function assertOnlyManualGravityLocalDraftStorage(cockpitText) {
   );
 
   const readHelperText = getNamedFunctionText(
-    cockpitText,
+    helperText,
     "readManualGravityLocalDraftFromStorage",
   );
   const writeHelperText = getNamedFunctionText(
-    cockpitText,
+    helperText,
     "writeManualGravityLocalDraftToStorage",
   );
   const clearHelperText = getNamedFunctionText(
-    cockpitText,
+    helperText,
     "clearManualGravityLocalDraftStorage",
   );
 
-  assertContainsAll(cockpitFile, [
-    "MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY",
+  assertContainsAll(manualGravityHelperFile, [
+    "export const MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY",
     manualGravityLocalDraftStorageKey,
-    "MANUAL_GRAVITY_LOCAL_DRAFT_VERSION",
+    "export const MANUAL_GRAVITY_LOCAL_DRAFT_VERSION",
     manualGravityLocalDraftVersion,
+    "export function readManualGravityLocalDraftFromStorage",
+    "export function writeManualGravityLocalDraftToStorage",
+    "export function clearManualGravityLocalDraftStorage",
+    "parseManualGravityLocalDraft",
+    "sanitizeManualGravityPreviewMarksWithReport(",
+    "JSON.stringify(draft)",
+    "Pin Preview",
+    "Watch Preview",
+    "Defer Preview",
+    "Boost Preview",
+    "Pinned preview",
+    "Watch preview",
+    "Deferred preview",
+    "Boosted preview",
+    "Option A: treat as Watch next, defer execution.",
+    "Option B: keep Boost as priority signal and Defer as timing constraint.",
+    "Option C: split into separate future candidates later.",
+    "Option A: keep pinned as important reference, defer action.",
+    "Option B: convert to Watch later in a future flow.",
+    "Option A: keep as high-priority pinned material.",
+    "Option A: keep watched but defer near-term action.",
+    "Pin + Defer",
+    "pinned and deferred marks both active; review context only.",
+    "Boost + Defer",
+    "boosted and deferred marks both active; no automatic resolution.",
+    "Pin + Boost",
+    "priority emphasis only; no source graph update.",
+    "Watch + Defer",
+    "watch/defer combination is allowed as local review context.",
+    "No matching local draft for this formation",
+    "Draft exists for another source or formation.",
+    "Local draft unavailable",
+    "Some saved targets are not present in the current graph",
+    "Malformed draft ignored",
+    "unsafe or unknown mark ids were ignored",
+    "No automatic migration, overwrite, or conflict resolution is applied.",
+    "source_query mismatch",
+    "formation_id mismatch",
+    "constellation_id mismatch",
+    "as_of/generated_at mismatch",
+    "Only saved target keys that resolve to the current graph are restored as visible marks.",
+    "browser-local draft metadata",
+  ], { textByFile });
+
+  assertContainsAll(cockpitFile, [
+    'from "@/lib/perspective-ingest/manual-gravity-preview"',
+    "MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY",
+    "MANUAL_GRAVITY_LOCAL_DRAFT_VERSION",
     "readManualGravityLocalDraftFromStorage",
     "writeManualGravityLocalDraftToStorage",
     "clearManualGravityLocalDraftStorage",
@@ -152,7 +223,7 @@ function assertOnlyManualGravityLocalDraftStorage(cockpitText) {
     [
       "readManualGravityLocalDraftFromStorage",
       readHelperText,
-      "window.localStorage.getItem(MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY)",
+      "window.localStorage.getItem(",
     ],
     [
       "writeManualGravityLocalDraftToStorage",
@@ -177,7 +248,14 @@ function assertOnlyManualGravityLocalDraftStorage(cockpitText) {
     stripAllowedManualGravityLocalDraftStorage(cockpitText);
   assert(
     !/\blocalStorage\b/.test(withoutAllowedDraftStorage),
-    "localStorage must only be used for Manual Gravity local draft metadata",
+    "Cockpit must not directly access localStorage after Manual Gravity helper extraction",
+  );
+
+  const helperWithoutAllowedDraftStorage =
+    stripAllowedManualGravityLocalDraftStorage(helperText);
+  assert(
+    !/\blocalStorage\b/.test(helperWithoutAllowedDraftStorage),
+    "Manual Gravity helper localStorage access must stay inside local draft helpers",
   );
 }
 
@@ -474,15 +552,102 @@ function assertCockpitSurface() {
 
 function assertManualGravityPreviewMarks() {
   const cockpitText = textByFile.get(cockpitFile);
+  const manualGravityHelperText = textByFile.get(manualGravityHelperFile);
+
+  [
+    { pattern: /\bfetch\s*\(/, label: "API calls" },
+    { pattern: /\bdb\.(insert|update|delete|execute|run)\b/i, label: "DB writes" },
+    { pattern: /\bwriteFile(Sync)?\b/, label: "filesystem writes" },
+    { pattern: /rulecraft/i, label: "Rulecraft" },
+    { pattern: /Auto Proposal/i, label: "Auto Proposal execution" },
+  ].forEach(({ pattern, label }) => {
+    assert(
+      !pattern.test(manualGravityHelperText),
+      `Manual Gravity helper must not introduce ${label}`,
+    );
+  });
+
+  assertContainsAll(manualGravityHelperFile, [
+    "export type ManualGravityPreviewMark",
+    "export type ManualGravityPreviewOverride",
+    "export type ManualGravityPreviewConflictNotice",
+    "export type ManualGravityGlobalConflictSummary",
+    "export type ManualGravityResolutionProposalCard",
+    "export type ManualGravityLocalDraft",
+    "export type ManualGravityLocalDraftStatus",
+    "export type ManualGravityLocalDraftReceipt",
+    "export type ManualGravityLocalDraftStorageSnapshot",
+    "export type ManualGravityLocalDraftRestoreNotice",
+    "export type ManualGravityDraftOverwriteConfirmation",
+    "export const MANUAL_GRAVITY_PREVIEW_MARKS",
+    "export const MANUAL_GRAVITY_PREVIEW_MARK_IDS",
+    "export const MANUAL_GRAVITY_LOCAL_DRAFT_VERSION",
+    "export const MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY",
+    "export function countManualGravityPreviewMarks",
+    "export function countManualGravityPreviewTargets",
+    "export function hasManualGravityPreviewMarks",
+    "export function sanitizeManualGravityPreviewMarks",
+    "export function sanitizeManualGravityPreviewMarksWithReport",
+    "export function parseManualGravityLocalDraft",
+    "export function readManualGravityLocalDraftFromStorage",
+    "export function writeManualGravityLocalDraftToStorage",
+    "export function clearManualGravityLocalDraftStorage",
+    "export function getManualGravityLocalDraftReceipt",
+    "export function getManualGravityLocalDraftOverwriteReceipt",
+    "export function manualGravityLocalDraftMatchesContext",
+    "export function getManualGravityLocalDraftContextMismatches",
+    "export function getManualGravityPreviewMissingTargetKeys",
+    "export function filterManualGravityPreviewMarksByTargetKeys",
+    "export function buildManualGravityLocalDraftRestoreNotice",
+    "export function mergeManualGravityPreviewMarks",
+    "export function getManualGravityPreviewMarkClassName",
+    "export function getManualGravityPreviewConflictNotices",
+    "export function getManualGravityResolutionProposalOptions",
+    "Pin Preview",
+    "Watch Preview",
+    "Defer Preview",
+    "Boost Preview",
+    "Pinned preview",
+    "Watch preview",
+    "Deferred preview",
+    "Boosted preview",
+    "Option A: treat as Watch next, defer execution.",
+    "Option B: keep Boost as priority signal and Defer as timing constraint.",
+    "Option C: split into separate future candidates later.",
+    "Option A: keep pinned as important reference, defer action.",
+    "Option B: convert to Watch later in a future flow.",
+    "Option A: keep as high-priority pinned material.",
+    "Option A: keep watched but defer near-term action.",
+    "Pin + Defer",
+    "pinned and deferred marks both active; review context only.",
+    "Boost + Defer",
+    "boosted and deferred marks both active; no automatic resolution.",
+    "Pin + Boost",
+    "priority emphasis only; no source graph update.",
+    "Watch + Defer",
+    "watch/defer combination is allowed as local review context.",
+    "No matching local draft for this formation",
+    "Draft exists for another source or formation.",
+    "Local draft unavailable",
+    "Some saved targets are not present in the current graph",
+    "Malformed draft ignored",
+    "unsafe or unknown mark ids were ignored",
+    "No automatic migration, overwrite, or conflict resolution is applied.",
+    "source_query mismatch",
+    "formation_id mismatch",
+    "constellation_id mismatch",
+    "as_of/generated_at mismatch",
+    "Only saved target keys that resolve to the current graph are restored as visible marks.",
+    "browser-local draft metadata",
+  ], { textByFile });
 
   assertContainsAll(cockpitFile, [
+    'from "@/lib/perspective-ingest/manual-gravity-preview"',
     "ManualGravityPreviewMark",
     "ManualGravityPreviewOverride",
-    "ManualGravityPreviewConflictNotice",
     "ManualGravityGlobalConflictSummary",
     "ManualGravityResolutionProposalCard",
     "ManualGravityLocalDraftStorageSnapshot",
-    "ManualGravityLocalDraftRestoreNotice",
     "ManualGravityDraftOverwriteConfirmation",
     "MANUAL_GRAVITY_PREVIEW_MARKS",
     "selectedGravityPreviewMarks",
@@ -500,10 +665,8 @@ function assertManualGravityPreviewMarks() {
     "clearManualGravityPreviewMarks",
     "saveManualGravityLocalDraftMarks",
     "clearManualGravityLocalDraftMarks",
-    "parseManualGravityLocalDraft",
     "manualGravityLocalDraftMatchesContext",
     "sanitizeManualGravityPreviewMarks",
-    "sanitizeManualGravityPreviewMarksWithReport",
     "manualGravityLocalDraftStatus",
     "manualGravityLocalDraftReceipt",
     "manualGravityLocalDraftStorageSnapshot",
@@ -567,13 +730,6 @@ function assertManualGravityPreviewMarks() {
     "Advisory only. No automatic resolution is applied.",
     "No marks are changed.",
     "These are proposal cards only.",
-    "Option A: treat as Watch next, defer execution.",
-    "Option B: keep Boost as priority signal and Defer as timing constraint.",
-    "Option C: split into separate future candidates later.",
-    "Option A: keep pinned as important reference, defer action.",
-    "Option B: convert to Watch later in a future flow.",
-    "Option A: keep as high-priority pinned material.",
-    "Option A: keep watched but defer near-term action.",
     "P = Pin Preview",
     "W = Watch Preview",
     "D = Defer Preview",
@@ -581,14 +737,6 @@ function assertManualGravityPreviewMarks() {
     "Conflict notice",
     "Manual Gravity Preview conflict notice",
     "Mixed preview marks are allowed as local review context only. No automatic resolution is applied.",
-    "Pin + Defer",
-    "pinned and deferred marks both active; review context only.",
-    "Boost + Defer",
-    "boosted and deferred marks both active; no automatic resolution.",
-    "Pin + Boost",
-    "priority emphasis only; no source graph update.",
-    "Watch + Defer",
-    "watch/defer combination is allowed as local review context.",
     "target",
     "scope",
     "marks",
@@ -603,10 +751,6 @@ function assertManualGravityPreviewMarks() {
     "No persistence or graph DB write.",
     "No persistence or graph DB write",
     "applied nodes",
-    "Pinned preview",
-    "Watch preview",
-    "Deferred preview",
-    "Boosted preview",
     "No preview marks applied",
     "select a node, cluster, or manual selection first",
     "preview marks are not persisted",
@@ -629,25 +773,12 @@ function assertManualGravityPreviewMarks() {
     "Manual Gravity Local Draft receipt",
     "Manual Gravity Local Draft safe metadata",
     "Manual Gravity Restore Notice",
-    "No matching local draft for this formation",
-    "Draft exists for another source or formation.",
-    "Local draft unavailable",
-    "Some saved targets are not present in the current graph",
-    "Malformed draft ignored",
-    "unsafe or unknown mark ids were ignored",
-    "No automatic migration, overwrite, or conflict resolution is applied.",
-    "source_query mismatch",
-    "formation_id mismatch",
-    "constellation_id mismatch",
-    "as_of/generated_at mismatch",
-    "Only saved target keys that resolve to the current graph are restored as visible marks.",
     "Overwrite local draft?",
     "Manual Gravity draft overwrite confirmation",
     "A browser-local Manual Gravity draft already exists.",
     "Replacing it updates local metadata only.",
     "No raw content is stored.",
     "No DB, API, or graph DB write.",
-    "browser-local draft metadata",
     "Existing draft",
     "New draft",
     "Replace Local Draft",

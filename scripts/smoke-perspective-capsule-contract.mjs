@@ -44,6 +44,8 @@ const perspectiveIngestPacketBuilderFile =
   "lib/perspective-ingest/episode-to-constellation-packet.ts";
 const perspectiveUnitPreviewBuilderFile =
   "lib/perspective-ingest/perspective-unit-preview.ts";
+const manualGravityPreviewHelperFile =
+  "lib/perspective-ingest/manual-gravity-preview.ts";
 const perspectiveIngestRouteHelperFile =
   "lib/readonly-api/perspective-ingest-constellation-preview.ts";
 const perspectiveIngestRouteFile =
@@ -97,6 +99,7 @@ const allowedChangedFiles = new Set([
   perspectiveIngestCodexAdapterFile,
   perspectiveIngestPacketBuilderFile,
   perspectiveUnitPreviewBuilderFile,
+  manualGravityPreviewHelperFile,
   perspectiveIngestRouteHelperFile,
   perspectiveIngestRouteFile,
   perspectiveIngestDoc,
