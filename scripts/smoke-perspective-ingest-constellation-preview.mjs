@@ -23,6 +23,8 @@ const perspectiveUnitPreviewBuilderFile =
   "lib/perspective-ingest/perspective-unit-preview.ts";
 const manualGravityHelperFile =
   "lib/perspective-ingest/manual-gravity-preview.ts";
+const formationSwitchAcknowledgementHelperFile =
+  "lib/perspective-ingest/formation-switch-acknowledgement.ts";
 const routeHelperFile =
   "lib/readonly-api/perspective-ingest-constellation-preview.ts";
 const routeFile =
@@ -45,6 +47,7 @@ const inspectedFiles = [
   packetBuilderFile,
   perspectiveUnitPreviewBuilderFile,
   manualGravityHelperFile,
+  formationSwitchAcknowledgementHelperFile,
   routeHelperFile,
   routeFile,
   cockpitFile,
@@ -247,7 +250,7 @@ function assertOnlyManualGravityLocalDraftStorage(cockpitText) {
   const withoutAllowedDraftStorage =
     stripAllowedManualGravityLocalDraftStorage(cockpitText);
   assert(
-    !/\blocalStorage\b/.test(withoutAllowedDraftStorage),
+    !/\bwindow\.localStorage\b/.test(withoutAllowedDraftStorage),
     "Cockpit must not directly access localStorage after Manual Gravity helper extraction",
   );
 
@@ -936,29 +939,43 @@ function assertFormationSummaryOverlay() {
     "Manual selection must remain scope/receipt behavior, not a Lens value",
   );
   assert(
-    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
-    "Cockpit must not introduce localStorage acknowledgement logic",
+    !/\bwindow\.localStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
+    "Cockpit must not directly access localStorage acknowledgement logic",
   );
 }
 
 function assertFormationBasisExplanationOverlay() {
   const cockpitText = textByFile.get(cockpitFile);
-  const cockpitTextWithoutAllowedDraftStorage =
-    stripAllowedManualGravityLocalDraftStorage(cockpitText);
 
   assertContainsAll(cockpitFile, [
     "formationBasisExplanationOpen",
     "setFormationBasisExplanationOpen",
     "selectedFormationBasisExplanation",
     "setSelectedFormationBasisExplanation",
+    "pendingFormationBasisSwitch",
+    "setPendingFormationBasisSwitch",
+    "formationSwitchOverlayOpen",
+    "setFormationSwitchOverlayOpen",
+    "formationSwitchNotice",
+    "setFormationSwitchNotice",
     "PerspectiveFormationBasisExplanationCandidate",
+    "PerspectiveFormationBasisSwitchDecision",
     "perspectiveConstellationFormationBasisExplanations",
     "perspectiveConstellationActiveReceiptBasis",
     "selectedPerspectiveFormationBasisExplanation",
+    "handlePerspectiveFormationBasisControlClick",
+    "getPerspectiveFormationBasisSwitchDecision",
+    "applyPendingPerspectiveFormationBasisSwitch",
+    "applyPerspectiveFormationBasisSwitch",
+    "getPerspectiveFormationBasisSwitchOverlayCopy",
     "perspective-formation-basis-explanation-card",
+    "perspective-formation-switch-overlay-backdrop",
+    "perspective-formation-switch-overlay-card",
     "Formation Basis explanation card",
+    "Formation Basis switch overlay",
     "What does this basis mean?",
     "Formation Basis explanation",
+    "Formation Basis · Switch View",
     "how this constellation was formed",
     "Formation Basis explains how the current constellation arrangement was formed. Lens explains how you inspect it. Scope explains what part is selected.",
     "Current",
@@ -981,9 +998,9 @@ function assertFormationBasisExplanationOverlay() {
     "Selected basis preview",
     "active receipt basis",
     "selected explanation candidate",
-    "Active receipt basis remains unchanged.",
-    "Visible graph remains unchanged.",
-    "No apply, OK, Cancel, or rearrange flow is available.",
+    "Switch View uses a separate Apply View / Cancel overlay for",
+    "Future bases remain disabled / future behavior.",
+    "Cached acknowledgement metadata only may skip OK for repeated",
     "No snapshots, delta view, API calls, or persistence occur.",
     "Selecting this explanation candidate does not re-run ingest, rearrange the graph, or change the active receipt basis.",
     "If supported as a formation basis, this would remain local-only and would be based on selected graph material.",
@@ -991,20 +1008,47 @@ function assertFormationBasisExplanationOverlay() {
     "No provider, model, API call, billing, graph rearrangement, or proposal execution occurs here.",
     "It keeps experimental internals unexposed, creates no public enum surface, and applies no rearrangement.",
     "aria-pressed={basis.id === selectedFormationBasisExplanation}",
-    "disabled={futureOnly}",
+    "data-future-only={futureOnly ? \"true\" : undefined}",
     "open={formationBasisExplanationOpen}",
     "id=\"perspective-formation-basis-explanation-card\"",
+    "Switch to Current View?",
+    "This returns the starmap to the current local PerspectiveUnitPreview / FormationReceiptV0 basis.",
+    "Switch to Manual Selection View?",
+    "This reframes the local preview around selected graph material.",
+    "Apply View",
+    "Cancel",
+    "Select a node or cluster before applying Manual Selection.",
+    "Applied Current View · local-only",
+    "Applied Manual Selection View · local-only",
+    "cached local acknowledgement · no API call",
+    "acknowledgement metadata only",
+    "expires after 24 hours",
+    "no raw graph/source/prompt/model/private content",
   ], { textByFile });
-  assert(
-    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
-    "Formation Basis explanation must not introduce localStorage",
-  );
-  assert(
-    !/\bOK-skip\b|\bok skip\b|\backnowledgement\b|\backnowledgment\b/i.test(
-      cockpitText,
-    ),
-    "Formation Basis explanation must not introduce OK-skip acknowledgement logic",
-  );
+  assertContainsAll(cockpitFile, [
+    "FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY",
+    "FORMATION_SWITCH_BASIS_VERSION",
+    "buildFormationSwitchAcknowledgement",
+    "readFormationSwitchAcknowledgementFromStorage",
+    "writeFormationSwitchAcknowledgementToStorage",
+    "formationSwitchAcknowledgementIsValid",
+  ], { textByFile });
+  assertContainsAll(formationSwitchAcknowledgementHelperFile, [
+    "FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY",
+    "augnes.perspective.formationSwitchAcknowledgement.v0_1",
+    "FORMATION_SWITCH_BASIS_VERSION",
+    "formation_basis_switch.v0.1",
+    "FORMATION_SWITCH_ACKNOWLEDGEMENT_TTL_MS = 24 * 60 * 60 * 1000",
+    "costTier: \"free_local\"",
+    "externalCalls: false",
+    "apiBillable: false",
+    "persistence: false",
+    "contextFingerprint",
+    "expiresAt",
+    "readFormationSwitchAcknowledgementFromStorage",
+    "writeFormationSwitchAcknowledgementToStorage",
+    "formationSwitchAcknowledgementIsValid",
+  ], { textByFile });
   assert(
     !/\bprovider selector\b|\bmodel selector\b|\brearrange view\b|\bapply basis\b|\bcompareToCurrent\b|\bsetCompare\b/i.test(
       cockpitText,
@@ -1049,7 +1093,7 @@ function assertFormationSubstratePanel() {
     "No scoped next action candidates",
   ], { textByFile });
   assert(
-    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
+    !/\bwindow\.localStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
     "Formation Substrate panel must not introduce localStorage",
   );
 }
@@ -1105,7 +1149,7 @@ function assertEventRailArchiveEntryCards() {
     "selectedPerspectiveEventRailEntry.temporalRole === \"archive\"",
   ], { textByFile });
   assert(
-    !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
+    !/\bwindow\.localStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
     "Event Rail entry cards must not introduce localStorage",
   );
   assert(

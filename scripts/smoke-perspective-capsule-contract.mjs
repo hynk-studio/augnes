@@ -82,6 +82,14 @@ const eventRailEntryCardsSmokeFile =
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs";
 const eventRailEntryCardsBrowserReportFile =
   "reports/browser/2026-06-07-perspective-event-rail-entry-cards.md";
+const formationSwitchAcknowledgementHelperFile =
+  "lib/perspective-ingest/formation-switch-acknowledgement.ts";
+const formationSwitchOverlayDoc =
+  "docs/PERSPECTIVE_FORMATION_SWITCH_OVERLAY_V0_1.md";
+const formationSwitchOverlaySmokeFile =
+  "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs";
+const formationSwitchOverlayBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-formation-switch-overlay.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -130,6 +138,10 @@ const allowedChangedFiles = new Set([
   eventRailEntryCardsDoc,
   eventRailEntryCardsSmokeFile,
   eventRailEntryCardsBrowserReportFile,
+  formationSwitchAcknowledgementHelperFile,
+  formationSwitchOverlayDoc,
+  formationSwitchOverlaySmokeFile,
+  formationSwitchOverlayBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 
