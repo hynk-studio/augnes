@@ -12,13 +12,17 @@ const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const doc = readFileSync(docFile, "utf8");
 
 const allowedChangedFiles = new Set([
+  "app/globals.css",
   "components/augnes-cockpit.tsx",
+  "docs/PERSPECTIVE_OVERLAY_FOCUS_AGENT_SEMANTICS_V0_1.md",
   "docs/PERSPECTIVE_SCOPE_HANDLER_CLEANUP_V0_1.md",
   "package.json",
+  "reports/browser/2026-06-07-perspective-overlay-focus-agent-semantics.md",
   "reports/browser/2026-06-07-perspective-scope-handler-cleanup.md",
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
+  "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
 ]);
 
