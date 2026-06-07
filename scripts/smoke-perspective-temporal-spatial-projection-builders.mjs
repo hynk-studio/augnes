@@ -48,6 +48,9 @@ const { buildPerspectiveAgentBrief } = await import(
 const { buildPerspectiveIngestConstellationPreviewResponse } = await import(
   "../lib/perspective-ingest/episode-to-constellation-packet.ts"
 );
+const { buildManualPastedTextSessionEpisode } = await import(
+  "../lib/perspective-ingest/manual-pasted-text-adapter.ts"
+);
 
 const allowedChangedFiles = new Set([
   mapFile,
@@ -163,8 +166,10 @@ for (const [nodeType, expectedTemporalNodes] of [
   ["next_move", ["next_perspective"]],
   ["packet", ["handoff", "review", "pr"]],
   ["work_unit", ["decision", "closeout"]],
+  ["work_context", ["decision", "closeout"]],
   ["changed_files", ["closeout"]],
   ["validation", ["review", "closeout"]],
+  ["validation_report", ["review", "closeout"]],
   ["final_report", ["review", "closeout"]],
   ["blocker_risk", ["decision", "next_perspective"]],
 ]) {
@@ -321,6 +326,41 @@ assert.deepEqual(underlayProjection.highlighted_item_ids, [
   "review",
   "pr",
 ]);
+
+const manualPreview = buildPerspectiveIngestConstellationPreviewResponse({
+  episodes: [
+    buildManualPastedTextSessionEpisode({
+      generatedAt: "2026-06-08T00:00:00.000Z",
+      request: {
+        input_kind: "manual:pasted_text",
+        source_label: "Manual projection smoke",
+        input_text: [
+          "Intent: Review the manual temporal projection path.",
+          "Concept: Manual pasted text should preserve work and validation context.",
+          "Decision: Keep this projection builder local and read-only.",
+          "Work: Add fallback mappings for manual work context.",
+          "Changed: lib/perspective-ingest/perspective-temporal-spatial-map.ts",
+          "Validation: npm run smoke:perspective-temporal-spatial-projection-builders",
+          "Report: Manual work and validation nodes should highlight temporal items.",
+          "Tension: Manual context must not imply proof writes.",
+          "Next: Wire the projection in a later UI PR.",
+        ].join("\n"),
+      },
+    }),
+  ],
+  routeId: "augnes.read.perspective-ingest-local-preview.v0.1",
+  source: "manual:pasted_text",
+});
+assertManualTemporalProjection({
+  expectedTemporalNodes: ["decision", "closeout"],
+  nodeId: "node.manual_pasted_text.work_context",
+  preview: manualPreview,
+});
+assertManualTemporalProjection({
+  expectedTemporalNodes: ["review", "closeout"],
+  nodeId: "node.manual_pasted_text.validation_report",
+  preview: manualPreview,
+});
 
 assertContainsAll(cockpitText, [
   "perspectiveEventRailNodes",
@@ -491,6 +531,44 @@ function assertNoPacketOrRawText(label, projection, preview) {
     serialized.includes("formation_receipt"),
     false,
     `${label} must not include FormationReceipt details`,
+  );
+}
+
+function assertManualTemporalProjection({
+  expectedTemporalNodes,
+  nodeId,
+  preview,
+}) {
+  const node = preview.constellation.nodes.find((item) => item.id === nodeId);
+  assert(node, `manual preview must include ${nodeId}`);
+  assert.deepEqual(
+    getPerspectiveTemporalNodesForSpatialNodeId(node.id, node.type),
+    expectedTemporalNodes,
+    `${nodeId} must map through fallback node type`,
+  );
+
+  const workbench = buildPerspectiveWorkbenchProjection({
+    preview,
+    selected_node_id: nodeId,
+  });
+  assert.deepEqual(
+    workbench.temporal_underlay.highlighted_item_ids,
+    expectedTemporalNodes,
+    `${nodeId} workbench projection must highlight temporal underlay items`,
+  );
+
+  const brief = buildPerspectiveAgentBrief({
+    preview,
+    selected_node_id: nodeId,
+  });
+  assert.deepEqual(
+    brief.temporal_context.related_temporal_nodes,
+    expectedTemporalNodes,
+    `${nodeId} agent brief must include related temporal nodes`,
+  );
+  assert(
+    brief.temporal_context.related_temporal_nodes.length > 0,
+    `${nodeId} agent brief temporal highlights must be non-empty`,
   );
 }
 

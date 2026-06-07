@@ -167,8 +167,10 @@ const SPATIAL_NODE_TYPE_TO_TEMPORAL_MAP: Record<
   next_move: ["next_perspective"],
   packet: ["handoff", "review", "pr"],
   work_unit: ["decision", "closeout"],
+  work_context: ["decision", "closeout"],
   changed_files: ["closeout"],
   validation: ["review", "closeout"],
+  validation_report: ["review", "closeout"],
   final_report: ["review", "closeout"],
   blocker_risk: ["decision", "next_perspective"],
 } as const;

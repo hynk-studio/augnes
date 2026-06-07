@@ -60,8 +60,10 @@ Fallback node type mapping supports future non-sample source support:
 | `next_move` | `next_perspective` |
 | `packet` | `handoff`, `review`, `pr` |
 | `work_unit` | `decision`, `closeout` |
+| `work_context` | `decision`, `closeout` |
 | `changed_files` | `closeout` |
 | `validation` | `review`, `closeout` |
+| `validation_report` | `review`, `closeout` |
 | `final_report` | `review`, `closeout` |
 | `blocker_risk` | `decision`, `next_perspective` |
 
