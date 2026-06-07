@@ -19,11 +19,14 @@ const allowedChangedFiles = new Set([
   "app/globals.css",
   "components/augnes-cockpit.tsx",
   "docs/PERSPECTIVE_FORMATION_SWITCH_OVERLAY_V0_1.md",
+  "docs/PERSPECTIVE_SCOPE_HANDLER_CLEANUP_V0_1.md",
   "lib/perspective-ingest/formation-switch-acknowledgement.ts",
   "package.json",
   "reports/browser/2026-06-07-perspective-formation-switch-overlay.md",
+  "reports/browser/2026-06-07-perspective-scope-handler-cleanup.md",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
+  "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
@@ -76,8 +79,8 @@ assertContainsAll(cockpit, [
   "Experimental is disabled / future behavior",
   "Experimental internals remain unexposed in this slice. No public experimental basis, no rearrangement, no API call, no persistence.",
   "data-future-only={futureOnly ? \"true\" : undefined}",
-  "setPerspectiveConstellationSelectionScope(\"whole_constellation\")",
-  "setPerspectiveConstellationSelectionScope(\"manual_selection\")",
+  "selectWholeConstellationScope({ syncLens: \"whole_constellation\" });",
+  "selectManualSelectionScope();",
 ]);
 
 assertContainsAll(helper, [
@@ -177,7 +180,7 @@ const formationSwitchComponentSource = [
   extractBetween(
     cockpit,
     "function getPerspectiveFormationSwitchAcknowledgementContext(",
-    "function selectPerspectiveConstellationLens(",
+    "function selectPerspectiveLensOnly(",
   ),
   extractBetween(
     cockpit,

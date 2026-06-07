@@ -90,6 +90,12 @@ const formationSwitchOverlaySmokeFile =
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs";
 const formationSwitchOverlayBrowserReportFile =
   "reports/browser/2026-06-07-perspective-formation-switch-overlay.md";
+const scopeHandlerCleanupDoc =
+  "docs/PERSPECTIVE_SCOPE_HANDLER_CLEANUP_V0_1.md";
+const scopeHandlerCleanupSmokeFile =
+  "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs";
+const scopeHandlerCleanupBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-scope-handler-cleanup.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -142,6 +148,9 @@ const allowedChangedFiles = new Set([
   formationSwitchOverlayDoc,
   formationSwitchOverlaySmokeFile,
   formationSwitchOverlayBrowserReportFile,
+  scopeHandlerCleanupDoc,
+  scopeHandlerCleanupSmokeFile,
+  scopeHandlerCleanupBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

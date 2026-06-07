@@ -902,6 +902,19 @@ type Notice = {
   tone: "info" | "error";
   text: string;
 };
+type PerspectiveScopeTransitionOptions = {
+  nodeId?: string | null;
+  clusterId?: string | null;
+  clearNode?: boolean;
+  clearCluster?: boolean;
+  packetTarget?: PerspectiveIngestPacketTarget;
+  syncLens?: PerspectiveConstellationLens;
+  notice?: Notice | null;
+};
+type PerspectiveManualSelectionScopeOptions =
+  PerspectiveScopeTransitionOptions & {
+    allowPreviewFallback?: boolean;
+  };
 
 type CopyTarget = "codex" | "actionTemplate";
 type WorkCopyTarget = "workCodex" | "workEvent";
@@ -5503,13 +5516,11 @@ function PerspectiveTab({
     }
 
     if (basis === "current") {
-      setPerspectiveConstellationSelectionScope("whole_constellation");
-      setSelectedPerspectiveIngestNodeId(null);
-      setSelectedPerspectiveIngestClusterId(null);
-      setSelectedPerspectiveConstellationLens("whole_constellation");
+      // Formation Basis controls how the local preview was formed; scope helpers
+      // own the graph-material transition details.
+      selectWholeConstellationScope({ syncLens: "whole_constellation" });
     } else {
-      setPerspectiveConstellationSelectionScope("manual_selection");
-      setSelectedPerspectiveIngestClusterId(null);
+      selectManualSelectionScope();
     }
 
     setSelectedFormationBasisExplanation(basis);
@@ -5540,91 +5551,199 @@ function PerspectiveTab({
     });
   }
 
-  function selectPerspectiveConstellationLens(lens: PerspectiveConstellationLens) {
+  function selectPerspectiveLensOnly(lens: PerspectiveConstellationLens) {
     setSelectedPerspectiveConstellationLens(lens);
     setPerspectiveIngestCopyNotice(null);
     setManualGravityDraftOverwritePending(null);
+  }
 
-    if (lens === "whole_constellation") {
-      setPerspectiveConstellationSelectionScope("whole_constellation");
+  function applyPerspectiveScope(
+    scope: PerspectiveConstellationSelectionScope,
+    options: PerspectiveScopeTransitionOptions = {},
+  ) {
+    setPerspectiveConstellationSelectionScope(scope);
+
+    if (Object.prototype.hasOwnProperty.call(options, "nodeId")) {
+      setSelectedPerspectiveIngestNodeId(options.nodeId ?? null);
+    } else if (options.clearNode) {
       setSelectedPerspectiveIngestNodeId(null);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(options, "clusterId")) {
+      setSelectedPerspectiveIngestClusterId(options.clusterId ?? null);
+    } else if (options.clearCluster) {
       setSelectedPerspectiveIngestClusterId(null);
+    }
+
+    if (options.packetTarget) {
+      setPerspectiveHandoffTarget(options.packetTarget);
+    }
+
+    if (options.syncLens) {
+      selectPerspectiveLensOnly(options.syncLens);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(options, "notice")) {
+      setPerspectiveIngestCopyNotice(options.notice ?? null);
+    } else {
+      setPerspectiveIngestCopyNotice(null);
+    }
+    setManualGravityDraftOverwritePending(null);
+  }
+
+  function selectWholeConstellationScope(
+    options: PerspectiveScopeTransitionOptions = {},
+  ) {
+    applyPerspectiveScope("whole_constellation", {
+      ...options,
+      clearNode: true,
+      clearCluster: true,
+    });
+  }
+
+  function selectConnectedNodeScope(
+    options: PerspectiveScopeTransitionOptions = {},
+  ) {
+    const nodeId =
+      options.nodeId ??
+      explicitSelectedPerspectiveIngestNode?.id ??
+      perspectiveIngestConstellation?.nodes[0]?.id ??
+      null;
+
+    applyPerspectiveScope("connected_node", {
+      ...options,
+      nodeId,
+      clearCluster: true,
+    });
+  }
+
+  function selectPerspectiveNodeScope(nodeId: string) {
+    selectConnectedNodeScope({
+      nodeId,
+      syncLens: "connected_nodes",
+    });
+  }
+
+  function selectClusterScope(options: PerspectiveScopeTransitionOptions = {}) {
+    const clusterId =
+      options.clusterId ??
+      selectedPerspectiveIngestCluster?.id ??
+      perspectiveConstellationWorkspaceCluster?.id ??
+      null;
+
+    if (!clusterId) {
+      applyPerspectiveScope("cluster", {
+        ...options,
+        clearNode: true,
+        clusterId: null,
+      });
+      return;
+    }
+
+    selectPerspectiveClusterScope(clusterId, options);
+  }
+
+  function selectPerspectiveClusterScope(
+    clusterId: string,
+    options: PerspectiveScopeTransitionOptions = {},
+  ) {
+    applyPerspectiveScope("cluster", {
+      ...options,
+      clusterId,
+      clearNode: true,
+    });
+  }
+
+  function selectManualSelectionScope(
+    options: PerspectiveManualSelectionScopeOptions = {},
+  ) {
+    const { allowPreviewFallback = false, ...scopeOptions } = options;
+    const selectedNodeId = explicitSelectedPerspectiveIngestNode?.id ?? null;
+    const selectedClusterId = selectedPerspectiveIngestCluster?.id ?? null;
+
+    if (!selectedNodeId && !selectedClusterId && !allowPreviewFallback) {
+      setPerspectiveIngestCopyNotice({
+        tone: "info",
+        text: "Select a node or cluster before using Manual Selection.",
+      });
+      setManualGravityDraftOverwritePending(null);
+      return false;
+    }
+
+    // Manual Selection scope is local preview context, not durable
+    // FormationReceipt authority.
+    applyPerspectiveScope("manual_selection", {
+      ...scopeOptions,
+      ...(selectedNodeId
+        ? { nodeId: selectedNodeId, clearCluster: true }
+        : selectedClusterId
+          ? { clusterId: selectedClusterId, clearNode: true }
+          : {}),
+    });
+    return true;
+  }
+
+  function setPerspectiveHandoffTarget(target: PerspectiveIngestPacketTarget) {
+    setSelectedPerspectiveIngestPacketTarget(target);
+  }
+
+  function handlePerspectiveLensControlClick(lens: PerspectiveConstellationLens) {
+    if (lens === "whole_constellation") {
+      selectWholeConstellationScope({ syncLens: "whole_constellation" });
       return;
     }
 
     if (lens === "connected_nodes") {
-      inspectPerspectiveConstellationConnectedNodes();
+      selectConnectedNodeScope({ syncLens: "connected_nodes" });
       return;
     }
 
-    if (lens === "open_tensions" || lens === "next_candidates") {
-      setPerspectiveConstellationSelectionScope("manual_selection");
+    if (lens === "open_tensions") {
+      // Open Tensions does not have a dedicated scope yet; this keeps the
+      // previous local inspection fallback explicit.
+      selectManualSelectionScope({
+        syncLens: "open_tensions",
+        allowPreviewFallback: true,
+      });
       return;
     }
 
-    setSelectedPerspectiveIngestPacketTarget("codex_handoff");
-  }
+    if (lens === "next_candidates") {
+      // Next Candidates does not have a dedicated scope yet; manual_selection is
+      // the current local preview fallback.
+      selectManualSelectionScope({
+        syncLens: "next_candidates",
+        allowPreviewFallback: true,
+      });
+      return;
+    }
 
-  function selectPerspectiveConstellationNode(nodeId: string) {
-    setSelectedPerspectiveIngestNodeId(nodeId);
-    setSelectedPerspectiveIngestClusterId(null);
-    setPerspectiveConstellationSelectionScope("connected_node");
-    setSelectedPerspectiveConstellationLens("connected_nodes");
-    setPerspectiveIngestCopyNotice(null);
-    setManualGravityDraftOverwritePending(null);
-  }
-
-  function selectPerspectiveConstellationCluster(clusterId: string) {
-    setSelectedPerspectiveIngestClusterId(clusterId);
-    setSelectedPerspectiveIngestNodeId(null);
-    setPerspectiveConstellationSelectionScope("cluster");
-    setPerspectiveIngestCopyNotice(null);
-    setManualGravityDraftOverwritePending(null);
+    selectPerspectiveLensOnly("codex_handoff");
+    setPerspectiveHandoffTarget("codex_handoff");
   }
 
   function inspectPerspectiveConstellationConnectedNodes() {
-    const nodeId =
-      explicitSelectedPerspectiveIngestNode?.id ??
-      perspectiveIngestConstellation?.nodes[0]?.id ??
-      null;
-    if (nodeId) {
-      setSelectedPerspectiveIngestNodeId(nodeId);
-      setSelectedPerspectiveIngestClusterId(null);
-    }
-    setPerspectiveConstellationSelectionScope("connected_node");
-    setSelectedPerspectiveConstellationLens("connected_nodes");
-    setPerspectiveIngestCopyNotice(null);
-    setManualGravityDraftOverwritePending(null);
+    selectConnectedNodeScope({ syncLens: "connected_nodes" });
   }
 
   function previewPerspectiveConstellationUnit() {
-    const clusterId =
-      selectedPerspectiveIngestCluster?.id ??
-      perspectiveConstellationWorkspaceCluster?.id ??
-      null;
-    if (clusterId) {
-      setSelectedPerspectiveIngestClusterId(clusterId);
-      setSelectedPerspectiveIngestNodeId(null);
-    }
-    setPerspectiveConstellationSelectionScope("cluster");
-    setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
-    setPerspectiveIngestCopyNotice(null);
-    setManualGravityDraftOverwritePending(null);
+    selectClusterScope({ packetTarget: "chatgpt_review" });
   }
 
   function markPerspectiveConstellationNextCandidatePreview() {
-    setPerspectiveConstellationSelectionScope("manual_selection");
-    setSelectedPerspectiveConstellationLens("next_candidates");
-    setPerspectiveIngestCopyNotice({
-      tone: "info",
-      text: "Marked as next candidate preview",
+    selectManualSelectionScope({
+      syncLens: "next_candidates",
+      allowPreviewFallback: true,
+      notice: {
+        tone: "info",
+        text: "Marked as next candidate preview",
+      },
     });
-    setManualGravityDraftOverwritePending(null);
   }
 
   function openPerspectiveConstellationHandoffPacket() {
     setHandoffPacketOpen(true);
-    setSelectedPerspectiveIngestPacketTarget("codex_handoff");
+    setPerspectiveHandoffTarget("codex_handoff");
     setPerspectiveIngestCopyNotice(null);
   }
 
@@ -5809,7 +5928,7 @@ function PerspectiveTab({
   ) {
     setSelectedPerspectiveIngestSource(source);
     setPerspectiveIngestPreviewMode("sample fixture preview");
-    setSelectedPerspectiveIngestPacketTarget(
+    setPerspectiveHandoffTarget(
       source === "sample:chatgpt" ? "chatgpt_review" : "codex_handoff",
     );
     setPerspectiveIngestCopyNotice(null);
@@ -5860,7 +5979,7 @@ function PerspectiveTab({
       )?.value ?? manualPastedTextSourceLabel;
 
     setPerspectiveIngestPreviewMode("manual pasted text preview");
-    setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
+    setPerspectiveHandoffTarget("chatgpt_review");
     setPerspectiveIngestCopyNotice(null);
     setPerspectiveConstellationSelectionScope("whole_constellation");
     setSelectedPerspectiveConstellationLens("whole_constellation");
@@ -5925,7 +6044,7 @@ function PerspectiveTab({
     if (!packetText) return;
 
     try {
-      setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
+      setPerspectiveHandoffTarget("chatgpt_review");
       await copyTextToClipboard(packetText);
       setPerspectiveIngestCopyNotice({
         tone: "info",
@@ -5948,7 +6067,7 @@ function PerspectiveTab({
     if (!packetText) return;
 
     try {
-      setSelectedPerspectiveIngestPacketTarget("codex_handoff");
+      setPerspectiveHandoffTarget("codex_handoff");
       await copyTextToClipboard(packetText);
       setPerspectiveIngestCopyNotice({
         tone: "info",
@@ -5969,7 +6088,7 @@ function PerspectiveTab({
     if (!perspectiveConstellationScopedChatGptPacketText) return;
 
     try {
-      setSelectedPerspectiveIngestPacketTarget("chatgpt_review");
+      setPerspectiveHandoffTarget("chatgpt_review");
       await copyTextToClipboard(perspectiveConstellationScopedChatGptPacketText);
       setPerspectiveIngestCopyNotice({
         tone: "info",
@@ -5990,7 +6109,7 @@ function PerspectiveTab({
     if (!perspectiveConstellationScopedCodexHandoffPacketText) return;
 
     try {
-      setSelectedPerspectiveIngestPacketTarget("codex_handoff");
+      setPerspectiveHandoffTarget("codex_handoff");
       await copyTextToClipboard(perspectiveConstellationScopedCodexHandoffPacketText);
       setPerspectiveIngestCopyNotice({
         tone: "info",
@@ -6307,7 +6426,7 @@ function PerspectiveTab({
                     className="perspective-lens-option"
                     aria-pressed={selected}
                     onClick={() =>
-                      selectPerspectiveConstellationLens(option.id)
+                      handlePerspectiveLensControlClick(option.id)
                     }
                   >
                     <span>{option.label}</span>
@@ -6334,7 +6453,11 @@ function PerspectiveTab({
                   aria-pressed={
                     perspectiveConstellationSelectionScope === "whole_constellation"
                   }
-                  onClick={() => selectPerspectiveConstellationLens("whole_constellation")}
+                  onClick={() =>
+                    selectWholeConstellationScope({
+                      syncLens: "whole_constellation",
+                    })
+                  }
                 >
                   Whole
                 </button>
@@ -6345,7 +6468,9 @@ function PerspectiveTab({
                     perspectiveConstellationSelectionScope === "connected_node"
                   }
                   disabled={!perspectiveIngestConstellationPreview}
-                  onClick={inspectPerspectiveConstellationConnectedNodes}
+                  onClick={() =>
+                    selectConnectedNodeScope({ syncLens: "connected_nodes" })
+                  }
                 >
                   Connected Node
                 </button>
@@ -6354,7 +6479,7 @@ function PerspectiveTab({
                   className="perspective-scope-option"
                   aria-pressed={perspectiveConstellationSelectionScope === "cluster"}
                   disabled={!perspectiveConstellationWorkspaceCluster}
-                  onClick={previewPerspectiveConstellationUnit}
+                  onClick={() => selectClusterScope()}
                 >
                   Cluster
                 </button>
@@ -6365,7 +6490,7 @@ function PerspectiveTab({
                     perspectiveConstellationSelectionScope === "manual_selection"
                   }
                   disabled={!perspectiveConstellationUnitPreview}
-                  onClick={markPerspectiveConstellationNextCandidatePreview}
+                  onClick={() => selectManualSelectionScope()}
                 >
                   Manual Selection
                 </button>
@@ -6432,7 +6557,7 @@ function PerspectiveTab({
                   gravityPreviewNodeMarksById={
                     appliedGravityPreviewNodeMarksById
                   }
-                  onSelectNode={selectPerspectiveConstellationNode}
+                  onSelectNode={selectPerspectiveNodeScope}
                 />
               ) : (
                 <EmptyState
@@ -7065,7 +7190,7 @@ function PerspectiveTab({
                         perspectiveConstellationActiveCluster?.id === cluster.id
                       }
                       onClick={() =>
-                        selectPerspectiveConstellationCluster(cluster.id)
+                        selectPerspectiveClusterScope(cluster.id)
                       }
                     >
                       {cluster.label}
@@ -7097,7 +7222,7 @@ function PerspectiveTab({
                       selectedPerspectiveIngestPacketTarget === "chatgpt_review"
                     }
                     onClick={() =>
-                      setSelectedPerspectiveIngestPacketTarget("chatgpt_review")
+                      setPerspectiveHandoffTarget("chatgpt_review")
                     }
                   >
                     ChatGPT review packet preview
@@ -7109,7 +7234,7 @@ function PerspectiveTab({
                       selectedPerspectiveIngestPacketTarget === "codex_handoff"
                     }
                     onClick={() =>
-                      setSelectedPerspectiveIngestPacketTarget("codex_handoff")
+                      setPerspectiveHandoffTarget("codex_handoff")
                     }
                   >
                     Codex handoff packet preview
