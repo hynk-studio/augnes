@@ -27,8 +27,11 @@ const allowedChangedFiles = new Set([
   "components/augnes-cockpit.tsx",
   docFile,
   "docs/PERSPECTIVE_EVENT_RAIL_NODE_EDGE_V0_1.md",
+  "docs/PERSPECTIVE_NODE_COPY_HUMANIZATION_V0_1.md",
   browserReportFile,
   "reports/browser/2026-06-07-perspective-event-rail-node-edge.md",
+  "reports/browser/2026-06-07-perspective-node-copy-humanization.md",
+  "lib/perspective-ingest/episode-to-constellation-packet.ts",
   packageFile,
   smokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
@@ -43,6 +46,8 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
+  "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
+  "scripts/smoke-perspective-node-copy-humanization.mjs",
 ]);
 
 assert.equal(

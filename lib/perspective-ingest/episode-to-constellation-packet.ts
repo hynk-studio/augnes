@@ -114,6 +114,80 @@ const FORBIDDEN_ACTIONS = [
   "no Codex execution",
   "no approval/merge/publish/deploy authority",
 ];
+const CHATGPT_NODE_COPY = {
+  source: {
+    label: "Sample ChatGPT record",
+    summary:
+      "A public-safe sample conversation used to preview how Augnes can turn work history into a local constellation graph.",
+  },
+  user_intent: {
+    label: "What the user wants",
+    summary:
+      "Show how ChatGPT/Codex history could become inspectable nodes, edges, tensions, and copyable review packets.",
+  },
+  product_concept: {
+    label: "Preview concept",
+    summary:
+      "Turn ChatGPT/Codex records into a local constellation preview with typed relationships, visible tensions, and copyable ChatGPT/Codex handoff packets.",
+  },
+  decision: {
+    label: "Safe fixture decision",
+    summary:
+      "Start with deterministic public-safe fixtures before supporting real user-provided import paths.",
+  },
+  unresolved_tension: {
+    label: "Known limitation",
+    summary:
+      "Real history import and durable graph storage remain separate future work, so this preview must stay clearly bounded.",
+  },
+  next_move: {
+    label: "Suggested next step",
+    summary:
+      "Review the fixture graph in Cockpit, then decide the next local manual import slice.",
+  },
+  packet: {
+    label: "Review / Codex packets",
+    summary:
+      "Use the selected graph material to copy a ChatGPT review packet or Codex handoff packet for user-reviewed follow-up.",
+  },
+} as const;
+const CODEX_NODE_COPY = {
+  source: {
+    label: "Sample Codex record",
+    summary:
+      "A public-safe sample closeout showing how implementation work can be reviewed as a local constellation graph.",
+  },
+  work_unit: {
+    label: "Implementation work",
+    summary:
+      "The bounded work completed in the sample Codex session, kept as reviewer context rather than execution authority.",
+  },
+  changed_files: {
+    label: "Changed files",
+    summary:
+      "The files changed by the sample work, shown so reviewers can inspect the intended code boundary.",
+  },
+  validation: {
+    label: "Validation results",
+    summary:
+      "The checks reported for the sample work, presented as review context and not new proof/evidence writes.",
+  },
+  blocker_risk: {
+    label: "Blockers / risks",
+    summary:
+      "The remaining risks or limits that qualify the sample work before any next slice.",
+  },
+  final_report: {
+    label: "Final report",
+    summary:
+      "The closeout items a reviewer would expect from the sample Codex work.",
+  },
+  next_move: {
+    label: "Suggested next step",
+    summary:
+      "The advisory follow-up a reviewer could consider after inspecting the sample work.",
+  },
+} as const;
 
 export function buildPerspectiveIngestConstellationPreviewResponse({
   episodes,
@@ -386,40 +460,40 @@ function buildChatGptConstellation({
     node({
       id: `node.${sourceKey}.source`,
       type: "source",
-      label: "Synthetic ChatGPT source",
-      summary: episode.summary,
+      label: CHATGPT_NODE_COPY.source.label,
+      summary: CHATGPT_NODE_COPY.source.summary,
       episode,
       pointerIds,
     }),
     node({
       id: `node.${sourceKey}.user_intent`,
       type: "user_intent",
-      label: "User intent",
-      summary: summarizeList(episode.user_intents),
+      label: CHATGPT_NODE_COPY.user_intent.label,
+      summary: CHATGPT_NODE_COPY.user_intent.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
     }),
     node({
       id: `node.${sourceKey}.product_concept`,
       type: "product_concept",
-      label: "Product concept",
-      summary: summarizeList(episode.product_concepts),
+      label: CHATGPT_NODE_COPY.product_concept.label,
+      summary: CHATGPT_NODE_COPY.product_concept.summary,
       episode,
       pointerIds: pointerIds.slice(0, 3),
     }),
     node({
       id: `node.${sourceKey}.decision`,
       type: "decision",
-      label: "Fixture-first decision",
-      summary: summarizeList(episode.decisions),
+      label: CHATGPT_NODE_COPY.decision.label,
+      summary: CHATGPT_NODE_COPY.decision.summary,
       episode,
       pointerIds: pointerIds.slice(0, 3),
     }),
     node({
       id: `node.${sourceKey}.unresolved_tension`,
       type: "unresolved_tension",
-      label: "Visible tension",
-      summary: summarizeList(episode.unresolved_tensions),
+      label: CHATGPT_NODE_COPY.unresolved_tension.label,
+      summary: CHATGPT_NODE_COPY.unresolved_tension.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
       tensionIds,
@@ -427,8 +501,8 @@ function buildChatGptConstellation({
     node({
       id: `node.${sourceKey}.next_move`,
       type: "next_move",
-      label: "Next move",
-      summary: summarizeList(episode.next_actions),
+      label: CHATGPT_NODE_COPY.next_move.label,
+      summary: CHATGPT_NODE_COPY.next_move.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
       nextIds,
@@ -436,29 +510,28 @@ function buildChatGptConstellation({
     node({
       id: `node.${sourceKey}.packet`,
       type: "packet",
-      label: "Copyable packets",
-      summary:
-        "ChatGPT review and Codex handoff packets are derived from the fixture graph for manual copy only.",
+      label: CHATGPT_NODE_COPY.packet.label,
+      summary: CHATGPT_NODE_COPY.packet.summary,
       episode,
       pointerIds,
       nextIds,
     }),
   ];
   const edges = buildEdges(sourceKey, episode.episode_id, pointerIds, [
-    ["derived_from", "source", "user_intent", "The user intent is derived from the synthetic ChatGPT source."],
-    ["refines", "user_intent", "product_concept", "The user intent refines the ingest preview concept."],
-    ["supports", "product_concept", "decision", "The concept supports the fixture-first decision."],
+    ["derived_from", "source", "user_intent", "What the user wants is derived from the sample ChatGPT record."],
+    ["refines", "user_intent", "product_concept", "What the user wants refines the preview concept."],
+    ["supports", "product_concept", "decision", "The preview concept supports the safe fixture decision."],
     ["conflicts_with", "decision", "unresolved_tension", "The decision leaves real import and persistence tensions visible."],
     ["warns_against", "unresolved_tension", "next_move", "The tension qualifies the next local-only move."],
-    ["next_candidate", "decision", "next_move", "The decision points to an advisory next move."],
-    ["depends_on", "next_move", "packet", "The packets depend on the selected next move."],
-    ["evidence_for", "source", "packet", "The synthetic source is evidence for the copyable packets."],
+    ["next_candidate", "decision", "next_move", "The decision points to a suggested next step."],
+    ["depends_on", "next_move", "packet", "The review packets depend on the suggested next step."],
+    ["evidence_for", "source", "packet", "The sample source is evidence for the review packets."],
   ]);
 
   return {
     constellation_id: `constellation.${sourceKey}.v0_1`,
     thesis:
-      "A synthetic ChatGPT record can become a bounded Project Constellation preview with visible decisions, tensions, and copyable handoff packets.",
+      "A sample ChatGPT record can become a bounded Project Constellation preview with visible decisions, tensions, and copyable handoff packets.",
     nodes,
     edges,
     clusters: buildClusters(sourceKey, nodes, edges, pointerIds, tensionIds, nextIds),
@@ -485,40 +558,40 @@ function buildCodexConstellation({
     node({
       id: `node.${sourceKey}.source`,
       type: "source",
-      label: "Synthetic Codex source",
-      summary: episode.summary,
+      label: CODEX_NODE_COPY.source.label,
+      summary: CODEX_NODE_COPY.source.summary,
       episode,
       pointerIds,
     }),
     node({
       id: `node.${sourceKey}.work_unit`,
       type: "work_unit",
-      label: "Work unit",
-      summary: summarizeList(episode.work_units),
+      label: CODEX_NODE_COPY.work_unit.label,
+      summary: CODEX_NODE_COPY.work_unit.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
     }),
     node({
       id: `node.${sourceKey}.changed_files`,
       type: "changed_files",
-      label: "Changed files",
-      summary: summarizeList(episode.changed_files),
+      label: CODEX_NODE_COPY.changed_files.label,
+      summary: CODEX_NODE_COPY.changed_files.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
     }),
     node({
       id: `node.${sourceKey}.validation`,
       type: "validation",
-      label: "Validation",
-      summary: summarizeList(episode.validations),
+      label: CODEX_NODE_COPY.validation.label,
+      summary: CODEX_NODE_COPY.validation.summary,
       episode,
       pointerIds,
     }),
     node({
       id: `node.${sourceKey}.blocker_risk`,
       type: "blocker_risk",
-      label: "Blocker and risk",
-      summary: summarizeList(episode.unresolved_tensions),
+      label: CODEX_NODE_COPY.blocker_risk.label,
+      summary: CODEX_NODE_COPY.blocker_risk.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
       tensionIds,
@@ -526,36 +599,36 @@ function buildCodexConstellation({
     node({
       id: `node.${sourceKey}.final_report`,
       type: "final_report",
-      label: "Final report",
-      summary: summarizeList(episode.final_report_points),
+      label: CODEX_NODE_COPY.final_report.label,
+      summary: CODEX_NODE_COPY.final_report.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
     }),
     node({
       id: `node.${sourceKey}.next_move`,
       type: "next_move",
-      label: "Next move",
-      summary: summarizeList(episode.next_actions),
+      label: CODEX_NODE_COPY.next_move.label,
+      summary: CODEX_NODE_COPY.next_move.summary,
       episode,
       pointerIds: pointerIds.slice(0, 2),
       nextIds,
     }),
   ];
   const edges = buildEdges(sourceKey, episode.episode_id, pointerIds, [
-    ["derived_from", "source", "work_unit", "The work unit is derived from the synthetic Codex source."],
-    ["supports", "work_unit", "changed_files", "The work unit names the changed file boundary."],
+    ["derived_from", "source", "work_unit", "Implementation work is derived from the sample Codex record."],
+    ["supports", "work_unit", "changed_files", "The implementation work names the changed file boundary."],
     ["validates", "changed_files", "validation", "The changed files are paired with targeted validation."],
     ["supports", "validation", "final_report", "Validation results support the final report packet."],
-    ["warns_against", "blocker_risk", "next_move", "The risk node qualifies the advisory next move."],
-    ["next_candidate", "final_report", "next_move", "The final report points toward the next slice."],
-    ["evidence_for", "source", "final_report", "The synthetic source is evidence for the final report summary."],
-    ["depends_on", "work_unit", "next_move", "The next move depends on the bounded work unit."],
+    ["warns_against", "blocker_risk", "next_move", "The risk node qualifies the suggested next step."],
+    ["next_candidate", "final_report", "next_move", "The final report points toward the suggested next slice."],
+    ["evidence_for", "source", "final_report", "The sample Codex record is evidence for the final report summary."],
+    ["depends_on", "work_unit", "next_move", "The suggested next step depends on the bounded implementation work."],
   ]);
 
   return {
     constellation_id: `constellation.${sourceKey}.v0_1`,
     thesis:
-      "A synthetic Codex record can become a bounded work-unit constellation with changed files, validation, risks, report needs, and next moves.",
+      "A sample Codex record can become a bounded implementation-work constellation with changed files, validation, risks, report needs, and next moves.",
     nodes,
     edges,
     clusters: buildClusters(sourceKey, nodes, edges, pointerIds, tensionIds, nextIds),
@@ -586,7 +659,7 @@ function buildManualPastedTextConstellation({
     node({
       id: `node.${sourceKey}.source`,
       type: "source",
-      label: "Manual pasted text source",
+      label: "Pasted source text",
       summary: episode.summary,
       episode,
       pointerIds,
@@ -594,7 +667,7 @@ function buildManualPastedTextConstellation({
     node({
       id: `node.${sourceKey}.user_intent`,
       type: "user_intent",
-      label: "User intent",
+      label: "What the user wants",
       summary: summarizeList(episode.user_intents),
       episode,
       pointerIds: pointerIds.slice(0, 2),
@@ -602,7 +675,7 @@ function buildManualPastedTextConstellation({
     node({
       id: `node.${sourceKey}.concept`,
       type: "product_concept",
-      label: "Concept",
+      label: "Preview concept",
       summary: summarizeList(episode.product_concepts),
       episode,
       pointerIds: pointerIds.slice(0, 3),
@@ -642,7 +715,7 @@ function buildManualPastedTextConstellation({
     node({
       id: `node.${sourceKey}.tension`,
       type: "unresolved_tension",
-      label: "Tension",
+      label: "Known limitation",
       summary: summarizeList(episode.unresolved_tensions),
       episode,
       pointerIds: pointerIds.slice(0, 2),
@@ -651,7 +724,7 @@ function buildManualPastedTextConstellation({
     node({
       id: `node.${sourceKey}.next_move`,
       type: "next_move",
-      label: "Next move",
+      label: "Suggested next step",
       summary: summarizeList(episode.next_actions),
       episode,
       pointerIds: pointerIds.slice(0, 2),
@@ -660,7 +733,7 @@ function buildManualPastedTextConstellation({
     node({
       id: `node.${sourceKey}.packet`,
       type: "packet",
-      label: "Copyable packets",
+      label: "Review / Codex packets",
       summary:
         "ChatGPT review and Codex handoff packets are derived from bounded pasted-text extraction for manual copy only.",
       episode,
@@ -674,14 +747,14 @@ function buildManualPastedTextConstellation({
     string,
     string,
   ][] = [
-    ["derived_from", "source", "user_intent", "The user intent is derived from bounded local pasted text extraction."],
-    ["refines", "user_intent", "concept", "The user intent refines the manual local Perspective ingest preview concept."],
-    ["supports", "concept", "decision", "The concept supports the local-only non-persistent decision."],
+    ["derived_from", "source", "user_intent", "What the user wants is derived from bounded local pasted text extraction."],
+    ["refines", "user_intent", "concept", "What the user wants refines the manual local Perspective preview concept."],
+    ["supports", "concept", "decision", "The preview concept supports the local-only non-persistent decision."],
     ["conflicts_with", "decision", "tension", "The decision keeps raw-history and import-scope tensions visible."],
-    ["warns_against", "tension", "next_move", "The tension qualifies the advisory next move."],
-    ["next_candidate", "decision", "next_move", "The decision points to a manual review next move."],
-    ["evidence_for", "source", "packet", "The bounded local source pointer is evidence for the copyable packets."],
-    ["depends_on", "next_move", "packet", "The packets depend on manual review before any future import slice."],
+    ["warns_against", "tension", "next_move", "The limitation qualifies the suggested next step."],
+    ["next_candidate", "decision", "next_move", "The decision points to a manual review next step."],
+    ["evidence_for", "source", "packet", "The bounded local source pointer is evidence for the review packets."],
+    ["depends_on", "next_move", "packet", "The review packets depend on manual review before any future import slice."],
   ];
 
   if (hasWorkContext) {

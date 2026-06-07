@@ -211,6 +211,7 @@
     "smoke:perspective-capsule-contract": "node scripts/smoke-perspective-capsule-contract.mjs",
     "smoke:perspective-ingest-constellation-preview": "node scripts/smoke-perspective-ingest-constellation-preview.mjs",
     "smoke:perspective-ingest-local-pasted-text-preview": "node scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
+    "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-handoff-packet-structure-review": "node scripts/smoke-perspective-handoff-packet-structure-review.mjs",
     "smoke:perspective-handoff-packet-copy-to-agent-dogfood": "node scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
     "smoke:codex-sdk-execution-authority-design": "node scripts/smoke-codex-sdk-execution-authority-design.mjs",
