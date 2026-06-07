@@ -20,14 +20,19 @@ const smoke = readFileSync(smokeFile, "utf8");
 const allowedChangedFiles = new Set([
   "app/globals.css",
   "components/augnes-cockpit.tsx",
+  "docs/PERSPECTIVE_HANDOFF_PACKET_STRUCTURE_REVIEW_V0_1.md",
   docFile,
   packageFile,
+  "lib/perspective-ingest/perspective-unit-preview.ts",
   browserReportFile,
+  "reports/browser/2026-06-07-perspective-handoff-packet-structure-review.md",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   smokeFile,
+  "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
+  "scripts/smoke-perspective-ingest-constellation-preview.mjs",
 ]);
 
 assert.equal(

@@ -208,6 +208,7 @@
     "smoke:perspective-capsule-contract": "node scripts/smoke-perspective-capsule-contract.mjs",
     "smoke:perspective-ingest-constellation-preview": "node scripts/smoke-perspective-ingest-constellation-preview.mjs",
     "smoke:perspective-ingest-local-pasted-text-preview": "node scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
+    "smoke:perspective-handoff-packet-structure-review": "node scripts/smoke-perspective-handoff-packet-structure-review.mjs",
     "smoke:codex-sdk-execution-authority-design": "node scripts/smoke-codex-sdk-execution-authority-design.mjs",
     "dogfood:create-episode": "node scripts/create-dogfood-episode.mjs",
     "codex:record-completion": "npm --prefix apps/augnes_apps run codex:record-completion",
