@@ -27,6 +27,12 @@ const primaryAdvancedDiagnosticsBrowserReportFile =
   "reports/browser/2026-06-07-perspective-primary-advanced-diagnostics-collapse.md";
 const primaryAdvancedDiagnosticsSmokeFile =
   "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs";
+const eventRailNodeEdgeDocFile =
+  "docs/PERSPECTIVE_EVENT_RAIL_NODE_EDGE_V0_1.md";
+const eventRailNodeEdgeBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-event-rail-node-edge.md";
+const eventRailNodeEdgeSmokeFile =
+  "scripts/smoke-cockpit-perspective-event-rail-node-edge.mjs";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const builder = readFileSync(builderFile, "utf8");
@@ -46,9 +52,12 @@ const allowedChangedFiles = new Set([
   copyToAgentDogfoodBrowserReportFile,
   primaryAdvancedDiagnosticsDocFile,
   primaryAdvancedDiagnosticsBrowserReportFile,
+  eventRailNodeEdgeDocFile,
+  eventRailNodeEdgeBrowserReportFile,
   smokeFile,
   copyToAgentDogfoodSmokeFile,
   primaryAdvancedDiagnosticsSmokeFile,
+  eventRailNodeEdgeSmokeFile,
   "docs/PERSPECTIVE_AUTHORITY_COPY_COLLAPSE_V0_1.md",
   "reports/browser/2026-06-07-perspective-authority-copy-collapse.md",
   "scripts/smoke-cockpit-perspective-authority-copy-collapse.mjs",

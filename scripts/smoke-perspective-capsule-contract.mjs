@@ -82,6 +82,12 @@ const eventRailEntryCardsSmokeFile =
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs";
 const eventRailEntryCardsBrowserReportFile =
   "reports/browser/2026-06-07-perspective-event-rail-entry-cards.md";
+const eventRailNodeEdgeDoc =
+  "docs/PERSPECTIVE_EVENT_RAIL_NODE_EDGE_V0_1.md";
+const eventRailNodeEdgeSmokeFile =
+  "scripts/smoke-cockpit-perspective-event-rail-node-edge.mjs";
+const eventRailNodeEdgeBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-event-rail-node-edge.md";
 const formationSwitchAcknowledgementHelperFile =
   "lib/perspective-ingest/formation-switch-acknowledgement.ts";
 const formationSwitchOverlayDoc =
@@ -176,6 +182,9 @@ const allowedChangedFiles = new Set([
   eventRailEntryCardsDoc,
   eventRailEntryCardsSmokeFile,
   eventRailEntryCardsBrowserReportFile,
+  eventRailNodeEdgeDoc,
+  eventRailNodeEdgeSmokeFile,
+  eventRailNodeEdgeBrowserReportFile,
   formationSwitchAcknowledgementHelperFile,
   formationSwitchOverlayDoc,
   formationSwitchOverlaySmokeFile,

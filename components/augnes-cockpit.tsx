@@ -371,6 +371,42 @@ type PerspectiveEventRailEntry = {
   statusLabel: string;
   relatedRefs: string[];
 };
+type PerspectiveEventRailNode = PerspectiveEventRailEntry & {
+  authority: "reference-only" | "active-local-preview" | "advisory-only";
+  compactDetail: string;
+  lane: PerspectiveEventRailTemporalRole;
+  referenceNode?: boolean;
+};
+type PerspectiveEventRailEdgeId =
+  | "session_to_decision"
+  | "decision_to_handoff"
+  | "handoff_to_review"
+  | "handoff_to_pr_ref"
+  | "review_to_closeout"
+  | "closeout_to_current"
+  | "current_to_next";
+type PerspectiveEventRailEdgeType =
+  | "informs"
+  | "packages"
+  | "reviews"
+  | "refs"
+  | "closes"
+  | "forms"
+  | "suggests";
+type PerspectiveEventRailEdge = {
+  id: PerspectiveEventRailEdgeId;
+  source: PerspectiveEventRailEntryId;
+  target: PerspectiveEventRailEntryId;
+  type: PerspectiveEventRailEdgeType;
+  label: string;
+  referenceEdge?: boolean;
+};
+type PerspectiveEventRailLane = {
+  id: PerspectiveEventRailTemporalRole;
+  label: string;
+  detail: string;
+  nodeIds: PerspectiveEventRailEntryId[];
+};
 type PerspectiveEventRailRoleProfile = {
   roleName: string;
   cardLabel: string;
@@ -5164,6 +5200,91 @@ function PerspectiveTab({
       relatedRefs: perspectiveConstellationNextCandidateRefs,
     },
   ] satisfies PerspectiveEventRailEntry[];
+  const perspectiveEventRailNodes = perspectiveConstellationEventRail.map(
+    (event) => ({
+      ...event,
+      authority: getPerspectiveEventRailAuthorityAttribute(event.temporalRole),
+      compactDetail: event.detail,
+      lane: event.temporalRole,
+      referenceNode: event.id === "pr",
+    }),
+  ) satisfies PerspectiveEventRailNode[];
+  const perspectiveEventRailNodeById = new Map<
+    PerspectiveEventRailEntryId,
+    PerspectiveEventRailNode
+  >(perspectiveEventRailNodes.map((node) => [node.id, node]));
+  const perspectiveEventRailLanes = [
+    {
+      id: "archive",
+      label: "Archive",
+      detail: "Session through closeout remain reference-only history.",
+      nodeIds: ["session", "decision", "handoff", "pr", "review", "closeout"],
+    },
+    {
+      id: "present",
+      label: "Present",
+      detail: "Current View reflects the active local preview.",
+      nodeIds: ["current_view"],
+    },
+    {
+      id: "future",
+      label: "Future",
+      detail: "Next Perspective is advisory candidate context.",
+      nodeIds: ["next_perspective"],
+    },
+  ] satisfies PerspectiveEventRailLane[];
+  const perspectiveEventRailEdges = [
+    {
+      id: "session_to_decision",
+      source: "session",
+      target: "decision",
+      type: "informs",
+      label: "informs",
+    },
+    {
+      id: "decision_to_handoff",
+      source: "decision",
+      target: "handoff",
+      type: "packages",
+      label: "packages",
+    },
+    {
+      id: "handoff_to_review",
+      source: "handoff",
+      target: "review",
+      type: "reviews",
+      label: "reviews",
+    },
+    {
+      id: "handoff_to_pr_ref",
+      source: "handoff",
+      target: "pr",
+      type: "refs",
+      label: "refs",
+      referenceEdge: true,
+    },
+    {
+      id: "review_to_closeout",
+      source: "review",
+      target: "closeout",
+      type: "closes",
+      label: "closes",
+    },
+    {
+      id: "closeout_to_current",
+      source: "closeout",
+      target: "current_view",
+      type: "forms",
+      label: "forms",
+    },
+    {
+      id: "current_to_next",
+      source: "current_view",
+      target: "next_perspective",
+      type: "suggests",
+      label: "suggests",
+    },
+  ] satisfies PerspectiveEventRailEdge[];
   const selectedPerspectiveEventRailEntry =
     perspectiveConstellationEventRail.find(
       (event) => event.id === selectedEventRailEntry,
@@ -5205,13 +5326,68 @@ function PerspectiveTab({
             "No snapshot persistence yet",
             "No delta view",
           ]
-        : [
-            "Uses current PerspectiveUnitPreview / FormationReceiptV0",
-            "Local read-only preview",
-            "Mutation disabled",
-            "No snapshot persistence yet",
-            "No delta view",
-          ];
+      : [
+          "Uses current PerspectiveUnitPreview / FormationReceiptV0",
+          "Local read-only preview",
+          "Mutation disabled",
+          "No snapshot persistence yet",
+          "No delta view",
+        ];
+  const renderPerspectiveEventRailNode = (nodeId: PerspectiveEventRailEntryId) => {
+    const node = perspectiveEventRailNodeById.get(nodeId);
+
+    if (!node) {
+      return null;
+    }
+
+    const roleProfile = getPerspectiveEventRailRoleProfile(node.temporalRole);
+
+    return (
+      <button
+        key={node.id}
+        type="button"
+        className={`perspective-event-rail-node is-${node.lane}${
+          node.referenceNode ? " is-reference" : ""
+        }`}
+        aria-pressed={node.id === selectedEventRailEntry}
+        aria-label={`${node.label} ${getPerspectiveEventRailTemporalRoleLabel(
+          node.temporalRole,
+        )} Event Rail node`}
+        data-augnes-rail-node-id={node.id}
+        data-augnes-rail-node-role={node.temporalRole}
+        data-augnes-rail-authority={node.authority}
+        onClick={() => setSelectedEventRailEntry(node.id)}
+      >
+        <span>{getPerspectiveEventRailTemporalRoleLabel(node.temporalRole)}</span>
+        <strong>{node.label}</strong>
+        <small>{roleProfile.railAffordance}</small>
+        <p>{node.compactDetail}</p>
+      </button>
+    );
+  };
+  const renderPerspectiveEventRailEdge = (edgeId: PerspectiveEventRailEdgeId) => {
+    const edge = perspectiveEventRailEdges.find((candidate) => candidate.id === edgeId);
+
+    if (!edge) {
+      return null;
+    }
+
+    return (
+      <span
+        key={edge.id}
+        className={`perspective-event-rail-edge${
+          edge.referenceEdge ? " is-reference" : ""
+        }`}
+        aria-label={`${edge.source} ${edge.type} ${edge.target}`}
+        data-augnes-rail-edge-id={edge.id}
+        data-augnes-rail-edge-type={edge.type}
+        data-augnes-rail-edge-source={edge.source}
+        data-augnes-rail-edge-target={edge.target}
+      >
+        <span>{edge.label}</span>
+      </span>
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -7559,48 +7735,72 @@ function PerspectiveTab({
           className="perspective-time-axis-event-rail"
           aria-label="Event Rail"
           data-augnes-region="event-rail"
+          data-augnes-event-rail-view="node-edge"
         >
           <div className="perspective-shell-panel-heading">
             <p className="panel-eyebrow">Event Rail</p>
             <h3>Archive / Present / Future</h3>
           </div>
           <div
-            className="perspective-event-rail-role-row"
-            aria-label="Event Rail roles"
+            className="perspective-event-rail-node-edge-shell"
+            aria-label="Event Rail node-edge temporal view"
           >
-            <span>
-              <strong>Past</strong>
-              <small>Archive / reference</small>
-            </span>
-            <span>
-              <strong>Present</strong>
-              <small>Active local preview</small>
-            </span>
-            <span>
-              <strong>Future</strong>
-              <small>Advisory candidate</small>
-            </span>
-          </div>
-          <div className="perspective-event-rail-track">
-            {perspectiveConstellationEventRail.map((event, index) => (
-              <button
-                key={event.id}
-                type="button"
-                className="perspective-event-rail-item"
-                aria-pressed={event.id === selectedEventRailEntry}
-                onClick={() => setSelectedEventRailEntry(event.id)}
+            {perspectiveEventRailLanes.map((lane) => (
+              <section
+                key={lane.id}
+                className={`perspective-event-rail-lane is-${lane.id}`}
+                aria-label={`${lane.label} Event Rail lane`}
+                data-augnes-rail-lane={lane.id}
               >
-                <span>{index + 1}</span>
-                <strong>{event.label}</strong>
-                <small>{getPerspectiveEventRailTemporalRoleLabel(event.temporalRole)}</small>
-                <em>
-                  {
-                    getPerspectiveEventRailRoleProfile(event.temporalRole)
-                      .railAffordance
-                  }
-                </em>
-                <p>{event.detail}</p>
-              </button>
+                <div className="perspective-event-rail-lane-heading">
+                  <span>{lane.label}</span>
+                  <small>{lane.detail}</small>
+                </div>
+                {lane.id === "archive" ? (
+                  <>
+                    <div
+                      className="perspective-event-rail-node-row is-archive-flow"
+                      aria-label="Archive flow: Session to Decision to Handoff to Review to Closeout"
+                    >
+                      {renderPerspectiveEventRailNode("session")}
+                      {renderPerspectiveEventRailEdge("session_to_decision")}
+                      {renderPerspectiveEventRailNode("decision")}
+                      {renderPerspectiveEventRailEdge("decision_to_handoff")}
+                      {renderPerspectiveEventRailNode("handoff")}
+                      {renderPerspectiveEventRailEdge("handoff_to_review")}
+                      {renderPerspectiveEventRailNode("review")}
+                      {renderPerspectiveEventRailEdge("review_to_closeout")}
+                      {renderPerspectiveEventRailNode("closeout")}
+                    </div>
+                    <div
+                      className="perspective-event-rail-reference-row"
+                      aria-label="PR reference node connected from Handoff"
+                    >
+                      <span className="perspective-event-rail-reference-anchor">
+                        Handoff reference
+                      </span>
+                      {renderPerspectiveEventRailEdge("handoff_to_pr_ref")}
+                      {renderPerspectiveEventRailNode("pr")}
+                    </div>
+                  </>
+                ) : lane.id === "present" ? (
+                  <div
+                    className="perspective-event-rail-node-row is-present-flow"
+                    aria-label="Present flow: Closeout forms Current View"
+                  >
+                    {renderPerspectiveEventRailEdge("closeout_to_current")}
+                    {renderPerspectiveEventRailNode("current_view")}
+                  </div>
+                ) : (
+                  <div
+                    className="perspective-event-rail-node-row is-future-flow"
+                    aria-label="Future flow: Current View suggests Next Perspective"
+                  >
+                    {renderPerspectiveEventRailEdge("current_to_next")}
+                    {renderPerspectiveEventRailNode("next_perspective")}
+                  </div>
+                )}
+              </section>
             ))}
           </div>
           <aside
@@ -7611,6 +7811,7 @@ function PerspectiveTab({
                 : `Event Rail ${selectedPerspectiveEventRailEntry.cardTitle}`
             }
             data-augnes-region="temporal-entry-card"
+            data-augnes-rail-selected-node-id={selectedPerspectiveEventRailEntry.id}
           >
             <div className="perspective-event-rail-entry-summary">
               <div>
@@ -26068,6 +26269,14 @@ function getPerspectiveEventRailTemporalRoleLabel(
   if (role === "archive") return "Past / Archive";
   if (role === "future") return "Future / Candidate";
   return "Present / Active View";
+}
+
+function getPerspectiveEventRailAuthorityAttribute(
+  role: PerspectiveEventRailTemporalRole,
+): PerspectiveEventRailNode["authority"] {
+  if (role === "archive") return "reference-only";
+  if (role === "future") return "advisory-only";
+  return "active-local-preview";
 }
 
 function getPerspectiveEventRailRoleProfile(

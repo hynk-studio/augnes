@@ -26,10 +26,13 @@ const allowedChangedFiles = new Set([
   "app/globals.css",
   "components/augnes-cockpit.tsx",
   docFile,
+  "docs/PERSPECTIVE_EVENT_RAIL_NODE_EDGE_V0_1.md",
   browserReportFile,
+  "reports/browser/2026-06-07-perspective-event-rail-node-edge.md",
   packageFile,
   smokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
+  "scripts/smoke-cockpit-perspective-event-rail-node-edge.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
   "scripts/smoke-cockpit-perspective-observatory-layout.mjs",
@@ -145,6 +148,9 @@ for (const forbidden of [
 assertContainsAll(eventRailSource, [
   "Event Rail",
   "Archive / Present / Future",
+  "perspective-event-rail-node-edge-shell",
+  "perspective-event-rail-node",
+  "perspective-event-rail-edge",
   "perspective-event-rail-entry-card",
   "perspective-event-rail-entry-capability-detail-grid",
 ]);
