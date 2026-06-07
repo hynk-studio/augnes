@@ -496,37 +496,44 @@ function assertCockpitSurface() {
     'useState<CockpitTab>("perspective")',
     'id="perspective-constellation-workspace"',
     "Perspective Constellation",
-    "Constellation workspace",
-    "Lens / Scope",
+    "Perspective Observatory",
+    "Current perspective sky",
+    "Observatory Controls",
+    "Formation Basis",
+    "Lens",
+    "Scope",
+    "Source",
     "Whole Constellation",
     "Connected Nodes",
     "Open Tensions",
     "Next Candidates",
     "Codex Handoff",
-    "Start here",
-    "Select a node",
-    "Mark focus",
-    "Preview focus",
-    "Open handoff packet",
-    "Central Constellation Game Window",
-    "Inspector / Action / Handoff",
+    "Current Perspective Starmap",
+    "Perspective Starmap",
+    "Inspector",
     "Selection scope",
-    "Selected node / cluster summary",
-    "Thesis / capsule summary",
-    "Node / Cluster Action Menu",
+    "Selected",
+    "Why here",
+    "Evidence / Tensions / Next",
+    "Actions",
     "Inspect connected nodes",
     "Preview Perspective Unit",
     "Mark as Next Candidate Preview",
+    "Open Handoff Packet",
     "ChatGPT review packet preview",
     "Codex handoff packet preview",
-    "Handoff packet · ChatGPT/Codex · copy-ready",
+    "Preview Handoff Packet",
     "ChatGPT / Codex handoff preview scoped to selection",
     "Copy ChatGPT Review Packet",
     "Copy Codex Handoff Packet",
     "Selection-scoped preview/copy only",
     "buildPerspectiveUnitPreview",
     "perspectiveConstellationUnitPreview",
-    "Time Axis / Event Rail",
+    "Event Rail",
+    "Archive / Present / Future",
+    "Archive",
+    "Present",
+    "Future",
     "Session",
     "Decision",
     "Handoff",
@@ -883,12 +890,12 @@ function assertFormationSummaryOverlay() {
     "perspectiveConstellationFormationReceipt?.as_of",
     "perspectiveConstellationFormationReceipt?.authority",
     "perspectiveConstellationUnitPreview.local_boundary_notes",
-    "Perspective Constellation summary overlay",
-    "Current Formation Receipt",
-    "Perspective Unit summary",
+    "Perspective Constellation identity strip",
+    "Formation identity",
+    "Current constellation identity",
     "Viewing",
     "Formed by",
-    "Formation Basis",
+    "Basis",
     "Source",
     "Generated",
     "As of",
@@ -952,7 +959,7 @@ function assertFormationBasisExplanationOverlay() {
     "Formation Basis explanation card",
     "What does this basis mean?",
     "Formation Basis explanation",
-    "How this constellation was formed",
+    "how this constellation was formed",
     "Formation Basis explains how the current constellation arrangement was formed. Lens explains how you inspect it. Scope explains what part is selected.",
     "Current",
     "Active local PerspectiveUnitPreview formed from the current Perspective ingest Constellation preview.",
@@ -966,9 +973,9 @@ function assertFormationBasisExplanationOverlay() {
     "Future proposal behavior. No provider, model, API call, or billing occurs in this slice.",
     "Experimental",
     "future/internal reserved basis",
-    "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+    "Reserved future/internal formation basis. Experimental internals are not exposed as a product surface.",
     "Compare is a future view mode, not a Formation Basis.",
-    "Rulecraft is not exposed yet.",
+    "Experimental internals are not exposed.",
     "Auto Proposal is not executed here.",
     "No API calls, cost, persistence, graph DB writes, or external calls occur.",
     "Selected basis preview",
@@ -982,10 +989,11 @@ function assertFormationBasisExplanationOverlay() {
     "If supported as a formation basis, this would remain local-only and would be based on selected graph material.",
     "No frozen snapshot exists in this slice, no snapshot is created, and no archive state is persisted.",
     "No provider, model, API call, billing, graph rearrangement, or proposal execution occurs here.",
-    "It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
+    "It keeps experimental internals unexposed, creates no public enum surface, and applies no rearrangement.",
     "aria-pressed={basis.id === selectedFormationBasisExplanation}",
-    "aria-expanded={formationBasisExplanationOpen}",
-    "aria-controls=\"perspective-formation-basis-explanation-card\"",
+    "disabled={futureOnly}",
+    "open={formationBasisExplanationOpen}",
+    "id=\"perspective-formation-basis-explanation-card\"",
   ], { textByFile });
   assert(
     !/\blocalStorage\b/.test(cockpitTextWithoutAllowedDraftStorage),
@@ -1101,18 +1109,7 @@ function assertEventRailArchiveEntryCards() {
     "Event Rail entry cards must not introduce localStorage",
   );
   assert(
-    !/\brulecraft\b/i.test(
-      cockpitText
-        .replaceAll("Rulecraft is not exposed yet.", "")
-        .replaceAll(
-        "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
-        "",
-      )
-      .replaceAll(
-        "It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
-        "",
-      ),
-    ),
+    !/\brulecraft\b/i.test(cockpitText),
     "Event Rail entry cards must not introduce Rulecraft",
   );
   assert(
@@ -1294,17 +1291,7 @@ function assertNoExternalCallPatterns() {
 
 function assertNoRulecraftSurface(files) {
   for (const file of files) {
-    const text = textByFile
-      .get(file)
-      .replaceAll("Rulecraft is not exposed yet.", "")
-      .replaceAll(
-        "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
-        "",
-      )
-      .replaceAll(
-        "It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
-        "",
-      );
+    const text = textByFile.get(file);
     assert(!/rulecraft/i.test(text), `${file} must not introduce Rulecraft`);
   }
 }

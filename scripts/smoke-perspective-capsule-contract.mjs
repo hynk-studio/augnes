@@ -70,6 +70,12 @@ const perspectiveIngestLocalSmokeFile =
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs";
 const pastedTextDogfoodReportFile =
   "reports/browser/2026-06-05-perspective-ingest-local-pasted-text-dogfood.md";
+const observatoryLayoutDoc =
+  "docs/PERSPECTIVE_OBSERVATORY_LAYOUT_RESTORE_V0_1.md";
+const observatoryLayoutSmokeFile =
+  "scripts/smoke-cockpit-perspective-observatory-layout.mjs";
+const observatoryLayoutBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-observatory-layout-restore.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -112,6 +118,9 @@ const allowedChangedFiles = new Set([
   perspectiveIngestLocalDoc,
   perspectiveIngestLocalSmokeFile,
   pastedTextDogfoodReportFile,
+  observatoryLayoutDoc,
+  observatoryLayoutSmokeFile,
+  observatoryLayoutBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

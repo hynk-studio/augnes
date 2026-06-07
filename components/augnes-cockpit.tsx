@@ -4126,6 +4126,7 @@ function PerspectiveTab({
     selectedPerspectiveIngestPacketTarget,
     setSelectedPerspectiveIngestPacketTarget,
   ] = useState<PerspectiveIngestPacketTarget>("chatgpt_review");
+  const [handoffPacketOpen, setHandoffPacketOpen] = useState(false);
   const [
     selectedPerspectiveConstellationLens,
     setSelectedPerspectiveConstellationLens,
@@ -4847,10 +4848,10 @@ function PerspectiveTab({
       label: "Experimental",
       status: "future/internal reserved basis",
       copy:
-        "Reserved future formation basis. Rulecraft is not exposed as a product surface yet.",
+        "Reserved future/internal formation basis. Experimental internals are not exposed as a product surface.",
       previewTitle: "Experimental candidate preview",
       previewCopy:
-        "This remains reserved future/internal behavior. It does not expose Rulecraft, create a public enum surface, or apply experimental rearrangement.",
+        "This remains reserved future/internal behavior. It keeps experimental internals unexposed, creates no public enum surface, and applies no rearrangement.",
     },
   ];
   const selectedPerspectiveFormationBasisExplanation =
@@ -5318,6 +5319,12 @@ function PerspectiveTab({
     setManualGravityDraftOverwritePending(null);
   }
 
+  function openPerspectiveConstellationHandoffPacket() {
+    setHandoffPacketOpen(true);
+    setSelectedPerspectiveIngestPacketTarget("codex_handoff");
+    setPerspectiveIngestCopyNotice(null);
+  }
+
   function applyManualGravityPreview() {
     if (!hasManualGravityDraftableMarks) return;
     setAppliedGravityPreviewActive(true);
@@ -5727,103 +5734,49 @@ function PerspectiveTab({
       aria-label="Perspective"
     >
       <PageHeader
-        eyebrow="Perspective Constellation"
-        title="Perspective Constellation"
-        description="Temporal Perspective reframed as the central Augnes work surface. How the current interpretive frame was formed is shown through the constellation, with ChatGPT, Codex, GitHub, browser reports, smokes, docs, and validation outputs kept as surrounding source and handoff surfaces."
+        eyebrow="AUGNES / Perspective Observatory"
+        title="Perspective Observatory"
+        description="Constellation-first local preview of the current perspective sky: read-only, local-only, preview-only."
       />
-
-      <details className="perspective-surface-details">
-        <summary>
-          <span>Surface boundaries and shortcuts</span>
-          <small>read-only authority plus section links</small>
-        </summary>
-        <BoundaryNote>
-          Perspective is a read-only interpretation surface. It does not commit
-          state, approve work, publish proof, admit memory, replay delivery, route
-          agents, execute Codex, or mutate external systems.
-        </BoundaryNote>
-
-        <BoundaryNote tone="green">
-          PerspectiveSnapshot is a derived-view-only read model loaded from{" "}
-          <code>/api/perspective/snapshot</code>. It is not source of truth and
-          has no approve, publish, retry, proof recording, evidence creation, work
-          update, commit/reject, mailbox, publication, GitHub/OpenAI, or temporal
-          review artifact write authority.
-        </BoundaryNote>
-
-        <nav className="perspective-anchor-nav" aria-label="Perspective sections">
-          <a href="#perspective-constellation-workspace">Workspace</a>
-          <a href="#perspective-frame">Frame</a>
-          <a href="#perspective-ledger-basis">Ledger Basis</a>
-          <a href="#perspective-evidence">Evidence</a>
-          <a href="#perspective-tensions">Tensions</a>
-          <a href="#perspective-boundary-next">Boundary / Next</a>
-          <a href="#perspective-constellation-route-preview">Route preview</a>
-          <a href="#perspective-ingest-constellation-preview">Ingest graph</a>
-          <a href="#perspective-constellation-preview">Constellation preview</a>
-        </nav>
-      </details>
 
       <section
         className="perspective-section perspective-constellation-workspace-shell"
         id="perspective-constellation-workspace"
-        aria-label="Perspective Constellation workspace shell"
+        aria-label="Perspective Observatory workspace"
       >
         <div className="perspective-constellation-shell-header">
           <div>
-            <p className="panel-eyebrow">Perspective Constellation</p>
-            <h2>Constellation workspace</h2>
+            <p className="panel-eyebrow">AUGNES / Perspective Observatory</p>
+            <h2>Current perspective sky</h2>
             <p>
-              The graph is the front-stage Augnes workspace. Source docs,
-              ChatGPT review packets, Codex handoff packets, GitHub review,
-              browser reports, smokes, docs, and validation outputs remain
-              surrounding source/input/output surfaces.
+              Current formation: {perspectiveConstellationSummaryViewing} · basis{" "}
+              {perspectiveConstellationFormationReceipt?.formation_basis ??
+                "loading"}{" "}
+              · source {perspectiveConstellationSummarySource}
             </p>
           </div>
           <div className="perspective-constellation-shell-status">
             <StatusBadge label="local-only" />
             <StatusBadge label="read-only" />
-            <StatusBadge label="preview/copy only" />
+            <StatusBadge label="preview-only" />
           </div>
-        </div>
-        <div className="perspective-start-here-strip" aria-label="Start here">
-          <span>Start here</span>
-          <ol>
-            <li>Select a node</li>
-            <li>Mark focus</li>
-            <li>Preview focus</li>
-            <li>Open handoff packet</li>
-          </ol>
         </div>
         <section
           className="perspective-formation-summary-overlay"
-          aria-label="Perspective Constellation summary overlay"
+          aria-label="Perspective Constellation identity strip"
         >
           <div className="perspective-formation-summary-heading">
             <div>
-              <p className="panel-eyebrow">Current Formation Receipt</p>
-              <h3>Perspective Unit summary</h3>
+              <p className="panel-eyebrow">Formation identity</p>
+              <h3>Current constellation identity</h3>
             </div>
-            <div className="perspective-formation-summary-actions">
-              <button
-                type="button"
-                className="perspective-formation-basis-explanation-toggle"
-                aria-expanded={formationBasisExplanationOpen}
-                aria-controls="perspective-formation-basis-explanation-card"
-                onClick={() =>
-                  setFormationBasisExplanationOpen((isOpen) => !isOpen)
-                }
-              >
-                What does this basis mean?
-              </button>
-              <div className="perspective-formation-summary-status">
-                <span className="perspective-formation-summary-status-label">
-                  Status
-                </span>
-                {perspectiveConstellationSummaryStatus.map((status) => (
-                  <span key={status}>{status}</span>
-                ))}
-              </div>
+            <div className="perspective-formation-summary-status">
+              <span className="perspective-formation-summary-status-label">
+                Status
+              </span>
+              {perspectiveConstellationSummaryStatus.map((status) => (
+                <span key={status}>{status}</span>
+              ))}
             </div>
           </div>
           <div className="perspective-formation-summary-grid">
@@ -5925,85 +5878,107 @@ function PerspectiveTab({
             </div>
           ) : null}
         </section>
-        {formationBasisExplanationOpen ? (
-          <aside
-            id="perspective-formation-basis-explanation-card"
-            className="perspective-formation-basis-explanation-card"
-            aria-label="Formation Basis explanation card"
-          >
-            <div className="perspective-formation-basis-explanation-heading">
-              <p className="panel-eyebrow">Formation Basis explanation</p>
-              <h4>How this constellation was formed</h4>
-            </div>
-            <p>
-              Formation Basis explains how the current constellation arrangement
-              was formed. Lens explains how you inspect it. Scope explains what
-              part is selected.
-            </p>
-            <div className="perspective-formation-basis-explanation-list">
-              {perspectiveConstellationFormationBasisExplanations.map((basis) => (
-                <button
-                  key={basis.id}
-                  type="button"
-                  aria-pressed={basis.id === selectedFormationBasisExplanation}
-                  onClick={() => setSelectedFormationBasisExplanation(basis.id)}
-                >
-                  <strong>{basis.label}</strong>
-                  <span>{basis.status}</span>
-                  <p>{basis.copy}</p>
-                </button>
-              ))}
-            </div>
-            <section
-              className="perspective-formation-basis-selected-preview"
-              aria-label="Selected basis preview"
-            >
-              <div className="perspective-formation-basis-selected-preview-heading">
-                <div>
-                  <p className="panel-eyebrow">Selected basis preview</p>
-                  <h5>{selectedPerspectiveFormationBasisExplanation.previewTitle}</h5>
-                </div>
-                <div className="perspective-formation-basis-selected-preview-meta">
-                  <span>
-                    active receipt basis{" "}
-                    <strong>{perspectiveConstellationActiveReceiptBasis}</strong>
-                  </span>
-                  <span>
-                    selected explanation candidate{" "}
-                    <strong>
-                      {selectedPerspectiveFormationBasisExplanation.label}
-                    </strong>
-                  </span>
-                </div>
-              </div>
-              <p>{selectedPerspectiveFormationBasisExplanation.previewCopy}</p>
-              <div className="perspective-formation-basis-selected-preview-boundary">
-                <span>Active receipt basis remains unchanged.</span>
-                <span>Visible graph remains unchanged.</span>
-                <span>No apply, OK, Cancel, or rearrange flow is available.</span>
-                <span>No snapshots, delta view, API calls, or persistence occur.</span>
-              </div>
-            </section>
-            <div className="perspective-formation-basis-explanation-boundary">
-              <span>Compare is a future view mode, not a Formation Basis.</span>
-              <span>Rulecraft is not exposed yet.</span>
-              <span>Auto Proposal is not executed here.</span>
-              <span>
-                No API calls, cost, persistence, graph DB writes, or external
-                calls occur.
-              </span>
-            </div>
-          </aside>
-        ) : null}
         <div className="perspective-constellation-workspace-grid">
           <aside
             className="perspective-lens-scope-panel"
-            aria-label="Lens / Scope panel"
+            aria-label="Observatory Controls panel"
           >
             <div className="perspective-shell-panel-heading">
-              <p className="panel-eyebrow">Lens / Scope</p>
-              <h3>Lens / Scope</h3>
+              <p className="panel-eyebrow">Controls</p>
+              <h3>Observatory Controls</h3>
             </div>
+            <section className="perspective-control-group">
+              <div className="perspective-control-group-heading">
+                <span>Formation Basis</span>
+                <small>how this constellation was formed</small>
+              </div>
+              <div className="perspective-formation-basis-explanation-list">
+                {perspectiveConstellationFormationBasisExplanations.map((basis) => {
+                  const futureOnly =
+                    basis.id === "historical_snapshot" ||
+                    basis.id === "auto_proposal" ||
+                    basis.id === "experimental";
+
+                  return (
+                    <button
+                      key={basis.id}
+                      type="button"
+                      aria-pressed={basis.id === selectedFormationBasisExplanation}
+                      disabled={futureOnly}
+                      onClick={() => setSelectedFormationBasisExplanation(basis.id)}
+                    >
+                      <strong>{basis.label}</strong>
+                      <span>{basis.status}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <details
+                id="perspective-formation-basis-explanation-card"
+                className="perspective-formation-basis-explanation-card"
+                aria-label="Formation Basis explanation card"
+                open={formationBasisExplanationOpen}
+                onToggle={(event) =>
+                  setFormationBasisExplanationOpen(event.currentTarget.open)
+                }
+              >
+                <summary>
+                  <span>What does this basis mean?</span>
+                  <small>Formation Basis, Lens, and Scope stay separate</small>
+                </summary>
+                <p>
+                  Formation Basis explains how the current constellation
+                  arrangement was formed. Lens explains how you inspect it. Scope
+                  explains what part is selected.
+                </p>
+                <section
+                  className="perspective-formation-basis-selected-preview"
+                  aria-label="Selected basis preview"
+                >
+                  <div className="perspective-formation-basis-selected-preview-heading">
+                    <div>
+                      <p className="panel-eyebrow">Selected basis preview</p>
+                      <h5>
+                        {selectedPerspectiveFormationBasisExplanation.previewTitle}
+                      </h5>
+                    </div>
+                    <div className="perspective-formation-basis-selected-preview-meta">
+                      <span>
+                        active receipt basis{" "}
+                        <strong>{perspectiveConstellationActiveReceiptBasis}</strong>
+                      </span>
+                      <span>
+                        selected explanation candidate{" "}
+                        <strong>
+                          {selectedPerspectiveFormationBasisExplanation.label}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                  <p>{selectedPerspectiveFormationBasisExplanation.previewCopy}</p>
+                  <div className="perspective-formation-basis-selected-preview-boundary">
+                    <span>Active receipt basis remains unchanged.</span>
+                    <span>Visible graph remains unchanged.</span>
+                    <span>No apply, OK, Cancel, or rearrange flow is available.</span>
+                    <span>No snapshots, delta view, API calls, or persistence occur.</span>
+                  </div>
+                </section>
+                <div className="perspective-formation-basis-explanation-boundary">
+                  <span>Compare is a future view mode, not a Formation Basis.</span>
+                  <span>Experimental internals are not exposed.</span>
+                  <span>Auto Proposal is not executed here.</span>
+                  <span>
+                    No API calls, cost, persistence, graph DB writes, or external
+                    calls occur.
+                  </span>
+                </div>
+              </details>
+            </section>
+            <section className="perspective-control-group">
+              <div className="perspective-control-group-heading">
+                <span>Lens</span>
+                <small>how the starmap is inspected</small>
+              </div>
             <div
               className="perspective-lens-option-list"
               role="group"
@@ -6030,26 +6005,82 @@ function PerspectiveTab({
                 );
               })}
             </div>
+            </section>
+            <section className="perspective-control-group">
+              <div className="perspective-control-group-heading">
+                <span>Scope</span>
+                <small>what graph material is selected</small>
+              </div>
+              <div
+                className="perspective-scope-option-list"
+                role="group"
+                aria-label="Perspective Constellation scope options"
+              >
+                <button
+                  type="button"
+                  className="perspective-scope-option"
+                  aria-pressed={
+                    perspectiveConstellationSelectionScope === "whole_constellation"
+                  }
+                  onClick={() => selectPerspectiveConstellationLens("whole_constellation")}
+                >
+                  Whole
+                </button>
+                <button
+                  type="button"
+                  className="perspective-scope-option"
+                  aria-pressed={
+                    perspectiveConstellationSelectionScope === "connected_node"
+                  }
+                  disabled={!perspectiveIngestConstellationPreview}
+                  onClick={inspectPerspectiveConstellationConnectedNodes}
+                >
+                  Connected Node
+                </button>
+                <button
+                  type="button"
+                  className="perspective-scope-option"
+                  aria-pressed={perspectiveConstellationSelectionScope === "cluster"}
+                  disabled={!perspectiveConstellationWorkspaceCluster}
+                  onClick={previewPerspectiveConstellationUnit}
+                >
+                  Cluster
+                </button>
+                <button
+                  type="button"
+                  className="perspective-scope-option"
+                  aria-pressed={
+                    perspectiveConstellationSelectionScope === "manual_selection"
+                  }
+                  disabled={!perspectiveConstellationUnitPreview}
+                  onClick={markPerspectiveConstellationNextCandidatePreview}
+                >
+                  Manual Selection
+                </button>
+              </div>
+            </section>
             <div className="perspective-lens-scope-summary">
               <span>Active lens</span>
               <strong>{selectedPerspectiveConstellationLensOption.label}</strong>
               <p>{selectedPerspectiveConstellationLensOption.detail}</p>
             </div>
             <div className="perspective-lens-source-summary">
-              <span>Loaded source</span>
+              <span>Source</span>
               <code>{perspectiveIngestLoadedSourceQuery}</code>
-              <small>{perspectiveIngestLoadedSourceDetail}</small>
+              <small>
+                {perspectiveIngestPreviewMode} · {perspectiveIngestLoadedSourceDetail}
+              </small>
             </div>
           </aside>
 
           <section
             className="perspective-constellation-game-window"
-            aria-label="Central Constellation Game Window"
+            aria-label="Current Perspective Starmap"
           >
             <div className="perspective-game-window-topbar">
               <div>
-                <p className="panel-eyebrow">Central Game Window</p>
-                <h3>Central Constellation Game Window</h3>
+                <p className="panel-eyebrow">Perspective Starmap</p>
+                <h3>Current Perspective Starmap</h3>
               </div>
               <div className="perspective-game-window-metrics">
                 <span>
@@ -6099,27 +6130,29 @@ function PerspectiveTab({
               )}
             </div>
             <div className="perspective-game-window-caption">
-              <span>Game-window shell, not a persistence surface</span>
+              <span>Read-only starmap · no persistence · no graph DB · no external calls</span>
               <span>No DB writes</span>
+              <span>No persistence</span>
               <span>No graph DB</span>
               <span>No external calls</span>
+              <span>No Codex execution</span>
             </div>
           </section>
 
           <aside
             className="perspective-inspector-handoff-panel"
-            aria-label="Inspector / Action / Handoff panel"
+            aria-label="Inspector panel"
           >
             <div className="perspective-shell-panel-heading">
               <p className="panel-eyebrow">Inspector</p>
-              <h3>Inspector / Action / Handoff</h3>
+              <h3>Inspector</h3>
             </div>
             <section className="perspective-inspector-section">
               <div className="perspective-selection-scope-row">
                 <span>Selection scope</span>
                 <strong>{perspectiveConstellationSelectionScopeLabel}</strong>
               </div>
-              <h4>Selected node / cluster summary</h4>
+              <h4>Selected</h4>
               {perspectiveIngestConstellationPreview ? (
                 <>
                   <strong>{perspectiveConstellationSelectionTitle}</strong>
@@ -6139,16 +6172,61 @@ function PerspectiveTab({
               )}
             </section>
             <section className="perspective-inspector-section">
-              <h4>Thesis / capsule summary</h4>
+              <h4>Why here</h4>
               <p>
+                Formation basis{" "}
+                <strong>
+                  {perspectiveConstellationFormationReceipt?.formation_basis ??
+                    "pending"}
+                </strong>{" "}
+                formed by{" "}
+                <strong>
+                  {perspectiveConstellationFormationReceipt?.formed_by.label ??
+                    "Preview formation pending"}
+                </strong>
+                .{" "}
                 {perspectiveIngestConstellationPreview?.perspective_capsule_preview
                   .thesis ??
                   perspectiveConstellationWorkspaceCluster?.cluster_thesis ??
                   "Preview thesis pending."}
               </p>
+              <div className="meta-row">
+                <span>
+                  source refs{" "}
+                  <code>{perspectiveConstellationSubstrateSourceRefs.length}</code>
+                </span>
+                <span>
+                  node attributions{" "}
+                  <code>
+                    {perspectiveConstellationSubstrateNodeAttributions.length}
+                  </code>
+                </span>
+                <span>
+                  edge attributions{" "}
+                  <code>
+                    {perspectiveConstellationSubstrateEdgeAttributions.length}
+                  </code>
+                </span>
+              </div>
+              <RefChipList
+                refs={
+                  perspectiveConstellationFormationReceipt?.criteria_summary.slice(
+                    0,
+                    3,
+                  ) ?? []
+                }
+                emptyLabel="No formation attribution criteria"
+              />
             </section>
+            <details
+              className="perspective-inspector-section perspective-inspector-details perspective-inspector-advanced-details"
+            >
+              <summary>
+                <span>Advanced preview controls</span>
+                <small>Manual Gravity, local draft, conflicts</small>
+              </summary>
             <section
-              className="perspective-inspector-section perspective-manual-gravity-preview"
+              className="perspective-manual-gravity-preview"
               aria-label="Manual Gravity Preview"
             >
               <h4>Manual Gravity Preview</h4>
@@ -6595,11 +6673,9 @@ function PerspectiveTab({
                 </div>
               </details>
             </section>
-            <details className="perspective-inspector-section perspective-inspector-details">
-              <summary>
-                <span>Selection details</span>
-                <small>evidence, tensions, next candidates</small>
-              </summary>
+            </details>
+            <section className="perspective-inspector-section perspective-inspector-evidence-next">
+              <h4>Evidence / Tensions / Next</h4>
               <section>
                 <h4>Evidence pointers</h4>
                 <RefChipList
@@ -6627,9 +6703,9 @@ function PerspectiveTab({
                   emptyLabel="No selected next action candidates"
                 />
               </section>
-            </details>
+            </section>
             <section className="perspective-inspector-section perspective-selection-action-menu">
-              <h4>Node / Cluster Action Menu</h4>
+              <h4>Actions</h4>
               <div className="perspective-action-button-grid">
                 <button
                   type="button"
@@ -6655,6 +6731,14 @@ function PerspectiveTab({
                 >
                   Mark as Next Candidate Preview
                 </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={openPerspectiveConstellationHandoffPacket}
+                  disabled={!selectedPerspectiveConstellationPacketText}
+                >
+                  Open Handoff Packet
+                </button>
               </div>
               {perspectiveIngestConstellation?.clusters.length ? (
                 <div className="perspective-cluster-picker">
@@ -6679,10 +6763,14 @@ function PerspectiveTab({
               ) : null}
             </section>
             <section className="perspective-inspector-section perspective-packet-preview">
-              <details className="perspective-packet-preview-details">
+              <details
+                className="perspective-packet-preview-details"
+                open={handoffPacketOpen}
+                onToggle={(event) => setHandoffPacketOpen(event.currentTarget.open)}
+              >
                 <summary>
-                  <span>Handoff packet · ChatGPT/Codex · copy-ready</span>
-                  <small>review and handoff previews stay reachable</small>
+                  <span>Preview Handoff Packet</span>
+                  <small>ChatGPT Review / Codex Handoff copy-ready text</small>
                 </summary>
                 <h4>ChatGPT / Codex handoff preview scoped to selection</h4>
                 <div
@@ -6759,13 +6847,21 @@ function PerspectiveTab({
           </aside>
         </div>
 
-        <section
-          className="perspective-time-axis-event-rail"
-          aria-label="Time Axis / Event Rail"
+          <section
+            className="perspective-time-axis-event-rail"
+          aria-label="Event Rail"
         >
           <div className="perspective-shell-panel-heading">
-            <p className="panel-eyebrow">Time Axis / Event Rail</p>
-            <h3>Time Axis / Event Rail</h3>
+            <p className="panel-eyebrow">Event Rail</p>
+            <h3>Archive / Present / Future</h3>
+          </div>
+          <div
+            className="perspective-event-rail-role-row"
+            aria-label="Event Rail roles"
+          >
+            <span>Archive</span>
+            <span>Present</span>
+            <span>Future</span>
           </div>
           <div className="perspective-event-rail-track">
             {perspectiveConstellationEventRail.map((event, index) => (
@@ -6778,6 +6874,7 @@ function PerspectiveTab({
               >
                 <span>{index + 1}</span>
                 <strong>{event.label}</strong>
+                <small>{getPerspectiveEventRailTemporalRoleLabel(event.temporalRole)}</small>
                 <p>{event.detail}</p>
               </button>
             ))}
@@ -7187,6 +7284,38 @@ function PerspectiveTab({
           </div>
         </details>
       </section>
+
+      <details className="perspective-surface-details">
+        <summary>
+          <span>Advanced observatory boundaries</span>
+          <small>read-only authority plus section links</small>
+        </summary>
+        <BoundaryNote>
+          Perspective is a read-only interpretation surface. It does not commit
+          state, approve work, publish proof, admit memory, replay delivery, route
+          agents, execute Codex, or mutate external systems.
+        </BoundaryNote>
+
+        <BoundaryNote tone="green">
+          PerspectiveSnapshot is a derived-view-only read model loaded from{" "}
+          <code>/api/perspective/snapshot</code>. It is not source of truth and
+          has no approve, publish, retry, proof recording, evidence creation, work
+          update, commit/reject, mailbox, publication, GitHub/OpenAI, or temporal
+          review artifact write authority.
+        </BoundaryNote>
+
+        <nav className="perspective-anchor-nav" aria-label="Perspective sections">
+          <a href="#perspective-constellation-workspace">Workspace</a>
+          <a href="#perspective-frame">Frame</a>
+          <a href="#perspective-ledger-basis">Ledger Basis</a>
+          <a href="#perspective-evidence">Evidence</a>
+          <a href="#perspective-tensions">Tensions</a>
+          <a href="#perspective-boundary-next">Boundary / Next</a>
+          <a href="#perspective-constellation-route-preview">Route preview</a>
+          <a href="#perspective-ingest-constellation-preview">Ingest graph</a>
+          <a href="#perspective-constellation-preview">Constellation preview</a>
+        </nav>
+      </details>
 
       <div className="perspective-grid">
         <section
