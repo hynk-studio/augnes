@@ -4206,6 +4206,16 @@ function PerspectiveTab({
   const [formationSwitchNotice, setFormationSwitchNotice] =
     useState<Notice | null>(null);
   const formationSwitchCancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const formationSwitchApplyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const formationSwitchOverlayCardRef = useRef<HTMLElement | null>(null);
+  const formationSwitchTriggerButtonRefs = useRef<
+    Partial<
+      Record<PerspectiveFormationBasisExplanationCandidate, HTMLButtonElement | null>
+    >
+  >({});
+  const formationSwitchTriggerBasisRef =
+    useRef<PerspectiveFormationBasisExplanationCandidate | null>(null);
+  const formationSwitchWasOpenRef = useRef(false);
   const [selectedGravityPreviewMarks, setSelectedGravityPreviewMarks] = useState<
     Record<string, ManualGravityPreviewMark[]>
   >({});
@@ -5281,9 +5291,92 @@ function PerspectiveTab({
   }, [perspectiveIngestConstellationPreviewState]);
 
   useEffect(() => {
-    if (!formationSwitchOverlayOpen) return;
+    if (!formationSwitchOverlayOpen) {
+      if (formationSwitchWasOpenRef.current) {
+        formationSwitchWasOpenRef.current = false;
+        window.setTimeout(() => {
+          const triggerBasis = formationSwitchTriggerBasisRef.current;
+          if (!triggerBasis) return;
+          formationSwitchTriggerButtonRefs.current[triggerBasis]?.focus();
+        }, 0);
+      }
+      return;
+    }
 
+    formationSwitchWasOpenRef.current = true;
     formationSwitchCancelButtonRef.current?.focus();
+
+    const getFocusableOverlayElements = () => {
+      const overlayCard = formationSwitchOverlayCardRef.current;
+      if (!overlayCard) return [];
+
+      return Array.from(
+        overlayCard.querySelectorAll<HTMLElement>(
+          [
+            "button:not([disabled])",
+            "[href]",
+            "input:not([disabled])",
+            "select:not([disabled])",
+            "textarea:not([disabled])",
+            '[tabindex]:not([tabindex="-1"])',
+          ].join(", "),
+        ),
+      ).filter(
+        (element) =>
+          !element.hasAttribute("disabled") &&
+          element.getAttribute("aria-hidden") !== "true",
+      );
+    };
+
+    const handleFormationSwitchOverlayKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePerspectiveFormationBasisSwitchOverlay();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const overlayCard = formationSwitchOverlayCardRef.current;
+      if (!overlayCard) return;
+
+      const focusableElements = getFocusableOverlayElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        overlayCard.focus();
+        return;
+      }
+
+      const firstFocusableElement = focusableElements[0];
+      const lastFocusableElement =
+        focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (!overlayCard.contains(activeElement)) {
+        event.preventDefault();
+        firstFocusableElement.focus();
+        return;
+      }
+
+      if (event.shiftKey && activeElement === firstFocusableElement) {
+        event.preventDefault();
+        lastFocusableElement.focus();
+        return;
+      }
+
+      if (!event.shiftKey && activeElement === lastFocusableElement) {
+        event.preventDefault();
+        firstFocusableElement.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleFormationSwitchOverlayKeyDown);
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleFormationSwitchOverlayKeyDown,
+      );
+    };
   }, [formationSwitchOverlayOpen, pendingFormationBasisSwitch]);
 
   useEffect(() => {
@@ -5443,6 +5536,7 @@ function PerspectiveTab({
   function handlePerspectiveFormationBasisControlClick(
     basis: PerspectiveFormationBasisExplanationCandidate,
   ) {
+    formationSwitchTriggerBasisRef.current = basis;
     setSelectedFormationBasisExplanation(basis);
     setFormationBasisExplanationOpen(true);
     setManualGravityDraftOverwritePending(null);
@@ -6165,6 +6259,12 @@ function PerspectiveTab({
         className="perspective-section perspective-constellation-workspace-shell"
         id="perspective-constellation-workspace"
         aria-label="Perspective Observatory workspace"
+        data-augnes-surface="perspective-observatory"
+        data-augnes-authority="read-only local-only preview-only"
+        data-augnes-external-calls="false"
+        data-augnes-api-billable="false"
+        data-augnes-persistence="false"
+        data-augnes-codex-execution="false"
       >
         <div className="perspective-constellation-shell-header">
           <div>
@@ -6186,6 +6286,7 @@ function PerspectiveTab({
         <section
           className="perspective-formation-summary-overlay"
           aria-label="Perspective Constellation identity strip"
+          data-augnes-region="formation-identity"
         >
           <div className="perspective-formation-summary-heading">
             <div>
@@ -6304,12 +6405,16 @@ function PerspectiveTab({
           <aside
             className="perspective-lens-scope-panel"
             aria-label="Observatory Controls panel"
+            data-augnes-region="observatory-controls"
           >
             <div className="perspective-shell-panel-heading">
               <p className="panel-eyebrow">Controls</p>
               <h3>Observatory Controls</h3>
             </div>
-            <section className="perspective-control-group">
+            <section
+              className="perspective-control-group"
+              data-augnes-region="formation-basis-controls"
+            >
               <div className="perspective-control-group-heading">
                 <span>Formation Basis</span>
                 <small>how this constellation was formed</small>
@@ -6323,9 +6428,15 @@ function PerspectiveTab({
 
                   return (
                     <button
+                      ref={(element) => {
+                        formationSwitchTriggerButtonRefs.current[basis.id] =
+                          element;
+                      }}
                       key={basis.id}
                       type="button"
                       aria-pressed={basis.id === selectedFormationBasisExplanation}
+                      data-augnes-control="formation-basis"
+                      data-augnes-basis={basis.id}
                       data-future-only={futureOnly ? "true" : undefined}
                       onClick={() =>
                         handlePerspectiveFormationBasisControlClick(basis.id)
@@ -6405,7 +6516,10 @@ function PerspectiveTab({
                 </div>
               </details>
             </section>
-            <section className="perspective-control-group">
+            <section
+              className="perspective-control-group"
+              data-augnes-region="lens-controls"
+            >
               <div className="perspective-control-group-heading">
                 <span>Lens</span>
                 <small>how the starmap is inspected</small>
@@ -6425,6 +6539,8 @@ function PerspectiveTab({
                     type="button"
                     className="perspective-lens-option"
                     aria-pressed={selected}
+                    data-augnes-control="lens"
+                    data-augnes-lens={option.id}
                     onClick={() =>
                       handlePerspectiveLensControlClick(option.id)
                     }
@@ -6437,7 +6553,10 @@ function PerspectiveTab({
               })}
             </div>
             </section>
-            <section className="perspective-control-group">
+            <section
+              className="perspective-control-group"
+              data-augnes-region="scope-controls"
+            >
               <div className="perspective-control-group-heading">
                 <span>Scope</span>
                 <small>what graph material is selected</small>
@@ -6453,6 +6572,8 @@ function PerspectiveTab({
                   aria-pressed={
                     perspectiveConstellationSelectionScope === "whole_constellation"
                   }
+                  data-augnes-control="scope"
+                  data-augnes-scope="whole_constellation"
                   onClick={() =>
                     selectWholeConstellationScope({
                       syncLens: "whole_constellation",
@@ -6467,6 +6588,8 @@ function PerspectiveTab({
                   aria-pressed={
                     perspectiveConstellationSelectionScope === "connected_node"
                   }
+                  data-augnes-control="scope"
+                  data-augnes-scope="connected_node"
                   disabled={!perspectiveIngestConstellationPreview}
                   onClick={() =>
                     selectConnectedNodeScope({ syncLens: "connected_nodes" })
@@ -6478,6 +6601,8 @@ function PerspectiveTab({
                   type="button"
                   className="perspective-scope-option"
                   aria-pressed={perspectiveConstellationSelectionScope === "cluster"}
+                  data-augnes-control="scope"
+                  data-augnes-scope="cluster"
                   disabled={!perspectiveConstellationWorkspaceCluster}
                   onClick={() => selectClusterScope()}
                 >
@@ -6489,6 +6614,8 @@ function PerspectiveTab({
                   aria-pressed={
                     perspectiveConstellationSelectionScope === "manual_selection"
                   }
+                  data-augnes-control="scope"
+                  data-augnes-scope="manual_selection"
                   disabled={!perspectiveConstellationUnitPreview}
                   onClick={() => selectManualSelectionScope()}
                 >
@@ -6501,7 +6628,10 @@ function PerspectiveTab({
               <strong>{selectedPerspectiveConstellationLensOption.label}</strong>
               <p>{selectedPerspectiveConstellationLensOption.detail}</p>
             </div>
-            <div className="perspective-lens-source-summary">
+            <div
+              className="perspective-lens-source-summary"
+              data-augnes-region="source-summary"
+            >
               <span>Source</span>
               <code>{perspectiveIngestLoadedSourceQuery}</code>
               <small>
@@ -6513,6 +6643,7 @@ function PerspectiveTab({
           <section
             className="perspective-constellation-game-window"
             aria-label="Current Perspective Starmap"
+            data-augnes-region="starmap"
           >
             <div className="perspective-game-window-topbar">
               <div>
@@ -6579,6 +6710,7 @@ function PerspectiveTab({
           <aside
             className="perspective-inspector-handoff-panel"
             aria-label="Inspector panel"
+            data-augnes-region="inspector"
           >
             <div className="perspective-shell-panel-heading">
               <p className="panel-eyebrow">Inspector</p>
@@ -7293,14 +7425,31 @@ function PerspectiveTab({
           >
             <section
               className={`perspective-formation-switch-overlay-card is-${perspectiveFormationSwitchOverlayCopy.mode}`}
-              aria-label="Formation Basis switch overlay"
+              aria-describedby="perspective-formation-switch-overlay-description"
+              aria-label={
+                perspectiveFormationSwitchOverlayCopy.mode ===
+                "future_explanation"
+                  ? "Formation Basis future explanation"
+                  : "Formation Basis switch overlay"
+              }
+              aria-labelledby="perspective-formation-switch-overlay-title"
               aria-modal="true"
+              data-augnes-region="formation-switch-overlay"
+              data-augnes-authority="read-only local-only preview-only"
+              data-augnes-external-calls="false"
+              data-augnes-api-billable="false"
+              data-augnes-persistence="false"
+              data-augnes-codex-execution="false"
+              ref={formationSwitchOverlayCardRef}
               role="dialog"
+              tabIndex={-1}
             >
               <div className="perspective-formation-switch-overlay-heading">
                 <div>
                   <p className="panel-eyebrow">Formation Basis · Switch View</p>
-                  <h3>{perspectiveFormationSwitchOverlayCopy.title}</h3>
+                  <h3 id="perspective-formation-switch-overlay-title">
+                    {perspectiveFormationSwitchOverlayCopy.title}
+                  </h3>
                 </div>
                 <div className="perspective-formation-switch-badge-row">
                   <span>free/local</span>
@@ -7308,7 +7457,14 @@ function PerspectiveTab({
                   <span>no cost</span>
                 </div>
               </div>
-              <p>{perspectiveFormationSwitchOverlayCopy.copy}</p>
+              <p id="perspective-formation-switch-overlay-description">
+                {perspectiveFormationSwitchOverlayCopy.copy}
+                <span className="sr-only">
+                  {" "}
+                  This surface is local-only, free, and does not call APIs,
+                  persist data, bill usage, or execute Codex.
+                </span>
+              </p>
               {perspectiveFormationSwitchOverlayCopy.applyDisabledReason ? (
                 <div
                   className="perspective-formation-switch-blocked-note"
@@ -7348,7 +7504,10 @@ function PerspectiveTab({
                 <span>expires after 24 hours</span>
                 <span>no raw graph/source/prompt/model/private content</span>
               </div>
-              <div className="perspective-formation-switch-action-row">
+              <div
+                className="perspective-formation-switch-action-row"
+                aria-label="Formation Basis switch actions"
+              >
                 <button
                   ref={formationSwitchCancelButtonRef}
                   type="button"
@@ -7362,6 +7521,7 @@ function PerspectiveTab({
                 </button>
                 {perspectiveFormationSwitchOverlayCopy.mode === "local_switch" ? (
                   <button
+                    ref={formationSwitchApplyButtonRef}
                     type="button"
                     className="primary-button"
                     disabled={!perspectiveFormationSwitchCanApply}
@@ -7379,9 +7539,10 @@ function PerspectiveTab({
           </div>
         ) : null}
 
-          <section
-            className="perspective-time-axis-event-rail"
+        <section
+          className="perspective-time-axis-event-rail"
           aria-label="Event Rail"
+          data-augnes-region="event-rail"
         >
           <div className="perspective-shell-panel-heading">
             <p className="panel-eyebrow">Event Rail</p>
@@ -7433,6 +7594,7 @@ function PerspectiveTab({
                 ? "Event Rail archive entry card"
                 : `Event Rail ${selectedPerspectiveEventRailEntry.cardTitle}`
             }
+            data-augnes-region="temporal-entry-card"
           >
             <div className="perspective-event-rail-entry-summary">
               <div>

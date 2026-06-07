@@ -96,6 +96,12 @@ const scopeHandlerCleanupSmokeFile =
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs";
 const scopeHandlerCleanupBrowserReportFile =
   "reports/browser/2026-06-07-perspective-scope-handler-cleanup.md";
+const overlayFocusAgentSemanticsDoc =
+  "docs/PERSPECTIVE_OVERLAY_FOCUS_AGENT_SEMANTICS_V0_1.md";
+const overlayFocusAgentSemanticsSmokeFile =
+  "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs";
+const overlayFocusAgentSemanticsBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-overlay-focus-agent-semantics.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -151,6 +157,9 @@ const allowedChangedFiles = new Set([
   scopeHandlerCleanupDoc,
   scopeHandlerCleanupSmokeFile,
   scopeHandlerCleanupBrowserReportFile,
+  overlayFocusAgentSemanticsDoc,
+  overlayFocusAgentSemanticsSmokeFile,
+  overlayFocusAgentSemanticsBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

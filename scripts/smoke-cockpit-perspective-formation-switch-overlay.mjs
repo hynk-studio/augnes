@@ -19,13 +19,16 @@ const allowedChangedFiles = new Set([
   "app/globals.css",
   "components/augnes-cockpit.tsx",
   "docs/PERSPECTIVE_FORMATION_SWITCH_OVERLAY_V0_1.md",
+  "docs/PERSPECTIVE_OVERLAY_FOCUS_AGENT_SEMANTICS_V0_1.md",
   "docs/PERSPECTIVE_SCOPE_HANDLER_CLEANUP_V0_1.md",
   "lib/perspective-ingest/formation-switch-acknowledgement.ts",
   "package.json",
   "reports/browser/2026-06-07-perspective-formation-switch-overlay.md",
+  "reports/browser/2026-06-07-perspective-overlay-focus-agent-semantics.md",
   "reports/browser/2026-06-07-perspective-scope-handler-cleanup.md",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
+  "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
@@ -190,7 +193,7 @@ const formationSwitchComponentSource = [
   extractBetween(
     cockpit,
     "perspective-formation-switch-overlay-backdrop",
-    '<section\n            className="perspective-time-axis-event-rail"',
+    '<section\n          className="perspective-time-axis-event-rail"',
   ),
 ].join("\n");
 
