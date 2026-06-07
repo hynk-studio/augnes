@@ -91,7 +91,9 @@ assertContainsAll(css, [
   "perspective-scope-option-list",
   "perspective-inspector-evidence-next",
   "perspective-inspector-advanced-details",
-  "perspective-event-rail-role-row",
+  "perspective-event-rail-node-edge-shell",
+  "perspective-event-rail-node",
+  "perspective-event-rail-edge",
 ]);
 
 assertContainsAll(doc, [

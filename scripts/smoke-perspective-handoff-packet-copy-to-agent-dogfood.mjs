@@ -29,6 +29,12 @@ const authorityCopyCollapseBrowserReportFile =
   "reports/browser/2026-06-07-perspective-authority-copy-collapse.md";
 const authorityCopyCollapseSmokeFile =
   "scripts/smoke-cockpit-perspective-authority-copy-collapse.mjs";
+const eventRailNodeEdgeDocFile =
+  "docs/PERSPECTIVE_EVENT_RAIL_NODE_EDGE_V0_1.md";
+const eventRailNodeEdgeBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-event-rail-node-edge.md";
+const eventRailNodeEdgeSmokeFile =
+  "scripts/smoke-cockpit-perspective-event-rail-node-edge.mjs";
 
 const allowedChangedFiles = new Set([
   "app/globals.css",
@@ -44,6 +50,9 @@ const allowedChangedFiles = new Set([
   authorityCopyCollapseDocFile,
   authorityCopyCollapseBrowserReportFile,
   authorityCopyCollapseSmokeFile,
+  eventRailNodeEdgeDocFile,
+  eventRailNodeEdgeBrowserReportFile,
+  eventRailNodeEdgeSmokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
