@@ -351,6 +351,16 @@ type PerspectiveEventRailEntry = {
   statusLabel: string;
   relatedRefs: string[];
 };
+type PerspectiveEventRailRoleProfile = {
+  roleName: string;
+  cardLabel: string;
+  railAffordance: string;
+  canTitle: string;
+  canItems: string[];
+  cannotTitle: string;
+  cannotItems: string[];
+  relatedRefsLabel: string;
+};
 type PerspectiveFormationBasisExplanationCandidate =
   | "current"
   | "manual_selection"
@@ -5070,6 +5080,20 @@ function PerspectiveTab({
     getPerspectiveEventRailTemporalRoleLabel(
       selectedPerspectiveEventRailEntry.temporalRole,
     );
+  const selectedPerspectiveEventRailRoleProfile =
+    getPerspectiveEventRailRoleProfile(
+      selectedPerspectiveEventRailEntry.temporalRole,
+    );
+  const selectedPerspectiveEventRailRelatedRefs = Array.from(
+    new Set(selectedPerspectiveEventRailEntry.relatedRefs.filter(Boolean)),
+  );
+  const selectedPerspectiveEventRailPreviewRefs =
+    selectedPerspectiveEventRailRelatedRefs.slice(0, 6);
+  const selectedPerspectiveEventRailHiddenRefCount = Math.max(
+    0,
+    selectedPerspectiveEventRailRelatedRefs.length -
+      selectedPerspectiveEventRailPreviewRefs.length,
+  );
   const selectedPerspectiveEventRailNotes =
     selectedPerspectiveEventRailEntry.temporalRole === "archive"
       ? [
@@ -6859,9 +6883,18 @@ function PerspectiveTab({
             className="perspective-event-rail-role-row"
             aria-label="Event Rail roles"
           >
-            <span>Archive</span>
-            <span>Present</span>
-            <span>Future</span>
+            <span>
+              <strong>Past</strong>
+              <small>Archive / reference</small>
+            </span>
+            <span>
+              <strong>Present</strong>
+              <small>Active local preview</small>
+            </span>
+            <span>
+              <strong>Future</strong>
+              <small>Advisory candidate</small>
+            </span>
           </div>
           <div className="perspective-event-rail-track">
             {perspectiveConstellationEventRail.map((event, index) => (
@@ -6875,18 +6908,32 @@ function PerspectiveTab({
                 <span>{index + 1}</span>
                 <strong>{event.label}</strong>
                 <small>{getPerspectiveEventRailTemporalRoleLabel(event.temporalRole)}</small>
+                <em>
+                  {
+                    getPerspectiveEventRailRoleProfile(event.temporalRole)
+                      .railAffordance
+                  }
+                </em>
                 <p>{event.detail}</p>
               </button>
             ))}
           </div>
           <aside
             className={`perspective-event-rail-entry-card is-${selectedPerspectiveEventRailEntry.temporalRole}`}
-            aria-label="Event Rail archive entry card"
+            aria-label={
+              selectedPerspectiveEventRailEntry.temporalRole === "archive"
+                ? "Event Rail archive entry card"
+                : `Event Rail ${selectedPerspectiveEventRailEntry.cardTitle}`
+            }
           >
             <div className="perspective-event-rail-entry-summary">
               <div>
                 <p className="panel-eyebrow">Event Rail temporal entry card</p>
                 <h4>{selectedPerspectiveEventRailEntry.cardTitle}</h4>
+                <span className="perspective-event-rail-entry-role-badge">
+                  {selectedPerspectiveEventRailRoleProfile.roleName} /{" "}
+                  {selectedPerspectiveEventRailRoleProfile.cardLabel}
+                </span>
               </div>
               <p>{selectedPerspectiveEventRailEntry.cardSummary}</p>
             </div>
@@ -6903,11 +6950,59 @@ function PerspectiveTab({
                 <span>Mutation</span>
                 <strong>disabled</strong>
               </div>
+              <div>
+                <span>Authority</span>
+                <strong>
+                  {selectedPerspectiveEventRailRoleProfile.railAffordance}
+                </strong>
+              </div>
+            </div>
+            <div
+              className="perspective-event-rail-entry-capability-grid"
+              aria-label="Selected Temporal Entry Card capability boundaries"
+            >
+              <section>
+                <h5>{selectedPerspectiveEventRailRoleProfile.canTitle}</h5>
+                <ul>
+                  {selectedPerspectiveEventRailRoleProfile.canItems.map(
+                    (item) => (
+                      <li key={item}>{item}</li>
+                    ),
+                  )}
+                </ul>
+              </section>
+              <section className="is-disabled">
+                <h5>{selectedPerspectiveEventRailRoleProfile.cannotTitle}</h5>
+                <ul>
+                  {selectedPerspectiveEventRailRoleProfile.cannotItems.map(
+                    (item) => (
+                      <li key={item}>{item}</li>
+                    ),
+                  )}
+                </ul>
+              </section>
+            </div>
+            <div className="perspective-event-rail-entry-ref-preview">
+              <div className="perspective-event-rail-entry-ref-heading">
+                <h5>{selectedPerspectiveEventRailRoleProfile.relatedRefsLabel}</h5>
+                {selectedPerspectiveEventRailHiddenRefCount > 0 ? (
+                  <span>
+                    +{selectedPerspectiveEventRailHiddenRefCount} more in
+                    details
+                  </span>
+                ) : (
+                  <span>Full set visible</span>
+                )}
+              </div>
+              <RefChipList
+                refs={selectedPerspectiveEventRailPreviewRefs}
+                emptyLabel="No source refs / related refs available for this local preview"
+              />
             </div>
             <details className="perspective-event-rail-entry-details">
               <summary>
                 <span>Event details</span>
-                <small>notes, snapshot context, source refs</small>
+                <small>notes, snapshot context, all related refs</small>
               </summary>
               <div className="perspective-event-rail-entry-notes">
                 {selectedPerspectiveEventRailNotes.map((note) => (
@@ -6949,7 +7044,7 @@ function PerspectiveTab({
               <div>
                 <h5>Source refs / related refs</h5>
                 <RefChipList
-                  refs={selectedPerspectiveEventRailEntry.relatedRefs}
+                  refs={selectedPerspectiveEventRailRelatedRefs}
                   emptyLabel="No source refs / related refs available for this local preview"
                 />
               </div>
@@ -25108,6 +25203,71 @@ function getPerspectiveEventRailTemporalRoleLabel(
   if (role === "archive") return "Past / Archive";
   if (role === "future") return "Future / Candidate";
   return "Present / Active View";
+}
+
+function getPerspectiveEventRailRoleProfile(
+  role: PerspectiveEventRailTemporalRole,
+): PerspectiveEventRailRoleProfile {
+  if (role === "archive") {
+    return {
+      roleName: "Past",
+      cardLabel: "Archive / reference",
+      railAffordance: "reference-only",
+      canTitle: "Archive cards can",
+      canItems: [
+        "Keep session, decision, handoff, PR, review, and closeout refs visible",
+        "Explain why past material matters to the current Perspective view",
+        "Support local inspection as reference material only",
+      ],
+      cannotTitle: "Archive cards cannot",
+      cannotItems: [
+        "Store a frozen historical snapshot",
+        "Compare archive material to Current View with a delta engine",
+        "Write proof, evidence, readiness, graph DB, or persistence records",
+      ],
+      relatedRefsLabel: "Archive related refs",
+    };
+  }
+
+  if (role === "future") {
+    return {
+      roleName: "Future",
+      cardLabel: "Advisory candidate",
+      railAffordance: "advisory-only",
+      canTitle: "Future Candidate card can",
+      canItems: [
+        "Show possible next Perspective context",
+        "Name candidate source refs and blockers",
+        "Keep next actions inspectable without granting execution authority",
+      ],
+      cannotTitle: "Future Candidate card cannot",
+      cannotItems: [
+        "Execute Codex, call GitHub, or create PRs",
+        "Call providers, models, APIs, or trigger API billing",
+        "Generate Auto Proposal output or mutate Augnes state",
+      ],
+      relatedRefsLabel: "Candidate related refs",
+    };
+  }
+
+  return {
+    roleName: "Present",
+    cardLabel: "Active local preview",
+    railAffordance: "active local preview",
+    canTitle: "Current View card can",
+    canItems: [
+      "Show the active local PerspectiveUnitPreview / FormationReceiptV0 context",
+      "Keep current graph refs visible for local inspection",
+      "Reflect the selected Formation Basis without persisting a snapshot",
+    ],
+    cannotTitle: "Current View card cannot",
+    cannotItems: [
+      "Persist the view as a frozen historical snapshot",
+      "Compute a delta against archive entries",
+      "Call providers, GitHub, Codex, APIs, or mutate runtime state",
+    ],
+    relatedRefsLabel: "Current local preview refs",
+  };
 }
 
 function matchPerspectiveIngestEvidencePointers(
