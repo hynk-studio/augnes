@@ -22,6 +22,7 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_SCOPE_HANDLER_CLEANUP_V0_1.md",
   "docs/PERSPECTIVE_EVENT_RAIL_NODE_EDGE_V0_1.md",
   "docs/PERSPECTIVE_NODE_COPY_HUMANIZATION_V0_1.md",
+  "docs/PERSPECTIVE_WORKBENCH_TEMPORAL_UNDERLAY_V0_1.md",
   "lib/perspective-ingest/episode-to-constellation-packet.ts",
   "lib/perspective-ingest/perspective-unit-preview.ts",
   "package.json",
@@ -33,6 +34,7 @@ const allowedChangedFiles = new Set([
   "reports/browser/2026-06-07-perspective-scope-handler-cleanup.md",
   "reports/browser/2026-06-07-perspective-event-rail-node-edge.md",
   "reports/browser/2026-06-07-perspective-node-copy-humanization.md",
+  "reports/browser/2026-06-07-perspective-workbench-temporal-underlay.md",
   "reports/dogfood/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md",
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
@@ -41,6 +43,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
   "scripts/smoke-cockpit-perspective-observatory-layout.mjs",
   "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",
+  "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
   "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs",
   "scripts/smoke-cockpit-perspective-authority-copy-collapse.mjs",
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
@@ -49,6 +52,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
   "scripts/smoke-perspective-node-copy-humanization.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
 
 assert.equal(
@@ -141,11 +145,24 @@ for (const forbidden of [
 
 const inspectorActionsSource = extractInspectorActionsSource(cockpit);
 assertContainsAll(inspectorActionsSource, [
-  "onClick={inspectPerspectiveConstellationConnectedNodes}",
-  "onClick={previewPerspectiveConstellationUnit}",
-  "onClick={markPerspectiveConstellationNextCandidatePreview}",
+  "Copy ChatGPT Review Packet",
+  "Copy Codex Handoff Packet",
+  "Open packet preview",
+  "copyPerspectiveConstellationScopedChatGptPacket",
+  "copyPerspectiveConstellationScopedCodexHandoffPacket",
   "onClick={openPerspectiveConstellationHandoffPacket}",
 ]);
+for (const oldDefaultActionHandler of [
+  "inspectPerspectiveConstellationConnectedNodes",
+  "previewPerspectiveConstellationUnit",
+  "markPerspectiveConstellationNextCandidatePreview",
+]) {
+  assert.equal(
+    inspectorActionsSource.includes(oldDefaultActionHandler),
+    false,
+    `default workbench action row should not include old dense action handler: ${oldDefaultActionHandler}`,
+  );
+}
 
 assertContainsAll(getNamedFunctionText(cockpit, "inspectPerspectiveConstellationConnectedNodes"), [
   'selectConnectedNodeScope({ syncLens: "connected_nodes" });',
@@ -208,7 +225,9 @@ assertContainsAll(cockpit, [
   "Archive Entry Card",
   "Current View Card",
   "Future Candidate Card",
-  "Perspective Observatory",
+  "Perspective",
+  "Local graph preview for reviewing relationships, tensions, and next steps.",
+  "workbench-temporal-underlay",
   "Current Perspective Starmap",
   "Observatory Controls",
   "Formation Basis",

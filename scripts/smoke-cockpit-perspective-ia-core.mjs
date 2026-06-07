@@ -58,8 +58,11 @@ export function runPerspectiveIaSmoke(smokeName) {
   );
 
   for (const snippet of [
-    "AUGNES / Perspective Observatory",
-    "Constellation-first preview for inspecting evidence, tensions, and handoff packets.",
+    "AUGNES / Perspective",
+    "Local graph preview for reviewing relationships, tensions, and next steps.",
+    "perspective-primary-workbench",
+    "workbench-temporal-underlay",
+    "Temporal Underlay",
     "PerspectiveCompactAuthority",
     "data-augnes-authority-capsule",
     "Safe preview",

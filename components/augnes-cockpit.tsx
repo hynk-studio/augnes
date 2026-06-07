@@ -19,6 +19,9 @@ import {
   getPerspectiveConstellationConnectedNodeIds,
 } from "@/lib/perspective-ingest/perspective-unit-preview";
 import {
+  buildPerspectiveWorkbenchProjection,
+} from "@/lib/perspective-ingest/perspective-workbench-projection";
+import {
   MANUAL_GRAVITY_LOCAL_DRAFT_STORAGE_KEY,
   MANUAL_GRAVITY_LOCAL_DRAFT_VERSION,
   MANUAL_GRAVITY_PREVIEW_MARKS,
@@ -4300,6 +4303,16 @@ function PerspectiveTab({
     setSelectedConstellationNextActionId,
   ] = useState<string | null>(null);
   const [advancedDiagnosticsOpen, setAdvancedDiagnosticsOpen] = useState(false);
+  const [perspectiveViewSettingsOpen, setPerspectiveViewSettingsOpen] =
+    useState(false);
+  const [perspectiveTemporalDetailsOpen, setPerspectiveTemporalDetailsOpen] =
+    useState(false);
+  const [perspectiveObservatoryDetailsOpen, setPerspectiveObservatoryDetailsOpen] =
+    useState(false);
+  const [
+    perspectiveAdvancedPreviewControlsOpen,
+    setPerspectiveAdvancedPreviewControlsOpen,
+  ] = useState(false);
   const preview = temporalPreview?.preview ?? null;
   const evidenceRecordCount =
     (evidencePack?.verification_trace.commands_run.length ?? 0) +
@@ -4485,6 +4498,27 @@ function PerspectiveTab({
             perspectiveIngestConstellationPreview.unresolved_tensions,
         })
       : null;
+  const perspectiveWorkbenchProjection = perspectiveIngestConstellationPreview
+    ? buildPerspectiveWorkbenchProjection({
+        preview: perspectiveIngestConstellationPreview,
+        scope_label:
+          perspectiveConstellationUnitPreview?.scope_label ?? "Whole Constellation",
+        selected_node_id: selectedPerspectiveIngestNodeId,
+        unit_preview: perspectiveConstellationUnitPreview,
+      })
+    : null;
+  const perspectiveWorkbenchTemporalUnderlay =
+    perspectiveWorkbenchProjection?.temporal_underlay ?? null;
+  const perspectiveTemporalUnderlayHighlightedIds = new Set(
+    perspectiveWorkbenchTemporalUnderlay?.highlighted_item_ids ?? [],
+  );
+  const perspectiveTemporalUnderlayItems = [
+    ...(perspectiveWorkbenchTemporalUnderlay?.primary_path ?? []),
+    ...(perspectiveWorkbenchTemporalUnderlay?.satellites.items ?? []),
+  ];
+  const perspectiveSelectedTemporalHints = perspectiveTemporalUnderlayItems
+    .filter((item) => perspectiveTemporalUnderlayHighlightedIds.has(item.id))
+    .map((item) => item.label);
   const perspectiveConstellationSelectionScopeLabel =
     perspectiveConstellationUnitPreview?.scope_label ?? "Whole Constellation";
   const perspectiveConstellationSelectionTitle =
@@ -6440,16 +6474,19 @@ function PerspectiveTab({
       aria-label="Perspective"
     >
       <PageHeader
-        eyebrow="AUGNES / Perspective Observatory"
-        title="Perspective Observatory"
-        description="Constellation-first preview for inspecting evidence, tensions, and handoff packets."
+        eyebrow="AUGNES / Perspective"
+        title="Perspective"
+        description="Local graph preview for reviewing relationships, tensions, and next steps."
       />
 
       <section
-        className="perspective-section perspective-constellation-workspace-shell"
+        className="perspective-section perspective-constellation-workspace-shell perspective-primary-workbench"
         id="perspective-constellation-workspace"
-        aria-label="Perspective Observatory workspace"
+        aria-label="Perspective workbench"
         data-augnes-surface="perspective-observatory"
+        data-augnes-region="perspective-primary-workbench"
+        data-augnes-perspective-view="workbench-temporal-underlay"
+        data-augnes-default-density="minimal"
         data-augnes-authority="read-only local-only preview-only"
         data-augnes-external-calls="false"
         data-augnes-api-billable="false"
@@ -6458,13 +6495,11 @@ function PerspectiveTab({
       >
         <div className="perspective-constellation-shell-header">
           <div>
-            <p className="panel-eyebrow">AUGNES / Perspective Observatory</p>
-            <h2>Current perspective sky</h2>
+            <p className="panel-eyebrow">AUGNES / Perspective</p>
+            <h2>Perspective</h2>
             <p>
-              Current formation: {perspectiveConstellationSummaryViewing} · basis{" "}
-              {perspectiveConstellationFormationReceipt?.formation_basis ??
-                "loading"}{" "}
-              · source {perspectiveConstellationSummarySource}
+              Local graph preview for reviewing relationships, tensions, and
+              next steps.
             </p>
           </div>
           <div className="perspective-constellation-shell-status">
@@ -6476,6 +6511,53 @@ function PerspectiveTab({
             />
           </div>
         </div>
+        <div className="perspective-workbench-status-row">
+          <span>
+            Source:{" "}
+            <code>{perspectiveWorkbenchProjection?.source.query ?? "loading"}</code>
+          </span>
+          <span>
+            View:{" "}
+            <strong>
+              {perspectiveWorkbenchProjection?.status.scope_label ??
+                perspectiveConstellationSelectionScopeLabel}
+            </strong>
+          </span>
+          <span>
+            {perspectiveWorkbenchProjection?.status.node_count ??
+              perspectiveIngestConstellation?.nodes.length ??
+              0}{" "}
+            nodes
+          </span>
+          <span>
+            {perspectiveWorkbenchProjection?.status.edge_count ??
+              perspectiveIngestConstellation?.edges.length ??
+              0}{" "}
+            edges
+          </span>
+          <span>
+            {perspectiveWorkbenchProjection?.status.tension_count ??
+              perspectiveIngestConstellationPreview?.unresolved_tensions.length ??
+              0}{" "}
+            tensions
+          </span>
+          <span>
+            {perspectiveWorkbenchProjection?.status.authority_label ??
+              "Local preview"}
+          </span>
+        </div>
+        <details
+          className="perspective-workbench-detail-panel perspective-observatory-details"
+          open={perspectiveObservatoryDetailsOpen}
+          onToggle={(event) =>
+            setPerspectiveObservatoryDetailsOpen(event.currentTarget.open)
+          }
+        >
+          <summary>
+            <span>Observatory details</span>
+            <small>formation receipt, full refs, attribution, authority</small>
+          </summary>
+        {perspectiveObservatoryDetailsOpen ? (
         <section
           className="perspective-formation-summary-overlay"
           aria-label="Perspective Constellation identity strip"
@@ -6592,7 +6674,23 @@ function PerspectiveTab({
             </div>
           ) : null}
         </section>
-        <div className="perspective-constellation-workspace-grid">
+        ) : null}
+        </details>
+        <div className="perspective-constellation-workspace-grid perspective-workbench-layout">
+          <details
+            className="perspective-workbench-detail-panel perspective-view-settings"
+            open={perspectiveViewSettingsOpen}
+            onToggle={(event) =>
+              setPerspectiveViewSettingsOpen(event.currentTarget.open)
+            }
+          >
+            <summary>
+              <span>
+                View settings: {perspectiveConstellationSelectionScopeLabel} ·{" "}
+                {perspectiveIngestLoadedSourceQuery}
+              </span>
+              <small>Formation Basis, Lens, Scope, and source controls</small>
+            </summary>
           <aside
             className="perspective-lens-scope-panel"
             aria-label="Observatory Controls panel"
@@ -6835,9 +6933,10 @@ function PerspectiveTab({
               </small>
             </div>
           </aside>
+          </details>
 
           <section
-            className="perspective-constellation-game-window"
+            className="perspective-constellation-game-window perspective-workbench-starmap-panel"
             aria-label="Current Perspective Starmap"
             data-augnes-region="starmap"
           >
@@ -6900,92 +6999,91 @@ function PerspectiveTab({
           </section>
 
           <aside
-            className="perspective-inspector-handoff-panel"
+            className="perspective-inspector-handoff-panel perspective-workbench-selected-panel"
             aria-label="Inspector panel"
             data-augnes-region="inspector"
           >
             <div className="perspective-shell-panel-heading">
-              <p className="panel-eyebrow">Inspector</p>
-              <h3>Inspector</h3>
+              <p className="panel-eyebrow">Selected material</p>
+              <h3>Selected material</h3>
             </div>
             <section className="perspective-inspector-section">
               <div className="perspective-selection-scope-row">
                 <span>Selection scope</span>
-                <strong>{perspectiveConstellationSelectionScopeLabel}</strong>
+                <strong>
+                  {perspectiveWorkbenchProjection?.status.scope_label ??
+                    perspectiveConstellationSelectionScopeLabel}
+                </strong>
               </div>
-              <h4>Selected</h4>
+              <h4>Selected material</h4>
               {perspectiveIngestConstellationPreview ? (
                 <>
-                  <strong>{perspectiveConstellationSelectionTitle}</strong>
-                  <p>{perspectiveConstellationSelectionSummary}</p>
+                  <strong>
+                    {perspectiveWorkbenchProjection?.selected.title ??
+                      perspectiveConstellationSelectionTitle}
+                  </strong>
+                  <p>
+                    {perspectiveWorkbenchProjection?.selected.summary ??
+                      perspectiveConstellationSelectionSummary}
+                  </p>
                   <div className="meta-row">
                     <span>
-                      type <code>{perspectiveConstellationSelectionType}</code>
+                      type{" "}
+                      <code>
+                        {perspectiveWorkbenchProjection?.selected.type ??
+                          perspectiveConstellationSelectionType}
+                      </code>
                     </span>
                     <span>
                       scope{" "}
                       <code>{perspectiveConstellationSelectionScopeLabel}</code>
                     </span>
                   </div>
+                  {perspectiveSelectedTemporalHints.length > 0 ? (
+                    <div className="perspective-workbench-temporal-hint">
+                      <span>Temporal hint</span>
+                      <strong>{perspectiveSelectedTemporalHints.join(" / ")}</strong>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <EmptyState label="No selected graph material" />
               )}
             </section>
             <section className="perspective-inspector-section">
-              <h4>Why here</h4>
-              <p>
-                Formation basis{" "}
-                <strong>
-                  {perspectiveConstellationFormationReceipt?.formation_basis ??
-                    "pending"}
-                </strong>{" "}
-                formed by{" "}
-                <strong>
-                  {perspectiveConstellationFormationReceipt?.formed_by.label ??
-                    "Preview formation pending"}
-                </strong>
-                .{" "}
-                {perspectiveIngestConstellationPreview?.perspective_capsule_preview
-                  .thesis ??
-                  perspectiveConstellationWorkspaceCluster?.cluster_thesis ??
-                  "Preview thesis pending."}
-              </p>
-              <div className="meta-row">
-                <span>
-                  source refs{" "}
-                  <code>{perspectiveConstellationSubstrateSourceRefs.length}</code>
-                </span>
-                <span>
-                  node attributions{" "}
-                  <code>
-                    {perspectiveConstellationSubstrateNodeAttributions.length}
-                  </code>
-                </span>
-                <span>
-                  edge attributions{" "}
-                  <code>
-                    {perspectiveConstellationSubstrateEdgeAttributions.length}
-                  </code>
-                </span>
-              </div>
+              <h4>Tensions</h4>
               <RefChipList
                 refs={
-                  perspectiveConstellationFormationReceipt?.criteria_summary.slice(
-                    0,
-                    3,
+                  perspectiveWorkbenchProjection?.tensions.map(
+                    (tension) => tension.summary,
                   ) ?? []
                 }
-                emptyLabel="No formation attribution criteria"
+                emptyLabel="No selected unresolved tensions"
+              />
+            </section>
+            <section className="perspective-inspector-section">
+              <h4>Next steps</h4>
+              <RefChipList
+                refs={
+                  perspectiveWorkbenchProjection?.next_actions.map(
+                    (candidate) => candidate.summary,
+                  ) ?? []
+                }
+                emptyLabel="No selected next action candidates"
               />
             </section>
             <details
               className="perspective-inspector-section perspective-inspector-details perspective-inspector-advanced-details"
+              open={perspectiveAdvancedPreviewControlsOpen}
+              onToggle={(event) =>
+                setPerspectiveAdvancedPreviewControlsOpen(event.currentTarget.open)
+              }
             >
               <summary>
                 <span>Advanced preview controls</span>
                 <small>Manual Gravity, local draft, conflicts</small>
               </summary>
+            {perspectiveAdvancedPreviewControlsOpen ? (
             <section
               className="perspective-manual-gravity-preview"
               aria-label="Manual Gravity Preview"
@@ -7434,9 +7532,21 @@ function PerspectiveTab({
                 </div>
               </details>
             </section>
+            ) : null}
             </details>
-            <section className="perspective-inspector-section perspective-inspector-evidence-next">
-              <h4>Evidence / Tensions / Next</h4>
+            <details
+              className="perspective-inspector-section perspective-inspector-details perspective-inspector-evidence-next"
+              open={perspectiveObservatoryDetailsOpen}
+              onToggle={(event) =>
+                setPerspectiveObservatoryDetailsOpen(event.currentTarget.open)
+              }
+            >
+              <summary>
+                <span>Full refs and formation details</span>
+                <small>evidence pointers, full tensions, next action list</small>
+              </summary>
+              {perspectiveObservatoryDetailsOpen ? (
+              <div className="perspective-workbench-detail-body">
               <section>
                 <h4>Evidence pointers</h4>
                 <RefChipList
@@ -7464,42 +7574,53 @@ function PerspectiveTab({
                   emptyLabel="No selected next action candidates"
                 />
               </section>
-            </section>
+              </div>
+              ) : null}
+            </details>
             <section className="perspective-inspector-section perspective-selection-action-menu">
               <h4>Actions</h4>
-              <div className="perspective-action-button-grid">
+              <div className="perspective-workbench-action-row">
                 <button
                   type="button"
-                  className="secondary-button"
-                  onClick={inspectPerspectiveConstellationConnectedNodes}
-                  disabled={!perspectiveIngestConstellationPreview}
+                  className="primary-button"
+                  onClick={() =>
+                    void copyPerspectiveConstellationScopedChatGptPacket()
+                  }
+                  disabled={
+                    !perspectiveWorkbenchProjection?.actions
+                      .copy_chatgpt_review_available ||
+                    !perspectiveConstellationScopedChatGptPacketText
+                  }
                 >
-                  Inspect connected nodes
+                  Copy ChatGPT Review Packet
                 </button>
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={previewPerspectiveConstellationUnit}
-                  disabled={!perspectiveConstellationWorkspaceCluster}
+                  onClick={() =>
+                    void copyPerspectiveConstellationScopedCodexHandoffPacket()
+                  }
+                  disabled={
+                    !perspectiveWorkbenchProjection?.actions
+                      .copy_codex_handoff_available ||
+                    !perspectiveConstellationScopedCodexHandoffPacketText
+                  }
                 >
-                  Preview Perspective Unit
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={markPerspectiveConstellationNextCandidatePreview}
-                  disabled={!perspectiveIngestConstellationPreview}
-                >
-                  Mark as Next Candidate Preview
+                  Copy Codex Handoff Packet
                 </button>
                 <button
                   type="button"
                   className="secondary-button"
                   onClick={openPerspectiveConstellationHandoffPacket}
-                  disabled={!selectedPerspectiveConstellationPacketText}
+                  disabled={
+                    !perspectiveWorkbenchProjection?.actions
+                      .open_packet_preview_available ||
+                    !selectedPerspectiveConstellationPacketText
+                  }
                 >
-                  Open Handoff Packet
+                  Open packet preview
                 </button>
+                <CopyFeedback notice={perspectiveIngestCopyNotice} />
               </div>
               {perspectiveIngestConstellation?.clusters.length ? (
                 <div className="perspective-cluster-picker">
@@ -7533,6 +7654,8 @@ function PerspectiveTab({
                   <span>Preview Handoff Packet</span>
                   <small>ChatGPT Review / Codex Handoff copy-ready text</small>
                 </summary>
+                {handoffPacketOpen ? (
+                <>
                 <h4>ChatGPT / Codex handoff preview scoped to selection</h4>
                 <div
                   className="perspective-packet-target-toggle"
@@ -7603,10 +7726,81 @@ function PerspectiveTab({
                   spellCheck={false}
                   aria-label="Perspective Constellation handoff packet preview text"
                 />
+                </>
+                ) : null}
               </details>
             </section>
           </aside>
         </div>
+
+        {perspectiveWorkbenchTemporalUnderlay ? (
+          <section
+            className="perspective-temporal-underlay"
+            aria-label="Temporal Underlay"
+            data-augnes-region="perspective-temporal-underlay"
+            data-augnes-temporal-underlay-version="perspective_temporal_underlay.v0.1"
+            data-augnes-temporal-underlay-density="compact"
+          >
+            <div className="perspective-temporal-underlay-heading">
+              <div>
+                <p className="panel-eyebrow">Temporal Underlay</p>
+                <h3>Session - Decision - Handoff - Current View - Next Perspective</h3>
+              </div>
+              <span>Derived from full Event Rail</span>
+            </div>
+            <div
+              className="perspective-temporal-underlay-primary"
+              aria-label="Temporal Underlay primary path"
+            >
+              {perspectiveWorkbenchTemporalUnderlay.primary_path.map((item) => (
+                <div
+                  key={item.id}
+                  className={`perspective-temporal-underlay-item is-${item.role}${
+                    perspectiveTemporalUnderlayHighlightedIds.has(item.id)
+                      ? " is-highlighted"
+                      : ""
+                  }`}
+                  data-augnes-temporal-underlay-item-id={item.id}
+                  data-augnes-temporal-underlay-highlighted={
+                    perspectiveTemporalUnderlayHighlightedIds.has(item.id)
+                      ? "true"
+                      : "false"
+                  }
+                  data-augnes-temporal-underlay-role={item.role}
+                >
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+            <div
+              className="perspective-temporal-underlay-satellites"
+              aria-label="Handoff satellites: PR, Review, Closeout"
+            >
+              <span>Handoff satellites</span>
+              <div>
+                {perspectiveWorkbenchTemporalUnderlay.satellites.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`perspective-temporal-underlay-satellite${
+                      perspectiveTemporalUnderlayHighlightedIds.has(item.id)
+                        ? " is-highlighted"
+                        : ""
+                    }`}
+                    data-augnes-temporal-underlay-item-id={item.id}
+                    data-augnes-temporal-underlay-highlighted={
+                      perspectiveTemporalUnderlayHighlightedIds.has(item.id)
+                        ? "true"
+                        : "false"
+                    }
+                    data-augnes-temporal-underlay-role={item.role}
+                  >
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {formationSwitchOverlayOpen &&
         pendingPerspectiveFormationBasisSwitch &&
@@ -7731,88 +7925,103 @@ function PerspectiveTab({
           </div>
         ) : null}
 
-        <section
-          className="perspective-time-axis-event-rail"
-          aria-label="Event Rail"
-          data-augnes-region="event-rail"
-          data-augnes-event-rail-view="node-edge"
-        >
-          <div className="perspective-shell-panel-heading">
-            <p className="panel-eyebrow">Event Rail</p>
-            <h3>Archive / Present / Future</h3>
-          </div>
-          <div
-            className="perspective-event-rail-node-edge-shell"
-            aria-label="Event Rail node-edge temporal view"
-          >
-            {perspectiveEventRailLanes.map((lane) => (
-              <section
-                key={lane.id}
-                className={`perspective-event-rail-lane is-${lane.id}`}
-                aria-label={`${lane.label} Event Rail lane`}
-                data-augnes-rail-lane={lane.id}
-              >
-                <div className="perspective-event-rail-lane-heading">
-                  <span>{lane.label}</span>
-                  <small>{lane.detail}</small>
-                </div>
-                {lane.id === "archive" ? (
-                  <>
-                    <div
-                      className="perspective-event-rail-node-row is-archive-flow"
-                      aria-label="Archive flow: Session to Decision to Handoff to Review to Closeout"
-                    >
-                      {renderPerspectiveEventRailNode("session")}
-                      {renderPerspectiveEventRailEdge("session_to_decision")}
-                      {renderPerspectiveEventRailNode("decision")}
-                      {renderPerspectiveEventRailEdge("decision_to_handoff")}
-                      {renderPerspectiveEventRailNode("handoff")}
-                      {renderPerspectiveEventRailEdge("handoff_to_review")}
-                      {renderPerspectiveEventRailNode("review")}
-                      {renderPerspectiveEventRailEdge("review_to_closeout")}
-                      {renderPerspectiveEventRailNode("closeout")}
-                    </div>
-                    <div
-                      className="perspective-event-rail-reference-row"
-                      aria-label="PR reference node connected from Handoff"
-                    >
-                      <span className="perspective-event-rail-reference-anchor">
-                        Handoff reference
-                      </span>
-                      {renderPerspectiveEventRailEdge("handoff_to_pr_ref")}
-                      {renderPerspectiveEventRailNode("pr")}
-                    </div>
-                  </>
-                ) : lane.id === "present" ? (
-                  <div
-                    className="perspective-event-rail-node-row is-present-flow"
-                    aria-label="Present flow: Closeout forms Current View"
-                  >
-                    {renderPerspectiveEventRailEdge("closeout_to_current")}
-                    {renderPerspectiveEventRailNode("current_view")}
-                  </div>
-                ) : (
-                  <div
-                    className="perspective-event-rail-node-row is-future-flow"
-                    aria-label="Future flow: Current View suggests Next Perspective"
-                  >
-                    {renderPerspectiveEventRailEdge("current_to_next")}
-                    {renderPerspectiveEventRailNode("next_perspective")}
-                  </div>
-                )}
-              </section>
-            ))}
-          </div>
-          <aside
-            className={`perspective-event-rail-entry-card is-${selectedPerspectiveEventRailEntry.temporalRole}`}
-            aria-label={
-              selectedPerspectiveEventRailEntry.temporalRole === "archive"
-                ? "Event Rail archive entry card"
-                : `Event Rail ${selectedPerspectiveEventRailEntry.cardTitle}`
+        <div className="perspective-workbench-details-stack">
+          <details
+            className="perspective-workbench-detail-panel perspective-temporal-details"
+            open={perspectiveTemporalDetailsOpen}
+            onToggle={(event) =>
+              setPerspectiveTemporalDetailsOpen(event.currentTarget.open)
             }
-            data-augnes-region="temporal-entry-card"
-            data-augnes-rail-selected-node-id={selectedPerspectiveEventRailEntry.id}
           >
+            <summary>
+              <span>Temporal details</span>
+              <small>full Event Rail node-edge view and temporal entry card</small>
+            </summary>
+            {perspectiveTemporalDetailsOpen ? (
+              <section
+                className="perspective-time-axis-event-rail"
+                aria-label="Event Rail"
+                data-augnes-region="event-rail"
+                data-augnes-event-rail-view="node-edge"
+              >
+                <div className="perspective-shell-panel-heading">
+                  <p className="panel-eyebrow">Event Rail</p>
+                  <h3>Archive / Present / Future</h3>
+                </div>
+                <div
+                  className="perspective-event-rail-node-edge-shell"
+                  aria-label="Event Rail node-edge temporal view"
+                >
+                  {perspectiveEventRailLanes.map((lane) => (
+                    <section
+                      key={lane.id}
+                      className={`perspective-event-rail-lane is-${lane.id}`}
+                      aria-label={`${lane.label} Event Rail lane`}
+                      data-augnes-rail-lane={lane.id}
+                    >
+                      <div className="perspective-event-rail-lane-heading">
+                        <span>{lane.label}</span>
+                        <small>{lane.detail}</small>
+                      </div>
+                      {lane.id === "archive" ? (
+                        <>
+                          <div
+                            className="perspective-event-rail-node-row is-archive-flow"
+                            aria-label="Archive flow: Session to Decision to Handoff to Review to Closeout"
+                          >
+                            {renderPerspectiveEventRailNode("session")}
+                            {renderPerspectiveEventRailEdge("session_to_decision")}
+                            {renderPerspectiveEventRailNode("decision")}
+                            {renderPerspectiveEventRailEdge("decision_to_handoff")}
+                            {renderPerspectiveEventRailNode("handoff")}
+                            {renderPerspectiveEventRailEdge("handoff_to_review")}
+                            {renderPerspectiveEventRailNode("review")}
+                            {renderPerspectiveEventRailEdge("review_to_closeout")}
+                            {renderPerspectiveEventRailNode("closeout")}
+                          </div>
+                          <div
+                            className="perspective-event-rail-reference-row"
+                            aria-label="PR reference node connected from Handoff"
+                          >
+                            <span className="perspective-event-rail-reference-anchor">
+                              Handoff reference
+                            </span>
+                            {renderPerspectiveEventRailEdge("handoff_to_pr_ref")}
+                            {renderPerspectiveEventRailNode("pr")}
+                          </div>
+                        </>
+                      ) : lane.id === "present" ? (
+                        <div
+                          className="perspective-event-rail-node-row is-present-flow"
+                          aria-label="Present flow: Closeout forms Current View"
+                        >
+                          {renderPerspectiveEventRailEdge("closeout_to_current")}
+                          {renderPerspectiveEventRailNode("current_view")}
+                        </div>
+                      ) : (
+                        <div
+                          className="perspective-event-rail-node-row is-future-flow"
+                          aria-label="Future flow: Current View suggests Next Perspective"
+                        >
+                          {renderPerspectiveEventRailEdge("current_to_next")}
+                          {renderPerspectiveEventRailNode("next_perspective")}
+                        </div>
+                      )}
+                    </section>
+                  ))}
+                </div>
+                <aside
+                  className={`perspective-event-rail-entry-card is-${selectedPerspectiveEventRailEntry.temporalRole}`}
+                  aria-label={
+                    selectedPerspectiveEventRailEntry.temporalRole === "archive"
+                      ? "Event Rail archive entry card"
+                      : `Event Rail ${selectedPerspectiveEventRailEntry.cardTitle}`
+                  }
+                  data-augnes-region="temporal-entry-card"
+                  data-augnes-rail-selected-node-id={
+                    selectedPerspectiveEventRailEntry.id
+                  }
+                >
             <div className="perspective-event-rail-entry-summary">
               <div>
                 <p className="panel-eyebrow">Event Rail temporal entry card</p>
@@ -7943,12 +8152,14 @@ function PerspectiveTab({
                 />
               </div>
             </details>
-          </aside>
-        </section>
+                </aside>
+              </section>
+            ) : null}
+          </details>
 
         <section
           className="perspective-advanced-diagnostics-shell"
-          aria-label="Advanced Diagnostics"
+          aria-label="Advanced diagnostics"
           data-augnes-region="advanced-diagnostics"
           data-augnes-diagnostics-state={
             advancedDiagnosticsOpen ? "open" : "collapsed"
@@ -7968,7 +8179,7 @@ function PerspectiveTab({
             }
           >
             <span>
-              <strong>Advanced Diagnostics</strong>
+              <strong>Advanced diagnostics</strong>
               <small>
                 Frame, evidence, tensions, route previews, ingest graph, and
                 read-only debug surfaces
@@ -10308,6 +10519,7 @@ function PerspectiveTab({
             </div>
           ) : null}
         </section>
+        </div>
       </section>
     </section>
   );
@@ -20401,7 +20613,8 @@ function PerspectiveIngestConstellationGraph({
   const centerY = height / 2;
   const radiusX = workspace ? 410 : 315;
   const radiusY = workspace ? 215 : 150;
-  const showEdgeLabels = shouldShowPerspectiveIngestGraphEdgeLabels(nodes, edges);
+  const showEdgeLabels =
+    !workspace && shouldShowPerspectiveIngestGraphEdgeLabels(nodes, edges);
   const positions = new Map(
     nodes.map((node, index) => {
       const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
@@ -20458,7 +20671,10 @@ function PerspectiveIngestConstellationGraph({
         {nodes.map((node) => {
           const position = positions.get(node.id) ?? { x: centerX, y: centerY };
           const selected = node.id === selectedNodeId;
-          const displayLabel = formatPerspectiveIngestGraphNodeLabel(node.label);
+          const displayLabel = formatPerspectiveIngestGraphNodeLabel(
+            node.label,
+            node.type,
+          );
           const gravityPreviewMarks = gravityPreviewNodeMarksById[node.id] ?? [];
           const gravityPreviewClassName =
             gravityPreviewMarks.length > 0
@@ -20515,7 +20731,25 @@ function shouldShowPerspectiveIngestGraphEdgeLabels(
   return nodes.length <= 8 && edges.length <= 10;
 }
 
-function formatPerspectiveIngestGraphNodeLabel(label: string) {
+function formatPerspectiveIngestGraphNodeLabel(label: string, type?: string) {
+  const compactLabels: Record<string, string> = {
+    blocker_risk: "Risk",
+    changed_files: "Files",
+    decision: "Fixture decision",
+    final_report: "Final report",
+    next_move: "Next step",
+    packet: "Review packets",
+    product_concept: "Preview concept",
+    source: "Sample record",
+    unresolved_tension: "Limitation",
+    user_intent: "User goal",
+    validation: "Validation",
+    validation_report: "Validation",
+    work_context: "Work context",
+    work_unit: "Work",
+  };
+
+  if (type && compactLabels[type]) return compactLabels[type];
   if (label.length <= 16) return label;
 
   return `${label.slice(0, 13).trim()}...`;

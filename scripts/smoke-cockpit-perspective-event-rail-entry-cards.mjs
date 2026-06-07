@@ -26,6 +26,7 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_EVENT_RAIL_ENTRY_CARDS_V0_1.md",
   "docs/PERSPECTIVE_EVENT_RAIL_NODE_EDGE_V0_1.md",
   "docs/PERSPECTIVE_NODE_COPY_HUMANIZATION_V0_1.md",
+  "docs/PERSPECTIVE_WORKBENCH_TEMPORAL_UNDERLAY_V0_1.md",
   "lib/perspective-ingest/episode-to-constellation-packet.ts",
   "lib/perspective-ingest/perspective-unit-preview.ts",
   "lib/perspective-ingest/formation-switch-acknowledgement.ts",
@@ -40,6 +41,7 @@ const allowedChangedFiles = new Set([
   "reports/browser/2026-06-07-perspective-event-rail-entry-cards.md",
   "reports/browser/2026-06-07-perspective-event-rail-node-edge.md",
   "reports/browser/2026-06-07-perspective-node-copy-humanization.md",
+  "reports/browser/2026-06-07-perspective-workbench-temporal-underlay.md",
   "reports/dogfood/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
@@ -52,10 +54,12 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
   "scripts/smoke-cockpit-perspective-observatory-layout.mjs",
+  "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
   "scripts/smoke-perspective-node-copy-humanization.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
 
 assert.equal(

@@ -26,15 +26,19 @@ const {
 } = await import("../lib/perspective-ingest/episode-to-constellation-packet.ts");
 
 const allowedChangedFiles = new Set([
+  "app/globals.css",
   builderFile,
+  cockpitFile,
   "lib/perspective-ingest/perspective-agent-brief.ts",
   "lib/perspective-ingest/perspective-temporal-spatial-map.ts",
   "lib/perspective-ingest/perspective-workbench-projection.ts",
   packageFile,
   docFile,
   "docs/PERSPECTIVE_TEMPORAL_SPATIAL_PROJECTION_BUILDERS_V0_1.md",
+  "docs/PERSPECTIVE_WORKBENCH_TEMPORAL_UNDERLAY_V0_1.md",
   smokeFile,
   browserReportFile,
+  "reports/browser/2026-06-07-perspective-workbench-temporal-underlay.md",
   "reports/2026-06-07-perspective-temporal-spatial-projection-builders.md",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
@@ -51,6 +55,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
+  "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
 ]);
 
 assert.equal(
