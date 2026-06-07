@@ -75,7 +75,7 @@ assertContainsAll(cockpit, [
 ]);
 
 assertContainsAll(css, [
-  "details:not([open]) > :not(summary)",
+  ".perspective-tab details:not([open]) > :not(summary)",
   ".perspective-compact-authority",
   ".perspective-compact-authority-grid",
   ".perspective-compact-authority-notes",

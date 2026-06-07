@@ -696,7 +696,7 @@ code {
   min-width: 0;
 }
 
-details:not([open]) > :not(summary) {
+.perspective-tab details:not([open]) > :not(summary) {
   display: none !important;
 }
 
