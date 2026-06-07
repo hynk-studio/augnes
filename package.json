@@ -19,6 +19,7 @@
     "smoke:cockpit-perspective-observatory-layout": "node scripts/smoke-cockpit-perspective-observatory-layout.mjs",
     "smoke:cockpit-perspective-event-rail-entry-cards": "node scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
     "smoke:cockpit-perspective-formation-switch-overlay": "node scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
+    "smoke:cockpit-perspective-scope-handler-cleanup": "node scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
     "smoke:cockpit-operator-handoff-snapshot-dogfood": "node scripts/smoke-cockpit-operator-handoff-snapshot-dogfood.mjs",
     "smoke:cockpit-selected-work-handoff-snapshot-dogfood": "node scripts/smoke-cockpit-selected-work-handoff-snapshot-dogfood.mjs",
     "smoke:cockpit-work-codex-handoff-review-dogfood": "node scripts/smoke-cockpit-work-codex-handoff-review-dogfood.mjs",
