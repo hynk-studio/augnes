@@ -480,6 +480,7 @@ function assertManualGravityPreviewMarks() {
     "ManualGravityPreviewOverride",
     "ManualGravityPreviewConflictNotice",
     "ManualGravityGlobalConflictSummary",
+    "ManualGravityResolutionProposalCard",
     "ManualGravityLocalDraftStorageSnapshot",
     "ManualGravityLocalDraftRestoreNotice",
     "ManualGravityDraftOverwriteConfirmation",
@@ -492,7 +493,9 @@ function assertManualGravityPreviewMarks() {
     "manualGravityPreviewOverrides",
     "manualGravityGlobalConflictSummaries",
     "manualGravityGlobalConflictCount",
+    "manualGravityResolutionProposalCards",
     "getManualGravityPreviewConflictNotices",
+    "getManualGravityResolutionProposalOptions",
     "toggleManualGravityPreviewMark",
     "clearManualGravityPreviewMarks",
     "saveManualGravityLocalDraftMarks",
@@ -554,12 +557,23 @@ function assertManualGravityPreviewMarks() {
     "Manual Gravity applied preview summary",
     "Manual Gravity Applied Preview Legend",
     "Manual Gravity Global Summary",
+    "Manual Gravity Resolution Proposal",
     "Applied targets",
     "Applied nodes",
     "Total marks",
     "Mixed-mark conflicts",
     "Manual Gravity mixed-mark conflict targets",
     "No mixed-mark conflict targets",
+    "Advisory only. No automatic resolution is applied.",
+    "No marks are changed.",
+    "These are proposal cards only.",
+    "Option A: treat as Watch next, defer execution.",
+    "Option B: keep Boost as priority signal and Defer as timing constraint.",
+    "Option C: split into separate future candidates later.",
+    "Option A: keep pinned as important reference, defer action.",
+    "Option B: convert to Watch later in a future flow.",
+    "Option A: keep as high-priority pinned material.",
+    "Option A: keep watched but defer near-term action.",
     "P = Pin Preview",
     "W = Watch Preview",
     "D = Defer Preview",
@@ -675,6 +689,13 @@ function assertManualGravityPreviewMarks() {
     "onClick={cancelManualGravityLocalDraftOverwrite}",
     "type=\"button\"",
   ], { textByFile });
+
+  assert(
+    !/(Apply Resolution|Accept Resolution|Resolve Conflict|Apply proposal|Accept proposal|Commit Resolution|Save Resolution)/i.test(
+      cockpitText,
+    ),
+    "Manual Gravity resolution proposals must not add apply/accept/resolve action controls",
+  );
 
   assertOnlyManualGravityLocalDraftStorage(cockpitText);
   assert(
@@ -994,6 +1015,8 @@ function assertCssHooks() {
     "perspective-manual-gravity-global-summary",
     "perspective-manual-gravity-global-conflict-rows",
     "perspective-manual-gravity-conflict-notice",
+    "perspective-manual-gravity-resolution-proposals",
+    "perspective-manual-gravity-resolution-card",
     "perspective-manual-gravity-applied-summary",
     "perspective-manual-gravity-actions .secondary-button[aria-pressed=\"true\"]",
     "perspective-manual-gravity-chips",

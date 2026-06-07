@@ -1236,6 +1236,7 @@ code {
 .perspective-manual-gravity-applied-legend,
 .perspective-manual-gravity-global-summary,
 .perspective-manual-gravity-conflict-notice,
+.perspective-manual-gravity-resolution-proposals,
 .perspective-manual-gravity-applied-summary,
 .perspective-preview-overrides-gravity-applied-note {
   display: flex;
@@ -1263,10 +1264,17 @@ code {
   background: #fffbeb;
 }
 
+.perspective-manual-gravity-resolution-proposals {
+  align-items: stretch;
+  border-color: rgba(79, 70, 229, 0.18);
+  background: #f8fafc;
+}
+
 .perspective-manual-gravity-applied-state strong,
 .perspective-manual-gravity-applied-legend strong,
 .perspective-manual-gravity-global-summary strong,
 .perspective-manual-gravity-conflict-notice strong,
+.perspective-manual-gravity-resolution-proposals strong,
 .perspective-manual-gravity-applied-summary strong,
 .perspective-preview-overrides-gravity-applied-note strong {
   max-width: 100%;
@@ -1286,6 +1294,8 @@ code {
 .perspective-manual-gravity-global-summary span,
 .perspective-manual-gravity-global-summary code,
 .perspective-manual-gravity-conflict-notice span,
+.perspective-manual-gravity-resolution-proposals span,
+.perspective-manual-gravity-resolution-proposals code,
 .perspective-manual-gravity-applied-summary span,
 .perspective-preview-overrides-gravity-applied-note span,
 .perspective-preview-overrides-gravity-applied-note code {
@@ -1326,6 +1336,34 @@ code {
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+.perspective-manual-gravity-resolution-card {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(79, 70, 229, 0.16);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-manual-gravity-resolution-card strong {
+  color: #3730a3;
+}
+
+.perspective-manual-gravity-resolution-card ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 16px;
+  min-width: 0;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 720;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .perspective-manual-gravity-conflict-notice span {

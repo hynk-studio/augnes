@@ -332,6 +332,11 @@ type ManualGravityPreviewConflictNotice = {
 type ManualGravityGlobalConflictSummary = ManualGravityPreviewOverride & {
   noticeLabels: string[];
 };
+type ManualGravityResolutionProposalCard = ManualGravityPreviewOverride & {
+  conflictId: string;
+  conflictLabel: string;
+  options: string[];
+};
 type ManualGravityLocalDraft = {
   version: "manual_gravity_draft.v0.1";
   formation_id: string;
@@ -657,6 +662,29 @@ function getManualGravityPreviewConflictNotices(
   }
 
   return notices;
+}
+
+function getManualGravityResolutionProposalOptions(conflictId: string) {
+  if (conflictId === "boost_defer") {
+    return [
+      "Option A: treat as Watch next, defer execution.",
+      "Option B: keep Boost as priority signal and Defer as timing constraint.",
+      "Option C: split into separate future candidates later.",
+    ];
+  }
+
+  if (conflictId === "pin_defer") {
+    return [
+      "Option A: keep pinned as important reference, defer action.",
+      "Option B: convert to Watch later in a future flow.",
+    ];
+  }
+
+  if (conflictId === "pin_boost") {
+    return ["Option A: keep as high-priority pinned material."];
+  }
+
+  return ["Option A: keep watched but defer near-term action."];
 }
 
 function manualGravityLocalDraftMatchesContext(
@@ -5008,6 +5036,19 @@ function PerspectiveTab({
       );
   const manualGravityGlobalConflictCount =
     manualGravityGlobalConflictSummaries.length;
+  const manualGravityResolutionProposalCards: ManualGravityResolutionProposalCard[] =
+    manualGravityPreviewOverrides.flatMap((override) => {
+      const conflictNotices = getManualGravityPreviewConflictNotices(
+        selectedGravityPreviewMarks[override.targetKey] ?? [],
+      );
+
+      return conflictNotices.map((notice) => ({
+        ...override,
+        conflictId: notice.id,
+        conflictLabel: notice.label,
+        options: getManualGravityResolutionProposalOptions(notice.id),
+      }));
+    });
   const perspectiveConstellationScopedChatGptPacketText =
     perspectiveConstellationUnitPreview?.chatgpt_review_packet_text ?? "";
   const perspectiveConstellationScopedCodexHandoffPacketText =
@@ -6772,6 +6813,43 @@ function PerspectiveTab({
                     <span key={notice.id}>
                       {notice.label}: {notice.detail}
                     </span>
+                  ))}
+                </div>
+              ) : null}
+              {appliedGravityPreviewActive &&
+              manualGravityResolutionProposalCards.length > 0 ? (
+                <div
+                  className="perspective-manual-gravity-resolution-proposals"
+                  aria-label="Manual Gravity Resolution Proposal"
+                >
+                  <strong>Manual Gravity Resolution Proposal</strong>
+                  <span>Advisory only. No automatic resolution is applied.</span>
+                  <span>No marks are changed.</span>
+                  <span>No source graph changes.</span>
+                  <span>No FormationReceiptV0 authority change.</span>
+                  <span>No persistence or graph DB write.</span>
+                  <span>These are proposal cards only.</span>
+                  {manualGravityResolutionProposalCards.map((proposal) => (
+                    <div
+                      key={`${proposal.targetKey}:${proposal.conflictId}`}
+                      className="perspective-manual-gravity-resolution-card"
+                    >
+                      <strong>{proposal.conflictLabel}</strong>
+                      <span>
+                        target <code>{proposal.targetLabel}</code>
+                      </span>
+                      <span>
+                        scope <code>{proposal.scopeLabel}</code>
+                      </span>
+                      <span>
+                        marks <code>{proposal.markLabels.join(", ")}</code>
+                      </span>
+                      <ul>
+                        {proposal.options.map((option) => (
+                          <li key={option}>{option}</li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
                 </div>
               ) : null}
