@@ -197,12 +197,20 @@ export function buildPerspectiveUnitPreview({
     chatgpt_review_packet_text: buildPerspectiveConstellationScopedPacketText({
       ...packetContext,
       basePacketText: baseChatGptPacketText,
-      packetTitle: "ChatGPT review packet scoped to current selection",
+      packetPurpose:
+        "Review the selected Perspective material so ChatGPT can interpret, critique, refine, and help produce the next prompt without implying implementation work.",
+      packetTitle: "Perspective Handoff Packet",
+      suggestedUse:
+        "Use for ChatGPT review: review, critique, refine, and produce the next prompt while preserving evidence, tensions, and advisory next actions.",
     }),
     codex_handoff_packet_text: buildPerspectiveConstellationScopedPacketText({
       ...packetContext,
       basePacketText: baseCodexHandoffPacketText,
-      packetTitle: "Codex handoff packet scoped to current selection",
+      packetPurpose:
+        "Carry selected Perspective material into a user-reviewed Codex implementation task only when the user separately sends it to Codex.",
+      packetTitle: "Perspective Handoff Packet",
+      suggestedUse:
+        "Use for Codex handoff: treat this as implementation context for a user-reviewed PR task; shape work from the separate user instruction, not from this packet alone.",
     }),
     formation_receipt: formationReceipt,
     local_boundary_notes: LOCAL_BOUNDARY_NOTES,
@@ -245,63 +253,74 @@ export function buildPerspectiveConstellationScopedPacketText({
   evidencePointers,
   nextActions,
   nodeLabels,
+  packetPurpose,
   packetTitle,
   scopeLabel,
   selectionSummary,
   selectionTitle,
   selectionType,
+  suggestedUse,
   tensions,
 }: {
   basePacketText: string;
   evidencePointers: PerspectiveIngestEvidencePointer[];
   nextActions: PerspectiveIngestNextActionCandidate[];
   nodeLabels: string[];
+  packetPurpose: string;
   packetTitle: string;
   scopeLabel: string;
   selectionSummary: string;
   selectionTitle: string;
   selectionType: string;
+  suggestedUse: string;
   tensions: PerspectiveIngestUnresolvedTension[];
 }) {
   return [
     packetTitle,
     "",
-    `Selection scope: ${scopeLabel}`,
-    `Selected title: ${selectionTitle}`,
-    `Selected type: ${selectionType}`,
-    `Selected summary: ${selectionSummary}`,
+    "1. Purpose",
+    packetPurpose,
     "",
-    "Selected graph material:",
+    "2. Selected Perspective Material",
+    `- Scope: ${scopeLabel}`,
+    `- Selected title: ${selectionTitle}`,
+    `- Selected type: ${selectionType}`,
+    `- Selected summary: ${selectionSummary}`,
+    "- Selected node labels:",
     formatPerspectiveConstellationPacketList(
       nodeLabels,
-      (label) => `- ${label}`,
-      "- Whole constellation material",
+      (label) => `  - ${label}`,
+      "  - No selected node labels",
     ),
     "",
-    "Evidence pointers (support only):",
+    "3. Evidence",
     formatPerspectiveConstellationPacketList(
       evidencePointers,
       (pointer) => `- ${pointer.label}: ${pointer.target_ref}`,
       "- No scoped evidence pointers",
     ),
     "",
-    "Unresolved tensions (kept separate):",
+    "4. Unresolved Tensions",
     formatPerspectiveConstellationPacketList(
       tensions,
       (tension) => `- ${tension.label}: ${tension.summary}`,
       "- No scoped unresolved tensions",
     ),
     "",
-    "Next action candidates (advisory only):",
+    "5. Next Action Candidates",
     formatPerspectiveConstellationPacketList(
       nextActions,
       (candidate) => `- ${candidate.label}: ${candidate.summary}`,
       "- No scoped next action candidates",
     ),
     "",
-    "Boundary: preview/copy only. No Codex execution, GitHub call, state mutation, PR creation, proof/evidence/readiness write, persistence, or authority grant.",
+    "6. Suggested Use",
+    suggestedUse,
     "",
-    "Base packet text:",
+    "7. Compact Authority",
+    "Authority: advisory local preview only. Do not execute external calls, write repo/DB/proof/evidence, create PRs, or spend API budget unless the user separately instructs a tool/agent to do so.",
+    "",
+    "8. Base Packet Text",
     basePacketText,
   ].join("\n");
 }

@@ -102,6 +102,12 @@ const overlayFocusAgentSemanticsSmokeFile =
   "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs";
 const overlayFocusAgentSemanticsBrowserReportFile =
   "reports/browser/2026-06-07-perspective-overlay-focus-agent-semantics.md";
+const handoffPacketStructureReviewDoc =
+  "docs/PERSPECTIVE_HANDOFF_PACKET_STRUCTURE_REVIEW_V0_1.md";
+const handoffPacketStructureReviewSmokeFile =
+  "scripts/smoke-perspective-handoff-packet-structure-review.mjs";
+const handoffPacketStructureReviewBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-handoff-packet-structure-review.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -160,6 +166,9 @@ const allowedChangedFiles = new Set([
   overlayFocusAgentSemanticsDoc,
   overlayFocusAgentSemanticsSmokeFile,
   overlayFocusAgentSemanticsBrowserReportFile,
+  handoffPacketStructureReviewDoc,
+  handoffPacketStructureReviewSmokeFile,
+  handoffPacketStructureReviewBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 
