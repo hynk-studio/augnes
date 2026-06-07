@@ -192,6 +192,10 @@ code {
   gap: 18px;
 }
 
+.perspective-tab {
+  gap: 12px;
+}
+
 .tab-page-header {
   display: grid;
   gap: 8px;
@@ -220,6 +224,20 @@ code {
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.48;
+}
+
+.perspective-tab .tab-page-header {
+  gap: 4px;
+}
+
+.perspective-tab .tab-page-header h1 {
+  font-size: clamp(1.55rem, 2.1vw, 2.25rem);
+}
+
+.perspective-tab .tab-page-header p:not(.kicker) {
+  max-width: 860px;
+  font-size: 0.88rem;
+  line-height: 1.34;
 }
 
 .six-tab-process-strip {
@@ -544,8 +562,8 @@ code {
 
 .perspective-constellation-workspace-shell {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 14px;
   border: 1px solid rgba(15, 23, 42, 0.14);
   border-radius: 8px;
   background:
@@ -566,16 +584,16 @@ code {
 .perspective-constellation-shell-header h2 {
   margin: 0;
   color: #0f172a;
-  font-size: 2rem;
-  line-height: 1.08;
+  font-size: 1.45rem;
+  line-height: 1.1;
 }
 
 .perspective-constellation-shell-header p:not(.panel-eyebrow) {
   max-width: 880px;
-  margin-top: 6px;
+  margin-top: 4px;
   color: #334155;
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 0.82rem;
+  line-height: 1.34;
 }
 
 .perspective-constellation-shell-status {
@@ -585,11 +603,98 @@ code {
   gap: 6px;
 }
 
+.perspective-surface-details,
+.perspective-formation-receipt-details,
+.perspective-manual-gravity-details,
+.perspective-manual-gravity-local-draft,
+.perspective-inspector-details,
+.perspective-packet-preview-details,
+.perspective-event-rail-entry-details,
+.operator-runtime-details,
+.operator-handoff-snapshot-shell,
+.operator-technical-details,
+.operator-summary-details {
+  min-width: 0;
+}
+
+.perspective-surface-details,
+.operator-runtime-details,
+.operator-handoff-snapshot-shell,
+.operator-technical-details,
+.operator-summary-details {
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.perspective-surface-details > summary,
+.perspective-formation-receipt-details > summary,
+.perspective-manual-gravity-details > summary,
+.perspective-manual-gravity-local-draft > summary,
+.perspective-inspector-details > summary,
+.perspective-packet-preview-details > summary,
+.perspective-event-rail-entry-details > summary,
+.operator-runtime-details > summary,
+.operator-handoff-snapshot-shell > summary,
+.operator-technical-details > summary,
+.operator-summary-details > summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.perspective-surface-details > summary span,
+.perspective-formation-receipt-details > summary span,
+.perspective-manual-gravity-details > summary span,
+.perspective-manual-gravity-local-draft > summary span,
+.perspective-inspector-details > summary span,
+.perspective-packet-preview-details > summary span,
+.perspective-event-rail-entry-details > summary span,
+.operator-runtime-details > summary span,
+.operator-handoff-snapshot-shell > summary span,
+.operator-technical-details > summary span,
+.operator-summary-details > summary span {
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 820;
+  overflow-wrap: anywhere;
+}
+
+.perspective-surface-details > summary small,
+.perspective-formation-receipt-details > summary small,
+.perspective-manual-gravity-details > summary small,
+.perspective-manual-gravity-local-draft > summary small,
+.perspective-inspector-details > summary small,
+.perspective-packet-preview-details > summary small,
+.perspective-event-rail-entry-details > summary small,
+.operator-runtime-details > summary small,
+.operator-handoff-snapshot-shell > summary small,
+.operator-technical-details > summary small,
+.operator-summary-details > summary small {
+  min-width: 0;
+  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.perspective-surface-details > .boundary-note,
+.perspective-surface-details > .perspective-anchor-nav {
+  margin: 0 10px 10px;
+}
+
 .perspective-formation-summary-overlay {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid rgba(14, 116, 144, 0.2);
   border-radius: 8px;
   background: rgba(240, 253, 250, 0.78);
@@ -608,7 +713,7 @@ code {
 .perspective-formation-summary-heading h3 {
   margin: 0;
   color: #0f172a;
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1.2;
 }
 
@@ -621,10 +726,17 @@ code {
 }
 
 .perspective-formation-summary-actions {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-items: end;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
   min-width: 0;
+}
+
+.perspective-formation-summary-actions .perspective-formation-summary-status {
+  display: none;
 }
 
 .perspective-formation-basis-explanation-toggle {
@@ -677,26 +789,46 @@ code {
 }
 
 .perspective-formation-summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .perspective-formation-authority-grid {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.perspective-formation-receipt-details {
+  border: 1px solid rgba(13, 148, 136, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.perspective-formation-receipt-details > summary {
+  padding: 8px 10px;
+}
+
+.perspective-formation-receipt-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px 10px;
+}
+
 .perspective-formation-summary-grid > div,
+.perspective-formation-receipt-detail-grid > div,
 .perspective-formation-authority-grid > div {
   display: grid;
   align-content: start;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid rgba(13, 148, 136, 0.14);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.82);
 }
 
 .perspective-formation-summary-grid span,
+.perspective-formation-receipt-detail-grid span,
 .perspective-formation-authority-grid span {
   color: #64748b;
   font-size: 0.68rem;
@@ -710,6 +842,9 @@ code {
 .perspective-formation-summary-grid code,
 .perspective-formation-summary-grid time,
 .perspective-formation-summary-grid small,
+.perspective-formation-receipt-detail-grid strong,
+.perspective-formation-receipt-detail-grid time,
+.perspective-formation-receipt-detail-grid small,
 .perspective-formation-authority-grid strong {
   min-width: 0;
   max-width: 100%;
@@ -719,7 +854,19 @@ code {
 
 .perspective-formation-summary-grid strong,
 .perspective-formation-summary-grid code,
+.perspective-formation-summary-grid time {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.perspective-formation-summary-grid strong,
+.perspective-formation-summary-grid code,
 .perspective-formation-summary-grid time,
+.perspective-formation-receipt-detail-grid strong,
+.perspective-formation-receipt-detail-grid time,
 .perspective-formation-authority-grid strong {
   color: #0f172a;
   font-size: 0.82rem;
@@ -732,9 +879,23 @@ code {
 }
 
 .perspective-formation-summary-grid small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: #475569;
   font-size: 0.72rem;
   line-height: 1.25;
+}
+
+.perspective-formation-receipt-detail-grid small {
+  color: #475569;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.perspective-formation-receipt-details .perspective-formation-authority-grid {
+  padding: 0 10px 10px;
 }
 
 .perspective-formation-basis-explanation-card {
@@ -914,7 +1075,10 @@ code {
 
 .perspective-constellation-workspace-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr) minmax(300px, 0.36fr);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.34fr);
+  grid-template-areas:
+    "game inspector"
+    "lens inspector";
   gap: 12px;
   align-items: start;
   min-width: 0;
@@ -936,6 +1100,21 @@ code {
   align-content: start;
   gap: 12px;
   padding: 12px;
+}
+
+.perspective-lens-scope-panel {
+  grid-area: lens;
+}
+
+.perspective-lens-scope-panel .perspective-lens-option-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.perspective-inspector-handoff-panel {
+  grid-area: inspector;
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .perspective-shell-panel-heading {
@@ -1010,8 +1189,9 @@ code {
 }
 
 .perspective-constellation-game-window {
+  grid-area: game;
   display: grid;
-  grid-template-rows: auto minmax(500px, auto) auto;
+  grid-template-rows: auto minmax(540px, auto) auto;
   gap: 10px;
   min-width: 0;
   padding: 12px;
@@ -1068,8 +1248,8 @@ code {
 
 .perspective-constellation-canvas-frame {
   min-width: 0;
-  min-height: 500px;
-  max-height: 620px;
+  min-height: 540px;
+  max-height: 680px;
   overflow: auto;
   border: 1px solid rgba(125, 211, 252, 0.2);
   border-radius: 8px;
@@ -1083,7 +1263,7 @@ code {
 .perspective-constellation-game-window .ingest-constellation-svg {
   width: 100%;
   min-width: 0;
-  min-height: 500px;
+  min-height: 540px;
   height: 100%;
 }
 
@@ -1183,6 +1363,30 @@ code {
   background: #fffbeb;
 }
 
+.perspective-inspector-details {
+  padding: 0;
+}
+
+.perspective-inspector-details[open] {
+  padding-bottom: 10px;
+}
+
+.perspective-inspector-details > section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 10px 8px;
+  padding: 9px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-inspector-details > section.is-tension {
+  border-color: rgba(217, 119, 6, 0.2);
+  background: #fffbeb;
+}
+
 .perspective-selection-action-menu {
   border-color: rgba(14, 116, 144, 0.18);
 }
@@ -1190,6 +1394,21 @@ code {
 .perspective-manual-gravity-preview {
   border-color: rgba(79, 70, 229, 0.16);
   background: #f8fafc;
+}
+
+.perspective-manual-gravity-details {
+  border: 1px solid rgba(79, 70, 229, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.perspective-manual-gravity-details[open] {
+  padding-bottom: 8px;
+}
+
+.perspective-manual-gravity-details > div,
+.perspective-manual-gravity-details > .perspective-manual-gravity-boundary {
+  margin-inline: 8px;
 }
 
 .perspective-manual-gravity-actions,
@@ -1372,15 +1591,25 @@ code {
 
 .perspective-manual-gravity-local-draft {
   display: grid;
-  gap: 8px;
+  gap: 0;
   min-width: 0;
-  padding: 9px;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 8px;
   background: #ffffff;
 }
 
-.perspective-manual-gravity-local-draft > div:first-child {
+.perspective-manual-gravity-local-draft[open] {
+  padding-bottom: 9px;
+}
+
+.perspective-manual-gravity-local-draft-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 9px;
+}
+
+.perspective-manual-gravity-local-draft-body > div:first-child {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -1396,12 +1625,12 @@ code {
   overflow-wrap: anywhere;
 }
 
-.perspective-manual-gravity-local-draft > div:first-child strong {
+.perspective-manual-gravity-local-draft-body > div:first-child strong {
   color: #0f172a;
   font-size: 0.78rem;
 }
 
-.perspective-manual-gravity-local-draft > div:first-child span {
+.perspective-manual-gravity-local-draft-body > div:first-child span {
   color: #475569;
   font-size: 0.74rem;
   font-weight: 760;
@@ -1508,6 +1737,28 @@ code {
   align-items: center;
 }
 
+.perspective-packet-preview {
+  padding: 0;
+}
+
+.perspective-packet-preview-details[open] {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 10px;
+}
+
+.perspective-packet-preview-details > h4,
+.perspective-packet-preview-details > div,
+.perspective-packet-preview-details > label,
+.perspective-packet-preview-details > textarea,
+.perspective-packet-preview-details > .boundary-note {
+  margin-inline: 10px;
+}
+
+.perspective-packet-preview-details > textarea {
+  width: calc(100% - 20px);
+}
+
 .perspective-action-button-grid,
 .perspective-cluster-picker {
   display: grid;
@@ -1525,8 +1776,9 @@ code {
 }
 
 .perspective-packet-preview textarea {
-  width: 100%;
-  min-height: 180px;
+  width: calc(100% - 20px);
+  min-height: 148px;
+  max-height: 260px;
   padding: 10px;
   border: 1px solid rgba(15, 23, 42, 0.14);
   border-radius: 8px;
@@ -1540,21 +1792,23 @@ code {
 
 .perspective-time-axis-event-rail {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
 }
 
 .perspective-event-rail-track {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .perspective-event-rail-item {
   display: grid;
-  gap: 5px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 6px;
   min-width: 0;
-  padding: 10px;
+  min-height: 58px;
+  padding: 8px;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 8px;
   background: #f8fafc;
@@ -1593,20 +1847,33 @@ code {
 }
 
 .perspective-event-rail-item p {
+  grid-column: 1 / -1;
   margin: 0;
   color: #475569;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   line-height: 1.35;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .perspective-event-rail-entry-card {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid rgba(15, 23, 42, 0.11);
   border-radius: 8px;
   background: #ffffff;
+}
+
+.perspective-event-rail-entry-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
 }
 
 .perspective-event-rail-entry-card.is-present {
@@ -1639,14 +1906,14 @@ code {
 
 .perspective-event-rail-entry-card p {
   color: #475569;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.42;
 }
 
 .perspective-event-rail-entry-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -1654,7 +1921,7 @@ code {
   display: grid;
   gap: 3px;
   min-width: 0;
-  padding: 8px;
+  padding: 7px;
   border: 1px solid rgba(15, 23, 42, 0.09);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
@@ -1681,6 +1948,23 @@ code {
   flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
+}
+
+.perspective-event-rail-entry-details {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.perspective-event-rail-entry-details[open] {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.perspective-event-rail-entry-details > div,
+.perspective-event-rail-entry-details > section {
+  margin-inline: 8px;
 }
 
 .perspective-event-rail-entry-notes span {
@@ -1781,6 +2065,42 @@ code {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   padding: 0 12px 12px;
+  max-height: min(760px, 72vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 1181px) {
+  .perspective-constellation-workspace-shell {
+    position: relative;
+  }
+
+  .perspective-formation-summary-overlay {
+    position: absolute;
+    z-index: 2;
+    top: 126px;
+    right: 14px;
+    width: clamp(288px, 24%, 304px);
+    max-height: 226px;
+    overflow: auto;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.11);
+  }
+
+  .perspective-formation-summary-overlay .perspective-formation-summary-heading {
+    display: grid;
+  }
+
+  .perspective-formation-summary-overlay .perspective-formation-summary-actions {
+    justify-content: start;
+  }
+
+  .perspective-formation-summary-overlay .perspective-formation-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .perspective-inspector-handoff-panel {
+    margin-top: 238px;
+  }
 }
 
 .perspective-formation-archive-grid section {
@@ -2472,10 +2792,104 @@ code {
   overflow-x: auto;
 }
 
+.operator-action-review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.operator-action-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.11);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+}
+
+.operator-action-card.is-focus {
+  border-color: rgba(14, 116, 144, 0.28);
+  background: #f0fdfa;
+}
+
+.operator-action-card.is-blocked {
+  border-color: rgba(217, 119, 6, 0.34);
+  background: #fffbeb;
+}
+
+.operator-action-card span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.operator-action-card strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.operator-action-card small {
+  min-width: 0;
+  color: #475569;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.operator-runtime-details[open],
+.operator-handoff-snapshot-shell[open],
+.operator-technical-details[open],
+.operator-summary-details[open] {
+  padding-bottom: 10px;
+}
+
+.operator-runtime-stat-row,
+.operator-handoff-snapshot-shell > .operator-handoff-snapshot,
+.operator-technical-panel-stack,
+.operator-summary-details > section {
+  margin-inline: 10px;
+}
+
+.operator-runtime-stat-row {
+  margin-top: 0;
+}
+
+.operator-handoff-snapshot-shell > .operator-handoff-snapshot {
+  box-shadow: none;
+}
+
+.operator-technical-panel-stack {
+  display: grid;
+  gap: 14px;
+  max-height: min(760px, 72vh);
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.operator-summary-details {
+  display: grid;
+}
+
+.operator-summary-details > section + section {
+  margin-top: 10px;
+}
+
 .operator-layout-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1.18fr) minmax(280px, 0.38fr);
-  gap: 16px;
+  grid-template-columns: minmax(240px, 0.32fr) minmax(0, 1fr) minmax(260px, 0.34fr);
+  gap: 12px;
   align-items: start;
 }
 
@@ -2494,13 +2908,13 @@ code {
 
 .operator-handoff-snapshot {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .operator-handoff-snapshot-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .operator-handoff-snapshot-grid .metric-card {
@@ -2515,8 +2929,8 @@ code {
 
 .operator-handoff-next {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
 }
 
 .operator-tab .panel-control-row {
@@ -5823,6 +6237,28 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .perspective-constellation-workspace-grid {
+    grid-template-areas:
+      "game"
+      "inspector"
+      "lens";
+  }
+
+  .perspective-inspector-handoff-panel {
+    max-height: none;
+  }
+
+  .perspective-lens-scope-panel .perspective-lens-option-list,
+  .perspective-event-rail-track,
+  .operator-action-review-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .perspective-event-rail-entry-summary,
+  .perspective-formation-receipt-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .perspective-formation-basis-explanation-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5852,22 +6288,62 @@ h1 {
   .cockpit-topbar {
     position: static;
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 6px;
     align-items: stretch;
+    padding: 8px;
+  }
+
+  .cockpit-brand {
+    grid-template-columns: auto auto;
+    min-width: 0;
+    align-items: baseline;
+  }
+
+  .cockpit-brand span {
+    font-size: 0.72rem;
   }
 
   .cockpit-tab-nav {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, max-content));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     justify-content: start;
-    gap: 2px 10px;
+    gap: 2px;
     overflow-x: visible;
   }
 
   .cockpit-tab-button {
-    min-height: 34px;
-    padding: 0 6px 3px;
-    font-size: 0.88rem;
+    min-height: 28px;
+    padding: 0 2px 2px;
+    font-size: 0.72rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .shell-status-strip {
+    overflow-x: auto;
+  }
+
+  .shell-status-strip span {
+    min-height: 26px;
+    font-size: 0.68rem;
+  }
+
+  .perspective-tab .tab-page-header {
+    gap: 3px;
+  }
+
+  .perspective-tab .tab-page-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .perspective-tab .tab-page-header p:not(.kicker) {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.78rem;
+    line-height: 1.28;
   }
 
   .perspective-section {
@@ -5900,17 +6376,43 @@ h1 {
     word-break: break-word;
   }
 
+  .panel-control-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel-control-row button,
+  .secondary-button,
+  .empty-state,
+  .empty-state strong,
+  .empty-state span {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
   .perspective-constellation-workspace-shell {
-    padding: 12px;
+    padding: 10px;
     scroll-margin-top: 120px;
   }
 
   .perspective-constellation-shell-header h2 {
-    font-size: 1.55rem;
+    font-size: 1.25rem;
+  }
+
+  .perspective-constellation-shell-header p:not(.panel-eyebrow) {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.76rem;
+    line-height: 1.26;
   }
 
   .perspective-formation-summary-overlay {
     padding: 10px;
+    max-height: 210px;
+    overflow: auto;
   }
 
   .perspective-formation-summary-heading,
@@ -5930,8 +6432,17 @@ h1 {
     justify-content: start;
   }
 
-  .perspective-formation-summary-grid,
-  .perspective-formation-authority-grid {
+  .perspective-formation-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .perspective-formation-authority-grid,
+  .operator-action-review-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .perspective-lens-scope-panel .perspective-lens-option-list,
+  .perspective-event-rail-track {
     grid-template-columns: minmax(0, 1fr);
   }
 
