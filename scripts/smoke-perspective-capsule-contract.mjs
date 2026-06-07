@@ -76,6 +76,12 @@ const observatoryLayoutSmokeFile =
   "scripts/smoke-cockpit-perspective-observatory-layout.mjs";
 const observatoryLayoutBrowserReportFile =
   "reports/browser/2026-06-07-perspective-observatory-layout-restore.md";
+const eventRailEntryCardsDoc =
+  "docs/PERSPECTIVE_EVENT_RAIL_ENTRY_CARDS_V0_1.md";
+const eventRailEntryCardsSmokeFile =
+  "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs";
+const eventRailEntryCardsBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-event-rail-entry-cards.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -121,6 +127,9 @@ const allowedChangedFiles = new Set([
   observatoryLayoutDoc,
   observatoryLayoutSmokeFile,
   observatoryLayoutBrowserReportFile,
+  eventRailEntryCardsDoc,
+  eventRailEntryCardsSmokeFile,
+  eventRailEntryCardsBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

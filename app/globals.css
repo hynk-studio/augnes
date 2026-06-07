@@ -1971,17 +1971,31 @@ code {
 }
 
 .perspective-event-rail-role-row span {
+  display: grid;
+  gap: 2px;
   min-width: 0;
   padding: 5px 8px;
   border: 1px solid rgba(15, 23, 42, 0.09);
   border-radius: 999px;
   background: #ffffff;
   color: #334155;
-  font-size: 0.72rem;
-  font-weight: 820;
   line-height: 1.15;
   text-align: center;
+}
+
+.perspective-event-rail-role-row strong {
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 820;
   text-transform: uppercase;
+}
+
+.perspective-event-rail-role-row small {
+  min-width: 0;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .perspective-event-rail-track {
@@ -2047,6 +2061,18 @@ code {
   text-transform: uppercase;
 }
 
+.perspective-event-rail-item em {
+  grid-column: 2 / -1;
+  align-self: start;
+  min-width: 0;
+  color: #0f766e;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 820;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
 .perspective-event-rail-item p {
   grid-column: 1 / -1;
   margin: 0;
@@ -2099,6 +2125,21 @@ code {
   line-height: 1.25;
 }
 
+.perspective-event-rail-entry-role-badge {
+  display: inline-flex;
+  max-width: 100%;
+  margin-top: 6px;
+  padding: 4px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
 .perspective-event-rail-entry-card h5 {
   color: #334155;
   font-size: 0.78rem;
@@ -2113,7 +2154,7 @@ code {
 
 .perspective-event-rail-entry-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   min-width: 0;
 }
@@ -2149,6 +2190,66 @@ code {
   flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
+}
+
+.perspective-event-rail-entry-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-event-rail-entry-capability-grid section {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.perspective-event-rail-entry-capability-grid section.is-disabled {
+  border-color: rgba(127, 29, 29, 0.14);
+  background: #fff7ed;
+}
+
+.perspective-event-rail-entry-capability-grid ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.perspective-event-rail-entry-capability-grid li {
+  color: #475569;
+  font-size: 0.74rem;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
+.perspective-event-rail-entry-ref-preview {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(14, 116, 144, 0.14);
+  border-radius: 8px;
+  background: rgba(240, 253, 250, 0.72);
+}
+
+.perspective-event-rail-entry-ref-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-event-rail-entry-ref-heading span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 780;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .perspective-event-rail-entry-details {
@@ -6651,6 +6752,7 @@ h1 {
   .perspective-substrate-field-grid,
   .perspective-substrate-authority-list,
   .perspective-preview-overrides-list article,
+  .perspective-event-rail-entry-capability-grid,
   .perspective-event-rail-entry-meta {
     grid-template-columns: minmax(0, 1fr);
   }
