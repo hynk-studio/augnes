@@ -17,6 +17,7 @@
     "smoke:cockpit-demo-readiness": "node scripts/smoke-cockpit-demo-readiness.mjs",
     "smoke:cockpit-perspective-ia": "node scripts/smoke-cockpit-perspective-ia.mjs",
     "smoke:cockpit-perspective-observatory-layout": "node scripts/smoke-cockpit-perspective-observatory-layout.mjs",
+    "smoke:cockpit-perspective-primary-advanced-diagnostics-collapse": "node scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs",
     "smoke:cockpit-perspective-event-rail-entry-cards": "node scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
     "smoke:cockpit-perspective-formation-switch-overlay": "node scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
     "smoke:cockpit-perspective-scope-handler-cleanup": "node scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",

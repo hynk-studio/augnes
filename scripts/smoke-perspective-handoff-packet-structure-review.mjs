@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 const builderFile = "lib/perspective-ingest/perspective-unit-preview.ts";
 const cockpitFile = "components/augnes-cockpit.tsx";
+const cssFile = "app/globals.css";
 const packageFile = "package.json";
 const docFile = "docs/PERSPECTIVE_HANDOFF_PACKET_STRUCTURE_REVIEW_V0_1.md";
 const smokeFile = "scripts/smoke-perspective-handoff-packet-structure-review.mjs";
@@ -20,6 +21,12 @@ const copyToAgentDogfoodBrowserReportFile =
   "reports/browser/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
 const copyToAgentDogfoodSmokeFile =
   "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs";
+const primaryAdvancedDiagnosticsDocFile =
+  "docs/PERSPECTIVE_PRIMARY_ADVANCED_DIAGNOSTICS_COLLAPSE_V0_1.md";
+const primaryAdvancedDiagnosticsBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-primary-advanced-diagnostics-collapse.md";
+const primaryAdvancedDiagnosticsSmokeFile =
+  "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const builder = readFileSync(builderFile, "utf8");
@@ -29,14 +36,19 @@ const smoke = readFileSync(smokeFile, "utf8");
 
 const allowedChangedFiles = new Set([
   builderFile,
+  cockpitFile,
+  cssFile,
   docFile,
   packageFile,
   browserReportFile,
   copyToAgentDogfoodDocFile,
   copyToAgentDogfoodReportFile,
   copyToAgentDogfoodBrowserReportFile,
+  primaryAdvancedDiagnosticsDocFile,
+  primaryAdvancedDiagnosticsBrowserReportFile,
   smokeFile,
   copyToAgentDogfoodSmokeFile,
+  primaryAdvancedDiagnosticsSmokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",

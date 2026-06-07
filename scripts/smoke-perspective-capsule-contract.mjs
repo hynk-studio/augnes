@@ -116,6 +116,12 @@ const handoffPacketCopyToAgentDogfoodBrowserReportFile =
   "reports/browser/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
 const handoffPacketCopyToAgentDogfoodReportFile =
   "reports/dogfood/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
+const primaryAdvancedDiagnosticsCollapseDoc =
+  "docs/PERSPECTIVE_PRIMARY_ADVANCED_DIAGNOSTICS_COLLAPSE_V0_1.md";
+const primaryAdvancedDiagnosticsCollapseSmokeFile =
+  "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs";
+const primaryAdvancedDiagnosticsCollapseBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-primary-advanced-diagnostics-collapse.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -181,6 +187,9 @@ const allowedChangedFiles = new Set([
   handoffPacketCopyToAgentDogfoodSmokeFile,
   handoffPacketCopyToAgentDogfoodBrowserReportFile,
   handoffPacketCopyToAgentDogfoodReportFile,
+  primaryAdvancedDiagnosticsCollapseDoc,
+  primaryAdvancedDiagnosticsCollapseSmokeFile,
+  primaryAdvancedDiagnosticsCollapseBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

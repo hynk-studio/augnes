@@ -17,13 +17,24 @@ const browserReportFile =
   "reports/browser/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
 const smokeFile =
   "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs";
+const primaryAdvancedDiagnosticsDocFile =
+  "docs/PERSPECTIVE_PRIMARY_ADVANCED_DIAGNOSTICS_COLLAPSE_V0_1.md";
+const primaryAdvancedDiagnosticsBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-primary-advanced-diagnostics-collapse.md";
+const primaryAdvancedDiagnosticsSmokeFile =
+  "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs";
 
 const allowedChangedFiles = new Set([
+  "app/globals.css",
+  "components/augnes-cockpit.tsx",
   docFile,
   dogfoodReportFile,
   browserReportFile,
   packageJsonFile,
   smokeFile,
+  primaryAdvancedDiagnosticsDocFile,
+  primaryAdvancedDiagnosticsBrowserReportFile,
+  primaryAdvancedDiagnosticsSmokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",
@@ -35,7 +46,6 @@ const allowedChangedFiles = new Set([
 const forbiddenChangedPrefixes = [
   "app/api/",
   "apps/augnes_apps/",
-  "components/",
   "db/",
   "lib/",
   "migrations/",
@@ -188,7 +198,7 @@ function assertChangedFilesBoundary() {
   for (const file of uniqueSorted([...result.files, ...untrackedFiles])) {
     assert(
       !forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)),
-      `dogfood/report slice must not change runtime/product surfaces: ${file}`,
+      `dogfood smoke companion boundary must not change runtime/persistence/provider surfaces: ${file}`,
     );
   }
 }
