@@ -58,7 +58,11 @@ export function runPerspectiveIaSmoke(smokeName) {
 
   for (const snippet of [
     "AUGNES / Perspective Observatory",
-    "Constellation-first local preview of the current perspective sky",
+    "Constellation-first preview for inspecting evidence, tensions, and handoff packets.",
+    "PerspectiveCompactAuthority",
+    "data-augnes-authority-capsule",
+    "Safe preview",
+    "Advisory only",
     "Perspective is a read-only interpretation surface",
     "Current Perspective Frame",
     "How this frame was formed",
