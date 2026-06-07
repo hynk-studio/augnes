@@ -56,8 +56,8 @@ export function runPerspectiveIaSmoke(smokeName) {
   );
 
   for (const snippet of [
-    "Temporal Perspective",
-    "How the current interpretive frame was formed",
+    "AUGNES / Perspective Observatory",
+    "Constellation-first local preview of the current perspective sky",
     "Perspective is a read-only interpretation surface",
     "Current Perspective Frame",
     "How this frame was formed",

@@ -16,6 +16,7 @@
     "smoke:cockpit-six-tab-shell": "node scripts/smoke-cockpit-six-tab-shell.mjs",
     "smoke:cockpit-demo-readiness": "node scripts/smoke-cockpit-demo-readiness.mjs",
     "smoke:cockpit-perspective-ia": "node scripts/smoke-cockpit-perspective-ia.mjs",
+    "smoke:cockpit-perspective-observatory-layout": "node scripts/smoke-cockpit-perspective-observatory-layout.mjs",
     "smoke:cockpit-operator-handoff-snapshot-dogfood": "node scripts/smoke-cockpit-operator-handoff-snapshot-dogfood.mjs",
     "smoke:cockpit-selected-work-handoff-snapshot-dogfood": "node scripts/smoke-cockpit-selected-work-handoff-snapshot-dogfood.mjs",
     "smoke:cockpit-work-codex-handoff-review-dogfood": "node scripts/smoke-cockpit-work-codex-handoff-review-dogfood.mjs",
