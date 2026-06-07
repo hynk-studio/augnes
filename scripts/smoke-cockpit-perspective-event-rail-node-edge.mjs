@@ -21,9 +21,14 @@ const allowedChangedFiles = new Set([
   docFile,
   "docs/PERSPECTIVE_NODE_COPY_HUMANIZATION_V0_1.md",
   "lib/perspective-ingest/episode-to-constellation-packet.ts",
+  "lib/perspective-ingest/perspective-agent-brief.ts",
+  "lib/perspective-ingest/perspective-temporal-spatial-map.ts",
+  "lib/perspective-ingest/perspective-workbench-projection.ts",
   packageFile,
+  "docs/PERSPECTIVE_TEMPORAL_SPATIAL_PROJECTION_BUILDERS_V0_1.md",
   smokeFile,
   browserReportFile,
+  "reports/2026-06-07-perspective-temporal-spatial-projection-builders.md",
   "reports/browser/2026-06-07-perspective-node-copy-humanization.md",
   "scripts/smoke-cockpit-perspective-authority-copy-collapse.mjs",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
@@ -39,6 +44,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
   "scripts/smoke-perspective-node-copy-humanization.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
 
 assert.equal(

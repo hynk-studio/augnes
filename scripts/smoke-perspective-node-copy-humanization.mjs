@@ -27,10 +27,15 @@ const {
 
 const allowedChangedFiles = new Set([
   builderFile,
+  "lib/perspective-ingest/perspective-agent-brief.ts",
+  "lib/perspective-ingest/perspective-temporal-spatial-map.ts",
+  "lib/perspective-ingest/perspective-workbench-projection.ts",
   packageFile,
   docFile,
+  "docs/PERSPECTIVE_TEMPORAL_SPATIAL_PROJECTION_BUILDERS_V0_1.md",
   smokeFile,
   browserReportFile,
+  "reports/2026-06-07-perspective-temporal-spatial-projection-builders.md",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
@@ -45,6 +50,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
 
 assert.equal(
