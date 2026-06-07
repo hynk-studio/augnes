@@ -2,6 +2,19 @@
 
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import {
+  FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY,
+  FORMATION_SWITCH_BASIS_VERSION,
+  buildFormationSwitchAcknowledgement,
+  buildFormationSwitchContextFingerprint,
+  formationSwitchAcknowledgementIsValid,
+  readFormationSwitchAcknowledgementFromStorage,
+  writeFormationSwitchAcknowledgementToStorage,
+} from "@/lib/perspective-ingest/formation-switch-acknowledgement";
+import type {
+  FormationSwitchAcknowledgedBasis,
+  FormationSwitchAcknowledgementContext,
+} from "@/lib/perspective-ingest/formation-switch-acknowledgement";
+import {
   buildPerspectiveUnitPreview,
   getPerspectiveConstellationConnectedNodeIds,
 } from "@/lib/perspective-ingest/perspective-unit-preview";
@@ -367,6 +380,22 @@ type PerspectiveFormationBasisExplanationCandidate =
   | "historical_snapshot"
   | "auto_proposal"
   | "experimental";
+type PerspectiveFormationBasisSwitchDecision =
+  | "already_active"
+  | "apply_immediately"
+  | "show_switch_overlay"
+  | "show_future_explanation";
+type PerspectiveFormationBasisSwitchMode = "local_switch" | "future_explanation";
+type PerspectiveFormationBasisSwitchOverlayCopy = {
+  mode: PerspectiveFormationBasisSwitchMode;
+  title: string;
+  copy: string;
+  willTitle: string;
+  willItems: string[];
+  willNotTitle: string;
+  willNotItems: string[];
+  applyDisabledReason?: string;
+};
 
 type PerspectiveIngestConstellationPreviewErrorDisplay = {
   code: string;
@@ -4155,6 +4184,15 @@ function PerspectiveTab({
     selectedFormationBasisExplanation,
     setSelectedFormationBasisExplanation,
   ] = useState<PerspectiveFormationBasisExplanationCandidate>("current");
+  const [
+    pendingFormationBasisSwitch,
+    setPendingFormationBasisSwitch,
+  ] = useState<PerspectiveFormationBasisExplanationCandidate | null>(null);
+  const [formationSwitchOverlayOpen, setFormationSwitchOverlayOpen] =
+    useState(false);
+  const [formationSwitchNotice, setFormationSwitchNotice] =
+    useState<Notice | null>(null);
+  const formationSwitchCancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const [selectedGravityPreviewMarks, setSelectedGravityPreviewMarks] = useState<
     Record<string, ManualGravityPreviewMark[]>
   >({});
@@ -4868,6 +4906,25 @@ function PerspectiveTab({
     perspectiveConstellationFormationBasisExplanations.find(
       (basis) => basis.id === selectedFormationBasisExplanation,
     ) ?? perspectiveConstellationFormationBasisExplanations[0];
+  const pendingPerspectiveFormationBasisSwitch =
+    pendingFormationBasisSwitch
+      ? perspectiveConstellationFormationBasisExplanations.find(
+          (basis) => basis.id === pendingFormationBasisSwitch,
+        ) ?? null
+      : null;
+  const manualSelectionSwitchMaterialAvailable = Boolean(
+    explicitSelectedPerspectiveIngestNode,
+  );
+  const perspectiveFormationSwitchOverlayCopy = pendingFormationBasisSwitch
+    ? getPerspectiveFormationBasisSwitchOverlayCopy({
+        basis: pendingFormationBasisSwitch,
+        manualSelectionAvailable: manualSelectionSwitchMaterialAvailable,
+      })
+    : null;
+  const perspectiveFormationSwitchCanApply =
+    Boolean(perspectiveFormationSwitchOverlayCopy) &&
+    perspectiveFormationSwitchOverlayCopy?.mode === "local_switch" &&
+    !perspectiveFormationSwitchOverlayCopy.applyDisabledReason;
   const perspectiveConstellationLensOptions: {
     id: PerspectiveConstellationLens;
     label: string;
@@ -5179,6 +5236,9 @@ function PerspectiveTab({
       setSelectedEventRailEntry("current_view");
       setFormationBasisExplanationOpen(false);
       setSelectedFormationBasisExplanation("current");
+      setPendingFormationBasisSwitch(null);
+      setFormationSwitchOverlayOpen(false);
+      setFormationSwitchNotice(null);
       setSelectedGravityPreviewMarks({});
       setManualGravityLocalDraftStatus("unavailable");
       setManualGravityLocalDraftReceipt(null);
@@ -5206,6 +5266,12 @@ function PerspectiveTab({
       return null;
     });
   }, [perspectiveIngestConstellationPreviewState]);
+
+  useEffect(() => {
+    if (!formationSwitchOverlayOpen) return;
+
+    formationSwitchCancelButtonRef.current?.focus();
+  }, [formationSwitchOverlayOpen, pendingFormationBasisSwitch]);
 
   useEffect(() => {
     if (!manualGravityLocalDraftContext) {
@@ -5260,6 +5326,219 @@ function PerspectiveTab({
     manualGravityLocalDraftContextKey,
     manualGravityPreviewResolvableTargetKeySignature,
   ]);
+
+  function getPerspectiveFormationSwitchAcknowledgementContext(
+    basis: FormationSwitchAcknowledgedBasis,
+  ): FormationSwitchAcknowledgementContext | null {
+    if (
+      !perspectiveConstellationFormationReceipt ||
+      !perspectiveIngestConstellationPreview ||
+      !perspectiveIngestConstellation
+    ) {
+      return null;
+    }
+
+    const selectedNodeId =
+      basis === "manual_selection"
+        ? explicitSelectedPerspectiveIngestNode?.id ?? null
+        : null;
+    if (basis === "manual_selection" && !selectedNodeId) {
+      return null;
+    }
+
+    const targetScope =
+      basis === "manual_selection" ? "manual_selection" : "whole_constellation";
+    const sourceQuery = perspectiveIngestConstellationPreview.meta.source_query;
+    const constellationId =
+      perspectiveConstellationFormationReceipt.constellation_id;
+    const formationId = buildPerspectiveFormationSwitchFormationId({
+      constellationId,
+      selectedNodeId,
+      sourceQuery,
+      targetScope,
+    });
+    const contextFingerprint = buildFormationSwitchContextFingerprint([
+      "Formation Basis",
+      FORMATION_SWITCH_BASIS_VERSION,
+      basis,
+      targetScope,
+      sourceQuery,
+      constellationId,
+      perspectiveIngestConstellationPreview.meta.generated_at,
+      perspectiveIngestConstellation.nodes.length,
+      perspectiveIngestConstellation.edges.length,
+      selectedNodeId,
+    ]);
+
+    return {
+      basis,
+      basisVersion: FORMATION_SWITCH_BASIS_VERSION,
+      sourceQuery,
+      constellationId,
+      formationId,
+      contextFingerprint,
+    };
+  }
+
+  function hasValidFormationSwitchAcknowledgement(
+    basis: FormationSwitchAcknowledgedBasis,
+  ) {
+    const context = getPerspectiveFormationSwitchAcknowledgementContext(basis);
+    if (!context) return false;
+
+    const storedAcknowledgement =
+      readFormationSwitchAcknowledgementFromStorage();
+    if (!storedAcknowledgement.available) return false;
+
+    return formationSwitchAcknowledgementIsValid({
+      acknowledgement: storedAcknowledgement.acknowledgement,
+      context,
+    });
+  }
+
+  function getPerspectiveFormationBasisSwitchDecision(
+    basis: PerspectiveFormationBasisExplanationCandidate,
+  ): PerspectiveFormationBasisSwitchDecision {
+    if (!isPerspectiveFormationLocalSwitchBasis(basis)) {
+      return "show_future_explanation";
+    }
+
+    if (hasValidFormationSwitchAcknowledgement(basis)) {
+      return "apply_immediately";
+    }
+
+    if (
+      basis === "current" &&
+      perspectiveConstellationSelectionScope === "whole_constellation" &&
+      perspectiveConstellationFormationReceipt?.formation_basis === "current"
+    ) {
+      return "already_active";
+    }
+
+    if (
+      basis === "manual_selection" &&
+      perspectiveConstellationSelectionScope === "manual_selection" &&
+      perspectiveConstellationFormationReceipt?.formation_basis ===
+        "manual_selection"
+    ) {
+      return "already_active";
+    }
+
+    return "show_switch_overlay";
+  }
+
+  function handlePerspectiveFormationBasisControlClick(
+    basis: PerspectiveFormationBasisExplanationCandidate,
+  ) {
+    setSelectedFormationBasisExplanation(basis);
+    setFormationBasisExplanationOpen(true);
+    setManualGravityDraftOverwritePending(null);
+
+    const decision = getPerspectiveFormationBasisSwitchDecision(basis);
+    if (decision === "show_future_explanation") {
+      setPendingFormationBasisSwitch(basis);
+      setFormationSwitchOverlayOpen(true);
+      setFormationSwitchNotice({
+        tone: "info",
+        text: `${getPerspectiveFormationBasisLabel(basis)} is explanation-only · future behavior`,
+      });
+      return;
+    }
+
+    if (decision === "already_active") {
+      setPendingFormationBasisSwitch(null);
+      setFormationSwitchOverlayOpen(false);
+      setFormationSwitchNotice({
+        tone: "info",
+        text:
+          basis === "manual_selection"
+            ? "Already viewing Manual Selection"
+            : "Already viewing Current",
+      });
+      return;
+    }
+
+    if (decision === "apply_immediately") {
+      if (isPerspectiveFormationLocalSwitchBasis(basis)) {
+        applyPerspectiveFormationBasisSwitch(basis, "cached");
+      }
+      return;
+    }
+
+    setPendingFormationBasisSwitch(basis);
+    setFormationSwitchOverlayOpen(true);
+    setFormationSwitchNotice(null);
+  }
+
+  function closePerspectiveFormationBasisSwitchOverlay() {
+    setPendingFormationBasisSwitch(null);
+    setFormationSwitchOverlayOpen(false);
+  }
+
+  function applyPendingPerspectiveFormationBasisSwitch() {
+    if (!pendingFormationBasisSwitch) return;
+    if (!isPerspectiveFormationLocalSwitchBasis(pendingFormationBasisSwitch)) {
+      closePerspectiveFormationBasisSwitchOverlay();
+      return;
+    }
+
+    applyPerspectiveFormationBasisSwitch(pendingFormationBasisSwitch, "overlay");
+  }
+
+  function applyPerspectiveFormationBasisSwitch(
+    basis: FormationSwitchAcknowledgedBasis,
+    source: "overlay" | "cached",
+  ) {
+    const acknowledgementContext =
+      getPerspectiveFormationSwitchAcknowledgementContext(basis);
+
+    if (basis === "manual_selection" && !explicitSelectedPerspectiveIngestNode) {
+      setPendingFormationBasisSwitch("manual_selection");
+      setFormationSwitchOverlayOpen(true);
+      setFormationSwitchNotice({
+        tone: "error",
+        text: "Select a node or cluster before applying Manual Selection.",
+      });
+      return;
+    }
+
+    if (basis === "current") {
+      setPerspectiveConstellationSelectionScope("whole_constellation");
+      setSelectedPerspectiveIngestNodeId(null);
+      setSelectedPerspectiveIngestClusterId(null);
+      setSelectedPerspectiveConstellationLens("whole_constellation");
+    } else {
+      setPerspectiveConstellationSelectionScope("manual_selection");
+      setSelectedPerspectiveIngestClusterId(null);
+    }
+
+    setSelectedFormationBasisExplanation(basis);
+    setSelectedEventRailEntry("current_view");
+    setPerspectiveIngestCopyNotice(null);
+    setManualGravityDraftOverwritePending(null);
+    setPendingFormationBasisSwitch(null);
+    setFormationSwitchOverlayOpen(false);
+
+    if (source === "overlay" && acknowledgementContext) {
+      writeFormationSwitchAcknowledgementToStorage(
+        buildFormationSwitchAcknowledgement({
+          context: acknowledgementContext,
+        }),
+      );
+    }
+
+    setFormationSwitchNotice({
+      tone: "info",
+      text:
+        source === "cached"
+          ? basis === "manual_selection"
+            ? "Viewing Manual Selection · cached local acknowledgement · no API call"
+            : "Viewing Current · cached local acknowledgement · no API call"
+          : basis === "manual_selection"
+            ? "Applied Manual Selection View · local-only"
+            : "Applied Current View · local-only",
+    });
+  }
 
   function selectPerspectiveConstellationLens(lens: PerspectiveConstellationLens) {
     setSelectedPerspectiveConstellationLens(lens);
@@ -5928,8 +6207,10 @@ function PerspectiveTab({
                       key={basis.id}
                       type="button"
                       aria-pressed={basis.id === selectedFormationBasisExplanation}
-                      disabled={futureOnly}
-                      onClick={() => setSelectedFormationBasisExplanation(basis.id)}
+                      data-future-only={futureOnly ? "true" : undefined}
+                      onClick={() =>
+                        handlePerspectiveFormationBasisControlClick(basis.id)
+                      }
                     >
                       <strong>{basis.label}</strong>
                       <span>{basis.status}</span>
@@ -5937,6 +6218,7 @@ function PerspectiveTab({
                   );
                 })}
               </div>
+              <CopyFeedback notice={formationSwitchNotice} />
               <details
                 id="perspective-formation-basis-explanation-card"
                 className="perspective-formation-basis-explanation-card"
@@ -5981,9 +6263,15 @@ function PerspectiveTab({
                   </div>
                   <p>{selectedPerspectiveFormationBasisExplanation.previewCopy}</p>
                   <div className="perspective-formation-basis-selected-preview-boundary">
-                    <span>Active receipt basis remains unchanged.</span>
-                    <span>Visible graph remains unchanged.</span>
-                    <span>No apply, OK, Cancel, or rearrange flow is available.</span>
+                    <span>
+                      Switch View uses a separate Apply View / Cancel overlay for
+                      local/free bases only.
+                    </span>
+                    <span>Future bases remain disabled / future behavior.</span>
+                    <span>
+                      Cached acknowledgement metadata only may skip OK for repeated
+                      local/free switches.
+                    </span>
                     <span>No snapshots, delta view, API calls, or persistence occur.</span>
                   </div>
                 </section>
@@ -6870,6 +7158,101 @@ function PerspectiveTab({
             </section>
           </aside>
         </div>
+
+        {formationSwitchOverlayOpen &&
+        pendingPerspectiveFormationBasisSwitch &&
+        perspectiveFormationSwitchOverlayCopy ? (
+          <div
+            className="perspective-formation-switch-overlay-backdrop"
+            role="presentation"
+          >
+            <section
+              className={`perspective-formation-switch-overlay-card is-${perspectiveFormationSwitchOverlayCopy.mode}`}
+              aria-label="Formation Basis switch overlay"
+              aria-modal="true"
+              role="dialog"
+            >
+              <div className="perspective-formation-switch-overlay-heading">
+                <div>
+                  <p className="panel-eyebrow">Formation Basis · Switch View</p>
+                  <h3>{perspectiveFormationSwitchOverlayCopy.title}</h3>
+                </div>
+                <div className="perspective-formation-switch-badge-row">
+                  <span>free/local</span>
+                  <span>no API call</span>
+                  <span>no cost</span>
+                </div>
+              </div>
+              <p>{perspectiveFormationSwitchOverlayCopy.copy}</p>
+              {perspectiveFormationSwitchOverlayCopy.applyDisabledReason ? (
+                <div
+                  className="perspective-formation-switch-blocked-note"
+                  role="status"
+                >
+                  {perspectiveFormationSwitchOverlayCopy.applyDisabledReason}
+                </div>
+              ) : null}
+              <div className="perspective-formation-switch-list-grid">
+                <section>
+                  <h4>{perspectiveFormationSwitchOverlayCopy.willTitle}</h4>
+                  <ul>
+                    {perspectiveFormationSwitchOverlayCopy.willItems.map(
+                      (item) => (
+                        <li key={item}>{item}</li>
+                      ),
+                    )}
+                  </ul>
+                </section>
+                <section className="is-disabled">
+                  <h4>{perspectiveFormationSwitchOverlayCopy.willNotTitle}</h4>
+                  <ul>
+                    {perspectiveFormationSwitchOverlayCopy.willNotItems.map(
+                      (item) => (
+                        <li key={item}>{item}</li>
+                      ),
+                    )}
+                  </ul>
+                </section>
+              </div>
+              <div className="perspective-formation-switch-metadata">
+                <span>
+                  localStorage key{" "}
+                  <code>{FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY}</code>
+                </span>
+                <span>acknowledgement metadata only</span>
+                <span>expires after 24 hours</span>
+                <span>no raw graph/source/prompt/model/private content</span>
+              </div>
+              <div className="perspective-formation-switch-action-row">
+                <button
+                  ref={formationSwitchCancelButtonRef}
+                  type="button"
+                  className="secondary-button"
+                  onClick={closePerspectiveFormationBasisSwitchOverlay}
+                >
+                  {perspectiveFormationSwitchOverlayCopy.mode ===
+                  "future_explanation"
+                    ? "Close"
+                    : "Cancel"}
+                </button>
+                {perspectiveFormationSwitchOverlayCopy.mode === "local_switch" ? (
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={!perspectiveFormationSwitchCanApply}
+                    onClick={applyPendingPerspectiveFormationBasisSwitch}
+                  >
+                    Apply View
+                  </button>
+                ) : null}
+              </div>
+              <small>
+                Selected basis: {pendingPerspectiveFormationBasisSwitch.label} ·
+                active receipt basis {perspectiveConstellationActiveReceiptBasis}
+              </small>
+            </section>
+          </div>
+        ) : null}
 
           <section
             className="perspective-time-axis-event-rail"
@@ -25268,6 +25651,170 @@ function getPerspectiveEventRailRoleProfile(
     ],
     relatedRefsLabel: "Current local preview refs",
   };
+}
+
+function isPerspectiveFormationLocalSwitchBasis(
+  basis: PerspectiveFormationBasisExplanationCandidate,
+): basis is FormationSwitchAcknowledgedBasis {
+  return basis === "current" || basis === "manual_selection";
+}
+
+function getPerspectiveFormationBasisLabel(
+  basis: PerspectiveFormationBasisExplanationCandidate,
+) {
+  const labels: Record<PerspectiveFormationBasisExplanationCandidate, string> = {
+    auto_proposal: "Auto Proposal",
+    current: "Current",
+    experimental: "Experimental",
+    historical_snapshot: "Historical Snapshot",
+    manual_selection: "Manual Selection",
+  };
+
+  return labels[basis];
+}
+
+function getPerspectiveFormationBasisSwitchOverlayCopy({
+  basis,
+  manualSelectionAvailable,
+}: {
+  basis: PerspectiveFormationBasisExplanationCandidate;
+  manualSelectionAvailable: boolean;
+}): PerspectiveFormationBasisSwitchOverlayCopy {
+  if (basis === "current") {
+    return {
+      mode: "local_switch",
+      title: "Switch to Current View?",
+      copy:
+        "This returns the starmap to the current local PerspectiveUnitPreview / FormationReceiptV0 basis.",
+      willTitle: "This will",
+      willItems: [
+        "show the current local preview basis",
+        "keep the starmap local-only and read-only",
+        "make no API calls",
+        "cost nothing",
+        "create no persistence",
+        "create no graph DB writes",
+      ],
+      willNotTitle: "This will not",
+      willNotItems: [
+        "create a snapshot",
+        "compute a delta view",
+        "call providers/models",
+        "execute Codex",
+        "mutate GitHub or Augnes state",
+      ],
+    };
+  }
+
+  if (basis === "manual_selection") {
+    return {
+      mode: "local_switch",
+      title: "Switch to Manual Selection View?",
+      copy: "This reframes the local preview around selected graph material.",
+      willTitle: "This will",
+      willItems: [
+        "use selected node / cluster / manual selection context",
+        "keep source refs and FormationReceipt boundaries visible",
+        "remain local-only, read-only, preview-only",
+        "make no API calls",
+        "cost nothing",
+        "create no persistence",
+      ],
+      willNotTitle: "This will not",
+      willNotItems: [
+        "create new facts",
+        "persist marks to FormationReceiptV0",
+        "write graph DB",
+        "call providers/models",
+        "execute Codex",
+        "mutate GitHub or Augnes state",
+      ],
+      applyDisabledReason: manualSelectionAvailable
+        ? undefined
+        : "Select a node or cluster before applying Manual Selection.",
+    };
+  }
+
+  if (basis === "historical_snapshot") {
+    return {
+      mode: "future_explanation",
+      title: "Historical Snapshot is disabled / future behavior",
+      copy:
+        "Historical Snapshot is future archive behavior only in this slice. Event Rail archive cards are available, but no frozen snapshot persistence or delta view is implemented.",
+      willTitle: "Explanation-only",
+      willItems: [
+        "keeps Historical Snapshot visible as future archive behavior",
+        "points users to Event Rail archive cards for reference context",
+      ],
+      willNotTitle: "Unavailable in this slice",
+      willNotItems: [
+        "no frozen snapshot persistence",
+        "no delta view",
+        "no Apply View action",
+      ],
+    };
+  }
+
+  if (basis === "auto_proposal") {
+    return {
+      mode: "future_explanation",
+      title: "Auto Proposal is disabled / future behavior",
+      copy:
+        "Auto Proposal is future behavior only in this slice. No provider, model, API call, API billing, proposal generation, graph rearrangement, or persistence occurs.",
+      willTitle: "Explanation-only",
+      willItems: ["keeps Auto Proposal visible as future behavior"],
+      willNotTitle: "Unavailable in this slice",
+      willNotItems: [
+        "no provider/model/API call",
+        "no API billing",
+        "no proposal generation",
+        "no graph rearrangement",
+        "no persistence",
+      ],
+    };
+  }
+
+  return {
+    mode: "future_explanation",
+    title: "Experimental is disabled / future behavior",
+    copy:
+      "Experimental internals remain unexposed in this slice. No public experimental basis, no rearrangement, no API call, no persistence.",
+    willTitle: "Explanation-only",
+    willItems: ["keeps Experimental visible as reserved future behavior"],
+    willNotTitle: "Unavailable in this slice",
+    willNotItems: [
+      "no public experimental basis",
+      "no rearrangement",
+      "no API call",
+      "no persistence",
+    ],
+  };
+}
+
+function buildPerspectiveFormationSwitchFormationId({
+  constellationId,
+  selectedNodeId,
+  sourceQuery,
+  targetScope,
+}: {
+  constellationId: string;
+  selectedNodeId: string | null;
+  sourceQuery: string;
+  targetScope: string;
+}) {
+  return [
+    "formation",
+    constellationId,
+    sourceQuery,
+    targetScope,
+    selectedNodeId ?? "all",
+  ]
+    .map(sanitizePerspectiveFormationSwitchIdPart)
+    .join(":");
+}
+
+function sanitizePerspectiveFormationSwitchIdPart(part: string) {
+  return part.replace(/[^a-zA-Z0-9._:-]/g, "_");
 }
 
 function matchPerspectiveIngestEvidencePointers(

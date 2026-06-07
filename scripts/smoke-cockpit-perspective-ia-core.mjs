@@ -7,6 +7,7 @@ const cssPath = "app/globals.css";
 const packagePath = "package.json";
 const readmePath = "README.md";
 const allowedRuntimeLibFiles = new Set([
+  "lib/perspective-ingest/formation-switch-acknowledgement.ts",
   "lib/perspective-ingest/manual-gravity-preview.ts",
   "lib/perspective-ingest/perspective-unit-preview.ts",
 ]);
