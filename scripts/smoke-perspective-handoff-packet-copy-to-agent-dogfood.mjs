@@ -23,6 +23,12 @@ const primaryAdvancedDiagnosticsBrowserReportFile =
   "reports/browser/2026-06-07-perspective-primary-advanced-diagnostics-collapse.md";
 const primaryAdvancedDiagnosticsSmokeFile =
   "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs";
+const authorityCopyCollapseDocFile =
+  "docs/PERSPECTIVE_AUTHORITY_COPY_COLLAPSE_V0_1.md";
+const authorityCopyCollapseBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-authority-copy-collapse.md";
+const authorityCopyCollapseSmokeFile =
+  "scripts/smoke-cockpit-perspective-authority-copy-collapse.mjs";
 
 const allowedChangedFiles = new Set([
   "app/globals.css",
@@ -35,12 +41,18 @@ const allowedChangedFiles = new Set([
   primaryAdvancedDiagnosticsDocFile,
   primaryAdvancedDiagnosticsBrowserReportFile,
   primaryAdvancedDiagnosticsSmokeFile,
+  authorityCopyCollapseDocFile,
+  authorityCopyCollapseBrowserReportFile,
+  authorityCopyCollapseSmokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
+  "scripts/smoke-cockpit-perspective-ia-core.mjs",
+  "scripts/smoke-cockpit-perspective-observatory-layout.mjs",
   "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
+  "scripts/smoke-perspective-ingest-constellation-preview.mjs",
 ]);
 
 const forbiddenChangedPrefixes = [

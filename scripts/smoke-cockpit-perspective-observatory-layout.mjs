@@ -73,14 +73,13 @@ assertContainsAll(cockpit, [
   "Archive Entry Card",
   "Current View Card",
   "Future Candidate Card",
-  "read-only",
-  "local-only",
-  "preview-only",
-  "no external calls",
-  "no persistence",
-  "no graph DB",
-  "No Codex execution",
-  "No provider, model, API call, billing",
+  "PerspectiveCompactAuthority",
+  "data-augnes-authority-capsule",
+  "Safe preview",
+  "Advisory only",
+  "Authority details",
+  "Local read-only starmap",
+  "Authority details are available in the capsule",
 ]);
 
 assertContainsAll(css, [

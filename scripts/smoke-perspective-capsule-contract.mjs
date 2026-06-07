@@ -122,6 +122,12 @@ const primaryAdvancedDiagnosticsCollapseSmokeFile =
   "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs";
 const primaryAdvancedDiagnosticsCollapseBrowserReportFile =
   "reports/browser/2026-06-07-perspective-primary-advanced-diagnostics-collapse.md";
+const authorityCopyCollapseDoc =
+  "docs/PERSPECTIVE_AUTHORITY_COPY_COLLAPSE_V0_1.md";
+const authorityCopyCollapseSmokeFile =
+  "scripts/smoke-cockpit-perspective-authority-copy-collapse.mjs";
+const authorityCopyCollapseBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-authority-copy-collapse.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -190,6 +196,9 @@ const allowedChangedFiles = new Set([
   primaryAdvancedDiagnosticsCollapseDoc,
   primaryAdvancedDiagnosticsCollapseSmokeFile,
   primaryAdvancedDiagnosticsCollapseBrowserReportFile,
+  authorityCopyCollapseDoc,
+  authorityCopyCollapseSmokeFile,
+  authorityCopyCollapseBrowserReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 

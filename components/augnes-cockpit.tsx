@@ -53,7 +53,10 @@ import type {
   ManualGravityResolutionProposalCard,
 } from "@/lib/perspective-ingest/manual-gravity-preview";
 import type { TemporalPreviewResponse } from "@/lib/temporal-interpretation/types";
-import type { PerspectiveConstellationSelectionScopeV0 } from "@/types/perspective-constellation-formation";
+import type {
+  FormationAuthorityV0,
+  PerspectiveConstellationSelectionScopeV0,
+} from "@/types/perspective-constellation-formation";
 import type {
   PerspectiveIngestConstellationEdge,
   PerspectiveIngestConstellationNode,
@@ -335,6 +338,10 @@ type PerspectiveIngestPreviewMode =
   | "sample fixture preview"
   | "manual pasted text preview";
 type PerspectiveIngestPacketTarget = "chatgpt_review" | "codex_handoff";
+type PerspectiveCompactAuthorityItem = {
+  label: string;
+  value: string;
+};
 type PerspectiveConstellationLens =
   | "whole_constellation"
   | "connected_nodes"
@@ -4737,16 +4744,22 @@ function PerspectiveTab({
           perspectiveConstellationFormationReceipt.source_refs,
         )
       : perspectiveIngestPreviewError?.code ?? "Preview response pending";
-  const perspectiveConstellationSummaryStatus =
-    perspectiveConstellationUnitPreview
-      ? getPerspectiveConstellationSummaryStatus(
-          perspectiveConstellationUnitPreview.local_boundary_notes,
-          perspectiveConstellationFormationReceipt?.formation_basis,
-          perspectiveConstellationFormationAuthority,
-        )
-      : perspectiveIngestPreviewError
-        ? ["fail-closed", "no current graph"]
-        : ["loading"];
+  const perspectiveConstellationCompactAuthorityItems =
+    buildPerspectiveCompactAuthorityItems({
+      authority: perspectiveConstellationFormationAuthority,
+      meta: perspectiveIngestConstellationPreview?.meta ?? null,
+    });
+  const perspectiveConstellationCompactAuthorityNotes =
+    perspectiveConstellationUnitPreview?.local_boundary_notes ??
+    perspectiveIngestConstellationPreview?.ingest_batch.boundary_notes ??
+    [
+      "Local preview boundary is unavailable until the current response loads.",
+    ];
+  const perspectiveConstellationStatusSummary = perspectiveIngestPreviewError
+    ? "Fail-closed preview"
+    : perspectiveIngestConstellationPreview
+      ? "Advisory inspection surface"
+      : "Loading preview";
   const perspectiveConstellationSummaryAuthorityItems = [
     {
       label: "External calls",
@@ -4890,30 +4903,30 @@ function PerspectiveTab({
           ? "active receipt basis"
           : "available explanation",
       copy:
-        "User-selected graph scope. Local-only, preview-only, no new facts, no persistence.",
+        "User-selected graph scope. Advisory explanation only until applied.",
       previewTitle: "Manual Selection candidate preview",
       previewCopy:
-        "If supported as a formation basis, this would remain local-only and would be based on selected graph material. It would add no new facts, create no persistence, and apply no rearranged view in this slice.",
+        "If supported as a formation basis, this would use selected graph material without adding facts or applying a rearranged view in this slice.",
     },
     {
       id: "historical_snapshot",
       label: "Historical Snapshot",
-      status: "future behavior / not implemented here",
+      status: "future explanation only",
       copy:
         "Future archive behavior. No frozen snapshot is created in this slice.",
       previewTitle: "Historical Snapshot candidate preview",
       previewCopy:
-        "This is future archive behavior. No frozen snapshot exists in this slice, no snapshot is created, and no archive state is persisted.",
+        "This is future archive behavior only.",
     },
     {
       id: "auto_proposal",
       label: "Auto Proposal",
-      status: "future behavior / no provider, model, API call, or billing",
+      status: "future explanation only",
       copy:
         "Future proposal behavior. No provider, model, API call, or billing occurs in this slice.",
       previewTitle: "Auto Proposal candidate preview",
       previewCopy:
-        "This is future proposal behavior only. No provider, model, API call, billing, graph rearrangement, or proposal execution occurs here.",
+        "This is future proposal behavior only.",
     },
     {
       id: "experimental",
@@ -5086,18 +5099,18 @@ function PerspectiveTab({
       temporalRole: "archive",
       cardTitle: "Archive Entry Card",
       cardSummary:
-        "Handoff entries are archived manual review context. They remain copy/reference material and do not execute Codex.",
+        "Handoff entries are archived manual review context and copy/reference material.",
       statusLabel: "read-only",
       relatedRefs: perspectiveConstellationArchiveReports,
     },
     {
       id: "pr",
       label: "PR",
-      detail: "review packet pointer only; no GitHub mutation",
+      detail: "review packet pointer",
       temporalRole: "archive",
       cardTitle: "Archive Entry Card",
       cardSummary:
-        "PR entries are review pointers only. They do not call GitHub, create branches, open PRs, merge, publish, or deploy.",
+        "PR entries are review pointers for local inspection.",
       statusLabel: "read-only",
       relatedRefs: ["GitHub PR review surface"],
     },
@@ -5108,7 +5121,7 @@ function PerspectiveTab({
       temporalRole: "archive",
       cardTitle: "Archive Entry Card",
       cardSummary:
-        "Review entries keep packet context visible as reference material. They do not call providers or grant execution authority.",
+        "Review entries keep packet context visible as reference material.",
       statusLabel: "read-only",
       relatedRefs: [
         "ChatGPT review packet preview",
@@ -5122,7 +5135,7 @@ function PerspectiveTab({
       temporalRole: "archive",
       cardTitle: "Archive Entry Card",
       cardSummary:
-        "Closeout entries preserve validation and report references. They do not write proof, evidence, readiness, or persistent archive records.",
+        "Closeout entries preserve validation and report references.",
       statusLabel: "read-only",
       relatedRefs: perspectiveConstellationArchiveValidationRefs,
     },
@@ -5135,8 +5148,8 @@ function PerspectiveTab({
       temporalRole: "present",
       cardTitle: "Current View Card",
       cardSummary:
-        "The present entry uses the current PerspectiveUnitPreview / FormationReceiptV0 and shows the active local graph view without snapshot persistence.",
-      statusLabel: "local-only / read-only / preview-only",
+        "The present entry uses the current PerspectiveUnitPreview / FormationReceiptV0 and shows the active graph view for inspection.",
+      statusLabel: "local preview",
       relatedRefs: perspectiveConstellationCurrentViewRefs,
     },
     {
@@ -5146,8 +5159,8 @@ function PerspectiveTab({
       temporalRole: "future",
       cardTitle: "Future Candidate Card",
       cardSummary:
-        "Next Perspective is future candidate context. Possible next actions are candidates only and do not trigger Codex, GitHub, providers, or mutations.",
-      statusLabel: "advisory / preview-only",
+        "Next Perspective is future candidate context for advisory review.",
+      statusLabel: "advisory preview",
       relatedRefs: perspectiveConstellationNextCandidateRefs,
     },
   ] satisfies PerspectiveEventRailEntry[];
@@ -5194,7 +5207,7 @@ function PerspectiveTab({
           ]
         : [
             "Uses current PerspectiveUnitPreview / FormationReceiptV0",
-            "Local-only / read-only / preview-only",
+            "Local read-only preview",
             "Mutation disabled",
             "No snapshot persistence yet",
             "No delta view",
@@ -6253,7 +6266,7 @@ function PerspectiveTab({
       <PageHeader
         eyebrow="AUGNES / Perspective Observatory"
         title="Perspective Observatory"
-        description="Constellation-first local preview of the current perspective sky: read-only, local-only, preview-only."
+        description="Constellation-first preview for inspecting evidence, tensions, and handoff packets."
       />
 
       <section
@@ -6279,9 +6292,12 @@ function PerspectiveTab({
             </p>
           </div>
           <div className="perspective-constellation-shell-status">
-            <StatusBadge label="local-only" />
-            <StatusBadge label="read-only" />
-            <StatusBadge label="preview-only" />
+            <PerspectiveCompactAuthority
+              detailsLabel="Authority details"
+              items={perspectiveConstellationCompactAuthorityItems}
+              notes={perspectiveConstellationCompactAuthorityNotes}
+              summary="Local read-only preview"
+            />
           </div>
         </div>
         <section
@@ -6298,9 +6314,7 @@ function PerspectiveTab({
               <span className="perspective-formation-summary-status-label">
                 Status
               </span>
-              {perspectiveConstellationSummaryStatus.map((status) => (
-                <span key={status}>{status}</span>
-              ))}
+              <span>{perspectiveConstellationStatusSummary}</span>
             </div>
           </div>
           <div className="perspective-formation-summary-grid">
@@ -6328,8 +6342,8 @@ function PerspectiveTab({
             </div>
             <div>
               <span>Status</span>
-              <strong>{perspectiveConstellationSummaryStatus.join(" / ")}</strong>
-              <small>read-only preview surface</small>
+              <strong>{perspectiveConstellationStatusSummary}</strong>
+              <small>Details in authority capsule</small>
             </div>
           </div>
           <details className="perspective-formation-receipt-details">
@@ -6396,9 +6410,9 @@ function PerspectiveTab({
               aria-label="Manual Gravity applied preview summary"
             >
               <strong>Manual Gravity preview applied</strong>
-              <span>Local visual emphasis only</span>
-              <span>No source graph changes</span>
-              <span>No persistence or graph DB write</span>
+              <span>UI-only emphasis</span>
+              <span>Local draft metadata</span>
+              <span>Not receipt authority</span>
             </div>
           ) : null}
         </section>
@@ -6503,17 +6517,22 @@ function PerspectiveTab({
                       Cached acknowledgement metadata only may skip OK for repeated
                       local/free switches.
                     </span>
-                    <span>No snapshots, delta view, API calls, or persistence occur.</span>
                   </div>
+                  <PerspectiveCompactAuthority
+                    className="is-inline"
+                    detailsLabel="Basis boundary details"
+                    items={perspectiveConstellationCompactAuthorityItems}
+                    notes={[
+                      "No snapshots, delta view, API calls, or persistence occur.",
+                      "No API calls, cost, persistence, graph DB writes, or external calls occur.",
+                    ]}
+                    summary="Advisory basis preview"
+                  />
                 </section>
                 <div className="perspective-formation-basis-explanation-boundary">
                   <span>Compare is a future view mode, not a Formation Basis.</span>
                   <span>Experimental internals are not exposed.</span>
                   <span>Auto Proposal is not executed here.</span>
-                  <span>
-                    No API calls, cost, persistence, graph DB writes, or external
-                    calls occur.
-                  </span>
                 </div>
               </details>
             </section>
@@ -6699,12 +6718,8 @@ function PerspectiveTab({
               )}
             </div>
             <div className="perspective-game-window-caption">
-              <span>Read-only starmap · no persistence · no graph DB · no external calls</span>
-              <span>No DB writes</span>
-              <span>No persistence</span>
-              <span>No graph DB</span>
-              <span>No external calls</span>
-              <span>No Codex execution</span>
+              <span>Local read-only starmap</span>
+              <span>Authority details are available in the capsule</span>
             </div>
           </section>
 
@@ -6803,7 +6818,7 @@ function PerspectiveTab({
               <p>
                 <strong>Focus marks for this constellation.</strong>{" "}
                 Local salience marks for the current selected graph material.
-                Preview-only. Not saved. Not written to FormationReceiptV0. No graph DB write.
+                UI-only emphasis, local draft metadata, not receipt authority.
               </p>
               <div className="meta-row">
                 <span>
@@ -7632,26 +7647,8 @@ function PerspectiveTab({
               className="perspective-event-rail-entry-capability-grid"
               aria-label="Selected Temporal Entry Card capability boundaries"
             >
-              <section>
-                <h5>{selectedPerspectiveEventRailRoleProfile.canTitle}</h5>
-                <ul>
-                  {selectedPerspectiveEventRailRoleProfile.canItems.map(
-                    (item) => (
-                      <li key={item}>{item}</li>
-                    ),
-                  )}
-                </ul>
-              </section>
-              <section className="is-disabled">
-                <h5>{selectedPerspectiveEventRailRoleProfile.cannotTitle}</h5>
-                <ul>
-                  {selectedPerspectiveEventRailRoleProfile.cannotItems.map(
-                    (item) => (
-                      <li key={item}>{item}</li>
-                    ),
-                  )}
-                </ul>
-              </section>
+              <span>{selectedPerspectiveEventRailRoleProfile.cardLabel}</span>
+              <span>Details gated below</span>
             </div>
             <div className="perspective-event-rail-entry-ref-preview">
               <div className="perspective-event-rail-entry-ref-heading">
@@ -7675,6 +7672,31 @@ function PerspectiveTab({
                 <span>Event details</span>
                 <small>notes, snapshot context, all related refs</small>
               </summary>
+              <div
+                className="perspective-event-rail-entry-capability-detail-grid"
+                aria-label="Selected Temporal Entry Card detailed capability boundaries"
+              >
+                <section>
+                  <h5>{selectedPerspectiveEventRailRoleProfile.canTitle}</h5>
+                  <ul>
+                    {selectedPerspectiveEventRailRoleProfile.canItems.map(
+                      (item) => (
+                        <li key={item}>{item}</li>
+                      ),
+                    )}
+                  </ul>
+                </section>
+                <section className="is-disabled">
+                  <h5>{selectedPerspectiveEventRailRoleProfile.cannotTitle}</h5>
+                  <ul>
+                    {selectedPerspectiveEventRailRoleProfile.cannotItems.map(
+                      (item) => (
+                        <li key={item}>{item}</li>
+                      ),
+                    )}
+                  </ul>
+                </section>
+              </div>
               <div className="perspective-event-rail-entry-notes">
                 {selectedPerspectiveEventRailNotes.map((note) => (
                   <span key={note}>{note}</span>
@@ -20850,6 +20872,60 @@ function PageHeader({
   );
 }
 
+function PerspectiveCompactAuthority({
+  className,
+  detailsLabel,
+  items,
+  notes,
+  summary,
+}: {
+  className?: string;
+  detailsLabel: string;
+  items: PerspectiveCompactAuthorityItem[];
+  notes: string[];
+  summary: string;
+}) {
+  const classNames = ["perspective-compact-authority", className]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <details
+      className={classNames}
+      data-augnes-authority-capsule="PerspectiveCompactAuthority"
+      data-augnes-authority="read-only local-only preview-only"
+      data-augnes-external-calls="false"
+      data-augnes-persistence="false"
+      data-augnes-graph-db="false"
+      data-augnes-codex-execution="false"
+    >
+      <summary>
+        <strong>{summary}</strong>
+        <span>Safe preview</span>
+        <span>Advisory only</span>
+        <small>{detailsLabel}</small>
+      </summary>
+      <div className="perspective-compact-authority-body">
+        <div className="perspective-compact-authority-grid">
+          {items.map((item) => (
+            <div key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+        {notes.length > 0 ? (
+          <ul className="perspective-compact-authority-notes">
+            {notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 function ProcessStrip({ steps }: { steps: [string, string][] }) {
   return (
     <section className="six-tab-process-strip" aria-label="Temporal state process">
@@ -25893,6 +25969,64 @@ function getPerspectiveConstellationReceiptSourceDetail(
         : sourceRef.source_ref,
     )
     .join(" · ");
+}
+
+function buildPerspectiveCompactAuthorityItems({
+  authority,
+  meta,
+}: {
+  authority: FormationAuthorityV0 | null;
+  meta: PerspectiveIngestConstellationPreviewResponse["meta"] | null;
+}): PerspectiveCompactAuthorityItem[] {
+  return [
+    {
+      label: "local_only",
+      value: formatPerspectiveCompactAuthorityFlag(meta?.local_only),
+    },
+    {
+      label: "read_only",
+      value: formatPerspectiveCompactAuthorityFlag(
+        meta?.read_only ?? authority?.read_only,
+      ),
+    },
+    {
+      label: "external_calls",
+      value: formatPerspectiveCompactAuthorityFlag(
+        meta?.external_calls ?? authority?.external_calls,
+      ),
+    },
+    {
+      label: "persistence",
+      value: formatPerspectiveCompactAuthorityFlag(
+        meta?.persistence ?? authority?.persistence,
+      ),
+    },
+    {
+      label: "graph_db",
+      value: formatPerspectiveCompactAuthorityFlag(
+        meta?.graph_db ?? authority?.graph_db_write,
+      ),
+    },
+    {
+      label: "proof_evidence_readiness_writes",
+      value: formatPerspectiveCompactAuthorityFlag(
+        meta?.proof_evidence_readiness_writes ??
+          authority?.proof_evidence_write,
+      ),
+    },
+    {
+      label: "codex_execution",
+      value: formatPerspectiveCompactAuthorityFlag(
+        meta?.codex_execution ?? authority?.codex_execution,
+      ),
+    },
+  ];
+}
+
+function formatPerspectiveCompactAuthorityFlag(value: boolean | undefined) {
+  if (value === true) return "present";
+  if (value === false) return "none";
+  return "pending";
 }
 
 function getPerspectiveConstellationSummaryStatus(

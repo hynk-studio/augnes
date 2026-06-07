@@ -696,6 +696,10 @@ code {
   min-width: 0;
 }
 
+.perspective-tab details:not([open]) > :not(summary) {
+  display: none !important;
+}
+
 .perspective-surface-details,
 .operator-runtime-details,
 .operator-handoff-snapshot-shell,
@@ -770,6 +774,125 @@ code {
 .perspective-surface-details > .boundary-note,
 .perspective-surface-details > .perspective-anchor-nav {
   margin: 0 10px 10px;
+}
+
+.perspective-compact-authority {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid rgba(14, 116, 144, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #134e4a;
+}
+
+.perspective-compact-authority > summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  padding: 5px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.perspective-compact-authority > summary::-webkit-details-marker {
+  display: none;
+}
+
+.perspective-compact-authority > summary strong,
+.perspective-compact-authority > summary span,
+.perspective-compact-authority > summary small {
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.perspective-compact-authority > summary strong {
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  background: #f0fdfa;
+  color: #0f766e;
+  font-weight: 840;
+}
+
+.perspective-compact-authority > summary span {
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  background: #ffffff;
+  color: #334155;
+  font-weight: 760;
+}
+
+.perspective-compact-authority > summary small {
+  border: 1px solid rgba(14, 116, 144, 0.18);
+  background: #ecfeff;
+  color: #0e7490;
+  font-weight: 820;
+}
+
+.perspective-compact-authority[open] {
+  background: #ffffff;
+}
+
+.perspective-compact-authority-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 8px 8px;
+}
+
+.perspective-compact-authority-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-compact-authority-grid > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.perspective-compact-authority-grid span {
+  color: #64748b;
+  font-size: 0.66rem;
+  font-weight: 820;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.perspective-compact-authority-grid strong {
+  color: #0f172a;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.perspective-compact-authority-notes {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 720;
+  line-height: 1.3;
+}
+
+.perspective-compact-authority-notes li {
+  overflow-wrap: anywhere;
+}
+
+.perspective-compact-authority.is-inline {
+  margin-top: 2px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .perspective-formation-summary-overlay {
@@ -2365,14 +2488,16 @@ code {
   min-width: 0;
 }
 
-.perspective-event-rail-entry-capability-grid {
+.perspective-event-rail-entry-capability-grid,
+.perspective-event-rail-entry-capability-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   min-width: 0;
 }
 
-.perspective-event-rail-entry-capability-grid section {
+.perspective-event-rail-entry-capability-grid span,
+.perspective-event-rail-entry-capability-detail-grid section {
   min-width: 0;
   padding: 8px;
   border: 1px solid rgba(15, 23, 42, 0.09);
@@ -2380,19 +2505,27 @@ code {
   background: rgba(248, 250, 252, 0.86);
 }
 
-.perspective-event-rail-entry-capability-grid section.is-disabled {
+.perspective-event-rail-entry-capability-grid span {
+  color: #334155;
+  font-size: 0.76rem;
+  font-weight: 780;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.perspective-event-rail-entry-capability-detail-grid section.is-disabled {
   border-color: rgba(127, 29, 29, 0.14);
   background: #fff7ed;
 }
 
-.perspective-event-rail-entry-capability-grid ul {
+.perspective-event-rail-entry-capability-detail-grid ul {
   display: grid;
   gap: 4px;
   margin: 6px 0 0;
   padding-left: 18px;
 }
 
-.perspective-event-rail-entry-capability-grid li {
+.perspective-event-rail-entry-capability-detail-grid li {
   color: #475569;
   font-size: 0.74rem;
   line-height: 1.28;
@@ -7041,11 +7174,16 @@ h1 {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .perspective-compact-authority-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .perspective-substrate-field-grid,
   .perspective-substrate-authority-list,
   .perspective-preview-overrides-list article,
   .perspective-formation-switch-list-grid,
   .perspective-event-rail-entry-capability-grid,
+  .perspective-event-rail-entry-capability-detail-grid,
   .perspective-event-rail-entry-meta {
     grid-template-columns: minmax(0, 1fr);
   }
