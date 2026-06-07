@@ -88,6 +88,12 @@ const eventRailNodeEdgeSmokeFile =
   "scripts/smoke-cockpit-perspective-event-rail-node-edge.mjs";
 const eventRailNodeEdgeBrowserReportFile =
   "reports/browser/2026-06-07-perspective-event-rail-node-edge.md";
+const nodeCopyHumanizationDoc =
+  "docs/PERSPECTIVE_NODE_COPY_HUMANIZATION_V0_1.md";
+const nodeCopyHumanizationSmokeFile =
+  "scripts/smoke-perspective-node-copy-humanization.mjs";
+const nodeCopyHumanizationBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-node-copy-humanization.md";
 const formationSwitchAcknowledgementHelperFile =
   "lib/perspective-ingest/formation-switch-acknowledgement.ts";
 const formationSwitchOverlayDoc =
@@ -185,6 +191,9 @@ const allowedChangedFiles = new Set([
   eventRailNodeEdgeDoc,
   eventRailNodeEdgeSmokeFile,
   eventRailNodeEdgeBrowserReportFile,
+  nodeCopyHumanizationDoc,
+  nodeCopyHumanizationSmokeFile,
+  nodeCopyHumanizationBrowserReportFile,
   formationSwitchAcknowledgementHelperFile,
   formationSwitchOverlayDoc,
   formationSwitchOverlaySmokeFile,

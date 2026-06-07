@@ -33,6 +33,12 @@ const eventRailNodeEdgeBrowserReportFile =
   "reports/browser/2026-06-07-perspective-event-rail-node-edge.md";
 const eventRailNodeEdgeSmokeFile =
   "scripts/smoke-cockpit-perspective-event-rail-node-edge.mjs";
+const nodeCopyHumanizationDocFile =
+  "docs/PERSPECTIVE_NODE_COPY_HUMANIZATION_V0_1.md";
+const nodeCopyHumanizationBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-node-copy-humanization.md";
+const nodeCopyHumanizationSmokeFile =
+  "scripts/smoke-perspective-node-copy-humanization.mjs";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const builder = readFileSync(builderFile, "utf8");
@@ -54,10 +60,14 @@ const allowedChangedFiles = new Set([
   primaryAdvancedDiagnosticsBrowserReportFile,
   eventRailNodeEdgeDocFile,
   eventRailNodeEdgeBrowserReportFile,
+  nodeCopyHumanizationDocFile,
+  nodeCopyHumanizationBrowserReportFile,
+  "lib/perspective-ingest/episode-to-constellation-packet.ts",
   smokeFile,
   copyToAgentDogfoodSmokeFile,
   primaryAdvancedDiagnosticsSmokeFile,
   eventRailNodeEdgeSmokeFile,
+  nodeCopyHumanizationSmokeFile,
   "docs/PERSPECTIVE_AUTHORITY_COPY_COLLAPSE_V0_1.md",
   "reports/browser/2026-06-07-perspective-authority-copy-collapse.md",
   "scripts/smoke-cockpit-perspective-authority-copy-collapse.mjs",
@@ -69,6 +79,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
+  "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
 ]);
 
 const requiredSectionHeaders = [

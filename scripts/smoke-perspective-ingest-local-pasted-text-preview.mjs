@@ -177,7 +177,7 @@ function assertAdapterAndPacketShape() {
     "manual_pasted_text",
     "manual:pasted_text",
     "buildManualPastedTextConstellation",
-    "Manual pasted text source",
+    "Pasted source text",
     "Work context",
     "Validation/report",
     "work_context",

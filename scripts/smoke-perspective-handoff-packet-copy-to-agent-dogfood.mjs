@@ -35,10 +35,17 @@ const eventRailNodeEdgeBrowserReportFile =
   "reports/browser/2026-06-07-perspective-event-rail-node-edge.md";
 const eventRailNodeEdgeSmokeFile =
   "scripts/smoke-cockpit-perspective-event-rail-node-edge.mjs";
+const nodeCopyHumanizationDocFile =
+  "docs/PERSPECTIVE_NODE_COPY_HUMANIZATION_V0_1.md";
+const nodeCopyHumanizationBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-node-copy-humanization.md";
+const nodeCopyHumanizationSmokeFile =
+  "scripts/smoke-perspective-node-copy-humanization.mjs";
 
 const allowedChangedFiles = new Set([
   "app/globals.css",
   "components/augnes-cockpit.tsx",
+  "lib/perspective-ingest/episode-to-constellation-packet.ts",
   docFile,
   dogfoodReportFile,
   browserReportFile,
@@ -53,6 +60,9 @@ const allowedChangedFiles = new Set([
   eventRailNodeEdgeDocFile,
   eventRailNodeEdgeBrowserReportFile,
   eventRailNodeEdgeSmokeFile,
+  nodeCopyHumanizationDocFile,
+  nodeCopyHumanizationBrowserReportFile,
+  nodeCopyHumanizationSmokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
@@ -62,6 +72,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-capsule-contract.mjs",
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
+  "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
 ]);
 
 const forbiddenChangedPrefixes = [
@@ -71,6 +82,9 @@ const forbiddenChangedPrefixes = [
   "lib/",
   "migrations/",
 ];
+const allowedRuntimeSurfaceFiles = new Set([
+  "lib/perspective-ingest/episode-to-constellation-packet.ts",
+]);
 
 const inspectedFiles = [
   packageJsonFile,
@@ -217,6 +231,8 @@ function assertChangedFilesBoundary() {
   }
 
   for (const file of uniqueSorted([...result.files, ...untrackedFiles])) {
+    if (allowedRuntimeSurfaceFiles.has(file)) continue;
+
     assert(
       !forbiddenChangedPrefixes.some((prefix) => file.startsWith(prefix)),
       `dogfood smoke companion boundary must not change runtime/persistence/provider surfaces: ${file}`,
