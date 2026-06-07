@@ -108,6 +108,14 @@ const handoffPacketStructureReviewSmokeFile =
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs";
 const handoffPacketStructureReviewBrowserReportFile =
   "reports/browser/2026-06-07-perspective-handoff-packet-structure-review.md";
+const handoffPacketCopyToAgentDogfoodDoc =
+  "docs/PERSPECTIVE_HANDOFF_PACKET_COPY_TO_AGENT_DOGFOOD_V0_1.md";
+const handoffPacketCopyToAgentDogfoodSmokeFile =
+  "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs";
+const handoffPacketCopyToAgentDogfoodBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
+const handoffPacketCopyToAgentDogfoodReportFile =
+  "reports/dogfood/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
 
 const inspectedFiles = [
   contractDoc,
@@ -169,6 +177,10 @@ const allowedChangedFiles = new Set([
   handoffPacketStructureReviewDoc,
   handoffPacketStructureReviewSmokeFile,
   handoffPacketStructureReviewBrowserReportFile,
+  handoffPacketCopyToAgentDogfoodDoc,
+  handoffPacketCopyToAgentDogfoodSmokeFile,
+  handoffPacketCopyToAgentDogfoodBrowserReportFile,
+  handoffPacketCopyToAgentDogfoodReportFile,
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 
