@@ -4256,6 +4256,7 @@ function PerspectiveTab({
     selectedConstellationNextActionId,
     setSelectedConstellationNextActionId,
   ] = useState<string | null>(null);
+  const [advancedDiagnosticsOpen, setAdvancedDiagnosticsOpen] = useState(false);
   const preview = temporalPreview?.preview ?? null;
   const evidenceRecordCount =
     (evidencePack?.verification_trace.commands_run.length ?? 0) +
@@ -7722,7 +7723,53 @@ function PerspectiveTab({
           </aside>
         </section>
 
-        <details className="perspective-formation-archive-drawer">
+        <section
+          className="perspective-advanced-diagnostics-shell"
+          aria-label="Advanced Diagnostics"
+          data-augnes-region="advanced-diagnostics"
+          data-augnes-diagnostics-state={
+            advancedDiagnosticsOpen ? "open" : "collapsed"
+          }
+          data-augnes-authority="read-only local-only preview-only"
+          data-augnes-external-calls="false"
+          data-augnes-persistence="false"
+          data-augnes-codex-execution="false"
+        >
+          <button
+            type="button"
+            className="perspective-advanced-diagnostics-toggle"
+            aria-expanded={advancedDiagnosticsOpen}
+            aria-controls="perspective-advanced-diagnostics-body"
+            onClick={() =>
+              setAdvancedDiagnosticsOpen((currentOpen) => !currentOpen)
+            }
+          >
+            <span>
+              <strong>Advanced Diagnostics</strong>
+              <small>
+                Frame, evidence, tensions, route previews, ingest graph, and
+                read-only debug surfaces
+              </small>
+            </span>
+            <span className="perspective-advanced-diagnostics-badges">
+              <em>read-only</em>
+              <em>local diagnostics</em>
+            </span>
+            <span className="perspective-advanced-diagnostics-indicator">
+              {advancedDiagnosticsOpen ? "Collapse" : "Open"}
+            </span>
+          </button>
+
+          {advancedDiagnosticsOpen ? (
+            <div
+              id="perspective-advanced-diagnostics-body"
+              className="perspective-advanced-diagnostics-body"
+            >
+              {/* Diagnostic groups: Formation/Archive; Advanced Boundaries/Section Links; Frame/Ledger; Evidence/Tensions; Boundary/Next; Route Preview; Ingest Graph; Constellation Preview; Research/Temporal. */}
+        <details
+          className="perspective-formation-archive-drawer"
+          data-augnes-diagnostics-group="formation-archive"
+        >
           <summary>
             <span>Formation / Archive</span>
             <small>
@@ -8048,9 +8095,11 @@ function PerspectiveTab({
             </section>
           </div>
         </details>
-      </section>
 
-      <details className="perspective-surface-details">
+      <details
+        className="perspective-surface-details"
+        data-augnes-diagnostics-group="advanced-boundaries"
+      >
         <summary>
           <span>Advanced observatory boundaries</span>
           <small>read-only authority plus section links</small>
@@ -8069,7 +8118,7 @@ function PerspectiveTab({
           review artifact write authority.
         </BoundaryNote>
 
-        <nav className="perspective-anchor-nav" aria-label="Perspective sections">
+        <nav className="perspective-anchor-nav" aria-label="Advanced section links">
           <a href="#perspective-constellation-workspace">Workspace</a>
           <a href="#perspective-frame">Frame</a>
           <a href="#perspective-ledger-basis">Ledger Basis</a>
@@ -8082,10 +8131,11 @@ function PerspectiveTab({
         </nav>
       </details>
 
-      <div className="perspective-grid">
+      <div className="perspective-grid perspective-advanced-diagnostics-grid">
         <section
           className="cockpit-surface-card perspective-section perspective-frame-section perspective-frame-hero"
           id="perspective-frame"
+          data-augnes-diagnostics-group="frame-ledger"
         >
           <div className="perspective-hero-heading">
             <div>
@@ -8272,6 +8322,7 @@ function PerspectiveTab({
         <section
           className="cockpit-surface-card perspective-section perspective-ledger-section"
           id="perspective-ledger-basis"
+          data-augnes-diagnostics-group="frame-ledger"
         >
           <PanelHeader
             eyebrow="Ledger Basis"
@@ -8344,6 +8395,7 @@ function PerspectiveTab({
         <section
           className="cockpit-surface-card perspective-section perspective-evidence-section"
           id="perspective-evidence"
+          data-augnes-diagnostics-group="evidence-tensions"
         >
           <PanelHeader
             eyebrow="Evidence"
@@ -8527,6 +8579,7 @@ function PerspectiveTab({
         <section
           className="cockpit-surface-card perspective-section perspective-tensions-section"
           id="perspective-tensions"
+          data-augnes-diagnostics-group="evidence-tensions"
         >
           <PanelHeader
             eyebrow="Tensions"
@@ -8619,6 +8672,7 @@ function PerspectiveTab({
         <section
           className="cockpit-surface-card perspective-section perspective-boundary-card"
           id="perspective-boundary-next"
+          data-augnes-diagnostics-group="boundary-next"
         >
           <PanelHeader
             eyebrow="Boundary / Next"
@@ -8690,7 +8744,7 @@ function PerspectiveTab({
                 boundaries={perspectiveSnapshot?.authority_boundaries ?? null}
               />
             </article>
-            <article>
+            <article data-augnes-diagnostics-group="research-temporal">
               <h3>research_diagnostics</h3>
               {snapshotResearch ? (
                 <ResearchDiagnosticsPanel diagnostics={snapshotResearch} />
@@ -8749,6 +8803,7 @@ function PerspectiveTab({
           className="cockpit-surface-card perspective-section project-constellation-route-preview-section"
           id="perspective-constellation-route-preview"
           aria-label="Cockpit local-only Project Constellation route-only read preview"
+          data-augnes-diagnostics-group="route-preview"
         >
           <PanelHeader
             eyebrow="Local-only route preview"
@@ -9079,6 +9134,7 @@ function PerspectiveTab({
           className="cockpit-surface-card perspective-section perspective-ingest-constellation-section"
           id="perspective-ingest-constellation-preview"
           aria-label="Perspective Ingest Constellation preview"
+          data-augnes-diagnostics-group="ingest-graph"
         >
           <PanelHeader
             eyebrow="Ingest graph"
@@ -9547,6 +9603,7 @@ function PerspectiveTab({
           className="cockpit-surface-card perspective-section project-constellation-preview-section"
           id="perspective-constellation-preview"
           aria-label="Project Constellation read-only preview"
+          data-augnes-diagnostics-group="constellation-preview"
         >
           <PanelHeader
             eyebrow="Constellation preview"
@@ -10025,6 +10082,10 @@ function PerspectiveTab({
           </div>
         </section>
       </div>
+            </div>
+          ) : null}
+        </section>
+      </section>
     </section>
   );
 }

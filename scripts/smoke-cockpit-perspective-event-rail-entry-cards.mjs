@@ -16,6 +16,7 @@ const doc = readFileSync(docFile, "utf8");
 const allowedChangedFiles = new Set([
   "app/globals.css",
   "components/augnes-cockpit.tsx",
+  "docs/PERSPECTIVE_PRIMARY_ADVANCED_DIAGNOSTICS_COLLAPSE_V0_1.md",
   "docs/PERSPECTIVE_FORMATION_SWITCH_OVERLAY_V0_1.md",
   "docs/PERSPECTIVE_HANDOFF_PACKET_COPY_TO_AGENT_DOGFOOD_V0_1.md",
   "docs/PERSPECTIVE_HANDOFF_PACKET_STRUCTURE_REVIEW_V0_1.md",
@@ -25,6 +26,7 @@ const allowedChangedFiles = new Set([
   "lib/perspective-ingest/perspective-unit-preview.ts",
   "lib/perspective-ingest/formation-switch-acknowledgement.ts",
   "package.json",
+  "reports/browser/2026-06-07-perspective-primary-advanced-diagnostics-collapse.md",
   "reports/browser/2026-06-07-perspective-formation-switch-overlay.md",
   "reports/browser/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md",
   "reports/browser/2026-06-07-perspective-handoff-packet-structure-review.md",
@@ -35,6 +37,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",
+  "scripts/smoke-cockpit-perspective-primary-advanced-diagnostics-collapse.mjs",
   "scripts/smoke-cockpit-perspective-scope-handler-cleanup.mjs",
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
@@ -144,7 +147,7 @@ for (const forbidden of [
 const eventRailSource = extractBetween(
   cockpit,
   "const perspectiveConstellationEventRail = [",
-  '<details className="perspective-formation-archive-drawer">',
+  'className="perspective-advanced-diagnostics-shell"',
 );
 for (const forbidden of [
   "Octokit",
