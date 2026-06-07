@@ -12,6 +12,14 @@ const docFile = "docs/PERSPECTIVE_HANDOFF_PACKET_STRUCTURE_REVIEW_V0_1.md";
 const smokeFile = "scripts/smoke-perspective-handoff-packet-structure-review.mjs";
 const browserReportFile =
   "reports/browser/2026-06-07-perspective-handoff-packet-structure-review.md";
+const copyToAgentDogfoodDocFile =
+  "docs/PERSPECTIVE_HANDOFF_PACKET_COPY_TO_AGENT_DOGFOOD_V0_1.md";
+const copyToAgentDogfoodReportFile =
+  "reports/dogfood/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
+const copyToAgentDogfoodBrowserReportFile =
+  "reports/browser/2026-06-07-perspective-handoff-packet-copy-to-agent-dogfood.md";
+const copyToAgentDogfoodSmokeFile =
+  "scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const builder = readFileSync(builderFile, "utf8");
@@ -24,7 +32,11 @@ const allowedChangedFiles = new Set([
   docFile,
   packageFile,
   browserReportFile,
+  copyToAgentDogfoodDocFile,
+  copyToAgentDogfoodReportFile,
+  copyToAgentDogfoodBrowserReportFile,
   smokeFile,
+  copyToAgentDogfoodSmokeFile,
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-overlay-focus-agent-semantics.mjs",
