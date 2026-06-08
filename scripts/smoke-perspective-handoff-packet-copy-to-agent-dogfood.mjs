@@ -63,6 +63,9 @@ const allowedChangedFiles = new Set([
   nodeCopyHumanizationDocFile,
   nodeCopyHumanizationBrowserReportFile,
   nodeCopyHumanizationSmokeFile,
+  "docs/PERSPECTIVE_WORKBENCH_TEMPORAL_UNDERLAY_V0_1.md",
+  "reports/browser/2026-06-07-perspective-workbench-temporal-underlay.md",
+  "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
   "scripts/smoke-cockpit-perspective-event-rail-entry-cards.mjs",
   "scripts/smoke-cockpit-perspective-formation-switch-overlay.mjs",
   "scripts/smoke-cockpit-perspective-ia-core.mjs",
@@ -73,6 +76,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
 
 const forbiddenChangedPrefixes = [
