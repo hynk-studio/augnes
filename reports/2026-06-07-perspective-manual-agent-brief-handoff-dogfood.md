@@ -8,7 +8,8 @@ Date: 2026-06-08
 
 ## Commit
 
-Pending final commit.
+Implementation commit:
+`3c5837a8300ea96e547a0380936ea1c20ef24d13`.
 
 ## Preflight Result
 
