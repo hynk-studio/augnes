@@ -62,6 +62,7 @@ assert.equal(
 assertBuilderSourceIsPureLocal();
 assertDocsAndReport();
 assertReadyCandidate();
+assertEmptyPointerRefsAreOmitted();
 assertFailedCheckCandidateNeedsReview();
 assertGapCandidateNeedsReview();
 assertPlaceholderSkippedCheckCandidateNeedsReview();
@@ -180,6 +181,63 @@ function assertReadyCandidate() {
   assert.deepEqual(candidate.user_core_decision_questions, []);
   assertAuthority(candidate);
   assertNoForbiddenPayloadText("ready candidate", candidate);
+}
+
+function assertEmptyPointerRefsAreOmitted() {
+  const bundle = buildPerspectiveFormationInputBundle({
+    scope: "project:augnes",
+    work_id: "AG-perspective-candidate-empty-pointer-refs",
+    changed_files_summary:
+      "Preserves upstream empty refs while omitting them from candidate pointers.",
+    evidence_row_refs: ["", "evidence:row:valid"],
+    proof_only_action_refs: ["   "],
+    work_event_refs: ["work:event:valid"],
+    session_trace_refs: [""],
+    existing_perspective_refs: ["perspective:valid"],
+  });
+
+  assert.deepEqual(bundle.verification_basis.evidence_row_refs, [
+    "",
+    "evidence:row:valid",
+  ]);
+  assert.deepEqual(bundle.verification_basis.proof_only_action_refs, ["   "]);
+  assert.deepEqual(bundle.trace_basis.work_event_refs, ["work:event:valid"]);
+  assert.deepEqual(bundle.trace_basis.session_trace_refs, [""]);
+  assert.deepEqual(bundle.perspective_basis.existing_perspective_refs, [
+    "perspective:valid",
+  ]);
+
+  const candidate = buildPerspectiveCandidateFromFormationInputBundle(bundle);
+
+  assert.deepEqual(
+    candidate.evidence_pointers.map((pointer) => pointer.ref),
+    [
+      "evidence:row:valid",
+      "work:event:valid",
+      "perspective:valid",
+    ],
+  );
+  assert.deepEqual(
+    candidate.evidence_pointers.map((pointer) => pointer.pointer_kind),
+    [
+      "evidence_row_ref",
+      "work_event_ref",
+      "perspective_ref",
+    ],
+  );
+  assert(
+    candidate.evidence_pointers.every((pointer) => pointer.ref.trim() !== ""),
+    "candidate evidence pointers must not include empty or whitespace refs",
+  );
+  assert.equal(
+    candidate.evidence_pointers.some(
+      (pointer) =>
+        pointer.pointer_kind === "proof_only_action_ref" ||
+        pointer.pointer_kind === "session_trace_ref",
+    ),
+    false,
+    "empty proof and session refs must not produce candidate pointers",
+  );
 }
 
 function assertFailedCheckCandidateNeedsReview() {
@@ -371,6 +429,8 @@ function assertDocsAndReport() {
     "deterministic pure local builder fixture",
     "non-committed Perspective Candidate",
     "pointer-only evidence, proof, trace, and existing Perspective refs",
+    "Empty pointer refs may be preserved upstream",
+    "omitted from candidate `evidence_pointers`",
     "failed checks become unresolved tensions",
     "skipped checks without concrete reasons remain preserved",
     "does not read files",
@@ -385,6 +445,9 @@ function assertDocsAndReport() {
   assertContainsAll(reportText, [
     "Summary",
     "Why This Follows PR #464",
+    "Review Fix",
+    "filters empty refs",
+    "candidate pointer material",
     "Files Changed",
     "Authority Boundary",
     "Validation Plan",

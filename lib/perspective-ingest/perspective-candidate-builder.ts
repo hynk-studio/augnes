@@ -186,22 +186,33 @@ function buildEvidencePointers(
   bundle: PerspectiveFormationInputBundleV0,
 ): PerspectiveCandidateEvidencePointerV0[] {
   return [
-    ...bundle.verification_basis.evidence_row_refs.map((ref) =>
-      buildPointer("evidence_row_ref", ref),
+    ...buildPointerList(
+      "evidence_row_ref",
+      bundle.verification_basis.evidence_row_refs,
     ),
-    ...bundle.verification_basis.proof_only_action_refs.map((ref) =>
-      buildPointer("proof_only_action_ref", ref),
+    ...buildPointerList(
+      "proof_only_action_ref",
+      bundle.verification_basis.proof_only_action_refs,
     ),
-    ...bundle.trace_basis.work_event_refs.map((ref) =>
-      buildPointer("work_event_ref", ref),
+    ...buildPointerList("work_event_ref", bundle.trace_basis.work_event_refs),
+    ...buildPointerList(
+      "session_trace_ref",
+      bundle.trace_basis.session_trace_refs,
     ),
-    ...bundle.trace_basis.session_trace_refs.map((ref) =>
-      buildPointer("session_trace_ref", ref),
-    ),
-    ...bundle.perspective_basis.existing_perspective_refs.map((ref) =>
-      buildPointer("perspective_ref", ref),
+    ...buildPointerList(
+      "perspective_ref",
+      bundle.perspective_basis.existing_perspective_refs,
     ),
   ];
+}
+
+function buildPointerList(
+  pointerKind: PerspectiveCandidateEvidencePointerKindV0,
+  refs: readonly string[],
+): PerspectiveCandidateEvidencePointerV0[] {
+  return refs
+    .filter(hasText)
+    .map((ref) => buildPointer(pointerKind, ref));
 }
 
 function buildPointer(

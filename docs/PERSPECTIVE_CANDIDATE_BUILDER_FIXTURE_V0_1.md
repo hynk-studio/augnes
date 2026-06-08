@@ -61,6 +61,10 @@ The output is a `perspective_candidate.v0.1` object with:
 This output is not committed state, not proof, not evidence, not readiness, not
 approval, and not merge authority.
 
+Empty pointer refs may be preserved upstream by the Formation Input Bundle, but
+they are omitted from candidate `evidence_pointers`. Whitespace-only refs are
+also omitted so missing refs do not appear as candidate pointer material.
+
 ## Readiness and Review Quality
 
 The candidate preserves input bundle readiness while adding candidate-level

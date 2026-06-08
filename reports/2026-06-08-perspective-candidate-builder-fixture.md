@@ -17,6 +17,16 @@ they include concrete reasons. This PR implements the next ladder step:
 formation input becomes a deterministic, non-committed candidate object without
 adding routes, persistence, provider calls, UI, or decision authority.
 
+## Review Fix
+
+Review feedback found that empty or whitespace-only refs preserved in upstream
+Formation Input Bundles could become empty candidate `evidence_pointers`. The
+builder now filters empty refs from `evidence_row_refs`,
+`proof_only_action_refs`, `work_event_refs`, `session_trace_refs`, and
+`existing_perspective_refs` before creating candidate pointers. Upstream bundle
+semantics remain preserved, but missing refs no longer appear as candidate
+pointer material.
+
 ## Files Changed
 
 - `lib/perspective-ingest/perspective-candidate-builder.ts`
@@ -76,7 +86,6 @@ readiness, not approval, and not merge authority.
 
 ## Tests Run
 
-- `AUGNES_API_BASE_URL=http://localhost:3000 CODEX_SCOPE=project:augnes npm run codex:read-brief`: PASS
 - `npm run typecheck`: PASS
 - `npm run smoke:perspective-candidate-builder-fixture`: PASS
 - `npm run smoke:perspective-formation-input-bundle-builder`: PASS
@@ -85,10 +94,12 @@ readiness, not approval, and not merge authority.
 - `npm run smoke:perspective-temporal-spatial-projection-builders`: PASS
 - `npm run smoke:perspective-ingest-constellation-preview`: PASS
 - `git diff --check`: PASS
+- `git diff --cached --check`: PASS
 - `npm run build`: PASS
 
 ## Skipped Checks
 
+- `AUGNES_API_BASE_URL=http://localhost:3000 CODEX_SCOPE=project:augnes npm run codex:read-brief`: skipped because the local runtime returned `CODEX_READ_BRIEF_RUNTIME_UNAVAILABLE`.
 - `npm run lint`: skipped because `package.json` does not define a lint script.
 - `npm test`: skipped because `package.json` does not define a test script.
 - Browser validation: skipped because this is a pure local builder with no UI
@@ -102,7 +113,9 @@ The main risk is over-promoting candidate material into committed state,
 approval, proof, evidence, readiness, or merge authority. The builder returns
 explicit non-committed authority, pointer-only refs, raw payload exclusion, and
 false authority flags. Placeholder skipped checks remain preserved but surface
-as unresolved tensions when concrete reasons are missing.
+as unresolved tensions when concrete reasons are missing. Empty upstream pointer
+refs remain upstream input material only and are omitted from candidate
+`evidence_pointers`.
 
 ## Next Recommended PR Title
 
