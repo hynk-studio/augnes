@@ -89,6 +89,11 @@ const allowedChangedFiles = new Set([
   ingressModelSmokeFile,
   projectionBuildersSmokeFile,
   workbenchSmokeFile,
+  "scripts/dogfood-perspective-reviewed-codex-template-mock-pr-task.mjs",
+  "scripts/smoke-perspective-reviewed-codex-template-mock-pr-eval.mjs",
+  "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_MOCK_PR_EVAL_V0_1.md",
+  "reports/2026-06-07-perspective-reviewed-codex-template-mock-pr-eval.md",
+  "reports/dogfood/2026-06-07-perspective-reviewed-codex-template-mock-pr-task.md",
 ]);
 
 assert.equal(
