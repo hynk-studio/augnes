@@ -142,6 +142,8 @@ Every candidate includes an authority boundary with explicit fields:
 
 Default model helpers keep external calls, persistence, graph DB writes, proof/evidence/readiness writes, Codex execution, GitHub mutation, OAuth token storage, and raw private content storage false.
 
+Preview and episode-candidate readiness requires `local_only=true` and `read_only=true` in addition to no external calls, no persistence, no graph DB writes, no proof/evidence/readiness writes, no Codex execution, no GitHub mutation, no OAuth token storage, and no raw private content storage.
+
 ## OAuth Rules
 
 OAuth sources are future ingress providers. This PR does not implement OAuth.

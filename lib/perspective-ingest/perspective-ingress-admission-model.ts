@@ -273,6 +273,13 @@ export function assertPerspectiveIngressCandidateHasNoRawAuthority(
   candidate: PerspectiveIngressSourceArtifactCandidateV0,
 ): true {
   const boundary = candidate.authority_boundary;
+  if (!boundary.local_only) {
+    throw new Error("Perspective ingress candidate requires local_only boundary");
+  }
+  if (!boundary.read_only) {
+    throw new Error("Perspective ingress candidate requires read_only boundary");
+  }
+
   const forbiddenFlags: (keyof PerspectiveIngressAuthorityBoundaryV0)[] = [
     "external_calls_performed",
     "persistence_performed",
@@ -302,6 +309,8 @@ export function getPerspectiveIngressFormationReadiness(
   const redactionAllowsPreview =
     candidate.redaction_state === "redacted" ||
     candidate.redaction_state === "not_applicable";
+  const hasLocalOnlyBoundary = boundary.local_only === true;
+  const hasReadOnlyBoundary = boundary.read_only === true;
   const noRawAuthority =
     !boundary.external_calls_performed &&
     !boundary.persistence_performed &&
@@ -314,6 +323,8 @@ export function getPerspectiveIngressFormationReadiness(
 
   if (!hasBoundedSummary) reasons.push("bounded summary required");
   if (!redactionAllowsPreview) reasons.push("redaction must be complete or not applicable");
+  if (!hasLocalOnlyBoundary) reasons.push("local-only boundary required");
+  if (!hasReadOnlyBoundary) reasons.push("read-only boundary required");
   if (!noRawAuthority) reasons.push("raw authority flags must all be false");
   if (OAUTH_INGRESS_KINDS.has(candidate.ingress_kind)) {
     reasons.push("OAuth candidates require separate admission before preview");
@@ -325,7 +336,12 @@ export function getPerspectiveIngressFormationReadiness(
     reasons.push("agent-submitted artifact is untrusted by default");
   }
 
-  const eligibleForEpisodeCandidate = hasBoundedSummary && redactionAllowsPreview && noRawAuthority;
+  const eligibleForEpisodeCandidate =
+    hasBoundedSummary &&
+    redactionAllowsPreview &&
+    hasLocalOnlyBoundary &&
+    hasReadOnlyBoundary &&
+    noRawAuthority;
   const eligibleForPreview =
     eligibleForEpisodeCandidate &&
     !OAUTH_INGRESS_KINDS.has(candidate.ingress_kind) &&

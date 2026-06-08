@@ -340,6 +340,49 @@ const tokenCandidate = {
 };
 assert.equal(getPerspectiveIngressFormationReadiness(tokenCandidate).eligible_for_preview, false);
 
+const nonLocalCandidate = buildPerspectiveIngressSourceArtifactCandidate({
+  ingress_kind: "fixture",
+  source_label: "Non-local fixture candidate",
+  source_ref: "fixture:non-local",
+  bounded_summary: "Public-safe fixture summary with a non-local boundary.",
+  authority_boundary: {
+    local_only: false,
+  },
+});
+const nonLocalReadiness = getPerspectiveIngressFormationReadiness(nonLocalCandidate);
+assert.equal(nonLocalCandidate.eligible_for_preview, false);
+assert.equal(nonLocalReadiness.eligible_for_preview, false);
+assert(
+  nonLocalReadiness.reasons.includes("local-only boundary required"),
+  "non-local candidate readiness must explain local-only requirement",
+);
+assert.throws(
+  () => assertPerspectiveIngressCandidateHasNoRawAuthority(nonLocalCandidate),
+  /local_only/,
+);
+
+const nonReadOnlyCandidate = buildPerspectiveIngressSourceArtifactCandidate({
+  ingress_kind: "manual_pasted_text",
+  source_label: "Writable manual candidate",
+  source_ref: "manual:writable",
+  bounded_summary: "Local bounded summary with a writable boundary.",
+  authority_boundary: {
+    read_only: false,
+  },
+});
+const nonReadOnlyReadiness =
+  getPerspectiveIngressFormationReadiness(nonReadOnlyCandidate);
+assert.equal(nonReadOnlyCandidate.eligible_for_preview, false);
+assert.equal(nonReadOnlyReadiness.eligible_for_preview, false);
+assert(
+  nonReadOnlyReadiness.reasons.includes("read-only boundary required"),
+  "writable candidate readiness must explain read-only requirement",
+);
+assert.throws(
+  () => assertPerspectiveIngressCandidateHasNoRawAuthority(nonReadOnlyCandidate),
+  /read_only/,
+);
+
 const projection = summarizePerspectiveIngressCandidateForFormation(fixtureWithSummary);
 assert.equal(
   projection.projection_version,
