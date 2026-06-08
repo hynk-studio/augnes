@@ -70,9 +70,13 @@ const allowedChangedFiles = new Set([
   "reports/2026-06-07-perspective-local-manual-ingress-admission-preview.md",
   "scripts/smoke-perspective-local-manual-ingress-admission-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
+  "lib/perspective-ingest/perspective-agent-brief.ts",
   "docs/PERSPECTIVE_INGRESS_ADMISSION_OBSERVATORY_SUMMARY_V0_1.md",
   "reports/browser/2026-06-07-perspective-ingress-admission-observatory-summary.md",
   "scripts/smoke-cockpit-perspective-ingress-admission-observatory-summary.mjs",
+  "docs/PERSPECTIVE_AGENT_BRIEF_MANUAL_INGRESS_CONTEXT_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-manual-ingress-context.md",
+  "scripts/smoke-perspective-agent-brief-manual-ingress-context.mjs",
 ]);
 
 assert.equal(

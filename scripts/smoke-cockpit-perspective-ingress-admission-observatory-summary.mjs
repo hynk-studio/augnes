@@ -27,6 +27,8 @@ const typeFile = "types/perspective-ingest-constellation-preview.ts";
 const agentBriefRouteFile =
   "app/api/augnes/read/perspective-agent-brief/route.ts";
 const agentBriefHelperFile = "lib/readonly-api/perspective-agent-brief.ts";
+const agentBriefBuilderFile =
+  "lib/perspective-ingest/perspective-agent-brief.ts";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const cockpitText = readFileSync(cockpitFile, "utf8");
@@ -49,6 +51,10 @@ const allowedChangedFiles = new Set([
   ingressModelSmokeFile,
   agentBriefSmokeFile,
   projectionBuildersSmokeFile,
+  agentBriefBuilderFile,
+  "docs/PERSPECTIVE_AGENT_BRIEF_MANUAL_INGRESS_CONTEXT_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-manual-ingress-context.md",
+  "scripts/smoke-perspective-agent-brief-manual-ingress-context.mjs",
 ]);
 
 assert.equal(
