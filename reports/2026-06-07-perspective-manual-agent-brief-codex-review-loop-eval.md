@@ -42,9 +42,11 @@ Selected node used for the selected packet: node.manual_pasted_text.packet
 | Scope clarity | packet states temporal context | PASS |
 | Scope clarity | packet states ingress context | PASS |
 | Scope clarity | packet states tensions and next actions | PASS |
-| Authority clarity | packet says review/planning only | PASS |
+| Authority clarity | packet says human-reviewed workflow only | PASS |
 | Authority clarity | packet says not Formation authority | PASS |
-| Authority clarity | packet says no Codex execution | PASS |
+| Authority clarity | packet says Codex work requires scoped user prompt | PASS |
+| Authority clarity | packet says it does not grant execution by itself | PASS |
+| Authority clarity | packet says no merge/deploy/publish authority | PASS |
 | Authority clarity | packet says no GitHub mutation | PASS |
 | Authority clarity | packet says no persistence | PASS |
 | Authority clarity | packet says no graph DB | PASS |
@@ -56,7 +58,7 @@ Selected node used for the selected packet: node.manual_pasted_text.packet
 | Codex review-loop usefulness | packet is copy-ready | PASS |
 | Codex review-loop usefulness | packet is concise enough for a prompt | PASS |
 | Codex review-loop usefulness | packet does not ask Codex to merge | PASS |
-| Codex review-loop usefulness | packet does not ask Codex to call providers | PASS |
+| Codex review-loop usefulness | packet forbids provider calls | PASS |
 | Codex review-loop usefulness | packet gives enough context for scoped PR | PASS |
 | Codex review-loop usefulness | packet identifies user review remains required | PASS |
 | Recommended changes | next implementation slice is identified | PASS |
@@ -65,17 +67,17 @@ Selected node used for the selected packet: node.manual_pasted_text.packet
 
 Judgment: PASS
 
-The packet is about right for a first review-loop dogfood: compact enough for a prompt, explicit about authority, and specific enough to preserve scope.
+The refined packet is about right for a review-loop dogfood: compact enough for a prompt, explicit that Codex code/test/open-PR work requires a user-approved scoped prompt, and specific enough to preserve scope.
 
 ## Recommended Changes
 
 - Keep: section order, authority constraints, selected/temporal/ingress context, and raw-value omissions.
-- Change: refine copy for the next implementation slice based on reviewer readability.
+- Change: turn the refined copy into a reviewed reusable prompt template if it continues to read clearly.
 - Defer: product UI exposure, routes, provider calls, GitHub calls, Codex execution, persistence, and external source ingress.
 
 ## Recommended Next Implementation PR
 
-Refine Agent Brief handoff packet copy from dogfood findings
+Add reviewed manual Agent Brief packet template for Codex prompts
 
 ## Tests Run
 

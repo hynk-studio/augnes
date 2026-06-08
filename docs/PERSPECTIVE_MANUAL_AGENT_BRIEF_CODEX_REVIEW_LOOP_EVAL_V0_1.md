@@ -50,4 +50,4 @@ The generated dogfood packet artifact intentionally excludes raw pasted text, ra
 
 Recommended next implementation PR title:
 
-`Refine Agent Brief handoff packet copy from dogfood findings`
+`Add reviewed manual Agent Brief packet template for Codex prompts`

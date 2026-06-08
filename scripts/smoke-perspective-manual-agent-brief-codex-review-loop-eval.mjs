@@ -61,6 +61,10 @@ const allowedChangedFiles = new Set([
   ingressModelSmokeFile,
   projectionBuildersSmokeFile,
   workbenchSmokeFile,
+  "lib/perspective-ingest/perspective-agent-brief-handoff-packet.ts",
+  "docs/PERSPECTIVE_AGENT_BRIEF_HANDOFF_COPY_REFINE_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-handoff-copy-refine.md",
+  "scripts/smoke-perspective-agent-brief-handoff-copy-refine.mjs",
 ]);
 
 assert.equal(
@@ -94,7 +98,7 @@ assertContainsAll(docText, [
   "The user decides whether to merge",
   "Evaluation criteria",
   "Raw-value exclusion",
-  "Refine Agent Brief handoff packet copy from dogfood findings",
+  "Add reviewed manual Agent Brief packet template for Codex prompts",
 ]);
 
 assertContainsAll(dogfoodScriptText, [
@@ -104,6 +108,8 @@ assertContainsAll(dogfoodScriptText, [
   "codex_handoff",
   "human should review before copying into Codex",
   "Codex should open a PR, not merge",
+  "Codex may code, test, and open a PR only when the surrounding prompt explicitly scopes that task.",
+  "Packet does not grant Codex execution authority by itself.",
   "Judgment:",
 ]);
 
@@ -141,7 +147,19 @@ assertContainsAll(packetArtifactText, [
   "preview ready",
   "local/read-only",
   "Summary: omitted for manual ingress packet.",
+  "user-approved Codex PR workflow",
+  "code, test, and open a PR",
+  "surrounding prompt explicitly scopes",
+  "packet does not grant",
+  "No merge/deploy/publish authority.",
+  "ChatGPT reviews the PR.",
+  "User decides whether to merge.",
 ]);
+assert.equal(
+  packetArtifactText.includes("- Do not execute Codex."),
+  false,
+  "dogfood artifact must not include the ambiguous standalone Codex execution ban",
+);
 
 assert.equal(
   packetArtifactText.includes(PERSPECTIVE_MANUAL_AGENT_BRIEF_CODEX_REVIEW_LOOP_INPUT),
@@ -174,7 +192,7 @@ assertContainsAll(reportText, [
   "Raw-value exclusion",
   "Codex review-loop usefulness",
   "Recommended Next Implementation PR",
-  "Refine Agent Brief handoff packet copy from dogfood findings",
+  "Add reviewed manual Agent Brief packet template for Codex prompts",
 ]);
 
 const chatGptPreview = buildPerspectiveAgentBriefSourcePreview({

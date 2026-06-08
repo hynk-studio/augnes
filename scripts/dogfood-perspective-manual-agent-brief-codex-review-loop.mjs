@@ -29,7 +29,7 @@ export const PERSPECTIVE_MANUAL_AGENT_BRIEF_CODEX_REVIEW_LOOP_PACKET_PATH =
 export const PERSPECTIVE_MANUAL_AGENT_BRIEF_CODEX_REVIEW_LOOP_REPORT_PATH =
   "reports/2026-06-07-perspective-manual-agent-brief-codex-review-loop-eval.md";
 export const PERSPECTIVE_MANUAL_AGENT_BRIEF_CODEX_REVIEW_LOOP_NEXT_PR =
-  "Refine Agent Brief handoff packet copy from dogfood findings";
+  "Add reviewed manual Agent Brief packet template for Codex prompts";
 
 export function buildPerspectiveManualAgentBriefCodexReviewLoopDogfood() {
   const preview = buildPerspectiveIngestLocalPreviewReadResponse({
@@ -223,23 +223,39 @@ function evaluateDogfoodPackets({
     ),
     check(
       "Authority clarity",
-      "packet says review/planning only",
-      allPacketText.includes("Use for review/planning only."),
+      "packet says human-reviewed workflow only",
+      allPacketText.includes("Use only inside a human-reviewed workflow."),
     ),
     check(
       "Authority clarity",
       "packet says not Formation authority",
-      allPacketText.includes("Do not treat as Formation authority."),
+      allPacketText.includes("Do not treat this packet as Formation authority."),
     ),
     check(
       "Authority clarity",
-      "packet says no Codex execution",
-      allPacketText.includes("No Codex execution."),
+      "packet says Codex work requires scoped user prompt",
+      allPacketText.includes(
+        "Codex may code, test, and open a PR only when the surrounding prompt explicitly scopes that task.",
+      ),
+    ),
+    check(
+      "Authority clarity",
+      "packet says it does not grant execution by itself",
+      allPacketText.includes(
+        "Packet does not grant Codex execution authority by itself.",
+      ),
+    ),
+    check(
+      "Authority clarity",
+      "packet says no merge/deploy/publish authority",
+      allPacketText.includes("No merge/deploy/publish authority."),
     ),
     check(
       "Authority clarity",
       "packet says no GitHub mutation",
-      allPacketText.includes("No GitHub mutation."),
+      allPacketText.includes(
+        "No GitHub mutation outside explicitly scoped PR creation.",
+      ),
     ),
     check(
       "Authority clarity",
@@ -254,7 +270,7 @@ function evaluateDogfoodPackets({
     check(
       "Authority clarity",
       "packet says no provider/model/API call",
-      allPacketText.includes("No provider/model/API call."),
+      allPacketText.includes("No external provider/model/API calls."),
     ),
     check(
       "Raw-value exclusion",
@@ -297,8 +313,8 @@ function evaluateDogfoodPackets({
     ),
     check(
       "Codex review-loop usefulness",
-      "packet does not ask Codex to call providers",
-      !allPacketText.toLowerCase().includes("call providers"),
+      "packet forbids provider calls",
+      allPacketText.includes("Do not call providers/models/APIs."),
     ),
     check(
       "Codex review-loop usefulness",
@@ -309,7 +325,7 @@ function evaluateDogfoodPackets({
     check(
       "Codex review-loop usefulness",
       "packet identifies user review remains required",
-      allPacketText.includes("Ask the user before implementation."),
+      allPacketText.includes("Ask the user before expanding scope."),
     ),
     check(
       "Recommended changes",
@@ -357,7 +373,7 @@ function renderDogfoodPacketArtifact({ selectedPacket, wholePacket }) {
     "- Codex should open a PR, not merge.",
     "- ChatGPT reviews PR after Codex opens it.",
     "- User decides whether to merge.",
-    "- Packet does not grant execution authority.",
+    "- Packet does not grant authority by itself.",
     "",
     "## Safety Note",
     "",
@@ -416,12 +432,12 @@ function renderDogfoodEvaluationReport({ evaluation, selectedNodeId }) {
     "",
     `Judgment: ${evaluation.judgment}`,
     "",
-    "The packet is about right for a first review-loop dogfood: compact enough for a prompt, explicit about authority, and specific enough to preserve scope.",
+    "The refined packet is about right for a review-loop dogfood: compact enough for a prompt, explicit that Codex code/test/open-PR work requires a user-approved scoped prompt, and specific enough to preserve scope.",
     "",
     "## Recommended Changes",
     "",
     "- Keep: section order, authority constraints, selected/temporal/ingress context, and raw-value omissions.",
-    "- Change: refine copy for the next implementation slice based on reviewer readability.",
+    "- Change: turn the refined copy into a reviewed reusable prompt template if it continues to read clearly.",
     "- Defer: product UI exposure, routes, provider calls, GitHub calls, Codex execution, persistence, and external source ingress.",
     "",
     "## Recommended Next Implementation PR",
