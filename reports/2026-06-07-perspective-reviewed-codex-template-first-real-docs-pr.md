@@ -20,6 +20,7 @@ PASS. PR #459, "Refine reviewed Codex prompt template from mock PR findings", is
 - `reports/2026-06-07-perspective-reviewed-codex-template-first-real-docs-pr.md`
 - `scripts/smoke-perspective-reviewed-codex-template-first-real-docs-pr.mjs`
 - `package.json`
+- Follow-up update: `scripts/smoke-perspective-reviewed-codex-template-first-real-docs-pr.mjs`
 
 ## Real Docs-Only PR Run Summary
 
@@ -30,6 +31,14 @@ The current user prompt explicitly scoped Codex to docs/report/smoke/package cha
 Because the current prompt explicitly scoped this task, Codex may inspect the repo, create the docs/report/smoke/package changes, run validation, push this branch, and open this PR. Codex opened a PR and did not merge.
 
 ChatGPT review remains required. User merge decision remains required. No product/runtime authority was added.
+
+## Follow-Up Fix
+
+PR #460 follow-up fix addressed the P2 review comment that the first-real-docs smoke could silently return an empty changed-file list when base diff collection failed.
+
+The smoke now attempts `origin/main...HEAD`, then `main...HEAD`, then merge-base fallback against `origin/main` or `main`. If no base diff can be resolved, it throws `Unable to collect base diff for first real docs PR boundary smoke`. If the collected changed-file set is empty while running on a committed branch, it throws `First real docs PR boundary smoke collected no changed files`.
+
+The smoke also includes source assertions proving `origin/main...HEAD` is attempted, failures do not silently return `[]`, and both explicit error strings are present.
 
 ## Why This Was Allowed Under Instruction Precedence
 
@@ -108,6 +117,16 @@ ChatGPT review remains required. User merge decision remains required. No produc
 - `git diff --check`: PASS
 - `git diff --cached --check`: PASS
 - `npm run build`: PASS
+
+Follow-up rerun:
+
+- `npm run typecheck`: PASS
+- `npm run smoke:perspective-reviewed-codex-template-first-real-docs-pr`: PASS
+- `npm run smoke:perspective-reviewed-codex-template-copy-refine`: PASS
+- `npm run smoke:perspective-reviewed-codex-template-mock-pr-eval`: PASS
+- `npm run smoke:perspective-reviewed-manual-agent-brief-codex-template`: PASS
+- `git diff --check`: PASS
+- `git diff --cached --check`: PASS
 
 ## Skipped Checks
 

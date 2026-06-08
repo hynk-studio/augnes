@@ -43,6 +43,7 @@ const allowedChangedFiles = new Set([
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
+const smokeText = readFileSync(smokeFile, "utf8");
 const builderText = readFileSync(builderFile, "utf8");
 const cockpitText = readFileSync(cockpitFile, "utf8");
 
@@ -102,6 +103,20 @@ assertContainsAll(reportText, [
   "| Raw values | no raw pasted text or raw admission values | PASS |",
   "| Template | Instruction Precedence preserved | PASS |",
 ]);
+
+assertContainsAll(smokeText, [
+  'gitLinesStrict(["diff", "--name-only", "origin/main...HEAD"])',
+  'gitLinesStrict(["diff", "--name-only", "main...HEAD"])',
+  'gitLineStrict(["merge-base", "HEAD", "origin/main"])',
+  'gitLineStrict(["merge-base", "HEAD", "main"])',
+  "Unable to collect base diff for first real docs PR boundary smoke",
+  "First real docs PR boundary smoke collected no changed files",
+]);
+assert.equal(
+  /catch\s*\{\s*return\s+\[\];\s*\}/.test(smokeText),
+  false,
+  "base diff failures must not silently return []",
+);
 
 assertContainsAll(builderText, [
   "## Instruction Precedence",
@@ -209,23 +224,99 @@ function assertContainsAll(text, snippets) {
 }
 
 function collectChangedFiles() {
-  const workingTreeFiles = gitLines(["diff", "--name-only", "HEAD"]);
-  const branchFiles = gitLines(["diff", "--name-only", "origin/main...HEAD"]);
-  const untrackedFiles = gitLines(["ls-files", "--others", "--exclude-standard"]);
-  return Array.from(
+  const workingTreeFiles = gitLinesOrEmpty(["diff", "--name-only", "HEAD"]);
+  const branchFiles = collectBranchChangedFiles();
+  const untrackedFiles = gitLinesOrEmpty([
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+  ]);
+  const changedFiles = Array.from(
     new Set([...workingTreeFiles, ...branchFiles, ...untrackedFiles]),
   ).filter(Boolean);
+
+  if (changedFiles.length === 0 && isCommittedBranch()) {
+    throw new Error("First real docs PR boundary smoke collected no changed files");
+  }
+
+  return changedFiles;
 }
 
-function gitLines(args) {
-  try {
-    return execFileSync("git", args, { encoding: "utf8" })
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
+function collectBranchChangedFiles() {
+  const originMainFiles = gitLinesStrict([
+    "diff",
+    "--name-only",
+    "origin/main...HEAD",
+  ]);
+  if (originMainFiles) {
+    return originMainFiles;
   }
+
+  const localMainFiles = gitLinesStrict(["diff", "--name-only", "main...HEAD"]);
+  if (localMainFiles) {
+    return localMainFiles;
+  }
+
+  const originMergeBase = gitLineStrict(["merge-base", "HEAD", "origin/main"]);
+  if (originMergeBase) {
+    const originMergeBaseFiles = gitLinesStrict([
+      "diff",
+      "--name-only",
+      `${originMergeBase}...HEAD`,
+    ]);
+    if (originMergeBaseFiles) {
+      return originMergeBaseFiles;
+    }
+  }
+
+  const localMergeBase = gitLineStrict(["merge-base", "HEAD", "main"]);
+  if (localMergeBase) {
+    const localMergeBaseFiles = gitLinesStrict([
+      "diff",
+      "--name-only",
+      `${localMergeBase}...HEAD`,
+    ]);
+    if (localMergeBaseFiles) {
+      return localMergeBaseFiles;
+    }
+  }
+
+  throw new Error(
+    "Unable to collect base diff for first real docs PR boundary smoke",
+  );
+}
+
+function gitLinesOrEmpty(args) {
+  return gitLinesStrict(args) ?? [];
+}
+
+function gitLinesStrict(args) {
+  const output = tryGitOutput(args);
+  return output === null ? null : parseGitLines(output);
+}
+
+function gitLineStrict(args) {
+  const lines = gitLinesStrict(args);
+  return lines?.[0] ?? null;
+}
+
+function isCommittedBranch() {
+  return gitLineStrict(["rev-parse", "--verify", "HEAD"]) !== null;
+}
+
+function tryGitOutput(args) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" });
+  } catch {
+    return null;
+  }
+}
+
+function parseGitLines(output) {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function normalize(text) {
