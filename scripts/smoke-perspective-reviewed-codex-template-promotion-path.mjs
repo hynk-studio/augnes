@@ -38,6 +38,9 @@ const optionalExistingSmokeAllowlists = new Set([
   "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_DOCS_ONLY_MAINTENANCE_CHECKLIST_V0_1.md",
   "reports/2026-06-07-perspective-reviewed-codex-template-second-docs-maintenance.md",
   "scripts/smoke-perspective-reviewed-codex-template-second-docs-maintenance.mjs",
+  "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md",
+  "reports/2026-06-08-perspective-formation-lane-v0-1.md",
+  "scripts/smoke-perspective-formation-lane-v0-1.mjs",
 ]);
 
 const allowedChangedFiles = new Set([
