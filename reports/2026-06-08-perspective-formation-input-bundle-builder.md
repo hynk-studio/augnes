@@ -26,6 +26,15 @@ explicit, safe, and reviewable.
 
 Raw/private/provider/token/source payloads remain forbidden.
 
+## Review Fix
+
+Review feedback found that placeholder skipped checks with empty reasons could
+make a scoped work bundle ready for candidate formation. The builder now counts
+skipped checks as verification material only when `skipped_reason` has concrete
+non-empty text. Empty skipped-check entries remain preserved as bounded input
+material, but they add the readiness reason `skipped checks missing concrete
+reasons` and do not make the bundle ready.
+
 ## Files Changed
 
 - `lib/perspective-ingest/perspective-formation-input-bundle.ts`
@@ -105,7 +114,8 @@ changes.
 Main risk is over-promoting a pure local input bundle into candidate,
 approval, proof, or runtime authority. The builder returns explicit
 non-authoritative flags and keeps output limited to bounded summaries and
-pointer refs.
+pointer refs. The review fix also prevents placeholder skipped checks from
+standing in for concrete verification material.
 
 ## Next Recommended PR Title
 

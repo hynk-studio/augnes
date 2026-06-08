@@ -52,6 +52,7 @@ assertDocsAndReport();
 assertUsableSample();
 assertMissingScopeCase();
 assertNoWorkNoPrCase();
+assertPlaceholderSkippedCheckCase();
 assertChangedFileBoundary();
 
 console.log("PASS smoke:perspective-formation-input-bundle-builder");
@@ -199,6 +200,38 @@ function assertNoWorkNoPrCase() {
   assert(bundle.readiness.reasons.includes("missing work_id and source_pr_refs"));
 }
 
+function assertPlaceholderSkippedCheckCase() {
+  const bundle = buildPerspectiveFormationInputBundle({
+    scope: "project:augnes",
+    work_id: "AG-placeholder-skipped-check",
+    skipped_checks: [
+      {
+        check_id: "browser",
+        skipped_reason: "",
+      },
+    ],
+  });
+
+  assert.equal(bundle.readiness.status, "needs_review");
+  assert(
+    bundle.readiness.reasons.includes(
+      "skipped checks missing concrete reasons",
+    ),
+  );
+  assert(
+    bundle.readiness.reasons.includes(
+      "missing verification, proof, evidence, or skipped-check material",
+    ),
+    "empty skipped_reason must not count as valid verification material",
+  );
+  assert.deepEqual(bundle.verification_basis.skipped_checks, [
+    {
+      check_id: "browser",
+      skipped_reason: "",
+    },
+  ]);
+}
+
 function assertBuilderSourceIsPureLocal() {
   assertContainsAll(builderText, [
     "buildPerspectiveFormationInputBundle",
@@ -207,6 +240,7 @@ function assertBuilderSourceIsPureLocal() {
     "ready_for_candidate",
     "needs_review",
     "blocked",
+    "skipped checks missing concrete reasons",
     "raw_payloads_included: false",
     "read_only_formation_input",
     "provider_model_api_calls: false",
@@ -241,6 +275,7 @@ function assertDocsAndReport() {
     "caller-supplied Codex work material refs",
     "read-only Formation Input Bundle",
     "Bounded summaries are allowed",
+    "Placeholder skipped checks may be preserved",
     "Raw/private/provider/token/source payloads remain forbidden",
     "not committed state",
     "not proof",
@@ -255,6 +290,7 @@ function assertDocsAndReport() {
     "Files Changed",
     "Authority Boundary",
     "Validation Plan",
+    "Review Fix",
     "What Is Not Implemented",
     "Add deterministic Perspective Candidate builder fixture",
   ]);

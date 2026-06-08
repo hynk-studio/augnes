@@ -181,9 +181,15 @@ function buildReadiness({
 
   const reasons: string[] = [];
   const hasWorkAnchor = hasText(work_id) || source_pr_refs.some(hasText);
+  const hasConcreteSkippedCheck = skipped_checks.some((check) =>
+    hasText(check.skipped_reason),
+  );
+  const skippedChecksMissingConcreteReasons = skipped_checks.some(
+    (check) => !hasText(check.skipped_reason),
+  );
   const hasVerificationMaterial =
     checks_run.length > 0 ||
-    skipped_checks.length > 0 ||
+    hasConcreteSkippedCheck ||
     evidence_row_refs.some(hasText) ||
     proof_only_action_refs.some(hasText);
 
@@ -193,6 +199,10 @@ function buildReadiness({
 
   if (!hasVerificationMaterial) {
     reasons.push("missing verification, proof, evidence, or skipped-check material");
+  }
+
+  if (skippedChecksMissingConcreteReasons) {
+    reasons.push("skipped checks missing concrete reasons");
   }
 
   if (unresolved_gaps.length > 0) {

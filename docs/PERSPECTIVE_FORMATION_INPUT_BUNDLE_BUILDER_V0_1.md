@@ -45,10 +45,14 @@ context to be useful. Safe examples include:
 
 - `changed_files_summary`;
 - check result summaries;
-- skipped-check reasons;
+- skipped-check reasons when concrete reasons are present;
 - unresolved gap summaries;
 - safe source labels;
 - source privacy and redaction notes.
+
+Placeholder skipped checks may be preserved as caller-supplied bounded material,
+but they are not readiness material until `skipped_reason` contains concrete
+non-empty text.
 
 Raw/private/provider/token/source payloads remain forbidden. The builder does
 not accept or return raw pasted text, raw source payloads, raw candidate
@@ -79,10 +83,11 @@ Readiness is intentionally simple:
 - `needs_review` when there is no `work_id` and no source PR ref;
 - `needs_review` when no checks, evidence refs, proof refs, or skipped-check
   material exists;
+- `needs_review` when skipped checks are present without concrete reasons;
 - `needs_review` when unresolved gaps exist;
 - `ready_for_candidate` when scope plus a work id or PR ref exists, at least
-  one verification/proof/evidence/skipped-check material exists, and no
-  unresolved gaps are present.
+  one verification/proof/evidence/concrete-skipped-check material exists, and
+  no unresolved gaps are present.
 
 The builder preserves gaps as gaps. It does not pretend evidence exists.
 
