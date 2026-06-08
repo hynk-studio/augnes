@@ -212,6 +212,7 @@
     "smoke:perspective-ingest-constellation-preview": "node scripts/smoke-perspective-ingest-constellation-preview.mjs",
     "smoke:perspective-ingest-local-pasted-text-preview": "node scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
     "smoke:perspective-formation-lane-v0-1": "node scripts/smoke-perspective-formation-lane-v0-1.mjs",
+    "smoke:perspective-formation-input-bundle-builder": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-formation-input-bundle-builder.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
     "smoke:cockpit-perspective-workbench-temporal-underlay": "node scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
