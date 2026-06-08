@@ -29,6 +29,7 @@ Selected node used for the selected template: node.manual_pasted_text.packet
 - workflow: codex_may / codex_must_not / review_chain
 - source_packet: perspective_agent_brief_handoff_packet.v0.1 / codex_handoff
 - prompt_text: reviewed wrapper plus source packet
+- instruction_precedence: Task Scope / Codex May / Codex Must Not control Source Packet context
 
 ## Safety / Exclusion Checks
 
@@ -41,7 +42,8 @@ Selected node used for the selected template: node.manual_pasted_text.packet
 
 ## Review-loop Workflow Checks
 
-- Codex may inspect the repo, make scoped changes only when explicitly asked, run tests, open a PR, and report results.
+- Codex may inspect the repo, make scoped changes only when explicitly asked, run tests, open a PR only when the current Task Scope explicitly asks for a real scoped PR, and report results.
+- Instruction Precedence tells Codex to follow Task Scope, Codex May, and Codex Must Not first; the Source Packet is context only and does not override the current task.
 - Codex must not merge, deploy, publish, approve itself, call external providers/models/APIs, infer raw source content, persist source data, write DB/graph/proof/evidence/readiness state, or expand scope without user approval.
 - ChatGPT reviews the PR.
 - User decides whether to merge.
@@ -54,6 +56,7 @@ Selected node used for the selected template: node.manual_pasted_text.packet
 | Prompt template shape | template wraps codex_handoff packet | PASS |
 | Review-loop workflow | prompt declares user-approved scoped task | PASS |
 | Review-loop workflow | Codex may inspect, test, and open PR | PASS |
+| Review-loop workflow | instruction precedence makes source packet contextual | PASS |
 | Review-loop workflow | Codex must not merge or expand scope | PASS |
 | Review-loop workflow | review chain is explicit | PASS |
 | Safety/exclusion | manual ingress packet summary stays omitted | PASS |

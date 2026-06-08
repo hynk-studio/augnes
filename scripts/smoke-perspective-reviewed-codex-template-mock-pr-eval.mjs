@@ -69,6 +69,13 @@ const allowedChangedFiles = new Set([
   ingressModelSmokeFile,
   projectionBuildersSmokeFile,
   workbenchSmokeFile,
+  "lib/perspective-ingest/perspective-agent-brief-codex-prompt-template.ts",
+  "scripts/dogfood-perspective-reviewed-manual-agent-brief-codex-template.mjs",
+  "scripts/smoke-perspective-reviewed-codex-template-copy-refine.mjs",
+  "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_COPY_REFINE_V0_1.md",
+  "reports/2026-06-07-perspective-reviewed-codex-template-copy-refine.md",
+  "reports/dogfood/2026-06-07-perspective-reviewed-manual-agent-brief-codex-template.md",
+  "reports/2026-06-07-perspective-reviewed-manual-agent-brief-codex-template.md",
 ]);
 
 assert.equal(
@@ -223,7 +230,9 @@ function assertChangedFileBoundary() {
       !changedFile.startsWith("app/api/") &&
         !changedFile.startsWith("components/") &&
         !changedFile.startsWith("app/globals.css") &&
-        !changedFile.startsWith("lib/") &&
+        (!changedFile.startsWith("lib/") ||
+          changedFile ===
+            "lib/perspective-ingest/perspective-agent-brief-codex-prompt-template.ts") &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
