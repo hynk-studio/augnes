@@ -80,7 +80,7 @@ function assertRouteShape() {
     "export async function POST",
     "validatePerspectiveIngestLocalPreviewAccess",
     "validatePerspectiveIngestLocalPreviewBody",
-    "buildPerspectiveIngestLocalPreviewReadResponse",
+    "buildPerspectiveIngestLocalPreviewReadResult",
     "buildPerspectiveIngestLocalPreviewError",
     "invalid_json",
   ], { textByFile });
@@ -91,6 +91,9 @@ function assertRouteShape() {
     "validateLocalPreviewPostAccess",
     "buildManualPastedTextSessionEpisode",
     "buildPerspectiveIngestConstellationPreviewResponse",
+    "buildPerspectiveIngestLocalPreviewReadResponse",
+    "buildPerspectiveIngestLocalPreviewReadResult",
+    "ingress_not_preview_ready",
     "augnes.read.perspective-ingest-local-preview.v0.1",
   ], { textByFile });
 }

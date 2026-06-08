@@ -102,6 +102,13 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
   "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
   "scripts/smoke-perspective-capsule-contract.mjs",
+  "types/perspective-ingest-constellation-preview.ts",
+  "lib/readonly-api/perspective-ingest-local-preview.ts",
+  "app/api/augnes/read/perspective-ingest-local-preview/route.ts",
+  "docs/PERSPECTIVE_LOCAL_MANUAL_INGRESS_ADMISSION_PREVIEW_V0_1.md",
+  "reports/2026-06-07-perspective-local-manual-ingress-admission-preview.md",
+  "scripts/smoke-perspective-local-manual-ingress-admission-preview.mjs",
+  "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
 ]);
 
 assert.equal(
@@ -432,12 +439,15 @@ assert.equal(
 );
 
 for (const changedFile of collectChangedFiles()) {
+  const isExistingLocalPreviewRoute =
+    changedFile ===
+    "app/api/augnes/read/perspective-ingest-local-preview/route.ts";
   assert(
     allowedChangedFiles.has(changedFile),
     `Perspective ingress admission model changed an out-of-scope file: ${changedFile}`,
   );
   assert(
-    !changedFile.startsWith("app/api/") &&
+    (!changedFile.startsWith("app/api/") || isExistingLocalPreviewRoute) &&
       !changedFile.startsWith("db/") &&
       !changedFile.startsWith("migrations/") &&
       !changedFile.includes("persistence") &&

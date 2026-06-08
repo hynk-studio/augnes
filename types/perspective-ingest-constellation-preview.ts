@@ -7,6 +7,14 @@
  * authority, and not approval/publish/merge/deploy authority.
  */
 
+import type {
+  PerspectiveIngressAdmissionDecisionV0,
+  PerspectiveIngressAdmissionStateV0,
+  PerspectiveIngressCandidateProjectionV0,
+  PerspectiveIngressFormationReadinessV0,
+  PerspectiveIngressRedactionStateV0,
+} from "./perspective-ingress-admission";
+
 export type PerspectiveIngestSourceKind =
   | "chatgpt_record_fixture"
   | "codex_record_fixture"
@@ -181,6 +189,19 @@ export interface PerspectiveIngestCodexHandoffPacket {
   packet_text: string;
 }
 
+export interface PerspectiveIngestAdmissionPreviewV0 {
+  admission_version: "perspective_ingress_admission_preview.v0.1";
+  candidate: PerspectiveIngressCandidateProjectionV0;
+  readiness: PerspectiveIngressFormationReadinessV0;
+  decision: PerspectiveIngressAdmissionDecisionV0;
+  source: {
+    ingress_kind: "manual_pasted_text";
+    trust_level: "user_provided_local";
+    admission_state: PerspectiveIngressAdmissionStateV0;
+    redaction_state: PerspectiveIngressRedactionStateV0;
+  };
+}
+
 export interface PerspectiveIngestConstellationPreviewResponse {
   response_version: "perspective_ingest_constellation_preview.v0.1";
   boundary_class: "read_only_local_ingest_constellation_preview";
@@ -234,6 +255,7 @@ export interface PerspectiveIngestConstellationPreviewResponse {
   evidence_pointers: PerspectiveIngestEvidencePointer[];
   unresolved_tensions: PerspectiveIngestUnresolvedTension[];
   next_action_candidates: PerspectiveIngestNextActionCandidate[];
+  ingress_admission?: PerspectiveIngestAdmissionPreviewV0;
 }
 
 export interface PerspectiveIngestConstellationPreviewErrorBody {
