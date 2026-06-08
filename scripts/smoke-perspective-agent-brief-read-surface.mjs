@@ -84,6 +84,11 @@ const allowedChangedFiles = new Set([
   "reports/2026-06-07-perspective-local-manual-ingress-admission-preview.md",
   "scripts/smoke-perspective-local-manual-ingress-admission-preview.mjs",
   "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
+  "components/augnes-cockpit.tsx",
+  "app/globals.css",
+  "docs/PERSPECTIVE_INGRESS_ADMISSION_OBSERVATORY_SUMMARY_V0_1.md",
+  "reports/browser/2026-06-07-perspective-ingress-admission-observatory-summary.md",
+  "scripts/smoke-cockpit-perspective-ingress-admission-observatory-summary.mjs",
 ]);
 
 assert.equal(
