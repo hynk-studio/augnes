@@ -30,6 +30,14 @@ const briefingPreviewReportFile =
   "reports/2026-06-08-perspective-candidate-briefing-preview.md";
 const briefingPreviewSmokeFile =
   "scripts/smoke-perspective-candidate-briefing-preview.mjs";
+const userJudgmentBuilderFile =
+  "lib/perspective-ingest/perspective-user-judgment-capture-packet.ts";
+const userJudgmentDocFile =
+  "docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md";
+const userJudgmentReportFile =
+  "reports/2026-06-08-perspective-user-judgment-capture-packet.md";
+const userJudgmentSmokeFile =
+  "scripts/smoke-perspective-user-judgment-capture-packet.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -48,6 +56,10 @@ const allowedChangedFiles = new Set([
   briefingPreviewDocFile,
   briefingPreviewReportFile,
   briefingPreviewSmokeFile,
+  userJudgmentBuilderFile,
+  userJudgmentDocFile,
+  userJudgmentReportFile,
+  userJudgmentSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
   "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
@@ -88,6 +100,11 @@ assert.equal(
   packageJson.scripts["smoke:perspective-candidate-briefing-preview"],
   `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${briefingPreviewSmokeFile}`,
   "package.json must register smoke:perspective-candidate-briefing-preview",
+);
+assert.equal(
+  packageJson.scripts["smoke:perspective-user-judgment-capture-packet"],
+  `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${userJudgmentSmokeFile}`,
+  "package.json must register smoke:perspective-user-judgment-capture-packet",
 );
 
 const docText = readFileSync(docFile, "utf8");
@@ -147,8 +164,10 @@ assertContainsAll(docText, [
   "implemented as a pure local builder fixture",
   "PR D: ChatGPT briefing surface preview",
   "implemented as a pure local briefing preview builder",
-  "PR E: Add manual ChatGPT user judgment capture packet",
-  "PR F: Core-gated accept/reject/supersede route, only after explicit approval",
+  "PR E: manual ChatGPT user judgment capture packet",
+  "implemented as a pure local user judgment capture packet builder",
+  "PR F: Add pure local Codex next-handoff draft packet from user judgment",
+  "PR G: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
 
 assertContainsAll(docText, [
@@ -191,7 +210,8 @@ function assertChangedFileBoundary() {
         (!changedFile.startsWith("lib/") ||
           changedFile === inputBundleBuilderFile ||
           changedFile === candidateBuilderFile ||
-          changedFile === briefingPreviewBuilderFile) &&
+          changedFile === briefingPreviewBuilderFile ||
+          changedFile === userJudgmentBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

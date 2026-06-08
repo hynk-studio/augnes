@@ -78,6 +78,12 @@ reasoning, raw generated model payloads, or secrets.
 
 It does not claim approval. It does not instruct Codex to run.
 
+## Consumed By
+
+The manual ChatGPT user judgment capture packet consumes this briefing preview
+plus caller-supplied bounded user judgment. The briefing preview remains
+display/review material, not judgment capture by itself.
+
 ## User Judgment Capture
 
 The preview supports user judgment capture by generating user reply prompts.
@@ -116,4 +122,4 @@ Codex SDK execution.
 
 ## Future Next Step
 
-Add manual ChatGPT user judgment capture packet.
+Add pure local Codex next-handoff draft packet from user judgment.

@@ -210,5 +210,7 @@ forbidden, but bounded summaries are necessary Formation Input Bundle material.
   pure local builder fixture.
 - PR D: ChatGPT briefing surface preview, implemented as a pure local briefing
   preview builder.
-- PR E: Add manual ChatGPT user judgment capture packet.
-- PR F: Core-gated accept/reject/supersede route, only after explicit approval.
+- PR E: manual ChatGPT user judgment capture packet, implemented as a pure
+  local user judgment capture packet builder.
+- PR F: Add pure local Codex next-handoff draft packet from user judgment.
+- PR G: Core-gated accept/reject/supersede route, only after explicit approval.
