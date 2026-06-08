@@ -143,6 +143,15 @@ const allowedChangedFiles = new Set([
   responseShapeSmokeFile,
   surfaceSmokeFile,
   realAuthGatePlanSmokeFile,
+  "types/perspective-agent-brief.ts",
+  "lib/readonly-api/perspective-agent-brief.ts",
+  "app/api/augnes/read/perspective-agent-brief/route.ts",
+  "docs/PERSPECTIVE_AGENT_BRIEF_READ_SURFACE_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-read-surface.md",
+  "scripts/smoke-perspective-agent-brief-read-surface.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
+  "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
+  "scripts/smoke-perspective-capsule-contract.mjs",
 ]);
 
 const requiredSections = [
@@ -680,11 +689,15 @@ function assertChangedFilesBoundary() {
 }
 
 function assertNoForbiddenChangedPaths(files) {
-  const exactAllowedRouteFiles = new Set([routeFile]);
+  const exactAllowedRouteFiles = new Set([
+    routeFile,
+    "app/api/augnes/read/perspective-agent-brief/route.ts",
+  ]);
   const exactAllowedLibFiles = new Set([
     accessGuardFile,
     helperFile,
     localDevAdapterFile,
+    "lib/readonly-api/perspective-agent-brief.ts",
   ]);
   const exactAllowedBoundaryFiles = new Set([
     cockpitFile,
