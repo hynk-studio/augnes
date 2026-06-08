@@ -4,7 +4,7 @@ Date: 2026-06-08
 
 Branch: `codex/perspective-agent-brief-read-surface-v0-1`
 
-Commit: pending final commit
+Commit: `0ce8e73fb91f4488d80ab96a43739dbdc994ef79`
 
 ## Preflight Result
 
