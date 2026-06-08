@@ -76,6 +76,9 @@ const allowedChangedFiles = new Set([
   "reports/2026-06-07-perspective-reviewed-codex-template-copy-refine.md",
   "reports/dogfood/2026-06-07-perspective-reviewed-manual-agent-brief-codex-template.md",
   "reports/2026-06-07-perspective-reviewed-manual-agent-brief-codex-template.md",
+  "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_FIRST_REAL_DOCS_PR_V0_1.md",
+  "reports/2026-06-07-perspective-reviewed-codex-template-first-real-docs-pr.md",
+  "scripts/smoke-perspective-reviewed-codex-template-first-real-docs-pr.mjs",
 ]);
 
 assert.equal(
