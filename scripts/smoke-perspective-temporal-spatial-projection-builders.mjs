@@ -107,6 +107,10 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_AGENT_BRIEF_MANUAL_INGRESS_CONTEXT_V0_1.md",
   "reports/2026-06-07-perspective-agent-brief-manual-ingress-context.md",
   "scripts/smoke-perspective-agent-brief-manual-ingress-context.mjs",
+  "lib/perspective-ingest/perspective-agent-brief-handoff-packet.ts",
+  "docs/PERSPECTIVE_MANUAL_AGENT_BRIEF_HANDOFF_DOGFOOD_V0_1.md",
+  "reports/2026-06-07-perspective-manual-agent-brief-handoff-dogfood.md",
+  "scripts/smoke-perspective-manual-agent-brief-handoff-dogfood.mjs",
 ]);
 
 assert.equal(
