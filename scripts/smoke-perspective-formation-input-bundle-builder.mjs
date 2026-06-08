@@ -21,6 +21,14 @@ const candidateReportFile =
   "reports/2026-06-08-perspective-candidate-builder-fixture.md";
 const candidateSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const briefingPreviewBuilderFile =
+  "lib/perspective-ingest/perspective-candidate-briefing-preview.ts";
+const briefingPreviewDocFile =
+  "docs/PERSPECTIVE_CANDIDATE_BRIEFING_PREVIEW_V0_1.md";
+const briefingPreviewReportFile =
+  "reports/2026-06-08-perspective-candidate-briefing-preview.md";
+const briefingPreviewSmokeFile =
+  "scripts/smoke-perspective-candidate-briefing-preview.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -34,6 +42,10 @@ const allowedChangedFiles = new Set([
   candidateDocFile,
   candidateReportFile,
   candidateSmokeFile,
+  briefingPreviewBuilderFile,
+  briefingPreviewDocFile,
+  briefingPreviewReportFile,
+  briefingPreviewSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);

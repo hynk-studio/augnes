@@ -22,6 +22,14 @@ const candidateReportFile =
   "reports/2026-06-08-perspective-candidate-builder-fixture.md";
 const candidateSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const briefingPreviewBuilderFile =
+  "lib/perspective-ingest/perspective-candidate-briefing-preview.ts";
+const briefingPreviewDocFile =
+  "docs/PERSPECTIVE_CANDIDATE_BRIEFING_PREVIEW_V0_1.md";
+const briefingPreviewReportFile =
+  "reports/2026-06-08-perspective-candidate-briefing-preview.md";
+const briefingPreviewSmokeFile =
+  "scripts/smoke-perspective-candidate-briefing-preview.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -36,6 +44,10 @@ const allowedChangedFiles = new Set([
   candidateDocFile,
   candidateReportFile,
   candidateSmokeFile,
+  briefingPreviewBuilderFile,
+  briefingPreviewDocFile,
+  briefingPreviewReportFile,
+  briefingPreviewSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
   "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
@@ -71,6 +83,11 @@ assert.equal(
   packageJson.scripts["smoke:perspective-candidate-builder-fixture"],
   `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${candidateSmokeFile}`,
   "package.json must register smoke:perspective-candidate-builder-fixture",
+);
+assert.equal(
+  packageJson.scripts["smoke:perspective-candidate-briefing-preview"],
+  `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${briefingPreviewSmokeFile}`,
+  "package.json must register smoke:perspective-candidate-briefing-preview",
 );
 
 const docText = readFileSync(docFile, "utf8");
@@ -129,7 +146,9 @@ assertContainsAll(docText, [
   "PR C: deterministic perspective candidate builder fixture",
   "implemented as a pure local builder fixture",
   "PR D: ChatGPT briefing surface preview",
-  "PR E: Core-gated accept/reject/supersede route, only after explicit approval",
+  "implemented as a pure local briefing preview builder",
+  "PR E: Add manual ChatGPT user judgment capture packet",
+  "PR F: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
 
 assertContainsAll(docText, [
@@ -171,7 +190,8 @@ function assertChangedFileBoundary() {
         changedFile !== "app/globals.css" &&
         (!changedFile.startsWith("lib/") ||
           changedFile === inputBundleBuilderFile ||
-          changedFile === candidateBuilderFile) &&
+          changedFile === candidateBuilderFile ||
+          changedFile === briefingPreviewBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

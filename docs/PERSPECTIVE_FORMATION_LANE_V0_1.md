@@ -208,5 +208,7 @@ forbidden, but bounded summaries are necessary Formation Input Bundle material.
 - PR B: pure local formation input bundle builder.
 - PR C: deterministic perspective candidate builder fixture, implemented as a
   pure local builder fixture.
-- PR D: ChatGPT briefing surface preview.
-- PR E: Core-gated accept/reject/supersede route, only after explicit approval.
+- PR D: ChatGPT briefing surface preview, implemented as a pure local briefing
+  preview builder.
+- PR E: Add manual ChatGPT user judgment capture packet.
+- PR F: Core-gated accept/reject/supersede route, only after explicit approval.

@@ -5,6 +5,8 @@ import { existsSync, readFileSync } from "node:fs";
 const packageFile = "package.json";
 const candidateBuilderFile =
   "lib/perspective-ingest/perspective-candidate-builder.ts";
+const briefingPreviewBuilderFile =
+  "lib/perspective-ingest/perspective-candidate-briefing-preview.ts";
 const inputBundleBuilderFile =
   "lib/perspective-ingest/perspective-formation-input-bundle.ts";
 const docFile =
@@ -13,6 +15,12 @@ const reportFile =
   "reports/2026-06-08-perspective-candidate-builder-fixture.md";
 const smokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const briefingPreviewDocFile =
+  "docs/PERSPECTIVE_CANDIDATE_BRIEFING_PREVIEW_V0_1.md";
+const briefingPreviewReportFile =
+  "reports/2026-06-08-perspective-candidate-briefing-preview.md";
+const briefingPreviewSmokeFile =
+  "scripts/smoke-perspective-candidate-briefing-preview.mjs";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const inputBundleDocFile =
   "docs/PERSPECTIVE_FORMATION_INPUT_BUNDLE_BUILDER_V0_1.md";
@@ -23,9 +31,13 @@ const laneSmokeFile = "scripts/smoke-perspective-formation-lane-v0-1.mjs";
 const allowedChangedFiles = new Set([
   packageFile,
   candidateBuilderFile,
+  briefingPreviewBuilderFile,
   docFile,
+  briefingPreviewDocFile,
   reportFile,
+  briefingPreviewReportFile,
   smokeFile,
+  briefingPreviewSmokeFile,
   laneDocFile,
   inputBundleDocFile,
   inputBundleSmokeFile,
@@ -440,7 +452,10 @@ function assertDocsAndReport() {
     "not proof",
     "not evidence",
     "not approval",
-    "Add ChatGPT Perspective Candidate briefing preview",
+    "Consumed By",
+    "Perspective Candidate briefing preview",
+    "not briefing or approval by itself",
+    "Add manual ChatGPT user judgment capture packet",
   ]);
   assertContainsAll(reportText, [
     "Summary",
@@ -521,7 +536,8 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
         (!changedFile.startsWith("lib/") ||
-          changedFile === candidateBuilderFile) &&
+          changedFile === candidateBuilderFile ||
+          changedFile === briefingPreviewBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
