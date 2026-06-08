@@ -89,6 +89,11 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-readonly-api-route-response-shape-boundary.mjs",
   "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs",
   "scripts/smoke-readonly-api-route-auth-source-selection.mjs",
+  "types/perspective-ingress-admission.ts",
+  "lib/perspective-ingest/perspective-ingress-admission-model.ts",
+  "docs/PERSPECTIVE_INGRESS_ADMISSION_MODEL_V0_1.md",
+  "reports/2026-06-07-perspective-ingress-admission-model.md",
+  "scripts/smoke-perspective-ingress-admission-model.mjs",
 ]);
 
 assert.equal(
