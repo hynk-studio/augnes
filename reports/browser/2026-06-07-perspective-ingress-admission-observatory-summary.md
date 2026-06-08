@@ -8,7 +8,8 @@ Date: 2026-06-08
 
 ## Commit
 
-Pending final commit.
+Implementation commit:
+`71a826be24ded8c43b77b8041f3be1a0bce25485`.
 
 ## Preflight Result
 
@@ -85,11 +86,27 @@ Port 3000 was free before startup. The dev server was stopped after validation.
 
 ## Tests Run
 
-Recorded in the PR body after final validation.
+- PASS: `npm run typecheck`
+- PASS: `npm run smoke:cockpit-perspective-ingress-admission-observatory-summary`
+- PASS: `npm run smoke:perspective-local-manual-ingress-admission-preview`
+- PASS: `npm run smoke:perspective-ingest-local-pasted-text-preview`
+- PASS: `npm run smoke:perspective-ingress-admission-model`
+- PASS: `npm run smoke:perspective-agent-brief-read-surface`
+- PASS: `npm run smoke:perspective-temporal-spatial-projection-builders`
+- PASS: `npm run smoke:cockpit-perspective-workbench-temporal-underlay`
+- PASS: `npm run smoke:perspective-ingest-constellation-preview`
+- PASS: `npm run build`
+- PASS: `git diff --check`
+- PASS: `git diff --cached --check`
+- PASS: `AUGNES_DB_PATH=/tmp/augnes-perspective-ingress-admission-summary.db npm run db:reset`
+- PASS: `AUGNES_DB_PATH=/tmp/augnes-perspective-ingress-admission-summary.db npm run db:migrate`
+- PASS: `AUGNES_DB_PATH=/tmp/augnes-perspective-ingress-admission-summary.db npm run demo:seed`
 
 ## Skipped Checks
 
-None for browser validation.
+- `npm run lint`: skipped because `package.json` has no `lint` script.
+- `npm test`: skipped because `package.json` has no `test` script.
+- No requested browser validation checks were skipped.
 
 ## Blockers / Risks
 
