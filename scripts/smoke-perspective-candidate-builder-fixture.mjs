@@ -1,0 +1,586 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+
+const packageFile = "package.json";
+const candidateBuilderFile =
+  "lib/perspective-ingest/perspective-candidate-builder.ts";
+const inputBundleBuilderFile =
+  "lib/perspective-ingest/perspective-formation-input-bundle.ts";
+const docFile =
+  "docs/PERSPECTIVE_CANDIDATE_BUILDER_FIXTURE_V0_1.md";
+const reportFile =
+  "reports/2026-06-08-perspective-candidate-builder-fixture.md";
+const smokeFile =
+  "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
+const inputBundleDocFile =
+  "docs/PERSPECTIVE_FORMATION_INPUT_BUNDLE_BUILDER_V0_1.md";
+const inputBundleSmokeFile =
+  "scripts/smoke-perspective-formation-input-bundle-builder.mjs";
+const laneSmokeFile = "scripts/smoke-perspective-formation-lane-v0-1.mjs";
+
+const allowedChangedFiles = new Set([
+  packageFile,
+  candidateBuilderFile,
+  docFile,
+  reportFile,
+  smokeFile,
+  laneDocFile,
+  inputBundleDocFile,
+  inputBundleSmokeFile,
+  laneSmokeFile,
+  "scripts/smoke-perspective-agent-brief-read-surface.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
+]);
+
+const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
+const builderText = readFileSync(candidateBuilderFile, "utf8");
+const docText = readFileSync(docFile, "utf8");
+const reportText = readFileSync(reportFile, "utf8");
+const laneDocText = readFileSync(laneDocFile, "utf8");
+const inputBundleDocText = readFileSync(inputBundleDocFile, "utf8");
+
+const { buildPerspectiveFormationInputBundle } = await import(
+  "../lib/perspective-ingest/perspective-formation-input-bundle.ts"
+);
+const { buildPerspectiveCandidateFromFormationInputBundle } = await import(
+  "../lib/perspective-ingest/perspective-candidate-builder.ts"
+);
+
+assert.equal(existsSync(candidateBuilderFile), true, `${candidateBuilderFile} must exist`);
+assert.equal(existsSync(docFile), true, `${docFile} must exist`);
+assert.equal(existsSync(reportFile), true, `${reportFile} must exist`);
+assert.equal(existsSync(smokeFile), true, `${smokeFile} must exist`);
+
+assert.equal(
+  packageJson.scripts["smoke:perspective-candidate-builder-fixture"],
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-candidate-builder-fixture.mjs",
+  "package.json must register smoke:perspective-candidate-builder-fixture",
+);
+
+assertBuilderSourceIsPureLocal();
+assertDocsAndReport();
+assertReadyCandidate();
+assertFailedCheckCandidateNeedsReview();
+assertGapCandidateNeedsReview();
+assertPlaceholderSkippedCheckCandidateNeedsReview();
+assertBlockedCandidate();
+assertChangedFileBoundary();
+
+console.log("PASS smoke:perspective-candidate-builder-fixture");
+
+function assertReadyCandidate() {
+  const bundle = buildPerspectiveFormationInputBundle({
+    scope: "project:augnes",
+    work_id: "AG-perspective-candidate-builder-fixture",
+    source_pr_refs: ["pr:hynk-studio/augnes#464"],
+    changed_files: [
+      candidateBuilderFile,
+      docFile,
+    ],
+    changed_files_summary:
+      "Adds a deterministic pure local Perspective Candidate builder fixture.",
+    tests_checks_run: [
+      {
+        check_id: "check:typecheck",
+        command: "npm run typecheck",
+        status: "passed",
+        result_summary: "TypeScript completed without errors.",
+      },
+    ],
+    skipped_checks: [
+      {
+        check_id: "check:browser",
+        skipped_reason:
+          "Browser validation skipped because this pure local builder has no UI or route changes.",
+        result_summary: "No browser-facing behavior changed.",
+      },
+    ],
+    evidence_row_refs: ["evidence:row:perspective-candidate-builder-smoke"],
+    proof_only_action_refs: ["action:proof:perspective-candidate-builder-closeout"],
+    work_event_refs: ["work:event:perspective-candidate-builder-implemented"],
+    session_trace_refs: ["session:trace:perspective-candidate-builder-codex"],
+    existing_perspective_refs: ["perspective:formation-lane:v0.1"],
+    unresolved_gaps: [],
+    authority_boundaries: [
+      "pure local builder only",
+      "no provider/model/API calls",
+    ],
+    source_privacy_redaction_notes: [
+      "bounded summaries and pointer refs only",
+      "raw/private payloads excluded",
+    ],
+    generated_at: "2026-06-08T00:00:00.000Z",
+  });
+
+  const candidate = buildPerspectiveCandidateFromFormationInputBundle(bundle);
+  const repeated = buildPerspectiveCandidateFromFormationInputBundle(bundle);
+
+  assert.equal(candidate.candidate_version, "perspective_candidate.v0.1");
+  assert.equal(candidate.candidate_kind, "perspective_candidate");
+  assert.equal(candidate.status, "perspective_candidate");
+  assert.equal(candidate.authority, "non_committed");
+  assert.equal(candidate.candidate_id, repeated.candidate_id);
+  assert.equal(
+    candidate.candidate_id.startsWith(
+      "perspective-candidate:v0.1:project-augnes-ag-perspective-candidate-builder",
+    ),
+    true,
+  );
+  assert.deepEqual(candidate.source_bundle, {
+    bundle_version: "perspective_formation_input_bundle.v0.1",
+    scope: "project:augnes",
+    work_id: "AG-perspective-candidate-builder-fixture",
+    source_pr_refs: ["pr:hynk-studio/augnes#464"],
+  });
+  assert.deepEqual(candidate.selected_material.changed_files, [
+    candidateBuilderFile,
+    docFile,
+  ]);
+  assert.match(candidate.thesis, /deterministic pure local Perspective Candidate builder fixture/);
+  assert.deepEqual(
+    candidate.evidence_pointers.map((pointer) => pointer.pointer_kind),
+    [
+      "evidence_row_ref",
+      "proof_only_action_ref",
+      "work_event_ref",
+      "session_trace_ref",
+      "perspective_ref",
+    ],
+  );
+  assert(
+    candidate.evidence_pointers.every(
+      (pointer) => pointer.pointer_semantics === "pointer_only",
+    ),
+    "all evidence pointers must be pointer-only refs",
+  );
+  assert.deepEqual(candidate.verification_summary.check_statuses, {
+    passed: 1,
+    failed: 0,
+  });
+  assert.equal(candidate.verification_summary.checks_run_count, 1);
+  assert.deepEqual(candidate.verification_summary.skipped_checks, [
+    {
+      check_id: "check:browser",
+      skipped_reason:
+        "Browser validation skipped because this pure local builder has no UI or route changes.",
+      result_summary: "No browser-facing behavior changed.",
+    },
+  ]);
+  assert.deepEqual(candidate.basis_quality, {
+    status: "sufficient_for_review",
+    reasons: [],
+  });
+  assert.deepEqual(candidate.unresolved_tensions, []);
+  assert.deepEqual(
+    candidate.next_action_candidates.map((action) => action.action_id),
+    ["review_candidate", "prepare_codex_handoff"],
+  );
+  assert.deepEqual(candidate.user_core_decision_questions, []);
+  assertAuthority(candidate);
+  assertNoForbiddenPayloadText("ready candidate", candidate);
+}
+
+function assertFailedCheckCandidateNeedsReview() {
+  const bundle = buildPerspectiveFormationInputBundle({
+    scope: "project:augnes",
+    work_id: "AG-perspective-candidate-failed-check",
+    tests_checks_run: [
+      {
+        check_id: "check:smoke",
+        command: "npm run smoke:perspective-candidate-builder-fixture",
+        status: "failed",
+        result_summary: "Fixture smoke failed before the review fix.",
+      },
+    ],
+  });
+  assert.equal(bundle.readiness.status, "ready_for_candidate");
+
+  const candidate = buildPerspectiveCandidateFromFormationInputBundle(bundle);
+
+  assert.equal(candidate.basis_quality.status, "needs_review");
+  assert(candidate.basis_quality.reasons.includes("failed checks present"));
+  assert.deepEqual(candidate.verification_summary.check_statuses, {
+    passed: 0,
+    failed: 1,
+  });
+  assert(
+    candidate.unresolved_tensions.some(
+      (tension) =>
+        tension.tension_kind === "failed_check" &&
+        tension.source_ref === "check:smoke",
+    ),
+    "failed checks must become unresolved tensions",
+  );
+  assert.deepEqual(
+    candidate.next_action_candidates.map((action) => action.action_id),
+    ["review_candidate", "fix_input_gaps"],
+  );
+}
+
+function assertGapCandidateNeedsReview() {
+  const bundle = buildPerspectiveFormationInputBundle({
+    scope: "project:augnes",
+    work_id: "AG-perspective-candidate-gap",
+    tests_checks_run: [
+      {
+        check_id: "check:typecheck",
+        command: "npm run typecheck",
+        status: "passed",
+        result_summary: "TypeScript completed without errors.",
+      },
+    ],
+    unresolved_gaps: [
+      {
+        gap_id: "gap:evidence-row-missing",
+        summary: "Evidence row recording was unavailable in this local run.",
+      },
+    ],
+  });
+  assert.equal(bundle.readiness.status, "needs_review");
+
+  const candidate = buildPerspectiveCandidateFromFormationInputBundle(bundle);
+
+  assert.equal(candidate.basis_quality.status, "needs_review");
+  assert(candidate.basis_quality.reasons.includes("unresolved gaps present"));
+  assert(
+    candidate.unresolved_tensions.some(
+      (tension) =>
+        tension.tension_kind === "unresolved_gap" &&
+        tension.source_ref === "gap:evidence-row-missing",
+    ),
+    "unresolved gaps must remain visible tensions",
+  );
+  assert(
+    candidate.unresolved_tensions.some(
+      (tension) =>
+        tension.tension_kind === "readiness_reason" &&
+        tension.summary === "unresolved gaps present",
+    ),
+    "bundle readiness reasons must remain visible on non-ready candidates",
+  );
+}
+
+function assertPlaceholderSkippedCheckCandidateNeedsReview() {
+  const bundle = buildPerspectiveFormationInputBundle({
+    scope: "project:augnes",
+    work_id: "AG-perspective-candidate-placeholder-skipped-check",
+    skipped_checks: [
+      {
+        check_id: "browser",
+        skipped_reason: "",
+      },
+    ],
+  });
+
+  const candidate = buildPerspectiveCandidateFromFormationInputBundle(bundle);
+
+  assert.equal(candidate.basis_quality.status, "needs_review");
+  assert(
+    candidate.basis_quality.reasons.includes(
+      "skipped checks missing concrete reasons",
+    ),
+  );
+  assert(
+    candidate.basis_quality.reasons.includes(
+      "missing verification, proof, evidence, or skipped-check material",
+    ),
+  );
+  assert.deepEqual(candidate.verification_summary.skipped_checks, [
+    {
+      check_id: "browser",
+      skipped_reason: "",
+    },
+  ]);
+  assert(
+    candidate.unresolved_tensions.some(
+      (tension) =>
+        tension.tension_kind === "skipped_check_missing_reason" &&
+        tension.source_ref === "browser",
+    ),
+    "placeholder skipped checks must become unresolved tensions",
+  );
+}
+
+function assertBlockedCandidate() {
+  const bundle = buildPerspectiveFormationInputBundle({
+    work_id: "AG-perspective-candidate-missing-scope",
+    skipped_checks: [
+      {
+        check_id: "check:runtime",
+        skipped_reason: "local runtime unavailable",
+      },
+    ],
+  });
+  const candidate = buildPerspectiveCandidateFromFormationInputBundle(bundle);
+
+  assert.equal(candidate.basis_quality.status, "blocked");
+  assert.deepEqual(candidate.basis_quality.reasons, ["missing scope"]);
+  assert(
+    candidate.unresolved_tensions.some(
+      (tension) =>
+        tension.tension_kind === "readiness_reason" &&
+        tension.summary === "missing scope",
+    ),
+    "blocked readiness reason must remain visible",
+  );
+}
+
+function assertBuilderSourceIsPureLocal() {
+  assertContainsAll(builderText, [
+    "buildPerspectiveCandidateFromFormationInputBundle",
+    "perspective_candidate.v0.1",
+    "perspective_candidate",
+    "non_committed",
+    "pointer_only",
+    "sufficient_for_review",
+    "needs_review",
+    "blocked",
+    "raw_payloads_included: false",
+    "provider_model_api_calls: false",
+    "proof_evidence_readiness_writes: false",
+    "codex_execution: false",
+    "merge_publish_approval: false",
+  ]);
+
+  for (const forbiddenMarker of [
+    ["read", "File"].join(""),
+    ["process", "env"].join("."),
+    ["fetch", "("].join(""),
+    ["Date", "now"].join("."),
+    ["new", "Date"].join(" "),
+    "app/api/",
+    "db/",
+    "migrations/",
+    "api.github.com",
+    "api.openai.com",
+    "GITHUB_TOKEN",
+    "OPENAI_API_KEY",
+  ]) {
+    assert.equal(
+      builderText.includes(forbiddenMarker),
+      false,
+      `${candidateBuilderFile} must remain pure local and avoid ${forbiddenMarker}`,
+    );
+  }
+}
+
+function assertDocsAndReport() {
+  assertContainsAll(docText, [
+    "deterministic pure local builder fixture",
+    "non-committed Perspective Candidate",
+    "pointer-only evidence, proof, trace, and existing Perspective refs",
+    "failed checks become unresolved tensions",
+    "skipped checks without concrete reasons remain preserved",
+    "does not read files",
+    "does not read environment variables",
+    "does not call `fetch`",
+    "not committed state",
+    "not proof",
+    "not evidence",
+    "not approval",
+    "Add ChatGPT Perspective Candidate briefing preview",
+  ]);
+  assertContainsAll(reportText, [
+    "Summary",
+    "Why This Follows PR #464",
+    "Files Changed",
+    "Authority Boundary",
+    "Validation Plan",
+    "What Is Not Implemented",
+    "Add ChatGPT Perspective Candidate briefing preview",
+  ]);
+  assertContainsAll(laneDocText, [
+    "PR C: deterministic perspective candidate builder fixture",
+    "implemented as a pure local builder fixture",
+    "PR D: ChatGPT briefing surface preview",
+  ]);
+  assertContainsAll(inputBundleDocText, [
+    "Perspective Candidate builder fixture",
+    "Formation Input Bundle remains read-only input material",
+  ]);
+}
+
+function assertAuthority(candidate) {
+  assert.deepEqual(candidate.authority_flags, {
+    committed_state: false,
+    persistence: false,
+    provider_model_api_calls: false,
+    proof_evidence_readiness_writes: false,
+    codex_execution: false,
+    merge_publish_approval: false,
+  });
+  assert.deepEqual(candidate.privacy, {
+    raw_payloads_included: false,
+  });
+  assert.deepEqual(candidate.forbidden_actions, [
+    "no commit/reject state",
+    "no proof/evidence/readiness writes",
+    "no merge/publish/approval",
+    "no Codex execution",
+    "no provider/model/API calls",
+    "no persistence",
+  ]);
+}
+
+function assertNoForbiddenPayloadText(label, value) {
+  const serialized = JSON.stringify(value);
+  for (const forbiddenMarker of [
+    "raw_pasted_text",
+    "raw_source_payload",
+    "raw_candidate_payload",
+    "private_payload",
+    "provider_payload",
+    "oauth_token",
+    "api_key",
+    "billing_payload",
+    "hidden_reasoning",
+    "generated_model_payload",
+    "secret",
+  ]) {
+    assert.equal(
+      serialized.includes(forbiddenMarker),
+      false,
+      `${label} must not include raw/private marker field: ${forbiddenMarker}`,
+    );
+  }
+}
+
+function assertChangedFileBoundary() {
+  for (const changedFile of collectChangedFiles()) {
+    assert(
+      allowedChangedFiles.has(changedFile),
+      `Perspective Candidate builder fixture changed an out-of-scope file: ${changedFile}`,
+    );
+    assert(
+      !changedFile.startsWith("app/api/") &&
+        !changedFile.startsWith("components/") &&
+        changedFile !== "app/globals.css" &&
+        (!changedFile.startsWith("lib/") ||
+          changedFile === candidateBuilderFile) &&
+        !changedFile.startsWith("db/") &&
+        !changedFile.startsWith("migrations/") &&
+        !changedFile.startsWith("fixtures/") &&
+        !changedFile.startsWith("types/") &&
+        !changedFile.includes("provider") &&
+        !changedFile.includes("oauth") &&
+        !changedFile.includes("codex-sdk") &&
+        !changedFile.includes("graph-db") &&
+        !changedFile.includes("persistence"),
+      `Perspective Candidate builder fixture must not change forbidden surfaces: ${changedFile}`,
+    );
+  }
+}
+
+function collectChangedFiles() {
+  const workingTreeFiles = gitLinesOrEmpty(["diff", "--name-only", "HEAD"]);
+  const branchFiles = collectBranchChangedFiles();
+  const untrackedFiles = gitLinesOrEmpty([
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+  ]);
+  const changedFiles = Array.from(
+    new Set([...workingTreeFiles, ...branchFiles, ...untrackedFiles]),
+  ).filter(Boolean);
+
+  if (changedFiles.length === 0 && isCommittedBranch()) {
+    throw new Error(
+      "Perspective Candidate builder fixture smoke collected no changed files",
+    );
+  }
+
+  return changedFiles;
+}
+
+function collectBranchChangedFiles() {
+  const originMainFiles = gitLinesStrict([
+    "diff",
+    "--name-only",
+    "origin/main...HEAD",
+  ]);
+  if (originMainFiles) {
+    return originMainFiles;
+  }
+
+  const localMainFiles = gitLinesStrict(["diff", "--name-only", "main...HEAD"]);
+  if (localMainFiles) {
+    return localMainFiles;
+  }
+
+  const originMergeBase = gitLineStrict(["merge-base", "HEAD", "origin/main"]);
+  if (originMergeBase) {
+    const originMergeBaseFiles = gitLinesStrict([
+      "diff",
+      "--name-only",
+      `${originMergeBase}...HEAD`,
+    ]);
+    if (originMergeBaseFiles) {
+      return originMergeBaseFiles;
+    }
+  }
+
+  const localMergeBase = gitLineStrict(["merge-base", "HEAD", "main"]);
+  if (localMergeBase) {
+    const localMergeBaseFiles = gitLinesStrict([
+      "diff",
+      "--name-only",
+      `${localMergeBase}...HEAD`,
+    ]);
+    if (localMergeBaseFiles) {
+      return localMergeBaseFiles;
+    }
+  }
+
+  throw new Error(
+    "Unable to collect base diff for Perspective Candidate builder fixture smoke",
+  );
+}
+
+function gitLinesOrEmpty(args) {
+  return gitLinesStrict(args) ?? [];
+}
+
+function gitLinesStrict(args) {
+  const output = tryGitOutput(args);
+  return output === null ? null : parseGitLines(output);
+}
+
+function gitLineStrict(args) {
+  const lines = gitLinesStrict(args);
+  return lines?.[0] ?? null;
+}
+
+function isCommittedBranch() {
+  return gitLineStrict(["rev-parse", "--verify", "HEAD"]) !== null;
+}
+
+function tryGitOutput(args) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" });
+  } catch {
+    return null;
+  }
+}
+
+function parseGitLines(output) {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function assertContainsAll(text, snippets) {
+  const normalizedText = normalize(text);
+  for (const snippet of snippets) {
+    assert(
+      normalizedText.includes(normalize(snippet)),
+      `Expected source to contain: ${snippet}`,
+    );
+  }
+}
+
+function normalize(text) {
+  return text.replace(/\s+/g, " ").trim();
+}

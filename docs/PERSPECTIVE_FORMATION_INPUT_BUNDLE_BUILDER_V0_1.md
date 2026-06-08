@@ -34,6 +34,13 @@ The bundle is input material for future Perspective Candidate formation. It is
 not committed state, not proof, not evidence, not readiness, not approval, and
 not merge authority.
 
+## Consumed By Candidate Builder Fixture
+
+The Perspective Candidate builder fixture consumes this bundle as bounded
+input. The Formation Input Bundle remains read-only input material; it is not a
+candidate by itself and does not write proof, evidence, readiness, persistence,
+or committed state.
+
 ## Usability Correction: Bounded Summaries Are Allowed
 
 PR #463's lane definition over-constrained the first slice by listing bounded
@@ -104,4 +111,4 @@ route behavior, Perspective runtime builders, or any product UI.
 
 ## Future Next Step
 
-Add deterministic Perspective Candidate builder fixture.
+Add ChatGPT Perspective Candidate briefing preview.

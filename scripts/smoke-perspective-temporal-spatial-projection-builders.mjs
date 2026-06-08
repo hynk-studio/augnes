@@ -149,6 +149,10 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_FORMATION_INPUT_BUNDLE_BUILDER_V0_1.md",
   "reports/2026-06-08-perspective-formation-input-bundle-builder.md",
   "scripts/smoke-perspective-formation-input-bundle-builder.mjs",
+  "lib/perspective-ingest/perspective-candidate-builder.ts",
+  "docs/PERSPECTIVE_CANDIDATE_BUILDER_FIXTURE_V0_1.md",
+  "reports/2026-06-08-perspective-candidate-builder-fixture.md",
+  "scripts/smoke-perspective-candidate-builder-fixture.mjs",
 ]);
 
 assert.equal(
