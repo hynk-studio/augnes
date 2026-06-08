@@ -4,7 +4,7 @@ Date: 2026-06-08
 
 Branch: `codex/perspective-ingress-admission-model-v0-1`
 
-Commit: pending final commit
+Commit: `1d42ca760bac9b26e049fd21009a080a7cd6563f`
 
 ## Preflight Result
 
