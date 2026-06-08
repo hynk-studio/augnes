@@ -206,6 +206,7 @@ forbidden, but bounded summaries are necessary Formation Input Bundle material.
 
 - PR A: docs/smoke lane definition.
 - PR B: pure local formation input bundle builder.
-- PR C: deterministic perspective candidate builder fixture.
+- PR C: deterministic perspective candidate builder fixture, implemented as a
+  pure local builder fixture.
 - PR D: ChatGPT briefing surface preview.
 - PR E: Core-gated accept/reject/supersede route, only after explicit approval.

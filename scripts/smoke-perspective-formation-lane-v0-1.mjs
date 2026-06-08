@@ -14,6 +14,14 @@ const inputBundleReportFile =
   "reports/2026-06-08-perspective-formation-input-bundle-builder.md";
 const inputBundleSmokeFile =
   "scripts/smoke-perspective-formation-input-bundle-builder.mjs";
+const candidateBuilderFile =
+  "lib/perspective-ingest/perspective-candidate-builder.ts";
+const candidateDocFile =
+  "docs/PERSPECTIVE_CANDIDATE_BUILDER_FIXTURE_V0_1.md";
+const candidateReportFile =
+  "reports/2026-06-08-perspective-candidate-builder-fixture.md";
+const candidateSmokeFile =
+  "scripts/smoke-perspective-candidate-builder-fixture.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -24,6 +32,10 @@ const allowedChangedFiles = new Set([
   inputBundleDocFile,
   inputBundleReportFile,
   inputBundleSmokeFile,
+  candidateBuilderFile,
+  candidateDocFile,
+  candidateReportFile,
+  candidateSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
   "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
@@ -39,6 +51,11 @@ assert.equal(
   true,
   `${inputBundleBuilderFile} must exist when PR B is promoted`,
 );
+assert.equal(
+  existsSync(candidateBuilderFile),
+  true,
+  `${candidateBuilderFile} must exist when PR C is promoted`,
+);
 
 assert.equal(
   packageJson.scripts["smoke:perspective-formation-lane-v0-1"],
@@ -49,6 +66,11 @@ assert.equal(
   packageJson.scripts["smoke:perspective-formation-input-bundle-builder"],
   `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${inputBundleSmokeFile}`,
   "package.json must register smoke:perspective-formation-input-bundle-builder",
+);
+assert.equal(
+  packageJson.scripts["smoke:perspective-candidate-builder-fixture"],
+  `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${candidateSmokeFile}`,
+  "package.json must register smoke:perspective-candidate-builder-fixture",
 );
 
 const docText = readFileSync(docFile, "utf8");
@@ -105,6 +127,7 @@ assertContainsAll(docText, [
   "PR A: docs/smoke lane definition",
   "PR B: pure local formation input bundle builder",
   "PR C: deterministic perspective candidate builder fixture",
+  "implemented as a pure local builder fixture",
   "PR D: ChatGPT briefing surface preview",
   "PR E: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
@@ -147,7 +170,8 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
         (!changedFile.startsWith("lib/") ||
-          changedFile === inputBundleBuilderFile) &&
+          changedFile === inputBundleBuilderFile ||
+          changedFile === candidateBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

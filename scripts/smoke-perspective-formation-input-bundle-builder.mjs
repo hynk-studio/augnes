@@ -13,6 +13,14 @@ const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const smokeFile =
   "scripts/smoke-perspective-formation-input-bundle-builder.mjs";
 const laneSmokeFile = "scripts/smoke-perspective-formation-lane-v0-1.mjs";
+const candidateBuilderFile =
+  "lib/perspective-ingest/perspective-candidate-builder.ts";
+const candidateDocFile =
+  "docs/PERSPECTIVE_CANDIDATE_BUILDER_FIXTURE_V0_1.md";
+const candidateReportFile =
+  "reports/2026-06-08-perspective-candidate-builder-fixture.md";
+const candidateSmokeFile =
+  "scripts/smoke-perspective-candidate-builder-fixture.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -22,6 +30,10 @@ const allowedChangedFiles = new Set([
   smokeFile,
   laneDocFile,
   laneSmokeFile,
+  candidateBuilderFile,
+  candidateDocFile,
+  candidateReportFile,
+  candidateSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
@@ -274,6 +286,8 @@ function assertDocsAndReport() {
     "first pure local builder after Perspective Formation Lane v0.1",
     "caller-supplied Codex work material refs",
     "read-only Formation Input Bundle",
+    "Consumed By Candidate Builder Fixture",
+    "Formation Input Bundle remains read-only input material",
     "Bounded summaries are allowed",
     "Placeholder skipped checks may be preserved",
     "Raw/private/provider/token/source payloads remain forbidden",
@@ -281,7 +295,7 @@ function assertDocsAndReport() {
     "not proof",
     "not evidence",
     "not approval",
-    "Add deterministic Perspective Candidate builder fixture",
+    "Add ChatGPT Perspective Candidate briefing preview",
   ]);
   assertContainsAll(reportText, [
     "Summary",
