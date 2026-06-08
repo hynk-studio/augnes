@@ -11,7 +11,7 @@ Audience: codex_handoff
 Generated: 2026-06-08T00:00:00.000Z
 
 ## Purpose
-Local read-only Agent Brief handoff for codex handoff follow-up. Use for human-reviewed review and planning only. This consumption artifact does not grant Formation, execution, GitHub, persistence, or provider authority.
+Local read-only Agent Brief handoff for a user-approved Codex PR workflow. Codex may code, test, and open a PR only when the surrounding prompt explicitly scopes that task. This packet does not grant merge, deploy, provider, persistence, Formation, or unscoped execution authority.
 
 ## Selected Material
 - Scope: whole_constellation / Whole Constellation
@@ -53,22 +53,30 @@ Local read-only Agent Brief handoff for codex handoff follow-up. Use for human-r
 - Review the generated graph and copied packets before any future import slice.
 
 ## Handoff Constraints
-- Use for review/planning only.
-- Do not treat as Formation authority.
-- Do not execute Codex.
-- Do not mutate GitHub.
+- Use only inside a human-reviewed workflow.
+- For Codex: code, test, and open a PR only if the user's surrounding prompt explicitly asks for that scoped task.
+- Do not merge, deploy, publish, or approve.
+- Do not mutate GitHub except opening the scoped PR when explicitly requested.
+- Do not call providers/models/APIs.
 - Do not infer raw source content.
-- Ask the user before implementation.
+- Do not treat this packet as Formation authority.
+- ChatGPT reviews the PR.
+- User decides whether to merge.
+- Ask the user before expanding scope.
 
 ## Authority
 - Mode: advisory_local_preview
-- No external calls.
+- Packet authority: context only.
+- User-approved PR workflow required for Codex code/test/open-PR work.
+- Packet does not grant Codex execution authority by itself.
+- No GitHub mutation outside explicitly scoped PR creation.
+- No merge/deploy/publish authority.
+- No external provider/model/API calls.
 - No persistence.
 - No graph DB.
 - No proof/evidence/readiness writes.
-- No Codex execution.
-- No GitHub mutation.
-- No provider/model/API call.
+- No raw source inference.
+- No Formation authority.
 
 ## Exclusions
 - raw pasted text omitted
@@ -76,9 +84,9 @@ Local read-only Agent Brief handoff for codex handoff follow-up. Use for human-r
 - raw Agent Brief JSON omitted
 - candidate/source/pointer/actor/consent values omitted
 - bounded summary omitted from ingress_context
-- packet body text omitted
+- existing packet bodies omitted
 - FormationReceipt body omitted
-- external integration and private payloads omitted
+- external/private/provider/model/GitHub/Codex/OAuth/token/billing/prompt payloads omitted
 - packet text does not grant authority
 
 ## Selected Node codex_handoff Packet
@@ -89,7 +97,7 @@ Audience: codex_handoff
 Generated: 2026-06-08T00:00:00.000Z
 
 ## Purpose
-Local read-only Agent Brief handoff for codex handoff follow-up. Use for human-reviewed review and planning only. This consumption artifact does not grant Formation, execution, GitHub, persistence, or provider authority.
+Local read-only Agent Brief handoff for a user-approved Codex PR workflow. Codex may code, test, and open a PR only when the surrounding prompt explicitly scopes that task. This packet does not grant merge, deploy, provider, persistence, Formation, or unscoped execution authority.
 
 ## Selected Material
 - Scope: selected_node / Selected node
@@ -131,22 +139,30 @@ Local read-only Agent Brief handoff for codex handoff follow-up. Use for human-r
 - Review the generated graph and copied packets before any future import slice.
 
 ## Handoff Constraints
-- Use for review/planning only.
-- Do not treat as Formation authority.
-- Do not execute Codex.
-- Do not mutate GitHub.
+- Use only inside a human-reviewed workflow.
+- For Codex: code, test, and open a PR only if the user's surrounding prompt explicitly asks for that scoped task.
+- Do not merge, deploy, publish, or approve.
+- Do not mutate GitHub except opening the scoped PR when explicitly requested.
+- Do not call providers/models/APIs.
 - Do not infer raw source content.
-- Ask the user before implementation.
+- Do not treat this packet as Formation authority.
+- ChatGPT reviews the PR.
+- User decides whether to merge.
+- Ask the user before expanding scope.
 
 ## Authority
 - Mode: advisory_local_preview
-- No external calls.
+- Packet authority: context only.
+- User-approved PR workflow required for Codex code/test/open-PR work.
+- Packet does not grant Codex execution authority by itself.
+- No GitHub mutation outside explicitly scoped PR creation.
+- No merge/deploy/publish authority.
+- No external provider/model/API calls.
 - No persistence.
 - No graph DB.
 - No proof/evidence/readiness writes.
-- No Codex execution.
-- No GitHub mutation.
-- No provider/model/API call.
+- No raw source inference.
+- No Formation authority.
 
 ## Exclusions
 - raw pasted text omitted
@@ -154,9 +170,9 @@ Local read-only Agent Brief handoff for codex handoff follow-up. Use for human-r
 - raw Agent Brief JSON omitted
 - candidate/source/pointer/actor/consent values omitted
 - bounded summary omitted from ingress_context
-- packet body text omitted
+- existing packet bodies omitted
 - FormationReceipt body omitted
-- external integration and private payloads omitted
+- external/private/provider/model/GitHub/Codex/OAuth/token/billing/prompt payloads omitted
 - packet text does not grant authority
 
 ## Review-loop Usage Note
@@ -165,7 +181,7 @@ Local read-only Agent Brief handoff for codex handoff follow-up. Use for human-r
 - Codex should open a PR, not merge.
 - ChatGPT reviews PR after Codex opens it.
 - User decides whether to merge.
-- Packet does not grant execution authority.
+- Packet does not grant authority by itself.
 
 ## Safety Note
 

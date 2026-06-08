@@ -74,6 +74,9 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_MANUAL_AGENT_BRIEF_CODEX_REVIEW_LOOP_EVAL_V0_1.md",
   "reports/2026-06-07-perspective-manual-agent-brief-codex-review-loop-eval.md",
   "reports/dogfood/2026-06-07-perspective-manual-agent-brief-codex-review-loop-packet.md",
+  "docs/PERSPECTIVE_AGENT_BRIEF_HANDOFF_COPY_REFINE_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-handoff-copy-refine.md",
+  "scripts/smoke-perspective-agent-brief-handoff-copy-refine.mjs",
 ]);
 
 assert.equal(
@@ -351,11 +354,24 @@ function assertManualPacket(packet, preview, rawInput) {
     "preview ready",
     "local/read-only",
     "Summary: omitted for manual ingress packet.",
-    "No Codex execution",
-    "No GitHub mutation",
+    "No merge/deploy/publish authority.",
     "No persistence",
     "No graph DB",
   ]);
+  if (packet.audience === "codex_handoff") {
+    assertContainsAll(packet.packet_text, [
+      "Codex may code, test, and open a PR only when the surrounding prompt explicitly scopes that task.",
+      "Packet does not grant Codex execution authority by itself.",
+      "No GitHub mutation outside explicitly scoped PR creation.",
+      "ChatGPT reviews the PR.",
+      "User decides whether to merge.",
+    ]);
+  }
+  assert.equal(
+    packet.packet_text.includes("- Do not execute Codex."),
+    false,
+    "manual handoff packet must not include the ambiguous standalone Codex execution ban",
+  );
   assert.deepEqual(Object.keys(packet.sections), [
     "purpose",
     "selected_material",

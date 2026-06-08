@@ -46,11 +46,7 @@ export function buildPerspectiveAgentBriefHandoffPacket({
 }: BuildPerspectiveAgentBriefHandoffPacketInput): PerspectiveAgentBriefHandoffPacketV0 {
   const exclusions = buildPerspectiveAgentBriefHandoffExclusions();
   const sections: PerspectiveAgentBriefHandoffPacketV0["sections"] = {
-    purpose: [
-      `Local read-only Agent Brief handoff for ${formatAudience(audience)} follow-up.`,
-      "Use for human-reviewed review and planning only.",
-      "This consumption artifact does not grant Formation, execution, GitHub, persistence, or provider authority.",
-    ].join(" "),
+    purpose: buildPerspectiveAgentBriefHandoffPurpose(audience),
     selected_material: [
       `Scope: ${brief.scope.mode} / ${brief.scope.label}`,
       `Selected: ${brief.selected.label}`,
@@ -88,24 +84,9 @@ export function buildPerspectiveAgentBriefHandoffPacket({
       brief.next_actions.map((action) => action.summary),
       "No next actions in brief.",
     ),
-    handoff_constraints: [
-      "Use for review/planning only.",
-      "Do not treat as Formation authority.",
-      "Do not execute Codex.",
-      "Do not mutate GitHub.",
-      "Do not infer raw source content.",
-      "Ask the user before implementation.",
-    ],
-    authority: [
-      `Mode: ${brief.authority.mode}`,
-      "No external calls.",
-      "No persistence.",
-      "No graph DB.",
-      "No proof/evidence/readiness writes.",
-      "No Codex execution.",
-      "No GitHub mutation.",
-      "No provider/model/API call.",
-    ],
+    handoff_constraints:
+      buildPerspectiveAgentBriefHandoffConstraints(audience),
+    authority: buildPerspectiveAgentBriefHandoffAuthority(brief, audience),
   };
 
   return {
@@ -123,6 +104,32 @@ export function buildPerspectiveAgentBriefHandoffPacket({
     }),
     exclusions,
   };
+}
+
+function buildPerspectiveAgentBriefHandoffPurpose(
+  audience: PerspectiveAgentBriefHandoffPacketAudienceV0,
+) {
+  if (audience === "codex_handoff") {
+    return [
+      "Local read-only Agent Brief handoff for a user-approved Codex PR workflow.",
+      "Codex may code, test, and open a PR only when the surrounding prompt explicitly scopes that task.",
+      "This packet does not grant merge, deploy, provider, persistence, Formation, or unscoped execution authority.",
+    ].join(" ");
+  }
+
+  if (audience === "chatgpt_review") {
+    return [
+      "Local read-only Agent Brief handoff for ChatGPT and human review or planning.",
+      "Use it as review context, not as an implementation instruction by itself.",
+      "This packet does not grant execution, merge, deploy, provider, persistence, or Formation authority.",
+    ].join(" ");
+  }
+
+  return [
+    "Local read-only Agent Brief handoff for structured agent reasoning.",
+    "Use it as context only; it should not trigger side effects.",
+    "This packet does not grant execution, merge, deploy, provider, persistence, or Formation authority.",
+  ].join(" ");
 }
 
 function formatSelectedMaterialSummaryForHandoff(
@@ -169,6 +176,77 @@ function buildIngressContextLines(
   ];
 }
 
+function buildPerspectiveAgentBriefHandoffConstraints(
+  audience: PerspectiveAgentBriefHandoffPacketAudienceV0,
+) {
+  if (audience === "codex_handoff") {
+    return [
+      "Use only inside a human-reviewed workflow.",
+      "For Codex: code, test, and open a PR only if the user's surrounding prompt explicitly asks for that scoped task.",
+      "Do not merge, deploy, publish, or approve.",
+      "Do not mutate GitHub except opening the scoped PR when explicitly requested.",
+      "Do not call providers/models/APIs.",
+      "Do not infer raw source content.",
+      "Do not treat this packet as Formation authority.",
+      "ChatGPT reviews the PR.",
+      "User decides whether to merge.",
+      "Ask the user before expanding scope.",
+    ];
+  }
+
+  if (audience === "chatgpt_review") {
+    return [
+      "Use for review and planning only.",
+      "Do not treat this packet as an implementation instruction by itself.",
+      "Do not merge, deploy, publish, or approve.",
+      "Do not call providers/models/APIs.",
+      "Do not infer raw source content.",
+      "Do not treat this packet as Formation authority.",
+      "Ask the user before expanding scope.",
+    ];
+  }
+
+  return [
+    "Use for read-only context only.",
+    "Do not trigger side effects.",
+    "Do not merge, deploy, publish, or approve.",
+    "Do not call providers/models/APIs.",
+    "Do not infer raw source content.",
+    "Do not treat this packet as Formation authority.",
+    "Ask the user before expanding scope.",
+  ];
+}
+
+function buildPerspectiveAgentBriefHandoffAuthority(
+  brief: PerspectiveAgentBriefV0,
+  audience: PerspectiveAgentBriefHandoffPacketAudienceV0,
+) {
+  const codexAuthority =
+    audience === "codex_handoff"
+      ? [
+          "Packet authority: context only.",
+          "User-approved PR workflow required for Codex code/test/open-PR work.",
+          "Packet does not grant Codex execution authority by itself.",
+          "No GitHub mutation outside explicitly scoped PR creation.",
+        ]
+      : [
+          "Packet authority: context only.",
+          "No GitHub mutation authority.",
+        ];
+
+  return [
+    `Mode: ${brief.authority.mode}`,
+    ...codexAuthority,
+    "No merge/deploy/publish authority.",
+    "No external provider/model/API calls.",
+    "No persistence.",
+    "No graph DB.",
+    "No proof/evidence/readiness writes.",
+    "No raw source inference.",
+    "No Formation authority.",
+  ];
+}
+
 function buildPerspectiveAgentBriefHandoffExclusions() {
   return [
     "raw pasted text omitted",
@@ -176,9 +254,9 @@ function buildPerspectiveAgentBriefHandoffExclusions() {
     "raw Agent Brief JSON omitted",
     "candidate/source/pointer/actor/consent values omitted",
     "bounded summary omitted from ingress_context",
-    "packet body text omitted",
+    "existing packet bodies omitted",
     "FormationReceipt body omitted",
-    "external integration and private payloads omitted",
+    "external/private/provider/model/GitHub/Codex/OAuth/token/billing/prompt payloads omitted",
     "packet text does not grant authority",
   ];
 }
@@ -261,8 +339,4 @@ function formatIngressBoundary(
   if (ingressContext.authority.local_only) return "local";
   if (ingressContext.authority.read_only) return "read-only";
   return "not local/read-only";
-}
-
-function formatAudience(audience: PerspectiveAgentBriefHandoffPacketAudienceV0) {
-  return audience.replaceAll("_", " ");
 }
