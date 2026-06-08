@@ -215,6 +215,7 @@
     "smoke:perspective-formation-input-bundle-builder": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-formation-input-bundle-builder.mjs",
     "smoke:perspective-candidate-builder-fixture": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-candidate-builder-fixture.mjs",
     "smoke:perspective-candidate-briefing-preview": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-candidate-briefing-preview.mjs",
+    "smoke:perspective-user-judgment-capture-packet": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-user-judgment-capture-packet.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
     "smoke:cockpit-perspective-workbench-temporal-underlay": "node scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",

@@ -143,6 +143,10 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CANDIDATE_BRIEFING_PREVIEW_V0_1.md",
   "reports/2026-06-08-perspective-candidate-briefing-preview.md",
   "scripts/smoke-perspective-candidate-briefing-preview.mjs",
+  "lib/perspective-ingest/perspective-user-judgment-capture-packet.ts",
+  "docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md",
+  "reports/2026-06-08-perspective-user-judgment-capture-packet.md",
+  "scripts/smoke-perspective-user-judgment-capture-packet.mjs",
 ]);
 
 assert.equal(

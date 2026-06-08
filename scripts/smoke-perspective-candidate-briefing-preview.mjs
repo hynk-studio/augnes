@@ -9,12 +9,20 @@ const candidateBuilderFile =
   "lib/perspective-ingest/perspective-candidate-builder.ts";
 const briefingPreviewBuilderFile =
   "lib/perspective-ingest/perspective-candidate-briefing-preview.ts";
+const userJudgmentBuilderFile =
+  "lib/perspective-ingest/perspective-user-judgment-capture-packet.ts";
 const docFile =
   "docs/PERSPECTIVE_CANDIDATE_BRIEFING_PREVIEW_V0_1.md";
 const reportFile =
   "reports/2026-06-08-perspective-candidate-briefing-preview.md";
 const smokeFile =
   "scripts/smoke-perspective-candidate-briefing-preview.mjs";
+const userJudgmentDocFile =
+  "docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md";
+const userJudgmentReportFile =
+  "reports/2026-06-08-perspective-user-judgment-capture-packet.md";
+const userJudgmentSmokeFile =
+  "scripts/smoke-perspective-user-judgment-capture-packet.mjs";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const candidateDocFile =
   "docs/PERSPECTIVE_CANDIDATE_BUILDER_FIXTURE_V0_1.md";
@@ -27,9 +35,13 @@ const candidateSmokeFile =
 const allowedChangedFiles = new Set([
   packageFile,
   briefingPreviewBuilderFile,
+  userJudgmentBuilderFile,
   docFile,
+  userJudgmentDocFile,
   reportFile,
+  userJudgmentReportFile,
   smokeFile,
+  userJudgmentSmokeFile,
   laneDocFile,
   candidateDocFile,
   laneSmokeFile,
@@ -393,7 +405,10 @@ function assertDocsAndReport() {
     "not readiness",
     "not approval",
     "not merge authority",
-    "Add manual ChatGPT user judgment capture packet",
+    "Consumed By",
+    "user judgment capture packet",
+    "not judgment capture by itself",
+    "Add pure local Codex next-handoff draft packet from user judgment",
   ]);
   assertContainsAll(reportText, [
     "Summary",
@@ -415,7 +430,9 @@ function assertDocsAndReport() {
   assertContainsAll(laneDocText, [
     "PR D: ChatGPT briefing surface preview",
     "implemented as a pure local briefing preview builder",
-    "Add manual ChatGPT user judgment capture packet",
+    "PR E: manual ChatGPT user judgment capture packet",
+    "implemented as a pure local user judgment capture packet builder",
+    "Add pure local Codex next-handoff draft packet from user judgment",
   ]);
 }
 
@@ -453,7 +470,8 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
         (!changedFile.startsWith("lib/") ||
-          changedFile === briefingPreviewBuilderFile) &&
+          changedFile === briefingPreviewBuilderFile ||
+          changedFile === userJudgmentBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
