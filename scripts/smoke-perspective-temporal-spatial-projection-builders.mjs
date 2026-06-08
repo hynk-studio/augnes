@@ -94,6 +94,13 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_INGRESS_ADMISSION_MODEL_V0_1.md",
   "reports/2026-06-07-perspective-ingress-admission-model.md",
   "scripts/smoke-perspective-ingress-admission-model.mjs",
+  "types/perspective-ingest-constellation-preview.ts",
+  "lib/readonly-api/perspective-ingest-local-preview.ts",
+  "app/api/augnes/read/perspective-ingest-local-preview/route.ts",
+  "docs/PERSPECTIVE_LOCAL_MANUAL_INGRESS_ADMISSION_PREVIEW_V0_1.md",
+  "reports/2026-06-07-perspective-local-manual-ingress-admission-preview.md",
+  "scripts/smoke-perspective-local-manual-ingress-admission-preview.mjs",
+  "scripts/smoke-perspective-ingest-local-pasted-text-preview.mjs",
 ]);
 
 assert.equal(
@@ -454,12 +461,17 @@ assertOrdered(unitPreviewBuilderText, [
 for (const changedFile of collectChangedFiles()) {
   const isPerspectiveAgentBriefReadRoute =
     changedFile === "app/api/augnes/read/perspective-agent-brief/route.ts";
+  const isExistingLocalPreviewRoute =
+    changedFile ===
+    "app/api/augnes/read/perspective-ingest-local-preview/route.ts";
   assert(
     allowedChangedFiles.has(changedFile),
     `projection-builder slice changed an out-of-scope file: ${changedFile}`,
   );
   assert(
-    (!changedFile.startsWith("app/api/") || isPerspectiveAgentBriefReadRoute) &&
+    (!changedFile.startsWith("app/api/") ||
+      isPerspectiveAgentBriefReadRoute ||
+      isExistingLocalPreviewRoute) &&
       !changedFile.startsWith("db/") &&
       !changedFile.startsWith("migrations/"),
     `projection-builder slice must not introduce routes, DB, or migrations: ${changedFile}`,

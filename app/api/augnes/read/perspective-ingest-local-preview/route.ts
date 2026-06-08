@@ -1,6 +1,6 @@
 import {
   buildPerspectiveIngestLocalPreviewError,
-  buildPerspectiveIngestLocalPreviewReadResponse,
+  buildPerspectiveIngestLocalPreviewReadResult,
   validatePerspectiveIngestLocalPreviewAccess,
   validatePerspectiveIngestLocalPreviewBody,
 } from "@/lib/readonly-api/perspective-ingest-local-preview";
@@ -54,13 +54,24 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(
-      buildPerspectiveIngestLocalPreviewReadResponse({
-        generatedAt: new Date().toISOString(),
-        request: bodyValidation.request,
-      }),
-      { status: 200 },
-    );
+    const readResult = buildPerspectiveIngestLocalPreviewReadResult({
+      generatedAt: new Date().toISOString(),
+      request: bodyValidation.request,
+    });
+
+    if (!readResult.ok) {
+      return NextResponse.json(
+        buildPerspectiveIngestLocalPreviewError({
+          code: readResult.code,
+          status: readResult.status,
+          summary: readResult.summary,
+          authorityBoundary: readResult.authority_boundary,
+        }),
+        { status: readResult.status },
+      );
+    }
+
+    return NextResponse.json(readResult.response, { status: 200 });
   } catch {
     return NextResponse.json(
       buildPerspectiveIngestLocalPreviewError({

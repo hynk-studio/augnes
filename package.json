@@ -216,6 +216,7 @@
     "smoke:cockpit-perspective-workbench-temporal-underlay": "node scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
     "smoke:perspective-agent-brief-read-surface": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-agent-brief-read-surface.mjs",
     "smoke:perspective-ingress-admission-model": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-ingress-admission-model.mjs",
+    "smoke:perspective-local-manual-ingress-admission-preview": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-local-manual-ingress-admission-preview.mjs",
     "smoke:perspective-handoff-packet-structure-review": "node scripts/smoke-perspective-handoff-packet-structure-review.mjs",
     "smoke:perspective-handoff-packet-copy-to-agent-dogfood": "node scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
     "smoke:codex-sdk-execution-authority-design": "node scripts/smoke-codex-sdk-execution-authority-design.mjs",
