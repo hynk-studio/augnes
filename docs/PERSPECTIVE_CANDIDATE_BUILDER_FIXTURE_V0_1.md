@@ -65,6 +65,12 @@ Empty pointer refs may be preserved upstream by the Formation Input Bundle, but
 they are omitted from candidate `evidence_pointers`. Whitespace-only refs are
 also omitted so missing refs do not appear as candidate pointer material.
 
+## Consumed By
+
+The Perspective Candidate briefing preview consumes this candidate as bounded
+source material for ChatGPT-facing review. The Candidate remains non-committed
+formation output, not briefing or approval by itself.
+
 ## Readiness and Review Quality
 
 The candidate preserves input bundle readiness while adding candidate-level
@@ -114,4 +120,4 @@ behavior.
 
 ## Future Next Step
 
-Add ChatGPT Perspective Candidate briefing preview.
+Add manual ChatGPT user judgment capture packet.
