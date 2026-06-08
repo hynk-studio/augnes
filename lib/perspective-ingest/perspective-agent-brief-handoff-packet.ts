@@ -55,7 +55,7 @@ export function buildPerspectiveAgentBriefHandoffPacket({
       `Scope: ${brief.scope.mode} / ${brief.scope.label}`,
       `Selected: ${brief.selected.label}`,
       `Type: ${brief.selected.type}`,
-      `Summary: ${brief.selected.summary}`,
+      formatSelectedMaterialSummaryForHandoff(brief),
     ],
     spatial_context: [
       `Node count: ${brief.spatial_context.node_count}`,
@@ -123,6 +123,16 @@ export function buildPerspectiveAgentBriefHandoffPacket({
     }),
     exclusions,
   };
+}
+
+function formatSelectedMaterialSummaryForHandoff(
+  brief: PerspectiveAgentBriefV0,
+) {
+  if (brief.ingress_context?.ingress_kind === "manual_pasted_text") {
+    return "Summary: omitted for manual ingress packet.";
+  }
+
+  return `Summary: ${brief.selected.summary}`;
 }
 
 function buildIngressContextLines(

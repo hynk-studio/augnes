@@ -134,6 +134,8 @@ assertContainsAll(builderText, [
   "## Handoff Constraints",
   "## Authority",
   "## Exclusions",
+  "formatSelectedMaterialSummaryForHandoff",
+  "Summary: omitted for manual ingress packet.",
 ]);
 for (const forbidden of [
   "JSON.stringify(brief",
@@ -213,7 +215,49 @@ const samplePacket = buildPerspectiveAgentBriefHandoffPacket({
 });
 assert.equal(samplePacket.packet_version, "perspective_agent_brief_handoff_packet.v0.1");
 assert(samplePacket.packet_text.includes("No ingress context present."));
+assert(
+  samplePacket.packet_text.includes(`Summary: ${sampleBrief.selected.summary}`),
+  "sample fixture packet may still include selected summary",
+);
 assertSectionOrder(samplePacket.packet_text);
+
+const manualSourceNode = manualPreview.constellation.nodes.find(
+  (node) => node.type === "source",
+);
+assert(manualSourceNode, "manual preview should have a selectable source node");
+const selectedSourceManualBrief = buildPerspectiveAgentBrief({
+  preview: manualPreview,
+  selected_node_id: manualSourceNode.id,
+  scope_mode: "selected_node",
+  scope_label: "Selected node",
+});
+assert.equal(selectedSourceManualBrief.selected.id, manualSourceNode.id);
+assert.equal(selectedSourceManualBrief.selected.summary, manualSourceNode.summary);
+assert(selectedSourceManualBrief.ingress_context);
+const selectedSourceManualPacket = buildPerspectiveAgentBriefHandoffPacket({
+  brief: selectedSourceManualBrief,
+  audience: "codex_handoff",
+  generated_at: generatedAt,
+});
+assert(selectedSourceManualPacket.packet_text.includes("Scope: selected_node / Selected node"));
+assertManualPacket(selectedSourceManualPacket, manualPreview, rawManualInput);
+assert(
+  selectedSourceManualPacket.packet_text.includes(
+    "Summary: omitted for manual ingress packet.",
+  ),
+  "manual selected-source packet must render the summary omission placeholder",
+);
+assert.equal(
+  selectedSourceManualPacket.packet_text.includes(manualSourceNode.summary),
+  false,
+  "manual selected-source packet must not render selected source node summary",
+);
+assertSelectedSourceLeakRegression({
+  packetText: selectedSourceManualPacket.packet_text,
+  preview: manualPreview,
+  rawInput: rawManualInput,
+  selectedSourceSummary: manualSourceNode.summary,
+});
 
 const manualPacketNodeId =
   manualPreview.constellation.nodes.find((node) => node.type === "packet")?.id ??
@@ -301,6 +345,7 @@ function assertManualPacket(packet, preview, rawInput) {
     "accepted_for_preview",
     "preview ready",
     "local/read-only",
+    "Summary: omitted for manual ingress packet.",
     "No Codex execution",
     "No GitHub mutation",
     "No persistence",
@@ -379,6 +424,35 @@ function assertNoForbiddenPacketText(packetText, preview, rawInput) {
       `packet must not include forbidden marker: ${forbidden}`,
     );
   }
+}
+
+function assertSelectedSourceLeakRegression({
+  packetText,
+  preview,
+  rawInput,
+  selectedSourceSummary,
+}) {
+  const ingressAdmission = preview.ingress_admission;
+  const forbiddenValues = [
+    rawInput,
+    selectedSourceSummary,
+    ingressAdmission.candidate.bounded_summary,
+    ingressAdmission.candidate.candidate_id,
+    ingressAdmission.candidate.source_ref,
+    ...ingressAdmission.candidate.pointer_refs,
+    ...ingressAdmission.candidate.actor_refs,
+    "manual_pasted_text:user_submitted",
+  ].filter(Boolean);
+
+  for (const forbiddenValue of forbiddenValues) {
+    assert.equal(
+      packetText.includes(forbiddenValue),
+      false,
+      `selected-source manual packet must not include leaked value: ${forbiddenValue}`,
+    );
+  }
+
+  assert.equal(packetText.includes("input_text"), false);
 }
 
 function assertSectionOrder(packetText) {

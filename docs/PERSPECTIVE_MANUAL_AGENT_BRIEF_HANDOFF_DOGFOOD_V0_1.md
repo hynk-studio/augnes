@@ -89,6 +89,13 @@ The packet intentionally excludes:
 The packet may say that a candidate id or source ref is available, but it must
 not include the values.
 
+For manual ingress packets, selected material summaries are also omitted because
+`brief.selected.summary` can contain bounded copies of manual pasted input. The
+packet renders `Summary: omitted for manual ingress packet.` instead. Sample
+fixture packets without `ingress_context` may still include their selected
+summary because they are public-safe fixture material rather than manual pasted
+source.
+
 ## Route and UI Behavior
 
 This PR does not change the Human Workbench UI, Observatory details UI, the

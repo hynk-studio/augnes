@@ -44,6 +44,8 @@ The smoke validates:
 5. build `chatgpt_review` and `codex_handoff` handoff packets
 6. confirm a sample fixture packet says no ingress context is present
 7. confirm selected-node manual brief scope is preserved in packet output
+8. confirm selected-source-node manual packets omit selected summaries that may
+   derive from bounded pasted input
 
 ## Packet Section Summary
 
@@ -78,6 +80,11 @@ It does not include source ref, candidate id, pointer ref, actor ref, consent
 ref, bounded summary, raw pasted text, raw admission JSON, or raw Agent Brief
 JSON values.
 
+Manual ingress packet selected-material summaries are replaced with
+`Summary: omitted for manual ingress packet.` because selected summaries can
+contain bounded copies of manual pasted input. Sample fixture packets may still
+include selected summary text.
+
 ## Raw Value Exclusion Checks
 
 The smoke asserts packet text does not include:
@@ -91,6 +98,7 @@ The smoke asserts packet text does not include:
 - actor ref values
 - consent ref value
 - bounded summary value
+- selected source node summary
 - existing packet bodies
 - `Graph nodes:`
 - `Graph edges:`
