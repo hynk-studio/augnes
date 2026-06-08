@@ -125,6 +125,9 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_PROMOTION_PATH_V0_1.md",
   "reports/2026-06-07-perspective-reviewed-codex-template-promotion-path.md",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
+  "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_DOCS_ONLY_MAINTENANCE_CHECKLIST_V0_1.md",
+  "reports/2026-06-07-perspective-reviewed-codex-template-second-docs-maintenance.md",
+  "scripts/smoke-perspective-reviewed-codex-template-second-docs-maintenance.mjs",
 ]);
 
 assert.equal(
