@@ -147,6 +147,10 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md",
   "reports/2026-06-08-perspective-user-judgment-capture-packet.md",
   "scripts/smoke-perspective-user-judgment-capture-packet.mjs",
+  "lib/perspective-ingest/perspective-codex-next-handoff-draft-packet.ts",
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md",
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md",
+  "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs",
 ]);
 
 assert.equal(

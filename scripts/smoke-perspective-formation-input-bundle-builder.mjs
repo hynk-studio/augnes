@@ -37,6 +37,14 @@ const userJudgmentReportFile =
   "reports/2026-06-08-perspective-user-judgment-capture-packet.md";
 const userJudgmentSmokeFile =
   "scripts/smoke-perspective-user-judgment-capture-packet.mjs";
+const codexDraftBuilderFile =
+  "lib/perspective-ingest/perspective-codex-next-handoff-draft-packet.ts";
+const codexDraftDocFile =
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md";
+const codexDraftReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
+const codexDraftSmokeFile =
+  "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -58,6 +66,10 @@ const allowedChangedFiles = new Set([
   userJudgmentDocFile,
   userJudgmentReportFile,
   userJudgmentSmokeFile,
+  codexDraftBuilderFile,
+  codexDraftDocFile,
+  codexDraftReportFile,
+  codexDraftSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);

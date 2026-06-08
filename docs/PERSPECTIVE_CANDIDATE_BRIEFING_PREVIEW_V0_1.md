@@ -82,7 +82,9 @@ It does not claim approval. It does not instruct Codex to run.
 
 The manual ChatGPT user judgment capture packet consumes this briefing preview
 plus caller-supplied bounded user judgment. The briefing preview remains
-display/review material, not judgment capture by itself.
+display/review material, not judgment capture by itself. The later Codex
+next-handoff draft packet consumes the user judgment packet, not this briefing
+preview directly as a command.
 
 ## User Judgment Capture
 

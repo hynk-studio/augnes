@@ -212,5 +212,7 @@ forbidden, but bounded summaries are necessary Formation Input Bundle material.
   preview builder.
 - PR E: manual ChatGPT user judgment capture packet, implemented as a pure
   local user judgment capture packet builder.
-- PR F: Add pure local Codex next-handoff draft packet from user judgment.
-- PR G: Core-gated accept/reject/supersede route, only after explicit approval.
+- PR F: Codex next-handoff draft packet, implemented as a pure local
+  non-executing draft packet builder.
+- PR G: Add local Codex handoff draft dogfood report.
+- PR H: Core-gated accept/reject/supersede route, only after explicit approval.
