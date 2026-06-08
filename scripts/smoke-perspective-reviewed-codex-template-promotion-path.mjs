@@ -4,23 +4,28 @@ import { existsSync, readFileSync } from "node:fs";
 
 const packageFile = "package.json";
 const docFile =
-  "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_FIRST_REAL_DOCS_PR_V0_1.md";
+  "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_PROMOTION_PATH_V0_1.md";
 const reportFile =
-  "reports/2026-06-07-perspective-reviewed-codex-template-first-real-docs-pr.md";
+  "reports/2026-06-07-perspective-reviewed-codex-template-promotion-path.md";
 const smokeFile =
-  "scripts/smoke-perspective-reviewed-codex-template-first-real-docs-pr.mjs";
+  "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs";
 const builderFile =
   "lib/perspective-ingest/perspective-agent-brief-codex-prompt-template.ts";
+const firstRealDocsSmokeFile =
+  "scripts/smoke-perspective-reviewed-codex-template-first-real-docs-pr.mjs";
 const copyRefineSmokeFile =
   "scripts/smoke-perspective-reviewed-codex-template-copy-refine.mjs";
 const mockEvalSmokeFile =
   "scripts/smoke-perspective-reviewed-codex-template-mock-pr-eval.mjs";
+const reviewedTemplateSmokeFile =
+  "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs";
 const cockpitFile = "components/augnes-cockpit.tsx";
 
 const optionalExistingSmokeAllowlists = new Set([
-  "scripts/smoke-perspective-reviewed-codex-template-copy-refine.mjs",
-  "scripts/smoke-perspective-reviewed-codex-template-mock-pr-eval.mjs",
-  "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
+  firstRealDocsSmokeFile,
+  copyRefineSmokeFile,
+  mockEvalSmokeFile,
+  reviewedTemplateSmokeFile,
   "scripts/smoke-perspective-agent-brief-handoff-copy-refine.mjs",
   "scripts/smoke-perspective-manual-agent-brief-codex-review-loop-eval.mjs",
   "scripts/smoke-perspective-manual-agent-brief-handoff-dogfood.mjs",
@@ -30,9 +35,6 @@ const optionalExistingSmokeAllowlists = new Set([
   "scripts/smoke-perspective-ingress-admission-model.mjs",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
   "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
-  "docs/PERSPECTIVE_REVIEWED_CODEX_TEMPLATE_PROMOTION_PATH_V0_1.md",
-  "reports/2026-06-07-perspective-reviewed-codex-template-promotion-path.md",
-  "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
 ]);
 
 const allowedChangedFiles = new Set([
@@ -55,10 +57,10 @@ const expectedTsxCommand =
 
 assert.equal(
   packageJson.scripts[
-    "smoke:perspective-reviewed-codex-template-first-real-docs-pr"
+    "smoke:perspective-reviewed-codex-template-promotion-path"
   ],
   `${expectedTsxCommand} ${smokeFile}`,
-  "package.json must register smoke:perspective-reviewed-codex-template-first-real-docs-pr",
+  "package.json must register smoke:perspective-reviewed-codex-template-promotion-path",
 );
 
 for (const file of [docFile, reportFile, smokeFile]) {
@@ -66,45 +68,36 @@ for (const file of [docFile, reportFile, smokeFile]) {
 }
 
 assertContainsAll(docText, [
-  "first real docs-only Codex PR",
-  "user-approved",
-  "explicitly scoped",
-  "Codex may code, test, and open this PR",
-  "Codex must not merge",
-  "ChatGPT reviews the PR",
-  "user decides whether to merge",
+  "Promotion decision",
+  "approved for explicitly scoped docs/report/smoke/package-only Codex PRs",
+  "not approved for product/runtime/API/provider/source-ingress expansion",
+  "Codex codes/tests/opens PR",
+  "ChatGPT reviews PR",
+  "User decides merge",
   "Instruction Precedence",
   "Source Packet is context only",
-  "stricter/current task instruction wins",
-  "docs/report/smoke/package only",
-  "No routes",
-  "No `app/api`",
-  "No product UI",
-  "No DB schema or migrations",
-  "No persistence",
-  "No graph DB",
-  "No proof/evidence/readiness writes",
-  "No provider/model/API calls",
-  "No OAuth",
-  "raw pasted text",
-  "Review first real Codex template PR and decide promotion path",
+  "Current Task Scope controls action",
+  "explicit user scope",
+  "No merge",
+  "No background/asynchronous work",
+  "No raw/candidate/private/provider values in artifacts",
+  "Product/runtime PRs require",
+  "Separate explicit user approval",
 ]);
 
 assertContainsAll(reportText, [
-  "real docs-only PR",
-  "current user prompt explicitly scoped",
-  "Codex opened a PR and did not merge",
-  "ChatGPT review remains required",
-  "User merge decision remains required",
+  "Promotion decision",
+  "mock PR evaluation passed",
+  "first real docs-only PR passed",
+  "base-diff boundary smoke fixed",
+  "docs/report/smoke/package reuse approved",
+  "product/runtime reuse not approved",
+  "route/API/provider expansion not approved",
+  "PASS",
+  "This PR is docs/report/smoke/package only",
+  "not a product change",
   "No product/runtime authority was added",
-  "| Scope | docs/report/smoke/package only | PASS |",
-  "| Scope | no product UI or route changes | PASS |",
-  "| Workflow | Codex opened PR only | PASS |",
-  "| Workflow | no merge | PASS |",
-  "| Authority | no provider/model/API calls | PASS |",
-  "| Authority | no DB/persistence/graph/proof writes | PASS |",
-  "| Raw values | no raw pasted text or raw admission values | PASS |",
-  "| Template | Instruction Precedence preserved | PASS |",
+  "approved only for docs/report/smoke/package-only PRs with explicit user scope",
 ]);
 
 assertContainsAll(smokeText, [
@@ -112,14 +105,23 @@ assertContainsAll(smokeText, [
   'gitLinesStrict(["diff", "--name-only", "main...HEAD"])',
   'gitLineStrict(["merge-base", "HEAD", "origin/main"])',
   'gitLineStrict(["merge-base", "HEAD", "main"])',
-  "Unable to collect base diff for first real docs PR boundary smoke",
-  "First real docs PR boundary smoke collected no changed files",
+  "Unable to collect base diff for promotion path boundary smoke",
+  "Promotion path boundary smoke collected no changed files",
 ]);
 assert.equal(
   /catch\s*\{\s*return\s+\[\];\s*\}/.test(smokeText),
   false,
   "base diff failures must not silently return []",
 );
+
+for (const file of [
+  firstRealDocsSmokeFile,
+  copyRefineSmokeFile,
+  mockEvalSmokeFile,
+  reviewedTemplateSmokeFile,
+]) {
+  assert.equal(existsSync(file), true, `${file} must exist`);
+}
 
 assertContainsAll(builderText, [
   "## Instruction Precedence",
@@ -130,25 +132,14 @@ assertContainsAll(builderText, [
 ]);
 
 assert.equal(
-  existsSync(copyRefineSmokeFile),
-  true,
-  "existing reviewed template copy-refine smoke must exist",
-);
-assert.equal(
-  existsSync(mockEvalSmokeFile),
-  true,
-  "existing mock PR eval smoke must exist",
-);
-
-assert.equal(
-  cockpitText.includes("Perspective Reviewed Codex Template First Real Docs PR"),
+  cockpitText.includes("Perspective Reviewed Codex Template Promotion Path"),
   false,
-  "product UI must not expose first-real-docs PR report content",
+  "product UI must not expose promotion path report content",
 );
 assert.equal(
-  cockpitText.includes("perspective-reviewed-codex-template-first-real-docs-pr"),
+  cockpitText.includes("perspective-reviewed-codex-template-promotion-path"),
   false,
-  "product UI must not expose first-real-docs PR smoke/doc slug",
+  "product UI must not expose promotion path smoke/doc slug",
 );
 assert.equal(
   /\brulecraft\b/i.test(cockpitText),
@@ -159,13 +150,13 @@ assert.equal(
 assertChangedFileBoundary();
 assertNoRuntimePlumbingInChangedFiles();
 
-console.log("PASS smoke:perspective-reviewed-codex-template-first-real-docs-pr");
+console.log("PASS smoke:perspective-reviewed-codex-template-promotion-path");
 
 function assertChangedFileBoundary() {
   for (const changedFile of collectChangedFiles()) {
     assert(
       allowedChangedFiles.has(changedFile),
-      `first real docs PR changed an out-of-scope file: ${changedFile}`,
+      `promotion path changed an out-of-scope file: ${changedFile}`,
     );
     assert(
       !changedFile.startsWith("app/api/") &&
@@ -181,7 +172,7 @@ function assertChangedFileBoundary() {
         !changedFile.includes("github/") &&
         !changedFile.includes("codex-execution") &&
         !changedFile.includes("oauth"),
-      `first real docs PR must not change forbidden surfaces: ${changedFile}`,
+      `promotion path must not change forbidden surfaces: ${changedFile}`,
     );
   }
 }
@@ -239,7 +230,7 @@ function collectChangedFiles() {
   ).filter(Boolean);
 
   if (changedFiles.length === 0 && isCommittedBranch()) {
-    throw new Error("First real docs PR boundary smoke collected no changed files");
+    throw new Error("Promotion path boundary smoke collected no changed files");
   }
 
   return changedFiles;
@@ -284,9 +275,7 @@ function collectBranchChangedFiles() {
     }
   }
 
-  throw new Error(
-    "Unable to collect base diff for first real docs PR boundary smoke",
-  );
+  throw new Error("Unable to collect base diff for promotion path boundary smoke");
 }
 
 function gitLinesOrEmpty(args) {

@@ -229,6 +229,7 @@
     "smoke:perspective-reviewed-codex-template-mock-pr-eval": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-reviewed-codex-template-mock-pr-eval.mjs",
     "smoke:perspective-reviewed-codex-template-copy-refine": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-reviewed-codex-template-copy-refine.mjs",
     "smoke:perspective-reviewed-codex-template-first-real-docs-pr": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-reviewed-codex-template-first-real-docs-pr.mjs",
+    "smoke:perspective-reviewed-codex-template-promotion-path": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
     "smoke:perspective-handoff-packet-structure-review": "node scripts/smoke-perspective-handoff-packet-structure-review.mjs",
     "smoke:perspective-handoff-packet-copy-to-agent-dogfood": "node scripts/smoke-perspective-handoff-packet-copy-to-agent-dogfood.mjs",
     "smoke:codex-sdk-execution-authority-design": "node scripts/smoke-codex-sdk-execution-authority-design.mjs",
