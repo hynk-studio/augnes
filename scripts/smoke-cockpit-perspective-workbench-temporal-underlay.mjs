@@ -186,13 +186,17 @@ assertContainsAll(cockpit, [
   'open={perspectiveViewSettingsOpen}',
   'open={perspectiveTemporalDetailsOpen}',
   'open={perspectiveObservatoryDetailsOpen}',
+  'open={perspectiveFullRefsDetailsOpen}',
   'open={perspectiveAdvancedPreviewControlsOpen}',
   'open={handoffPacketOpen}',
   "perspectiveTemporalDetailsOpen ? (",
   "perspectiveObservatoryDetailsOpen ? (",
+  "perspectiveFullRefsDetailsOpen ? (",
   "perspectiveAdvancedPreviewControlsOpen ? (",
   "handoffPacketOpen ? (",
   "advancedDiagnosticsOpen ? (",
+  "setPerspectiveObservatoryDetailsOpen(event.currentTarget.open)",
+  "setPerspectiveFullRefsDetailsOpen(event.currentTarget.open)",
 ]);
 
 assertOrder(
@@ -214,6 +218,32 @@ assertOrder(
   cockpit,
   ["perspectiveObservatoryDetailsOpen ? (", "Formation receipt details"],
   "FormationReceipt details must render only after Observatory details opens",
+);
+assertOrder(
+  cockpit,
+  ["perspectiveFullRefsDetailsOpen ? (", "Evidence pointers"],
+  "Full refs details must render only after Full refs details opens",
+);
+
+const observatoryDetailsSource = extractBetween(
+  cockpit,
+  'className="perspective-workbench-detail-panel perspective-observatory-details"',
+  '<div className="perspective-constellation-workspace-grid perspective-workbench-layout">',
+);
+assert.equal(
+  observatoryDetailsSource.includes("perspectiveFullRefsDetailsOpen"),
+  false,
+  "top Observatory details must not depend on Full refs details state",
+);
+const fullRefsDetailsSource = extractBetween(
+  cockpit,
+  'className="perspective-inspector-section perspective-inspector-details perspective-inspector-evidence-next"',
+  '<section className="perspective-inspector-section perspective-selection-action-menu">',
+);
+assert.equal(
+  fullRefsDetailsSource.includes("perspectiveObservatoryDetailsOpen"),
+  false,
+  "inspector Full refs details must not depend on Observatory details state",
 );
 
 assertContainsAll(cockpit, [

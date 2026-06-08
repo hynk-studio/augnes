@@ -4309,6 +4309,8 @@ function PerspectiveTab({
     useState(false);
   const [perspectiveObservatoryDetailsOpen, setPerspectiveObservatoryDetailsOpen] =
     useState(false);
+  const [perspectiveFullRefsDetailsOpen, setPerspectiveFullRefsDetailsOpen] =
+    useState(false);
   const [
     perspectiveAdvancedPreviewControlsOpen,
     setPerspectiveAdvancedPreviewControlsOpen,
@@ -7536,16 +7538,16 @@ function PerspectiveTab({
             </details>
             <details
               className="perspective-inspector-section perspective-inspector-details perspective-inspector-evidence-next"
-              open={perspectiveObservatoryDetailsOpen}
+              open={perspectiveFullRefsDetailsOpen}
               onToggle={(event) =>
-                setPerspectiveObservatoryDetailsOpen(event.currentTarget.open)
+                setPerspectiveFullRefsDetailsOpen(event.currentTarget.open)
               }
             >
               <summary>
                 <span>Full refs and formation details</span>
                 <small>evidence pointers, full tensions, next action list</small>
               </summary>
-              {perspectiveObservatoryDetailsOpen ? (
+              {perspectiveFullRefsDetailsOpen ? (
               <div className="perspective-workbench-detail-body">
               <section>
                 <h4>Evidence pointers</h4>
