@@ -58,6 +58,11 @@ const allowedChangedFiles = new Set([
   agentBriefSmokeFile,
   projectionBuildersSmokeFile,
   workbenchSmokeFile,
+  "components/augnes-cockpit.tsx",
+  "app/globals.css",
+  "docs/PERSPECTIVE_INGRESS_ADMISSION_OBSERVATORY_SUMMARY_V0_1.md",
+  "reports/browser/2026-06-07-perspective-ingress-admission-observatory-summary.md",
+  "scripts/smoke-cockpit-perspective-ingress-admission-observatory-summary.mjs",
 ]);
 
 assert.equal(

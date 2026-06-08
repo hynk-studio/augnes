@@ -1179,6 +1179,105 @@ code {
   line-height: 1.25;
 }
 
+.perspective-ingress-admission-summary {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  border-radius: 8px;
+  background: #f8fffd;
+  color: #0f172a;
+}
+
+.perspective-ingress-admission-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+}
+
+.perspective-ingress-admission-heading h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.94rem;
+  line-height: 1.2;
+}
+
+.perspective-ingress-admission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-ingress-admission-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-ingress-admission-grid span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 760;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.perspective-ingress-admission-grid strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 820;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.perspective-ingress-admission-chip,
+.perspective-ingress-admission-boundary span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  padding: 4px 7px;
+  border: 1px solid rgba(13, 148, 136, 0.24);
+  border-radius: 999px;
+  background: #ccfbf1;
+  color: #115e59;
+  font-size: 0.7rem;
+  font-weight: 820;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.perspective-ingress-admission-boundary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.perspective-ingress-admission-boundary span:nth-child(2n) {
+  border-color: rgba(59, 130, 246, 0.2);
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.perspective-ingress-admission-muted {
+  margin: 0;
+  color: #475569;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .perspective-formation-receipt-details .perspective-formation-authority-grid {
   padding: 0 10px 10px;
 }

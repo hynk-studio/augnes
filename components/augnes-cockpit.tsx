@@ -63,6 +63,7 @@ import type {
 import type {
   PerspectiveIngestConstellationEdge,
   PerspectiveIngestConstellationNode,
+  PerspectiveIngestAdmissionPreviewV0,
   PerspectiveIngestConstellationPreviewResponse,
   PerspectiveIngestEvidencePointer,
   PerspectiveIngestNextActionCandidate,
@@ -4387,6 +4388,45 @@ function PerspectiveTab({
       : null;
   const perspectiveIngestConstellation =
     perspectiveIngestConstellationPreview?.constellation ?? null;
+  const perspectiveIngressAdmission =
+    perspectiveIngestConstellationPreview?.ingress_admission ?? null;
+  const perspectiveIngressAdmissionStatusLabel = perspectiveIngressAdmission
+    ? getPerspectiveIngressAdmissionStatusLabel(perspectiveIngressAdmission)
+    : "";
+  const perspectiveIngressAdmissionDecisionLabel = perspectiveIngressAdmission
+    ? getPerspectiveIngressAdmissionDecisionLabel(perspectiveIngressAdmission)
+    : "";
+  const perspectiveIngressAdmissionReadinessLabel = perspectiveIngressAdmission
+    ? getPerspectiveIngressAdmissionReadinessLabel(perspectiveIngressAdmission)
+    : "";
+  const perspectiveIngressAdmissionReadinessHook = perspectiveIngressAdmission
+    ? getPerspectiveIngressAdmissionReadinessHook(perspectiveIngressAdmission)
+    : "not_preview_ready";
+  const perspectiveIngressAdmissionBoundaryLabel = perspectiveIngressAdmission
+    ? formatPerspectiveIngressAdmissionBoundaryLabel(perspectiveIngressAdmission)
+    : "";
+  const perspectiveIngressAdmissionPointerCount =
+    perspectiveIngressAdmission?.candidate.pointer_refs.length ?? 0;
+  const perspectiveIngressAdmissionSourceLabel = perspectiveIngressAdmission
+    ? formatPerspectiveIngressAdmissionSourceLabel(
+        perspectiveIngressAdmission.source.ingress_kind,
+      )
+    : "";
+  const perspectiveIngressAdmissionTrustLabel = perspectiveIngressAdmission
+    ? formatPerspectiveIngressAdmissionTrustLabel(
+        perspectiveIngressAdmission.source.trust_level,
+      )
+    : "";
+  const perspectiveIngressAdmissionCandidateLabel = perspectiveIngressAdmission
+    ? formatPerspectiveIngressAdmissionStateLabel(
+        perspectiveIngressAdmission.source.admission_state,
+      )
+    : "";
+  const perspectiveIngressAdmissionRedactionLabel = perspectiveIngressAdmission
+    ? formatPerspectiveIngressAdmissionStateLabel(
+        perspectiveIngressAdmission.source.redaction_state,
+      )
+    : "";
   const explicitSelectedPerspectiveIngestNode =
     perspectiveIngestConstellation?.nodes.find(
       (node) => node.id === selectedPerspectiveIngestNodeId,
@@ -6606,6 +6646,96 @@ function PerspectiveTab({
               <small>Details in authority capsule</small>
             </div>
           </div>
+          {perspectiveIngressAdmission ? (
+            <section
+              className="perspective-ingress-admission-summary"
+              aria-label="Ingress admission summary"
+              data-augnes-region="perspective-ingress-admission-summary"
+              data-augnes-ingress-admission-version="perspective_ingress_admission_preview.v0.1"
+              data-augnes-ingress-kind="manual_pasted_text"
+              data-augnes-ingress-trust="user_provided_local"
+              data-augnes-ingress-readiness={perspectiveIngressAdmissionReadinessHook}
+              data-augnes-ingress-authority="local-read-only-candidate"
+            >
+              <div className="perspective-ingress-admission-heading">
+                <div>
+                  <p className="panel-eyebrow">Ingress admission</p>
+                  <h3>Ingress admission</h3>
+                </div>
+                <span className="perspective-ingress-admission-chip">
+                  {perspectiveIngressAdmissionStatusLabel}
+                </span>
+              </div>
+              <div className="perspective-ingress-admission-grid">
+                <div>
+                  <span>Status</span>
+                  <strong>{perspectiveIngressAdmissionStatusLabel}</strong>
+                </div>
+                <div>
+                  <span>Source</span>
+                  <strong>{perspectiveIngressAdmissionSourceLabel}</strong>
+                </div>
+                <div>
+                  <span>Trust</span>
+                  <strong>{perspectiveIngressAdmissionTrustLabel}</strong>
+                </div>
+                <div>
+                  <span>Candidate</span>
+                  <strong>{perspectiveIngressAdmissionCandidateLabel}</strong>
+                </div>
+                <div>
+                  <span>Decision</span>
+                  <strong>{perspectiveIngressAdmissionDecisionLabel}</strong>
+                </div>
+                <div>
+                  <span>Readiness</span>
+                  <strong>{perspectiveIngressAdmissionReadinessLabel}</strong>
+                </div>
+                <div>
+                  <span>Boundary</span>
+                  <strong>{perspectiveIngressAdmissionBoundaryLabel}</strong>
+                </div>
+                <div>
+                  <span>Redaction</span>
+                  <strong>{perspectiveIngressAdmissionRedactionLabel}</strong>
+                </div>
+                <div>
+                  <span>Research archive</span>
+                  <strong>
+                    {perspectiveIngressAdmission.readiness
+                      .eligible_for_research_archive
+                      ? "accepted"
+                      : "not accepted"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Pointers</span>
+                  <strong>{perspectiveIngressAdmissionPointerCount}</strong>
+                </div>
+                <div>
+                  <span>Candidate id</span>
+                  <strong>{perspectiveIngressAdmission.candidate.candidate_id}</strong>
+                </div>
+                <div>
+                  <span>Source ref</span>
+                  <strong>{perspectiveIngressAdmission.candidate.source_ref}</strong>
+                </div>
+              </div>
+              <div className="perspective-ingress-admission-boundary">
+                <span>candidate metadata</span>
+                <span>not Formation authority</span>
+                <span>no persistence</span>
+                <span>no graph DB</span>
+                <span>no Codex</span>
+                <span>no GitHub</span>
+              </div>
+              <p className="perspective-ingress-admission-muted">
+                This confirms the manual pasted-text preview was admitted as a
+                local read-only candidate. The original pasted body and
+                unstructured admission payloads are not rendered here.
+              </p>
+            </section>
+          ) : null}
           <details className="perspective-formation-receipt-details">
             <summary>
               <span>Formation receipt details</span>
@@ -26406,6 +26536,76 @@ function getPerspectiveConstellationReceiptSourceDetail(
         : sourceRef.source_ref,
     )
     .join(" · ");
+}
+
+function getPerspectiveIngressAdmissionStatusLabel(
+  admission: PerspectiveIngestAdmissionPreviewV0,
+) {
+  if (
+    admission.decision.allowed &&
+    admission.decision.to_state === "accepted_for_preview" &&
+    admission.readiness.eligible_for_preview
+  ) {
+    return "Admitted for preview";
+  }
+
+  if (!admission.readiness.eligible_for_preview) {
+    return "Not ready for preview";
+  }
+
+  return "Admission pending";
+}
+
+function getPerspectiveIngressAdmissionDecisionLabel(
+  admission: PerspectiveIngestAdmissionPreviewV0,
+) {
+  return formatPerspectiveIngressAdmissionStateLabel(admission.decision.to_state);
+}
+
+function getPerspectiveIngressAdmissionReadinessLabel(
+  admission: PerspectiveIngestAdmissionPreviewV0,
+) {
+  return admission.readiness.eligible_for_preview
+    ? "preview ready"
+    : "not preview ready";
+}
+
+function getPerspectiveIngressAdmissionReadinessHook(
+  admission: PerspectiveIngestAdmissionPreviewV0,
+) {
+  return admission.readiness.eligible_for_preview
+    ? "preview_ready"
+    : "not_preview_ready";
+}
+
+function formatPerspectiveIngressAdmissionBoundaryLabel(
+  admission: PerspectiveIngestAdmissionPreviewV0,
+) {
+  const boundary = admission.candidate.authority_boundary;
+  if (boundary.local_only && boundary.read_only) {
+    return "local / read-only";
+  }
+
+  if (boundary.local_only) return "local";
+  if (boundary.read_only) return "read-only";
+  return "not local/read-only";
+}
+
+function formatPerspectiveIngressAdmissionSourceLabel(value: string) {
+  if (value === "manual_pasted_text") return "manual pasted text";
+  return formatPerspectiveIngressAdmissionStateLabel(value);
+}
+
+function formatPerspectiveIngressAdmissionTrustLabel(value: string) {
+  if (value === "user_provided_local") return "user provided local";
+  return formatPerspectiveIngressAdmissionStateLabel(value);
+}
+
+function formatPerspectiveIngressAdmissionStateLabel(value: string) {
+  if (value === "episode_candidate") return "episode candidate";
+  if (value === "accepted_for_preview") return "accepted for preview";
+  if (value === "not_applicable") return "not applicable";
+  return value.replaceAll("_", " ");
 }
 
 function buildPerspectiveCompactAuthorityItems({
