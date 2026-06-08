@@ -204,8 +204,8 @@ export function buildPerspectiveAgentBriefReadResponse({
     brief: buildPerspectiveAgentBrief({
       preview,
       selected_node_id: selectedNodeId,
-      scope_mode: "whole_constellation",
-      scope_label: "Whole Constellation",
+      scope_mode: selectedNodeId ? "selected_node" : "whole_constellation",
+      scope_label: selectedNodeId ? "Selected node" : "Whole Constellation",
     }),
     source_refs: preview.source_refs,
     authority_boundary: [...PERSPECTIVE_AGENT_BRIEF_AUTHORITY_BOUNDARY],

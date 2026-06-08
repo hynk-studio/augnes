@@ -142,8 +142,8 @@ assertContainsAll(helperText, [
   "unknown_selected_node",
   "selected_node_id must match an existing preview node",
   "buildPerspectiveAgentBrief({",
-  "scope_mode: \"whole_constellation\"",
-  "scope_label: \"Whole Constellation\"",
+  "scope_mode: selectedNodeId ? \"selected_node\" : \"whole_constellation\"",
+  "scope_label: selectedNodeId ? \"Selected node\" : \"Whole Constellation\"",
   "no provider/model/API calls",
   "no OAuth/import source ingress",
 ]);
@@ -193,6 +193,8 @@ assertAgentBriefEnvelope(chatGptWhole, {
 });
 assert.equal(chatGptWhole.brief.brief_version, "perspective_brief.v0.1");
 assert.equal(chatGptWhole.brief.surface, "Perspective");
+assert.equal(chatGptWhole.brief.scope.mode, "whole_constellation");
+assert.equal(chatGptWhole.brief.scope.label, "Whole Constellation");
 assert.equal(chatGptWhole.brief.selected.id, "whole_constellation");
 assert.equal(chatGptWhole.brief.spatial_context.node_count, 7);
 assert.equal(chatGptWhole.brief.spatial_context.edge_count, 8);
@@ -231,6 +233,8 @@ assertAgentBriefEnvelope(productConcept, {
   expectedSource: "sample:chatgpt",
   expectedSelectedNodeId: "node.sample_chatgpt.product_concept",
 });
+assert.equal(productConcept.brief.scope.mode, "selected_node");
+assert.equal(productConcept.brief.scope.label, "Selected node");
 assert.equal(productConcept.brief.selected.id, "node.sample_chatgpt.product_concept");
 assert.deepEqual(productConcept.brief.temporal_context.related_temporal_nodes, [
   "decision",
@@ -305,6 +309,9 @@ const successJson = await getJson(
 assert.equal(successJson.status, 200);
 assert.equal(successJson.body.response_version, "perspective_agent_brief_read.v0.1");
 assert.equal(successJson.body.meta.selected_node_id, "node.sample_chatgpt.product_concept");
+assert.equal(successJson.body.brief.scope.mode, "selected_node");
+assert.equal(successJson.body.brief.scope.label, "Selected node");
+assert.equal(successJson.body.brief.selected.id, "node.sample_chatgpt.product_concept");
 assert.deepEqual(successJson.body.brief.temporal_context.related_temporal_nodes, [
   "decision",
   "current_view",

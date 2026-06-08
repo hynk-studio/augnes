@@ -25,7 +25,7 @@ Supported source queries are fixture-only:
 - `source=sample:chatgpt`
 - `source=sample:codex`
 
-`selected_node_id` is optional. selected_node_id is optional for whole-constellation reads. When provided, it must match an existing node in the selected fixture preview. Unknown selected node ids fail closed with a minimal 400 response instead of falling back to a nearby or whole-constellation context.
+`selected_node_id` is optional. selected_node_id is optional for whole-constellation reads. When it is not provided, the Agent Brief remains `whole_constellation` / `Whole Constellation` scoped. When `selected_node_id` is provided, it must match an existing node in the selected fixture preview and the Agent Brief is `selected_node` / `Selected node` scoped. Unknown selected node ids fail closed with a minimal 400 response instead of falling back to a nearby or whole-constellation context.
 
 Example requests:
 
