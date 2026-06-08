@@ -81,6 +81,11 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_MANUAL_AGENT_BRIEF_HANDOFF_DOGFOOD_V0_1.md",
   "reports/2026-06-07-perspective-manual-agent-brief-handoff-dogfood.md",
   "scripts/smoke-perspective-manual-agent-brief-handoff-dogfood.mjs",
+  "scripts/dogfood-perspective-manual-agent-brief-codex-review-loop.mjs",
+  "scripts/smoke-perspective-manual-agent-brief-codex-review-loop-eval.mjs",
+  "docs/PERSPECTIVE_MANUAL_AGENT_BRIEF_CODEX_REVIEW_LOOP_EVAL_V0_1.md",
+  "reports/2026-06-07-perspective-manual-agent-brief-codex-review-loop-eval.md",
+  "reports/dogfood/2026-06-07-perspective-manual-agent-brief-codex-review-loop-packet.md",
 ]);
 
 assert.equal(
