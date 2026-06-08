@@ -62,6 +62,7 @@ const allowedChangedFiles = new Set([
   typeFile,
   helperFile,
   routeFile,
+  agentBriefBuilderFile,
   docFile,
   smokeFile,
   reportFile,
@@ -89,6 +90,9 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_INGRESS_ADMISSION_OBSERVATORY_SUMMARY_V0_1.md",
   "reports/browser/2026-06-07-perspective-ingress-admission-observatory-summary.md",
   "scripts/smoke-cockpit-perspective-ingress-admission-observatory-summary.mjs",
+  "docs/PERSPECTIVE_AGENT_BRIEF_MANUAL_INGRESS_CONTEXT_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-manual-ingress-context.md",
+  "scripts/smoke-perspective-agent-brief-manual-ingress-context.mjs",
 ]);
 
 assert.equal(
@@ -213,6 +217,7 @@ assert.equal(chatGptWhole.brief.surface, "Perspective");
 assert.equal(chatGptWhole.brief.scope.mode, "whole_constellation");
 assert.equal(chatGptWhole.brief.scope.label, "Whole Constellation");
 assert.equal(chatGptWhole.brief.selected.id, "whole_constellation");
+assert.equal(Object.hasOwn(chatGptWhole.brief, "ingress_context"), false);
 assert.equal(chatGptWhole.brief.spatial_context.node_count, 7);
 assert.equal(chatGptWhole.brief.spatial_context.edge_count, 8);
 assert.equal(chatGptWhole.brief.tensions.length, 2);
@@ -281,6 +286,7 @@ assertAgentBriefEnvelope(codexWhole, {
 });
 assert.equal(codexWhole.brief.brief_version, "perspective_brief.v0.1");
 assert.equal(codexWhole.brief.surface, "Perspective");
+assert.equal(Object.hasOwn(codexWhole.brief, "ingress_context"), false);
 assert(codexWhole.brief.spatial_context.node_count > 0);
 assert(codexWhole.brief.spatial_context.edge_count > 0);
 assertNoForbiddenPayloadText("Codex whole response", codexWhole);
@@ -329,6 +335,7 @@ assert.equal(successJson.body.meta.selected_node_id, "node.sample_chatgpt.produc
 assert.equal(successJson.body.brief.scope.mode, "selected_node");
 assert.equal(successJson.body.brief.scope.label, "Selected node");
 assert.equal(successJson.body.brief.selected.id, "node.sample_chatgpt.product_concept");
+assert.equal(Object.hasOwn(successJson.body.brief, "ingress_context"), false);
 assert.deepEqual(successJson.body.brief.temporal_context.related_temporal_nodes, [
   "decision",
   "current_view",

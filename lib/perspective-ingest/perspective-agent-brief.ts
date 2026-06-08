@@ -12,6 +12,11 @@ import type {
   PerspectiveIngestConstellationNode,
   PerspectiveIngestConstellationPreviewResponse,
 } from "@/types/perspective-ingest-constellation-preview";
+import type {
+  PerspectiveIngressAdmissionDecisionV0,
+  PerspectiveIngressAdmissionStateV0,
+  PerspectiveIngressRedactionStateV0,
+} from "@/types/perspective-ingress-admission";
 
 export interface BuildPerspectiveAgentBriefInput
   extends BuildPerspectiveWorkbenchProjectionInput {
@@ -76,6 +81,44 @@ export interface PerspectiveAgentBriefV0 {
     evidence_pointer_count: number;
     full_refs_available: true;
   };
+  ingress_context?: PerspectiveAgentBriefIngressContextV0;
+}
+
+export interface PerspectiveAgentBriefIngressContextV0 {
+  context_version: "perspective_agent_brief_ingress_context.v0.1";
+  present: true;
+  ingress_kind: "manual_pasted_text";
+  trust_level: "user_provided_local";
+  admission_state: PerspectiveIngressAdmissionStateV0;
+  redaction_state: PerspectiveIngressRedactionStateV0;
+  decision: {
+    to_state: PerspectiveIngressAdmissionDecisionV0["to_state"];
+    allowed: boolean;
+  };
+  readiness: {
+    eligible_for_episode_candidate: boolean;
+    eligible_for_preview: boolean;
+    eligible_for_research_archive: boolean;
+    reason_count: number;
+  };
+  authority: {
+    mode: "local_read_only_ingress_candidate";
+    local_only: boolean;
+    read_only: boolean;
+    external_calls_performed: boolean;
+    persistence_performed: boolean;
+    graph_db_write_performed: boolean;
+    proof_evidence_readiness_write_performed: boolean;
+    codex_execution_performed: boolean;
+    github_mutation_performed: boolean;
+    oauth_token_stored: boolean;
+    raw_private_content_stored: boolean;
+  };
+  refs: {
+    pointer_count: number;
+    source_ref_available: boolean;
+    candidate_id_available: boolean;
+  };
 }
 
 export function buildPerspectiveAgentBrief(
@@ -98,6 +141,7 @@ export function buildPerspectiveAgentBrief(
     primarySpine,
     relatedTemporalNodes,
   );
+  const ingressContext = buildPerspectiveAgentBriefIngressContext(input.preview);
 
   return {
     brief_version: "perspective_brief.v0.1",
@@ -163,6 +207,56 @@ export function buildPerspectiveAgentBrief(
     refs: {
       evidence_pointer_count: getEvidencePointerCount(input.preview, selected.node_ids),
       full_refs_available: true,
+    },
+    ...(ingressContext ? { ingress_context: ingressContext } : {}),
+  };
+}
+
+export function buildPerspectiveAgentBriefIngressContext(
+  preview: PerspectiveIngestConstellationPreviewResponse,
+): PerspectiveAgentBriefIngressContextV0 | null {
+  const ingressAdmission = preview.ingress_admission;
+  if (!ingressAdmission) return null;
+
+  const boundary = ingressAdmission.candidate.authority_boundary;
+
+  return {
+    context_version: "perspective_agent_brief_ingress_context.v0.1",
+    present: true,
+    ingress_kind: ingressAdmission.source.ingress_kind,
+    trust_level: ingressAdmission.source.trust_level,
+    admission_state: ingressAdmission.source.admission_state,
+    redaction_state: ingressAdmission.source.redaction_state,
+    decision: {
+      to_state: ingressAdmission.decision.to_state,
+      allowed: ingressAdmission.decision.allowed,
+    },
+    readiness: {
+      eligible_for_episode_candidate:
+        ingressAdmission.readiness.eligible_for_episode_candidate,
+      eligible_for_preview: ingressAdmission.readiness.eligible_for_preview,
+      eligible_for_research_archive:
+        ingressAdmission.readiness.eligible_for_research_archive,
+      reason_count: ingressAdmission.readiness.reasons.length,
+    },
+    authority: {
+      mode: "local_read_only_ingress_candidate",
+      local_only: boundary.local_only,
+      read_only: boundary.read_only,
+      external_calls_performed: boundary.external_calls_performed,
+      persistence_performed: boundary.persistence_performed,
+      graph_db_write_performed: boundary.graph_db_write_performed,
+      proof_evidence_readiness_write_performed:
+        boundary.proof_evidence_readiness_write_performed,
+      codex_execution_performed: boundary.codex_execution_performed,
+      github_mutation_performed: boundary.github_mutation_performed,
+      oauth_token_stored: boundary.oauth_token_stored,
+      raw_private_content_stored: boundary.raw_private_content_stored,
+    },
+    refs: {
+      pointer_count: ingressAdmission.candidate.pointer_refs.length,
+      source_ref_available: Boolean(ingressAdmission.candidate.source_ref),
+      candidate_id_available: Boolean(ingressAdmission.candidate.candidate_id),
     },
   };
 }
