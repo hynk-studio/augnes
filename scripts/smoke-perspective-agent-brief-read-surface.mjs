@@ -72,6 +72,11 @@ const allowedChangedFiles = new Set([
   readonlyResponseShapeSmokeFile,
   readonlyAuthScopeAdapterSmokeFile,
   readonlyAuthSourceSelectionSmokeFile,
+  "types/perspective-ingress-admission.ts",
+  "lib/perspective-ingest/perspective-ingress-admission-model.ts",
+  "docs/PERSPECTIVE_INGRESS_ADMISSION_MODEL_V0_1.md",
+  "reports/2026-06-07-perspective-ingress-admission-model.md",
+  "scripts/smoke-perspective-ingress-admission-model.mjs",
 ]);
 
 assert.equal(
@@ -438,6 +443,12 @@ assert.equal(
 );
 
 for (const changedFile of collectChangedFiles()) {
+  const isIngressAdmissionModelFile = [
+    "lib/perspective-ingest/perspective-ingress-admission-model.ts",
+    "docs/PERSPECTIVE_INGRESS_ADMISSION_MODEL_V0_1.md",
+    "reports/2026-06-07-perspective-ingress-admission-model.md",
+    "scripts/smoke-perspective-ingress-admission-model.mjs",
+  ].includes(changedFile);
   assert(
     allowedChangedFiles.has(changedFile),
     `Agent Brief read surface changed an out-of-scope file: ${changedFile}`,
@@ -446,7 +457,7 @@ for (const changedFile of collectChangedFiles()) {
     !changedFile.startsWith("db/") &&
       !changedFile.startsWith("migrations/") &&
       !changedFile.includes("provider") &&
-      !changedFile.includes("model"),
+      (!changedFile.includes("model") || isIngressAdmissionModelFile),
     `Agent Brief read surface must not touch DB/migrations/provider/model files: ${changedFile}`,
   );
 }
