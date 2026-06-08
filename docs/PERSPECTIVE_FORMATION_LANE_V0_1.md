@@ -190,10 +190,17 @@ provider/model/API services, GitHub mutation beyond scoped PR workflow, ChatGPT
 Apps integration, Codex plugin integration, proof/evidence/readiness writes, or
 Codex SDK execution.
 
-This lane definition must not include raw pasted text, raw candidate values,
-raw source values, raw pointer values, raw actor or consent values, bounded
-summary values, private/provider/token/OAuth/API key/billing payloads, hidden
-reasoning, or raw generated model payloads.
+This lane definition must not include raw pasted text, raw candidate payloads,
+raw source payloads, raw pointer payloads, raw actor or consent payloads,
+private/provider/token/OAuth/API key/billing payloads, hidden reasoning, raw
+generated model payloads, or secrets.
+
+Bounded summaries are allowed when they are explicit, safe, and reviewable.
+Examples include changed file summaries, check result summaries,
+skipped-check reasons, unresolved gap summaries, safe source labels, and
+source privacy/redaction notes. This is a deliberate usability correction after
+the lane-definition slice: raw/private/provider/token/source payloads remain
+forbidden, but bounded summaries are necessary Formation Input Bundle material.
 
 ## Future Implementation Ladder
 

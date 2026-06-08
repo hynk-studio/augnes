@@ -6,12 +6,24 @@ const packageFile = "package.json";
 const docFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const reportFile = "reports/2026-06-08-perspective-formation-lane-v0-1.md";
 const smokeFile = "scripts/smoke-perspective-formation-lane-v0-1.mjs";
+const inputBundleBuilderFile =
+  "lib/perspective-ingest/perspective-formation-input-bundle.ts";
+const inputBundleDocFile =
+  "docs/PERSPECTIVE_FORMATION_INPUT_BUNDLE_BUILDER_V0_1.md";
+const inputBundleReportFile =
+  "reports/2026-06-08-perspective-formation-input-bundle-builder.md";
+const inputBundleSmokeFile =
+  "scripts/smoke-perspective-formation-input-bundle-builder.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
   docFile,
   reportFile,
   smokeFile,
+  inputBundleBuilderFile,
+  inputBundleDocFile,
+  inputBundleReportFile,
+  inputBundleSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
   "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
@@ -22,11 +34,21 @@ const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 assert.equal(existsSync(docFile), true, `${docFile} must exist`);
 assert.equal(existsSync(reportFile), true, `${reportFile} must exist`);
 assert.equal(existsSync(smokeFile), true, `${smokeFile} must exist`);
+assert.equal(
+  existsSync(inputBundleBuilderFile),
+  true,
+  `${inputBundleBuilderFile} must exist when PR B is promoted`,
+);
 
 assert.equal(
   packageJson.scripts["smoke:perspective-formation-lane-v0-1"],
   `node ${smokeFile}`,
   "package.json must register smoke:perspective-formation-lane-v0-1",
+);
+assert.equal(
+  packageJson.scripts["smoke:perspective-formation-input-bundle-builder"],
+  `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${inputBundleSmokeFile}`,
+  "package.json must register smoke:perspective-formation-input-bundle-builder",
 );
 
 const docText = readFileSync(docFile, "utf8");
@@ -87,6 +109,18 @@ assertContainsAll(docText, [
   "PR E: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
 
+assertContainsAll(docText, [
+  "Bounded summaries are allowed",
+  "deliberate usability correction",
+  "raw/private/provider/token/source payloads remain forbidden",
+  "bounded summaries are necessary Formation Input Bundle material",
+]);
+assert.equal(
+  docText.includes("bounded summary values, private/provider"),
+  false,
+  "lane doc must not retain the stale blanket bounded-summary ban",
+);
+
 assertContainsAll(reportText, [
   "Summary",
   "Why This Follows Current Repo Direction",
@@ -112,7 +146,8 @@ function assertChangedFileBoundary() {
       !changedFile.startsWith("app/api/") &&
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
-        !changedFile.startsWith("lib/") &&
+        (!changedFile.startsWith("lib/") ||
+          changedFile === inputBundleBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
