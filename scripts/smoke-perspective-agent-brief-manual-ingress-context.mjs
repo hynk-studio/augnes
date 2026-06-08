@@ -30,6 +30,14 @@ const projectionBuildersSmokeFile =
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs";
 const workbenchSmokeFile =
   "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs";
+const handoffDogfoodBuilderFile =
+  "lib/perspective-ingest/perspective-agent-brief-handoff-packet.ts";
+const handoffDogfoodDocFile =
+  "docs/PERSPECTIVE_MANUAL_AGENT_BRIEF_HANDOFF_DOGFOOD_V0_1.md";
+const handoffDogfoodSmokeFile =
+  "scripts/smoke-perspective-manual-agent-brief-handoff-dogfood.mjs";
+const handoffDogfoodReportFile =
+  "reports/2026-06-07-perspective-manual-agent-brief-handoff-dogfood.md";
 const cockpitFile = "components/augnes-cockpit.tsx";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -64,6 +72,10 @@ const allowedChangedFiles = new Set([
   ingressModelSmokeFile,
   projectionBuildersSmokeFile,
   workbenchSmokeFile,
+  handoffDogfoodBuilderFile,
+  handoffDogfoodDocFile,
+  handoffDogfoodSmokeFile,
+  handoffDogfoodReportFile,
 ]);
 
 assert.equal(
