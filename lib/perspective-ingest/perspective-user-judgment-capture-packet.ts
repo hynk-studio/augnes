@@ -277,6 +277,17 @@ function buildNextHandoffDiscussion({
   }
 
   if (
+    userJudgment.preferred_next_action === "fix_input_gaps" ||
+    userJudgment.direction_alignment === "needs_revision" ||
+    briefing.codex_handoff_readiness.status === "review_required"
+  ) {
+    return {
+      status: "needs_revision_first",
+      reasons: buildNeedsRevisionReasons({ briefing, userJudgment }),
+    };
+  }
+
+  if (
     userJudgment.preferred_next_action === "none" ||
     userJudgment.preferred_next_action === "ask_user_pm" ||
     userJudgment.direction_alignment === "unclear"
@@ -291,6 +302,7 @@ function buildNextHandoffDiscussion({
   }
 
   if (
+    userJudgment.direction_alignment === "matches_direction" &&
     briefing.codex_handoff_readiness.status === "ready_to_discuss_handoff" &&
     userJudgment.preferred_next_action === "prepare_codex_handoff" &&
     decisionEffect.status === "captured_for_review"
@@ -298,21 +310,11 @@ function buildNextHandoffDiscussion({
     return {
       status: "ready_to_draft_handoff",
       reasons: [
+        "direction_alignment is matches_direction",
         "briefing is ready_to_discuss_handoff",
         "preferred_next_action is prepare_codex_handoff",
         "decision_effect is captured_for_review",
       ],
-    };
-  }
-
-  if (
-    userJudgment.preferred_next_action === "fix_input_gaps" ||
-    userJudgment.direction_alignment === "needs_revision" ||
-    briefing.codex_handoff_readiness.status === "review_required"
-  ) {
-    return {
-      status: "needs_revision_first",
-      reasons: buildNeedsRevisionReasons({ briefing, userJudgment }),
     };
   }
 

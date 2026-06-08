@@ -81,6 +81,7 @@ assert.equal(
 assertBuilderSourceIsPureLocal();
 assertDocsAndReport();
 assertMatchesDirectionPrepareHandoff();
+assertNeedsRevisionPrepareHandoffStillNeedsRevision();
 assertNeedsRevisionFixInputGaps();
 assertRejectsCandidateBlockingTension();
 assertUnclearAskUserPm();
@@ -192,6 +193,50 @@ function assertNeedsRevisionFixInputGaps() {
     packet.copyable_capture_text.includes("approved"),
     false,
     "needs_revision capture must not become approval",
+  );
+}
+
+function assertNeedsRevisionPrepareHandoffStillNeedsRevision() {
+  const briefing = buildSufficientBriefing();
+  const packet = buildManualChatGptUserJudgmentCapturePacket({
+    briefing_preview: briefing,
+    user_judgment: {
+      judgment_id: "judgment:needs-revision-prepare-handoff",
+      judgment_summary:
+        "The candidate needs revision before a handoff draft should be prepared.",
+      answered_prompt_refs: [
+        "Should the next step be to fix input gaps or prepare a Codex handoff?",
+      ],
+      direction_alignment: "needs_revision",
+      selected_unresolved_tension_refs: [],
+      blocking_tension_refs: [],
+      preferred_next_action: "prepare_codex_handoff",
+      next_action_rationale:
+        "The user named handoff prep, but revision should happen first.",
+    },
+  });
+
+  assertCommonPacket(briefing, packet);
+  assert.equal(packet.decision_effect.status, "captured_for_review");
+  assert.equal(
+    packet.next_handoff_discussion.status,
+    "needs_revision_first",
+  );
+  assert(
+    packet.next_handoff_discussion.reasons.includes(
+      "direction_alignment is needs_revision",
+    ),
+    "needs_revision must be recorded as the reason handoff drafting waits",
+  );
+  assert.equal(
+    packet.copyable_capture_text.includes("ready_to_draft_handoff"),
+    false,
+    "needs_revision + prepare_codex_handoff must not imply handoff is ready to draft",
+  );
+  assert.equal(
+    packet.copyable_capture_text.includes("ready to draft"),
+    false,
+    "needs_revision + prepare_codex_handoff must not imply handoff is ready to draft",
   );
 }
 

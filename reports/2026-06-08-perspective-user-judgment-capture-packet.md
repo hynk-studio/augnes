@@ -21,6 +21,16 @@ user replied in ChatGPT" without treating that reply as committed state,
 proof, evidence, readiness, approval, merge authority, Core decision, or Codex
 execution.
 
+## Review Fix
+
+Review feedback found that `needs_revision` plus
+`prepare_codex_handoff` could still produce `ready_to_draft_handoff` when the
+source briefing was ready. The builder now gives revision precedence:
+`needs_revision` maps to `needs_revision_first` unless the packet is already
+blocked. `ready_to_draft_handoff` now requires `matches_direction`, ready
+briefing handoff readiness, `prepare_codex_handoff`, and
+`captured_for_review`.
+
 ## Files Changed
 
 - `lib/perspective-ingest/perspective-user-judgment-capture-packet.ts`

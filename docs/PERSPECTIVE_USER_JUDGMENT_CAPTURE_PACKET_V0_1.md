@@ -96,9 +96,9 @@ The packet supports next handoff discussion but does not execute Codex.
 
 It distinguishes:
 
-- `ready_to_draft_handoff`: the briefing is ready to discuss handoff, preferred
-  next action is `prepare_codex_handoff`, and decision effect is
-  `captured_for_review`;
+- `ready_to_draft_handoff`: direction alignment is `matches_direction`, the
+  briefing is ready to discuss handoff, preferred next action is
+  `prepare_codex_handoff`, and decision effect is `captured_for_review`;
 - `needs_revision_first`: preferred next action is `fix_input_gaps`, direction
   alignment is `needs_revision`, or the briefing handoff readiness is
   `review_required`;
@@ -106,6 +106,10 @@ It distinguishes:
   handoff readiness is `blocked`;
 - `none`: preferred next action is `none`, direction alignment is `unclear`, or
   preferred next action is `ask_user_pm`.
+
+`needs_revision` overrides `prepare_codex_handoff` for next handoff discussion.
+If the user says the candidate needs revision, the packet must return
+`needs_revision_first` unless the packet is already blocked.
 
 ## Copyable Capture Text
 
