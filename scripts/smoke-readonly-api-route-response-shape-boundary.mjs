@@ -93,6 +93,18 @@ const allowedChangedFiles = new Set([
   cockpitImplementationSmokeFile,
   closeoutDoc,
   closeoutSmokeFile,
+  "types/perspective-agent-brief.ts",
+  "lib/readonly-api/perspective-agent-brief.ts",
+  "app/api/augnes/read/perspective-agent-brief/route.ts",
+  "docs/PERSPECTIVE_AGENT_BRIEF_READ_SURFACE_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-read-surface.md",
+  "scripts/smoke-perspective-agent-brief-read-surface.mjs",
+  "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
+  "scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
+  "scripts/smoke-perspective-capsule-contract.mjs",
+  "scripts/smoke-readonly-api-route-access-guard.mjs",
+  "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs",
+  "scripts/smoke-readonly-api-route-auth-source-selection.mjs",
 ]);
 
 const requiredExportedTypes = [
@@ -558,6 +570,8 @@ function assertNoForbiddenChangedPaths(files) {
         constellationPreviewRouteFile,
         constellationPreviewHelperFile,
         localDevAdapterFile,
+        "app/api/augnes/read/perspective-agent-brief/route.ts",
+        "lib/readonly-api/perspective-agent-brief.ts",
         cockpitFile,
         cockpitImplementationSmokeFile,
       ].includes(file)

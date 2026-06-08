@@ -48,6 +48,16 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-node-copy-humanization.mjs",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
+  "types/perspective-agent-brief.ts",
+  "lib/readonly-api/perspective-agent-brief.ts",
+  "app/api/augnes/read/perspective-agent-brief/route.ts",
+  "docs/PERSPECTIVE_AGENT_BRIEF_READ_SURFACE_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-read-surface.md",
+  "scripts/smoke-perspective-agent-brief-read-surface.mjs",
+  "scripts/smoke-readonly-api-route-access-guard.mjs",
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs",
+  "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs",
+  "scripts/smoke-readonly-api-route-auth-source-selection.mjs",
 ]);
 
 assert.equal(
@@ -291,12 +301,14 @@ for (const header of [
 }
 
 for (const file of collectChangedFiles()) {
+  const isPerspectiveAgentBriefReadRoute =
+    file === "app/api/augnes/read/perspective-agent-brief/route.ts";
   assert(
     allowedChangedFiles.has(file),
     `workbench temporal underlay slice changed an out-of-scope file: ${file}`,
   );
   assert(
-    !file.startsWith("app/api/") &&
+    (!file.startsWith("app/api/") || isPerspectiveAgentBriefReadRoute) &&
       !file.startsWith("db/") &&
       !file.startsWith("migrations/"),
     `slice must not add API routes, DB changes, or migrations: ${file}`,

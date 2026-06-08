@@ -79,6 +79,16 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-handoff-packet-structure-review.mjs",
   "scripts/smoke-perspective-ingest-constellation-preview.mjs",
   "scripts/smoke-perspective-node-copy-humanization.mjs",
+  "types/perspective-agent-brief.ts",
+  "lib/readonly-api/perspective-agent-brief.ts",
+  "app/api/augnes/read/perspective-agent-brief/route.ts",
+  "docs/PERSPECTIVE_AGENT_BRIEF_READ_SURFACE_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-read-surface.md",
+  "scripts/smoke-perspective-agent-brief-read-surface.mjs",
+  "scripts/smoke-readonly-api-route-access-guard.mjs",
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs",
+  "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs",
+  "scripts/smoke-readonly-api-route-auth-source-selection.mjs",
 ]);
 
 assert.equal(
@@ -437,12 +447,14 @@ assertOrdered(unitPreviewBuilderText, [
 ]);
 
 for (const changedFile of collectChangedFiles()) {
+  const isPerspectiveAgentBriefReadRoute =
+    changedFile === "app/api/augnes/read/perspective-agent-brief/route.ts";
   assert(
     allowedChangedFiles.has(changedFile),
     `projection-builder slice changed an out-of-scope file: ${changedFile}`,
   );
   assert(
-    !changedFile.startsWith("app/api/") &&
+    (!changedFile.startsWith("app/api/") || isPerspectiveAgentBriefReadRoute) &&
       !changedFile.startsWith("db/") &&
       !changedFile.startsWith("migrations/"),
     `projection-builder slice must not introduce routes, DB, or migrations: ${changedFile}`,

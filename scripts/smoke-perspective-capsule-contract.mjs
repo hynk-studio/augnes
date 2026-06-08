@@ -226,6 +226,16 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_TEMPORAL_SPATIAL_PROJECTION_BUILDERS_V0_1.md",
   "reports/2026-06-07-perspective-temporal-spatial-projection-builders.md",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
+  "types/perspective-agent-brief.ts",
+  "lib/readonly-api/perspective-agent-brief.ts",
+  "app/api/augnes/read/perspective-agent-brief/route.ts",
+  "docs/PERSPECTIVE_AGENT_BRIEF_READ_SURFACE_V0_1.md",
+  "reports/2026-06-07-perspective-agent-brief-read-surface.md",
+  "scripts/smoke-perspective-agent-brief-read-surface.mjs",
+  "scripts/smoke-readonly-api-route-access-guard.mjs",
+  "scripts/smoke-readonly-api-route-response-shape-boundary.mjs",
+  "scripts/smoke-readonly-api-route-auth-scope-adapter-boundary.mjs",
+  "scripts/smoke-readonly-api-route-auth-source-selection.mjs",
 ]);
 const textByFile = loadTextByFile(inspectedFiles);
 
