@@ -45,6 +45,7 @@ Selected node used for the selected template: node.manual_pasted_text.packet
 | Prompt task clarity | task says no GitHub call | PASS |
 | Prompt task clarity | task says produce mock PR plan only | PASS |
 | Prompt task clarity | task gives enough context from source packet | PASS |
+| Prompt task clarity | instruction precedence makes task scope controlling | PASS |
 | PR-centered workflow clarity | Codex may code/test/open PR only in a real user-approved scoped run | PASS |
 | PR-centered workflow clarity | ChatGPT reviews PR and user decides merge | PASS |
 | PR-centered workflow clarity | no merge/deploy/publish/self-approval | PASS |
@@ -70,6 +71,7 @@ PASS. The reviewed prompt template is ready for a future real user-approved Code
 ## Recommended Changes
 
 - Keep: source packet inclusion, Codex may/must-not sections, review chain, manual summary omission, and raw-value exclusions.
+- Keep: Instruction Precedence so Task Scope controls action and the Source Packet remains context only.
 - Change: refine prompt copy only if future real-use review finds repeated ambiguity.
 - Defer: product UI exposure, routes, provider calls, GitHub calls, Codex execution, persistence, and external source ingress.
 
