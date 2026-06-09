@@ -19,6 +19,12 @@ const dogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
 const realDocsEvalDocFile =
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md";
+const manualUsageDocFile =
+  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md";
+const manualUsageReportFile =
+  "reports/2026-06-09-perspective-codex-handoff-draft-manual-usage-note.md";
+const manualUsageSmokeFile =
+  "scripts/smoke-perspective-codex-handoff-draft-manual-usage-note.mjs";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const artifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
@@ -33,6 +39,9 @@ const allowedChangedFiles = new Set([
   packetDocFile,
   dogfoodDocFile,
   realDocsEvalDocFile,
+  manualUsageDocFile,
+  manualUsageReportFile,
+  manualUsageSmokeFile,
   laneDocFile,
   artifactFile,
   "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs",
@@ -90,6 +99,11 @@ function assertDocAndReport() {
       "PR-centered workflow",
     ], label);
   }
+  assertContainsAll(docText, [
+    "Consumed By / Used By",
+    "manual usage note",
+    "Add copy-ready checklist to Codex handoff draft text",
+  ], "doc");
 }
 
 function assertNoForbiddenRawPrivateMarkers() {

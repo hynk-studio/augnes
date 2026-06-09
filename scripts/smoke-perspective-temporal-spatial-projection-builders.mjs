@@ -177,6 +177,9 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
   "scripts/smoke-perspective-codex-handoff-draft-real-docs-task-eval.mjs",
+  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md",
+  "reports/2026-06-09-perspective-codex-handoff-draft-manual-usage-note.md",
+  "scripts/smoke-perspective-codex-handoff-draft-manual-usage-note.mjs",
 ]);
 
 assert.equal(

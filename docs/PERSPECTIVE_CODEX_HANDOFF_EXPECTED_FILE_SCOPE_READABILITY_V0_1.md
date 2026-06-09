@@ -40,6 +40,16 @@ The copyable draft now shows expected-file scope with:
 
 Expected files are grouped for readability; the full list remains the scope.
 
+## Consumed By / Used By
+
+`docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md` explains how
+a human should use this grouped display when reviewing a Codex next-handoff
+draft before pasting it into Codex.
+
+The manual usage note consumes `expected_file_scope` as display material only.
+Grouping improves readability, but `codex_task.expected_files` remains the
+complete canonical scope.
+
 ## Scope Safety
 
 Grouping does not reduce scope. It does not hide guardrail files, neighboring
@@ -89,4 +99,4 @@ hidden reasoning, raw generated model payloads, and sensitive credentials.
 
 ## Future Next Step
 
-Prepare manual usage note for Codex handoff drafts.
+Add copy-ready checklist to Codex handoff draft text.

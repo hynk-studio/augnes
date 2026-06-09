@@ -4,52 +4,33 @@ import { existsSync, readFileSync } from "node:fs";
 
 const packageFile = "package.json";
 const docFile =
-  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md";
+  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md";
 const reportFile =
-  "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md";
+  "reports/2026-06-09-perspective-codex-handoff-draft-manual-usage-note.md";
 const smokeFile =
-  "scripts/smoke-perspective-codex-handoff-draft-real-docs-task-eval.mjs";
-const builderFile =
-  "lib/perspective-ingest/perspective-codex-next-handoff-draft-packet.ts";
-const dogfoodScriptFile =
-  "scripts/dogfood-perspective-codex-next-handoff-draft.mjs";
+  "scripts/smoke-perspective-codex-handoff-draft-manual-usage-note.mjs";
+const scopeReadabilityDocFile =
+  "docs/PERSPECTIVE_CODEX_HANDOFF_EXPECTED_FILE_SCOPE_READABILITY_V0_1.md";
 const packetDocFile =
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md";
 const dogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
-const scopeReadabilityDocFile =
-  "docs/PERSPECTIVE_CODEX_HANDOFF_EXPECTED_FILE_SCOPE_READABILITY_V0_1.md";
-const scopeReadabilityReportFile =
-  "reports/2026-06-09-perspective-codex-handoff-expected-file-scope-readability.md";
-const scopeReadabilitySmokeFile =
-  "scripts/smoke-perspective-codex-handoff-expected-file-scope-readability.mjs";
-const manualUsageDocFile =
-  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md";
-const manualUsageReportFile =
-  "reports/2026-06-09-perspective-codex-handoff-draft-manual-usage-note.md";
-const manualUsageSmokeFile =
-  "scripts/smoke-perspective-codex-handoff-draft-manual-usage-note.mjs";
-const dogfoodArtifactFile =
-  "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
+const realDocsEvalDocFile =
+  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 
 const allowedChangedFiles = new Set([
   packageFile,
-  builderFile,
-  dogfoodScriptFile,
   docFile,
   reportFile,
   smokeFile,
+  scopeReadabilityDocFile,
   packetDocFile,
   dogfoodDocFile,
-  scopeReadabilityDocFile,
-  scopeReadabilityReportFile,
-  scopeReadabilitySmokeFile,
-  manualUsageDocFile,
-  manualUsageReportFile,
-  manualUsageSmokeFile,
-  dogfoodArtifactFile,
+  realDocsEvalDocFile,
   laneDocFile,
+  "scripts/smoke-perspective-codex-handoff-expected-file-scope-readability.mjs",
+  "scripts/smoke-perspective-codex-handoff-draft-real-docs-task-eval.mjs",
   "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs",
   "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs",
   "scripts/smoke-perspective-user-judgment-capture-packet.mjs",
@@ -67,9 +48,9 @@ assert.equal(existsSync(docFile), true, `${docFile} must exist`);
 assert.equal(existsSync(reportFile), true, `${reportFile} must exist`);
 assert.equal(existsSync(smokeFile), true, `${smokeFile} must exist`);
 assert.equal(
-  packageJson.scripts["smoke:perspective-codex-handoff-draft-real-docs-task-eval"],
+  packageJson.scripts["smoke:perspective-codex-handoff-draft-manual-usage-note"],
   `node ${smokeFile}`,
-  "package.json must register smoke:perspective-codex-handoff-draft-real-docs-task-eval",
+  "package.json must register smoke:perspective-codex-handoff-draft-manual-usage-note",
 );
 
 const docText = readFileSync(docFile, "utf8");
@@ -80,46 +61,44 @@ assertReport();
 assertNoForbiddenRawPrivateMarkers();
 assertChangedFileBoundary();
 
-console.log("PASS smoke:perspective-codex-handoff-draft-real-docs-task-eval");
+console.log("PASS smoke:perspective-codex-handoff-draft-manual-usage-note");
 
 function assertDoc() {
   assertContainsAll(docText, [
-    "Purpose and Status",
-    "Source Handoff Draft Material Reviewed",
-    "Real Docs-Only Task Scope",
-    "What Was Usable",
-    "What Remained Confusing or Noisy",
-    "Expected-File Scope Finding",
-    "Authority Boundary Finding",
-    "Future Use Finding",
-    "Non-Goals and Forbidden Actions",
-    "real docs-only Codex task",
-    "draft prompt for a future user-started Codex task",
+    "manual usage note",
+    "future user-started Codex task",
+    "ready_to_copy",
+    "needs_scope",
+    "needs_revision_first",
+    "blocked",
+    "none",
     "review before pasting",
     "does not execute Codex",
     "no merge",
     "no approval",
     "no GitHub mutation",
+    "no background work",
     "PR-centered workflow",
+    "Codex codes/tests/opens PR",
     "ChatGPT reviews",
     "user decides merge",
-    "expected files",
+    "expected_file_scope",
+    "full list remains the scope",
+    "omitted_files",
     "required checks",
     "forbidden files",
     "forbidden surfaces",
-    "PASS with follow-up",
-    "Refine expected-file scope readability for Codex handoff drafts",
-    "manual usage note",
-    "copy-ready checklist",
+    "skipped-check policy",
+    "quick checklist",
+    "Add copy-ready checklist to Codex handoff draft text",
   ]);
 }
 
 function assertReport() {
   assertContainsAll(reportText, [
     "Summary",
-    "Why This Follows PR #470",
-    "Real Docs-Only Task Evaluated",
-    "Source Material Reviewed",
+    "Why This Follows PR #472",
+    "Usage Problem Addressed",
     "Files Changed",
     "Authority Boundary",
     "Validation Plan",
@@ -127,7 +106,7 @@ function assertReport() {
     "Tests Run",
     "Skipped Checks",
     "Evaluation Conclusion",
-    "Refine expected-file scope readability for Codex handoff drafts",
+    "Add copy-ready checklist to Codex handoff draft text",
   ]);
 }
 
@@ -165,15 +144,15 @@ function assertChangedFileBoundary() {
   for (const changedFile of collectChangedFiles()) {
     assert(
       allowedChangedFiles.has(changedFile),
-      `Codex handoff draft real docs task eval changed an out-of-scope file: ${changedFile}`,
+      `Codex handoff draft manual usage note changed an out-of-scope file: ${changedFile}`,
     );
     assert(
       !changedFile.startsWith("app/api/") &&
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
+        !changedFile.startsWith("lib/") &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
-        (!changedFile.startsWith("lib/") || changedFile === builderFile) &&
         !changedFile.startsWith("types/") &&
         !changedFile.startsWith("fixtures/") &&
         !changedFile.includes("provider") &&
@@ -181,7 +160,7 @@ function assertChangedFileBoundary() {
         !changedFile.includes("codex-sdk") &&
         !changedFile.includes("graph-db") &&
         !changedFile.includes("persistence"),
-      `Codex handoff draft real docs task eval must not change forbidden surfaces: ${changedFile}`,
+      `Codex handoff draft manual usage note must not change forbidden surfaces: ${changedFile}`,
     );
   }
 }
@@ -200,7 +179,7 @@ function collectChangedFiles() {
 
   if (changedFiles.length === 0 && isCommittedBranch()) {
     throw new Error(
-      "Codex handoff draft real docs task eval smoke collected no changed files",
+      "Codex handoff draft manual usage note smoke collected no changed files",
     );
   }
 
@@ -247,7 +226,7 @@ function collectBranchChangedFiles() {
   }
 
   throw new Error(
-    "Unable to collect base diff for Codex handoff draft real docs task eval smoke",
+    "Unable to collect base diff for Codex handoff draft manual usage note smoke",
   );
 }
 
@@ -284,16 +263,16 @@ function parseGitLines(output) {
     .filter(Boolean);
 }
 
-function assertContainsAll(text, snippets) {
+function assertContainsAll(text, snippets, label = "source") {
   const normalizedText = normalize(text);
   for (const snippet of snippets) {
     assert(
       normalizedText.includes(normalize(snippet)),
-      `Expected source to contain: ${snippet}`,
+      `Expected ${label} to contain: ${snippet}`,
     );
   }
 }
 
 function normalize(text) {
-  return text.replace(/\s+/g, " ").trim();
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
 }

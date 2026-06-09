@@ -96,6 +96,9 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
   "scripts/smoke-perspective-codex-handoff-draft-real-docs-task-eval.mjs",
+  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md",
+  "reports/2026-06-09-perspective-codex-handoff-draft-manual-usage-note.md",
+  "scripts/smoke-perspective-codex-handoff-draft-manual-usage-note.mjs",
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
   "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
@@ -226,7 +229,9 @@ assertContainsAll(docText, [
   "PR J: Refine expected-file scope readability for Codex handoff drafts as a",
   "pure local usability step after real docs-task evaluation",
   "PR K: Prepare manual usage note for Codex handoff drafts",
-  "PR L: Core-gated accept/reject/supersede route, only after explicit approval",
+  "pure local human review step after expected-file scope readability",
+  "PR L: Add copy-ready checklist to Codex handoff draft text",
+  "PR M: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
 
 assertContainsAll(docText, [
