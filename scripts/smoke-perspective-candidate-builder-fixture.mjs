@@ -111,6 +111,14 @@ const codexFormerManualCopyPacketReportFile =
   "reports/2026-06-09-perspective-codex-former-manual-copy-packet.md";
 const codexFormerManualCopyPacketSmokeFile =
   "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs";
+const codexFormerManualCopyTranscriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-manual-copy-transcript.mjs";
+const codexFormerManualCopyTranscriptDogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-transcript.mjs";
+const codexFormerManualCopyTranscriptDogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_TRANSCRIPT_DOGFOOD_V0_1.md";
+const codexFormerManualCopyTranscriptDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-transcript.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -169,6 +177,10 @@ const allowedChangedFiles = new Set([
   codexFormerManualCopyPacketDocFile,
   codexFormerManualCopyPacketReportFile,
   codexFormerManualCopyPacketSmokeFile,
+  codexFormerManualCopyTranscriptDogfoodScriptFile,
+  codexFormerManualCopyTranscriptDogfoodSmokeFile,
+  codexFormerManualCopyTranscriptDogfoodDocFile,
+  codexFormerManualCopyTranscriptDogfoodReportFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",

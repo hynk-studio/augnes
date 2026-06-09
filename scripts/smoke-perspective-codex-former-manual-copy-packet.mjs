@@ -35,6 +35,14 @@ const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const transcriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-manual-copy-transcript.mjs";
+const transcriptDogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-transcript.mjs";
+const transcriptDogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_TRANSCRIPT_DOGFOOD_V0_1.md";
+const transcriptDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-transcript.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -58,6 +66,10 @@ const allowedChangedFiles = new Set([
   formerDogfoodSmokeFile,
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
+  transcriptDogfoodScriptFile,
+  transcriptDogfoodSmokeFile,
+  transcriptDogfoodDocFile,
+  transcriptDogfoodReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -156,7 +168,8 @@ function assertDocsAndReport() {
     "not approval",
     "not a Core decision",
     "no browser/computer-use validation required",
-    "Dogfood manual Codex former draft copy packet with a real Codex response transcript",
+    "The transcript dogfood harness is BLOCKED",
+    "Prepare real Codex former transcript capture instructions",
   ]);
   assertContainsAll(reportText, [
     "What PR #479 Enabled",
@@ -167,7 +180,8 @@ function assertDocsAndReport() {
     "Why This Is Still Not Codex Execution",
     "Browser/Computer-Use Validation",
     "PASS with follow-up",
-    "Dogfood manual Codex former draft copy packet with a real Codex response transcript",
+    "The transcript dogfood harness is BLOCKED",
+    "Prepare real Codex former transcript capture instructions",
   ]);
   assert.equal(
     reportText.includes(noBrowserComputerUseReason),

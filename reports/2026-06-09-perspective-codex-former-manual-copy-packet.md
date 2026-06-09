@@ -2,7 +2,7 @@
 
 Conclusion: PASS with follow-up
 
-Recommended next implementation PR title: Dogfood manual Codex former draft copy packet with a real Codex response transcript
+Recommended next implementation PR title: Prepare real Codex former transcript capture instructions
 
 ## Summary
 
@@ -140,4 +140,14 @@ Validation passed:
 
 ## Next Implementation PR
 
-Dogfood manual Codex former draft copy packet with a real Codex response transcript
+Follow-up transcript dogfood:
+
+- `docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_TRANSCRIPT_DOGFOOD_V0_1.md`
+- `reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-transcript.md`
+
+The transcript dogfood harness is BLOCKED until a bounded real human-started
+Codex response transcript is supplied.
+
+Recommended next implementation PR title:
+
+Prepare real Codex former transcript capture instructions
