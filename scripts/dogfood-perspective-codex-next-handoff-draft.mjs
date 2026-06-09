@@ -23,7 +23,7 @@ export const PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_GENERATED_AT =
 export const PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_ARTIFACT_PATH =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 export const PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_NEXT_PR =
-  "Evaluate Codex handoff draft in a real docs-only Codex task";
+  "Prepare manual usage note for Codex handoff drafts";
 
 const dogfoodExpectedFiles = [
   "scripts/dogfood-perspective-codex-next-handoff-draft.mjs",
@@ -384,6 +384,7 @@ function buildNoneCase() {
 function evaluateDogfood({ contrastCases, readyChain }) {
   const readyDraft = readyChain.codex_next_handoff_draft_packet;
   const copyableText = readyDraft.copyable_codex_handoff_text;
+  const expectedFileScope = readyDraft.expected_file_scope;
   const checks = [
     readyDraft.draft_status === "ready_to_copy",
     readyDraft.source_user_judgment.direction_alignment ===
@@ -395,6 +396,9 @@ function evaluateDogfood({ contrastCases, readyChain }) {
     hasText(readyDraft.codex_task.task_goal),
     readyDraft.codex_task.expected_files.length > 0,
     readyDraft.codex_task.required_checks.length > 0,
+    expectedFileScope.total_count === readyDraft.codex_task.expected_files.length,
+    expectedFileScope.coverage.all_expected_files_listed,
+    expectedFileScope.coverage.omitted_files.length === 0,
     readyDraft.codex_task.forbidden_files.length > 0,
     readyDraft.codex_task.forbidden_surfaces.length > 0,
     hasText(readyDraft.codex_task.skipped_check_policy),
@@ -406,6 +410,12 @@ function evaluateDogfood({ contrastCases, readyChain }) {
       "only when the user explicitly starts a Codex task",
     ),
     copyableText.includes("PR-centered workflow"),
+    copyableText.includes("Expected file count"),
+    copyableText.includes("grouped for readability"),
+    copyableText.includes("full list remains the scope"),
+    copyableText.includes("Primary files"),
+    copyableText.includes("Smoke/validation"),
+    copyableText.includes("Docs/reports"),
     contrastCases.every((entry) => entry.draft.draft_status !== "ready_to_copy"),
   ];
   const judgment = checks.every(Boolean) ? "PASS" : "FAIL";
@@ -420,18 +430,21 @@ function evaluateDogfood({ contrastCases, readyChain }) {
       "The contrast cases reduce that risk by making non-ready statuses visible.",
     ],
     should_improve_before_runtime_or_app_integration: [
-      "Add a shorter first-line human instruction before any future runtime or App surface.",
-      "Keep scope gaps and revision blockers visually adjacent to copyable text.",
+      "Keep expected-file grouping as display material only if this reaches any future runtime or App surface.",
+      "Keep scope gaps, omitted-file checks, and revision blockers visually adjacent to copyable text.",
     ],
     usable_notes: [
       "The copyable text now starts by naming itself as a draft prompt for a future user-started Codex task.",
-      "The ready path exposes task goal, files, checks, forbidden surfaces, skipped-check policy, and PR workflow.",
+      "Expected files remain fully scoped in the canonical flat list.",
+      "Readability improved by grouping expected files while keeping every file visible.",
+      "No expected files were omitted from the grouped display.",
+      "The ready path exposes task goal, grouped files, checks, forbidden surfaces, skipped-check policy, and PR workflow.",
       "The copyable text is bounded enough for a future user-started Codex task.",
       "The authority boundary is repeated in both summary fields and the copyable text.",
     ],
     confusing_notes: [
-      "No immediate copy blocker remains after the direct draft-prompt opening.",
-      "Future real-task evaluation should confirm whether the expanded expected files list is still concise enough.",
+      "The grouping reduces scan cost without reducing scope.",
+      "Another real Codex docs-only task can test this only if the next manual usage note still finds ambiguity.",
     ],
   };
 }
@@ -496,6 +509,13 @@ function renderDogfoodArtifact({ contrastCases, evaluation, readyChain }) {
     `- source judgment packet id: ${readyDraft.source_user_judgment.packet_id}`,
     `- source candidate id: ${readyDraft.source_user_judgment.candidate_id}`,
     `- task goal: ${readyDraft.codex_task.task_goal}`,
+    `- expected file count: ${readyDraft.expected_file_scope.total_count}`,
+    "- expected files grouped for readability: true",
+    "- full list remains the scope: true",
+    `- all expected files listed: ${readyDraft.expected_file_scope.coverage.all_expected_files_listed}`,
+    `- no omitted expected files: ${readyDraft.expected_file_scope.coverage.omitted_files.length === 0}`,
+    "- expected file groups:",
+    ...formatExpectedFileGroups(readyDraft.expected_file_scope.groups),
     "- expected files:",
     ...formatList(readyDraft.codex_task.expected_files),
     "- required checks:",
@@ -577,6 +597,13 @@ function formatGapList(gaps) {
 function formatList(values) {
   if (values.length === 0) return ["- None"];
   return values.map((value) => `- ${value}`);
+}
+
+function formatExpectedFileGroups(groups) {
+  return groups.flatMap((group) => [
+    `- ${group.title}: ${group.files.length}`,
+    ...group.files.map((file) => `  - ${file}`),
+  ]);
 }
 
 function writeReportFile(filePath, contents) {

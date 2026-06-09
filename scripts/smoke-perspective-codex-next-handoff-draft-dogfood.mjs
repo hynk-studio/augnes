@@ -15,6 +15,12 @@ const reportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
 const copyRefineReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-copy-refine.md";
+const scopeReadabilityDocFile =
+  "docs/PERSPECTIVE_CODEX_HANDOFF_EXPECTED_FILE_SCOPE_READABILITY_V0_1.md";
+const scopeReadabilityReportFile =
+  "reports/2026-06-09-perspective-codex-handoff-expected-file-scope-readability.md";
+const scopeReadabilitySmokeFile =
+  "scripts/smoke-perspective-codex-handoff-expected-file-scope-readability.mjs";
 const artifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const draftPacketDocFile =
@@ -44,6 +50,9 @@ const allowedChangedFiles = new Set([
   docFile,
   reportFile,
   copyRefineReportFile,
+  scopeReadabilityDocFile,
+  scopeReadabilityReportFile,
+  scopeReadabilitySmokeFile,
   artifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
@@ -131,6 +140,8 @@ function assertDogfoodScriptBoundary() {
     "buildPerspectiveCodexNextHandoffDraftDogfood",
     "runPerspectiveCodexNextHandoffDraftDogfood",
     "writeFileSync",
+    "expected_file_scope",
+    "No expected files were omitted",
     "ready_to_copy",
     "needs_scope",
     "needs_revision_first",
@@ -180,7 +191,9 @@ function assertDocsAndReport() {
     "under-scoped expected_files",
     "Follow-Up Evaluation",
     "real docs-only Codex task evaluates",
-    "Refine expected-file scope readability for Codex handoff drafts",
+    "Expected-File Readability Follow-Up",
+    "improved expected-file readability by grouping",
+    "Prepare manual usage note for Codex handoff drafts",
   ]);
   assertContainsAll(reportText, [
     "Summary",
@@ -200,6 +213,7 @@ function assertDocsAndReport() {
     "Dogfooded By",
     "PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1",
     "non-executing draft material",
+    "expected_file_scope",
   ]);
   assertContainsAll(laneDocText, [
     "PR G: local Codex handoff draft dogfood report",
@@ -235,6 +249,17 @@ function assertArtifactCoverage(text) {
     "no merge",
     "no Core decision",
     "Conclusion: PASS",
+    "Expected file count",
+    "grouped for readability",
+    "full list remains the scope",
+    "Primary files",
+    "Docs/reports",
+    "Dogfood/report artifacts",
+    "Smoke/validation and neighboring allowlist files",
+    "Package metadata",
+    "all expected files listed: true",
+    "no omitted expected files: true",
+    "No expected files were omitted",
   ]);
 }
 
@@ -250,6 +275,15 @@ function assertReadyToCopySection(text) {
     "source candidate id",
     "task goal",
     "expected files",
+    "expected file count",
+    "expected files grouped for readability",
+    "full list remains the scope",
+    "expected file groups",
+    "All expected files listed: true",
+    "No expected files omitted: true",
+    "Primary files",
+    "Docs/reports",
+    "Smoke/validation and neighboring allowlist files",
     "required checks",
     "forbidden files",
     "forbidden surfaces",

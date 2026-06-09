@@ -134,3 +134,8 @@ output.
 ## Future Next Step
 
 Refine expected-file scope readability for Codex handoff drafts.
+
+Follow-up note: that readability refinement is scoped as the next pure local
+builder/copy/docs/report/smoke PR. It should group expected files for
+readability while preserving the complete flat expected-file scope and keeping
+guardrail files visible.

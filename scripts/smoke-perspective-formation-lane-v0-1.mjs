@@ -90,6 +90,9 @@ const allowedChangedFiles = new Set([
   dogfoodReportFile,
   copyRefineReportFile,
   dogfoodArtifactFile,
+  "docs/PERSPECTIVE_CODEX_HANDOFF_EXPECTED_FILE_SCOPE_READABILITY_V0_1.md",
+  "reports/2026-06-09-perspective-codex-handoff-expected-file-scope-readability.md",
+  "scripts/smoke-perspective-codex-handoff-expected-file-scope-readability.mjs",
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
   "scripts/smoke-perspective-codex-handoff-draft-real-docs-task-eval.mjs",
@@ -220,8 +223,10 @@ assertContainsAll(docText, [
   "deterministic local dogfood/report validation slice",
   "PR H: Refine Codex handoff draft copy from dogfood findings",
   "PR I: Evaluate Codex handoff draft in a real docs-only Codex task",
-  "PR J: Refine expected-file scope readability for Codex handoff drafts",
-  "PR K: Core-gated accept/reject/supersede route, only after explicit approval",
+  "PR J: Refine expected-file scope readability for Codex handoff drafts as a",
+  "pure local usability step after real docs-task evaluation",
+  "PR K: Prepare manual usage note for Codex handoff drafts",
+  "PR L: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
 
 assertContainsAll(docText, [
