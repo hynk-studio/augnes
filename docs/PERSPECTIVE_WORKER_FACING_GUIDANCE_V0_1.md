@@ -153,8 +153,13 @@ The dedicated smoke is
 - docs/report coverage;
 - changed-file boundary.
 
+## Dogfooded By
+
+`docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md` and
+`reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md`
+dogfood this guidance against a real reviewed Perspective Candidate context
+from PR #474.
+
 ## Future Next Step
 
-Dogfood this guidance against a real reviewed Perspective Candidate and use
-the report to decide whether the worker-facing instructions are specific
-enough for a future Codex task prompt.
+Refine worker-facing guidance action specificity from dogfood findings.
