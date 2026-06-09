@@ -21,6 +21,8 @@ const loopDogfoodReportFile =
   "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md";
 const loopDogfoodDocFile =
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md";
+const actionSpecificityReportFile =
+  "reports/2026-06-09-perspective-worker-facing-guidance-action-specificity.md";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -33,12 +35,17 @@ const allowedChangedFiles = new Set([
   loopDogfoodSmokeFile,
   loopDogfoodReportFile,
   loopDogfoodDocFile,
+  actionSpecificityReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const builderText = readFileSync(workerGuidanceBuilderFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
+const actionSpecificityReportText = readFileSync(
+  actionSpecificityReportFile,
+  "utf8",
+);
 
 const { buildPerspectiveFormationInputBundle } = await import(
   "../lib/perspective-ingest/perspective-formation-input-bundle.ts"
@@ -175,6 +182,34 @@ function assertSufficientCandidateGuidance() {
       "carry_forward_verification_gaps",
     ],
   );
+  assert.match(
+    actionSummary(guidance, "inspect_source_candidate_refs"),
+    /AG-perspective-worker-guidance-ready/,
+  );
+  assert.match(
+    actionSummary(guidance, "inspect_source_candidate_refs"),
+    /pr:hynk-studio\/augnes#worker-guidance/,
+  );
+  assert.match(
+    actionSummary(guidance, "inspect_source_candidate_refs"),
+    /4 selected file/,
+  );
+  assert.match(
+    actionSummary(guidance, "draft_smallest_scoped_plan"),
+    /worker-facing neutral guidance/,
+  );
+  assert.match(
+    actionSummary(guidance, "draft_smallest_scoped_plan"),
+    /lib\/perspective-ingest\/perspective-worker-facing-guidance\.ts/,
+  );
+  assert.match(
+    actionSummary(guidance, "carry_forward_verification_gaps"),
+    /skipped_check/,
+  );
+  assert.match(
+    actionSummary(guidance, "carry_forward_verification_gaps"),
+    /check:browser/,
+  );
   assert.deepEqual(
     guidance.stop_or_defer_actions.map((action) => action.action_id),
     ["defer_execution_until_user_task", "defer_authority_claims"],
@@ -188,6 +223,7 @@ function assertSufficientCandidateGuidance() {
   assert.equal(guidance.privacy.raw_payloads_included, false);
   assert.equal(guidance.privacy.unsafe_input_material_omitted, false);
   assertAuthority(guidance);
+  assertNoForbiddenGuidanceSections("ready guidance sections", guidance);
   assertNoForbiddenPayloadText("ready guidance", guidance);
 }
 
@@ -261,6 +297,26 @@ function assertNeedsReviewCandidateGuidance() {
       "ask_user_decision_questions",
     ],
   );
+  assert.match(
+    actionSummary(guidance, "resolve_verification_gaps"),
+    /failed_check/,
+  );
+  assert.match(
+    actionSummary(guidance, "resolve_verification_gaps"),
+    /unresolved_gap/,
+  );
+  assert.match(
+    actionSummary(guidance, "resolve_verification_gaps"),
+    /check:smoke/,
+  );
+  assert.match(
+    actionSummary(guidance, "preserve_unresolved_tensions"),
+    /unresolved_gap/,
+  );
+  assert.match(
+    actionSummary(guidance, "ask_user_decision_questions"),
+    /worker planning/,
+  );
   assert.deepEqual(
     guidance.stop_or_defer_actions.map((action) => action.action_id),
     ["defer_implementation_planning", "defer_authority_claims"],
@@ -270,6 +326,7 @@ function assertNeedsReviewCandidateGuidance() {
     /Resolve visible gaps/,
   );
   assertAuthority(guidance);
+  assertNoForbiddenGuidanceSections("needs-review guidance sections", guidance);
   assertNoForbiddenPayloadText("needs-review guidance", guidance);
 }
 
@@ -299,9 +356,17 @@ function assertBlockedCandidateGuidance() {
     guidance.next_smallest_useful_actions.map((action) => action.action_id),
     ["stop_and_request_unblock"],
   );
+  assert.match(
+    actionSummary(guidance, "stop_and_request_unblock"),
+    /missing scope/,
+  );
   assert.deepEqual(
     guidance.stop_or_defer_actions.map((action) => action.action_id),
     ["defer_all_worker_planning", "defer_authority_claims"],
+  );
+  assert.match(
+    stopOrDeferSummary(guidance, "defer_all_worker_planning"),
+    /missing scope/,
   );
   assert.match(guidance.worker_instructions[0], /Stop and defer/);
   assert(
@@ -311,6 +376,7 @@ function assertBlockedCandidateGuidance() {
     "blocked guidance must ask for the unblock decision",
   );
   assertAuthority(guidance);
+  assertNoForbiddenGuidanceSections("blocked guidance sections", guidance);
   assertNoForbiddenPayloadText("blocked guidance", guidance);
 }
 
@@ -370,6 +436,7 @@ function assertUnsafeSourceMaterialIsOmitted() {
     "unsafe tension detail must be replaced with a generic summary",
   );
   assertNoForbiddenPayloadText("redacted guidance", guidance);
+  assertNoForbiddenGuidanceSections("redacted guidance sections", guidance);
 }
 
 function assertBillingPayloadMaterialIsOmitted() {
@@ -432,6 +499,23 @@ function assertBillingPayloadMaterialIsOmitted() {
     false,
     "billing payload must be omitted from unresolved tensions",
   );
+  assert.equal(
+    JSON.stringify(guidance.next_smallest_useful_actions).includes(
+      "billing_payload",
+    ),
+    false,
+    "billing payload must be omitted from action summaries",
+  );
+  assert.equal(
+    JSON.stringify(guidance.stop_or_defer_actions).includes("billing_payload"),
+    false,
+    "billing payload must be omitted from stop/defer action summaries",
+  );
+  assert.equal(
+    JSON.stringify(guidance.worker_instructions).includes("billing_payload"),
+    false,
+    "billing payload must be omitted from worker instructions",
+  );
   assert(
     guidance.verification_gaps.some(
       (gap) => gap.summary === "Failed check remains unresolved.",
@@ -446,6 +530,7 @@ function assertBillingPayloadMaterialIsOmitted() {
     "billing payload tension detail must be replaced with a generic summary",
   );
   assertNoForbiddenPayloadText("billing redacted guidance", guidance);
+  assertNoForbiddenGuidanceSections("billing redacted guidance sections", guidance);
 }
 
 function buildCandidate(input) {
@@ -512,6 +597,9 @@ function assertDocsAndReport() {
     "verification_gaps",
     "next_smallest_useful_actions",
     "stop_or_defer_actions",
+    "Action Specificity",
+    "selected file counts",
+    "failed/skipped check ids",
     "user_decision_questions",
     "worker_instructions",
     "authority_boundary",
@@ -557,6 +645,17 @@ function assertDocsAndReport() {
     "no approval",
     "no Core decision",
   ]);
+  assertContainsAll(actionSpecificityReportText, [
+    "What PR #475 Found",
+    "What Action Specificity Changed",
+    "Bounded Before And After Examples",
+    "selected changed-file count",
+    "verification gap count",
+    "failed/skipped checks",
+    "Why This Makes The Next Worker Action More Concrete",
+    "Intentionally Out Of Scope",
+    "Add local ChatGPT perspective request preview surface",
+  ]);
 }
 
 function assertAuthority(guidance) {
@@ -589,6 +688,35 @@ function assertAuthority(guidance) {
     ),
     "stop/defer actions must stay advisory and non-executing",
   );
+}
+
+function actionSummary(guidance, actionId) {
+  const action = guidance.next_smallest_useful_actions.find(
+    (candidate) => candidate.action_id === actionId,
+  );
+  assert(action, `Expected next action: ${actionId}`);
+  return action.summary;
+}
+
+function stopOrDeferSummary(guidance, actionId) {
+  const action = guidance.stop_or_defer_actions.find(
+    (candidate) => candidate.action_id === actionId,
+  );
+  assert(action, `Expected stop/defer action: ${actionId}`);
+  return action.summary;
+}
+
+function assertNoForbiddenGuidanceSections(label, guidance) {
+  const sections = {
+    next_smallest_useful_actions: guidance.next_smallest_useful_actions,
+    neutral_observations: guidance.neutral_observations,
+    stop_or_defer_actions: guidance.stop_or_defer_actions,
+    unresolved_tensions: guidance.unresolved_tensions,
+    verification_gaps: guidance.verification_gaps,
+    work_goal: guidance.work_goal,
+    worker_instructions: guidance.worker_instructions,
+  };
+  assertNoForbiddenPayloadText(label, sections);
 }
 
 function assertNoForbiddenPayloadText(label, value) {

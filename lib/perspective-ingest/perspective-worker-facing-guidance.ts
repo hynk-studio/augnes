@@ -126,10 +126,17 @@ export function buildWorkerFacingPerspectiveGuidanceFromCandidate(
   const guidanceStatus = mapGuidanceStatus(candidate.basis_quality.status);
   const nextSmallestUsefulActions = buildNextSmallestUsefulActions({
     guidanceStatus,
+    sourceCandidate,
+    verificationGaps,
+    unresolvedTensions,
+    workGoal,
+  });
+  const stopOrDeferActions = buildStopOrDeferActions({
+    guidanceStatus,
+    scopeAlignment,
     verificationGaps,
     unresolvedTensions,
   });
-  const stopOrDeferActions = buildStopOrDeferActions(guidanceStatus);
   const userDecisionQuestions = buildUserDecisionQuestions(
     candidate,
     guidanceStatus,
@@ -526,18 +533,34 @@ function mapGuidanceStatus(
 
 function buildNextSmallestUsefulActions({
   guidanceStatus,
+  sourceCandidate,
   verificationGaps,
   unresolvedTensions,
+  workGoal,
 }: {
   guidanceStatus: WorkerFacingPerspectiveGuidanceStatusV0;
+  sourceCandidate: WorkerFacingPerspectiveGuidanceV0["source_candidate"];
   verificationGaps: readonly WorkerFacingPerspectiveVerificationGapV0[];
   unresolvedTensions: readonly PerspectiveCandidateUnresolvedTensionV0[];
+  workGoal: string | null;
 }): WorkerFacingPerspectiveActionV0[] {
+  const fileContext = summarizeSelectedFiles(
+    sourceCandidate.selected_material.changed_files,
+  );
+  const goalContext =
+    workGoal ?? sourceCandidate.selected_material.changed_files_summary;
+  const refContext = summarizeSourceRefs(sourceCandidate);
+  const verificationContext = summarizeVerificationGaps(verificationGaps);
+  const tensionContext = summarizeTensions(unresolvedTensions);
+
   if (guidanceStatus === "stop_or_defer") {
     return [
       buildAction(
         "stop_and_request_unblock",
-        "Stop worker planning from this candidate and ask the user or Core owner to resolve the blocking basis first.",
+        `Stop worker planning from this candidate and ask the user or Core owner to resolve the blocking basis first: ${summarizeBlockingBasis({
+          verificationGaps,
+          unresolvedTensions,
+        })}.`,
       ),
     ];
   }
@@ -546,15 +569,15 @@ function buildNextSmallestUsefulActions({
     return [
       buildAction(
         "resolve_verification_gaps",
-        "Resolve or qualify verification gaps before planning implementation work.",
+        `Resolve or qualify ${verificationContext} before planning implementation work${fileContext ? ` for ${fileContext}` : ""}.`,
       ),
       buildAction(
         "preserve_unresolved_tensions",
-        `${unresolvedTensions.length} unresolved tension(s) must remain visible in any revised candidate or later handoff.`,
+        `${tensionContext} must remain visible in any revised candidate or later handoff.`,
       ),
       buildAction(
         "ask_user_decision_questions",
-        "Ask the preserved user/Core decision questions before treating this as ready for worker planning.",
+        `Ask the preserved user/Core decision questions before treating ${refContext} as ready for worker planning.`,
       ),
     ];
   }
@@ -562,22 +585,30 @@ function buildNextSmallestUsefulActions({
   return [
     buildAction(
       "inspect_source_candidate_refs",
-      "Inspect the source candidate refs and selected material before proposing work.",
+      `Inspect ${refContext} and ${sourceCandidate.selected_material.changed_files.length} selected file(s) before proposing work.`,
     ),
     buildAction(
       "draft_smallest_scoped_plan",
-      "Draft the smallest useful scoped plan from the work goal and changed-file summary.",
+      `Draft the smallest useful scoped plan for ${formatOptionalContext(goalContext, "the worker-facing goal")} using ${fileContext || "the selected material"}.`,
     ),
     buildAction(
       "carry_forward_verification_gaps",
-      `${verificationGaps.length} verification gap(s) must stay visible and cannot be converted into proof or readiness.`,
+      `${verificationContext} must stay visible and cannot be converted into proof or readiness.`,
     ),
   ];
 }
 
-function buildStopOrDeferActions(
-  guidanceStatus: WorkerFacingPerspectiveGuidanceStatusV0,
-): WorkerFacingPerspectiveActionV0[] {
+function buildStopOrDeferActions({
+  guidanceStatus,
+  scopeAlignment,
+  verificationGaps,
+  unresolvedTensions,
+}: {
+  guidanceStatus: WorkerFacingPerspectiveGuidanceStatusV0;
+  scopeAlignment: WorkerFacingPerspectiveGuidanceV0["scope_alignment"];
+  verificationGaps: readonly WorkerFacingPerspectiveVerificationGapV0[];
+  unresolvedTensions: readonly PerspectiveCandidateUnresolvedTensionV0[];
+}): WorkerFacingPerspectiveActionV0[] {
   const commonActions = [
     buildAction(
       "defer_authority_claims",
@@ -589,7 +620,11 @@ function buildStopOrDeferActions(
     return [
       buildAction(
         "defer_all_worker_planning",
-        "Defer worker planning until the blocked candidate basis is resolved.",
+        `Defer worker planning until the blocked candidate basis is resolved: ${summarizeBlockingBasis({
+          scopeReasons: scopeAlignment.reasons,
+          verificationGaps,
+          unresolvedTensions,
+        })}.`,
       ),
       ...commonActions,
     ];
@@ -599,7 +634,9 @@ function buildStopOrDeferActions(
     return [
       buildAction(
         "defer_implementation_planning",
-        "Defer implementation planning until unresolved gaps and review needs are resolved.",
+        `Defer implementation planning until ${summarizeVerificationGaps(
+          verificationGaps,
+        )} and review needs are resolved.`,
       ),
       ...commonActions,
     ];
@@ -682,6 +719,111 @@ function buildAction(
     advisory_only: true,
     codex_execution: false,
   };
+}
+
+function summarizeSourceRefs(
+  sourceCandidate: WorkerFacingPerspectiveGuidanceV0["source_candidate"],
+): string {
+  const refs = [
+    ...(sourceCandidate.refs.work_id
+      ? [`work ${sourceCandidate.refs.work_id}`]
+      : []),
+    ...sourceCandidate.refs.source_pr_refs.slice(0, 2).map((ref) => `PR ${ref}`),
+  ];
+
+  if (refs.length === 0) return "the source candidate refs";
+
+  return refs.join(" and ");
+}
+
+function summarizeSelectedFiles(files: readonly string[]): string {
+  if (files.length === 0) return "";
+
+  const visibleFiles = files.slice(0, 3).join(", ");
+  const remainingCount = files.length - Math.min(files.length, 3);
+
+  return remainingCount > 0
+    ? `${visibleFiles}, plus ${remainingCount} more file(s)`
+    : visibleFiles;
+}
+
+function summarizeVerificationGaps(
+  gaps: readonly WorkerFacingPerspectiveVerificationGapV0[],
+): string {
+  if (gaps.length === 0) return "0 verification gap(s)";
+
+  const kinds = uniqueTextList(gaps.map((gap) => gap.gap_kind));
+  const refs = uniqueTextList(
+    gaps.flatMap((gap) => (gap.source_ref ? [gap.source_ref] : [])),
+  );
+  const refSummary =
+    refs.length > 0 ? ` via ${summarizeTextList(refs, 3)}` : "";
+
+  return `${gaps.length} verification gap(s): ${summarizeTextList(
+    kinds,
+    4,
+  )}${refSummary}`;
+}
+
+function summarizeTensions(
+  tensions: readonly PerspectiveCandidateUnresolvedTensionV0[],
+): string {
+  if (tensions.length === 0) return "0 unresolved tension(s)";
+
+  const kinds = uniqueTextList(
+    tensions.map((tension) => tension.tension_kind),
+  );
+
+  return `${tensions.length} unresolved tension(s): ${summarizeTextList(
+    kinds,
+    4,
+  )}`;
+}
+
+function summarizeBlockingBasis({
+  scopeReasons = [],
+  verificationGaps,
+  unresolvedTensions,
+}: {
+  scopeReasons?: readonly string[];
+  verificationGaps: readonly WorkerFacingPerspectiveVerificationGapV0[];
+  unresolvedTensions: readonly PerspectiveCandidateUnresolvedTensionV0[];
+}): string {
+  const visibleReasons = [
+    ...scopeReasons,
+    ...unresolvedTensions.map((tension) => tension.summary),
+    ...verificationGaps.map((gap) =>
+      gap.source_ref ? `${gap.gap_kind} ${gap.source_ref}` : gap.gap_kind,
+    ),
+  ].filter(hasText);
+
+  if (visibleReasons.length === 0) return "blocked candidate basis";
+
+  return summarizeTextList(uniqueTextList(visibleReasons), 3);
+}
+
+function summarizeTextList(values: readonly string[], limit: number): string {
+  const visibleValues = values.slice(0, limit).map((value) => truncateText(value));
+  const remainingCount = values.length - visibleValues.length;
+  const suffix =
+    remainingCount > 0 ? `, plus ${remainingCount} more` : "";
+
+  return `${visibleValues.join(", ")}${suffix}`;
+}
+
+function formatOptionalContext(
+  value: string | null | undefined,
+  fallback: string,
+): string {
+  return value ? truncateText(value) : fallback;
+}
+
+function truncateText(value: string): string {
+  return value.length > 180 ? `${value.slice(0, 177)}...` : value;
+}
+
+function hasText(value: string | null | undefined): boolean {
+  return Boolean(value && value.trim());
 }
 
 function buildAuthorityFlags(): WorkerFacingPerspectiveGuidanceV0["authority_flags"] {
