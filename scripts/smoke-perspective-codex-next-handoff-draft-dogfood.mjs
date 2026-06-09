@@ -45,6 +45,9 @@ const allowedChangedFiles = new Set([
   reportFile,
   copyRefineReportFile,
   artifactFile,
+  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
+  "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
+  "scripts/smoke-perspective-codex-handoff-draft-real-docs-task-eval.mjs",
   draftPacketDocFile,
   userJudgmentDocFile,
   laneDocFile,
@@ -175,7 +178,9 @@ function assertDocsAndReport() {
     "ready_to_copy separate from execution",
     "contrast cases visible",
     "under-scoped expected_files",
-    "Evaluate Codex handoff draft in a real docs-only Codex task",
+    "Follow-Up Evaluation",
+    "real docs-only Codex task evaluates",
+    "Refine expected-file scope readability for Codex handoff drafts",
   ]);
   assertContainsAll(reportText, [
     "Summary",
