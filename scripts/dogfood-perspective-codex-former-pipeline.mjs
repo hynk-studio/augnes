@@ -111,6 +111,147 @@ export function deriveDogfoodConclusion(scenarioConclusions) {
   return "PASS";
 }
 
+export function evaluateReadyDraftScenario({ validationResult, workerGuidance }) {
+  const blockedReasons = collectReadyDraftScenarioBlockedReasons({
+    validationResult,
+    workerGuidance,
+  });
+
+  return blockedReasons.length === 0 ? "PASS" : "BLOCKED";
+}
+
+export function evaluateContrastScenario({ validationResult, workerGuidance }) {
+  const blockedReasons = collectContrastScenarioBlockedReasons({
+    validationResult,
+    workerGuidance,
+  });
+
+  return blockedReasons.length === 0 ? "PASS with follow-up" : "BLOCKED";
+}
+
+export function evaluateRegressionScenario({ threw, validationResult }) {
+  const blockedReasons = collectRegressionScenarioBlockedReasons({
+    threw,
+    validationResult,
+  });
+
+  return blockedReasons.length === 0 ? "PASS" : "BLOCKED";
+}
+
+function collectReadyDraftScenarioBlockedReasons({
+  validationResult,
+  workerGuidance,
+}) {
+  const blockedReasons = [];
+  const candidate = validationResult?.candidate_review_material;
+
+  if (validationResult?.status !== "ready_for_review") {
+    blockedReasons.push("validation status is not ready_for_review");
+  }
+  if (!candidate) blockedReasons.push("candidate review material is missing");
+  if (!workerGuidance) blockedReasons.push("worker guidance is missing");
+  if (candidate?.basis_quality?.status !== "sufficient_for_review") {
+    blockedReasons.push("candidate basis quality is not sufficient_for_review");
+  }
+  if (workerGuidance?.guidance_status !== "actionable_advisory") {
+    blockedReasons.push("worker guidance status is not actionable_advisory");
+  }
+  if (!allAuthorityFlagsFalse(candidate?.authority_flags)) {
+    blockedReasons.push("candidate authority flags are not all false");
+  }
+  if (!allAuthorityFlagsFalse(workerGuidance?.authority_flags)) {
+    blockedReasons.push("worker guidance authority flags are not all false");
+  }
+  if (containsForbiddenOutputText(candidate)) {
+    blockedReasons.push("candidate output includes unsafe marker text");
+  }
+  if (containsForbiddenOutputText(workerGuidance)) {
+    blockedReasons.push("worker guidance output includes unsafe marker text");
+  }
+  if (!candidate || !hasReadyDraftUsefulThesis(candidate)) {
+    blockedReasons.push("ready draft useful thesis is missing");
+  }
+  if (!candidate || !hasReadyDraftUsefulQuestion(candidate)) {
+    blockedReasons.push("ready draft usefulness or prompt-contract question is missing");
+  }
+
+  return blockedReasons;
+}
+
+function collectContrastScenarioBlockedReasons({
+  validationResult,
+  workerGuidance,
+}) {
+  const blockedReasons = [];
+  const candidate = validationResult?.candidate_review_material;
+
+  if (validationResult?.status !== "needs_review") {
+    blockedReasons.push("validation status is not needs_review");
+  }
+  if (!candidate) blockedReasons.push("candidate review material is missing");
+  if (!workerGuidance) blockedReasons.push("worker guidance is missing");
+  if (candidate?.basis_quality?.status !== "needs_review") {
+    blockedReasons.push("candidate basis quality is not needs_review");
+  }
+  if (workerGuidance?.guidance_status !== "resolve_gaps_first") {
+    blockedReasons.push("worker guidance status is not resolve_gaps_first");
+  }
+  if (!candidate || !hasContrastContextQualification(candidate)) {
+    blockedReasons.push("PR #476 context/not proof/readiness tension is missing");
+  }
+  if (!allAuthorityFlagsFalse(candidate?.authority_flags)) {
+    blockedReasons.push("candidate authority flags are not all false");
+  }
+  if (!allAuthorityFlagsFalse(workerGuidance?.authority_flags)) {
+    blockedReasons.push("worker guidance authority flags are not all false");
+  }
+  if (containsForbiddenOutputText(candidate)) {
+    blockedReasons.push("candidate output includes unsafe marker text");
+  }
+  if (containsForbiddenOutputText(workerGuidance)) {
+    blockedReasons.push("worker guidance output includes unsafe marker text");
+  }
+
+  return blockedReasons;
+}
+
+function collectRegressionScenarioBlockedReasons({ threw, validationResult }) {
+  const blockedReasons = [];
+
+  if (threw) blockedReasons.push("validator threw");
+  if (validationResult?.status !== "blocked") {
+    blockedReasons.push("validation status is not blocked");
+  }
+  if (validationResult?.candidate_review_material !== null) {
+    blockedReasons.push("candidate review material is not null");
+  }
+  if (
+    !validationResult?.blocked_reasons?.some((reason) =>
+      reason.includes("invalid draft field shape"),
+    )
+  ) {
+    blockedReasons.push("malformed shape blocked reason is missing");
+  }
+  if (
+    !validationResult?.blocked_reasons?.includes(
+      "draft includes forbidden authority claims",
+    )
+  ) {
+    blockedReasons.push("forbidden authority blocked reason is missing");
+  }
+  if (!allAuthorityFlagsFalse(validationResult?.authority_flags)) {
+    blockedReasons.push("validation authority flags are not all false");
+  }
+  if (validationResult?.privacy?.raw_payloads_included !== false) {
+    blockedReasons.push("privacy raw_payloads_included is not false");
+  }
+  if (containsForbiddenOutputText(validationResult)) {
+    blockedReasons.push("validation output includes unsafe marker text");
+  }
+
+  return blockedReasons;
+}
+
 function buildReviewedPr477ReadyDraftScenario() {
   const formationInputBundle = buildPerspectiveFormationInputBundle({
     scope: "project:augnes",
@@ -214,7 +355,7 @@ function buildReviewedPr477ReadyDraftScenario() {
     buildCodexPerspectiveFormerInputPacket(formationInputBundle);
   const draft = buildModelShapedDraftFromPacket(formerInputPacket, {
     thesis:
-      "PR #477 is not just a local scaffold; its useful perspective is that a former draft becomes valuable only when malformed, unsafe, and authority-claiming model-shaped output is blocked before candidate-compatible review material exists.",
+      "PR #477 is not just a local scaffold; its useful perspective is the validation boundary where malformed, unsafe, and authority-claiming model-shaped output is blocked before candidate-compatible review material exists.",
     selected_material: {
       changed_files: pr477ChangedFiles,
       changed_files_summary:
@@ -267,10 +408,11 @@ function buildReviewedPr477ReadyDraftScenario() {
     draft_label: "static local model-shaped draft fixture",
     validationResult,
     workerGuidance,
-    conclusion:
-      validationResult.status === "ready_for_review"
-        ? "PASS"
-        : "PASS with follow-up",
+    conclusion: evaluateReadyDraftScenario({ validationResult, workerGuidance }),
+    evaluation_blocked_reasons: collectReadyDraftScenarioBlockedReasons({
+      validationResult,
+      workerGuidance,
+    }),
     dogfood_notes: [
       "The draft adds a neutral usefulness frame around why shape, unsafe-material, and authority validation matter.",
       "The output remains non-committed review material.",
@@ -402,7 +544,11 @@ function buildReviewedPr476ContextContrastScenario() {
     draft_label: "static local model-shaped draft fixture",
     validationResult,
     workerGuidance,
-    conclusion: "PASS with follow-up",
+    conclusion: evaluateContrastScenario({ validationResult, workerGuidance }),
+    evaluation_blocked_reasons: collectContrastScenarioBlockedReasons({
+      validationResult,
+      workerGuidance,
+    }),
     dogfood_notes: [
       "The candidate keeps PR #476 as context rather than proof or execution.",
       "The needs-review status is useful because it prevents context from being overpromoted.",
@@ -488,6 +634,11 @@ function buildMalformedOrAuthorityRegressionScenario() {
     validationResult = null;
   }
 
+  const conclusion = evaluateRegressionScenario({
+    threw,
+    validationResult,
+  });
+
   return {
     scenario_id: "malformed_or_authority_regression_case",
     title: "Malformed Or Authority Regression Case",
@@ -499,12 +650,11 @@ function buildMalformedOrAuthorityRegressionScenario() {
     candidate_review_material: null,
     worker_guidance: null,
     threw,
-    conclusion:
-      !threw &&
-      validationResult?.status === "blocked" &&
-      validationResult?.candidate_review_material === null
-        ? "PASS"
-        : "BLOCKED",
+    conclusion,
+    evaluation_blocked_reasons: collectRegressionScenarioBlockedReasons({
+      threw,
+      validationResult,
+    }),
     dogfood_notes: [
       "The invalid draft is blocked before candidate-compatible material exists.",
       "The output omits unsafe draft details and preserves false authority flags.",
@@ -605,6 +755,7 @@ function buildScenarioResult({
   validationResult,
   workerGuidance,
   conclusion,
+  evaluation_blocked_reasons = [],
   dogfood_notes,
 }) {
   return {
@@ -620,6 +771,7 @@ function buildScenarioResult({
     ),
     worker_guidance: summarizeWorkerGuidance(workerGuidance),
     conclusion,
+    evaluation_blocked_reasons,
     dogfood_notes,
   };
 }
@@ -903,6 +1055,11 @@ function renderScenario(scenario) {
     "",
     `Scenario id: ${scenario.scenario_id}`,
     `Conclusion: ${scenario.conclusion}`,
+    `Evaluation blocked reasons: ${
+      scenario.evaluation_blocked_reasons.length > 0
+        ? scenario.evaluation_blocked_reasons.join("; ")
+        : "None"
+    }`,
     `Draft fixture: ${scenario.draft_label}`,
     `Validation status: ${scenario.validation_status}`,
     "",
@@ -998,9 +1155,82 @@ function formatList(values) {
   return values.map((value) => `- ${value}`);
 }
 
+function hasReadyDraftUsefulThesis(candidate) {
+  const thesis = (candidate.thesis ?? "").toLowerCase();
+
+  return (
+    thesis.includes("validation") &&
+    thesis.includes("malformed") &&
+    thesis.includes("authority") &&
+    (thesis.includes("blocked") || thesis.includes("blocking"))
+  );
+}
+
+function hasReadyDraftUsefulQuestion(candidate) {
+  if (!Array.isArray(candidate.user_core_decision_questions)) return false;
+
+  return candidate.user_core_decision_questions.some((question) => {
+    const lowered = question.toLowerCase();
+    return (
+      lowered.includes("usefulness") ||
+      lowered.includes("prompt contract") ||
+      lowered.includes("prompt-contract")
+    );
+  });
+}
+
+function hasContrastContextQualification(candidate) {
+  if (!Array.isArray(candidate.unresolved_tensions)) return false;
+
+  const summaries = candidate.unresolved_tensions.map((tension) =>
+    (tension.summary ?? "").toLowerCase(),
+  );
+  const hasPr476ContextNotEvidence = summaries.some(
+    (summary) =>
+      summary.includes("pr #476") &&
+      summary.includes("context") &&
+      summary.includes("not evidence"),
+  );
+  const hasNotProofReadiness = summaries.some(
+    (summary) => summary.includes("proof") && summary.includes("readiness"),
+  );
+
+  return hasPr476ContextNotEvidence && hasNotProofReadiness;
+}
+
 function allAuthorityFlagsFalse(flags) {
   if (!flags) return false;
   return Object.values(flags).every((value) => value === false);
+}
+
+function containsForbiddenOutputText(value) {
+  const serialized = JSON.stringify(value) ?? "";
+  const forbiddenMarkers = [
+    "billing_payload",
+    "token_payload",
+    "oauth_payload",
+    "raw_pasted_text",
+    "raw_source_payload",
+    "raw_candidate_payload",
+    "raw_private_payload",
+    "private_payload",
+    "provider_payload",
+    "oauth_token",
+    "access_token",
+    "refresh_token",
+    "api_key",
+    "hidden_reasoning",
+    "generated_model_payload",
+    "sk-proj-",
+    "ghp_",
+    "gho_",
+    "ghu_",
+    "ghs_",
+    "ghr_",
+    "secret",
+  ];
+
+  return forbiddenMarkers.some((marker) => serialized.includes(marker));
 }
 
 function falseAuthorityFlags() {

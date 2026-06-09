@@ -72,6 +72,11 @@ Expected result: blocked validation, no thrown exception, no
 candidate-compatible review material, concrete blocked reasons, unsafe output
 details omitted, and all authority flags false.
 
+Scenario conclusions are derived from strict local evaluators. A ready or
+contrast scenario becomes `BLOCKED` if required validation status, candidate
+material, guidance material, useful thesis/question content, unresolved context
+qualification, redaction, or false-authority checks are missing.
+
 ## Evaluation Questions
 
 The dogfood report answers:

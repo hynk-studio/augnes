@@ -42,6 +42,9 @@ const formerPipelineDocText = readFileSync(formerPipelineDocFile, "utf8");
 const {
   buildPerspectiveCodexFormerPipelineDogfood,
   deriveDogfoodConclusion,
+  evaluateContrastScenario,
+  evaluateReadyDraftScenario,
+  evaluateRegressionScenario,
   runPerspectiveCodexFormerPipelineDogfood,
 } = await import("./dogfood-perspective-codex-former-pipeline.mjs");
 
@@ -63,6 +66,7 @@ assert.equal(
 assertDogfoodScriptBoundary();
 assertDocs();
 assertDerivedConclusionHelper();
+assertScenarioEvaluatorHelpers();
 
 const dogfood = runPerspectiveCodexFormerPipelineDogfood();
 const rebuiltDogfood = buildPerspectiveCodexFormerPipelineDogfood();
@@ -103,6 +107,9 @@ function assertDogfoodScriptBoundary() {
     "buildWorkerFacingPerspectiveGuidanceFromCandidate",
     "buildPerspectiveCodexFormerPipelineDogfood",
     "deriveDogfoodConclusion",
+    "evaluateReadyDraftScenario",
+    "evaluateContrastScenario",
+    "evaluateRegressionScenario",
     "runPerspectiveCodexFormerPipelineDogfood",
     "reviewed_pr_477_ready_draft",
     "reviewed_pr_476_context_contrast",
@@ -184,6 +191,88 @@ function assertDerivedConclusionHelper() {
     ]),
     "PASS with follow-up",
     "object-shaped scenario conclusions must also be supported",
+  );
+}
+
+function assertScenarioEvaluatorHelpers() {
+  assert.equal(
+    evaluateReadyDraftScenario({
+      validationResult: {
+        status: "blocked",
+        candidate_review_material: null,
+      },
+      workerGuidance: null,
+    }),
+    "BLOCKED",
+    "ready scenario must block when validation is blocked",
+  );
+  assert.equal(
+    evaluateReadyDraftScenario({
+      validationResult: {
+        status: "ready_for_review",
+        candidate_review_material: null,
+      },
+      workerGuidance: {},
+    }),
+    "BLOCKED",
+    "ready scenario must block when candidate material is null",
+  );
+  assert.equal(
+    evaluateContrastScenario({
+      validationResult: {
+        status: "ready_for_review",
+        candidate_review_material: null,
+      },
+      workerGuidance: null,
+    }),
+    "BLOCKED",
+    "contrast scenario must block when validation is not needs_review",
+  );
+  assert.equal(
+    evaluateContrastScenario({
+      validationResult: {
+        status: "needs_review",
+        candidate_review_material: buildContrastCandidateForEvaluator(),
+      },
+      workerGuidance: null,
+    }),
+    "BLOCKED",
+    "contrast scenario must block when worker guidance is missing",
+  );
+  assert.equal(
+    evaluateRegressionScenario({
+      threw: false,
+      validationResult: {
+        status: "blocked",
+        candidate_review_material: null,
+        blocked_reasons: [
+          "invalid draft field shape: unresolved_tensions must be an array",
+          "draft includes forbidden authority claims",
+        ],
+        privacy: {
+          raw_payloads_included: false,
+        },
+        authority_flags: buildFalseAuthorityFlags(),
+      },
+    }),
+    "PASS",
+    "regression scenario must pass only for blocked malformed authority output",
+  );
+  assert.equal(
+    evaluateRegressionScenario({
+      threw: false,
+      validationResult: {
+        status: "needs_review",
+        candidate_review_material: {},
+        blocked_reasons: [],
+        privacy: {
+          raw_payloads_included: false,
+        },
+        authority_flags: buildFalseAuthorityFlags(),
+      },
+    }),
+    "BLOCKED",
+    "regression scenario must block if validation is not blocked",
   );
 }
 
@@ -501,6 +590,38 @@ function parseGitLines(output) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function buildContrastCandidateForEvaluator() {
+  return {
+    basis_quality: {
+      status: "needs_review",
+    },
+    unresolved_tensions: [
+      {
+        summary:
+          "PR #476 is context for downstream guidance specificity, not evidence that former-pipeline output is useful by itself.",
+      },
+      {
+        summary:
+          "This contrast does not treat worker guidance usefulness as proof, evidence, readiness, or execution authority.",
+      },
+    ],
+    authority_flags: buildFalseAuthorityFlags(),
+  };
+}
+
+function buildFalseAuthorityFlags() {
+  return {
+    committed_state: false,
+    persistence: false,
+    provider_model_api_calls: false,
+    proof_evidence_readiness_writes: false,
+    codex_execution: false,
+    github_mutation: false,
+    merge_publish_approval: false,
+    core_decision: false,
+  };
 }
 
 function allAuthorityFlagsFalse(flags) {

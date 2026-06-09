@@ -64,6 +64,7 @@ Recommended next implementation PR title: Refine Codex perspective former draft 
 
 Scenario id: reviewed_pr_477_ready_draft
 Conclusion: PASS
+Evaluation blocked reasons: None
 Draft fixture: static local model-shaped draft fixture
 Validation status: ready_for_review
 
@@ -97,7 +98,7 @@ Warnings:
 
 - Candidate authority: non_committed
 - Basis quality: sufficient_for_review
-- Thesis: PR #477 is not just a local scaffold; its useful perspective is that a former draft becomes valuable only when malformed, unsafe, and authority-claiming model-shaped output is blocked before candidate-compatible review material exists.
+- Thesis: PR #477 is not just a local scaffold; its useful perspective is the validation boundary where malformed, unsafe, and authority-claiming model-shaped output is blocked before candidate-compatible review material exists.
 - Evidence pointer refs: 7
 - Unresolved tensions: 0
 - User/Core questions: 1
@@ -127,6 +128,7 @@ Dogfood notes:
 
 Scenario id: reviewed_pr_476_context_contrast
 Conclusion: PASS with follow-up
+Evaluation blocked reasons: None
 Draft fixture: static local model-shaped draft fixture
 Validation status: needs_review
 
@@ -190,6 +192,7 @@ Dogfood notes:
 
 Scenario id: malformed_or_authority_regression_case
 Conclusion: PASS
+Evaluation blocked reasons: None
 Draft fixture: static local malformed model-shaped draft fixture
 Validation status: blocked
 
