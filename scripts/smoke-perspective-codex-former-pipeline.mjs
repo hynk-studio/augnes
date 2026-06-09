@@ -81,6 +81,7 @@ assertSourceIsPureLocal();
 assertDocsAndReport();
 assertReadyDraftFixture();
 assertNeedsReviewDraftFixture();
+assertMalformedDraftShapeFixture();
 assertBlockedUnsafePayloadFixture();
 assertAuthorityClaimRejectionFixture();
 assertDownstreamGuidanceCompatibilityFixture();
@@ -265,6 +266,60 @@ function assertNeedsReviewDraftFixture() {
   assertAuthorityFalse(result);
   assertCandidateAuthorityFalse(candidate);
   assertNoForbiddenPayloadText("needs-review normalized candidate", candidate);
+}
+
+function assertMalformedDraftShapeFixture() {
+  const packet = buildCodexPerspectiveFormerInputPacket(
+    buildReadyFormationInputBundle(),
+  );
+  const draft = buildDraftFromPacket(packet, {
+    evidence_pointer_refs: "not-an-array",
+    unresolved_tensions: {},
+    basis_quality_suggestion: {
+      status: "sufficient_for_review",
+      reasons: "not-an-array",
+    },
+  });
+  let result;
+
+  assert.doesNotThrow(() => {
+    result = validateAndNormalizeCodexPerspectiveCandidateDraft({
+      former_input_packet: packet,
+      draft,
+    });
+  }, "malformed model-shaped drafts must block instead of throwing");
+
+  assert.equal(result.status, "blocked");
+  assert.equal(result.candidate_review_material, null);
+  assert(
+    result.blocked_reasons.includes(
+      "invalid draft field shape: evidence_pointer_refs must be an array",
+    ),
+    "blocked reasons must name malformed evidence pointer refs",
+  );
+  assert(
+    result.blocked_reasons.includes(
+      "invalid draft field shape: unresolved_tensions must be an array",
+    ),
+    "blocked reasons must name malformed unresolved tensions",
+  );
+  assert(
+    result.blocked_reasons.includes(
+      "invalid draft field shape: basis_quality_suggestion.reasons must be an array",
+    ),
+    "blocked reasons must name malformed basis-quality reasons",
+  );
+  assert(
+    result.warnings.some(
+      (warning) =>
+        warning.warning_kind === "normalization" &&
+        warning.field === "draft.unresolved_tensions",
+    ),
+    "invalid runtime shapes may be preserved as normalization warnings",
+  );
+  assert.equal(result.privacy.raw_payloads_included, false);
+  assertAuthorityFalse(result);
+  assertNoForbiddenPayloadText("malformed draft blocked result", result);
 }
 
 function assertBlockedUnsafePayloadFixture() {
@@ -618,9 +673,11 @@ function assertSourceIsPureLocal() {
   ]);
   assertContainsAll(draftPipelineText, [
     "validateAndNormalizeCodexPerspectiveCandidateDraft",
+    "validateDraftRuntimeShape",
     "codex_perspective_candidate_draft.v0.1",
     "codex_perspective_candidate_draft_validation.v0.1",
     "candidate_review_material",
+    "invalid draft field shape",
     "draft includes unsafe raw/private/provider/token material",
     "draft includes forbidden authority claims",
     "raw_payloads_included: false",

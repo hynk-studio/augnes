@@ -75,6 +75,9 @@ The dedicated smoke covers:
 - `needs_review_draft_fixture`: preserves gaps, unresolved tensions, basis
   qualifications, and skipped-check concrete reasons without authority
   escalation.
+- `malformed_draft_shape_fixture`: blocks model-shaped drafts that provide all
+  required top-level fields but malformed nested runtime shapes, and returns a
+  blocked validation result instead of throwing.
 - `blocked_unsafe_payload_fixture`: blocks unsafe raw/private/provider/token
   markers, records omitted fields, and emits no unsafe marker in the blocked
   result.

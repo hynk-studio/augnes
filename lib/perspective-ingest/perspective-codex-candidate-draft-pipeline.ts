@@ -162,6 +162,18 @@ export function validateAndNormalizeCodexPerspectiveCandidateDraft({
     blockedReasons.push(`missing required fields: ${missingFields.join(", ")}`);
   }
 
+  const invalidShapeReasons = validateDraftRuntimeShape(draft);
+  if (invalidShapeReasons.length > 0) {
+    blockedReasons.push(...invalidShapeReasons);
+    warnings.push(
+      ...invalidShapeReasons.map((reason) => ({
+        warning_kind: "normalization" as const,
+        field: parseInvalidShapeField(reason),
+        summary: reason,
+      })),
+    );
+  }
+
   collectUnsafeFields(draft, "draft", omittedUnsafeFields);
   if (omittedUnsafeFields.size > 0) {
     blockedReasons.push("draft includes unsafe raw/private/provider/token material");
@@ -232,6 +244,121 @@ export function validateAndNormalizeCodexPerspectiveCandidateDraft({
     },
     authority_flags: buildFalseAuthorityFlags(),
   };
+}
+
+function validateDraftRuntimeShape(
+  draft: Record<string, unknown>,
+): string[] {
+  const invalidShapes: string[] = [];
+
+  addObjectShapeCheck(
+    invalidShapes,
+    draft.source_former_input_packet,
+    "source_former_input_packet",
+  );
+
+  if (
+    addObjectShapeCheck(
+      invalidShapes,
+      draft.selected_material,
+      "selected_material",
+    )
+  ) {
+    const selectedMaterial = draft.selected_material;
+    addArrayShapeCheck(
+      invalidShapes,
+      selectedMaterial.changed_files,
+      "selected_material.changed_files",
+    );
+    addArrayShapeCheck(
+      invalidShapes,
+      selectedMaterial.source_pr_refs,
+      "selected_material.source_pr_refs",
+    );
+  }
+
+  addArrayShapeCheck(
+    invalidShapes,
+    draft.evidence_pointer_refs,
+    "evidence_pointer_refs",
+  );
+  addArrayShapeCheck(
+    invalidShapes,
+    draft.unresolved_tensions,
+    "unresolved_tensions",
+  );
+
+  if (
+    addObjectShapeCheck(
+      invalidShapes,
+      draft.basis_quality_suggestion,
+      "basis_quality_suggestion",
+    )
+  ) {
+    addArrayShapeCheck(
+      invalidShapes,
+      draft.basis_quality_suggestion.reasons,
+      "basis_quality_suggestion.reasons",
+    );
+  }
+
+  addArrayShapeCheck(
+    invalidShapes,
+    draft.next_action_candidates,
+    "next_action_candidates",
+  );
+  addArrayShapeCheck(
+    invalidShapes,
+    draft.user_core_decision_questions,
+    "user_core_decision_questions",
+  );
+  addArrayShapeCheck(
+    invalidShapes,
+    draft.qualification_notes,
+    "qualification_notes",
+  );
+  addObjectShapeCheck(invalidShapes, draft.privacy_flags, "privacy_flags");
+  addObjectShapeCheck(invalidShapes, draft.authority_flags, "authority_flags");
+  addArrayShapeCheck(
+    invalidShapes,
+    draft.forbidden_actions,
+    "forbidden_actions",
+  );
+
+  return invalidShapes;
+}
+
+function addObjectShapeCheck(
+  invalidShapes: string[],
+  value: unknown,
+  fieldName: string,
+): value is Record<string, unknown> {
+  if (isRecord(value)) return true;
+
+  invalidShapes.push(
+    `invalid draft field shape: ${fieldName} must be an object`,
+  );
+  return false;
+}
+
+function addArrayShapeCheck(
+  invalidShapes: string[],
+  value: unknown,
+  fieldName: string,
+): value is unknown[] {
+  if (Array.isArray(value)) return true;
+
+  invalidShapes.push(
+    `invalid draft field shape: ${fieldName} must be an array`,
+  );
+  return false;
+}
+
+function parseInvalidShapeField(reason: string): string {
+  const prefix = "invalid draft field shape: ";
+  if (!reason.startsWith(prefix)) return "draft";
+
+  return `draft.${reason.slice(prefix.length).split(" must be ")[0]}`;
 }
 
 function normalizeCandidate({
