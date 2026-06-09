@@ -13,6 +13,14 @@ const smokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const loopDogfoodScriptFile =
+  "scripts/dogfood-perspective-worker-facing-guidance-loop.mjs";
+const loopDogfoodSmokeFile =
+  "scripts/smoke-perspective-worker-facing-guidance-loop-dogfood.mjs";
+const loopDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md";
+const loopDogfoodDocFile =
+  "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -21,6 +29,10 @@ const allowedChangedFiles = new Set([
   reportFile,
   smokeFile,
   candidateBuilderSmokeFile,
+  loopDogfoodScriptFile,
+  loopDogfoodSmokeFile,
+  loopDogfoodReportFile,
+  loopDogfoodDocFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));

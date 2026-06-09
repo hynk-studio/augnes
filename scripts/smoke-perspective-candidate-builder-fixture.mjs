@@ -67,6 +67,14 @@ const workerGuidanceReportFile =
   "reports/2026-06-09-perspective-worker-facing-guidance.md";
 const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
+const workerGuidanceLoopDogfoodScriptFile =
+  "scripts/dogfood-perspective-worker-facing-guidance-loop.mjs";
+const workerGuidanceLoopDogfoodSmokeFile =
+  "scripts/smoke-perspective-worker-facing-guidance-loop-dogfood.mjs";
+const workerGuidanceLoopDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md";
+const workerGuidanceLoopDogfoodDocFile =
+  "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -103,6 +111,10 @@ const allowedChangedFiles = new Set([
   workerGuidanceDocFile,
   workerGuidanceReportFile,
   workerGuidanceSmokeFile,
+  workerGuidanceLoopDogfoodScriptFile,
+  workerGuidanceLoopDogfoodSmokeFile,
+  workerGuidanceLoopDogfoodReportFile,
+  workerGuidanceLoopDogfoodDocFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
