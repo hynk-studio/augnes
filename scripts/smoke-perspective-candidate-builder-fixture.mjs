@@ -59,6 +59,14 @@ const manualUsageReportFile =
   "reports/2026-06-09-perspective-codex-handoff-draft-manual-usage-note.md";
 const manualUsageSmokeFile =
   "scripts/smoke-perspective-codex-handoff-draft-manual-usage-note.mjs";
+const workerGuidanceBuilderFile =
+  "lib/perspective-ingest/perspective-worker-facing-guidance.ts";
+const workerGuidanceDocFile =
+  "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_V0_1.md";
+const workerGuidanceReportFile =
+  "reports/2026-06-09-perspective-worker-facing-guidance.md";
+const workerGuidanceSmokeFile =
+  "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -91,6 +99,10 @@ const allowedChangedFiles = new Set([
   manualUsageDocFile,
   manualUsageReportFile,
   manualUsageSmokeFile,
+  workerGuidanceBuilderFile,
+  workerGuidanceDocFile,
+  workerGuidanceReportFile,
+  workerGuidanceSmokeFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
@@ -602,7 +614,8 @@ function assertChangedFileBoundary() {
           changedFile === candidateBuilderFile ||
           changedFile === briefingPreviewBuilderFile ||
           changedFile === userJudgmentBuilderFile ||
-          changedFile === codexDraftBuilderFile) &&
+          changedFile === codexDraftBuilderFile ||
+          changedFile === workerGuidanceBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
