@@ -101,3 +101,12 @@ decisions.
 ## Recommended Next Implementation PR
 
 Refine Codex former draft schema alignment from captured transcript findings
+
+Followed by:
+
+- `docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md`
+- `reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md`
+
+Recommended next implementation PR after alignment:
+
+Refine Codex former prompt contract to emit canonical schema after alignment findings

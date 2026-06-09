@@ -33,6 +33,16 @@ const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const draftSchemaAlignmentHelperFile =
+  "lib/perspective-ingest/perspective-codex-candidate-draft-schema-alignment.ts";
+const draftSchemaAlignmentDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-draft-schema-alignment.mjs";
+const draftSchemaAlignmentSmokeFile =
+  "scripts/smoke-perspective-codex-former-draft-schema-alignment.mjs";
+const draftSchemaAlignmentDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md";
+const draftSchemaAlignmentReportFile =
+  "reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -53,6 +63,11 @@ const allowedChangedFiles = new Set([
   pipelineDogfoodSmokeFile,
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
+  draftSchemaAlignmentHelperFile,
+  draftSchemaAlignmentDogfoodScriptFile,
+  draftSchemaAlignmentSmokeFile,
+  draftSchemaAlignmentDocFile,
+  draftSchemaAlignmentReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -320,6 +335,8 @@ function assertDocsAndReport() {
     "pointer schema drift",
     "authority flag schema drift",
     "Worker-Facing Guidance",
+    "PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md",
+    "Refine Codex former prompt contract to emit canonical schema after alignment findings",
     MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_RECOMMENDED_NEXT_PR,
   ]);
   assertContainsAll(reportText, [
@@ -331,6 +348,8 @@ function assertDocsAndReport() {
     "Local Validation Result",
     "Worker-Facing Guidance was skipped",
     "BLOCKED with useful findings",
+    "2026-06-09-perspective-codex-former-draft-schema-alignment.md",
+    "Refine Codex former prompt contract to emit canonical schema after alignment findings",
     MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_RECOMMENDED_NEXT_PR,
   ]);
   assertNoRawUnsafeMarkersInPublicText("real transcript dogfood doc", docText);

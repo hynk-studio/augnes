@@ -1151,6 +1151,15 @@ function renderArtifact({ context, evaluation, scenarios }) {
     "## What Should Be Refined Next",
     "",
     MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_RECOMMENDED_NEXT_PR,
+    "",
+    "## Followed By",
+    "",
+    "- `docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md`",
+    "- `reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md`",
+    "",
+    "## Recommended Next Implementation PR After Alignment",
+    "",
+    "Refine Codex former prompt contract to emit canonical schema after alignment findings",
   ];
 
   return `${lines.join("\n").trimEnd()}\n`;
