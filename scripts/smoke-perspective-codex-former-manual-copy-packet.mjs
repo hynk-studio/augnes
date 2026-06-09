@@ -83,6 +83,14 @@ const refinedPromptRealTranscriptDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_REFINED_PROMPT_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
 const refinedPromptRealTranscriptReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-refined-prompt-real-transcript.md";
+const secondRefinedTranscriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-second-refined-transcript.mjs";
+const secondRefinedTranscriptSmokeFile =
+  "scripts/smoke-perspective-codex-former-second-refined-transcript.mjs";
+const secondRefinedTranscriptDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_SECOND_REFINED_TRANSCRIPT_DOGFOOD_V0_1.md";
+const secondRefinedTranscriptReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-second-refined-transcript.md";
 const refinedFindingsContractDogfoodScriptFile =
   "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
 const refinedFindingsContractSmokeFile =
@@ -138,6 +146,10 @@ const allowedChangedFiles = new Set([
   refinedPromptRealTranscriptSmokeFile,
   refinedPromptRealTranscriptDocFile,
   refinedPromptRealTranscriptReportFile,
+  secondRefinedTranscriptDogfoodScriptFile,
+  secondRefinedTranscriptSmokeFile,
+  secondRefinedTranscriptDocFile,
+  secondRefinedTranscriptReportFile,
   refinedFindingsContractDogfoodScriptFile,
   refinedFindingsContractSmokeFile,
   refinedFindingsContractDocFile,

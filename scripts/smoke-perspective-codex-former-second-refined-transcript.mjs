@@ -4,31 +4,17 @@ import { existsSync, readFileSync } from "node:fs";
 
 const packageFile = "package.json";
 const dogfoodScriptFile =
-  "scripts/dogfood-perspective-codex-former-refined-prompt-real-transcript.mjs";
-const smokeFile =
-  "scripts/smoke-perspective-codex-former-refined-prompt-real-transcript.mjs";
-const docFile =
-  "docs/PERSPECTIVE_CODEX_FORMER_REFINED_PROMPT_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
-const reportFile =
-  "reports/dogfood/2026-06-09-perspective-codex-former-refined-prompt-real-transcript.md";
-const secondRefinedTranscriptDogfoodScriptFile =
   "scripts/dogfood-perspective-codex-former-second-refined-transcript.mjs";
-const secondRefinedTranscriptSmokeFile =
+const smokeFile =
   "scripts/smoke-perspective-codex-former-second-refined-transcript.mjs";
-const secondRefinedTranscriptDocFile =
+const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_SECOND_REFINED_TRANSCRIPT_DOGFOOD_V0_1.md";
-const secondRefinedTranscriptReportFile =
+const reportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-second-refined-transcript.md";
-const promptContractFile =
-  "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
-const refinedFindingsContractDogfoodScriptFile =
-  "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
 const refinedFindingsContractSmokeFile =
   "scripts/smoke-perspective-codex-former-refined-findings-contract.mjs";
-const refinedFindingsContractDocFile =
-  "docs/PERSPECTIVE_CODEX_FORMER_REFINED_FINDINGS_CONTRACT_V0_1.md";
-const refinedFindingsContractReportFile =
-  "reports/2026-06-09-perspective-codex-former-refined-findings-contract.md";
+const refinedPromptRealTranscriptSmokeFile =
+  "scripts/smoke-perspective-codex-former-refined-prompt-real-transcript.mjs";
 const neighboringSmokeAllowlistFiles = [
   "scripts/smoke-perspective-candidate-builder-fixture.mjs",
   "scripts/smoke-perspective-codex-former-draft-schema-alignment.mjs",
@@ -51,15 +37,8 @@ const allowedChangedFiles = new Set([
   smokeFile,
   docFile,
   reportFile,
-  secondRefinedTranscriptDogfoodScriptFile,
-  secondRefinedTranscriptSmokeFile,
-  secondRefinedTranscriptDocFile,
-  secondRefinedTranscriptReportFile,
-  promptContractFile,
-  refinedFindingsContractDogfoodScriptFile,
   refinedFindingsContractSmokeFile,
-  refinedFindingsContractDocFile,
-  refinedFindingsContractReportFile,
+  refinedPromptRealTranscriptSmokeFile,
   ...neighboringSmokeAllowlistFiles,
 ]);
 
@@ -69,17 +48,17 @@ const smokeText = readFileSync(smokeFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 
 const {
-  REFINED_PROMPT_REAL_TRANSCRIPT_ARTIFACT_PATH,
-  REFINED_PROMPT_REAL_TRANSCRIPT_DOC_PATH,
-  REFINED_PROMPT_REAL_TRANSCRIPT_RECOMMENDED_NEXT_PR,
-  REFINED_PROMPT_SOURCE_FORMER_INPUT_PACKET_ID,
-  REFINED_PROMPT_SOURCE_MANUAL_COPY_PACKET_ID,
-  REFINED_PROMPT_SOURCE_PROMPT_HASH,
-  buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood,
-  deriveRefinedPromptRealTranscriptConclusion,
-  runPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood,
+  SECOND_REFINED_TRANSCRIPT_ARTIFACT_PATH,
+  SECOND_REFINED_TRANSCRIPT_DOC_PATH,
+  SECOND_REFINED_TRANSCRIPT_RECOMMENDED_NEXT_PR,
+  SECOND_REFINED_SOURCE_FORMER_INPUT_PACKET_ID,
+  SECOND_REFINED_SOURCE_MANUAL_COPY_PACKET_ID,
+  SECOND_REFINED_SOURCE_PROMPT_HASH,
+  buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood,
+  deriveSecondRefinedTranscriptConclusion,
+  runPerspectiveCodexFormerSecondRefinedTranscriptDogfood,
 } = await import(
-  "./dogfood-perspective-codex-former-refined-prompt-real-transcript.mjs"
+  "./dogfood-perspective-codex-former-second-refined-transcript.mjs"
 );
 
 assert.equal(existsSync(dogfoodScriptFile), true, `${dogfoodScriptFile} must exist`);
@@ -88,24 +67,25 @@ assert.equal(existsSync(docFile), true, `${docFile} must exist`);
 
 assert.equal(
   packageJson.scripts[
-    "dogfood:perspective-codex-former-refined-prompt-real-transcript"
+    "dogfood:perspective-codex-former-second-refined-transcript"
   ],
   `${expectedTsxCommand} ${dogfoodScriptFile}`,
-  "package.json must register refined prompt real transcript dogfood",
+  "package.json must register second refined transcript dogfood",
 );
 assert.equal(
   packageJson.scripts[
-    "smoke:perspective-codex-former-refined-prompt-real-transcript"
+    "smoke:perspective-codex-former-second-refined-transcript"
   ],
   `${expectedTsxCommand} ${smokeFile}`,
-  "package.json must register refined prompt real transcript smoke",
+  "package.json must register second refined transcript smoke",
 );
 
 assertDogfoodBuildAndReport();
 assertRealTranscriptMainScenario();
-assertCanonicalNoAlignmentPath();
+assertDirectContractValidationPath();
 assertAlignmentSafetyNetPath();
-assertAliasDriftDetection();
+assertAliasTensionDriftDetection();
+assertStaleWordingAndProvenance();
 assertSyntheticControls();
 assertDownstreamGuidance();
 assertConclusionRules();
@@ -113,35 +93,35 @@ assertDocsAndReport();
 assertNoForbiddenSurfaces();
 assertChangedFileBoundary();
 
-console.log("PASS smoke:perspective-codex-former-refined-prompt-real-transcript");
+console.log("PASS smoke:perspective-codex-former-second-refined-transcript");
 
 function assertDogfoodBuildAndReport() {
-  const first =
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood();
-  const second =
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood();
+  const first = buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood();
+  const second = buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood();
 
   assert.equal(first.artifact, second.artifact);
-  assert.equal(first.paths.artifact, REFINED_PROMPT_REAL_TRANSCRIPT_ARTIFACT_PATH);
-  assert.equal(first.paths.doc, REFINED_PROMPT_REAL_TRANSCRIPT_DOC_PATH);
+  assert.equal(first.paths.artifact, SECOND_REFINED_TRANSCRIPT_ARTIFACT_PATH);
+  assert.equal(first.paths.doc, SECOND_REFINED_TRANSCRIPT_DOC_PATH);
   assert.equal(first.evaluation.conclusion, "PASS with follow-up");
   assert.equal(
     first.evaluation.recommended_next_pr_title,
-    REFINED_PROMPT_REAL_TRANSCRIPT_RECOMMENDED_NEXT_PR,
+    SECOND_REFINED_TRANSCRIPT_RECOMMENDED_NEXT_PR,
   );
-  assert.equal(first.scenarios.length, 7);
-  assert.equal(first.artifact.includes("Conclusion: PASS with follow-up"), true);
-  assert.equal(first.artifact.includes("real_human_started_codex_response"), true);
+  assert.equal(first.scenarios.length, 8);
+  assert.equal(
+    first.artifact.includes("real_human_started_codex_response"),
+    true,
+  );
 
-  const written = runPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood();
+  const written = runPerspectiveCodexFormerSecondRefinedTranscriptDogfood();
   assert.equal(written.artifact, first.artifact);
   assert.equal(readFileSync(reportFile, "utf8"), first.artifact);
 }
 
 function assertRealTranscriptMainScenario() {
   const scenario = requireScenario(
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood(),
-    "refined_prompt_real_transcript_main",
+    buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood(),
+    "second_refined_transcript_main",
   );
 
   assert.equal(scenario.fixture_label, "real_human_started_codex_response");
@@ -149,16 +129,24 @@ function assertRealTranscriptMainScenario() {
   assert.equal(scenario.transcript_provenance.capture_method, "human_manual");
   assert.equal(scenario.transcript_provenance.codex_surface_label, "Codex");
   assert.equal(
+    scenario.transcript_provenance.captured_after_pr,
+    "pr:hynk-studio/augnes#487",
+  );
+  assert.equal(
+    scenario.transcript_provenance.refined_contract_label,
+    "post_pr_487_refined_thesis_tension_kind_prompt_contract",
+  );
+  assert.equal(
     scenario.transcript_provenance.source_manual_copy_packet_id,
-    REFINED_PROMPT_SOURCE_MANUAL_COPY_PACKET_ID,
+    SECOND_REFINED_SOURCE_MANUAL_COPY_PACKET_ID,
   );
   assert.equal(
     scenario.transcript_provenance.source_former_input_packet_id,
-    REFINED_PROMPT_SOURCE_FORMER_INPUT_PACKET_ID,
+    SECOND_REFINED_SOURCE_FORMER_INPUT_PACKET_ID,
   );
   assert.equal(
     scenario.transcript_provenance.source_prompt_hash,
-    REFINED_PROMPT_SOURCE_PROMPT_HASH,
+    SECOND_REFINED_SOURCE_PROMPT_HASH,
   );
   assert.equal(
     scenario.transcript_provenance.prompt_was_generated_by_manual_copy_packet,
@@ -170,19 +158,15 @@ function assertRealTranscriptMainScenario() {
   assert.equal(scenario.unsafe_or_authority_survived, false);
 }
 
-function assertCanonicalNoAlignmentPath() {
+function assertDirectContractValidationPath() {
   const scenario = requireScenario(
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood(),
-    "canonical_no_alignment_path",
+    buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood(),
+    "direct_contract_validation_path",
   );
 
-  assert.equal(scenario.conclusion, "PASS with follow-up");
-  assert.equal(scenario.contract_fit.status, "needs_review");
-  assertWarningKinds(scenario.contract_fit, [
-    "tension_kind",
-    "tension_kind",
-    "tension_kind",
-  ]);
+  assert.equal(scenario.conclusion, "PASS");
+  assert.equal(scenario.contract_fit.status, "fits_contract");
+  assertWarningKinds(scenario.contract_fit, []);
   assert.equal(scenario.validation_result.status, "needs_review");
   assert.equal(scenario.validation_result.threw, false);
   assert.equal(scenario.validation_result.blocked_reasons.length, 0);
@@ -193,16 +177,17 @@ function assertCanonicalNoAlignmentPath() {
     scenario.candidate_review_material.basis_quality.status,
     "needs_review",
   );
-  assert.deepEqual(
-    [...new Set(scenario.candidate_review_material.unresolved_tension_kinds)],
-    ["readiness_reason"],
-  );
+  assertContainsAll(scenario.candidate_review_material.unresolved_tension_kinds, [
+    "unresolved_gap",
+    "skipped_check_missing_reason",
+    "readiness_reason",
+  ]);
   assertAuthorityFalse(scenario.validation_result.authority_flags);
 }
 
 function assertAlignmentSafetyNetPath() {
   const scenario = requireScenario(
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood(),
+    buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood(),
     "alignment_safety_net_path",
   );
 
@@ -217,25 +202,39 @@ function assertAlignmentSafetyNetPath() {
   assert.equal(scenario.candidate_review_material.authority, "non_committed");
 }
 
-function assertAliasDriftDetection() {
+function assertAliasTensionDriftDetection() {
   const scenario = requireScenario(
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood(),
-    "alias_drift_detection",
+    buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood(),
+    "alias_tension_drift_detection",
+  );
+
+  assert.equal(scenario.conclusion, "PASS");
+  assert.equal(scenario.old_alias_drift_absent, true);
+  assert.deepEqual(scenario.old_alias_drift, []);
+  assert.deepEqual(scenario.non_local_tension_kind_drift, []);
+}
+
+function assertStaleWordingAndProvenance() {
+  const scenario = requireScenario(
+    buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood(),
+    "stale_wording_and_provenance_review",
   );
 
   assert.equal(scenario.conclusion, "PASS with follow-up");
-  assert.equal(scenario.old_alias_drift_absent, true);
-  assert.deepEqual(scenario.old_alias_drift, []);
-  assert.deepEqual(scenario.semantic_tension_enum_drift, [
-    "validation_gap",
-    "schema_drift_risk",
-    "readiness_boundary",
+  assert.equal(scenario.provenance_status, "needs_review");
+  assert.deepEqual(scenario.missing_provenance_fields, [
+    "source_manual_copy_packet_id",
+    "source_prompt_hash",
+  ]);
+  assertContainsAll(scenario.stale_wording_findings, [
+    "stale_pr_479_prompt_contract_reference",
+    "stale_second_transcript_missing_capture_wording",
+    "stale_capture_next_action_after_supplied_transcript",
   ]);
 }
 
 function assertSyntheticControls() {
-  const dogfood =
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood();
+  const dogfood = buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood();
   const extraction = requireScenario(
     dogfood,
     "transcript_extraction_failure_control",
@@ -254,8 +253,8 @@ function assertSyntheticControls() {
 
 function assertDownstreamGuidance() {
   const scenario = requireScenario(
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood(),
-    "downstream_guidance_from_refined_transcript",
+    buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood(),
+    "downstream_guidance_from_second_transcript",
   );
 
   assert.equal(scenario.conclusion, "PASS");
@@ -266,17 +265,17 @@ function assertDownstreamGuidance() {
 }
 
 function assertConclusionRules() {
-  const dogfood =
-    buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood();
+  const dogfood = buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood();
   assert.equal(
-    deriveRefinedPromptRealTranscriptConclusion(dogfood.scenarios),
+    deriveSecondRefinedTranscriptConclusion(dogfood.scenarios),
     "PASS with follow-up",
   );
 
   const blockedExtraction = dogfood.scenarios.map((scenario) =>
-    scenario.scenario_id === "refined_prompt_real_transcript_main"
+    scenario.scenario_id === "second_refined_transcript_main"
       ? {
           ...scenario,
+          conclusion: "BLOCKED",
           extraction: {
             extraction_status: "blocked",
             extracted_candidate_count: 0,
@@ -287,48 +286,51 @@ function assertConclusionRules() {
       : scenario,
   );
   assert.equal(
-    deriveRefinedPromptRealTranscriptConclusion(blockedExtraction),
+    deriveSecondRefinedTranscriptConclusion(blockedExtraction),
     "BLOCKED",
   );
 
-  const blockedValidation = dogfood.scenarios.map((scenario) =>
-    scenario.scenario_id === "canonical_no_alignment_path"
+  const fullyPassing = dogfood.scenarios.map((scenario) =>
+    scenario.scenario_id === "stale_wording_and_provenance_review"
       ? {
           ...scenario,
-          validation_result: {
-            ...scenario.validation_result,
-            status: "blocked",
-          },
+          conclusion: "PASS",
+          provenance_status: "complete",
+          missing_provenance_fields: [],
+          stale_wording_findings: [],
         }
       : scenario,
   );
-  assert.equal(
-    deriveRefinedPromptRealTranscriptConclusion(blockedValidation),
-    "BLOCKED with useful findings",
-  );
+  assert.equal(deriveSecondRefinedTranscriptConclusion(fullyPassing), "PASS");
 }
 
 function assertDocsAndReport() {
   const reportText = readFileSync(reportFile, "utf8");
 
   assertContainsAll(docText, [
-    "Perspective Codex Former Refined Prompt Real Transcript Dogfood v0.1",
+    "Perspective Codex Former Second Refined Transcript Dogfood v0.1",
     "PASS with follow-up",
-    "Direct validation now produces candidate-compatible review material without schema alignment.",
-    "Contract fit still returns needs_review because the historical transcript uses non-local tension_kind values.",
-    "validation_gap, schema_drift_risk, and readiness_boundary",
-    "Browser/computer-use validation was not run",
-    "Refine Codex former prompt contract from refined transcript findings",
+    "captured after PR #487",
+    "Direct validation produced candidate-compatible review material without PR #484",
+    "old PR #483 alias drift is absent",
+    "PR #486 non-local tension_kind drift is absent",
+    "source_manual_copy_packet_id: not_supplied_in_chat",
+    "source_prompt_hash: not_supplied_in_chat",
+    "PR #479 prompt contract",
+    "Refine Codex former prompt contract stale capture-gap wording",
   ]);
   assertContainsAll(reportText, [
     "Conclusion: PASS with follow-up",
-    "Old alias fields absent: true",
-    "Contract fit status: needs_review",
-    "Contract fit warnings: tension_kind",
+    "Old PR #483 alias fields absent: true",
+    "PR #486 non-local tension_kind drift: none",
+    "Contract fit status: fits_contract",
+    "Contract fit warnings: none",
     "Validation status: needs_review",
     "Alignment required for candidate material: false",
     "Worker-Facing Guidance ran on the direct candidate",
-    "Refine Codex former prompt contract from refined transcript findings",
+    "stale_pr_479_prompt_contract_reference",
+    "stale_second_transcript_missing_capture_wording",
+    "Refine Codex former prompt contract stale capture-gap wording",
   ]);
   assertNoUnsafeMarkerText("doc", docText);
   assertNoUnsafeMarkerText("report", reportText);
@@ -336,15 +338,15 @@ function assertDocsAndReport() {
 
 function assertNoForbiddenSurfaces() {
   assertContainsAll(dogfoodText, [
-    "buildPerspectiveCodexFormerRefinedPromptRealTranscriptDogfood",
-    "CAPTURED_REFINED_PROMPT_REAL_CODEX_RESPONSE",
+    "buildPerspectiveCodexFormerSecondRefinedTranscriptDogfood",
+    "CAPTURED_SECOND_REFINED_PROMPT_REAL_CODEX_RESPONSE",
     "buildWorkerFacingPerspectiveGuidanceFromCandidate",
     "alignCodexPerspectiveCandidateDraftSchemaFromModelOutput",
   ]);
   assertContainsAll(smokeText, [
-    "assertCanonicalNoAlignmentPath",
-    "assertAliasDriftDetection",
-    "assertDownstreamGuidance",
+    "assertDirectContractValidationPath",
+    "assertAliasTensionDriftDetection",
+    "assertStaleWordingAndProvenance",
   ]);
 
   const combined = [dogfoodText, docText].join("\n");
@@ -379,7 +381,7 @@ function assertChangedFileBoundary() {
     assert.equal(
       allowedChangedFiles.has(changedFile),
       true,
-      `unexpected changed file in refined transcript slice: ${changedFile}`,
+      `unexpected changed file in second refined transcript slice: ${changedFile}`,
     );
   }
 }
