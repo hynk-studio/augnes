@@ -1,0 +1,81 @@
+# Perspective Codex Next-Handoff Draft Dogfood v0.1
+
+## Purpose and Status
+
+This is the local dogfood report after PR #468. PR #468 added
+`buildCodexNextHandoffDraftPacketFromUserJudgment(input)` so a manual
+ChatGPT user judgment packet can become a non-executing Codex next-handoff
+draft packet.
+
+This slice exercises the full pure local manual loop:
+
+- Formation Input Bundle;
+- Perspective Candidate;
+- ChatGPT Perspective Candidate briefing preview;
+- manual ChatGPT user judgment capture packet;
+- Codex next-handoff draft packet.
+
+The dogfood script produces deterministic dogfood output, not runtime
+behavior. It evaluates whether the copyable handoff text is human-usable for
+deciding a future user-started Codex task.
+
+## Boundaries
+
+This dogfood slice does not execute Codex and does not mutate GitHub.
+
+It does not implement routes, does not implement UI, does not implement DB,
+does not implement persistence, does not implement OAuth, does not implement
+provider calls, does not implement ChatGPT Apps, does not implement Codex
+plugin integration, does not implement Codex SDK execution, does not implement
+proof/evidence/readiness writes, and does not implement Core-gated
+accept/reject/supersede.
+
+The dogfood artifact is not committed state, proof, evidence, readiness,
+approval, merge authority, GitHub mutation, Core decision, ChatGPT Apps
+integration, or Codex execution.
+
+## Dogfood Coverage
+
+The dogfood script builds:
+
+- a fully scoped `ready_to_copy` sample;
+- a `needs_scope` contrast with missing expected files and checks;
+- a `needs_revision_first` contrast where user revision must win before
+  handoff drafting;
+- a `blocked` contrast with a blocking tension;
+- a `none` contrast where user/PM clarification is needed.
+
+The dogfood keeps ready_to_copy separate from execution. `ready_to_copy`
+means copyable draft material only, not authority to run Codex.
+
+The dogfood keeps contrast cases visible so non-ready states cannot look like
+a copy-ready handoff.
+
+## Evaluation
+
+The dogfood evaluation passes only when:
+
+- `ready_to_copy` appears only for the fully scoped, `matches_direction`,
+  `captured_for_review`, `prepare_codex_handoff` path;
+- the ready draft includes task goal, expected files, required checks,
+  forbidden files and surfaces, skipped-check policy, and PR-centered
+  workflow;
+- the copyable text says draft only and does not execute Codex;
+- the copyable text says the user must explicitly start a Codex task;
+- contrast cases do not look copy-ready;
+- no raw/private/provider/token markers appear;
+- no wording implies approval, merge, GitHub mutation, Core decision, or Codex
+  execution.
+
+## Dogfood Output
+
+The deterministic dogfood artifact is written to:
+
+`reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md`
+
+The dogfood script writes that artifact only. It does not call runtime APIs or
+external services.
+
+## Future Next Step
+
+Refine Codex handoff draft copy from dogfood findings.
