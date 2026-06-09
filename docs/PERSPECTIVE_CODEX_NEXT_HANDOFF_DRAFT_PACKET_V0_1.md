@@ -121,6 +121,13 @@ reasoning, raw generated model payloads, or secrets.
 
 It does not claim approval. It does not execute or instruct background work.
 
+## Dogfooded By
+
+`docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md` and
+`reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md`
+dogfood the full pure local manual loop and evaluate whether this packet's
+copyable text is usable as non-executing draft material.
+
 ## Authority Boundary
 
 The draft packet has explicit false authority flags for:
@@ -144,4 +151,4 @@ SDK execution, GitHub mutation, or actual Codex execution.
 
 ## Future Next Step
 
-Add local Codex handoff draft dogfood report.
+Refine Codex handoff draft copy from dogfood findings.

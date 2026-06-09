@@ -80,6 +80,10 @@ The Codex next-handoff draft packet consumes this user judgment packet plus
 caller-supplied bounded handoff context. The user judgment packet remains
 manual review material, not handoff by itself.
 
+The local Codex handoff draft dogfood report evaluates the downstream draft
+material; it does not change this packet into a handoff, approval, or durable
+decision.
+
 ## Decision Effect
 
 The packet distinguishes three explicit decision-effect states:
@@ -152,4 +156,4 @@ Codex SDK execution.
 
 ## Future Next Step
 
-Add local Codex handoff draft dogfood report.
+Refine Codex handoff draft copy from dogfood findings.

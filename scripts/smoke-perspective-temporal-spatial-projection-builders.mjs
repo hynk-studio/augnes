@@ -165,6 +165,11 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md",
   "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md",
   "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs",
+  "scripts/dogfood-perspective-codex-next-handoff-draft.mjs",
+  "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs",
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md",
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md",
+  "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md",
 ]);
 
 assert.equal(

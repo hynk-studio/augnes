@@ -46,6 +46,16 @@ const codexDraftReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const codexDraftSmokeFile =
   "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs";
+const dogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-next-handoff-draft.mjs";
+const dogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs";
+const dogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
+const dogfoodReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
+const dogfoodArtifactFile =
+  "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -72,6 +82,11 @@ const allowedChangedFiles = new Set([
   codexDraftDocFile,
   codexDraftReportFile,
   codexDraftSmokeFile,
+  dogfoodScriptFile,
+  dogfoodSmokeFile,
+  dogfoodDocFile,
+  dogfoodReportFile,
+  dogfoodArtifactFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
   "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
@@ -122,6 +137,16 @@ assert.equal(
   packageJson.scripts["smoke:perspective-codex-next-handoff-draft-packet"],
   `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${codexDraftSmokeFile}`,
   "package.json must register smoke:perspective-codex-next-handoff-draft-packet",
+);
+assert.equal(
+  packageJson.scripts["dogfood:perspective-codex-next-handoff-draft"],
+  `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${dogfoodScriptFile}`,
+  "package.json must register dogfood:perspective-codex-next-handoff-draft",
+);
+assert.equal(
+  packageJson.scripts["smoke:perspective-codex-next-handoff-draft-dogfood"],
+  `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${dogfoodSmokeFile}`,
+  "package.json must register smoke:perspective-codex-next-handoff-draft-dogfood",
 );
 
 const docText = readFileSync(docFile, "utf8");
@@ -185,8 +210,10 @@ assertContainsAll(docText, [
   "implemented as a pure local user judgment capture packet builder",
   "PR F: Codex next-handoff draft packet",
   "implemented as a pure local non-executing draft packet builder",
-  "PR G: Add local Codex handoff draft dogfood report",
-  "PR H: Core-gated accept/reject/supersede route, only after explicit approval",
+  "PR G: local Codex handoff draft dogfood report",
+  "deterministic local dogfood/report validation slice",
+  "PR H: Refine Codex handoff draft copy from dogfood findings",
+  "PR I: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
 
 assertContainsAll(docText, [

@@ -19,6 +19,16 @@ const reportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const smokeFile =
   "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs";
+const dogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-next-handoff-draft.mjs";
+const dogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs";
+const dogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
+const dogfoodReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
+const dogfoodArtifactFile =
+  "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const userJudgmentDocFile =
   "docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md";
@@ -40,6 +50,11 @@ const allowedChangedFiles = new Set([
   docFile,
   reportFile,
   smokeFile,
+  dogfoodScriptFile,
+  dogfoodSmokeFile,
+  dogfoodDocFile,
+  dogfoodReportFile,
+  dogfoodArtifactFile,
   laneDocFile,
   userJudgmentDocFile,
   briefingPreviewDocFile,
@@ -541,7 +556,8 @@ function assertDocsAndReport() {
     "not readiness",
     "not approval",
     "not merge authority",
-    "Add local Codex handoff draft dogfood report",
+    "Dogfooded By",
+    "Refine Codex handoff draft copy from dogfood findings",
   ]);
   assertContainsAll(reportText, [
     "Summary",
@@ -564,9 +580,9 @@ function assertDocsAndReport() {
     "Codex next-handoff draft packet",
   ]);
   assertContainsAll(laneDocText, [
-    "PR F: Codex next-handoff draft packet",
-    "implemented as a pure local non-executing draft packet builder",
-    "Add local Codex handoff draft dogfood report",
+    "PR G: local Codex handoff draft dogfood report",
+    "deterministic local dogfood/report validation slice",
+    "PR H: Refine Codex handoff draft copy from dogfood findings",
   ]);
 }
 

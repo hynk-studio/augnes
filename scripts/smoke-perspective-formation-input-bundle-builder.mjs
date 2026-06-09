@@ -45,6 +45,16 @@ const codexDraftReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const codexDraftSmokeFile =
   "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs";
+const dogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-next-handoff-draft.mjs";
+const dogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs";
+const dogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
+const dogfoodReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
+const dogfoodArtifactFile =
+  "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -70,6 +80,11 @@ const allowedChangedFiles = new Set([
   codexDraftDocFile,
   codexDraftReportFile,
   codexDraftSmokeFile,
+  dogfoodScriptFile,
+  dogfoodSmokeFile,
+  dogfoodDocFile,
+  dogfoodReportFile,
+  dogfoodArtifactFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
 ]);
