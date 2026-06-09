@@ -77,6 +77,16 @@ const workerGuidanceLoopDogfoodReportFile =
   "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md";
 const workerGuidanceLoopDogfoodDocFile =
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md";
+const codexFormerInputPacketFile =
+  "lib/perspective-ingest/perspective-codex-former-input-packet.ts";
+const codexCandidateDraftPipelineFile =
+  "lib/perspective-ingest/perspective-codex-candidate-draft-pipeline.ts";
+const codexFormerPipelineDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_V0_1.md";
+const codexFormerPipelineReportFile =
+  "reports/2026-06-09-perspective-codex-former-pipeline.md";
+const codexFormerPipelineSmokeFile =
+  "scripts/smoke-perspective-codex-former-pipeline.mjs";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -118,6 +128,11 @@ const allowedChangedFiles = new Set([
   workerGuidanceLoopDogfoodSmokeFile,
   workerGuidanceLoopDogfoodReportFile,
   workerGuidanceLoopDogfoodDocFile,
+  codexFormerInputPacketFile,
+  codexCandidateDraftPipelineFile,
+  codexFormerPipelineDocFile,
+  codexFormerPipelineReportFile,
+  codexFormerPipelineSmokeFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
@@ -630,7 +645,9 @@ function assertChangedFileBoundary() {
           changedFile === briefingPreviewBuilderFile ||
           changedFile === userJudgmentBuilderFile ||
           changedFile === codexDraftBuilderFile ||
-          changedFile === workerGuidanceBuilderFile) &&
+          changedFile === workerGuidanceBuilderFile ||
+          changedFile === codexFormerInputPacketFile ||
+          changedFile === codexCandidateDraftPipelineFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

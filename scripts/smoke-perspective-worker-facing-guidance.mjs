@@ -23,6 +23,16 @@ const loopDogfoodDocFile =
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md";
 const actionSpecificityReportFile =
   "reports/2026-06-09-perspective-worker-facing-guidance-action-specificity.md";
+const codexFormerInputPacketFile =
+  "lib/perspective-ingest/perspective-codex-former-input-packet.ts";
+const codexCandidateDraftPipelineFile =
+  "lib/perspective-ingest/perspective-codex-candidate-draft-pipeline.ts";
+const codexFormerPipelineDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_V0_1.md";
+const codexFormerPipelineReportFile =
+  "reports/2026-06-09-perspective-codex-former-pipeline.md";
+const codexFormerPipelineSmokeFile =
+  "scripts/smoke-perspective-codex-former-pipeline.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -36,6 +46,11 @@ const allowedChangedFiles = new Set([
   loopDogfoodReportFile,
   loopDogfoodDocFile,
   actionSpecificityReportFile,
+  codexFormerInputPacketFile,
+  codexCandidateDraftPipelineFile,
+  codexFormerPipelineDocFile,
+  codexFormerPipelineReportFile,
+  codexFormerPipelineSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -760,7 +775,9 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
         (!changedFile.startsWith("lib/") ||
-          changedFile === workerGuidanceBuilderFile) &&
+          changedFile === workerGuidanceBuilderFile ||
+          changedFile === codexFormerInputPacketFile ||
+          changedFile === codexCandidateDraftPipelineFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
