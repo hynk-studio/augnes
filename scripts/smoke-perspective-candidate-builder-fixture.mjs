@@ -87,6 +87,14 @@ const codexFormerPipelineReportFile =
   "reports/2026-06-09-perspective-codex-former-pipeline.md";
 const codexFormerPipelineSmokeFile =
   "scripts/smoke-perspective-codex-former-pipeline.mjs";
+const codexFormerDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-pipeline.mjs";
+const codexFormerDogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-former-pipeline-dogfood.mjs";
+const codexFormerDogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_DOGFOOD_V0_1.md";
+const codexFormerDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-pipeline.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -133,6 +141,10 @@ const allowedChangedFiles = new Set([
   codexFormerPipelineDocFile,
   codexFormerPipelineReportFile,
   codexFormerPipelineSmokeFile,
+  codexFormerDogfoodScriptFile,
+  codexFormerDogfoodSmokeFile,
+  codexFormerDogfoodDocFile,
+  codexFormerDogfoodReportFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",

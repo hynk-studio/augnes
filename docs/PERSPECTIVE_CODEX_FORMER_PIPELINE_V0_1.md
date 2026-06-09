@@ -126,4 +126,13 @@ GitHub API call, no network access, no DB write, no runtime route, no UI, no
 proof/evidence/readiness record, no approval, no merge, no publish, no retry, no
 replay, no deploy, and no Core decision.
 
-The next useful PR is to dogfood this local pipeline on reviewed PR material.
+## Dogfooded By
+
+- `reports/dogfood/2026-06-09-perspective-codex-former-pipeline.md`
+
+The next useful PR is to refine the Codex perspective former draft prompt
+contract from dogfood findings.
+
+Recommended title:
+
+Refine Codex perspective former draft prompt contract from dogfood findings
