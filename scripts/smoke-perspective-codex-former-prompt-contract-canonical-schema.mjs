@@ -39,6 +39,14 @@ const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
 const pipelineDogfoodSmokeFile =
   "scripts/smoke-perspective-codex-former-pipeline-dogfood.mjs";
+const refinedPromptRealTranscriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-refined-prompt-real-transcript.mjs";
+const refinedPromptRealTranscriptSmokeFile =
+  "scripts/smoke-perspective-codex-former-refined-prompt-real-transcript.mjs";
+const refinedPromptRealTranscriptDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_REFINED_PROMPT_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
+const refinedPromptRealTranscriptReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-refined-prompt-real-transcript.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -62,6 +70,10 @@ const allowedChangedFiles = new Set([
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
   pipelineDogfoodSmokeFile,
+  refinedPromptRealTranscriptDogfoodScriptFile,
+  refinedPromptRealTranscriptSmokeFile,
+  refinedPromptRealTranscriptDocFile,
+  refinedPromptRealTranscriptReportFile,
 ]);
 
 const canonicalPromptSnippets = [

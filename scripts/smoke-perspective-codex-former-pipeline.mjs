@@ -87,6 +87,14 @@ const canonicalPromptContractDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md";
 const canonicalPromptContractReportFile =
   "reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md";
+const refinedPromptRealTranscriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-refined-prompt-real-transcript.mjs";
+const refinedPromptRealTranscriptSmokeFile =
+  "scripts/smoke-perspective-codex-former-refined-prompt-real-transcript.mjs";
+const refinedPromptRealTranscriptDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_REFINED_PROMPT_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
+const refinedPromptRealTranscriptReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-refined-prompt-real-transcript.md";
 
 const inheritedPr476Files = [
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md",
@@ -139,6 +147,10 @@ const allowedChangedFiles = new Set([
   canonicalPromptContractSmokeFile,
   canonicalPromptContractDocFile,
   canonicalPromptContractReportFile,
+  refinedPromptRealTranscriptDogfoodScriptFile,
+  refinedPromptRealTranscriptSmokeFile,
+  refinedPromptRealTranscriptDocFile,
+  refinedPromptRealTranscriptReportFile,
   ...inheritedPr476Files,
 ]);
 
