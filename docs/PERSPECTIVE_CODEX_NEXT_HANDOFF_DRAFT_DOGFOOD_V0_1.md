@@ -109,6 +109,13 @@ files are grouped for readability, the full list remains the scope, guardrail
 and neighboring smoke allowlist files remain visible, and no expected files
 are omitted.
 
+## Manual Usage Note
+
+`docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md` turns the
+dogfood and expected-file readability findings into a practical human review
+path. It explains when to paste only a `ready_to_copy` draft, how to read
+`expected_file_scope`, and why grouped display does not reduce scope.
+
 ## Future Next Step
 
-Prepare manual usage note for Codex handoff drafts.
+Add copy-ready checklist to Codex handoff draft text.

@@ -139,3 +139,8 @@ Follow-up note: that readability refinement is scoped as the next pure local
 builder/copy/docs/report/smoke PR. It should group expected files for
 readability while preserving the complete flat expected-file scope and keeping
 guardrail files visible.
+
+Second follow-up note: the manual usage note turns that grouped expected-file
+display into human review guidance before any draft is pasted into Codex. The
+next copy refinement should add the same copy-ready checklist directly to the
+handoff draft text.

@@ -220,5 +220,7 @@ forbidden, but bounded summaries are necessary Formation Input Bundle material.
 - PR I: Evaluate Codex handoff draft in a real docs-only Codex task.
 - PR J: Refine expected-file scope readability for Codex handoff drafts as a
   pure local usability step after real docs-task evaluation.
-- PR K: Prepare manual usage note for Codex handoff drafts.
-- PR L: Core-gated accept/reject/supersede route, only after explicit approval.
+- PR K: Prepare manual usage note for Codex handoff drafts as a pure local
+  human review step after expected-file scope readability.
+- PR L: Add copy-ready checklist to Codex handoff draft text.
+- PR M: Core-gated accept/reject/supersede route, only after explicit approval.

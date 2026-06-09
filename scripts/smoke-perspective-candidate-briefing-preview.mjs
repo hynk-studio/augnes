@@ -47,6 +47,12 @@ const scopeReadabilityReportFile =
   "reports/2026-06-09-perspective-codex-handoff-expected-file-scope-readability.md";
 const scopeReadabilitySmokeFile =
   "scripts/smoke-perspective-codex-handoff-expected-file-scope-readability.mjs";
+const manualUsageDocFile =
+  "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_MANUAL_USAGE_NOTE_V0_1.md";
+const manualUsageReportFile =
+  "reports/2026-06-09-perspective-codex-handoff-draft-manual-usage-note.md";
+const manualUsageSmokeFile =
+  "scripts/smoke-perspective-codex-handoff-draft-manual-usage-note.mjs";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -75,6 +81,9 @@ const allowedChangedFiles = new Set([
   scopeReadabilityDocFile,
   scopeReadabilityReportFile,
   scopeReadabilitySmokeFile,
+  manualUsageDocFile,
+  manualUsageReportFile,
+  manualUsageSmokeFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",

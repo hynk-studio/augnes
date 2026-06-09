@@ -101,6 +101,10 @@ The packet distinguishes:
 execution, proof, evidence, durable readiness, merge authority, or a Core
 decision.
 
+Manual usage requires both `ready_to_copy` and human review before pasting the
+draft into Codex. A ready draft is still only a future user-started task
+prompt; it does not execute Codex by itself.
+
 The builder requires explicit task goal, expected files, and required checks
 before it can return `ready_to_copy`.
 
@@ -183,4 +187,4 @@ SDK execution, GitHub mutation, or actual Codex execution.
 
 ## Future Next Step
 
-Prepare manual usage note for Codex handoff drafts.
+Add copy-ready checklist to Codex handoff draft text.
