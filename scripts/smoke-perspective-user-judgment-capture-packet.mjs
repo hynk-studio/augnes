@@ -11,12 +11,20 @@ const briefingPreviewBuilderFile =
   "lib/perspective-ingest/perspective-candidate-briefing-preview.ts";
 const userJudgmentBuilderFile =
   "lib/perspective-ingest/perspective-user-judgment-capture-packet.ts";
+const codexDraftBuilderFile =
+  "lib/perspective-ingest/perspective-codex-next-handoff-draft-packet.ts";
 const docFile =
   "docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md";
 const reportFile =
   "reports/2026-06-08-perspective-user-judgment-capture-packet.md";
 const smokeFile =
   "scripts/smoke-perspective-user-judgment-capture-packet.mjs";
+const codexDraftDocFile =
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md";
+const codexDraftReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
+const codexDraftSmokeFile =
+  "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const briefingPreviewDocFile =
   "docs/PERSPECTIVE_CANDIDATE_BRIEFING_PREVIEW_V0_1.md";
@@ -31,9 +39,13 @@ const briefingPreviewSmokeFile =
 const allowedChangedFiles = new Set([
   packageFile,
   userJudgmentBuilderFile,
+  codexDraftBuilderFile,
   docFile,
+  codexDraftDocFile,
   reportFile,
+  codexDraftReportFile,
   smokeFile,
+  codexDraftSmokeFile,
   laneDocFile,
   briefingPreviewDocFile,
   laneSmokeFile,
@@ -531,7 +543,10 @@ function assertDocsAndReport() {
     "not readiness",
     "not approval",
     "not merge authority",
-    "Add pure local Codex next-handoff draft packet from user judgment",
+    "Consumed By",
+    "Codex next-handoff draft packet",
+    "not handoff by itself",
+    "Add local Codex handoff draft dogfood report",
   ]);
   assertContainsAll(reportText, [
     "Summary",
@@ -553,7 +568,9 @@ function assertDocsAndReport() {
   assertContainsAll(laneDocText, [
     "PR E: manual ChatGPT user judgment capture packet",
     "implemented as a pure local user judgment capture packet builder",
-    "Add pure local Codex next-handoff draft packet from user judgment",
+    "PR F: Codex next-handoff draft packet",
+    "implemented as a pure local non-executing draft packet builder",
+    "Add local Codex handoff draft dogfood report",
   ]);
 }
 
@@ -591,7 +608,8 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
         (!changedFile.startsWith("lib/") ||
-          changedFile === userJudgmentBuilderFile) &&
+          changedFile === userJudgmentBuilderFile ||
+          changedFile === codexDraftBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

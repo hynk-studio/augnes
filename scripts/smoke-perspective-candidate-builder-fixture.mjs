@@ -9,6 +9,8 @@ const briefingPreviewBuilderFile =
   "lib/perspective-ingest/perspective-candidate-briefing-preview.ts";
 const userJudgmentBuilderFile =
   "lib/perspective-ingest/perspective-user-judgment-capture-packet.ts";
+const codexDraftBuilderFile =
+  "lib/perspective-ingest/perspective-codex-next-handoff-draft-packet.ts";
 const inputBundleBuilderFile =
   "lib/perspective-ingest/perspective-formation-input-bundle.ts";
 const docFile =
@@ -29,6 +31,12 @@ const userJudgmentReportFile =
   "reports/2026-06-08-perspective-user-judgment-capture-packet.md";
 const userJudgmentSmokeFile =
   "scripts/smoke-perspective-user-judgment-capture-packet.mjs";
+const codexDraftDocFile =
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md";
+const codexDraftReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
+const codexDraftSmokeFile =
+  "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
 const inputBundleDocFile =
   "docs/PERSPECTIVE_FORMATION_INPUT_BUNDLE_BUILDER_V0_1.md";
@@ -41,15 +49,19 @@ const allowedChangedFiles = new Set([
   candidateBuilderFile,
   briefingPreviewBuilderFile,
   userJudgmentBuilderFile,
+  codexDraftBuilderFile,
   docFile,
   briefingPreviewDocFile,
   userJudgmentDocFile,
+  codexDraftDocFile,
   reportFile,
   briefingPreviewReportFile,
   userJudgmentReportFile,
+  codexDraftReportFile,
   smokeFile,
   briefingPreviewSmokeFile,
   userJudgmentSmokeFile,
+  codexDraftSmokeFile,
   laneDocFile,
   inputBundleDocFile,
   inputBundleSmokeFile,
@@ -550,7 +562,8 @@ function assertChangedFileBoundary() {
         (!changedFile.startsWith("lib/") ||
           changedFile === candidateBuilderFile ||
           changedFile === briefingPreviewBuilderFile ||
-          changedFile === userJudgmentBuilderFile) &&
+          changedFile === userJudgmentBuilderFile ||
+          changedFile === codexDraftBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

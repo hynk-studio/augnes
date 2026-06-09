@@ -74,6 +74,12 @@ The packet is not committed state, not proof, not evidence, not readiness, not
 approval, and not merge authority. It is also not a Core decision, ChatGPT Apps
 integration, or Codex execution.
 
+## Consumed By
+
+The Codex next-handoff draft packet consumes this user judgment packet plus
+caller-supplied bounded handoff context. The user judgment packet remains
+manual review material, not handoff by itself.
+
 ## Decision Effect
 
 The packet distinguishes three explicit decision-effect states:
@@ -146,4 +152,4 @@ Codex SDK execution.
 
 ## Future Next Step
 
-Add pure local Codex next-handoff draft packet from user judgment.
+Add local Codex handoff draft dogfood report.

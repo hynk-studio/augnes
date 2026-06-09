@@ -38,6 +38,14 @@ const userJudgmentReportFile =
   "reports/2026-06-08-perspective-user-judgment-capture-packet.md";
 const userJudgmentSmokeFile =
   "scripts/smoke-perspective-user-judgment-capture-packet.mjs";
+const codexDraftBuilderFile =
+  "lib/perspective-ingest/perspective-codex-next-handoff-draft-packet.ts";
+const codexDraftDocFile =
+  "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md";
+const codexDraftReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
+const codexDraftSmokeFile =
+  "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -60,6 +68,10 @@ const allowedChangedFiles = new Set([
   userJudgmentDocFile,
   userJudgmentReportFile,
   userJudgmentSmokeFile,
+  codexDraftBuilderFile,
+  codexDraftDocFile,
+  codexDraftReportFile,
+  codexDraftSmokeFile,
   "scripts/smoke-perspective-agent-brief-read-surface.mjs",
   "scripts/smoke-perspective-reviewed-codex-template-promotion-path.mjs",
   "scripts/smoke-perspective-reviewed-manual-agent-brief-codex-template.mjs",
@@ -105,6 +117,11 @@ assert.equal(
   packageJson.scripts["smoke:perspective-user-judgment-capture-packet"],
   `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${userJudgmentSmokeFile}`,
   "package.json must register smoke:perspective-user-judgment-capture-packet",
+);
+assert.equal(
+  packageJson.scripts["smoke:perspective-codex-next-handoff-draft-packet"],
+  `./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json ${codexDraftSmokeFile}`,
+  "package.json must register smoke:perspective-codex-next-handoff-draft-packet",
 );
 
 const docText = readFileSync(docFile, "utf8");
@@ -166,8 +183,10 @@ assertContainsAll(docText, [
   "implemented as a pure local briefing preview builder",
   "PR E: manual ChatGPT user judgment capture packet",
   "implemented as a pure local user judgment capture packet builder",
-  "PR F: Add pure local Codex next-handoff draft packet from user judgment",
-  "PR G: Core-gated accept/reject/supersede route, only after explicit approval",
+  "PR F: Codex next-handoff draft packet",
+  "implemented as a pure local non-executing draft packet builder",
+  "PR G: Add local Codex handoff draft dogfood report",
+  "PR H: Core-gated accept/reject/supersede route, only after explicit approval",
 ]);
 
 assertContainsAll(docText, [
@@ -211,7 +230,8 @@ function assertChangedFileBoundary() {
           changedFile === inputBundleBuilderFile ||
           changedFile === candidateBuilderFile ||
           changedFile === briefingPreviewBuilderFile ||
-          changedFile === userJudgmentBuilderFile) &&
+          changedFile === userJudgmentBuilderFile ||
+          changedFile === codexDraftBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
