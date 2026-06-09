@@ -13,6 +13,8 @@ const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md";
 const reportFile =
   "reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md";
+const promptContractFile =
+  "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
 const realTranscriptDogfoodScriptFile =
   "scripts/dogfood-perspective-codex-former-manual-copy-real-transcript.mjs";
 const realTranscriptDogfoodSmokeFile =
@@ -43,6 +45,14 @@ const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const canonicalPromptContractDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-prompt-contract-canonical-schema.mjs";
+const canonicalPromptContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-prompt-contract-canonical-schema.mjs";
+const canonicalPromptContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md";
+const canonicalPromptContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -53,6 +63,7 @@ const allowedChangedFiles = new Set([
   smokeFile,
   docFile,
   reportFile,
+  promptContractFile,
   realTranscriptDogfoodScriptFile,
   realTranscriptDogfoodSmokeFile,
   realTranscriptDogfoodDocFile,
@@ -68,6 +79,10 @@ const allowedChangedFiles = new Set([
   pipelineDogfoodSmokeFile,
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
+  canonicalPromptContractDogfoodScriptFile,
+  canonicalPromptContractSmokeFile,
+  canonicalPromptContractDocFile,
+  canonicalPromptContractReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -75,6 +90,9 @@ const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const {
   DRAFT_SCHEMA_ALIGNMENT_ARTIFACT_PATH,
   DRAFT_SCHEMA_ALIGNMENT_DOC_PATH,
+  DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_DOC,
+  DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_REPORT,
+  DRAFT_SCHEMA_ALIGNMENT_NEXT_AFTER_PROMPT_REFINEMENT,
   DRAFT_SCHEMA_ALIGNMENT_RECOMMENDED_NEXT_PR,
   buildPerspectiveCodexFormerDraftSchemaAlignmentDogfood,
   deriveDraftSchemaAlignmentConclusion,
@@ -289,6 +307,9 @@ function assertDocsAndReport() {
     "Worker-Facing Guidance",
     "PASS with follow-up",
     DRAFT_SCHEMA_ALIGNMENT_RECOMMENDED_NEXT_PR,
+    DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_DOC,
+    DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_REPORT,
+    DRAFT_SCHEMA_ALIGNMENT_NEXT_AFTER_PROMPT_REFINEMENT,
   ]);
   assertContainsAll(reportText, [
     "Perspective Codex Former Draft Schema Alignment",
@@ -299,6 +320,10 @@ function assertDocsAndReport() {
     "Candidate authority: non_committed",
     "Worker-Facing Guidance ran",
     DRAFT_SCHEMA_ALIGNMENT_RECOMMENDED_NEXT_PR,
+    "Follow-Up Prompt Contract Refinement",
+    DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_DOC,
+    DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_REPORT,
+    DRAFT_SCHEMA_ALIGNMENT_NEXT_AFTER_PROMPT_REFINEMENT,
   ]);
   assertNoUnsafeMarkerText("schema alignment doc", docText);
   assertNoUnsafeMarkerText("schema alignment report", reportText);

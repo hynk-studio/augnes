@@ -42,6 +42,12 @@ export const DRAFT_SCHEMA_ALIGNMENT_DOC_PATH =
   "docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md";
 export const DRAFT_SCHEMA_ALIGNMENT_RECOMMENDED_NEXT_PR =
   "Refine Codex former prompt contract to emit canonical schema after alignment findings";
+export const DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_DOC =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md";
+export const DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_REPORT =
+  "reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md";
+export const DRAFT_SCHEMA_ALIGNMENT_NEXT_AFTER_PROMPT_REFINEMENT =
+  "Dogfood refined Codex former prompt contract with a new captured transcript";
 
 const browserComputerUseValidationNote =
   "Not run: this PR is pure local schema-alignment/docs/report/smoke/package work and adds no UI, route, browser-visible surface, clipboard automation, interactive copy control, or transcript capture.";
@@ -628,6 +634,12 @@ function evaluateDogfood(scenarios) {
       why_draft_review_only:
         "Alignment and validation return local review material only and do not create accepted state.",
       next_refinement: DRAFT_SCHEMA_ALIGNMENT_RECOMMENDED_NEXT_PR,
+      follow_up_prompt_contract_doc:
+        DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_DOC,
+      follow_up_prompt_contract_report:
+        DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_REPORT,
+      next_after_prompt_refinement:
+        DRAFT_SCHEMA_ALIGNMENT_NEXT_AFTER_PROMPT_REFINEMENT,
     },
   };
 }
@@ -740,6 +752,11 @@ function renderArtifact({ evaluation, scenarios }) {
     "It preserves the original #483 finding, then deliberately aligns known aliases before local validation.",
     "The captured real transcript now produces candidate-compatible review material after alignment, remains non_committed, keeps basis quality at needs_review, and feeds advisory-only Worker-Facing Guidance.",
     "",
+    "## Follow-Up Prompt Contract Refinement",
+    "",
+    `The recommended #484 follow-up is represented by ${DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_DOC} and ${DRAFT_SCHEMA_ALIGNMENT_FOLLOW_UP_PROMPT_CONTRACT_REPORT}.`,
+    `After that prompt-contract refinement, the next implementation PR should be: ${DRAFT_SCHEMA_ALIGNMENT_NEXT_AFTER_PROMPT_REFINEMENT}.`,
+    "",
     "## Captured Transcript Findings Addressed",
     "",
     "- selected_material.changed_files was missing because the real output used changed_file_paths.",
@@ -817,6 +834,8 @@ function renderArtifact({ evaluation, scenarios }) {
     "- npm run smoke:perspective-worker-facing-guidance",
     "- npm run smoke:perspective-candidate-builder-fixture",
     "- npm run smoke:perspective-codex-former-pipeline-dogfood",
+    "- npm run dogfood:perspective-codex-former-prompt-contract-canonical-schema",
+    "- npm run smoke:perspective-codex-former-prompt-contract-canonical-schema",
     "- git diff --check",
     "- git diff --cached --check",
     "",
@@ -833,6 +852,10 @@ function renderArtifact({ evaluation, scenarios }) {
     "## What Should Be Refined Next",
     "",
     DRAFT_SCHEMA_ALIGNMENT_RECOMMENDED_NEXT_PR,
+    "",
+    "## Next After Prompt Refinement",
+    "",
+    DRAFT_SCHEMA_ALIGNMENT_NEXT_AFTER_PROMPT_REFINEMENT,
   ];
 
   return `${lines.join("\n").trimEnd()}\n`;

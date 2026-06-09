@@ -10,6 +10,11 @@ This pure local dogfood/report/smoke slice follows PR #483 and adds an explicit 
 It preserves the original #483 finding, then deliberately aligns known aliases before local validation.
 The captured real transcript now produces candidate-compatible review material after alignment, remains non_committed, keeps basis quality at needs_review, and feeds advisory-only Worker-Facing Guidance.
 
+## Follow-Up Prompt Contract Refinement
+
+The recommended #484 follow-up is represented by docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md and reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md.
+After that prompt-contract refinement, the next implementation PR should be: Dogfood refined Codex former prompt contract with a new captured transcript.
+
 ## Captured Transcript Findings Addressed
 
 - selected_material.changed_files was missing because the real output used changed_file_paths.
@@ -173,6 +178,9 @@ Dogfood notes:
 - downstream_guidance_result: Worker-Facing Guidance ran and remained advisory-only.
 - why_draft_review_only: Alignment and validation return local review material only and do not create accepted state.
 - next_refinement: Refine Codex former prompt contract to emit canonical schema after alignment findings
+- follow_up_prompt_contract_doc: docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md
+- follow_up_prompt_contract_report: reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md
+- next_after_prompt_refinement: Dogfood refined Codex former prompt contract with a new captured transcript
 
 ## Browser/Computer-Use Validation
 
@@ -198,6 +206,8 @@ This PR is a pure local schema-alignment/docs/report/smoke slice. It does not ca
 - npm run smoke:perspective-worker-facing-guidance
 - npm run smoke:perspective-candidate-builder-fixture
 - npm run smoke:perspective-codex-former-pipeline-dogfood
+- npm run dogfood:perspective-codex-former-prompt-contract-canonical-schema
+- npm run smoke:perspective-codex-former-prompt-contract-canonical-schema
 - git diff --check
 - git diff --cached --check
 
@@ -214,3 +224,7 @@ Codex did not call Codex from implementation, execute Codex from Augnes, call th
 ## What Should Be Refined Next
 
 Refine Codex former prompt contract to emit canonical schema after alignment findings
+
+## Next After Prompt Refinement
+
+Dogfood refined Codex former prompt contract with a new captured transcript
