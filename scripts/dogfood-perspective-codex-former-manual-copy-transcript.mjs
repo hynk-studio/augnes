@@ -63,11 +63,14 @@ export function buildPerspectiveCodexFormerManualCopyTranscriptDogfood() {
   const downstreamGuidanceScenario = buildDownstreamGuidanceScenario(
     realTranscriptScenario,
   );
+  const syntheticDownstreamGuidanceControlScenario =
+    buildSyntheticDownstreamGuidancePositiveControlScenario(pipelineContext);
   const scenarios = [
     realTranscriptScenario,
     extractionFailureScenario,
     badResponseRegressionScenario,
     downstreamGuidanceScenario,
+    syntheticDownstreamGuidanceControlScenario,
   ];
   const evaluation = evaluateDogfood(scenarios);
   const artifact = renderArtifact({ evaluation, scenarios });
@@ -273,6 +276,7 @@ function buildRealTranscriptUnavailableScenario(context) {
     validation_result: null,
     candidate_review_material: null,
     worker_guidance: null,
+    guidance_input_shape: null,
     conclusion: "BLOCKED",
     blocked_reasons: [
       "No real human-started Codex response transcript was supplied.",
@@ -329,6 +333,7 @@ function buildTranscriptExtractionFailureScenario(context) {
     validation_result: null,
     candidate_review_material: null,
     worker_guidance: null,
+    guidance_input_shape: null,
     conclusion: extraction.extraction_status === "blocked" ? "PASS" : "BLOCKED",
     blocked_reasons:
       extraction.extraction_status === "blocked"
@@ -417,6 +422,7 @@ function buildBadResponseRegressionScenario(context) {
     validation_result: summarizeValidationResult(validationResult),
     candidate_review_material: null,
     worker_guidance: null,
+    guidance_input_shape: null,
     conclusion: passed ? "PASS" : "BLOCKED",
     blocked_reasons: passed
       ? []
@@ -428,12 +434,104 @@ function buildBadResponseRegressionScenario(context) {
   };
 }
 
-function buildDownstreamGuidanceScenario(realTranscriptScenario) {
+function buildSyntheticDownstreamGuidancePositiveControlScenario(context) {
+  const returnedDraft = buildReturnedDraftFromPacket(context.formerInputPacket, {
+    thesis:
+      "The useful neutral perspective beyond a plain summary is that transcript dogfood can only test downstream planning after local validation produces candidate-compatible review material.",
+    unresolved_tensions: [
+      {
+        tension_id: "tension:real-transcript-still-missing",
+        summary:
+          "This is a synthetic guidance control, not a real Codex transcript, so usefulness remains blocked for the main dogfood.",
+      },
+    ],
+    basis_quality_suggestion: {
+      status: "needs_review",
+      reasons: [
+        "A real transcript is still missing, but this control can exercise guidance compatibility with candidate-compatible material.",
+      ],
+    },
+    qualification_notes: [
+      "Synthetic positive control only; not a claimed real transcript.",
+      "Useful beyond summary because it verifies the downstream advisory guidance call shape.",
+    ],
+  });
+  const transcript = {
+    transcript_kind: "manual_codex_former_response_transcript",
+    transcript_version: "manual_codex_former_response_transcript.v0.1",
+    transcript_available: true,
+    fixture_source: "synthetic_positive_guidance_control",
+    source_manual_copy_packet_id: context.manualCopyPacket.packet_id,
+    source_prompt_hash: stableHash(
+      context.manualCopyPacket.copyable_codex_prompt_text,
+    ),
+    captured_by: "synthetic_control",
+    captured_at: MANUAL_COPY_TRANSCRIPT_DOGFOOD_GENERATED_AT,
+    codex_surface_label: "synthetic downstream guidance control",
+    prompt_was_generated_by_manual_copy_packet: true,
+    response_text: null,
+    extracted_json_text: JSON.stringify(returnedDraft),
+    extracted_codex_perspective_candidate_draft: returnedDraft,
+    transcript_redaction_notes: [
+      "Synthetic positive control contains no real Codex transcript content.",
+    ],
+    privacy_flags: {
+      raw_payloads_included: false,
+      private_account_data_included: false,
+      browser_tokens_or_cookies_included: false,
+    },
+    authority_flags: buildFalseAuthorityFlags(),
+  };
+  const extraction = extractCodexPerspectiveCandidateDraftFromTranscript(
+    transcript,
+  );
+  const contractFit = evaluateCodexPerspectiveCandidateDraftPromptContractFit({
+    former_input_packet: context.formerInputPacket,
+    draft: extraction.draft,
+  });
+  const validationResult = validateAndNormalizeCodexPerspectiveCandidateDraft({
+    former_input_packet: context.formerInputPacket,
+    draft: extraction.draft,
+  });
+
+  const controlTranscriptScenario = {
+    scenario_id: "synthetic_transcript_guidance_control_source",
+    title: "Synthetic Transcript Guidance Control Source",
+    fixture_label: "synthetic positive guidance control",
+    transcript_provenance: summarizeTranscript(transcript),
+    manual_copy_packet: summarizeManualCopyPacket(context.manualCopyPacket),
+    extraction,
+    contract_fit: summarizeContractFit(contractFit),
+    validation_result: summarizeValidationResult(validationResult),
+    candidate_review_material: validationResult.candidate_review_material,
+    worker_guidance: null,
+    guidance_input_shape: null,
+    conclusion: "PASS",
+    blocked_reasons: [],
+    dogfood_notes: [
+      "This is a synthetic control used only to exercise the downstream guidance path.",
+    ],
+  };
+
+  return buildDownstreamGuidanceScenario(controlTranscriptScenario, {
+    scenario_id: "synthetic_downstream_guidance_positive_control",
+    title: "Synthetic Downstream Guidance Positive Control",
+    fixture_label: "synthetic positive control, not a real transcript",
+    dogfood_notes: [
+      "Synthetic positive control only; it proves the downstream guidance builder receives { candidate, guidance_context }.",
+      "It does not change the top-level BLOCKED conclusion while the real transcript is missing.",
+    ],
+  });
+}
+
+function buildDownstreamGuidanceScenario(realTranscriptScenario, overrides = {}) {
   if (!realTranscriptScenario.candidate_review_material) {
     return {
-      scenario_id: "downstream_guidance_compatibility",
-      title: "Downstream Guidance Compatibility",
-      fixture_label: "skipped because real transcript validation blocked",
+      scenario_id: overrides.scenario_id ?? "downstream_guidance_compatibility",
+      title: overrides.title ?? "Downstream Guidance Compatibility",
+      fixture_label:
+        overrides.fixture_label ??
+        "skipped because real transcript validation blocked",
       transcript_provenance: realTranscriptScenario.transcript_provenance,
       manual_copy_packet: realTranscriptScenario.manual_copy_packet,
       extraction: realTranscriptScenario.extraction,
@@ -441,23 +539,40 @@ function buildDownstreamGuidanceScenario(realTranscriptScenario) {
       validation_result: null,
       candidate_review_material: null,
       worker_guidance: null,
+      guidance_input_shape: null,
       conclusion: "PASS with follow-up",
       blocked_reasons: [],
-      dogfood_notes: [
-        "Skipped because no real transcript candidate-compatible review material exists.",
-        "Run after a bounded real transcript fixture is supplied and validation succeeds.",
-      ],
+      dogfood_notes:
+        overrides.dogfood_notes ?? [
+          "Skipped because no real transcript candidate-compatible review material exists.",
+          "Run after a bounded real transcript fixture is supplied and validation succeeds.",
+        ],
     };
   }
 
-  const guidance = buildWorkerFacingPerspectiveGuidanceFromCandidate(
-    realTranscriptScenario.candidate_review_material,
-  );
+  const guidanceInput = {
+    candidate: realTranscriptScenario.candidate_review_material,
+    guidance_context: {
+      work_goal:
+        "Evaluate bounded transcript dogfood candidate material for advisory next-step planning only.",
+      bounded_summary:
+        "Candidate-compatible review material is local, non-committed, and non-authoritative.",
+    },
+  };
+  const guidance =
+    buildWorkerFacingPerspectiveGuidanceFromCandidate(guidanceInput);
+  const guidanceSummary = summarizeWorkerGuidance(guidance);
+  const passed =
+    guidanceInput.candidate === realTranscriptScenario.candidate_review_material &&
+    guidanceSummary.advisory_only === true &&
+    guidanceSummary.next_action_count > 0 &&
+    allAuthorityFlagsFalse(guidance.authority_flags);
 
   return {
-    scenario_id: "downstream_guidance_compatibility",
-    title: "Downstream Guidance Compatibility",
-    fixture_label: "real transcript candidate guidance",
+    scenario_id: overrides.scenario_id ?? "downstream_guidance_compatibility",
+    title: overrides.title ?? "Downstream Guidance Compatibility",
+    fixture_label:
+      overrides.fixture_label ?? "real transcript candidate guidance",
     transcript_provenance: realTranscriptScenario.transcript_provenance,
     manual_copy_packet: realTranscriptScenario.manual_copy_packet,
     extraction: realTranscriptScenario.extraction,
@@ -466,16 +581,21 @@ function buildDownstreamGuidanceScenario(realTranscriptScenario) {
     candidate_review_material: summarizeCandidate(
       realTranscriptScenario.candidate_review_material,
     ),
-    worker_guidance: summarizeWorkerGuidance(guidance),
-    conclusion: allAuthorityFlagsFalse(guidance.authority_flags)
-      ? "PASS"
-      : "BLOCKED",
-    blocked_reasons: allAuthorityFlagsFalse(guidance.authority_flags)
+    worker_guidance: guidanceSummary,
+    guidance_input_shape: {
+      candidate_present: Boolean(guidanceInput.candidate),
+      guidance_context_present: Boolean(guidanceInput.guidance_context),
+      guidance_context_bounded: true,
+      guidance_context_authoritative: false,
+    },
+    conclusion: passed ? "PASS" : "BLOCKED",
+    blocked_reasons: passed
       ? []
-      : ["worker guidance authority flags are not all false"],
-    dogfood_notes: [
-      "Guidance remains advisory-only after candidate-compatible material.",
-    ],
+      : ["downstream guidance compatibility did not remain advisory-only"],
+    dogfood_notes:
+      overrides.dogfood_notes ?? [
+        "Guidance remains advisory-only after candidate-compatible material.",
+      ],
   };
 }
 
@@ -516,7 +636,7 @@ function evaluateDogfood(scenarios) {
       did_it_distinguish_basis:
         "Not evaluated for real response; this remains the next dogfood task.",
       did_downstream_guidance_remain_advisory:
-        "Skipped because no validated real transcript candidate exists.",
+        "Skipped for the missing real transcript; synthetic positive control confirms advisory-only guidance compatibility.",
       what_should_be_refined_next:
         MANUAL_COPY_TRANSCRIPT_DOGFOOD_NEXT_PR,
     },
@@ -570,6 +690,7 @@ function renderArtifact({ evaluation, scenarios }) {
     "- npm run smoke:perspective-codex-former-pipeline",
     "- npm run smoke:perspective-worker-facing-guidance",
     "- npm run smoke:perspective-candidate-builder-fixture",
+    "- npm run smoke:perspective-codex-former-pipeline-dogfood",
     "- git diff --check",
     "- git diff --cached --check",
     "",
@@ -608,6 +729,9 @@ function renderScenario(scenario) {
     `Validation status: ${scenario.validation_result?.status ?? "not evaluated"}`,
     `Candidate material: ${scenario.candidate_review_material ? "present" : "none"}`,
     `Worker guidance: ${scenario.worker_guidance ? "present" : "none"}`,
+    `Guidance input includes candidate: ${scenario.guidance_input_shape?.candidate_present ? "yes" : "no"}`,
+    `Guidance advisory only: ${scenario.worker_guidance?.advisory_only === true ? "yes" : "not evaluated"}`,
+    `Guidance next action count: ${scenario.worker_guidance?.next_action_count ?? "not evaluated"}`,
     "",
     "Dogfood notes:",
     ...formatList(scenario.dogfood_notes),
@@ -695,8 +819,9 @@ function summarizeCandidate(candidate) {
 function summarizeWorkerGuidance(guidance) {
   return {
     guidance_status: guidance.guidance_status,
-    advisory_only: guidance.advisory_only,
-    next_action_count: guidance.next_actions.length,
+    advisory_only: guidance.scope_alignment.advisory_only,
+    scope_alignment_status: guidance.scope_alignment.status,
+    next_action_count: guidance.next_smallest_useful_actions.length,
     authority_flags: { ...guidance.authority_flags },
   };
 }

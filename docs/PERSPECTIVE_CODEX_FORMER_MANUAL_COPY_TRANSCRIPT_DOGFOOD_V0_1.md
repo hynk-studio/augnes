@@ -77,6 +77,11 @@ local validation blocks malformed or authority-claiming output.
 `downstream_guidance_compatibility` is skipped with follow-up because the main
 real transcript did not produce candidate-compatible review material.
 
+`synthetic_downstream_guidance_positive_control` uses candidate-compatible
+review material from a clearly labeled synthetic control to exercise the
+Worker-Facing Guidance path. It is not a real transcript and does not change the
+top-level BLOCKED conclusion while real transcript material is missing.
+
 ## Browser/Computer-Use Validation
 
 Not run: no real transcript was supplied and this PR adds no UI, route,

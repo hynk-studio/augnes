@@ -77,6 +77,7 @@ assertRealTranscriptUnavailableScenario();
 assertExtractionFailureScenario();
 assertBadResponseRegressionScenario();
 assertDownstreamGuidanceSkipped();
+assertSyntheticDownstreamGuidancePositiveControl();
 assertExtractionHelperFailsClosed();
 assertConclusionRules();
 assertDocsAndReport();
@@ -93,7 +94,7 @@ function assertDogfoodBuildIsBlockedAndDeterministic() {
   assert.equal(first.paths.artifact, MANUAL_COPY_TRANSCRIPT_DOGFOOD_ARTIFACT_PATH);
   assert.equal(first.evaluation.conclusion, "BLOCKED");
   assert.equal(first.evaluation.real_transcript_available, false);
-  assert.equal(first.scenarios.length, 4);
+  assert.equal(first.scenarios.length, 5);
   assert.equal(first.artifact.includes("Conclusion: BLOCKED"), true);
   assert.equal(first.artifact.includes("Real transcript available: No"), true);
   assert.equal(
@@ -200,6 +201,38 @@ function assertDownstreamGuidanceSkipped() {
   assertNoUnsafeMarkerText("downstream guidance scenario", scenario);
 }
 
+function assertSyntheticDownstreamGuidancePositiveControl() {
+  const dogfood = buildPerspectiveCodexFormerManualCopyTranscriptDogfood();
+  const scenario = requireScenario(
+    dogfood,
+    "synthetic_downstream_guidance_positive_control",
+  );
+
+  assert.equal(scenario.fixture_label, "synthetic positive control, not a real transcript");
+  assert.equal(scenario.conclusion, "PASS");
+  assert.equal(
+    scenario.transcript_provenance.fixture_source,
+    "synthetic_positive_guidance_control",
+  );
+  assert.equal(scenario.candidate_review_material.authority, "non_committed");
+  assert.equal(scenario.guidance_input_shape.candidate_present, true);
+  assert.equal(scenario.guidance_input_shape.guidance_context_present, true);
+  assert.equal(scenario.guidance_input_shape.guidance_context_bounded, true);
+  assert.equal(scenario.guidance_input_shape.guidance_context_authoritative, false);
+  assert.equal(typeof scenario.worker_guidance.guidance_status, "string");
+  assert.equal(scenario.worker_guidance.advisory_only, true);
+  assert(
+    scenario.worker_guidance.next_action_count > 0,
+    "synthetic guidance control must produce next smallest useful actions",
+  );
+  assertAuthorityFalse(scenario.worker_guidance.authority_flags);
+  assertNoUnsafeMarkerText(
+    "synthetic downstream guidance positive control",
+    scenario,
+  );
+  assert.equal(dogfood.evaluation.conclusion, "BLOCKED");
+}
+
 function assertExtractionHelperFailsClosed() {
   assert.doesNotThrow(() => {
     const result = extractCodexPerspectiveCandidateDraftFromTranscript({
@@ -267,6 +300,7 @@ function assertDocsAndReport() {
     "transcript_extraction_failure_case",
     "real_or_control_bad_response_regression",
     "downstream_guidance_compatibility",
+    "synthetic_downstream_guidance_positive_control",
     "Prepare real Codex former transcript capture instructions",
   ]);
   assertNoUnsafeMarkerText("transcript dogfood doc", docText);
