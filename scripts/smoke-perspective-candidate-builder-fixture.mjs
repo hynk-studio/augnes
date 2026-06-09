@@ -133,6 +133,16 @@ const realTranscriptDogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
 const realTranscriptDogfoodReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-real-transcript.md";
+const draftSchemaAlignmentHelperFile =
+  "lib/perspective-ingest/perspective-codex-candidate-draft-schema-alignment.ts";
+const draftSchemaAlignmentDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-draft-schema-alignment.mjs";
+const draftSchemaAlignmentSmokeFile =
+  "scripts/smoke-perspective-codex-former-draft-schema-alignment.mjs";
+const draftSchemaAlignmentDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md";
+const draftSchemaAlignmentReportFile =
+  "reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -202,6 +212,11 @@ const allowedChangedFiles = new Set([
   realTranscriptDogfoodSmokeFile,
   realTranscriptDogfoodDocFile,
   realTranscriptDogfoodReportFile,
+  draftSchemaAlignmentHelperFile,
+  draftSchemaAlignmentDogfoodScriptFile,
+  draftSchemaAlignmentSmokeFile,
+  draftSchemaAlignmentDocFile,
+  draftSchemaAlignmentReportFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
@@ -718,7 +733,8 @@ function assertChangedFileBoundary() {
           changedFile === codexFormerInputPacketFile ||
           changedFile === codexCandidateDraftPipelineFile ||
           changedFile === codexFormerPromptContractFile ||
-          changedFile === codexFormerManualCopyPacketFile) &&
+          changedFile === codexFormerManualCopyPacketFile ||
+          changedFile === draftSchemaAlignmentHelperFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

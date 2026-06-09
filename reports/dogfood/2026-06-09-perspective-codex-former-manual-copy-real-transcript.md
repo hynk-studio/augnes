@@ -213,3 +213,12 @@ Codex did not call Codex from implementation, execute Codex from Augnes, call th
 ## What Should Be Refined Next
 
 Refine Codex former draft schema alignment from captured transcript findings
+
+## Followed By
+
+- `docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md`
+- `reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md`
+
+## Recommended Next Implementation PR After Alignment
+
+Refine Codex former prompt contract to emit canonical schema after alignment findings
