@@ -23,6 +23,14 @@ const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
 const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
+const codexFormerDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-pipeline.mjs";
+const codexFormerDogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-former-pipeline-dogfood.mjs";
+const codexFormerDogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_DOGFOOD_V0_1.md";
+const codexFormerDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-pipeline.md";
 
 const inheritedPr476Files = [
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md",
@@ -43,6 +51,10 @@ const allowedChangedFiles = new Set([
   candidateBuilderSmokeFile,
   workerGuidanceSmokeFile,
   workerGuidanceBuilderFile,
+  codexFormerDogfoodScriptFile,
+  codexFormerDogfoodSmokeFile,
+  codexFormerDogfoodDocFile,
+  codexFormerDogfoodReportFile,
   ...inheritedPr476Files,
 ]);
 
