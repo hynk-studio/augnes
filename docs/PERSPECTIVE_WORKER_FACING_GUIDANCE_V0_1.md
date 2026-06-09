@@ -119,6 +119,20 @@ When the source candidate needs review, the first instruction is to resolve
 visible gaps before proposing implementation work. When the source candidate
 is blocked, the first instruction is to stop and defer.
 
+## Action Specificity
+
+Action summaries use safe, bounded source material already present in the
+candidate. Ready guidance points the future worker to source PR/work refs,
+selected file counts, the most relevant selected files, the work goal or
+changed-file summary, and concrete verification gap kinds or check ids.
+Needs-review guidance names failed/skipped check ids or gap kinds when safe.
+Blocked guidance names the blocking basis or missing-scope reason when safe.
+
+These action summaries remain advisory. They do not become proof, evidence,
+readiness, approval, merge authority, GitHub mutation, Codex execution,
+ChatGPT Apps integration, persistence, provider/model/API behavior, or Core
+decision authority.
+
 ## Authority Boundary
 
 The guidance has explicit false authority flags for:
@@ -162,4 +176,4 @@ from PR #474.
 
 ## Future Next Step
 
-Refine worker-facing guidance action specificity from dogfood findings.
+Add local Codex perspective former pipeline scaffold.

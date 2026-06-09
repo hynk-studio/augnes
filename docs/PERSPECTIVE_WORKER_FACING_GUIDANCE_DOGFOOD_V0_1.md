@@ -85,7 +85,7 @@ a future worker sees the exact smallest useful implementation step with less
 interpretation.
 
 Recommended next implementation PR title:
-`Refine worker-facing guidance action specificity from dogfood findings`.
+`Add local Codex perspective former pipeline scaffold`.
 
 ## Authority Boundary
 

@@ -65,6 +65,8 @@ const workerGuidanceDocFile =
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_V0_1.md";
 const workerGuidanceReportFile =
   "reports/2026-06-09-perspective-worker-facing-guidance.md";
+const workerGuidanceActionSpecificityReportFile =
+  "reports/2026-06-09-perspective-worker-facing-guidance-action-specificity.md";
 const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const workerGuidanceLoopDogfoodScriptFile =
@@ -110,6 +112,7 @@ const allowedChangedFiles = new Set([
   workerGuidanceBuilderFile,
   workerGuidanceDocFile,
   workerGuidanceReportFile,
+  workerGuidanceActionSpecificityReportFile,
   workerGuidanceSmokeFile,
   workerGuidanceLoopDogfoodScriptFile,
   workerGuidanceLoopDogfoodSmokeFile,

@@ -17,7 +17,7 @@ export const PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_GENERATED_AT =
 export const PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_ARTIFACT_PATH =
   "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md";
 export const PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_NEXT_PR =
-  "Refine worker-facing guidance action specificity from dogfood findings";
+  "Add local Codex perspective former pipeline scaffold";
 
 const pr474ChangedFiles = [
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_V0_1.md",

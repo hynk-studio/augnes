@@ -10,7 +10,7 @@ This deterministic local dogfood slice uses the merged PR #474 Worker-Facing Per
 
 PASS with follow-up
 
-Recommended next implementation PR title: Refine worker-facing guidance action specificity from dogfood findings
+Recommended next implementation PR title: Add local Codex perspective former pipeline scaffold
 
 ## Dogfood Answers
 
@@ -20,7 +20,7 @@ Recommended next implementation PR title: Refine worker-facing guidance action s
 - Does it avoid turning guidance into proof, evidence, readiness, approval, merge authority, GitHub mutation, Codex execution, or Core decision? Yes. All guidance authority flags remain false, and the guidance does not become proof, evidence, readiness, approval, merge authority, GitHub mutation, Codex execution, or Core decision.
 - Does it avoid unsafe raw/private/provider/token/billing/source payloads? Yes. Unsafe marker inputs are omitted from output guidance and recorded through privacy metadata.
 - Is the guidance specific enough for a future Codex task prompt? Yes, with follow-up. The guidance is specific enough to seed a future prompt, but the next action text should become more file/check-aware.
-- What is the next implementation PR after this dogfood? Refine worker-facing guidance action specificity from dogfood findings
+- What is the next implementation PR after this dogfood? Add local Codex perspective former pipeline scaffold
 
 ## Scenarios
 
@@ -41,9 +41,9 @@ Real Reviewed PR #474 Ready
 - authority flags remain false
 - unsafe marker did not appear in guidance
 - next_smallest_useful_actions:
-- inspect_source_candidate_refs: Inspect the source candidate refs and selected material before proposing work.
-- draft_smallest_scoped_plan: Draft the smallest useful scoped plan from the work goal and changed-file summary.
-- carry_forward_verification_gaps: 2 verification gap(s) must stay visible and cannot be converted into proof or readiness.
+- inspect_source_candidate_refs: Inspect work PR-474-worker-facing-guidance and PR pr:hynk-studio/augnes#474 and 6 selected file(s) before proposing work.
+- draft_smallest_scoped_plan: Draft the smallest useful scoped plan for Use the reviewed PR #474 worker guidance scaffold to identify the next smallest useful local implementation follow-up. using docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_V0_1.md, lib/perspective-ingest/perspective-worker-facing-guidance.ts, package.json, plus 3 more file(s).
+- carry_forward_verification_gaps: 2 verification gap(s): skipped_check via check:browser, check:build must stay visible and cannot be converted into proof or readiness.
 - stop_or_defer_actions:
 - defer_execution_until_user_task: Do not execute work from this guidance unless the user starts a future Codex task.
 - defer_authority_claims: Do not claim approval, readiness, proof, evidence, merge authority, GitHub mutation, Codex execution, or Core decision authority from this guidance.
@@ -77,11 +77,11 @@ Review Gap Regression Case
 - unsafe marker input was omitted
 - unsafe marker did not appear in guidance
 - next_smallest_useful_actions:
-- resolve_verification_gaps: Resolve or qualify verification gaps before planning implementation work.
-- preserve_unresolved_tensions: 3 unresolved tension(s) must remain visible in any revised candidate or later handoff.
-- ask_user_decision_questions: Ask the preserved user/Core decision questions before treating this as ready for worker planning.
+- resolve_verification_gaps: Resolve or qualify 4 verification gap(s): failed_check, unresolved_gap, readiness_reason via check:payload-marker-redaction, gap:payload-marker-redaction before planning implementation work for lib/perspective-ingest/perspective-worker-facing-guidance.ts, scripts/smoke-perspective-worker-facing-guidance.mjs.
+- preserve_unresolved_tensions: 3 unresolved tension(s): unresolved_gap, failed_check, readiness_reason must remain visible in any revised candidate or later handoff.
+- ask_user_decision_questions: Ask the preserved user/Core decision questions before treating work pre-fix-worker-guidance-redaction-gap and PR pr:hynk-studio/augnes#474 as ready for worker planning.
 - stop_or_defer_actions:
-- defer_implementation_planning: Defer implementation planning until unresolved gaps and review needs are resolved.
+- defer_implementation_planning: Defer implementation planning until 4 verification gap(s): failed_check, unresolved_gap, readiness_reason via check:payload-marker-redaction, gap:payload-marker-redaction and review needs are resolved.
 - defer_authority_claims: Do not claim approval, readiness, proof, evidence, merge authority, GitHub mutation, Codex execution, or Core decision authority from this guidance.
 - verification_gaps:
 - failed_check (check:payload-marker-redaction): Failed check remains unresolved: Payload marker redaction concern remained unresolved before the review fix.
@@ -119,9 +119,9 @@ Blocked Or Missing-Scope Contrast
 - authority flags remain false
 - unsafe marker did not appear in guidance
 - next_smallest_useful_actions:
-- stop_and_request_unblock: Stop worker planning from this candidate and ask the user or Core owner to resolve the blocking basis first.
+- stop_and_request_unblock: Stop worker planning from this candidate and ask the user or Core owner to resolve the blocking basis first: missing scope, skipped_check check:scope-precondition, readiness_reason.
 - stop_or_defer_actions:
-- defer_all_worker_planning: Defer worker planning until the blocked candidate basis is resolved.
+- defer_all_worker_planning: Defer worker planning until the blocked candidate basis is resolved: missing scope, skipped_check check:scope-precondition, readiness_reason.
 - defer_authority_claims: Do not claim approval, readiness, proof, evidence, merge authority, GitHub mutation, Codex execution, or Core decision authority from this guidance.
 - verification_gaps:
 - skipped_check (check:scope-precondition): Skipped check remains visible for worker planning: Scope is missing, so worker planning cannot proceed.

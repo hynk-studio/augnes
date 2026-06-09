@@ -13,10 +13,14 @@ const dogfoodDocFile =
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md";
 const workerGuidanceDocFile =
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_V0_1.md";
+const workerGuidanceBuilderFile =
+  "lib/perspective-ingest/perspective-worker-facing-guidance.ts";
 const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const actionSpecificityReportFile =
+  "reports/2026-06-09-perspective-worker-facing-guidance-action-specificity.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -26,6 +30,8 @@ const allowedChangedFiles = new Set([
   smokeFile,
   artifactFile,
   dogfoodDocFile,
+  actionSpecificityReportFile,
+  workerGuidanceBuilderFile,
   workerGuidanceDocFile,
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
@@ -106,7 +112,7 @@ function assertDogfoodScriptBoundary() {
     "review_gap_regression_case",
     "blocked_or_missing_scope_contrast",
     "PASS with follow-up",
-    "Refine worker-facing guidance action specificity from dogfood findings",
+    "Add local Codex perspective former pipeline scaffold",
     "writeFileSync",
     "billing_payload",
   ]);
@@ -165,7 +171,7 @@ function assertDocs() {
     "review_gap_regression_case",
     "blocked_or_missing_scope_contrast",
     "PASS with follow-up",
-    "Refine worker-facing guidance action specificity from dogfood findings",
+    "Add local Codex perspective former pipeline scaffold",
     "does not execute Codex",
     "does not mutate GitHub",
     "does not implement runtime routes",
@@ -181,7 +187,7 @@ function assertDocs() {
   assertContainsAll(workerGuidanceDocText, [
     "Dogfooded By",
     "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md",
-    "Refine worker-facing guidance action specificity from dogfood findings",
+    "Add local Codex perspective former pipeline scaffold",
   ]);
 }
 
@@ -356,7 +362,8 @@ function assertChangedFileBoundary() {
       !changedFile.startsWith("app/api/") &&
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
-        !changedFile.startsWith("lib/") &&
+        (!changedFile.startsWith("lib/") ||
+          changedFile === workerGuidanceBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
