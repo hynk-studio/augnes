@@ -110,10 +110,12 @@ expected files, forbidden files and surfaces, required checks, skipped-check
 policy, constraints, implementation notes, review notes, authority boundary,
 and PR-centered workflow.
 
-The text explicitly says this is a draft only and does not execute Codex. It
-also says Codex may code, test, and open a PR only when the user explicitly
-starts a Codex task with this draft. ChatGPT reviews and the user decides
-merge.
+The text begins by saying it is a draft prompt for a future user-started
+Codex task and that the user should review it before pasting into Codex. It
+explicitly says it does not execute Codex and does not authorize merge,
+approval, GitHub mutation, or background work. It also says Codex may code,
+test, and open a PR only when the user explicitly starts a Codex task with
+this draft. ChatGPT reviews and the user decides merge.
 
 The text does not include raw pasted text, raw source payloads, raw candidate
 payloads, private/provider/token/OAuth/API key/billing payloads, hidden

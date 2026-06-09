@@ -142,15 +142,18 @@ before any runtime or App integration.
 
 ## Dogfood Evaluation Conclusion
 
-PASS. The ready path is copy-ready for a future user-approved Codex task
-because the task goal, expected files, required checks, forbidden
-files/surfaces, skipped-check policy, authority boundary, and PR-centered
-workflow are visible. The contrast cases do not look copy-ready.
+PASS after the copy-refinement follow-up. The ready path is copy-ready for a
+future user-approved Codex task because the direct draft-prompt opening, task
+goal, expanded expected files, required checks, forbidden files/surfaces,
+skipped-check policy, authority boundary, and PR-centered workflow are visible.
+The contrast cases do not look copy-ready.
 
-The dogfood finding is non-blocking: the copyable text is safe, but the first
-line could be more direct for a human deciding whether to paste it into a new
-Codex task. That finding is carried into the recommended next PR title.
+The PR #469 dogfood finding about the first line is addressed by the direct
+draft-prompt wording. The automated review issue about under-scoped
+`expected_files` is addressed by expanding the ready-to-copy expected file
+list to include the related docs and smoke allowlist files needed by an
+equivalent dogfood/report/copy refinement slice.
 
 ## Next Recommended PR Title
 
-Refine Codex handoff draft copy from dogfood findings
+Evaluate Codex handoff draft in a real docs-only Codex task

@@ -67,6 +67,20 @@ The dogfood evaluation passes only when:
 - no wording implies approval, merge, GitHub mutation, Core decision, or Codex
   execution.
 
+## Follow-Up Corrections
+
+PR #469 dogfood found that the copyable text was safe, but its first visible
+line needed more direct human-facing wording. This follow-up updates the
+copyable handoff text so it begins as a draft prompt for a future
+user-started Codex task and tells the user to review it before pasting into
+Codex.
+
+Automated review also found an under-scoped expected_files issue in the PR
+#469 `ready_to_copy` dogfood output. Because that list is the future Codex
+task's file scope, this follow-up expands it to include the related packet
+docs, formation/user-judgment docs, and neighboring smoke allowlist files
+needed by an equivalent dogfood/report/copy refinement slice.
+
 ## Dogfood Output
 
 The deterministic dogfood artifact is written to:
@@ -78,4 +92,4 @@ external services.
 
 ## Future Next Step
 
-Refine Codex handoff draft copy from dogfood findings.
+Evaluate Codex handoff draft in a real docs-only Codex task.

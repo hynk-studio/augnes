@@ -59,6 +59,17 @@ PR-centered workflow: Codex codes/tests/opens PR only after a user explicitly st
 - reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md
 - reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md
 - package.json
+- docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md
+- docs/PERSPECTIVE_FORMATION_LANE_V0_1.md
+- docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md
+- scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs
+- scripts/smoke-perspective-user-judgment-capture-packet.mjs
+- scripts/smoke-perspective-candidate-briefing-preview.mjs
+- scripts/smoke-perspective-candidate-builder-fixture.mjs
+- scripts/smoke-perspective-formation-input-bundle-builder.mjs
+- scripts/smoke-perspective-formation-lane-v0-1.mjs
+- scripts/smoke-perspective-agent-brief-read-surface.mjs
+- scripts/smoke-perspective-temporal-spatial-projection-builders.mjs
 - required checks:
 - npm run typecheck
 - npm run dogfood:perspective-codex-next-handoff-draft
@@ -83,7 +94,10 @@ PR-centered workflow: Codex codes/tests/opens PR only after a user explicitly st
 ```text
 # Codex Next-Handoff Draft Packet
 
-This is draft only. It does not execute Codex or start background work.
+This is a draft prompt for a future user-started Codex task.
+Review it before pasting into Codex.
+It does not execute Codex.
+This draft authorizes no merge, no approval, no GitHub mutation, and no background work.
 Codex may code, test, and open a PR only when the user explicitly starts a Codex task with this draft.
 PR-centered workflow: Codex codes/tests/opens PR, ChatGPT reviews, and the user decides merge.
 
@@ -107,6 +121,17 @@ Working branch suggestion: codex/perspective-codex-next-handoff-draft-dogfood-v0
 - reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md
 - reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md
 - package.json
+- docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md
+- docs/PERSPECTIVE_FORMATION_LANE_V0_1.md
+- docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md
+- scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs
+- scripts/smoke-perspective-user-judgment-capture-packet.mjs
+- scripts/smoke-perspective-candidate-briefing-preview.mjs
+- scripts/smoke-perspective-candidate-builder-fixture.mjs
+- scripts/smoke-perspective-formation-input-bundle-builder.mjs
+- scripts/smoke-perspective-formation-lane-v0-1.mjs
+- scripts/smoke-perspective-agent-brief-read-surface.mjs
+- scripts/smoke-perspective-temporal-spatial-projection-builders.mjs
 
 ## Forbidden Files
 - app/api/**
@@ -234,14 +259,15 @@ Whether the draft text is copy-ready for a human-approved Codex task: PASS
 
 ### What is usable
 
+- The copyable text now starts by naming itself as a draft prompt for a future user-started Codex task.
 - The ready path exposes task goal, files, checks, forbidden surfaces, skipped-check policy, and PR workflow.
 - The copyable text is bounded enough for a future user-started Codex task.
 - The authority boundary is repeated in both summary fields and the copyable text.
 
 ### What remains confusing
 
-- The draft text is safe, but the first line could be more direct for a human deciding whether to paste it into a new Codex task.
-- The ready status is clear only because authority language stays close to it.
+- No immediate copy blocker remains after the direct draft-prompt opening.
+- Future real-task evaluation should confirm whether the expanded expected files list is still concise enough.
 
 ### What should be improved before any runtime/App integration
 
@@ -255,7 +281,7 @@ Whether the draft text is copy-ready for a human-approved Codex task: PASS
 
 ### Next recommended improvement
 
-- Refine Codex handoff draft copy from dogfood findings
+- Evaluate Codex handoff draft in a real docs-only Codex task
 
 ## Authority Boundary
 

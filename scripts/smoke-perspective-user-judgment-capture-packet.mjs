@@ -33,6 +33,8 @@ const dogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
 const dogfoodReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
+const copyRefineReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-copy-refine.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -56,6 +58,7 @@ const allowedChangedFiles = new Set([
   reportFile,
   codexDraftReportFile,
   dogfoodReportFile,
+  copyRefineReportFile,
   dogfoodArtifactFile,
   smokeFile,
   codexDraftSmokeFile,

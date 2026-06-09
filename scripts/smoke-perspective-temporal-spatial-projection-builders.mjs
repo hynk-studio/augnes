@@ -169,6 +169,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs",
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md",
   "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md",
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-copy-refine.md",
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md",
 ]);
 

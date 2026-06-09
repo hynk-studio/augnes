@@ -328,7 +328,10 @@ function buildCopyableCodexHandoffText({
   return [
     "# Codex Next-Handoff Draft Packet",
     "",
-    "This is draft only. It does not execute Codex or start background work.",
+    "This is a draft prompt for a future user-started Codex task.",
+    "Review it before pasting into Codex.",
+    "It does not execute Codex.",
+    "This draft authorizes no merge, no approval, no GitHub mutation, and no background work.",
     "Codex may code, test, and open a PR only when the user explicitly starts a Codex task with this draft.",
     "PR-centered workflow: Codex codes/tests/opens PR, ChatGPT reviews, and the user decides merge.",
     "",

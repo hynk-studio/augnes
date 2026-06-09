@@ -27,6 +27,8 @@ const dogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
 const dogfoodReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
+const copyRefineReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-copy-refine.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -54,6 +56,7 @@ const allowedChangedFiles = new Set([
   dogfoodSmokeFile,
   dogfoodDocFile,
   dogfoodReportFile,
+  copyRefineReportFile,
   dogfoodArtifactFile,
   laneDocFile,
   userJudgmentDocFile,
@@ -293,8 +296,15 @@ function assertCopyable(draft) {
   assert.match(draft.copyable_codex_handoff_text, /Skipped-Check Policy/);
   assert.match(draft.copyable_codex_handoff_text, /Authority Boundary/);
   assert.match(draft.copyable_codex_handoff_text, /PR-centered workflow/);
-  assert.match(draft.copyable_codex_handoff_text, /This is draft only/);
+  assert.match(
+    draft.copyable_codex_handoff_text,
+    /draft prompt for a future user-started Codex task/,
+  );
+  assert.match(draft.copyable_codex_handoff_text, /Review it before pasting into Codex/);
   assert.match(draft.copyable_codex_handoff_text, /does not execute Codex/);
+  assert.match(draft.copyable_codex_handoff_text, /no merge/);
+  assert.match(draft.copyable_codex_handoff_text, /approval/);
+  assert.match(draft.copyable_codex_handoff_text, /GitHub mutation/);
   assert.match(
     draft.copyable_codex_handoff_text,
     /only when the user explicitly starts a Codex task with this draft/,
