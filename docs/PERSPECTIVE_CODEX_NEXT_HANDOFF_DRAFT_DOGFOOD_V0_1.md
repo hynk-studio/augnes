@@ -90,6 +90,14 @@ The deterministic dogfood artifact is written to:
 The dogfood script writes that artifact only. It does not call runtime APIs or
 external services.
 
+## Follow-Up Evaluation
+
+The next real docs-only Codex task evaluates the refined draft as source
+context for a docs/report/smoke/package-only PR. That follow-up checks whether
+the draft prompt opening, review-before-pasting instruction, expected files,
+required checks, forbidden files, forbidden surfaces, and PR-centered workflow
+are usable in an actual user-started Codex task.
+
 ## Future Next Step
 
-Evaluate Codex handoff draft in a real docs-only Codex task.
+Refine expected-file scope readability for Codex handoff drafts.

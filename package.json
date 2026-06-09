@@ -219,6 +219,7 @@
     "smoke:perspective-codex-next-handoff-draft-packet": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs",
     "dogfood:perspective-codex-next-handoff-draft": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/dogfood-perspective-codex-next-handoff-draft.mjs",
     "smoke:perspective-codex-next-handoff-draft-dogfood": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs",
+    "smoke:perspective-codex-handoff-draft-real-docs-task-eval": "node scripts/smoke-perspective-codex-handoff-draft-real-docs-task-eval.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
     "smoke:cockpit-perspective-workbench-temporal-underlay": "node scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",
