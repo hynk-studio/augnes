@@ -35,6 +35,14 @@ const manualCopyPacketReportFile =
   "reports/2026-06-09-perspective-codex-former-manual-copy-packet.md";
 const manualCopyPacketSmokeFile =
   "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs";
+const manualCopyTranscriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-manual-copy-transcript.mjs";
+const manualCopyTranscriptDogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-transcript.mjs";
+const manualCopyTranscriptDogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_TRANSCRIPT_DOGFOOD_V0_1.md";
+const manualCopyTranscriptDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-transcript.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -56,6 +64,10 @@ const allowedChangedFiles = new Set([
   manualCopyPacketDocFile,
   manualCopyPacketReportFile,
   manualCopyPacketSmokeFile,
+  manualCopyTranscriptDogfoodScriptFile,
+  manualCopyTranscriptDogfoodSmokeFile,
+  manualCopyTranscriptDogfoodDocFile,
+  manualCopyTranscriptDogfoodReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));

@@ -230,6 +230,8 @@
     "smoke:perspective-codex-former-pipeline": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-pipeline.mjs",
     "smoke:perspective-codex-former-prompt-contract": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-prompt-contract.mjs",
     "smoke:perspective-codex-former-manual-copy-packet": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-manual-copy-packet.mjs",
+    "dogfood:perspective-codex-former-manual-copy-transcript": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/dogfood-perspective-codex-former-manual-copy-transcript.mjs",
+    "smoke:perspective-codex-former-manual-copy-transcript": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-manual-copy-transcript.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
     "smoke:cockpit-perspective-workbench-temporal-underlay": "node scripts/smoke-cockpit-perspective-workbench-temporal-underlay.mjs",

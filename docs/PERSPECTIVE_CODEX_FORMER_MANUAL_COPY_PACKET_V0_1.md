@@ -114,6 +114,14 @@ deploy, or make Core decisions.
 
 Expected conclusion: PASS with follow-up.
 
+Dogfooded by:
+
+- `docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_TRANSCRIPT_DOGFOOD_V0_1.md`
+- `reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-transcript.md`
+
+The transcript dogfood harness is BLOCKED until a bounded real human-started
+Codex response transcript is supplied.
+
 Recommended next implementation PR title:
 
-Dogfood manual Codex former draft copy packet with a real Codex response transcript
+Prepare real Codex former transcript capture instructions
