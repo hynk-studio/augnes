@@ -2,12 +2,19 @@
 
 Generated at: 2026-06-09T00:00:00.000Z
 Conclusion: BLOCKED
-Recommended next implementation PR title: Prepare real Codex former transcript capture instructions
+Recommended next implementation PR title: Dogfood manual Codex former draft copy packet with a captured real transcript
 
 ## Summary
 
 This deterministic local dogfood harness follows PR #480 and prepares evaluation for a real human-started Codex response transcript.
 No real transcript was supplied in this PR, so the real transcript dogfood scenario is BLOCKED instead of fabricated.
+
+## Follow-Up Capture Instructions
+
+- `docs/PERSPECTIVE_CODEX_FORMER_REAL_TRANSCRIPT_CAPTURE_INSTRUCTIONS_V0_1.md`
+- `reports/2026-06-09-perspective-codex-former-real-transcript-capture-instructions.md`
+
+Perspective Codex Former Real Transcript Capture Instructions v0.1 defines how a future bounded real transcript fixture should be captured, redacted, reviewed, extracted, and validated.
 
 ## Real Transcript Provenance
 
@@ -151,7 +158,7 @@ Dogfood notes:
 - did_it_avoid_authority_claims: No real response exists; bad control authority claims are blocked.
 - did_it_distinguish_basis: Not evaluated for real response; this remains the next dogfood task.
 - did_downstream_guidance_remain_advisory: Skipped for the missing real transcript; synthetic positive control confirms advisory-only guidance compatibility.
-- what_should_be_refined_next: Prepare real Codex former transcript capture instructions
+- what_should_be_refined_next: Dogfood manual Codex former draft copy packet with a captured real transcript
 
 ## Verification
 
