@@ -143,6 +143,14 @@ const draftSchemaAlignmentDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md";
 const draftSchemaAlignmentReportFile =
   "reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md";
+const canonicalPromptContractDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-prompt-contract-canonical-schema.mjs";
+const canonicalPromptContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-prompt-contract-canonical-schema.mjs";
+const canonicalPromptContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md";
+const canonicalPromptContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -217,6 +225,10 @@ const allowedChangedFiles = new Set([
   draftSchemaAlignmentSmokeFile,
   draftSchemaAlignmentDocFile,
   draftSchemaAlignmentReportFile,
+  canonicalPromptContractDogfoodScriptFile,
+  canonicalPromptContractSmokeFile,
+  canonicalPromptContractDocFile,
+  canonicalPromptContractReportFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",

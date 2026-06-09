@@ -67,6 +67,14 @@ const draftSchemaAlignmentDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_DRAFT_SCHEMA_ALIGNMENT_V0_1.md";
 const draftSchemaAlignmentReportFile =
   "reports/2026-06-09-perspective-codex-former-draft-schema-alignment.md";
+const canonicalPromptContractDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-prompt-contract-canonical-schema.mjs";
+const canonicalPromptContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-prompt-contract-canonical-schema.mjs";
+const canonicalPromptContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md";
+const canonicalPromptContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -104,6 +112,10 @@ const allowedChangedFiles = new Set([
   draftSchemaAlignmentSmokeFile,
   draftSchemaAlignmentDocFile,
   draftSchemaAlignmentReportFile,
+  canonicalPromptContractDogfoodScriptFile,
+  canonicalPromptContractSmokeFile,
+  canonicalPromptContractDocFile,
+  canonicalPromptContractReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));

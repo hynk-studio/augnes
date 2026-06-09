@@ -59,6 +59,17 @@ The candidate remains:
 Worker-Facing Guidance runs only after aligned validation produces the
 candidate. Guidance remains advisory-only and keeps authority flags false.
 
+## Follow-Up Prompt Contract Refinement
+
+The recommended #484 follow-up is represented by:
+
+- `docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_CANONICAL_SCHEMA_V0_1.md`
+- `reports/2026-06-09-perspective-codex-former-prompt-contract-canonical-schema.md`
+
+After that prompt-contract refinement, the next implementation PR should be:
+
+Dogfood refined Codex former prompt contract with a new captured transcript.
+
 ## Browser/Computer-Use Validation
 
 Not run: this PR is pure local schema-alignment/docs/report/smoke/package work
