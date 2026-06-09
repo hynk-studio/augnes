@@ -52,6 +52,34 @@ PR-centered workflow: Codex codes/tests/opens PR only after a user explicitly st
 - source judgment packet id: perspective-user-judgment-capture:v0.1:perspective-candidate-v0-1-project-augnes-ag-per:jslyf7
 - source candidate id: perspective-candidate:v0.1:project-augnes-ag-perspective-codex-next-handoff:ufykip
 - task goal: Add local Codex handoff draft dogfood report for the Perspective manual review loop.
+- expected file count: 17
+- expected files grouped for readability: true
+- full list remains the scope: true
+- all expected files listed: true
+- no omitted expected files: true
+- expected file groups:
+- Primary files: 1
+  - scripts/dogfood-perspective-codex-next-handoff-draft.mjs
+- Docs/reports: 5
+  - docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md
+  - reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md
+  - docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md
+  - docs/PERSPECTIVE_FORMATION_LANE_V0_1.md
+  - docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md
+- Dogfood/report artifacts: 1
+  - reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md
+- Smoke/validation and neighboring allowlist files: 9
+  - scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs
+  - scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs
+  - scripts/smoke-perspective-user-judgment-capture-packet.mjs
+  - scripts/smoke-perspective-candidate-briefing-preview.mjs
+  - scripts/smoke-perspective-candidate-builder-fixture.mjs
+  - scripts/smoke-perspective-formation-input-bundle-builder.mjs
+  - scripts/smoke-perspective-formation-lane-v0-1.mjs
+  - scripts/smoke-perspective-agent-brief-read-surface.mjs
+  - scripts/smoke-perspective-temporal-spatial-projection-builders.mjs
+- Package metadata: 1
+  - package.json
 - expected files:
 - scripts/dogfood-perspective-codex-next-handoff-draft.mjs
 - scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs
@@ -115,15 +143,28 @@ Base branch: main
 Working branch suggestion: codex/perspective-codex-next-handoff-draft-dogfood-v0-1
 
 ## Expected Files
+Expected file count: 17
+Primary files: 1
+Guardrail/neighboring smoke files: 9
+Expected files are grouped for readability; the full list remains the scope.
+All expected files listed: true
+No expected files omitted: true
+
+### Primary files
 - scripts/dogfood-perspective-codex-next-handoff-draft.mjs
-- scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs
+
+### Docs/reports
 - docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md
 - reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md
-- reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md
-- package.json
 - docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md
 - docs/PERSPECTIVE_FORMATION_LANE_V0_1.md
 - docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md
+
+### Dogfood/report artifacts
+- reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md
+
+### Smoke/validation and neighboring allowlist files
+- scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs
 - scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs
 - scripts/smoke-perspective-user-judgment-capture-packet.mjs
 - scripts/smoke-perspective-candidate-briefing-preview.mjs
@@ -132,6 +173,9 @@ Working branch suggestion: codex/perspective-codex-next-handoff-draft-dogfood-v0
 - scripts/smoke-perspective-formation-lane-v0-1.mjs
 - scripts/smoke-perspective-agent-brief-read-surface.mjs
 - scripts/smoke-perspective-temporal-spatial-projection-builders.mjs
+
+### Package metadata
+- package.json
 
 ## Forbidden Files
 - app/api/**
@@ -260,19 +304,22 @@ Whether the draft text is copy-ready for a human-approved Codex task: PASS
 ### What is usable
 
 - The copyable text now starts by naming itself as a draft prompt for a future user-started Codex task.
-- The ready path exposes task goal, files, checks, forbidden surfaces, skipped-check policy, and PR workflow.
+- Expected files remain fully scoped in the canonical flat list.
+- Readability improved by grouping expected files while keeping every file visible.
+- No expected files were omitted from the grouped display.
+- The ready path exposes task goal, grouped files, checks, forbidden surfaces, skipped-check policy, and PR workflow.
 - The copyable text is bounded enough for a future user-started Codex task.
 - The authority boundary is repeated in both summary fields and the copyable text.
 
 ### What remains confusing
 
-- No immediate copy blocker remains after the direct draft-prompt opening.
-- Future real-task evaluation should confirm whether the expanded expected files list is still concise enough.
+- The grouping reduces scan cost without reducing scope.
+- Another real Codex docs-only task can test this only if the next manual usage note still finds ambiguity.
 
 ### What should be improved before any runtime/App integration
 
-- Add a shorter first-line human instruction before any future runtime or App surface.
-- Keep scope gaps and revision blockers visually adjacent to copyable text.
+- Keep expected-file grouping as display material only if this reaches any future runtime or App surface.
+- Keep scope gaps, omitted-file checks, and revision blockers visually adjacent to copyable text.
 
 ### Risk notes
 
@@ -281,7 +328,7 @@ Whether the draft text is copy-ready for a human-approved Codex task: PASS
 
 ### Next recommended improvement
 
-- Evaluate Codex handoff draft in a real docs-only Codex task
+- Prepare manual usage note for Codex handoff drafts
 
 ## Authority Boundary
 

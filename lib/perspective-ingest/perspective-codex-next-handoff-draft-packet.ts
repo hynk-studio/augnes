@@ -10,6 +10,19 @@ export type PerspectiveCodexNextHandoffDraftStatusV0 =
   | "needs_revision_first"
   | "blocked"
   | "none";
+export type PerspectiveCodexExpectedFileScopeGroupIdV0 =
+  | "primary_builder_or_script_files"
+  | "docs_reports"
+  | "dogfood_artifacts"
+  | "smoke_validation"
+  | "package_metadata"
+  | "other";
+
+export interface PerspectiveCodexExpectedFileScopeGroupV0 {
+  group_id: PerspectiveCodexExpectedFileScopeGroupIdV0;
+  title: string;
+  files: string[];
+}
 
 export interface BuildCodexNextHandoffDraftPacketFromUserJudgmentInputV0 {
   user_judgment_packet: ManualChatGptUserJudgmentCapturePacketV0;
@@ -61,6 +74,16 @@ export interface PerspectiveCodexNextHandoffDraftPacketV0 {
     user_constraints: string[];
     generated_at: string | null;
   };
+  expected_file_scope: {
+    total_count: number;
+    groups: PerspectiveCodexExpectedFileScopeGroupV0[];
+    ungrouped_files: string[];
+    coverage: {
+      all_expected_files_listed: boolean;
+      duplicate_files_removed: boolean;
+      omitted_files: string[];
+    };
+  };
   readiness: {
     status: PerspectiveCodexNextHandoffDraftStatusV0;
     reasons: string[];
@@ -101,6 +124,10 @@ export function buildCodexNextHandoffDraftPacketFromUserJudgment(
     input.user_judgment_packet,
   );
   const codexTask = buildCodexTask(input.handoff_context);
+  const expectedFileScope = buildExpectedFileScope({
+    canonicalExpectedFiles: codexTask.expected_files,
+    originalExpectedFiles: input.handoff_context.expected_files,
+  });
   const gaps = buildGaps({
     packet: input.user_judgment_packet,
     codexTask,
@@ -123,6 +150,7 @@ export function buildCodexNextHandoffDraftPacketFromUserJudgment(
     draft_status: readiness.status,
     source_user_judgment: sourceUserJudgment,
     codex_task: codexTask,
+    expected_file_scope: expectedFileScope,
     readiness,
     gaps,
     selected_unresolved_tension_refs: [
@@ -149,6 +177,7 @@ export function buildCodexNextHandoffDraftPacketFromUserJudgment(
       draftId,
       sourceUserJudgment,
       codexTask,
+      expectedFileScope,
       readiness,
       userCoreDecisionQuestions:
         input.user_judgment_packet.user_core_decision_questions,
@@ -316,12 +345,14 @@ function buildCopyableCodexHandoffText({
   draftId,
   sourceUserJudgment,
   codexTask,
+  expectedFileScope,
   readiness,
   userCoreDecisionQuestions,
 }: {
   draftId: string;
   sourceUserJudgment: PerspectiveCodexNextHandoffDraftPacketV0["source_user_judgment"];
   codexTask: PerspectiveCodexNextHandoffDraftPacketV0["codex_task"];
+  expectedFileScope: PerspectiveCodexNextHandoffDraftPacketV0["expected_file_scope"];
   readiness: PerspectiveCodexNextHandoffDraftPacketV0["readiness"];
   userCoreDecisionQuestions: readonly string[];
 }): string {
@@ -351,7 +382,7 @@ function buildCopyableCodexHandoffText({
     }`,
     "",
     "## Expected Files",
-    ...formatListOrNone(codexTask.expected_files),
+    ...formatExpectedFileScope(expectedFileScope),
     "",
     "## Forbidden Files",
     ...formatListOrNone(codexTask.forbidden_files),
@@ -380,6 +411,105 @@ function buildCopyableCodexHandoffText({
     "## Authority Boundary",
     "Draft only. This is not committed state, proof, evidence, readiness, approval, merge authority, GitHub mutation, a Core decision, ChatGPT Apps integration, or Codex execution.",
   ].join("\n");
+}
+
+function buildExpectedFileScope({
+  canonicalExpectedFiles,
+  originalExpectedFiles,
+}: {
+  canonicalExpectedFiles: readonly string[];
+  originalExpectedFiles: readonly string[] | undefined;
+}): PerspectiveCodexNextHandoffDraftPacketV0["expected_file_scope"] {
+  const groups = buildEmptyExpectedFileGroups();
+
+  for (const file of canonicalExpectedFiles) {
+    const group = groups.find(
+      (candidate) => candidate.group_id === classifyExpectedFile(file),
+    );
+    if (group) {
+      group.files.push(file);
+    }
+  }
+
+  const visibleGroups = groups.filter((group) => group.files.length > 0);
+  const groupedFiles = visibleGroups.flatMap((group) => group.files);
+  const groupedFileCounts = new Map<string, number>();
+  for (const file of groupedFiles) {
+    groupedFileCounts.set(file, (groupedFileCounts.get(file) ?? 0) + 1);
+  }
+  const omittedFiles = canonicalExpectedFiles.filter(
+    (file) => !groupedFileCounts.has(file),
+  );
+  const allExpectedFilesListed =
+    omittedFiles.length === 0 &&
+    groupedFiles.length === canonicalExpectedFiles.length &&
+    [...groupedFileCounts.values()].every((count) => count === 1);
+
+  return {
+    total_count: canonicalExpectedFiles.length,
+    groups: visibleGroups,
+    ungrouped_files:
+      visibleGroups.find((group) => group.group_id === "other")?.files ?? [],
+    coverage: {
+      all_expected_files_listed: allExpectedFilesListed,
+      duplicate_files_removed:
+        normalizedTextListLength(originalExpectedFiles) >
+        canonicalExpectedFiles.length,
+      omitted_files: omittedFiles,
+    },
+  };
+}
+
+function buildEmptyExpectedFileGroups(): PerspectiveCodexExpectedFileScopeGroupV0[] {
+  return [
+    {
+      group_id: "primary_builder_or_script_files",
+      title: "Primary files",
+      files: [],
+    },
+    {
+      group_id: "docs_reports",
+      title: "Docs/reports",
+      files: [],
+    },
+    {
+      group_id: "dogfood_artifacts",
+      title: "Dogfood/report artifacts",
+      files: [],
+    },
+    {
+      group_id: "smoke_validation",
+      title: "Smoke/validation and neighboring allowlist files",
+      files: [],
+    },
+    {
+      group_id: "package_metadata",
+      title: "Package metadata",
+      files: [],
+    },
+    {
+      group_id: "other",
+      title: "Other files",
+      files: [],
+    },
+  ];
+}
+
+function classifyExpectedFile(
+  file: string,
+): PerspectiveCodexExpectedFileScopeGroupIdV0 {
+  if (file === "package.json") return "package_metadata";
+  if (file.startsWith("reports/dogfood/")) return "dogfood_artifacts";
+  if (file.startsWith("scripts/smoke-")) return "smoke_validation";
+  if (file.startsWith("lib/")) return "primary_builder_or_script_files";
+  if (file.startsWith("scripts/dogfood-")) {
+    return "primary_builder_or_script_files";
+  }
+  if (file.startsWith("docs/") || file.startsWith("reports/")) {
+    return "docs_reports";
+  }
+
+  return "other";
 }
 
 function buildDraftId({
@@ -416,6 +546,12 @@ function copyTextList(values: readonly string[] | undefined): string[] {
   return values ? uniqueTextList(values) : [];
 }
 
+function normalizedTextListLength(values: readonly string[] | undefined): number {
+  return values
+    ? values.filter((value) => normalizeOptionalText(value) !== null).length
+    : 0;
+}
+
 function uniqueTextList(values: readonly string[]): string[] {
   const seen = new Set<string>();
   const uniqueValues: string[] = [];
@@ -442,6 +578,40 @@ function normalizeOptionalText(value: string | null | undefined): string | null 
 function formatListOrNone(values: readonly string[]): string[] {
   if (values.length === 0) return ["- None"];
   return values.map((value) => `- ${value}`);
+}
+
+function formatExpectedFileScope(
+  scope: PerspectiveCodexNextHandoffDraftPacketV0["expected_file_scope"],
+): string[] {
+  const primaryCount =
+    scope.groups.find(
+      (group) => group.group_id === "primary_builder_or_script_files",
+    )?.files.length ?? 0;
+  const guardrailCount =
+    scope.groups.find((group) => group.group_id === "smoke_validation")
+      ?.files.length ?? 0;
+
+  return [
+    `Expected file count: ${scope.total_count}`,
+    `Primary files: ${primaryCount}`,
+    `Guardrail/neighboring smoke files: ${guardrailCount}`,
+    "Expected files are grouped for readability; the full list remains the scope.",
+    `All expected files listed: ${scope.coverage.all_expected_files_listed}`,
+    `No expected files omitted: ${scope.coverage.omitted_files.length === 0}`,
+    ...(scope.total_count === 0
+      ? ["- None"]
+      : scope.groups.flatMap(formatExpectedFileGroup)),
+  ];
+}
+
+function formatExpectedFileGroup(
+  group: PerspectiveCodexExpectedFileScopeGroupV0,
+): string[] {
+  return [
+    "",
+    `### ${group.title}`,
+    ...formatListOrNone(group.files),
+  ];
 }
 
 function slugify(value: string): string {

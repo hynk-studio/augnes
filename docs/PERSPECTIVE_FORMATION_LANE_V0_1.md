@@ -218,5 +218,7 @@ forbidden, but bounded summaries are necessary Formation Input Bundle material.
   deterministic local dogfood/report validation slice.
 - PR H: Refine Codex handoff draft copy from dogfood findings.
 - PR I: Evaluate Codex handoff draft in a real docs-only Codex task.
-- PR J: Refine expected-file scope readability for Codex handoff drafts.
-- PR K: Core-gated accept/reject/supersede route, only after explicit approval.
+- PR J: Refine expected-file scope readability for Codex handoff drafts as a
+  pure local usability step after real docs-task evaluation.
+- PR K: Prepare manual usage note for Codex handoff drafts.
+- PR L: Core-gated accept/reject/supersede route, only after explicit approval.

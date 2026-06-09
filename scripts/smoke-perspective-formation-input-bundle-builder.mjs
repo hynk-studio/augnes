@@ -55,6 +55,12 @@ const dogfoodReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
 const copyRefineReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-copy-refine.md";
+const scopeReadabilityDocFile =
+  "docs/PERSPECTIVE_CODEX_HANDOFF_EXPECTED_FILE_SCOPE_READABILITY_V0_1.md";
+const scopeReadabilityReportFile =
+  "reports/2026-06-09-perspective-codex-handoff-expected-file-scope-readability.md";
+const scopeReadabilitySmokeFile =
+  "scripts/smoke-perspective-codex-handoff-expected-file-scope-readability.mjs";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 
@@ -87,6 +93,9 @@ const allowedChangedFiles = new Set([
   dogfoodDocFile,
   dogfoodReportFile,
   copyRefineReportFile,
+  scopeReadabilityDocFile,
+  scopeReadabilityReportFile,
+  scopeReadabilitySmokeFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",

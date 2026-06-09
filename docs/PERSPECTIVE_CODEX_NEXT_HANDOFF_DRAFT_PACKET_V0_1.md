@@ -65,6 +65,8 @@ The output is a `perspective_codex_next_handoff_draft_packet.v0.1` object with:
 - source user judgment packet id, candidate id, direction alignment, decision
   effect, next handoff discussion status, and preferred next action;
 - bounded Codex task fields from the caller-supplied handoff context;
+- `expected_file_scope`, a deterministic grouped display representation of the
+  canonical expected files;
 - readiness status and reasons;
 - visible gaps;
 - selected and blocking unresolved tension refs;
@@ -102,6 +104,29 @@ decision.
 The builder requires explicit task goal, expected files, and required checks
 before it can return `ready_to_copy`.
 
+## Expected File Scope Display
+
+`codex_task.expected_files` remains the complete canonical flat scope list.
+The builder also derives `expected_file_scope` from that list so humans can
+scan the copyable draft more quickly without losing coverage.
+
+`expected_file_scope` includes:
+
+- `total_count`;
+- grouped display sections with `group_id`, title, and files;
+- `ungrouped_files` for files that land in the `Other files` group;
+- coverage markers for all expected files listed, duplicates removed from the
+  input list, and omitted files.
+
+The grouping is deterministic and path-based. It groups package metadata,
+primary builder or dogfood script files, docs/reports, dogfood/report
+artifacts, smoke/validation and neighboring allowlist files, and other files
+when present.
+
+Expected files are grouped for readability; the full list remains the scope.
+Grouping does not remove expected files, hide guardrail files, or reduce the
+task boundary.
+
 ## Copyable Codex Handoff Text
 
 The copyable Codex handoff text is deterministic markdown/plain text. It
@@ -109,6 +134,11 @@ includes draft id, source judgment packet id, source candidate id, task goal,
 expected files, forbidden files and surfaces, required checks, skipped-check
 policy, constraints, implementation notes, review notes, authority boundary,
 and PR-centered workflow.
+
+The expected files section includes expected file count, primary file count,
+guardrail/neighboring smoke file count, grouped sections, and coverage markers
+showing that the full list remains the scope and no expected files were
+omitted.
 
 The text begins by saying it is a draft prompt for a future user-started
 Codex task and that the user should review it before pasting into Codex. It
@@ -153,4 +183,4 @@ SDK execution, GitHub mutation, or actual Codex execution.
 
 ## Future Next Step
 
-Refine Codex handoff draft copy from dogfood findings.
+Prepare manual usage note for Codex handoff drafts.

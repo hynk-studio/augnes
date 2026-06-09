@@ -98,6 +98,17 @@ the draft prompt opening, review-before-pasting instruction, expected files,
 required checks, forbidden files, forbidden surfaces, and PR-centered workflow
 are usable in an actual user-started Codex task.
 
+## Expected-File Readability Follow-Up
+
+The next pure local refinement improved expected-file readability by grouping
+the copyable draft's expected files while preserving the complete flat
+`expected_files` scope.
+
+The dogfood now verifies that expected files remain fully scoped, expected
+files are grouped for readability, the full list remains the scope, guardrail
+and neighboring smoke allowlist files remain visible, and no expected files
+are omitted.
+
 ## Future Next Step
 
-Refine expected-file scope readability for Codex handoff drafts.
+Prepare manual usage note for Codex handoff drafts.

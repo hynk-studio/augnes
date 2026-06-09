@@ -29,6 +29,12 @@ const dogfoodReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
 const copyRefineReportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-copy-refine.md";
+const scopeReadabilityDocFile =
+  "docs/PERSPECTIVE_CODEX_HANDOFF_EXPECTED_FILE_SCOPE_READABILITY_V0_1.md";
+const scopeReadabilityReportFile =
+  "reports/2026-06-09-perspective-codex-handoff-expected-file-scope-readability.md";
+const scopeReadabilitySmokeFile =
+  "scripts/smoke-perspective-codex-handoff-expected-file-scope-readability.mjs";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -57,6 +63,9 @@ const allowedChangedFiles = new Set([
   dogfoodDocFile,
   dogfoodReportFile,
   copyRefineReportFile,
+  scopeReadabilityDocFile,
+  scopeReadabilityReportFile,
+  scopeReadabilitySmokeFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
@@ -157,6 +166,7 @@ function assertReadyToCopyDraft() {
     "npm run smoke:perspective-codex-next-handoff-draft-packet",
     "git diff --check",
   ]);
+  assertExpectedFileScope(draft);
   assertCopyable(draft);
 }
 
@@ -281,6 +291,74 @@ function assertCommonDraft(packet, draft) {
   assertNoForbiddenPayloadText("codex handoff draft packet", draft);
 }
 
+function assertExpectedFileScope(draft) {
+  assert.equal(
+    draft.expected_file_scope.total_count,
+    draft.codex_task.expected_files.length,
+    "expected_file_scope total must match canonical expected files",
+  );
+  assert.equal(
+    draft.expected_file_scope.coverage.all_expected_files_listed,
+    true,
+    "all expected files must be listed in display groups",
+  );
+  assert.equal(
+    draft.expected_file_scope.coverage.duplicate_files_removed,
+    false,
+    "ready fixture should not remove duplicate expected files",
+  );
+  assert.deepEqual(
+    draft.expected_file_scope.coverage.omitted_files,
+    [],
+    "expected-file display must not omit canonical expected files",
+  );
+  assert.deepEqual(
+    draft.expected_file_scope.ungrouped_files,
+    [],
+    "ready fixture should not need the Other files group",
+  );
+
+  const groupedFiles = draft.expected_file_scope.groups.flatMap(
+    (group) => group.files,
+  );
+  assert.equal(
+    groupedFiles.length,
+    draft.codex_task.expected_files.length,
+    "grouped expected files must preserve total file count",
+  );
+  assert.equal(
+    new Set(groupedFiles).size,
+    draft.codex_task.expected_files.length,
+    "each expected file must appear in exactly one display group",
+  );
+  for (const expectedFile of draft.codex_task.expected_files) {
+    assert.equal(
+      groupedFiles.filter((file) => file === expectedFile).length,
+      1,
+      `${expectedFile} must appear in exactly one expected-file display group`,
+    );
+  }
+
+  const groupById = new Map(
+    draft.expected_file_scope.groups.map((group) => [group.group_id, group]),
+  );
+  assert.deepEqual(
+    groupById.get("primary_builder_or_script_files")?.files,
+    [codexDraftBuilderFile],
+    "builder file should be displayed as a primary file",
+  );
+  assert.deepEqual(
+    groupById.get("docs_reports")?.files,
+    [docFile, reportFile],
+    "docs and reports should share the docs/reports display group",
+  );
+  assert.deepEqual(
+    groupById.get("smoke_validation")?.files,
+    [smokeFile],
+    "smoke file should be displayed as smoke/validation scope",
+  );
+}
+
 function assertCopyable(draft) {
   assert.match(draft.copyable_codex_handoff_text, new RegExp(escapeRegExp(draft.draft_id)));
   assert.match(
@@ -293,6 +371,17 @@ function assertCopyable(draft) {
   );
   assert.match(draft.copyable_codex_handoff_text, /Task Goal/);
   assert.match(draft.copyable_codex_handoff_text, /Expected Files/);
+  assert.match(draft.copyable_codex_handoff_text, /Expected file count/);
+  assert.match(
+    draft.copyable_codex_handoff_text,
+    /Expected files are grouped for readability/,
+  );
+  assert.match(draft.copyable_codex_handoff_text, /full list remains the scope/);
+  assert.match(draft.copyable_codex_handoff_text, /Primary files/);
+  assert.match(draft.copyable_codex_handoff_text, /Smoke\/validation/);
+  assert.match(draft.copyable_codex_handoff_text, /Docs\/reports/);
+  assert.match(draft.copyable_codex_handoff_text, /All expected files listed: true/);
+  assert.match(draft.copyable_codex_handoff_text, /No expected files omitted: true/);
   assert.match(draft.copyable_codex_handoff_text, /Forbidden Files/);
   assert.match(draft.copyable_codex_handoff_text, /Forbidden Surfaces/);
   assert.match(draft.copyable_codex_handoff_text, /Required Checks/);
@@ -518,6 +607,9 @@ function assertBuilderSourceIsPureLocal() {
     "ready_to_copy",
     "needs_scope",
     "needs_revision_first",
+    "expected_file_scope",
+    "buildExpectedFileScope",
+    "Expected files are grouped for readability",
     "github_mutation: false",
     "codex_execution: false",
     "raw_payloads_included: false",
@@ -569,8 +661,11 @@ function assertDocsAndReport() {
     "not readiness",
     "not approval",
     "not merge authority",
+    "expected_file_scope",
+    "Expected files are grouped for readability",
+    "full list remains the scope",
     "Dogfooded By",
-    "Refine Codex handoff draft copy from dogfood findings",
+    "Prepare manual usage note for Codex handoff drafts",
   ]);
   assertContainsAll(reportText, [
     "Summary",
