@@ -29,6 +29,14 @@ const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const realTranscriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-manual-copy-real-transcript.mjs";
+const realTranscriptDogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-real-transcript.mjs";
+const realTranscriptDogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
+const realTranscriptDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-real-transcript.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -47,6 +55,10 @@ const allowedChangedFiles = new Set([
   pipelineDogfoodSmokeFile,
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
+  realTranscriptDogfoodScriptFile,
+  realTranscriptDogfoodSmokeFile,
+  realTranscriptDogfoodDocFile,
+  realTranscriptDogfoodReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -102,6 +114,7 @@ function assertDocAndReport() {
     "{ candidate, guidance_context }",
     "Not run: this PR only adds capture instructions",
     "Dogfood manual Codex former draft copy packet with a captured real transcript",
+    "PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_V0_1.md",
   ]);
   assertContainsAll(reportText, [
     "Perspective Codex Former Real Transcript Capture Instructions",
@@ -119,6 +132,7 @@ function assertDocAndReport() {
     "Browser/Computer-Use Validation",
     "does not actually capture a transcript",
     "Dogfood manual Codex former draft copy packet with a captured real transcript",
+    "2026-06-09-perspective-codex-former-manual-copy-real-transcript.md",
   ]);
 }
 
