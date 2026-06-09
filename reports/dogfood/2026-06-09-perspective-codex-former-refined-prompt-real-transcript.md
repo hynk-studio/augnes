@@ -36,7 +36,7 @@ Semantic tension enum drift: validation_gap, schema_drift_risk, readiness_bounda
 ## Direct Contract-Fit Result
 
 Contract fit status: needs_review
-Contract fit warnings: plain_summary at draft.thesis
+Contract fit warnings: tension_kind at draft.unresolved_tensions[0].tension_kind; tension_kind at draft.unresolved_tensions[1].tension_kind; tension_kind at draft.unresolved_tensions[2].tension_kind
 
 ## Direct Local Validation Result
 

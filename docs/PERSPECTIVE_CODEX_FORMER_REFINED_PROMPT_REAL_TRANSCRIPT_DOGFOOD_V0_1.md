@@ -33,8 +33,7 @@ The candidate remains non_committed and needs_review.
 
 ## Remaining Findings
 
-Contract fit still returns needs_review because the local evaluator wants a
-clearer neutral-perspective marker in the thesis.
+Contract fit still returns needs_review because the historical transcript uses non-local tension_kind values.
 
 The transcript uses canonical unresolved_tensions shape, but its tension_kind
 values are validation_gap, schema_drift_risk, and readiness_boundary. Local
