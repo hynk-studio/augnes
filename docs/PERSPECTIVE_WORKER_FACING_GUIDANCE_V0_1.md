@@ -176,4 +176,4 @@ from PR #474.
 
 ## Future Next Step
 
-Add local ChatGPT perspective request preview surface.
+Add local Codex perspective former pipeline scaffold.

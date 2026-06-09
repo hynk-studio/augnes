@@ -654,7 +654,7 @@ function assertDocsAndReport() {
     "failed/skipped checks",
     "Why This Makes The Next Worker Action More Concrete",
     "Intentionally Out Of Scope",
-    "Add local ChatGPT perspective request preview surface",
+    "Add local Codex perspective former pipeline scaffold",
   ]);
 }
 

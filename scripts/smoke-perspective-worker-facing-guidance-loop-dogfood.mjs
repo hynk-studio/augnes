@@ -112,7 +112,7 @@ function assertDogfoodScriptBoundary() {
     "review_gap_regression_case",
     "blocked_or_missing_scope_contrast",
     "PASS with follow-up",
-    "Refine worker-facing guidance action specificity from dogfood findings",
+    "Add local Codex perspective former pipeline scaffold",
     "writeFileSync",
     "billing_payload",
   ]);
@@ -171,7 +171,7 @@ function assertDocs() {
     "review_gap_regression_case",
     "blocked_or_missing_scope_contrast",
     "PASS with follow-up",
-    "Refine worker-facing guidance action specificity from dogfood findings",
+    "Add local Codex perspective former pipeline scaffold",
     "does not execute Codex",
     "does not mutate GitHub",
     "does not implement runtime routes",
@@ -187,7 +187,7 @@ function assertDocs() {
   assertContainsAll(workerGuidanceDocText, [
     "Dogfooded By",
     "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md",
-    "Add local ChatGPT perspective request preview surface",
+    "Add local Codex perspective former pipeline scaffold",
   ]);
 }
 

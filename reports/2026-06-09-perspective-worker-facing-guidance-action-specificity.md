@@ -91,7 +91,7 @@ authority.
 
 ## Recommended Next Implementation PR
 
-Add local ChatGPT perspective request preview surface.
+Add local Codex perspective former pipeline scaffold.
 
 ## Validation
 

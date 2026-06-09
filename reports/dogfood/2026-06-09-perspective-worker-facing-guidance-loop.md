@@ -10,7 +10,7 @@ This deterministic local dogfood slice uses the merged PR #474 Worker-Facing Per
 
 PASS with follow-up
 
-Recommended next implementation PR title: Refine worker-facing guidance action specificity from dogfood findings
+Recommended next implementation PR title: Add local Codex perspective former pipeline scaffold
 
 ## Dogfood Answers
 
@@ -20,7 +20,7 @@ Recommended next implementation PR title: Refine worker-facing guidance action s
 - Does it avoid turning guidance into proof, evidence, readiness, approval, merge authority, GitHub mutation, Codex execution, or Core decision? Yes. All guidance authority flags remain false, and the guidance does not become proof, evidence, readiness, approval, merge authority, GitHub mutation, Codex execution, or Core decision.
 - Does it avoid unsafe raw/private/provider/token/billing/source payloads? Yes. Unsafe marker inputs are omitted from output guidance and recorded through privacy metadata.
 - Is the guidance specific enough for a future Codex task prompt? Yes, with follow-up. The guidance is specific enough to seed a future prompt, but the next action text should become more file/check-aware.
-- What is the next implementation PR after this dogfood? Refine worker-facing guidance action specificity from dogfood findings
+- What is the next implementation PR after this dogfood? Add local Codex perspective former pipeline scaffold
 
 ## Scenarios
 
