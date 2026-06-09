@@ -95,9 +95,13 @@ The dogfood report answers:
 
 Expected conclusion: PASS with follow-up.
 
-The likely next implementation PR is:
+This dogfood follow-up is:
 
 Refine Codex perspective former draft prompt contract from dogfood findings
+
+The likely next implementation PR after prompt-contract refinement is:
+
+Add manual Codex former draft copy packet
 
 ## Boundaries
 

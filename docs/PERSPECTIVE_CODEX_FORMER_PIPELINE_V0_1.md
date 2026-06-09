@@ -129,10 +129,16 @@ replay, no deploy, and no Core decision.
 ## Dogfooded By
 
 - `reports/dogfood/2026-06-09-perspective-codex-former-pipeline.md`
+- `docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_V0_1.md`
+- `reports/2026-06-09-perspective-codex-former-prompt-contract.md`
 
-The next useful PR is to refine the Codex perspective former draft prompt
+The dogfood follow-up is to refine the Codex perspective former draft prompt
 contract from dogfood findings.
 
 Recommended title:
 
 Refine Codex perspective former draft prompt contract from dogfood findings
+
+The next useful PR after prompt-contract refinement is:
+
+Add manual Codex former draft copy packet
