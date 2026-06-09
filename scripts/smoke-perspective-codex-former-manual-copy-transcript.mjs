@@ -27,6 +27,12 @@ const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const realTranscriptCaptureInstructionsDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_REAL_TRANSCRIPT_CAPTURE_INSTRUCTIONS_V0_1.md";
+const realTranscriptCaptureInstructionsReportFile =
+  "reports/2026-06-09-perspective-codex-former-real-transcript-capture-instructions.md";
+const realTranscriptCaptureInstructionsSmokeFile =
+  "scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -44,6 +50,9 @@ const allowedChangedFiles = new Set([
   pipelineDogfoodSmokeFile,
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
+  realTranscriptCaptureInstructionsDocFile,
+  realTranscriptCaptureInstructionsReportFile,
+  realTranscriptCaptureInstructionsSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -287,7 +296,8 @@ function assertDocsAndReport() {
     "real Codex response transcript",
     "No real transcript was supplied",
     "BLOCKED",
-    "Prepare real Codex former transcript capture instructions",
+    "Perspective Codex Former Real Transcript Capture Instructions v0.1",
+    "Dogfood manual Codex former draft copy packet with a captured real transcript",
     "not fabricate",
     "not Codex execution",
     "browser/computer-use validation",
@@ -301,7 +311,7 @@ function assertDocsAndReport() {
     "real_or_control_bad_response_regression",
     "downstream_guidance_compatibility",
     "synthetic_downstream_guidance_positive_control",
-    "Prepare real Codex former transcript capture instructions",
+    "Dogfood manual Codex former draft copy packet with a captured real transcript",
   ]);
   assertNoUnsafeMarkerText("transcript dogfood doc", docText);
   assertNoUnsafeMarkerText("transcript dogfood report", reportText);

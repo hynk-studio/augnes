@@ -108,6 +108,15 @@ BLOCKED.
 The harness is ready, but usefulness cannot be evaluated until a bounded real
 human-started Codex response transcript is supplied.
 
+Followed by:
+
+- `docs/PERSPECTIVE_CODEX_FORMER_REAL_TRANSCRIPT_CAPTURE_INSTRUCTIONS_V0_1.md`
+- `reports/2026-06-09-perspective-codex-former-real-transcript-capture-instructions.md`
+
+The follow-up capture instructions define how a future bounded real transcript
+fixture should be captured, redacted, reviewed, extracted, and validated.
+Reference title: Perspective Codex Former Real Transcript Capture Instructions v0.1.
+
 Recommended next implementation PR title:
 
-Prepare real Codex former transcript capture instructions
+Dogfood manual Codex former draft copy packet with a captured real transcript

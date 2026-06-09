@@ -32,7 +32,7 @@ export const MANUAL_COPY_TRANSCRIPT_DOGFOOD_GENERATED_AT =
 export const MANUAL_COPY_TRANSCRIPT_DOGFOOD_ARTIFACT_PATH =
   "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-transcript.md";
 export const MANUAL_COPY_TRANSCRIPT_DOGFOOD_NEXT_PR =
-  "Prepare real Codex former transcript capture instructions";
+  "Dogfood manual Codex former draft copy packet with a captured real transcript";
 
 const browserComputerUseValidationNote =
   "Not run: no real transcript was supplied and this PR adds no UI, route, browser-visible surface, clipboard automation, or interactive copy control.";
@@ -655,6 +655,13 @@ function renderArtifact({ evaluation, scenarios }) {
     "",
     "This deterministic local dogfood harness follows PR #480 and prepares evaluation for a real human-started Codex response transcript.",
     "No real transcript was supplied in this PR, so the real transcript dogfood scenario is BLOCKED instead of fabricated.",
+    "",
+    "## Follow-Up Capture Instructions",
+    "",
+    "- `docs/PERSPECTIVE_CODEX_FORMER_REAL_TRANSCRIPT_CAPTURE_INSTRUCTIONS_V0_1.md`",
+    "- `reports/2026-06-09-perspective-codex-former-real-transcript-capture-instructions.md`",
+    "",
+    "Perspective Codex Former Real Transcript Capture Instructions v0.1 defines how a future bounded real transcript fixture should be captured, redacted, reviewed, extracted, and validated.",
     "",
     "## Real Transcript Provenance",
     "",

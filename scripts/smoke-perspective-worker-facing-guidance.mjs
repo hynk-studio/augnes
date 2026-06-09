@@ -65,6 +65,12 @@ const codexFormerManualCopyTranscriptDogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_TRANSCRIPT_DOGFOOD_V0_1.md";
 const codexFormerManualCopyTranscriptDogfoodReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-transcript.md";
+const realTranscriptCaptureInstructionsDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_REAL_TRANSCRIPT_CAPTURE_INSTRUCTIONS_V0_1.md";
+const realTranscriptCaptureInstructionsReportFile =
+  "reports/2026-06-09-perspective-codex-former-real-transcript-capture-instructions.md";
+const realTranscriptCaptureInstructionsSmokeFile =
+  "scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -99,6 +105,9 @@ const allowedChangedFiles = new Set([
   codexFormerManualCopyTranscriptDogfoodSmokeFile,
   codexFormerManualCopyTranscriptDogfoodDocFile,
   codexFormerManualCopyTranscriptDogfoodReportFile,
+  realTranscriptCaptureInstructionsDocFile,
+  realTranscriptCaptureInstructionsReportFile,
+  realTranscriptCaptureInstructionsSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
