@@ -178,3 +178,8 @@ Validation passed:
 ## Next Implementation PR
 
 Dogfood manual Codex former draft copy packet with a captured real transcript
+
+## Dogfooded By
+
+- `docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_V0_1.md`
+- `reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-real-transcript.md`

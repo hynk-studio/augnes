@@ -71,6 +71,14 @@ const realTranscriptCaptureInstructionsReportFile =
   "reports/2026-06-09-perspective-codex-former-real-transcript-capture-instructions.md";
 const realTranscriptCaptureInstructionsSmokeFile =
   "scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs";
+const realTranscriptDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-manual-copy-real-transcript.mjs";
+const realTranscriptDogfoodSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-real-transcript.mjs";
+const realTranscriptDogfoodDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
+const realTranscriptDogfoodReportFile =
+  "reports/dogfood/2026-06-09-perspective-codex-former-manual-copy-real-transcript.md";
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -108,6 +116,10 @@ const allowedChangedFiles = new Set([
   realTranscriptCaptureInstructionsDocFile,
   realTranscriptCaptureInstructionsReportFile,
   realTranscriptCaptureInstructionsSmokeFile,
+  realTranscriptDogfoodScriptFile,
+  realTranscriptDogfoodSmokeFile,
+  realTranscriptDogfoodDocFile,
+  realTranscriptDogfoodReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
