@@ -21,12 +21,20 @@ const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
 const promptContractFile =
   "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
+const manualCopyPacketFile =
+  "lib/perspective-ingest/perspective-codex-former-manual-copy-packet.ts";
 const promptContractDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_V0_1.md";
 const promptContractReportFile =
   "reports/2026-06-09-perspective-codex-former-prompt-contract.md";
 const promptContractSmokeFile =
   "scripts/smoke-perspective-codex-former-prompt-contract.mjs";
+const manualCopyPacketDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_PACKET_V0_1.md";
+const manualCopyPacketReportFile =
+  "reports/2026-06-09-perspective-codex-former-manual-copy-packet.md";
+const manualCopyPacketSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -41,9 +49,13 @@ const allowedChangedFiles = new Set([
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
   promptContractFile,
+  manualCopyPacketFile,
   promptContractDocFile,
   promptContractReportFile,
   promptContractSmokeFile,
+  manualCopyPacketDocFile,
+  manualCopyPacketReportFile,
+  manualCopyPacketSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -496,7 +508,8 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("fixtures/") &&
         !changedFile.startsWith("types/") &&
         (!changedFile.startsWith("lib/") ||
-          changedFile === promptContractFile) &&
+          changedFile === promptContractFile ||
+          changedFile === manualCopyPacketFile) &&
         !changedFile.includes("provider") &&
         !changedFile.includes("oauth") &&
         !changedFile.includes("codex-sdk") &&

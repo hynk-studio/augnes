@@ -112,6 +112,10 @@ Intentionally not reused:
 
 Expected conclusion: PASS with follow-up.
 
-Recommended next implementation PR title:
+Implemented follow-up:
 
 Add manual Codex former draft copy packet
+
+Recommended next implementation PR title:
+
+Dogfood manual Codex former draft copy packet with a real Codex response transcript

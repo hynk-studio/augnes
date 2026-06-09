@@ -2,7 +2,9 @@
 
 Conclusion: PASS with follow-up
 
-Recommended next implementation PR title: Add manual Codex former draft copy packet
+Implemented follow-up: Add manual Codex former draft copy packet
+
+Recommended next implementation PR title: Dogfood manual Codex former draft copy packet with a real Codex response transcript
 
 ## Summary
 
@@ -145,6 +147,10 @@ Validation passed:
 - Provider/model validation skipped: this PR intentionally does not call Codex,
   OpenAI, provider/model APIs, or SDKs.
 
-## Next Implementation PR
+## Implemented Follow-Up
 
 Add manual Codex former draft copy packet
+
+## Next Implementation PR
+
+Dogfood manual Codex former draft copy packet with a real Codex response transcript
