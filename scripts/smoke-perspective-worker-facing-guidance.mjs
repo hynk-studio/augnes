@@ -59,6 +59,7 @@ assertSufficientCandidateGuidance();
 assertNeedsReviewCandidateGuidance();
 assertBlockedCandidateGuidance();
 assertUnsafeSourceMaterialIsOmitted();
+assertBillingPayloadMaterialIsOmitted();
 assertChangedFileBoundary();
 
 console.log("PASS smoke:perspective-worker-facing-guidance");
@@ -359,6 +360,82 @@ function assertUnsafeSourceMaterialIsOmitted() {
   assertNoForbiddenPayloadText("redacted guidance", guidance);
 }
 
+function assertBillingPayloadMaterialIsOmitted() {
+  const candidate = buildCandidate({
+    scope: "project:augnes",
+    work_id: "AG-perspective-worker-guidance-billing-redaction",
+    changed_files_summary: "billing_payload",
+    tests_checks_run: [
+      {
+        check_id: "check:billing-redaction",
+        command: "npm run smoke:perspective-worker-facing-guidance",
+        status: "failed",
+        result_summary: "billing_payload",
+      },
+    ],
+    unresolved_gaps: [
+      {
+        gap_id: "gap:billing-redaction",
+        summary: "billing_payload",
+      },
+    ],
+    evidence_row_refs: ["evidence:row:worker-guidance-billing-redaction"],
+  });
+
+  const guidance = buildWorkerFacingPerspectiveGuidanceFromCandidate({
+    candidate,
+    guidance_context: {
+      work_goal: "billing_payload",
+      bounded_summary: "billing_payload",
+    },
+  });
+
+  assert.equal(guidance.privacy.unsafe_input_material_omitted, true);
+  for (const omittedField of [
+    "guidance_context.work_goal",
+    "guidance_context.bounded_summary",
+    "candidate.selected_material.changed_files_summary",
+    "candidate.thesis",
+    "candidate.verification_summary.checks_run.result_summary",
+    "candidate.unresolved_tensions.summary",
+  ]) {
+    assert(
+      guidance.privacy.omitted_unsafe_fields.includes(omittedField),
+      `billing payload redaction must record omitted field: ${omittedField}`,
+    );
+  }
+  assert.equal(guidance.work_goal, null);
+  assert.equal(
+    JSON.stringify(guidance.neutral_observations).includes("billing_payload"),
+    false,
+    "billing payload must be omitted from neutral observations",
+  );
+  assert.equal(
+    JSON.stringify(guidance.verification_gaps).includes("billing_payload"),
+    false,
+    "billing payload must be omitted from verification gaps",
+  );
+  assert.equal(
+    JSON.stringify(guidance.unresolved_tensions).includes("billing_payload"),
+    false,
+    "billing payload must be omitted from unresolved tensions",
+  );
+  assert(
+    guidance.verification_gaps.some(
+      (gap) => gap.summary === "Failed check remains unresolved.",
+    ),
+    "billing payload failed-check detail must be replaced with a generic gap",
+  );
+  assert(
+    guidance.unresolved_tensions.some(
+      (tension) =>
+        tension.summary === "Unresolved candidate tension was omitted from detail.",
+    ),
+    "billing payload tension detail must be replaced with a generic summary",
+  );
+  assertNoForbiddenPayloadText("billing redacted guidance", guidance);
+}
+
 function buildCandidate(input) {
   return buildPerspectiveCandidateFromFormationInputBundle(
     buildPerspectiveFormationInputBundle(input),
@@ -511,6 +588,9 @@ function assertNoForbiddenPayloadText(label, value) {
     "raw_private_payload",
     "private_payload",
     "provider_payload",
+    "billing_payload",
+    "token_payload",
+    "oauth_payload",
     "oauth_token",
     "access_token",
     "refresh_token",
