@@ -9,6 +9,8 @@ const draftPipelineFile =
   "lib/perspective-ingest/perspective-codex-candidate-draft-pipeline.ts";
 const promptContractFile =
   "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
+const manualCopyPacketFile =
+  "lib/perspective-ingest/perspective-codex-former-manual-copy-packet.ts";
 const formationInputBundleFile =
   "lib/perspective-ingest/perspective-formation-input-bundle.ts";
 const candidateBuilderFile =
@@ -39,6 +41,12 @@ const codexFormerPromptContractReportFile =
   "reports/2026-06-09-perspective-codex-former-prompt-contract.md";
 const codexFormerPromptContractSmokeFile =
   "scripts/smoke-perspective-codex-former-prompt-contract.mjs";
+const codexFormerManualCopyPacketDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_PACKET_V0_1.md";
+const codexFormerManualCopyPacketReportFile =
+  "reports/2026-06-09-perspective-codex-former-manual-copy-packet.md";
+const codexFormerManualCopyPacketSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs";
 
 const inheritedPr476Files = [
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md",
@@ -54,6 +62,7 @@ const allowedChangedFiles = new Set([
   formerInputPacketFile,
   draftPipelineFile,
   promptContractFile,
+  manualCopyPacketFile,
   docFile,
   reportFile,
   smokeFile,
@@ -67,6 +76,9 @@ const allowedChangedFiles = new Set([
   codexFormerPromptContractDocFile,
   codexFormerPromptContractReportFile,
   codexFormerPromptContractSmokeFile,
+  codexFormerManualCopyPacketDocFile,
+  codexFormerManualCopyPacketReportFile,
+  codexFormerManualCopyPacketSmokeFile,
   ...inheritedPr476Files,
 ]);
 
@@ -792,6 +804,7 @@ function assertChangedFileBoundary() {
           changedFile === formerInputPacketFile ||
           changedFile === draftPipelineFile ||
           changedFile === promptContractFile ||
+          changedFile === manualCopyPacketFile ||
           changedFile === workerGuidanceBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&

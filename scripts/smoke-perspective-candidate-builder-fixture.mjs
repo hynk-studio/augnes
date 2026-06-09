@@ -83,6 +83,8 @@ const codexCandidateDraftPipelineFile =
   "lib/perspective-ingest/perspective-codex-candidate-draft-pipeline.ts";
 const codexFormerPromptContractFile =
   "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
+const codexFormerManualCopyPacketFile =
+  "lib/perspective-ingest/perspective-codex-former-manual-copy-packet.ts";
 const codexFormerPipelineDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_V0_1.md";
 const codexFormerPipelineReportFile =
@@ -103,6 +105,12 @@ const codexFormerPromptContractReportFile =
   "reports/2026-06-09-perspective-codex-former-prompt-contract.md";
 const codexFormerPromptContractSmokeFile =
   "scripts/smoke-perspective-codex-former-prompt-contract.mjs";
+const codexFormerManualCopyPacketDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_COPY_PACKET_V0_1.md";
+const codexFormerManualCopyPacketReportFile =
+  "reports/2026-06-09-perspective-codex-former-manual-copy-packet.md";
+const codexFormerManualCopyPacketSmokeFile =
+  "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -147,6 +155,7 @@ const allowedChangedFiles = new Set([
   codexFormerInputPacketFile,
   codexCandidateDraftPipelineFile,
   codexFormerPromptContractFile,
+  codexFormerManualCopyPacketFile,
   codexFormerPipelineDocFile,
   codexFormerPipelineReportFile,
   codexFormerPipelineSmokeFile,
@@ -157,6 +166,9 @@ const allowedChangedFiles = new Set([
   codexFormerPromptContractDocFile,
   codexFormerPromptContractReportFile,
   codexFormerPromptContractSmokeFile,
+  codexFormerManualCopyPacketDocFile,
+  codexFormerManualCopyPacketReportFile,
+  codexFormerManualCopyPacketSmokeFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
@@ -672,7 +684,8 @@ function assertChangedFileBoundary() {
           changedFile === workerGuidanceBuilderFile ||
           changedFile === codexFormerInputPacketFile ||
           changedFile === codexCandidateDraftPipelineFile ||
-          changedFile === codexFormerPromptContractFile) &&
+          changedFile === codexFormerPromptContractFile ||
+          changedFile === codexFormerManualCopyPacketFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
