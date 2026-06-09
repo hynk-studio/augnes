@@ -68,6 +68,11 @@ The dogfood report answers:
 - Is the guidance specific enough for a future Codex task prompt?
 - What is the next implementation PR after this dogfood?
 
+The top-level conclusion is derived from scenario conclusions: any `BLOCKED`
+scenario makes the report `BLOCKED`; otherwise any `PASS with follow-up`
+scenario makes the report `PASS with follow-up`; only all-`PASS` scenarios
+produce `PASS`.
+
 ## Conclusion
 
 `PASS with follow-up`.

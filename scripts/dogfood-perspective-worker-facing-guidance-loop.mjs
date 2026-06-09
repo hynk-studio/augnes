@@ -16,8 +16,6 @@ export const PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_GENERATED_AT =
   "2026-06-09T00:00:00.000Z";
 export const PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_ARTIFACT_PATH =
   "reports/dogfood/2026-06-09-perspective-worker-facing-guidance-loop.md";
-export const PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_CONCLUSION =
-  "PASS with follow-up";
 export const PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_NEXT_PR =
   "Refine worker-facing guidance action specificity from dogfood findings";
 
@@ -75,6 +73,19 @@ export function runPerspectiveWorkerFacingGuidanceLoopDogfood() {
   writeReportFile(dogfood.paths.artifact, dogfood.artifact);
   console.log(`wrote ${dogfood.paths.artifact}`);
   return dogfood;
+}
+
+export function deriveDogfoodConclusion(scenarioConclusions) {
+  const conclusions = scenarioConclusions.map((entry) =>
+    typeof entry === "string" ? entry : entry.conclusion,
+  );
+
+  if (conclusions.includes("BLOCKED")) return "BLOCKED";
+  if (conclusions.includes("PASS with follow-up")) {
+    return "PASS with follow-up";
+  }
+
+  return "PASS";
 }
 
 function buildRealReviewedPr474ReadyScenario() {
@@ -304,9 +315,17 @@ function evaluateScenario({ candidate, guidance, scenario_id }) {
     const nextActions = guidance.next_smallest_useful_actions.map(
       (action) => action.action_id,
     );
+    const conditions = [
+      candidate.basis_quality.status === "sufficient_for_review",
+      guidance.guidance_status === "actionable_advisory",
+      hasText(guidance.work_goal),
+      nextActions.includes("draft_smallest_scoped_plan"),
+      authorityFlagsFalse,
+      !outputHasUnsafeMarkers,
+    ];
 
     return {
-      conclusion: "PASS with follow-up",
+      conclusion: conditions.every(Boolean) ? "PASS with follow-up" : "BLOCKED",
       evidence: [
         candidate.basis_quality.status === "sufficient_for_review"
           ? "candidate basis is sufficient_for_review"
@@ -333,11 +352,22 @@ function evaluateScenario({ candidate, guidance, scenario_id }) {
   }
 
   if (scenario_id === "review_gap_regression_case") {
+    const redactionConcernSafelyPreserved = guidance.verification_gaps.some((gap) =>
+      gap.summary.includes("Payload marker redaction concern"),
+    );
+    const workerInstructionsPrioritizeGaps =
+      guidance.worker_instructions[0]?.includes("Resolve visible gaps") === true;
+    const conditions = [
+      candidate.basis_quality.status === "needs_review",
+      guidance.guidance_status === "resolve_gaps_first",
+      redactionConcernSafelyPreserved,
+      workerInstructionsPrioritizeGaps,
+      guidance.privacy.unsafe_input_material_omitted,
+      !outputHasUnsafeMarkers,
+    ];
+
     return {
-      conclusion:
-        guidance.guidance_status === "resolve_gaps_first"
-          ? "PASS"
-          : "BLOCKED",
+      conclusion: conditions.every(Boolean) ? "PASS" : "BLOCKED",
       evidence: [
         candidate.basis_quality.status === "needs_review"
           ? "candidate basis is needs_review"
@@ -345,12 +375,10 @@ function evaluateScenario({ candidate, guidance, scenario_id }) {
         guidance.guidance_status === "resolve_gaps_first"
           ? "guidance prioritizes gap resolution"
           : `unexpected guidance status: ${guidance.guidance_status}`,
-        guidance.verification_gaps.some((gap) =>
-          gap.summary.includes("Payload marker redaction concern"),
-        )
+        redactionConcernSafelyPreserved
           ? "verification gap preserves the redaction concern safely"
           : "verification gap did not preserve the redaction concern",
-        guidance.worker_instructions[0].includes("Resolve visible gaps")
+        workerInstructionsPrioritizeGaps
           ? "worker instructions put gaps before implementation planning"
           : "worker instructions did not prioritize visible gaps",
         guidance.privacy.unsafe_input_material_omitted
@@ -365,9 +393,27 @@ function evaluateScenario({ candidate, guidance, scenario_id }) {
     };
   }
 
+  const hasStopAndRequestUnblock = guidance.next_smallest_useful_actions.some(
+    (action) => action.action_id === "stop_and_request_unblock",
+  );
+  const hasDeferWorkerPlanning = guidance.stop_or_defer_actions.some(
+    (action) => action.action_id === "defer_all_worker_planning",
+  );
+  const hasDeferAuthorityClaims = guidance.stop_or_defer_actions.some(
+    (action) => action.action_id === "defer_authority_claims",
+  );
+  const conditions = [
+    candidate.basis_quality.status === "blocked",
+    guidance.guidance_status === "stop_or_defer",
+    hasStopAndRequestUnblock,
+    hasDeferWorkerPlanning,
+    hasDeferAuthorityClaims,
+    authorityFlagsFalse,
+    !outputHasUnsafeMarkers,
+  ];
+
   return {
-    conclusion:
-      guidance.guidance_status === "stop_or_defer" ? "PASS" : "BLOCKED",
+    conclusion: conditions.every(Boolean) ? "PASS" : "BLOCKED",
     evidence: [
       candidate.basis_quality.status === "blocked"
         ? "candidate basis is blocked"
@@ -375,24 +421,21 @@ function evaluateScenario({ candidate, guidance, scenario_id }) {
       guidance.guidance_status === "stop_or_defer"
         ? "guidance stops or defers"
         : `unexpected guidance status: ${guidance.guidance_status}`,
-      guidance.next_smallest_useful_actions.some(
-        (action) => action.action_id === "stop_and_request_unblock",
-      )
+      hasStopAndRequestUnblock
         ? "next action requests unblock"
         : "next action did not request unblock",
-      guidance.stop_or_defer_actions.some(
-        (action) => action.action_id === "defer_all_worker_planning",
-      )
+      hasDeferWorkerPlanning
         ? "stop/defer actions defer worker planning"
         : "stop/defer actions did not defer worker planning",
-      guidance.stop_or_defer_actions.some(
-        (action) => action.action_id === "defer_authority_claims",
-      )
+      hasDeferAuthorityClaims
         ? "stop/defer actions defer authority claims"
         : "stop/defer actions did not defer authority claims",
       authorityFlagsFalse
         ? "authority flags remain false"
         : "authority flags were not all false",
+      outputHasUnsafeMarkers
+        ? "unsafe marker appeared in guidance"
+        : "unsafe marker did not appear in guidance",
     ],
     specific_enough_for_future_prompt:
       "No future implementation prompt should be drafted until scope is supplied.",
@@ -400,6 +443,11 @@ function evaluateScenario({ candidate, guidance, scenario_id }) {
 }
 
 function evaluateDogfood(scenarios) {
+  const scenarioConclusions = scenarios.map((scenario) => ({
+    conclusion: scenario.evaluation.conclusion,
+    scenario_id: scenario.scenario_id,
+  }));
+
   return {
     answers: {
       narrows_next_worker_action:
@@ -417,11 +465,8 @@ function evaluateDogfood(scenarios) {
       next_implementation_pr:
         PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_NEXT_PR,
     },
-    conclusion: PERSPECTIVE_WORKER_FACING_GUIDANCE_LOOP_DOGFOOD_CONCLUSION,
-    scenario_conclusions: scenarios.map((scenario) => ({
-      conclusion: scenario.evaluation.conclusion,
-      scenario_id: scenario.scenario_id,
-    })),
+    conclusion: deriveDogfoodConclusion(scenarioConclusions),
+    scenario_conclusions: scenarioConclusions,
   };
 }
 

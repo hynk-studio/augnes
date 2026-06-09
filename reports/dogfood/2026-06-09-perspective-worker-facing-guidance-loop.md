@@ -117,6 +117,7 @@ Blocked Or Missing-Scope Contrast
 - stop/defer actions defer worker planning
 - stop/defer actions defer authority claims
 - authority flags remain false
+- unsafe marker did not appear in guidance
 - next_smallest_useful_actions:
 - stop_and_request_unblock: Stop worker planning from this candidate and ask the user or Core owner to resolve the blocking basis first.
 - stop_or_defer_actions:

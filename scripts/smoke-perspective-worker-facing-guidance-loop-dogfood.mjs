@@ -38,6 +38,7 @@ const workerGuidanceDocText = readFileSync(workerGuidanceDocFile, "utf8");
 
 const {
   buildPerspectiveWorkerFacingGuidanceLoopDogfood,
+  deriveDogfoodConclusion,
   runPerspectiveWorkerFacingGuidanceLoopDogfood,
 } = await import("./dogfood-perspective-worker-facing-guidance-loop.mjs");
 
@@ -58,6 +59,7 @@ assert.equal(
 
 assertDogfoodScriptBoundary();
 assertDocs();
+assertDerivedConclusionHelper();
 
 const dogfood = runPerspectiveWorkerFacingGuidanceLoopDogfood();
 const rebuiltDogfood = buildPerspectiveWorkerFacingGuidanceLoopDogfood();
@@ -73,7 +75,11 @@ assert.equal(
   "written dogfood artifact must match generated artifact",
 );
 
-assert.equal(dogfood.evaluation.conclusion, "PASS with follow-up");
+assert.equal(
+  dogfood.evaluation.conclusion,
+  deriveDogfoodConclusion(dogfood.evaluation.scenario_conclusions),
+  "top-level dogfood conclusion must be derived from scenario conclusions",
+);
 assertScenarioCoverage(dogfood.scenarios);
 assertArtifactCoverage(dogfood.artifact);
 assertNoForbiddenOutputText("dogfood artifact", dogfood.artifact);
@@ -94,6 +100,7 @@ function assertDogfoodScriptBoundary() {
     "buildPerspectiveCandidateFromFormationInputBundle",
     "buildWorkerFacingPerspectiveGuidanceFromCandidate",
     "buildPerspectiveWorkerFacingGuidanceLoopDogfood",
+    "deriveDogfoodConclusion",
     "runPerspectiveWorkerFacingGuidanceLoopDogfood",
     "real_reviewed_pr_474_ready",
     "review_gap_regression_case",
@@ -121,6 +128,32 @@ function assertDogfoodScriptBoundary() {
       `${dogfoodScriptFile} must remain deterministic and local-only`,
     );
   }
+}
+
+function assertDerivedConclusionHelper() {
+  assert.equal(
+    deriveDogfoodConclusion(["PASS", "PASS"]),
+    "PASS",
+    "[PASS, PASS] must derive PASS",
+  );
+  assert.equal(
+    deriveDogfoodConclusion(["PASS with follow-up", "PASS"]),
+    "PASS with follow-up",
+    "[PASS with follow-up, PASS] must derive PASS with follow-up",
+  );
+  assert.equal(
+    deriveDogfoodConclusion(["PASS", "BLOCKED"]),
+    "BLOCKED",
+    "[PASS, BLOCKED] must derive BLOCKED",
+  );
+  assert.equal(
+    deriveDogfoodConclusion([
+      { conclusion: "PASS", scenario_id: "synthetic_a" },
+      { conclusion: "PASS with follow-up", scenario_id: "synthetic_b" },
+    ]),
+    "PASS with follow-up",
+    "object-shaped scenario conclusions must also be supported",
+  );
 }
 
 function assertDocs() {
