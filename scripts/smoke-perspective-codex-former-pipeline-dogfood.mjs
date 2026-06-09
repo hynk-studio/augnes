@@ -83,6 +83,14 @@ const refinedPromptRealTranscriptDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_REFINED_PROMPT_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
 const refinedPromptRealTranscriptReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-refined-prompt-real-transcript.md";
+const refinedFindingsContractDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
+const refinedFindingsContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-refined-findings-contract.mjs";
+const refinedFindingsContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_REFINED_FINDINGS_CONTRACT_V0_1.md";
+const refinedFindingsContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-refined-findings-contract.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -128,6 +136,10 @@ const allowedChangedFiles = new Set([
   refinedPromptRealTranscriptSmokeFile,
   refinedPromptRealTranscriptDocFile,
   refinedPromptRealTranscriptReportFile,
+  refinedFindingsContractDogfoodScriptFile,
+  refinedFindingsContractSmokeFile,
+  refinedFindingsContractDocFile,
+  refinedFindingsContractReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));

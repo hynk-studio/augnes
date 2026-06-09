@@ -159,6 +159,14 @@ const refinedPromptRealTranscriptDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_REFINED_PROMPT_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
 const refinedPromptRealTranscriptReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-refined-prompt-real-transcript.md";
+const refinedFindingsContractDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
+const refinedFindingsContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-refined-findings-contract.mjs";
+const refinedFindingsContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_REFINED_FINDINGS_CONTRACT_V0_1.md";
+const refinedFindingsContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-refined-findings-contract.md";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -241,6 +249,10 @@ const allowedChangedFiles = new Set([
   refinedPromptRealTranscriptSmokeFile,
   refinedPromptRealTranscriptDocFile,
   refinedPromptRealTranscriptReportFile,
+  refinedFindingsContractDogfoodScriptFile,
+  refinedFindingsContractSmokeFile,
+  refinedFindingsContractDocFile,
+  refinedFindingsContractReportFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",

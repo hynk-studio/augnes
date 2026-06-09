@@ -11,6 +11,16 @@ const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_REFINED_PROMPT_REAL_TRANSCRIPT_DOGFOOD_V0_1.md";
 const reportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-refined-prompt-real-transcript.md";
+const promptContractFile =
+  "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
+const refinedFindingsContractDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
+const refinedFindingsContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-refined-findings-contract.mjs";
+const refinedFindingsContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_REFINED_FINDINGS_CONTRACT_V0_1.md";
+const refinedFindingsContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-refined-findings-contract.md";
 const neighboringSmokeAllowlistFiles = [
   "scripts/smoke-perspective-candidate-builder-fixture.mjs",
   "scripts/smoke-perspective-codex-former-draft-schema-alignment.mjs",
@@ -33,6 +43,11 @@ const allowedChangedFiles = new Set([
   smokeFile,
   docFile,
   reportFile,
+  promptContractFile,
+  refinedFindingsContractDogfoodScriptFile,
+  refinedFindingsContractSmokeFile,
+  refinedFindingsContractDocFile,
+  refinedFindingsContractReportFile,
   ...neighboringSmokeAllowlistFiles,
 ]);
 
@@ -151,7 +166,11 @@ function assertCanonicalNoAlignmentPath() {
 
   assert.equal(scenario.conclusion, "PASS with follow-up");
   assert.equal(scenario.contract_fit.status, "needs_review");
-  assertWarningKinds(scenario.contract_fit, ["plain_summary"]);
+  assertWarningKinds(scenario.contract_fit, [
+    "tension_kind",
+    "tension_kind",
+    "tension_kind",
+  ]);
   assert.equal(scenario.validation_result.status, "needs_review");
   assert.equal(scenario.validation_result.threw, false);
   assert.equal(scenario.validation_result.blocked_reasons.length, 0);
@@ -284,7 +303,7 @@ function assertDocsAndReport() {
     "Perspective Codex Former Refined Prompt Real Transcript Dogfood v0.1",
     "PASS with follow-up",
     "Direct validation now produces candidate-compatible review material without schema alignment.",
-    "Contract fit still returns needs_review",
+    "Contract fit still returns needs_review because the historical transcript uses non-local tension_kind values.",
     "validation_gap, schema_drift_risk, and readiness_boundary",
     "Browser/computer-use validation was not run",
     "Refine Codex former prompt contract from refined transcript findings",
@@ -293,6 +312,7 @@ function assertDocsAndReport() {
     "Conclusion: PASS with follow-up",
     "Old alias fields absent: true",
     "Contract fit status: needs_review",
+    "Contract fit warnings: tension_kind",
     "Validation status: needs_review",
     "Alignment required for candidate material: false",
     "Worker-Facing Guidance ran on the direct candidate",

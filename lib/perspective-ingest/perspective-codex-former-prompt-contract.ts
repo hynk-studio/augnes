@@ -62,6 +62,7 @@ export interface CodexPerspectiveDraftPromptContractFitWarningV0 {
     | "missing_usefulness"
     | "overconfident_basis"
     | "pointer_ref"
+    | "tension_kind"
     | "missing_user_core_questions"
     | "authority_claim"
     | "unsafe_material";
@@ -101,6 +102,19 @@ const authorityFlagKeys = [
   "core_decision",
 ] as const;
 
+const localUnresolvedTensionKinds = [
+  "unresolved_gap",
+  "readiness_reason",
+  "failed_check",
+  "skipped_check_missing_reason",
+] as const;
+
+const discouragedTensionKindMap = {
+  validation_gap: "unresolved_gap",
+  schema_drift_risk: "unresolved_gap or readiness_reason",
+  readiness_boundary: "readiness_reason",
+} as const;
+
 export function buildCodexPerspectiveFormerDraftPromptContractFromInputPacket(
   inputPacket: CodexPerspectiveFormerInputPacketV0,
 ): CodexPerspectiveFormerDraftPromptContractV0 {
@@ -115,7 +129,11 @@ export function buildCodexPerspectiveFormerDraftPromptContractFromInputPacket(
   ];
   const neutralPerspectiveRequirements = [
     "Form a neutral perspective, not a plain PR summary.",
-    "Use the thesis to explain a validation boundary, unresolved tension, scope/risk tradeoff, or next smallest useful work.",
+    "The thesis must name the validation boundary, unresolved tension, scope/risk tradeoff, remaining gap, or next smallest useful work first.",
+    "The thesis must not merely list what PRs did or narrate PR chronology.",
+    "If the thesis includes PR facts, those facts must support the boundary rather than replace it.",
+    "The thesis should explicitly contrast what is implemented with what remains unproven or needs_review when gaps remain.",
+    "Use wording such as \"The useful neutral perspective is...\" only if it immediately identifies a boundary, risk, unresolved tension, or next useful work.",
     "State why the perspective is useful beyond a plain summary in the thesis or qualification notes.",
     "Separate plain summary facts from neutral perspective, validation gaps, next actions, and user/Core decision questions.",
     "Preserve uncertainty; do not make ready claims when the packet only supports needs-review or blocked material.",
@@ -260,6 +278,7 @@ export function evaluateCodexPerspectiveCandidateDraftPromptContractFit({
       former_input_packet,
       draft,
     }),
+    ...collectTensionKindWarnings(draft),
   );
 
   if (
@@ -362,6 +381,13 @@ function renderPromptText({
     "- next_action_candidates entries must be exactly { action_id, summary } using local action ids review_candidate, fix_input_gaps, or prepare_codex_handoff.",
     "- Do not emit next-action aliases id or why_next.",
     "- unresolved_tensions entries must be exactly { tension_kind, summary, source_ref? }.",
+    "- unresolved_tensions[].tension_kind must be one of unresolved_gap, readiness_reason, failed_check, or skipped_check_missing_reason.",
+    "- Do not emit non-local tension_kind values validation_gap, schema_drift_risk, or readiness_boundary.",
+    "- Map validation_gap to unresolved_gap.",
+    "- Map schema_drift_risk to unresolved_gap or readiness_reason, depending on whether the risk is an input gap or a review qualification.",
+    "- Map readiness_boundary to readiness_reason.",
+    "- Use skipped_check_missing_reason when a missing validation or weak check result is tied to a skipped check with a missing or weak reason.",
+    "- Use failed_check when a validation or check result failed.",
     "- Do not emit unresolved tension aliases id or why_it_matters.",
     "",
     "Neutral perspective requirements:",
@@ -410,11 +436,24 @@ function hasNeutralPerspectiveThesis(value: unknown): boolean {
 
   const lowered = value.toLowerCase();
   const perspectiveMarkers = [
+    "boundary",
     "validation boundary",
     "unresolved tension",
-    "scope",
+    "remaining gap",
+    "validation gap",
+    "schema drift risk",
+    "readiness boundary",
+    "scope/risk",
     "risk",
     "next useful work",
+    "next smallest useful work",
+    "what remains unproven",
+    "remains unproven",
+    "unproven",
+    "needs_review",
+    "needs review",
+    "draft/review-only",
+    "non-authoritative",
     "beyond a plain summary",
     "not a plain summary",
     "prompt contract",
@@ -437,6 +476,13 @@ function hasNonSummaryUsefulnessNote(
     "not a plain summary",
     "neutral perspective",
     "validation boundary",
+    "unresolved tension",
+    "remaining gap",
+    "next smallest useful work",
+    "needs_review",
+    "needs review",
+    "draft/review-only",
+    "non-authoritative",
     "qualification",
   ];
 
@@ -504,6 +550,45 @@ function collectPointerWarnings({
   });
 
   return warnings;
+}
+
+function collectTensionKindWarnings(
+  draft: Partial<CodexPerspectiveCandidateDraftV0>,
+): CodexPerspectiveDraftPromptContractFitWarningV0[] {
+  if (!Array.isArray(draft.unresolved_tensions)) {
+    return [];
+  }
+
+  return draft.unresolved_tensions.flatMap((tension, index) => {
+    if (!isRecord(tension)) return [];
+    const tensionKind = tension.tension_kind;
+    if (typeof tensionKind !== "string") return [];
+    if (
+      localUnresolvedTensionKinds.includes(
+        tensionKind as (typeof localUnresolvedTensionKinds)[number],
+      )
+    ) {
+      return [];
+    }
+
+    const mappedKind =
+      Object.prototype.hasOwnProperty.call(
+        discouragedTensionKindMap,
+        tensionKind,
+      )
+        ? discouragedTensionKindMap[
+            tensionKind as keyof typeof discouragedTensionKindMap
+          ]
+        : "one of unresolved_gap, readiness_reason, failed_check, or skipped_check_missing_reason";
+
+    return [
+      {
+        warning_kind: "tension_kind" as const,
+        field: `draft.unresolved_tensions[${index}].tension_kind`,
+        summary: `Draft used non-local tension_kind ${tensionKind}; use ${mappedKind}.`,
+      },
+    ];
+  });
 }
 
 function collectUnsafeFieldNames(value: unknown, path: string): string[] {
