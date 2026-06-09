@@ -15,6 +15,19 @@ const refinedFindingsContractSmokeFile =
   "scripts/smoke-perspective-codex-former-refined-findings-contract.mjs";
 const refinedPromptRealTranscriptSmokeFile =
   "scripts/smoke-perspective-codex-former-refined-prompt-real-transcript.mjs";
+const neighboringSmokeAllowlistFiles = [
+  "scripts/smoke-perspective-candidate-builder-fixture.mjs",
+  "scripts/smoke-perspective-codex-former-draft-schema-alignment.mjs",
+  "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs",
+  "scripts/smoke-perspective-codex-former-manual-copy-real-transcript.mjs",
+  "scripts/smoke-perspective-codex-former-manual-copy-transcript.mjs",
+  "scripts/smoke-perspective-codex-former-pipeline-dogfood.mjs",
+  "scripts/smoke-perspective-codex-former-pipeline.mjs",
+  "scripts/smoke-perspective-codex-former-prompt-contract-canonical-schema.mjs",
+  "scripts/smoke-perspective-codex-former-prompt-contract.mjs",
+  "scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs",
+  "scripts/smoke-perspective-worker-facing-guidance.mjs",
+];
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -26,6 +39,7 @@ const allowedChangedFiles = new Set([
   reportFile,
   refinedFindingsContractSmokeFile,
   refinedPromptRealTranscriptSmokeFile,
+  ...neighboringSmokeAllowlistFiles,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
