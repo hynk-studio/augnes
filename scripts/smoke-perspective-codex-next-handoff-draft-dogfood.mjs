@@ -5,12 +5,16 @@ import { existsSync, readFileSync } from "node:fs";
 const packageFile = "package.json";
 const dogfoodScriptFile =
   "scripts/dogfood-perspective-codex-next-handoff-draft.mjs";
+const codexDraftBuilderFile =
+  "lib/perspective-ingest/perspective-codex-next-handoff-draft-packet.ts";
 const smokeFile =
   "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md";
 const reportFile =
   "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md";
+const copyRefineReportFile =
+  "reports/2026-06-09-perspective-codex-next-handoff-draft-copy-refine.md";
 const artifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const draftPacketDocFile =
@@ -34,10 +38,12 @@ const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
 const allowedChangedFiles = new Set([
   packageFile,
+  codexDraftBuilderFile,
   dogfoodScriptFile,
   smokeFile,
   docFile,
   reportFile,
+  copyRefineReportFile,
   artifactFile,
   draftPacketDocFile,
   userJudgmentDocFile,
@@ -168,7 +174,8 @@ function assertDocsAndReport() {
     "evaluates whether the copyable handoff text is human-usable",
     "ready_to_copy separate from execution",
     "contrast cases visible",
-    "Refine Codex handoff draft copy from dogfood findings",
+    "under-scoped expected_files",
+    "Evaluate Codex handoff draft in a real docs-only Codex task",
   ]);
   assertContainsAll(reportText, [
     "Summary",
@@ -182,7 +189,7 @@ function assertDocsAndReport() {
     "Skipped Checks",
     "Blockers or Risks",
     "Dogfood Evaluation Conclusion",
-    "Refine Codex handoff draft copy from dogfood findings",
+    "Evaluate Codex handoff draft in a real docs-only Codex task",
   ]);
   assertContainsAll(draftPacketDocText, [
     "Dogfooded By",
@@ -211,6 +218,8 @@ function assertArtifactCoverage(text) {
     "needs_revision_first",
     "blocked",
     "draft only",
+    "draft prompt for a future user-started Codex task",
+    "Review it before pasting into Codex",
     "does not execute Codex",
     "user explicitly starts a Codex task",
     "PR-centered workflow",
@@ -241,7 +250,41 @@ function assertReadyToCopySection(text) {
     "forbidden surfaces",
     "skipped-check policy",
     "Copyable Codex Handoff Text",
+    "draft prompt for a future user-started Codex task",
+    "Review it before pasting into Codex",
+    "does not execute Codex",
+    "no merge",
+    "approval",
+    "GitHub mutation",
+    "PR-centered workflow",
+    "ChatGPT reviews",
+    "user decides merge",
   ]);
+  assertReadyExpectedFiles(section);
+}
+
+function assertReadyExpectedFiles(section) {
+  const requiredExpectedFiles = [
+    "scripts/dogfood-perspective-codex-next-handoff-draft.mjs",
+    "scripts/smoke-perspective-codex-next-handoff-draft-dogfood.mjs",
+    "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_DOGFOOD_V0_1.md",
+    "reports/2026-06-09-perspective-codex-next-handoff-draft-dogfood.md",
+    "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md",
+    "package.json",
+    "docs/PERSPECTIVE_CODEX_NEXT_HANDOFF_DRAFT_PACKET_V0_1.md",
+    "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md",
+    "docs/PERSPECTIVE_USER_JUDGMENT_CAPTURE_PACKET_V0_1.md",
+    "scripts/smoke-perspective-codex-next-handoff-draft-packet.mjs",
+    "scripts/smoke-perspective-user-judgment-capture-packet.mjs",
+    "scripts/smoke-perspective-candidate-briefing-preview.mjs",
+    "scripts/smoke-perspective-candidate-builder-fixture.mjs",
+    "scripts/smoke-perspective-formation-input-bundle-builder.mjs",
+    "scripts/smoke-perspective-formation-lane-v0-1.mjs",
+    "scripts/smoke-perspective-agent-brief-read-surface.mjs",
+    "scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
+  ];
+
+  assertContainsAll(section, requiredExpectedFiles);
 }
 
 function assertContrastSections(text) {
