@@ -81,6 +81,8 @@ const codexFormerInputPacketFile =
   "lib/perspective-ingest/perspective-codex-former-input-packet.ts";
 const codexCandidateDraftPipelineFile =
   "lib/perspective-ingest/perspective-codex-candidate-draft-pipeline.ts";
+const codexFormerPromptContractFile =
+  "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
 const codexFormerPipelineDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_V0_1.md";
 const codexFormerPipelineReportFile =
@@ -95,6 +97,12 @@ const codexFormerDogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_DOGFOOD_V0_1.md";
 const codexFormerDogfoodReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-pipeline.md";
+const codexFormerPromptContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_V0_1.md";
+const codexFormerPromptContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-prompt-contract.md";
+const codexFormerPromptContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-prompt-contract.mjs";
 const dogfoodArtifactFile =
   "reports/dogfood/2026-06-09-perspective-codex-next-handoff-draft-packet.md";
 const laneDocFile = "docs/PERSPECTIVE_FORMATION_LANE_V0_1.md";
@@ -138,6 +146,7 @@ const allowedChangedFiles = new Set([
   workerGuidanceLoopDogfoodDocFile,
   codexFormerInputPacketFile,
   codexCandidateDraftPipelineFile,
+  codexFormerPromptContractFile,
   codexFormerPipelineDocFile,
   codexFormerPipelineReportFile,
   codexFormerPipelineSmokeFile,
@@ -145,6 +154,9 @@ const allowedChangedFiles = new Set([
   codexFormerDogfoodSmokeFile,
   codexFormerDogfoodDocFile,
   codexFormerDogfoodReportFile,
+  codexFormerPromptContractDocFile,
+  codexFormerPromptContractReportFile,
+  codexFormerPromptContractSmokeFile,
   dogfoodArtifactFile,
   "docs/PERSPECTIVE_CODEX_HANDOFF_DRAFT_REAL_DOCS_TASK_EVAL_V0_1.md",
   "reports/2026-06-09-perspective-codex-handoff-draft-real-docs-task-eval.md",
@@ -659,7 +671,8 @@ function assertChangedFileBoundary() {
           changedFile === codexDraftBuilderFile ||
           changedFile === workerGuidanceBuilderFile ||
           changedFile === codexFormerInputPacketFile ||
-          changedFile === codexCandidateDraftPipelineFile) &&
+          changedFile === codexCandidateDraftPipelineFile ||
+          changedFile === codexFormerPromptContractFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

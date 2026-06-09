@@ -7,6 +7,8 @@ const formerInputPacketFile =
   "lib/perspective-ingest/perspective-codex-former-input-packet.ts";
 const draftPipelineFile =
   "lib/perspective-ingest/perspective-codex-candidate-draft-pipeline.ts";
+const promptContractFile =
+  "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
 const formationInputBundleFile =
   "lib/perspective-ingest/perspective-formation-input-bundle.ts";
 const candidateBuilderFile =
@@ -31,6 +33,12 @@ const codexFormerDogfoodDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PIPELINE_DOGFOOD_V0_1.md";
 const codexFormerDogfoodReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-pipeline.md";
+const codexFormerPromptContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_V0_1.md";
+const codexFormerPromptContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-prompt-contract.md";
+const codexFormerPromptContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-prompt-contract.mjs";
 
 const inheritedPr476Files = [
   "docs/PERSPECTIVE_WORKER_FACING_GUIDANCE_DOGFOOD_V0_1.md",
@@ -45,6 +53,7 @@ const allowedChangedFiles = new Set([
   packageFile,
   formerInputPacketFile,
   draftPipelineFile,
+  promptContractFile,
   docFile,
   reportFile,
   smokeFile,
@@ -55,6 +64,9 @@ const allowedChangedFiles = new Set([
   codexFormerDogfoodSmokeFile,
   codexFormerDogfoodDocFile,
   codexFormerDogfoodReportFile,
+  codexFormerPromptContractDocFile,
+  codexFormerPromptContractReportFile,
+  codexFormerPromptContractSmokeFile,
   ...inheritedPr476Files,
 ]);
 
@@ -779,6 +791,7 @@ function assertChangedFileBoundary() {
         (!changedFile.startsWith("lib/") ||
           changedFile === formerInputPacketFile ||
           changedFile === draftPipelineFile ||
+          changedFile === promptContractFile ||
           changedFile === workerGuidanceBuilderFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&

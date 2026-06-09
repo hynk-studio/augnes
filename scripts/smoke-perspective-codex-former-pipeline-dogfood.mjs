@@ -19,6 +19,14 @@ const workerGuidanceSmokeFile =
   "scripts/smoke-perspective-worker-facing-guidance.mjs";
 const candidateBuilderSmokeFile =
   "scripts/smoke-perspective-candidate-builder-fixture.mjs";
+const promptContractFile =
+  "lib/perspective-ingest/perspective-codex-former-prompt-contract.ts";
+const promptContractDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROMPT_CONTRACT_V0_1.md";
+const promptContractReportFile =
+  "reports/2026-06-09-perspective-codex-former-prompt-contract.md";
+const promptContractSmokeFile =
+  "scripts/smoke-perspective-codex-former-prompt-contract.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -32,6 +40,10 @@ const allowedChangedFiles = new Set([
   formerPipelineSmokeFile,
   workerGuidanceSmokeFile,
   candidateBuilderSmokeFile,
+  promptContractFile,
+  promptContractDocFile,
+  promptContractReportFile,
+  promptContractSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -483,7 +495,8 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
         !changedFile.startsWith("types/") &&
-        !changedFile.startsWith("lib/") &&
+        (!changedFile.startsWith("lib/") ||
+          changedFile === promptContractFile) &&
         !changedFile.includes("provider") &&
         !changedFile.includes("oauth") &&
         !changedFile.includes("codex-sdk") &&
