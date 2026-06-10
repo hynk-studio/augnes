@@ -27,6 +27,10 @@ const neighboringSmokeAllowlistFiles = [
   "scripts/smoke-perspective-codex-former-refined-prompt-real-transcript.mjs",
   "scripts/smoke-perspective-codex-former-second-refined-transcript.mjs",
   "scripts/smoke-perspective-worker-facing-guidance.mjs",
+  "scripts/dogfood-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_CAPTURE_PACKET_PREP_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-separate-session-capture-packet-prep.md",
 ];
 
 const expectedTsxCommand =

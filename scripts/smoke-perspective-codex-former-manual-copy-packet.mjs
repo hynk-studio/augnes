@@ -107,6 +107,14 @@ const provenanceCleanTranscriptCaptureDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PROVENANCE_CLEAN_TRANSCRIPT_CAPTURE_V0_1.md";
 const provenanceCleanTranscriptCaptureReportFile =
   "reports/dogfood/2026-06-10-perspective-codex-former-provenance-clean-transcript-capture.md";
+const separateSessionCapturePacketPrepDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-separate-session-capture-packet-prep.mjs";
+const separateSessionCapturePacketPrepSmokeFile =
+  "scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs";
+const separateSessionCapturePacketPrepDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_CAPTURE_PACKET_PREP_V0_1.md";
+const separateSessionCapturePacketPrepReportFile =
+  "reports/2026-06-10-perspective-codex-former-separate-session-capture-packet-prep.md";
 const refinedFindingsContractDogfoodScriptFile =
   "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
 const refinedFindingsContractSmokeFile =
@@ -174,6 +182,10 @@ const allowedChangedFiles = new Set([
   provenanceCleanTranscriptCaptureSmokeFile,
   provenanceCleanTranscriptCaptureDocFile,
   provenanceCleanTranscriptCaptureReportFile,
+  separateSessionCapturePacketPrepDogfoodScriptFile,
+  separateSessionCapturePacketPrepSmokeFile,
+  separateSessionCapturePacketPrepDocFile,
+  separateSessionCapturePacketPrepReportFile,
   refinedFindingsContractDogfoodScriptFile,
   refinedFindingsContractSmokeFile,
   refinedFindingsContractDocFile,

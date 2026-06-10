@@ -33,6 +33,10 @@ const neighboringSmokeAllowlistFiles = [
   "scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs",
   "docs/PERSPECTIVE_CODEX_FORMER_PROVENANCE_CLEAN_TRANSCRIPT_CAPTURE_V0_1.md",
   "reports/dogfood/2026-06-10-perspective-codex-former-provenance-clean-transcript-capture.md",
+  "scripts/dogfood-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_CAPTURE_PACKET_PREP_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-separate-session-capture-packet-prep.md",
 ];
 
 const expectedTsxCommand =
