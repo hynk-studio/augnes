@@ -86,35 +86,54 @@ const parameterizedExpectedValidationCommands = [
   "npm run smoke:perspective-codex-former-manual-copy-packet",
   "npm run smoke:perspective-codex-former-manual-workflow-docs",
 ];
-const unsafeSourceInputMarkers = [
+const exactUnsafeSourceInputMarkers = [
+  "private_payload",
+  "provider_payload",
+  "raw_source_payload",
+  "raw_candidate_payload",
+  "raw_private_payload",
+  "raw_pr_diff",
+  "raw_page_dump",
+  "raw_review_payload",
+  "oauth_token",
+  "access_token",
+  "refresh_token",
+  "api_key",
+  "hidden_reasoning",
+];
+const prefixUnsafeSourceInputMarkers = [
+  "sk-proj-",
+  "ghp_",
+];
+const phraseUnsafeSourceInputMarkers = [
   "raw diff",
   "raw diffs",
   "raw pr diff",
   "raw review payload",
   "raw page dump",
   "provider log",
+  "provider logs",
+  "hidden reasoning",
+  "account data",
+  "raw screenshot",
+  "raw screenshots",
+  "screenshot payload",
+  "screenshots included",
+  "screenshot included",
+  "unrelated private",
+  "private payload",
+  "provider payload",
+  "raw source payload",
+  "raw candidate payload",
+  "raw private payload",
+];
+const tokenBoundaryUnsafeSourceInputMarkers = [
   "cookie",
   "cookies",
   "token",
   "tokens",
-  "hidden reasoning",
-  "account data",
-  "screenshot",
-  "screenshots",
-  "unrelated private",
-  "private_payload",
-  "provider_payload",
-  "raw_source_payload",
-  "raw_candidate_payload",
-  "raw_private_payload",
-  "oauth_token",
-  "access_token",
-  "refresh_token",
-  "api_key",
-  "hidden_reasoning",
-  "sk-proj-",
-  "ghp_",
   "secret",
+  "secrets",
 ];
 
 export function prepareCodexFormerCapturePacket(options = {}) {
@@ -1036,11 +1055,40 @@ function allAuthorityFlagsFalse(flags) {
 
 function collectUnsafeSourceInputMarkers(sourceText) {
   const lowered = sourceText.toLowerCase();
-  return unsafeSourceInputMarkers.filter((marker) => lowered.includes(marker));
+  return uniqueTextList([
+    ...exactUnsafeSourceInputMarkers.filter((marker) =>
+      includesExactMarker(lowered, marker),
+    ),
+    ...prefixUnsafeSourceInputMarkers.filter((marker) =>
+      lowered.includes(marker),
+    ),
+    ...phraseUnsafeSourceInputMarkers.filter((marker) =>
+      lowered.includes(marker),
+    ),
+    ...tokenBoundaryUnsafeSourceInputMarkers.filter((marker) =>
+      includesWordBoundaryMarker(lowered, marker),
+    ),
+  ]);
 }
 
 function hashText(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function includesExactMarker(value, marker) {
+  const escaped = escapeRegExp(marker);
+  return new RegExp(`(^|[^a-z0-9_])${escaped}([^a-z0-9_]|$)`, "i").test(
+    value,
+  );
+}
+
+function includesWordBoundaryMarker(value, marker) {
+  const escaped = escapeRegExp(marker);
+  return new RegExp(`\\b${escaped}\\b`, "i").test(value);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function optionalString(value, fieldName) {

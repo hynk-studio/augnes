@@ -62,6 +62,12 @@ pointer-oriented refs. When this path is used, metadata records
 `capture_source_kind: bounded_source_input_file`, `source_input_path`,
 `source_input_hash`, source scope, and source work id.
 
+Use `docs/PERSPECTIVE_CODEX_FORMER_CAPTURE_SOURCE_INPUT_TEMPLATE_V0_1.md` for
+the operator-readable source input shape and a sanitized example. If
+`--generated-at` is supplied, that timestamp is used for helper metadata and the
+generated Formation Input Bundle path. `source_input_hash` remains the hash of
+the source input file exactly as supplied on disk.
+
 Prepare mode writes:
 
 - a copyable prompt file;

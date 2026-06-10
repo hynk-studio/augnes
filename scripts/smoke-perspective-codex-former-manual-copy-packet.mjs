@@ -140,6 +140,8 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-perspective-codex-former-capture-helper.mjs",
   "reports/2026-06-10-perspective-codex-former-capture-helper.md",
   "reports/2026-06-10-perspective-codex-former-capture-helper-parameterized-input.md",
+  "docs/PERSPECTIVE_CODEX_FORMER_CAPTURE_SOURCE_INPUT_TEMPLATE_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-source-input-hardening.md",
   packageFile,
   manualCopyPacketFile,
   promptContractFile,

@@ -15,10 +15,14 @@ const helperFile = "scripts/perspective-codex-former-capture-helper.mjs";
 const smokeFile = "scripts/smoke-perspective-codex-former-capture-helper.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_WORKFLOW_V0_1.md";
+const sourceInputTemplateDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CAPTURE_SOURCE_INPUT_TEMPLATE_V0_1.md";
 const reportFile =
   "reports/2026-06-10-perspective-codex-former-capture-helper.md";
 const parameterizedReportFile =
   "reports/2026-06-10-perspective-codex-former-capture-helper-parameterized-input.md";
+const sourceInputHardeningReportFile =
+  "reports/2026-06-10-perspective-codex-former-source-input-hardening.md";
 const manualWorkflowDocsSmokeFile =
   "scripts/smoke-perspective-codex-former-manual-workflow-docs.mjs";
 const manualCopyPacketSmokeFile =
@@ -34,6 +38,7 @@ const defaultTmpDir = "/tmp/augnes-codex-former-capture-helper-smoke-default";
 const parameterizedTmpDir =
   "/tmp/augnes-codex-former-capture-helper-smoke-parameterized";
 const sourceInputPath = join(parameterizedTmpDir, "bounded-source-input.json");
+const rejectionTmpDir = join(parameterizedTmpDir, "rejection-cases");
 const promptPath = join(
   parameterizedTmpDir,
   "codex-former-copyable-prompt.txt",
@@ -70,8 +75,10 @@ const allowedChangedFiles = new Set([
   helperFile,
   smokeFile,
   docFile,
+  sourceInputTemplateDocFile,
   reportFile,
   parameterizedReportFile,
+  sourceInputHardeningReportFile,
   manualWorkflowDocsSmokeFile,
   manualCopyPacketSmokeFile,
   separateSessionPrepSmokeFile,
@@ -80,11 +87,14 @@ const allowedChangedFiles = new Set([
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
-const docText = readFileSync(docFile, "utf8");
+const docText = `${readFileSync(docFile, "utf8")}\n${readFileSync(
+  sourceInputTemplateDocFile,
+  "utf8",
+)}`;
 const reportText = `${readFileSync(reportFile, "utf8")}\n${readFileSync(
   parameterizedReportFile,
   "utf8",
-)}`;
+)}\n${readFileSync(sourceInputHardeningReportFile, "utf8")}`;
 
 assertPackageScripts();
 assertHelperSourceBoundary();
@@ -92,6 +102,7 @@ assertDocsAndReport();
 assertNoRawUnsafeMarkersInPublicArtifacts();
 assertChangedFileBoundary();
 runPrepareModes();
+runSourceInputRejectionCases();
 runValidateMode();
 runNegativeValidationCases();
 
@@ -213,6 +224,27 @@ function runPrepareModes() {
     hashText(readFileSync(sourceInputPath, "utf8")),
     "source input hash must be deterministic",
   );
+  assert.equal(metadata.generated_at, "2026-06-10T00:00:00.000Z");
+  assert.equal(
+    metadata.source_former_input_packet.source_formation_input_bundle
+      .generated_at,
+    "2026-06-10T00:00:00.000Z",
+    "generated former input packet must use --generated-at override",
+  );
+  assert.notEqual(
+    metadata.source_input_hash,
+    hashText(
+      JSON.stringify(
+        {
+          ...buildSourceInputFixture(),
+          generated_at: "2026-06-10T00:00:00.000Z",
+        },
+        null,
+        2,
+      ) + "\n",
+    ),
+    "source input hash must remain the hash of the supplied file contents",
+  );
   assert.equal(
     metadata.source_input_work_id,
     "AG-example-codex-former-capture-helper-parameterized-input",
@@ -272,6 +304,143 @@ function runPrepareModes() {
     false,
     "helper metadata must not claim accepted Augnes state",
   );
+}
+
+function runSourceInputRejectionCases() {
+  mkdirSync(rejectionTmpDir, { recursive: true });
+  const missingFileOutput = expectPrepareFailure(
+    join(rejectionTmpDir, "missing-source-input.json"),
+    "missing-file",
+  );
+  assertContainsAll(missingFileOutput, ["source input file does not exist"]);
+
+  writeFileSync(join(rejectionTmpDir, "invalid-json.json"), "{ nope", "utf8");
+  assertContainsAll(
+    expectPrepareFailure(join(rejectionTmpDir, "invalid-json.json"), "invalid-json"),
+    ["source input file is not valid JSON"],
+  );
+
+  writeFileSync(join(rejectionTmpDir, "non-object.json"), "[]\n", "utf8");
+  assertContainsAll(
+    expectPrepareFailure(join(rejectionTmpDir, "non-object.json"), "non-object"),
+    ["source input JSON must be an object"],
+  );
+
+  writeRejectedSourceInputCase({
+    fileName: "missing-scope.json",
+    mutate: (fixture) => {
+      delete fixture.scope;
+    },
+    expectedSnippets: ["source input scope is required"],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "missing-work-anchor.json",
+    mutate: (fixture) => {
+      delete fixture.work_id;
+      fixture.source_pr_refs = [];
+    },
+    expectedSnippets: ["source input requires work_id or source_pr_refs"],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "empty-changed-files.json",
+    mutate: (fixture) => {
+      fixture.changed_files = [];
+    },
+    expectedSnippets: [
+      "source input changed_files must include at least one file",
+    ],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "no-verification-material.json",
+    mutate: (fixture) => {
+      fixture.tests_checks_run = [];
+      fixture.skipped_checks = [];
+      fixture.evidence_row_refs = [];
+      fixture.proof_only_action_refs = [];
+    },
+    expectedSnippets: [
+      "source input requires checks, skipped checks, evidence refs, or proof-only action refs",
+    ],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "unsupported-check-status.json",
+    mutate: (fixture) => {
+      fixture.tests_checks_run[0].status = "unknown";
+    },
+    expectedSnippets: [
+      "source input tests_checks_run[0].status must be passed or failed",
+    ],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "missing-check-field.json",
+    mutate: (fixture) => {
+      delete fixture.tests_checks_run[0].check_id;
+    },
+    expectedSnippets: [
+      "source input tests_checks_run[0].check_id must be a non-empty string",
+    ],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "missing-skipped-reason.json",
+    mutate: (fixture) => {
+      delete fixture.skipped_checks[0].skipped_reason;
+    },
+    expectedSnippets: [
+      "source input skipped_checks[0].skipped_reason must be a non-empty string",
+    ],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "missing-gap-summary.json",
+    mutate: (fixture) => {
+      delete fixture.unresolved_gaps[0].summary;
+    },
+    expectedSnippets: [
+      "source input unresolved_gaps[0].summary must be a non-empty string",
+    ],
+  });
+  writeRejectedSourceInputCase({
+    fileName: "unsafe-markers.json",
+    mutate: (fixture) => {
+      fixture.changed_files_summary = [
+        "access_token refresh_token oauth_token api_key sk-proj- ghp_",
+        "raw_pr_diff raw review payload raw page dump hidden_reasoning",
+        "provider log cookie account data private_payload raw_source_payload",
+        "raw_candidate_payload raw_private_payload secret",
+      ].join(" ");
+    },
+    expectedSnippets: [
+      "source input contains unsafe/private/provider material markers",
+      "access_token",
+      "raw_pr_diff",
+      "provider log",
+      "secret",
+    ],
+  });
+}
+
+function writeRejectedSourceInputCase({ fileName, mutate, expectedSnippets }) {
+  const fixture = buildSourceInputFixture();
+  mutate(fixture);
+  const path = join(rejectionTmpDir, fileName);
+  writeFileSync(path, `${JSON.stringify(fixture, null, 2)}\n`, "utf8");
+  assertContainsAll(
+    expectPrepareFailure(path, fileName.replace(/\.json$/, "")),
+    expectedSnippets,
+  );
+}
+
+function expectPrepareFailure(sourcePath, caseName) {
+  return expectCommandFailure([
+    "run",
+    "perspective:codex-former:capture-packet",
+    "--",
+    "--out-dir",
+    join(rejectionTmpDir, `out-${caseName}`),
+    "--source-input",
+    sourcePath,
+    "--generated-at",
+    "2026-06-10T00:00:00.000Z",
+  ]);
 }
 
 function runValidateMode() {
@@ -460,7 +629,7 @@ function buildReturnedEnvelope({
 
 function buildSourceInputFixture() {
   return {
-    generated_at: "2026-06-10T00:00:00.000Z",
+    generated_at: "2026-06-09T00:00:00.000Z",
     scope: "project:augnes",
     work_id: "AG-example-codex-former-capture-helper-parameterized-input",
     source_pr_refs: ["pr:hynk-studio/augnes#494"],
@@ -469,7 +638,7 @@ function buildSourceInputFixture() {
       "scripts/smoke-perspective-codex-former-capture-helper.mjs",
     ],
     changed_files_summary:
-      "Bounded local source input for parameterized Codex Former capture helper smoke.",
+      "Bounded local source input for parameterized Codex Former capture helper smoke. Benign words: tokenizer, tokenization, and secretariat.",
     tests_checks_run: [
       {
         check_id: "check:example",
@@ -482,7 +651,7 @@ function buildSourceInputFixture() {
       {
         check_id: "check:browser-computer-use",
         skipped_reason:
-          "Not run because this is local CLI docs report smoke work with no UI or browser-visible surface.",
+          "Screenshot validation skipped because no UI; check:browser-computer-use has no browser-visible surface; local docs report smoke work only.",
         result_summary: "No browser surface added.",
       },
     ],
@@ -613,6 +782,7 @@ function assertDocsAndReport() {
     "source_input_hash",
     "exactly one returned candidate draft JSON object",
     "unknown pointer warnings",
+    "Perspective Codex Former Capture Source Input Template v0.1",
   ]);
   assertContainsAll(reportText, [
     "Perspective Codex Former Capture Helper",
@@ -629,6 +799,9 @@ function assertDocsAndReport() {
     "Parameterized Source Input Behavior",
     "Validate Extraction Hardening",
     "exactly one",
+    "Source-Input Rejection Hardening",
+    "Unsafe Marker Precision",
+    "generated_at / Source Hash Behavior",
   ]);
 }
 
