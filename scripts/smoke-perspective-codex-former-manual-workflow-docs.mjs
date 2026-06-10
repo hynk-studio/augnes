@@ -27,6 +27,12 @@ const sourceInputTemplateDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_CAPTURE_SOURCE_INPUT_TEMPLATE_V0_1.md";
 const sourceInputHardeningReportFile =
   "reports/2026-06-10-perspective-codex-former-source-input-hardening.md";
+const workflowCloseoutDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_WORKFLOW_CLOSEOUT_V0_1.md";
+const workflowCloseoutReportFile =
+  "reports/2026-06-10-perspective-codex-former-workflow-closeout.md";
+const workflowCloseoutSmokeFile =
+  "scripts/smoke-perspective-codex-former-workflow-closeout.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -44,6 +50,9 @@ const allowedChangedFiles = new Set([
   parameterizedCaptureHelperReportFile,
   sourceInputTemplateDocFile,
   sourceInputHardeningReportFile,
+  workflowCloseoutDocFile,
+  workflowCloseoutReportFile,
+  workflowCloseoutSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));

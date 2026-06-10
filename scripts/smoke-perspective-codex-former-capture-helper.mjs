@@ -23,6 +23,12 @@ const parameterizedReportFile =
   "reports/2026-06-10-perspective-codex-former-capture-helper-parameterized-input.md";
 const sourceInputHardeningReportFile =
   "reports/2026-06-10-perspective-codex-former-source-input-hardening.md";
+const workflowCloseoutDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_WORKFLOW_CLOSEOUT_V0_1.md";
+const workflowCloseoutReportFile =
+  "reports/2026-06-10-perspective-codex-former-workflow-closeout.md";
+const workflowCloseoutSmokeFile =
+  "scripts/smoke-perspective-codex-former-workflow-closeout.mjs";
 const manualWorkflowDocsSmokeFile =
   "scripts/smoke-perspective-codex-former-manual-workflow-docs.mjs";
 const manualCopyPacketSmokeFile =
@@ -79,6 +85,9 @@ const allowedChangedFiles = new Set([
   reportFile,
   parameterizedReportFile,
   sourceInputHardeningReportFile,
+  workflowCloseoutDocFile,
+  workflowCloseoutReportFile,
+  workflowCloseoutSmokeFile,
   manualWorkflowDocsSmokeFile,
   manualCopyPacketSmokeFile,
   separateSessionPrepSmokeFile,
