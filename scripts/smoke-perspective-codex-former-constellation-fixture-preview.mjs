@@ -15,6 +15,20 @@ const fixturePreviewDogfoodFile =
   "scripts/dogfood-perspective-codex-former-constellation-fixture-preview.mjs";
 const fixturePreviewSmokeFile =
   "scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs";
+const previewDataAdapterModuleFile =
+  "lib/perspective-ingest/perspective-codex-former-constellation-preview-data-adapter.ts";
+const previewDataAdapterDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PREVIEW_DATA_ADAPTER_V0_1.md";
+const previewDataAdapterReportFile =
+  "reports/2026-06-10-perspective-codex-former-constellation-preview-data-adapter.md";
+const previewDataAdapterPassFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json";
+const previewDataAdapterBlockedFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-blocked.json";
+const previewDataAdapterDogfoodFile =
+  "scripts/dogfood-perspective-codex-former-constellation-preview-data-adapter.mjs";
+const previewDataAdapterSmokeFile =
+  "scripts/smoke-perspective-codex-former-constellation-preview-data-adapter.mjs";
 const manualWorkflowDocsSmokeFile =
   "scripts/smoke-perspective-codex-former-manual-workflow-docs.mjs";
 const manualCopyPacketSmokeFile =
@@ -42,6 +56,13 @@ const allowedChangedFiles = new Set([
   blockedFixtureFile,
   fixturePreviewDogfoodFile,
   fixturePreviewSmokeFile,
+  previewDataAdapterModuleFile,
+  previewDataAdapterDocFile,
+  previewDataAdapterReportFile,
+  previewDataAdapterPassFixtureFile,
+  previewDataAdapterBlockedFixtureFile,
+  previewDataAdapterDogfoodFile,
+  previewDataAdapterSmokeFile,
   manualWorkflowDocsSmokeFile,
   manualCopyPacketSmokeFile,
   separateSessionPrepSmokeFile,
@@ -533,16 +554,19 @@ function assertChangedFileBoundary() {
     );
     assert(
       changedFile === packageFile ||
-      changedFile === fixturePreviewDogfoodFile ||
+        changedFile === previewDataAdapterModuleFile ||
+        changedFile === fixturePreviewDogfoodFile ||
+        changedFile === previewDataAdapterDogfoodFile ||
         changedFile.startsWith("docs/") ||
         changedFile.startsWith("reports/") ||
         changedFile.startsWith("scripts/smoke-"),
-      `fixture preview must stay docs/report/fixture-json/dogfood/smoke/package only: ${changedFile}`,
+      `fixture preview must stay lib/docs/report/fixture-json/dogfood/smoke/package only: ${changedFile}`,
     );
     assert(
       !changedFile.startsWith("app/") &&
         !changedFile.startsWith("components/") &&
-        !changedFile.startsWith("lib/") &&
+        (!changedFile.startsWith("lib/") ||
+          changedFile === previewDataAdapterModuleFile) &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         changedFile !== "scripts/perspective-codex-former-capture-helper.mjs",

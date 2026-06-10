@@ -23,6 +23,20 @@ const fixturePreviewDogfoodFile =
   "scripts/dogfood-perspective-codex-former-constellation-fixture-preview.mjs";
 const fixturePreviewSmokeFile =
   "scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs";
+const previewDataAdapterModuleFile =
+  "lib/perspective-ingest/perspective-codex-former-constellation-preview-data-adapter.ts";
+const previewDataAdapterDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PREVIEW_DATA_ADAPTER_V0_1.md";
+const previewDataAdapterReportFile =
+  "reports/2026-06-10-perspective-codex-former-constellation-preview-data-adapter.md";
+const previewDataAdapterPassFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json";
+const previewDataAdapterBlockedFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-blocked.json";
+const previewDataAdapterDogfoodFile =
+  "scripts/dogfood-perspective-codex-former-constellation-preview-data-adapter.mjs";
+const previewDataAdapterSmokeFile =
+  "scripts/smoke-perspective-codex-former-constellation-preview-data-adapter.mjs";
 const productSurfaceDesignSmokeFile =
   "scripts/smoke-perspective-codex-former-product-surface-design.mjs";
 const workflowCloseoutSmokeFile =
@@ -52,6 +66,13 @@ const allowedChangedFiles = new Set([
   fixturePreviewBlockedFixtureFile,
   fixturePreviewDogfoodFile,
   fixturePreviewSmokeFile,
+  previewDataAdapterModuleFile,
+  previewDataAdapterDocFile,
+  previewDataAdapterReportFile,
+  previewDataAdapterPassFixtureFile,
+  previewDataAdapterBlockedFixtureFile,
+  previewDataAdapterDogfoodFile,
+  previewDataAdapterSmokeFile,
   productSurfaceDesignSmokeFile,
   workflowCloseoutSmokeFile,
   manualWorkflowDocsSmokeFile,
@@ -352,11 +373,13 @@ function assertChangedFileBoundary() {
     assert(
       changedFile === packageFile ||
         changedFile === projectionModuleFile ||
+        changedFile === previewDataAdapterModuleFile ||
         changedFile === fixturePreviewDogfoodFile ||
+        changedFile === previewDataAdapterDogfoodFile ||
         changedFile.startsWith("docs/") ||
         changedFile.startsWith("reports/") ||
         changedFile.startsWith("scripts/smoke-"),
-      `constellation projection must stay lib/docs/report/smoke/package only: ${changedFile}`,
+      `constellation projection must stay lib/docs/report/fixture-json/dogfood/smoke/package only: ${changedFile}`,
     );
     assert(
       !changedFile.startsWith("app/") &&
