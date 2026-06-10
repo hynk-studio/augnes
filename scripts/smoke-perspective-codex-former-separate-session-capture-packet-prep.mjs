@@ -31,6 +31,7 @@ const allowedChangedFiles = new Set([
   "scripts/perspective-codex-former-capture-helper.mjs",
   "scripts/smoke-perspective-codex-former-capture-helper.mjs",
   "reports/2026-06-10-perspective-codex-former-capture-helper.md",
+  "reports/2026-06-10-perspective-codex-former-capture-helper-parameterized-input.md",
   "scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs",
   "scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs",
 ]);

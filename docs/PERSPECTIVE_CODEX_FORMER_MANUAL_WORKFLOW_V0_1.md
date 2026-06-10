@@ -45,6 +45,23 @@ Prepare a packet into a deterministic local output directory:
 npm run perspective:codex-former:capture-packet -- --out-dir /tmp/augnes-codex-former-capture
 ```
 
+By default, prepare mode uses the proven separate-session capture packet prep
+builder from the PR #491 through PR #494 path. Metadata records
+`capture_source_kind: separate_session_capture_packet_prep_builder`.
+
+For a fresh bounded local source input file, use `--source-input`:
+
+```bash
+npm run perspective:codex-former:capture-packet -- --out-dir /tmp/augnes-codex-former-capture --source-input /tmp/augnes-codex-former-capture/bounded-source-input.json
+```
+
+The source input file must be local JSON containing bounded source material for
+the local Formation Input Bundle builder: scope, work id or PR refs, changed
+files, a bounded summary, checks or skipped checks, and any unresolved gaps or
+pointer-oriented refs. When this path is used, metadata records
+`capture_source_kind: bounded_source_input_file`, `source_input_path`,
+`source_input_hash`, source scope, and source work id.
+
 Prepare mode writes:
 
 - a copyable prompt file;
@@ -55,7 +72,9 @@ Prepare mode writes:
 
 It prints the same ids/hash and output paths to stdout. It fails if the stable
 prompt contract label is missing, stale PR #479 wording is present, or generated
-provenance values are missing or `not_supplied_in_chat`.
+provenance values are missing or `not_supplied_in_chat`. Source-input prepare
+also fails when the local JSON cannot be parsed or contains unsafe private,
+provider, credential-like, browser-capture, or raw source/review material.
 
 After the human returns a separate-session capture envelope, validate it with
 the metadata from prepare mode:
@@ -68,7 +87,10 @@ Validate mode verifies envelope provenance, confirms ids/hash match metadata,
 extracts exactly one returned candidate draft JSON object, runs contract-fit,
 runs direct validation/normalization with the same former input packet, runs
 schema alignment only as a safety-net comparison, and runs Worker-Facing
-Guidance only after direct validation returns candidate-compatible material.
+Guidance only after direct validation returns candidate-compatible material. The
+returned response may be a JSON object or bounded prose containing exactly one
+balanced candidate JSON object. Multiple candidate objects block with useful
+findings.
 
 The validate result prints `PASS`, `PASS with follow-up`, or `BLOCKED with
 useful findings`. The helper reports unknown pointer warnings and
