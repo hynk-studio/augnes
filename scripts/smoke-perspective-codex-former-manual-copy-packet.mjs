@@ -129,6 +129,10 @@ const expectedTsxCommand =
 const noBrowserComputerUseReason =
   "Not run: no browser/computer-use validation required because this PR is pure local library/docs/report/smoke/package work and adds no UI, route, browser-visible surface, or interactive copy control.";
 const allowedChangedFiles = new Set([
+  "scripts/dogfood-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_PROVENANCE_CLEAN_CAPTURE_V0_1.md",
+  "reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md",
   packageFile,
   manualCopyPacketFile,
   promptContractFile,

@@ -20,6 +20,10 @@ const allowedChangedFiles = new Set([
   smokeFile,
   docFile,
   reportFile,
+  "scripts/dogfood-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_PROVENANCE_CLEAN_CAPTURE_V0_1.md",
+  "reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md",
   "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs",
   "scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs",
   "scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs",
@@ -101,7 +105,7 @@ function assertDogfoodBuildAndReport() {
     first.evaluation.recommended_next_pr_title,
     SEPARATE_SESSION_CAPTURE_PACKET_PREP_RECOMMENDED_NEXT_PR,
   );
-  assert.equal(first.evaluation.real_separate_session_transcript_supplied, false);
+  assert.equal(first.evaluation.real_separate_session_transcript_supplied, true);
   assert.equal(first.packet_validation.status, "passes");
   assert.equal(first.scenarios.length, 5);
   assert.deepEqual(
@@ -126,17 +130,13 @@ function assertTranscriptAvailability() {
     "separate_session_transcript_availability",
   );
 
-  assert.equal(scenario.conclusion, "WAITING_FOR_TRANSCRIPT");
-  assert.equal(scenario.transcript_available, false);
-  assert.equal(scenario.real_separate_session_envelope_supplied, false);
-  assert.equal(scenario.capture_method, "not_run");
-  assert.equal(scenario.capture_surface, "not_run");
-  assert.equal(
-    scenario.blocked_reasons.includes(
-      "No real separate-session transcript envelope was supplied.",
-    ),
-    true,
-  );
+  assert.equal(scenario.conclusion, "PASS");
+  assert.equal(scenario.transcript_available, true);
+  assert.equal(scenario.real_separate_session_envelope_supplied, true);
+  assert.equal(scenario.capture_method, "human_manual");
+  assert.equal(scenario.capture_surface, "separate user-started Codex session");
+  assert.equal(scenario.prompt_was_generated_by_manual_copy_packet, true);
+  assert.deepEqual(scenario.blocked_reasons, []);
 }
 
 function assertFreshGeneratedPacket() {
@@ -215,12 +215,24 @@ function assertNoSuccessClaimWithoutTranscript() {
   );
 
   assert.equal(scenario.conclusion, "PASS");
-  assert.equal(scenario.transcript_available, false);
+  assert.equal(scenario.transcript_available, true);
   assert.equal(scenario.separate_session_confirmation_claimed, false);
-  assert.equal(scenario.contract_fit_result, "not_run_no_transcript");
-  assert.equal(scenario.direct_validation_result, "not_run_no_transcript");
-  assert.equal(scenario.alignment_safety_net_result, "not_run_no_transcript");
-  assert.equal(scenario.downstream_guidance_result, "not_run_no_transcript");
+  assert.equal(
+    scenario.contract_fit_result,
+    "delegated_to_follow_up_capture_dogfood",
+  );
+  assert.equal(
+    scenario.direct_validation_result,
+    "delegated_to_follow_up_capture_dogfood",
+  );
+  assert.equal(
+    scenario.alignment_safety_net_result,
+    "delegated_to_follow_up_capture_dogfood",
+  );
+  assert.equal(
+    scenario.downstream_guidance_result,
+    "delegated_to_follow_up_capture_dogfood",
+  );
   assert.equal(
     dogfood.artifact.includes("Contract-fit status: fits_contract"),
     false,
@@ -255,8 +267,8 @@ function assertDocsAndReport() {
   assertContainsAll(docText, [
     "Perspective Codex Former Separate-Session Capture Packet Prep v0.1",
     "follows PR #490",
-    "No real separate-session transcript envelope is included",
-    "BLOCKED / WAITING_FOR_TRANSCRIPT",
+    "real separate-session transcript envelope has now been supplied",
+    "PASS with follow-up",
     "Capture separate-session provenance-clean Codex former transcript",
     "manual copy packet id",
     "source_prompt_hash",
@@ -277,9 +289,10 @@ function assertDocsAndReport() {
     "Copyable Prompt For Separate User-Started Codex Session",
     "Capture Return Envelope To Paste Back",
     "What Codex Did Not Do",
-    "BLOCKED / WAITING_FOR_TRANSCRIPT",
-    "Transcript available: false",
-    "Result: not_run_no_transcript",
+    "PASS with follow-up",
+    "Transcript available: true",
+    "Result: delegated_to_follow_up_capture_dogfood",
+    "Follow-up capture artifact: reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md",
     "Stale PR #479 prompt wording present: false",
     "Capture separate-session provenance-clean Codex former transcript",
   ]);

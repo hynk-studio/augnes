@@ -203,6 +203,14 @@ const inputBundleSmokeFile =
 const laneSmokeFile = "scripts/smoke-perspective-formation-lane-v0-1.mjs";
 
 const allowedChangedFiles = new Set([
+  "scripts/dogfood-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_CAPTURE_PACKET_PREP_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-separate-session-capture-packet-prep.md",
+  "scripts/dogfood-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_PROVENANCE_CLEAN_CAPTURE_V0_1.md",
+  "reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md",
   packageFile,
   manualCopyPacketFile,
   candidateBuilderFile,

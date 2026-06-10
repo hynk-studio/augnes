@@ -3,14 +3,17 @@
 ## Purpose
 
 This prep slice follows PR #490 by preparing the next separate-session capture
-attempt without claiming that separate-session confirmation has succeeded.
+attempt. A real separate-session transcript envelope has now been supplied, so
+this document is the packet-generation record and current validation is handled
+by the separate-session provenance-clean capture dogfood.
 
 PR #490 proved the provenance-clean same-session fallback. The remaining
 follow-up is to confirm the same provenance-clean flow in a separate
 user-started Codex session.
 
-No real separate-session transcript envelope is included in this PR. The
-conclusion is `BLOCKED / WAITING_FOR_TRANSCRIPT`.
+The packet metadata remains immutable because the supplied transcript provenance
+depends on the generated ids and prompt hash. The current conclusion is
+`PASS with follow-up`.
 
 ## Generated Packet
 
@@ -35,7 +38,7 @@ use stale PR #479 prompt wording.
 
 ## Required Return Envelope
 
-The returned transcript must use this shape:
+The returned transcript used this shape:
 
 ```text
 REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET
@@ -60,18 +63,23 @@ END RETURNED_CODEX_RESPONSE
 The ids and prompt hash must match the generated packet metadata in the report.
 Old packet ids and old prompt hashes must not be reused.
 
-## What Remains Blocked
+## What Moved To The Follow-Up Capture Dogfood
 
-Until a real separate-session envelope is returned:
+After the real separate-session envelope was supplied, the follow-up capture
+dogfood became responsible for:
 
-- contract fit is not run;
-- direct validation is not run;
-- alignment is not run;
-- Worker-Facing Guidance is not run;
-- separate-session confirmation is not claimed.
+- contract fit;
+- direct validation;
+- alignment safety-net reporting;
+- Worker-Facing Guidance;
+- unsafe/authority regression checks;
+- stale wording regression checks.
 
 Recommended next implementation PR title:
 `Capture separate-session provenance-clean Codex former transcript`.
+
+Follow-up capture artifact:
+`reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md`.
 
 ## Authority Boundary
 
@@ -85,8 +93,9 @@ deploy, or make Core decisions.
 
 ## Skipped Checks
 
-- Real separate-session transcript dogfood: not run because no real
-  separate-session transcript envelope was supplied.
+- Real separate-session transcript dogfood: run by
+  `npm run dogfood:perspective-codex-former-separate-session-provenance-clean-capture`
+  because the transcript is now supplied.
 - Browser/computer-use validation: not run because this PR adds no UI, route,
   browser-visible surface, clipboard automation, or interactive copy control.
 - DB validation: not run because this PR adds no DB schema, persistence path, or
