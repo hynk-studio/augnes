@@ -40,6 +40,10 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CODEX_FORMER_PRODUCT_SURFACE_DESIGN_V0_1.md",
   "reports/2026-06-10-perspective-codex-former-product-surface-design.md",
   "scripts/smoke-perspective-codex-former-product-surface-design.mjs",
+  "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts",
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PROJECTION_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-constellation-projection.md",
+  "scripts/smoke-perspective-codex-former-constellation-projection.mjs",
   "scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs",
   "scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs",
 ]);
@@ -342,7 +346,9 @@ function assertChangedFileBoundary() {
       !changedFile.startsWith("app/api/") &&
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
-        !changedFile.startsWith("lib/"),
+        (!changedFile.startsWith("lib/") ||
+          changedFile ===
+            "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts"),
       `Separate-session capture packet prep must not change forbidden surfaces: ${changedFile}`,
     );
   }

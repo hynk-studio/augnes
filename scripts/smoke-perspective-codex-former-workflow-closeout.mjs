@@ -29,6 +29,14 @@ const productSurfaceDesignReportFile =
   "reports/2026-06-10-perspective-codex-former-product-surface-design.md";
 const productSurfaceDesignSmokeFile =
   "scripts/smoke-perspective-codex-former-product-surface-design.mjs";
+const constellationProjectionModuleFile =
+  "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts";
+const constellationProjectionDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PROJECTION_V0_1.md";
+const constellationProjectionReportFile =
+  "reports/2026-06-10-perspective-codex-former-constellation-projection.md";
+const constellationProjectionSmokeFile =
+  "scripts/smoke-perspective-codex-former-constellation-projection.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -45,6 +53,10 @@ const allowedChangedFiles = new Set([
   productSurfaceDesignDocFile,
   productSurfaceDesignReportFile,
   productSurfaceDesignSmokeFile,
+  constellationProjectionModuleFile,
+  constellationProjectionDocFile,
+  constellationProjectionReportFile,
+  constellationProjectionSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -206,6 +218,7 @@ function assertChangedFileBoundary() {
     );
     assert(
       changedFile === packageFile ||
+        changedFile === constellationProjectionModuleFile ||
         changedFile.startsWith("docs/") ||
         changedFile.startsWith("reports/") ||
         changedFile.startsWith("scripts/smoke-"),
@@ -214,7 +227,8 @@ function assertChangedFileBoundary() {
     assert(
       !changedFile.startsWith("app/") &&
         !changedFile.startsWith("components/") &&
-        !changedFile.startsWith("lib/") &&
+        (!changedFile.startsWith("lib/") ||
+          changedFile === constellationProjectionModuleFile) &&
         changedFile !== "scripts/perspective-codex-former-capture-helper.mjs",
       `workflow closeout must not change runtime/helper surfaces: ${changedFile}`,
     );
