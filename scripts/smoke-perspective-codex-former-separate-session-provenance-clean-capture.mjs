@@ -36,6 +36,9 @@ const allowedChangedFiles = new Set([
   "reports/2026-06-10-perspective-codex-former-manual-workflow-docs.md",
   "scripts/smoke-perspective-codex-former-manual-workflow-docs.mjs",
   "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs",
+  "scripts/perspective-codex-former-capture-helper.mjs",
+  "scripts/smoke-perspective-codex-former-capture-helper.mjs",
+  "reports/2026-06-10-perspective-codex-former-capture-helper.md",
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
