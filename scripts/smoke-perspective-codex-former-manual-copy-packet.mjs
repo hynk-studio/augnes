@@ -158,6 +158,13 @@ const allowedChangedFiles = new Set([
   "reports/fixtures/2026-06-10-codex-former-constellation-blocked.json",
   "scripts/dogfood-perspective-codex-former-constellation-fixture-preview.mjs",
   "scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs",
+  "lib/perspective-ingest/perspective-codex-former-constellation-preview-data-adapter.ts",
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PREVIEW_DATA_ADAPTER_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-constellation-preview-data-adapter.md",
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json",
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-blocked.json",
+  "scripts/dogfood-perspective-codex-former-constellation-preview-data-adapter.mjs",
+  "scripts/smoke-perspective-codex-former-constellation-preview-data-adapter.mjs",
   packageFile,
   manualCopyPacketFile,
   promptContractFile,
@@ -904,7 +911,9 @@ function assertChangedFileBoundary() {
           changedFile === draftPipelineFile ||
           changedFile === draftSchemaAlignmentHelperFile ||
           changedFile ===
-            "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts") &&
+            "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts" ||
+          changedFile ===
+            "lib/perspective-ingest/perspective-codex-former-constellation-preview-data-adapter.ts") &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&

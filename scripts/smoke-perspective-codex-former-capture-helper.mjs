@@ -63,6 +63,20 @@ const fixturePreviewDogfoodFile =
   "scripts/dogfood-perspective-codex-former-constellation-fixture-preview.mjs";
 const fixturePreviewSmokeFile =
   "scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs";
+const previewDataAdapterModuleFile =
+  "lib/perspective-ingest/perspective-codex-former-constellation-preview-data-adapter.ts";
+const previewDataAdapterDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PREVIEW_DATA_ADAPTER_V0_1.md";
+const previewDataAdapterReportFile =
+  "reports/2026-06-10-perspective-codex-former-constellation-preview-data-adapter.md";
+const previewDataAdapterPassFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-pass-with-follow-up.json";
+const previewDataAdapterBlockedFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-blocked.json";
+const previewDataAdapterDogfoodFile =
+  "scripts/dogfood-perspective-codex-former-constellation-preview-data-adapter.mjs";
+const previewDataAdapterSmokeFile =
+  "scripts/smoke-perspective-codex-former-constellation-preview-data-adapter.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -131,6 +145,13 @@ const allowedChangedFiles = new Set([
   fixturePreviewBlockedFixtureFile,
   fixturePreviewDogfoodFile,
   fixturePreviewSmokeFile,
+  previewDataAdapterModuleFile,
+  previewDataAdapterDocFile,
+  previewDataAdapterReportFile,
+  previewDataAdapterPassFixtureFile,
+  previewDataAdapterBlockedFixtureFile,
+  previewDataAdapterDogfoodFile,
+  previewDataAdapterSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -893,7 +914,8 @@ function assertChangedFileBoundary() {
         !changedFile.startsWith("components/") &&
         changedFile !== "app/globals.css" &&
         (!changedFile.startsWith("lib/") ||
-          changedFile === constellationProjectionModuleFile),
+          changedFile === constellationProjectionModuleFile ||
+          changedFile === previewDataAdapterModuleFile),
       `Perspective Codex former capture helper must not change forbidden surfaces: ${changedFile}`,
     );
   }

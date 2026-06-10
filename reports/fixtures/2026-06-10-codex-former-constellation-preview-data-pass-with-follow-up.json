@@ -1,0 +1,2053 @@
+{
+  "preview_version": "codex_former_constellation_preview_data.v0.1",
+  "preview_kind": "codex_former_constellation_preview_data",
+  "generated_at": "2026-06-10T00:00:00.000Z",
+  "preview_context": {
+    "surface_label": "Codex Former constellation preview data",
+    "intended_surface": "constellation_preview"
+  },
+  "source_projection": {
+    "projection_version": "codex_former_constellation_projection.v0.1",
+    "projection_kind": "codex_former_constellation_projection",
+    "generated_at": "2026-06-10T00:00:00.000Z",
+    "overall_status": "pass_with_follow_up",
+    "conclusion": "PASS with follow-up"
+  },
+  "display_policy": {
+    "default_badge_limit": 2,
+    "default_view_shows_full_authority_flags": false,
+    "hover_view_enabled": true,
+    "detail_drawer_enabled": true,
+    "authority_lens_available": true,
+    "red_reserved_for_blocked": true,
+    "amber_reserved_for_warning_or_needs_review": true,
+    "review_only_is_normal_state": true
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "node:work",
+        "source_node_id": "node:work",
+        "kind": "work",
+        "label": "Source work",
+        "status": "prepared",
+        "authority": "pointer_only",
+        "badges": [
+          "pointer-only",
+          "review-only"
+        ],
+        "tone": "review",
+        "compact_summary": "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:node:work",
+        "authority_lens_tags": [
+          "pointer_only",
+          "review_only"
+        ]
+      },
+      {
+        "id": "node:source_input",
+        "source_node_id": "node:source_input",
+        "kind": "source_input",
+        "label": "Source input",
+        "status": "prepared",
+        "authority": "non_committed",
+        "badges": [
+          "review-only",
+          "non-committed"
+        ],
+        "tone": "review",
+        "compact_summary": "source_input_hash:fixture-hash:pass-with-follow-up-source-input",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:node:source_input",
+        "authority_lens_tags": [
+          "non_committed",
+          "review_only"
+        ]
+      },
+      {
+        "id": "node:manual_copy_packet",
+        "source_node_id": "node:manual_copy_packet",
+        "kind": "manual_copy_packet",
+        "label": "Manual copy packet",
+        "status": "prepared",
+        "authority": "pointer_only",
+        "badges": [
+          "pointer-only",
+          "review-only"
+        ],
+        "tone": "review",
+        "compact_summary": "prepared; pointer_only",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:node:manual_copy_packet",
+        "authority_lens_tags": [
+          "pointer_only",
+          "review_only"
+        ]
+      },
+      {
+        "id": "node:codex_session",
+        "source_node_id": "node:codex_session",
+        "kind": "codex_session",
+        "label": "Separate Codex session",
+        "status": "returned",
+        "authority": "review_only",
+        "badges": [
+          "review-only"
+        ],
+        "tone": "review",
+        "compact_summary": "returned; review_only",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:node:codex_session",
+        "authority_lens_tags": [
+          "review_only"
+        ]
+      },
+      {
+        "id": "node:candidate_draft",
+        "source_node_id": "node:candidate_draft",
+        "kind": "candidate_draft",
+        "label": "Candidate draft",
+        "status": "returned",
+        "authority": "non_committed",
+        "badges": [
+          "review-only",
+          "non-committed"
+        ],
+        "tone": "warning",
+        "compact_summary": "returned; non_committed",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:node:candidate_draft",
+        "authority_lens_tags": [
+          "non_committed",
+          "review_only"
+        ]
+      },
+      {
+        "id": "node:validation_summary",
+        "source_node_id": "node:validation_summary",
+        "kind": "validation_summary",
+        "label": "Validation summary",
+        "status": "needs_review",
+        "authority": "review_only",
+        "badges": [
+          "needs_review",
+          "review-only"
+        ],
+        "tone": "warning",
+        "compact_summary": "Needs review before use.",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:node:validation_summary",
+        "authority_lens_tags": [
+          "review_only"
+        ]
+      },
+      {
+        "id": "node:warning:1",
+        "source_node_id": "node:warning:1",
+        "kind": "warning",
+        "label": "Review warning",
+        "status": "needs_review",
+        "authority": "advisory_only",
+        "badges": [
+          "needs_review",
+          "pointer_warning"
+        ],
+        "tone": "warning",
+        "compact_summary": "Needs review before use.",
+        "warning_count": 1,
+        "detail_drawer_id": "drawer:node:warning:1",
+        "authority_lens_tags": [
+          "advisory_only",
+          "pointer_only"
+        ]
+      },
+      {
+        "id": "node:warning:2",
+        "source_node_id": "node:warning:2",
+        "kind": "warning",
+        "label": "Review warning",
+        "status": "needs_review",
+        "authority": "advisory_only",
+        "badges": [
+          "needs_review",
+          "pointer_warning"
+        ],
+        "tone": "warning",
+        "compact_summary": "Needs review before use.",
+        "warning_count": 1,
+        "detail_drawer_id": "drawer:node:warning:2",
+        "authority_lens_tags": [
+          "advisory_only",
+          "pointer_only"
+        ]
+      },
+      {
+        "id": "node:review_candidate",
+        "source_node_id": "node:review_candidate",
+        "kind": "review_candidate",
+        "label": "Review candidate",
+        "status": "needs_review",
+        "authority": "non_committed",
+        "badges": [
+          "needs_review",
+          "non-committed"
+        ],
+        "tone": "warning",
+        "compact_summary": "Needs review before use.",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:node:review_candidate",
+        "authority_lens_tags": [
+          "non_committed"
+        ]
+      },
+      {
+        "id": "node:worker_guidance",
+        "source_node_id": "node:worker_guidance",
+        "kind": "worker_guidance",
+        "label": "Worker guidance",
+        "status": "needs_review",
+        "authority": "advisory_only",
+        "badges": [
+          "advisory-only",
+          "review-only"
+        ],
+        "tone": "warning",
+        "compact_summary": "Needs review before use.",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:node:worker_guidance",
+        "authority_lens_tags": [
+          "advisory_only",
+          "review_only"
+        ]
+      },
+      {
+        "id": "node:next_action:1",
+        "source_node_id": "node:next_action:1",
+        "kind": "next_action",
+        "label": "Next action 1",
+        "status": "needs_review",
+        "authority": "advisory_only",
+        "badges": [
+          "advisory-only",
+          "review-only"
+        ],
+        "tone": "warning",
+        "compact_summary": "Needs review before use.",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:node:next_action:1",
+        "authority_lens_tags": [
+          "advisory_only",
+          "review_only"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge:node:work->node:source_input:informs",
+        "source_edge_id": "edge:node:work->node:source_input:informs",
+        "from": "node:work",
+        "to": "node:source_input",
+        "relation": "informs",
+        "label": "informs",
+        "status": "review_only",
+        "authority_boundary": "pointer_only",
+        "line_style": "dotted",
+        "tone": "review",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:edge:node:work->node:source_input:informs",
+        "authority_lens_tags": [
+          "pointer_only",
+          "review_only"
+        ]
+      },
+      {
+        "id": "edge:node:source_input->node:manual_copy_packet:prepared",
+        "source_edge_id": "edge:node:source_input->node:manual_copy_packet:prepared",
+        "from": "node:source_input",
+        "to": "node:manual_copy_packet",
+        "relation": "prepared",
+        "label": "prepared",
+        "status": "prepared",
+        "authority_boundary": "non_committing",
+        "line_style": "solid",
+        "tone": "review",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:edge:node:source_input->node:manual_copy_packet:prepared",
+        "authority_lens_tags": [
+          "non_committed"
+        ]
+      },
+      {
+        "id": "edge:node:manual_copy_packet->node:codex_session:pasted_by_human",
+        "source_edge_id": "edge:node:manual_copy_packet->node:codex_session:pasted_by_human",
+        "from": "node:manual_copy_packet",
+        "to": "node:codex_session",
+        "relation": "pasted_by_human",
+        "label": "human paste",
+        "status": "review_only",
+        "authority_boundary": "pointer_only",
+        "line_style": "dotted",
+        "tone": "review",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:edge:node:manual_copy_packet->node:codex_session:pasted_by_human",
+        "authority_lens_tags": [
+          "pointer_only",
+          "review_only"
+        ]
+      },
+      {
+        "id": "edge:node:codex_session->node:candidate_draft:returned",
+        "source_edge_id": "edge:node:codex_session->node:candidate_draft:returned",
+        "from": "node:codex_session",
+        "to": "node:candidate_draft",
+        "relation": "returned",
+        "label": "returned",
+        "status": "returned",
+        "authority_boundary": "review_only",
+        "line_style": "solid",
+        "tone": "warning",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:edge:node:codex_session->node:candidate_draft:returned",
+        "authority_lens_tags": [
+          "review_only"
+        ]
+      },
+      {
+        "id": "edge:node:candidate_draft->node:validation_summary:validated",
+        "source_edge_id": "edge:node:candidate_draft->node:validation_summary:validated",
+        "from": "node:candidate_draft",
+        "to": "node:validation_summary",
+        "relation": "validated",
+        "label": "validated",
+        "status": "needs_review",
+        "authority_boundary": "review_only",
+        "line_style": "solid",
+        "tone": "warning",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:edge:node:candidate_draft->node:validation_summary:validated",
+        "authority_lens_tags": [
+          "review_only"
+        ]
+      },
+      {
+        "id": "edge:node:validation_summary->node:review_candidate:informs",
+        "source_edge_id": "edge:node:validation_summary->node:review_candidate:informs",
+        "from": "node:validation_summary",
+        "to": "node:review_candidate",
+        "relation": "informs",
+        "label": "informs",
+        "status": "needs_review",
+        "authority_boundary": "review_only",
+        "line_style": "solid",
+        "tone": "warning",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:edge:node:validation_summary->node:review_candidate:informs",
+        "authority_lens_tags": [
+          "review_only"
+        ]
+      },
+      {
+        "id": "edge:node:warning:1->node:review_candidate:pointer_only",
+        "source_edge_id": "edge:node:warning:1->node:review_candidate:pointer_only",
+        "from": "node:warning:1",
+        "to": "node:review_candidate",
+        "relation": "pointer_only",
+        "label": "pointer only",
+        "status": "needs_review",
+        "authority_boundary": "pointer_only",
+        "line_style": "dotted",
+        "tone": "warning",
+        "warning_count": 1,
+        "detail_drawer_id": "drawer:edge:node:warning:1->node:review_candidate:pointer_only",
+        "authority_lens_tags": [
+          "pointer_only"
+        ]
+      },
+      {
+        "id": "edge:node:warning:2->node:review_candidate:pointer_only",
+        "source_edge_id": "edge:node:warning:2->node:review_candidate:pointer_only",
+        "from": "node:warning:2",
+        "to": "node:review_candidate",
+        "relation": "pointer_only",
+        "label": "pointer only",
+        "status": "needs_review",
+        "authority_boundary": "pointer_only",
+        "line_style": "dotted",
+        "tone": "warning",
+        "warning_count": 1,
+        "detail_drawer_id": "drawer:edge:node:warning:2->node:review_candidate:pointer_only",
+        "authority_lens_tags": [
+          "pointer_only"
+        ]
+      },
+      {
+        "id": "edge:node:review_candidate->node:worker_guidance:informs",
+        "source_edge_id": "edge:node:review_candidate->node:worker_guidance:informs",
+        "from": "node:review_candidate",
+        "to": "node:worker_guidance",
+        "relation": "informs",
+        "label": "informs",
+        "status": "needs_review",
+        "authority_boundary": "advisory_only",
+        "line_style": "dashed",
+        "tone": "warning",
+        "warning_count": 2,
+        "detail_drawer_id": "drawer:edge:node:review_candidate->node:worker_guidance:informs",
+        "authority_lens_tags": [
+          "advisory_only"
+        ]
+      },
+      {
+        "id": "edge:node:worker_guidance->node:next_action:1:suggests",
+        "source_edge_id": "edge:node:worker_guidance->node:next_action:1:suggests",
+        "from": "node:worker_guidance",
+        "to": "node:next_action:1",
+        "relation": "suggests",
+        "label": "suggests",
+        "status": "needs_review",
+        "authority_boundary": "advisory_only",
+        "line_style": "dashed",
+        "tone": "warning",
+        "warning_count": 0,
+        "detail_drawer_id": "drawer:edge:node:worker_guidance->node:next_action:1:suggests",
+        "authority_lens_tags": [
+          "advisory_only"
+        ]
+      }
+    ]
+  },
+  "summary_panel": {
+    "title": "Codex Former constellation preview data",
+    "conclusion": "PASS with follow-up",
+    "overall_status": "pass_with_follow_up",
+    "candidate_count": 1,
+    "metadata_match": true,
+    "primary_status_label": "PASS with follow-up",
+    "primary_caveat_label": "needs_review with pointer warning pressure",
+    "next_safe_action_label": "Advisory only: review the non-committed candidate before any decision.",
+    "is_review_only": true,
+    "is_accepted_state": false
+  },
+  "warning_panel": {
+    "warning_count": 2,
+    "pointer_warning_count": 1,
+    "grouped_warnings": [
+      {
+        "id": "warning_group:pointer_warning_pressure",
+        "label": "Pointer warning pressure",
+        "count": 2,
+        "tone": "warning",
+        "source_node_ids": [
+          "node:warning:1",
+          "node:warning:2"
+        ],
+        "examples": [
+          "Pointer warning remains visible for human review.",
+          "Pointer warnings remain visible for review."
+        ]
+      }
+    ],
+    "blocked_reasons": [],
+    "has_blocking_warnings": false,
+    "has_pointer_warnings": true,
+    "default_collapsed": true
+  },
+  "authority_lens": {
+    "available": true,
+    "default_enabled": false,
+    "tags": [
+      "advisory_only",
+      "no_accepted_state",
+      "no_codex_sdk_call",
+      "no_core_decision",
+      "no_db_write",
+      "no_github_mutation",
+      "no_provider_call",
+      "non_committed",
+      "pointer_only",
+      "review_only"
+    ],
+    "summary": "Authority Lens is inspectability only; it does not grant decision authority.",
+    "flags": {
+      "review_only": true,
+      "non_committed_candidate": true,
+      "accepted_state_created": false,
+      "proof_evidence_readiness_created": false,
+      "provider_model_calls": false,
+      "codex_sdk_calls": false,
+      "github_mutation": false,
+      "db_writes": false,
+      "ui_implemented": false,
+      "core_decision": false,
+      "committed_state": false,
+      "persistence": false,
+      "provider_model_api_calls": false,
+      "proof_evidence_readiness_writes": false,
+      "codex_execution": false,
+      "merge_publish_approval": false
+    }
+  },
+  "detail_drawers": [
+    {
+      "id": "drawer:summary",
+      "target_id": "summary_panel",
+      "target_kind": "summary",
+      "title": "Summary details",
+      "sections": [
+        {
+          "heading": "Status",
+          "rows": [
+            {
+              "label": "conclusion",
+              "value": "PASS with follow-up"
+            },
+            {
+              "label": "overall_status",
+              "value": "pass_with_follow_up"
+            },
+            {
+              "label": "direct_validation_status",
+              "value": "needs_review"
+            },
+            {
+              "label": "candidate_basis_quality",
+              "value": "needs_review"
+            }
+          ]
+        },
+        {
+          "heading": "Source",
+          "rows": [
+            {
+              "label": "capture_source_kind",
+              "value": "bounded_source_input_file"
+            },
+            {
+              "label": "source_input_hash",
+              "value": "fixture-hash:pass-with-follow-up-source-input"
+            },
+            {
+              "label": "source_prompt_hash",
+              "value": "fixture-hash:pass-with-follow-up-prompt"
+            },
+            {
+              "label": "candidate_count",
+              "value": "1"
+            },
+            {
+              "label": "metadata_match",
+              "value": "true"
+            }
+          ]
+        },
+        {
+          "heading": "Review Boundary",
+          "rows": [
+            {
+              "label": "is_review_only",
+              "value": "true"
+            },
+            {
+              "label": "is_accepted_state",
+              "value": "false"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:warning_panel",
+      "target_id": "warning_panel",
+      "target_kind": "warning_panel",
+      "title": "Warning details",
+      "sections": [
+        {
+          "heading": "Warning Summary",
+          "rows": [
+            {
+              "label": "warning_count",
+              "value": "2"
+            },
+            {
+              "label": "pointer_warning_count",
+              "value": "1"
+            },
+            {
+              "label": "has_pointer_warnings",
+              "value": "true"
+            },
+            {
+              "label": "has_blocking_warnings",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "heading": "Grouped Warnings",
+          "rows": [
+            {
+              "label": "Pointer warning pressure (2)",
+              "value": "Pointer warning remains visible for human review."
+            },
+            {
+              "label": "Pointer warning pressure (2)",
+              "value": "Pointer warnings remain visible for review."
+            }
+          ]
+        },
+        {
+          "heading": "Blocked Reasons",
+          "rows": []
+        }
+      ]
+    },
+    {
+      "id": "drawer:authority_lens",
+      "target_id": "authority_lens",
+      "target_kind": "authority_lens",
+      "title": "Authority Lens details",
+      "sections": [
+        {
+          "heading": "Lens",
+          "rows": [
+            {
+              "label": "available",
+              "value": "true"
+            },
+            {
+              "label": "default_enabled",
+              "value": "false"
+            },
+            {
+              "label": "summary",
+              "value": "Authority Lens is inspectability only; it does not grant decision authority."
+            }
+          ]
+        },
+        {
+          "heading": "Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tag",
+              "value": "no_accepted_state"
+            },
+            {
+              "label": "tag",
+              "value": "no_codex_sdk_call"
+            },
+            {
+              "label": "tag",
+              "value": "no_core_decision"
+            },
+            {
+              "label": "tag",
+              "value": "no_db_write"
+            },
+            {
+              "label": "tag",
+              "value": "no_github_mutation"
+            },
+            {
+              "label": "tag",
+              "value": "no_provider_call"
+            },
+            {
+              "label": "tag",
+              "value": "non_committed"
+            },
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        },
+        {
+          "heading": "Flags",
+          "rows": [
+            {
+              "label": "review_only",
+              "value": "true"
+            },
+            {
+              "label": "non_committed_candidate",
+              "value": "true"
+            },
+            {
+              "label": "accepted_state_created",
+              "value": "false"
+            },
+            {
+              "label": "proof_evidence_readiness_created",
+              "value": "false"
+            },
+            {
+              "label": "provider_model_calls",
+              "value": "false"
+            },
+            {
+              "label": "codex_sdk_calls",
+              "value": "false"
+            },
+            {
+              "label": "github_mutation",
+              "value": "false"
+            },
+            {
+              "label": "db_writes",
+              "value": "false"
+            },
+            {
+              "label": "ui_implemented",
+              "value": "false"
+            },
+            {
+              "label": "core_decision",
+              "value": "false"
+            },
+            {
+              "label": "committed_state",
+              "value": "false"
+            },
+            {
+              "label": "persistence",
+              "value": "false"
+            },
+            {
+              "label": "provider_model_api_calls",
+              "value": "false"
+            },
+            {
+              "label": "proof_evidence_readiness_writes",
+              "value": "false"
+            },
+            {
+              "label": "codex_execution",
+              "value": "false"
+            },
+            {
+              "label": "merge_publish_approval",
+              "value": "false"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:work",
+      "target_id": "node:work",
+      "target_kind": "node",
+      "title": "Source work details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "work"
+            },
+            {
+              "label": "status",
+              "value": "prepared"
+            },
+            {
+              "label": "authority",
+              "value": "pointer_only"
+            },
+            {
+              "label": "tone",
+              "value": "review"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "pr:hynk-studio/augnes#499"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": [
+            {
+              "label": "detail",
+              "value": "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts"
+            },
+            {
+              "label": "detail",
+              "value": "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PROJECTION_V0_1.md"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:source_input",
+      "target_id": "node:source_input",
+      "target_kind": "node",
+      "title": "Source input details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "source_input"
+            },
+            {
+              "label": "status",
+              "value": "prepared"
+            },
+            {
+              "label": "authority",
+              "value": "non_committed"
+            },
+            {
+              "label": "tone",
+              "value": "review"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "bounded_source_input_file"
+            },
+            {
+              "label": "ref",
+              "value": "pr:hynk-studio/augnes#499"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": [
+            {
+              "label": "detail",
+              "value": "source_input_hash:fixture-hash:pass-with-follow-up-source-input"
+            },
+            {
+              "label": "detail",
+              "value": "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts"
+            },
+            {
+              "label": "detail",
+              "value": "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PROJECTION_V0_1.md"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "non_committed"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:manual_copy_packet",
+      "target_id": "node:manual_copy_packet",
+      "target_kind": "node",
+      "title": "Manual copy packet details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "manual_copy_packet"
+            },
+            {
+              "label": "status",
+              "value": "prepared"
+            },
+            {
+              "label": "authority",
+              "value": "pointer_only"
+            },
+            {
+              "label": "tone",
+              "value": "review"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "source_prompt_hash:fixture-hash:pass-with-follow-up-prompt"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:codex_session",
+      "target_id": "node:codex_session",
+      "target_kind": "node",
+      "title": "Separate Codex session details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "codex_session"
+            },
+            {
+              "label": "status",
+              "value": "returned"
+            },
+            {
+              "label": "authority",
+              "value": "review_only"
+            },
+            {
+              "label": "tone",
+              "value": "review"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "human_manual_paste"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:candidate_draft",
+      "target_id": "node:candidate_draft",
+      "target_kind": "node",
+      "title": "Candidate draft details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "candidate_draft"
+            },
+            {
+              "label": "status",
+              "value": "returned"
+            },
+            {
+              "label": "authority",
+              "value": "non_committed"
+            },
+            {
+              "label": "tone",
+              "value": "warning"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "candidate_count:1"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "non_committed"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:validation_summary",
+      "target_id": "node:validation_summary",
+      "target_kind": "node",
+      "title": "Validation summary details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "validation_summary"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority",
+              "value": "review_only"
+            },
+            {
+              "label": "tone",
+              "value": "warning"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "direct_validation_status:needs_review"
+            },
+            {
+              "label": "ref",
+              "value": "metadata_match:true"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": [
+            {
+              "label": "detail",
+              "value": "candidate_basis_quality:needs_review"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:warning:1",
+      "target_id": "node:warning:1",
+      "target_kind": "node",
+      "title": "Review warning details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "warning"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tone",
+              "value": "warning"
+            },
+            {
+              "label": "warning_count",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": []
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": [
+            {
+              "label": "detail",
+              "value": "Pointer warning remains visible for human review."
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:warning:2",
+      "target_id": "node:warning:2",
+      "target_kind": "node",
+      "title": "Review warning details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "warning"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tone",
+              "value": "warning"
+            },
+            {
+              "label": "warning_count",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": []
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": [
+            {
+              "label": "detail",
+              "value": "Pointer warnings remain visible for review."
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:review_candidate",
+      "target_id": "node:review_candidate",
+      "target_kind": "node",
+      "title": "Review candidate details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "review_candidate"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority",
+              "value": "non_committed"
+            },
+            {
+              "label": "tone",
+              "value": "warning"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "candidate_authority:non_committed"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "non_committed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:worker_guidance",
+      "target_id": "node:worker_guidance",
+      "target_kind": "node",
+      "title": "Worker guidance details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "worker_guidance"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tone",
+              "value": "warning"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "derived_after_validation"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:node:next_action:1",
+      "target_id": "node:next_action:1",
+      "target_kind": "node",
+      "title": "Next action 1 details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "kind",
+              "value": "next_action"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tone",
+              "value": "warning"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "worker_guidance"
+            }
+          ]
+        },
+        {
+          "heading": "Detail Refs",
+          "rows": [
+            {
+              "label": "detail",
+              "value": "Add a read-only fixture preview adapter before UI work."
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "advisory_only"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:work->node:source_input:informs",
+      "target_id": "edge:node:work->node:source_input:informs",
+      "target_kind": "edge",
+      "title": "informs edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:work"
+            },
+            {
+              "label": "to",
+              "value": "node:source_input"
+            },
+            {
+              "label": "relation",
+              "value": "informs"
+            },
+            {
+              "label": "status",
+              "value": "review_only"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "pointer_only"
+            },
+            {
+              "label": "line_style",
+              "value": "dotted"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "pr:hynk-studio/augnes#499"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:source_input->node:manual_copy_packet:prepared",
+      "target_id": "edge:node:source_input->node:manual_copy_packet:prepared",
+      "target_kind": "edge",
+      "title": "prepared edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:source_input"
+            },
+            {
+              "label": "to",
+              "value": "node:manual_copy_packet"
+            },
+            {
+              "label": "relation",
+              "value": "prepared"
+            },
+            {
+              "label": "status",
+              "value": "prepared"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "non_committing"
+            },
+            {
+              "label": "line_style",
+              "value": "solid"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "fixture-hash:pass-with-follow-up-source-input"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "non_committed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:manual_copy_packet->node:codex_session:pasted_by_human",
+      "target_id": "edge:node:manual_copy_packet->node:codex_session:pasted_by_human",
+      "target_kind": "edge",
+      "title": "human paste edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:manual_copy_packet"
+            },
+            {
+              "label": "to",
+              "value": "node:codex_session"
+            },
+            {
+              "label": "relation",
+              "value": "pasted_by_human"
+            },
+            {
+              "label": "status",
+              "value": "review_only"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "pointer_only"
+            },
+            {
+              "label": "line_style",
+              "value": "dotted"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "fixture-hash:pass-with-follow-up-prompt"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            },
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:codex_session->node:candidate_draft:returned",
+      "target_id": "edge:node:codex_session->node:candidate_draft:returned",
+      "target_kind": "edge",
+      "title": "returned edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:codex_session"
+            },
+            {
+              "label": "to",
+              "value": "node:candidate_draft"
+            },
+            {
+              "label": "relation",
+              "value": "returned"
+            },
+            {
+              "label": "status",
+              "value": "returned"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "review_only"
+            },
+            {
+              "label": "line_style",
+              "value": "solid"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "candidate_count:1"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:candidate_draft->node:validation_summary:validated",
+      "target_id": "edge:node:candidate_draft->node:validation_summary:validated",
+      "target_kind": "edge",
+      "title": "validated edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:candidate_draft"
+            },
+            {
+              "label": "to",
+              "value": "node:validation_summary"
+            },
+            {
+              "label": "relation",
+              "value": "validated"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "review_only"
+            },
+            {
+              "label": "line_style",
+              "value": "solid"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "needs_review"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:validation_summary->node:review_candidate:informs",
+      "target_id": "edge:node:validation_summary->node:review_candidate:informs",
+      "target_kind": "edge",
+      "title": "informs edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:validation_summary"
+            },
+            {
+              "label": "to",
+              "value": "node:review_candidate"
+            },
+            {
+              "label": "relation",
+              "value": "informs"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "review_only"
+            },
+            {
+              "label": "line_style",
+              "value": "solid"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": [
+            {
+              "label": "ref",
+              "value": "needs_review"
+            }
+          ]
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "review_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:warning:1->node:review_candidate:pointer_only",
+      "target_id": "edge:node:warning:1->node:review_candidate:pointer_only",
+      "target_kind": "edge",
+      "title": "pointer only edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:warning:1"
+            },
+            {
+              "label": "to",
+              "value": "node:review_candidate"
+            },
+            {
+              "label": "relation",
+              "value": "pointer_only"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "pointer_only"
+            },
+            {
+              "label": "line_style",
+              "value": "dotted"
+            },
+            {
+              "label": "warning_count",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:warning:2->node:review_candidate:pointer_only",
+      "target_id": "edge:node:warning:2->node:review_candidate:pointer_only",
+      "target_kind": "edge",
+      "title": "pointer only edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:warning:2"
+            },
+            {
+              "label": "to",
+              "value": "node:review_candidate"
+            },
+            {
+              "label": "relation",
+              "value": "pointer_only"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "pointer_only"
+            },
+            {
+              "label": "line_style",
+              "value": "dotted"
+            },
+            {
+              "label": "warning_count",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "pointer_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:review_candidate->node:worker_guidance:informs",
+      "target_id": "edge:node:review_candidate->node:worker_guidance:informs",
+      "target_kind": "edge",
+      "title": "informs edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:review_candidate"
+            },
+            {
+              "label": "to",
+              "value": "node:worker_guidance"
+            },
+            {
+              "label": "relation",
+              "value": "informs"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "advisory_only"
+            },
+            {
+              "label": "line_style",
+              "value": "dashed"
+            },
+            {
+              "label": "warning_count",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "advisory_only"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drawer:edge:node:worker_guidance->node:next_action:1:suggests",
+      "target_id": "edge:node:worker_guidance->node:next_action:1:suggests",
+      "target_kind": "edge",
+      "title": "suggests edge details",
+      "sections": [
+        {
+          "heading": "Display",
+          "rows": [
+            {
+              "label": "from",
+              "value": "node:worker_guidance"
+            },
+            {
+              "label": "to",
+              "value": "node:next_action:1"
+            },
+            {
+              "label": "relation",
+              "value": "suggests"
+            },
+            {
+              "label": "status",
+              "value": "needs_review"
+            },
+            {
+              "label": "authority_boundary",
+              "value": "advisory_only"
+            },
+            {
+              "label": "line_style",
+              "value": "dashed"
+            },
+            {
+              "label": "warning_count",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "heading": "Provenance Refs",
+          "rows": []
+        },
+        {
+          "heading": "Authority Lens Tags",
+          "rows": [
+            {
+              "label": "tag",
+              "value": "advisory_only"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "legend": {
+    "node_tones": {
+      "neutral": "Default node with no warning pressure.",
+      "review": "Review-only or non-committed node.",
+      "warning": "Needs review or pointer warning pressure.",
+      "blocked": "Blocked validation or unusable candidate material.",
+      "future_only": "Future schema state only; not emitted by current fixtures."
+    },
+    "edge_line_styles": {
+      "solid": "Prepared, returned, validated, or plain informs relation.",
+      "dashed": "Advisory or suggests relation.",
+      "dotted": "Pointer-only relation or boundary.",
+      "blocked": "Blocked edge or blocked_by relation."
+    },
+    "badges": {
+      "review-only": "Review-only material, not accepted state.",
+      "non-committed": "Candidate material is not committed.",
+      "needs_review": "Human review or caveat inspection is required.",
+      "pointer_warning": "Pointer warning pressure remains visible.",
+      "blocked": "Validation blocked review use.",
+      "advisory-only": "Guidance is advisory only."
+    },
+    "authority_lens_tags": {
+      "review_only": "Review-only boundary.",
+      "non_committed": "Non-committed candidate boundary.",
+      "advisory_only": "Advisory-only guidance boundary.",
+      "pointer_only": "Pointer-only provenance or relation.",
+      "blocked": "Blocked validation boundary.",
+      "provenance_mismatch": "Metadata or provenance mismatch.",
+      "no_accepted_state": "No accepted Augnes state created.",
+      "no_db_write": "No DB write performed.",
+      "no_provider_call": "No provider/model call performed.",
+      "no_codex_sdk_call": "No Codex SDK call performed.",
+      "no_github_mutation": "No GitHub mutation performed.",
+      "no_core_decision": "No Core decision made."
+    }
+  },
+  "privacy": {
+    "raw_payloads_included": false,
+    "bounded_summaries_only": true,
+    "unsafe_input_material_omitted": false,
+    "omitted_unsafe_fields": []
+  },
+  "authority_flags": {
+    "committed_state": false,
+    "persistence": false,
+    "provider_model_api_calls": false,
+    "proof_evidence_readiness_writes": false,
+    "codex_execution": false,
+    "github_mutation": false,
+    "merge_publish_approval": false,
+    "core_decision": false
+  }
+}
