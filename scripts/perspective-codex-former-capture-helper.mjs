@@ -1,15 +1,30 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+const { buildPerspectiveFormationInputBundle } = await import(
+  "../lib/perspective-ingest/perspective-formation-input-bundle.ts"
+);
+const { buildCodexPerspectiveFormerInputPacket } = await import(
+  "../lib/perspective-ingest/perspective-codex-former-input-packet.ts"
+);
 const { buildPerspectiveCodexFormerSeparateSessionCapturePacketPrep } =
   await import(
     "./dogfood-perspective-codex-former-separate-session-capture-packet-prep.mjs"
   );
-const { evaluateCodexPerspectiveCandidateDraftPromptContractFit } =
-  await import(
-    "../lib/perspective-ingest/perspective-codex-former-prompt-contract.ts"
-  );
+const {
+  buildCodexPerspectiveFormerDraftPromptContractFromInputPacket,
+  evaluateCodexPerspectiveCandidateDraftPromptContractFit,
+} = await import(
+  "../lib/perspective-ingest/perspective-codex-former-prompt-contract.ts"
+);
+const {
+  buildManualCodexPerspectiveFormerDraftCopyPacket,
+  evaluateManualCodexPerspectiveFormerDraftCopyPacket,
+} = await import(
+  "../lib/perspective-ingest/perspective-codex-former-manual-copy-packet.ts"
+);
 const { validateAndNormalizeCodexPerspectiveCandidateDraft } = await import(
   "../lib/perspective-ingest/perspective-codex-candidate-draft-pipeline.ts"
 );
@@ -36,6 +51,10 @@ export const DEFAULT_CAPTURE_RETURN_TEMPLATE_FILE_NAME =
 export const DEFAULT_METADATA_FILE_NAME = "codex-former-capture-metadata.json";
 export const DEFAULT_VALIDATION_SUMMARY_FILE_NAME =
   "codex-former-capture-validation-summary.json";
+export const LEGACY_CAPTURE_SOURCE_KIND =
+  "separate_session_capture_packet_prep_builder";
+export const BOUNDED_SOURCE_INPUT_CAPTURE_SOURCE_KIND =
+  "bounded_source_input_file";
 
 const stablePromptContractLabel =
   "CodexPerspectiveFormerDraftPromptContract v0.1";
@@ -62,6 +81,41 @@ const authorityFlagKeys = [
   "merge_publish_approval",
   "core_decision",
 ];
+const parameterizedExpectedValidationCommands = [
+  "npm run smoke:perspective-codex-former-capture-helper",
+  "npm run smoke:perspective-codex-former-manual-copy-packet",
+  "npm run smoke:perspective-codex-former-manual-workflow-docs",
+];
+const unsafeSourceInputMarkers = [
+  "raw diff",
+  "raw diffs",
+  "raw pr diff",
+  "raw review payload",
+  "raw page dump",
+  "provider log",
+  "cookie",
+  "cookies",
+  "token",
+  "tokens",
+  "hidden reasoning",
+  "account data",
+  "screenshot",
+  "screenshots",
+  "unrelated private",
+  "private_payload",
+  "provider_payload",
+  "raw_source_payload",
+  "raw_candidate_payload",
+  "raw_private_payload",
+  "oauth_token",
+  "access_token",
+  "refresh_token",
+  "api_key",
+  "hidden_reasoning",
+  "sk-proj-",
+  "ghp_",
+  "secret",
+];
 
 export function prepareCodexFormerCapturePacket(options = {}) {
   const outDir = resolve(
@@ -78,7 +132,10 @@ export function prepareCodexFormerCapturePacket(options = {}) {
   );
   const metadataPath = resolve(outDir, DEFAULT_METADATA_FILE_NAME);
 
-  const prep = buildPerspectiveCodexFormerSeparateSessionCapturePacketPrep();
+  const prep = buildPreparedCaptureSource({
+    sourceInputPath: options.sourceInputPath,
+    generatedAt,
+  });
   const generatedPacket = prep.generated_packet;
   const blockedReasons = validatePreparedPacket(prep);
 
@@ -100,6 +157,15 @@ export function prepareCodexFormerCapturePacket(options = {}) {
     metadata_version: CAPTURE_HELPER_METADATA_VERSION,
     metadata_kind: CAPTURE_HELPER_METADATA_KIND,
     generated_at: generatedAt,
+    capture_source_kind: prep.capture_source_kind,
+    ...(prep.source_input
+      ? {
+          source_input_path: prep.source_input.source_input_path,
+          source_input_hash: prep.source_input.source_input_hash,
+          source_input_scope: prep.source_input.scope,
+          source_input_work_id: prep.source_input.work_id,
+        }
+      : {}),
     source_manual_copy_packet_id: generatedPacket.manual_copy_packet_id,
     source_former_input_packet_id: generatedPacket.former_input_packet_id,
     source_prompt_hash: generatedPacket.copyable_prompt_hash,
@@ -158,6 +224,8 @@ export function prepareCodexFormerCapturePacket(options = {}) {
 
   return {
     mode: "prepare",
+    capture_source_kind: metadata.capture_source_kind,
+    source_input_hash: metadata.source_input_hash ?? null,
     source_manual_copy_packet_id: metadata.source_manual_copy_packet_id,
     source_former_input_packet_id: metadata.source_former_input_packet_id,
     source_prompt_hash: metadata.source_prompt_hash,
@@ -396,6 +464,193 @@ export function parseCaptureEnvelope(envelopeText) {
     returned_codex_response_text: returnedResponseMatch?.[1]?.trim() ?? "",
     parse_errors: parseErrors,
   };
+}
+
+function buildPreparedCaptureSource({ sourceInputPath, generatedAt }) {
+  if (!sourceInputPath) {
+    return {
+      ...buildPerspectiveCodexFormerSeparateSessionCapturePacketPrep(),
+      capture_source_kind: LEGACY_CAPTURE_SOURCE_KIND,
+      source_input: null,
+    };
+  }
+
+  const sourceInput = readBoundedSourceInputFile(sourceInputPath);
+  const formationInputBundle = buildPerspectiveFormationInputBundle({
+    ...sourceInput.builder_input,
+    generated_at: generatedAt || sourceInput.builder_input.generated_at,
+  });
+  const formerInputPacket =
+    buildCodexPerspectiveFormerInputPacket(formationInputBundle);
+  const promptContract =
+    buildCodexPerspectiveFormerDraftPromptContractFromInputPacket(
+      formerInputPacket,
+    );
+  const manualCopyPacket = buildManualCodexPerspectiveFormerDraftCopyPacket({
+    former_input_packet: formerInputPacket,
+    prompt_contract: promptContract,
+    manual_context: {
+      reviewer_label: "bounded-source-input manual reviewer",
+      intended_codex_surface: "separate user-started Codex session",
+      usage_notes: [
+        "Paste only the copyable prompt into a separate user-started Codex session after human review.",
+        "Return only the capture envelope with one bounded CodexPerspectiveCandidateDraft JSON object.",
+        "This parameterized source input remains local review material and does not create accepted Augnes state.",
+      ],
+    },
+    expected_validation_commands: parameterizedExpectedValidationCommands,
+    generated_at: generatedAt,
+  });
+  const packetEvaluation =
+    evaluateManualCodexPerspectiveFormerDraftCopyPacket(manualCopyPacket);
+  const packetValidation = {
+    status:
+      packetEvaluation.evaluation_status === "blocked" ||
+      manualCopyPacket.copy_status === "blocked"
+        ? "blocked"
+        : "passes",
+    blocked_reasons: [
+      ...packetEvaluation.blocked_reasons,
+      ...(manualCopyPacket.copy_status === "blocked"
+        ? manualCopyPacket.copy_status_reasons
+        : []),
+    ],
+    packet_evaluation_status: packetEvaluation.evaluation_status,
+    packet_evaluation_warnings: packetEvaluation.warnings,
+    copy_status: manualCopyPacket.copy_status,
+    copy_status_reasons: manualCopyPacket.copy_status_reasons,
+  };
+
+  return {
+    capture_return_envelope:
+      manualCopyPacket.capture_return_envelope.copyable_capture_return_template,
+    capture_source_kind: BOUNDED_SOURCE_INPUT_CAPTURE_SOURCE_KIND,
+    generated_packet: {
+      manual_copy_packet_id: manualCopyPacket.packet_id,
+      former_input_packet_id: formerInputPacket.packet_id,
+      copyable_prompt_hash: manualCopyPacket.copyable_prompt_hash,
+      copy_status: manualCopyPacket.copy_status,
+      copy_status_reasons: manualCopyPacket.copy_status_reasons,
+      copyable_codex_prompt_text: manualCopyPacket.copyable_codex_prompt_text,
+    },
+    manual_copy_packet: manualCopyPacket,
+    packet_validation: packetValidation,
+    source_former_input_packet: formerInputPacket,
+    source_input: {
+      source_input_path: sourceInput.source_input_path,
+      source_input_hash: sourceInput.source_input_hash,
+      scope: sourceInput.builder_input.scope ?? null,
+      work_id: sourceInput.builder_input.work_id ?? null,
+    },
+  };
+}
+
+function readBoundedSourceInputFile(sourceInputPath) {
+  const resolvedPath = resolve(String(sourceInputPath));
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`source input file does not exist: ${resolvedPath}`);
+  }
+
+  const sourceText = readFileSync(resolvedPath, "utf8");
+  const sourceInputHash = hashText(sourceText);
+  const unsafeMarkers = collectUnsafeSourceInputMarkers(sourceText);
+  if (unsafeMarkers.length > 0) {
+    throw new Error(
+      `source input contains unsafe/private/provider material markers: ${unsafeMarkers.join(", ")}`,
+    );
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(sourceText);
+  } catch (error) {
+    throw new Error(`source input file is not valid JSON: ${error}`);
+  }
+  if (!isRecord(parsed)) {
+    throw new Error("source input JSON must be an object");
+  }
+
+  return {
+    source_input_path: resolvedPath,
+    source_input_hash: sourceInputHash,
+    builder_input: adaptBoundedSourceInput(parsed),
+  };
+}
+
+function adaptBoundedSourceInput(input) {
+  const adapted = {
+    generated_at: optionalString(input.generated_at, "generated_at"),
+    scope: optionalString(input.scope, "scope"),
+    work_id: optionalString(input.work_id, "work_id"),
+    source_pr_refs: optionalStringArray(input.source_pr_refs, "source_pr_refs"),
+    changed_files: optionalStringArray(input.changed_files, "changed_files"),
+    changed_files_summary: optionalString(
+      input.changed_files_summary,
+      "changed_files_summary",
+    ),
+    tests_checks_run: optionalCheckRunArray(
+      input.tests_checks_run,
+      "tests_checks_run",
+    ),
+    skipped_checks: optionalSkippedCheckArray(
+      input.skipped_checks,
+      "skipped_checks",
+    ),
+    evidence_row_refs: optionalStringArray(
+      input.evidence_row_refs,
+      "evidence_row_refs",
+    ),
+    proof_only_action_refs: optionalStringArray(
+      input.proof_only_action_refs,
+      "proof_only_action_refs",
+    ),
+    work_event_refs: optionalStringArray(input.work_event_refs, "work_event_refs"),
+    session_trace_refs: optionalStringArray(
+      input.session_trace_refs,
+      "session_trace_refs",
+    ),
+    existing_perspective_refs: optionalStringArray(
+      input.existing_perspective_refs,
+      "existing_perspective_refs",
+    ),
+    unresolved_gaps: optionalGapArray(
+      input.unresolved_gaps,
+      "unresolved_gaps",
+    ),
+    authority_boundaries: optionalStringArray(
+      input.authority_boundaries,
+      "authority_boundaries",
+    ),
+    source_privacy_redaction_notes: optionalStringArray(
+      input.source_privacy_redaction_notes,
+      "source_privacy_redaction_notes",
+    ),
+  };
+
+  if (!hasText(adapted.scope)) {
+    throw new Error("source input scope is required");
+  }
+  if (
+    !hasText(adapted.work_id) &&
+    adapted.source_pr_refs.length === 0
+  ) {
+    throw new Error("source input requires work_id or source_pr_refs");
+  }
+  if (adapted.changed_files.length === 0) {
+    throw new Error("source input changed_files must include at least one file");
+  }
+  if (
+    adapted.tests_checks_run.length === 0 &&
+    adapted.skipped_checks.length === 0 &&
+    adapted.evidence_row_refs.length === 0 &&
+    adapted.proof_only_action_refs.length === 0
+  ) {
+    throw new Error(
+      "source input requires checks, skipped checks, evidence refs, or proof-only action refs",
+    );
+  }
+
+  return adapted;
 }
 
 function validatePreparedPacket(prep) {
@@ -779,6 +1034,125 @@ function allAuthorityFlagsFalse(flags) {
   return authorityFlagKeys.every((key) => flags[key] === false);
 }
 
+function collectUnsafeSourceInputMarkers(sourceText) {
+  const lowered = sourceText.toLowerCase();
+  return unsafeSourceInputMarkers.filter((marker) => lowered.includes(marker));
+}
+
+function hashText(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function optionalString(value, fieldName) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") {
+    throw new Error(`source input ${fieldName} must be a string`);
+  }
+  return value;
+}
+
+function optionalStringArray(value, fieldName) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`source input ${fieldName} must be an array`);
+  }
+  return value.map((item, index) => {
+    if (typeof item !== "string") {
+      throw new Error(`source input ${fieldName}[${index}] must be a string`);
+    }
+    return item;
+  });
+}
+
+function optionalCheckRunArray(value, fieldName) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`source input ${fieldName} must be an array`);
+  }
+  return value.map((item, index) => {
+    if (!isRecord(item)) {
+      throw new Error(`source input ${fieldName}[${index}] must be an object`);
+    }
+    const status = optionalString(item.status, `${fieldName}[${index}].status`);
+    if (!["passed", "failed"].includes(status)) {
+      throw new Error(
+        `source input ${fieldName}[${index}].status must be passed or failed`,
+      );
+    }
+    return {
+      check_id: requireSourceInputString(
+        item.check_id,
+        `${fieldName}[${index}].check_id`,
+      ),
+      command: requireSourceInputString(
+        item.command,
+        `${fieldName}[${index}].command`,
+      ),
+      status,
+      result_summary: requireSourceInputString(
+        item.result_summary,
+        `${fieldName}[${index}].result_summary`,
+      ),
+    };
+  });
+}
+
+function optionalSkippedCheckArray(value, fieldName) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`source input ${fieldName} must be an array`);
+  }
+  return value.map((item, index) => {
+    if (!isRecord(item)) {
+      throw new Error(`source input ${fieldName}[${index}] must be an object`);
+    }
+    const resultSummary = optionalString(
+      item.result_summary,
+      `${fieldName}[${index}].result_summary`,
+    );
+    return {
+      check_id: requireSourceInputString(
+        item.check_id,
+        `${fieldName}[${index}].check_id`,
+      ),
+      skipped_reason: requireSourceInputString(
+        item.skipped_reason,
+        `${fieldName}[${index}].skipped_reason`,
+      ),
+      ...(resultSummary !== null ? { result_summary: resultSummary } : {}),
+    };
+  });
+}
+
+function optionalGapArray(value, fieldName) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`source input ${fieldName} must be an array`);
+  }
+  return value.map((item, index) => {
+    if (!isRecord(item)) {
+      throw new Error(`source input ${fieldName}[${index}] must be an object`);
+    }
+    return {
+      gap_id: requireSourceInputString(
+        item.gap_id,
+        `${fieldName}[${index}].gap_id`,
+      ),
+      summary: requireSourceInputString(
+        item.summary,
+        `${fieldName}[${index}].summary`,
+      ),
+    };
+  });
+}
+
+function requireSourceInputString(value, fieldName) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`source input ${fieldName} must be a non-empty string`);
+  }
+  return value;
+}
+
 function buildFalseAuthorityFlags() {
   return {
     committed_state: false,
@@ -834,6 +1208,10 @@ function parseOptions(argv) {
 
 function printPrepareSummary(summary) {
   console.log("mode=prepare");
+  console.log(`capture_source_kind=${summary.capture_source_kind}`);
+  if (summary.source_input_hash) {
+    console.log(`source_input_hash=${summary.source_input_hash}`);
+  }
   console.log(
     `source_manual_copy_packet_id=${summary.source_manual_copy_packet_id}`,
   );
@@ -897,6 +1275,7 @@ function runCli(argv) {
   if (mode === "prepare") {
     const summary = prepareCodexFormerCapturePacket({
       outDir: options["out-dir"],
+      sourceInputPath: options["source-input"],
       generatedAt: options["generated-at"],
     });
     printPrepareSummary(summary);

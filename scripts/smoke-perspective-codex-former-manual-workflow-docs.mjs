@@ -21,6 +21,8 @@ const captureHelperSmokeFile =
   "scripts/smoke-perspective-codex-former-capture-helper.mjs";
 const captureHelperReportFile =
   "reports/2026-06-10-perspective-codex-former-capture-helper.md";
+const parameterizedCaptureHelperReportFile =
+  "reports/2026-06-10-perspective-codex-former-capture-helper-parameterized-input.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -35,6 +37,7 @@ const allowedChangedFiles = new Set([
   captureHelperFile,
   captureHelperSmokeFile,
   captureHelperReportFile,
+  parameterizedCaptureHelperReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -86,6 +89,10 @@ function assertManualWorkflowDoc() {
     "capture return envelope template file",
     "metadata file",
     "The helper does not paste into Codex",
+    "--source-input",
+    "capture_source_kind",
+    "source_input_hash",
+    "exactly one returned candidate draft JSON object",
     "PASS with follow-up",
     "BLOCKED with useful findings",
     "pointer_ref:draft.evidence_pointer_refs[0]",

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -16,6 +17,8 @@ const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_MANUAL_WORKFLOW_V0_1.md";
 const reportFile =
   "reports/2026-06-10-perspective-codex-former-capture-helper.md";
+const parameterizedReportFile =
+  "reports/2026-06-10-perspective-codex-former-capture-helper-parameterized-input.md";
 const manualWorkflowDocsSmokeFile =
   "scripts/smoke-perspective-codex-former-manual-workflow-docs.mjs";
 const manualCopyPacketSmokeFile =
@@ -27,20 +30,40 @@ const separateSessionCaptureSmokeFile =
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
-const tmpDir = "/tmp/augnes-codex-former-capture-helper-smoke";
-const promptPath = join(tmpDir, "codex-former-copyable-prompt.txt");
+const defaultTmpDir = "/tmp/augnes-codex-former-capture-helper-smoke-default";
+const parameterizedTmpDir =
+  "/tmp/augnes-codex-former-capture-helper-smoke-parameterized";
+const sourceInputPath = join(parameterizedTmpDir, "bounded-source-input.json");
+const promptPath = join(
+  parameterizedTmpDir,
+  "codex-former-copyable-prompt.txt",
+);
 const envelopeTemplatePath = join(
-  tmpDir,
+  parameterizedTmpDir,
   "codex-former-capture-return-envelope-template.txt",
 );
-const metadataPath = join(tmpDir, "codex-former-capture-metadata.json");
-const positiveEnvelopePath = join(tmpDir, "returned-envelope.txt");
-const positiveSummaryPath = join(tmpDir, "validation-summary.json");
+const metadataPath = join(
+  parameterizedTmpDir,
+  "codex-former-capture-metadata.json",
+);
+const defaultMetadataPath = join(
+  defaultTmpDir,
+  "codex-former-capture-metadata.json",
+);
+const positiveEnvelopePath = join(parameterizedTmpDir, "returned-envelope.txt");
+const positiveSummaryPath = join(parameterizedTmpDir, "validation-summary.json");
+const multipleCandidateEnvelopePath = join(
+  parameterizedTmpDir,
+  "multiple-candidate-envelope.txt",
+);
 const missingProvenanceEnvelopePath = join(
-  tmpDir,
+  parameterizedTmpDir,
   "missing-provenance-envelope.txt",
 );
-const mismatchEnvelopePath = join(tmpDir, "mismatched-provenance-envelope.txt");
+const mismatchEnvelopePath = join(
+  parameterizedTmpDir,
+  "mismatched-provenance-envelope.txt",
+);
 
 const allowedChangedFiles = new Set([
   packageFile,
@@ -48,6 +71,7 @@ const allowedChangedFiles = new Set([
   smokeFile,
   docFile,
   reportFile,
+  parameterizedReportFile,
   manualWorkflowDocsSmokeFile,
   manualCopyPacketSmokeFile,
   separateSessionPrepSmokeFile,
@@ -57,14 +81,17 @@ const allowedChangedFiles = new Set([
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
-const reportText = readFileSync(reportFile, "utf8");
+const reportText = `${readFileSync(reportFile, "utf8")}\n${readFileSync(
+  parameterizedReportFile,
+  "utf8",
+)}`;
 
 assertPackageScripts();
 assertHelperSourceBoundary();
 assertDocsAndReport();
 assertNoRawUnsafeMarkersInPublicArtifacts();
 assertChangedFileBoundary();
-runPrepareMode();
+runPrepareModes();
 runValidateMode();
 runNegativeValidationCases();
 
@@ -88,9 +115,49 @@ function assertPackageScripts() {
   );
 }
 
-function runPrepareMode() {
-  rmSync(tmpDir, { recursive: true, force: true });
-  mkdirSync(tmpDir, { recursive: true });
+function runPrepareModes() {
+  rmSync(defaultTmpDir, { recursive: true, force: true });
+  mkdirSync(defaultTmpDir, { recursive: true });
+  const defaultStdout = execFileSync(
+    "npm",
+    [
+      "run",
+      "perspective:codex-former:capture-packet",
+      "--",
+      "--out-dir",
+      defaultTmpDir,
+      "--generated-at",
+      "2026-06-10T00:00:00.000Z",
+    ],
+    { encoding: "utf8" },
+  );
+  assertContainsAll(defaultStdout, [
+    "mode=prepare",
+    "capture_source_kind=separate_session_capture_packet_prep_builder",
+    "source_manual_copy_packet_id=",
+    "source_former_input_packet_id=",
+    "source_prompt_hash=",
+    `metadata_path=${defaultMetadataPath}`,
+  ]);
+  const defaultMetadata = JSON.parse(readFileSync(defaultMetadataPath, "utf8"));
+  assert.equal(
+    defaultMetadata.capture_source_kind,
+    "separate_session_capture_packet_prep_builder",
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(defaultMetadata, "source_input_hash"),
+    false,
+    "legacy metadata must not invent source input hash",
+  );
+
+  rmSync(parameterizedTmpDir, { recursive: true, force: true });
+  mkdirSync(parameterizedTmpDir, { recursive: true });
+  writeFileSync(
+    sourceInputPath,
+    `${JSON.stringify(buildSourceInputFixture(), null, 2)}\n`,
+    "utf8",
+  );
+  const expectedSourceInputHash = hashText(readFileSync(sourceInputPath, "utf8"));
   const stdout = execFileSync(
     "npm",
     [
@@ -98,7 +165,9 @@ function runPrepareMode() {
       "perspective:codex-former:capture-packet",
       "--",
       "--out-dir",
-      tmpDir,
+      parameterizedTmpDir,
+      "--source-input",
+      sourceInputPath,
       "--generated-at",
       "2026-06-10T00:00:00.000Z",
     ],
@@ -107,6 +176,8 @@ function runPrepareMode() {
 
   assertContainsAll(stdout, [
     "mode=prepare",
+    "capture_source_kind=bounded_source_input_file",
+    `source_input_hash=${expectedSourceInputHash}`,
     "source_manual_copy_packet_id=",
     "source_former_input_packet_id=",
     "source_prompt_hash=",
@@ -129,6 +200,24 @@ function runPrepareMode() {
   const prompt = readFileSync(promptPath, "utf8");
   const envelopeTemplate = readFileSync(envelopeTemplatePath, "utf8");
   const metadata = readMetadata();
+
+  assert.equal(
+    metadata.capture_source_kind,
+    "bounded_source_input_file",
+    "metadata must record parameterized source kind",
+  );
+  assert.equal(metadata.source_input_path, sourceInputPath);
+  assert.equal(metadata.source_input_hash, expectedSourceInputHash);
+  assert.equal(
+    metadata.source_input_hash,
+    hashText(readFileSync(sourceInputPath, "utf8")),
+    "source input hash must be deterministic",
+  );
+  assert.equal(
+    metadata.source_input_work_id,
+    "AG-example-codex-former-capture-helper-parameterized-input",
+  );
+  assert.equal(metadata.source_input_scope, "project:augnes");
 
   assertContainsAll(prompt, [
     "Prompt contract: CodexPerspectiveFormerDraftPromptContract v0.1",
@@ -190,6 +279,7 @@ function runValidateMode() {
   const envelope = buildReturnedEnvelope({
     metadata,
     candidate: buildNeedsReviewCandidate(metadata),
+    wrapReturnedResponseInProse: true,
   });
   writeFileSync(positiveEnvelopePath, envelope, "utf8");
 
@@ -245,6 +335,37 @@ function runNegativeValidationCases() {
   const metadata = readMetadata();
   const candidate = buildNeedsReviewCandidate(metadata);
   writeFileSync(
+    multipleCandidateEnvelopePath,
+    buildReturnedEnvelope({
+      metadata,
+      candidate,
+      extraCandidates: [
+        {
+          ...candidate,
+          thesis:
+            "The validation boundary remains useful, but this second candidate must block because exactly one candidate object is allowed.",
+        },
+      ],
+      wrapReturnedResponseInProse: true,
+    }),
+    "utf8",
+  );
+  const multipleOutput = expectCommandFailure([
+    "run",
+    "perspective:codex-former:validate-capture",
+    "--",
+    "--envelope",
+    multipleCandidateEnvelopePath,
+    "--metadata",
+    metadataPath,
+  ]);
+  assertContainsAll(multipleOutput, [
+    "conclusion=BLOCKED with useful findings",
+    "candidate_count=2",
+    "expected exactly one CodexPerspectiveCandidateDraft object; found 2",
+  ]);
+
+  writeFileSync(
     missingProvenanceEnvelopePath,
     buildReturnedEnvelope({
       metadata,
@@ -296,9 +417,25 @@ function runNegativeValidationCases() {
 function buildReturnedEnvelope({
   metadata,
   candidate,
+  extraCandidates = [],
   omitPromptHash = false,
   sourcePromptHash = metadata.source_prompt_hash,
+  wrapReturnedResponseInProse = false,
 }) {
+  const returnedResponse = wrapReturnedResponseInProse
+    ? [
+        "The bounded returned response follows. It contains candidate JSON only inside the balanced object below.",
+        JSON.stringify(candidate, null, 2),
+        ...extraCandidates.flatMap((extraCandidate) => [
+          "A second returned candidate object follows for negative extraction coverage.",
+          JSON.stringify(extraCandidate, null, 2),
+        ]),
+        "End of bounded returned response.",
+      ].join("\n")
+    : [candidate, ...extraCandidates]
+        .map((candidateObject) => JSON.stringify(candidateObject, null, 2))
+        .join("\n\n");
+
   return [
     "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
     "",
@@ -315,10 +452,55 @@ function buildReturnedEnvelope({
     "- Unsafe private source material was omitted.",
     "",
     "RETURNED_CODEX_RESPONSE:",
-    JSON.stringify(candidate, null, 2),
+    returnedResponse,
     "END RETURNED_CODEX_RESPONSE",
     "",
   ].join("\n");
+}
+
+function buildSourceInputFixture() {
+  return {
+    generated_at: "2026-06-10T00:00:00.000Z",
+    scope: "project:augnes",
+    work_id: "AG-example-codex-former-capture-helper-parameterized-input",
+    source_pr_refs: ["pr:hynk-studio/augnes#494"],
+    changed_files: [
+      "scripts/perspective-codex-former-capture-helper.mjs",
+      "scripts/smoke-perspective-codex-former-capture-helper.mjs",
+    ],
+    changed_files_summary:
+      "Bounded local source input for parameterized Codex Former capture helper smoke.",
+    tests_checks_run: [
+      {
+        check_id: "check:example",
+        command: "npm run smoke:perspective-codex-former-capture-helper",
+        status: "passed",
+        result_summary: "Parameterized helper smoke fixture.",
+      },
+    ],
+    skipped_checks: [
+      {
+        check_id: "check:browser-computer-use",
+        skipped_reason:
+          "Not run because this is local CLI docs report smoke work with no UI or browser-visible surface.",
+        result_summary: "No browser surface added.",
+      },
+    ],
+    evidence_row_refs: ["evidence:row:parameterized-helper-smoke"],
+    unresolved_gaps: [
+      {
+        gap_id: "gap:pointer-review",
+        summary: "Pointer warnings remain review work, not product readiness.",
+      },
+    ],
+    source_privacy_redaction_notes: [
+      "Uses bounded local source input only.",
+      "No private source material is included.",
+    ],
+    authority_boundaries: [
+      "Local review-only helper input; no accepted state or Core decision.",
+    ],
+  };
 }
 
 function buildNeedsReviewCandidate(metadata) {
@@ -426,6 +608,10 @@ function assertDocsAndReport() {
     "capture return envelope template file",
     "metadata file",
     "The helper does not paste into Codex",
+    "--source-input",
+    "capture_source_kind",
+    "source_input_hash",
+    "exactly one returned candidate draft JSON object",
     "unknown pointer warnings",
   ]);
   assertContainsAll(reportText, [
@@ -438,6 +624,11 @@ function assertDocsAndReport() {
     "Verification",
     "Skipped Checks With Reasons",
     "Add operator-facing capture helper or CLI wrapper",
+    "Perspective Codex Former Capture Helper Parameterized Input",
+    "Why Follows PR #494",
+    "Parameterized Source Input Behavior",
+    "Validate Extraction Hardening",
+    "exactly one",
   ]);
 }
 
@@ -449,6 +640,8 @@ function assertHelperSourceBoundary() {
     "alignCodexPerspectiveCandidateDraftSchemaFromModelOutput",
     "buildWorkerFacingPerspectiveGuidanceFromCandidate",
     "writeFileSync",
+    "sourceInputPath",
+    "source_input_hash",
   ]);
   for (const snippet of [
     "await" + " fetch(",
@@ -567,4 +760,8 @@ function assertNoRawUnsafeMarkersInPublicArtifacts() {
 
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function hashText(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
 }
