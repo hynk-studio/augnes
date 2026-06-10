@@ -37,6 +37,12 @@ const separateSessionPrepSmokeFile =
   "scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs";
 const separateSessionCaptureSmokeFile =
   "scripts/smoke-perspective-codex-former-separate-session-provenance-clean-capture.mjs";
+const productSurfaceDesignDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PRODUCT_SURFACE_DESIGN_V0_1.md";
+const productSurfaceDesignReportFile =
+  "reports/2026-06-10-perspective-codex-former-product-surface-design.md";
+const productSurfaceDesignSmokeFile =
+  "scripts/smoke-perspective-codex-former-product-surface-design.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -92,6 +98,9 @@ const allowedChangedFiles = new Set([
   manualCopyPacketSmokeFile,
   separateSessionPrepSmokeFile,
   separateSessionCaptureSmokeFile,
+  productSurfaceDesignDocFile,
+  productSurfaceDesignReportFile,
+  productSurfaceDesignSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
