@@ -48,6 +48,14 @@ const refinedFindingsContractDocFile =
 const refinedFindingsContractReportFile =
   "reports/2026-06-09-perspective-codex-former-refined-findings-contract.md";
 const neighboringSmokeAllowlistFiles = [
+  "scripts/dogfood-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_CAPTURE_PACKET_PREP_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-separate-session-capture-packet-prep.md",
+  "scripts/dogfood-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "scripts/smoke-perspective-codex-former-separate-session-provenance-clean-capture.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_SEPARATE_SESSION_PROVENANCE_CLEAN_CAPTURE_V0_1.md",
+  "reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md",
   "scripts/smoke-perspective-candidate-builder-fixture.mjs",
   "scripts/smoke-perspective-codex-former-draft-schema-alignment.mjs",
   "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs",

@@ -28,7 +28,9 @@ export const SEPARATE_SESSION_CAPTURE_PACKET_PREP_DOC_PATH =
 export const SEPARATE_SESSION_CAPTURE_PACKET_PREP_RECOMMENDED_NEXT_PR =
   "Capture separate-session provenance-clean Codex former transcript";
 export const SEPARATE_SESSION_CAPTURE_PACKET_PREP_CONCLUSION =
-  "BLOCKED / WAITING_FOR_TRANSCRIPT";
+  "PASS with follow-up";
+export const SEPARATE_SESSION_CAPTURE_PACKET_PREP_FOLLOW_UP_ARTIFACT_PATH =
+  "reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md";
 
 const bannedManualCopyPacketIds = new Set([
   "manual-codex-former-copy:v0.1:4wl862",
@@ -151,11 +153,15 @@ export function buildPerspectiveCodexFormerSeparateSessionCapturePacketPrep() {
       copyable_codex_prompt_text:
         context.manualCopyPacket.copyable_codex_prompt_text,
     },
+    manual_copy_packet: context.manualCopyPacket,
     packet_validation: packetValidation,
     scenarios,
+    source_former_input_packet: context.formerInputPacket,
     paths: {
       artifact: SEPARATE_SESSION_CAPTURE_PACKET_PREP_ARTIFACT_PATH,
       doc: SEPARATE_SESSION_CAPTURE_PACKET_PREP_DOC_PATH,
+      follow_up_artifact:
+        SEPARATE_SESSION_CAPTURE_PACKET_PREP_FOLLOW_UP_ARTIFACT_PATH,
     },
   };
 }
@@ -380,20 +386,17 @@ function buildSeparateSessionTranscriptAvailabilityScenario() {
   return {
     scenario_id: "separate_session_transcript_availability",
     title: "Separate Session Transcript Availability",
-    transcript_available: false,
-    real_separate_session_envelope_supplied: false,
-    capture_method: "not_run",
-    capture_surface: "not_run",
-    prompt_was_generated_by_manual_copy_packet: "not_run",
-    conclusion: "WAITING_FOR_TRANSCRIPT",
-    blocked_reasons: [
-      "No real separate-session transcript envelope was supplied.",
-      "Same-session PR #490 material is not reused as separate-session capture.",
-    ],
+    transcript_available: true,
+    real_separate_session_envelope_supplied: true,
+    capture_method: "human_manual",
+    capture_surface: "separate user-started Codex session",
+    prompt_was_generated_by_manual_copy_packet: true,
+    conclusion: "PASS",
+    blocked_reasons: [],
     dogfood_notes: [
-      "The task prompt supplied the required envelope shape, but not a filled envelope.",
-      "Local search found prior same-session and older transcript material, not a fresh separate-session envelope for this packet.",
-      "This script does not fabricate returned CodexPerspectiveCandidateDraft JSON.",
+      "A real separate-session transcript envelope was supplied after PR #491 merged.",
+      "This prep slice preserves the immutable generated packet metadata and delegates returned-draft validation to the separate-session provenance-clean capture dogfood.",
+      "The prepared packet is no longer the current blocker; the follow-up capture dogfood decides PASS, PASS with follow-up, or BLOCKED from the supplied envelope.",
     ],
   };
 }
@@ -482,19 +485,19 @@ function buildNoConfirmationClaimScenario(packetValidation) {
 
   return {
     scenario_id: "no_confirmation_claim_without_transcript",
-    title: "No Confirmation Claim Without Transcript",
-    transcript_available: false,
+    title: "No Prep-Only Confirmation Claim",
+    transcript_available: true,
     separate_session_confirmation_claimed: false,
-    contract_fit_result: "not_run_no_transcript",
-    direct_validation_result: "not_run_no_transcript",
-    alignment_safety_net_result: "not_run_no_transcript",
-    downstream_guidance_result: "not_run_no_transcript",
+    contract_fit_result: "delegated_to_follow_up_capture_dogfood",
+    direct_validation_result: "delegated_to_follow_up_capture_dogfood",
+    alignment_safety_net_result: "delegated_to_follow_up_capture_dogfood",
+    downstream_guidance_result: "delegated_to_follow_up_capture_dogfood",
     conclusion: passed ? "PASS" : "BLOCKED",
     blocked_reasons: passed ? [] : packetValidation.blocked_reasons,
     dogfood_notes: [
-      "Contract fit is not run because there is no returned CodexPerspectiveCandidateDraft.",
-      "Direct validation is not run because there is no returned CodexPerspectiveCandidateDraft.",
-      "Alignment and Worker-Facing Guidance are reserved for the real transcript follow-up.",
+      "The prep artifact is not counted as direct validation success.",
+      "Contract fit, direct validation, alignment, and Worker-Facing Guidance run in the follow-up capture dogfood against the supplied returned draft.",
+      "This keeps the prep packet historical while avoiding a stale current-state blocker after transcript pasteback.",
     ],
   };
 }
@@ -554,7 +557,7 @@ function evaluatePrep({ scenarios, context, packetValidation }) {
       : SEPARATE_SESSION_CAPTURE_PACKET_PREP_CONCLUSION,
     recommended_next_pr_title:
       SEPARATE_SESSION_CAPTURE_PACKET_PREP_RECOMMENDED_NEXT_PR,
-    real_separate_session_transcript_supplied: false,
+    real_separate_session_transcript_supplied: true,
     scenario_conclusions: scenarios.map((scenario) => ({
       scenario_id: scenario.scenario_id,
       conclusion: scenario.conclusion,
@@ -570,25 +573,25 @@ function evaluatePrep({ scenarios, context, packetValidation }) {
       why_this_follows_pr_490:
         "PR #490 proved the provenance-clean same-session fallback and explicitly left separate-session confirmation as the remaining follow-up.",
       whether_real_transcript_was_supplied:
-        "No real separate-session transcript envelope was supplied. The current artifact is a prep packet and return envelope only.",
+        "A real separate-session transcript envelope has now been supplied. This prep artifact remains the immutable packet-generation record, and the follow-up capture dogfood validates the returned draft.",
       capture_method_and_provenance:
         transcript.transcript_available === true
-          ? "A real separate-session human_manual transcript is available."
+          ? "A real separate-session human_manual transcript is available and is validated by the follow-up capture dogfood."
           : "Not captured yet. The prepared return template requires capture_method: human_manual, prompt_was_generated_by_manual_copy_packet: true, source_manual_copy_packet_id, source_former_input_packet_id, and source_prompt_hash.",
       contract_fit_result:
-        "Not run because no real separate-session CodexPerspectiveCandidateDraft transcript was supplied.",
+        "Delegated to npm run dogfood:perspective-codex-former-separate-session-provenance-clean-capture.",
       direct_validation_result:
-        "Not run because no real separate-session CodexPerspectiveCandidateDraft transcript was supplied.",
+        "Delegated to npm run dogfood:perspective-codex-former-separate-session-provenance-clean-capture.",
       alignment_safety_net_result:
-        "Not run because there is no transcript to align; keep alignment as a future safety-net comparison only.",
+        "Delegated to the follow-up capture dogfood; alignment remains a safety net and is not counted as direct success.",
       downstream_guidance_result:
-        "Not run because direct candidate validation has not produced candidate-compatible review material.",
+        "Delegated to the follow-up capture dogfood and must remain advisory-only if direct validation produces candidate-compatible review material.",
       stale_wording_regression_result:
         generated.copyable_prompt_contains_stale_pr_479_contract_label
           ? "Generated prompt still contains stale PR #479 wording."
           : "Generated prompt avoids stale PR #479 prompt wording and includes the post-capture stale-state guard.",
       evaluation_conclusion:
-        "BLOCKED / WAITING_FOR_TRANSCRIPT because no real separate-session transcript envelope was supplied.",
+        "PASS with follow-up: the prep packet metadata is complete and the supplied separate-session transcript is handled by the follow-up capture dogfood.",
       why_browser_computer_use_not_run: noBrowserComputerUseReason,
     },
   };
@@ -612,7 +615,7 @@ function renderArtifact({ evaluation, scenarios, context, packetValidation }) {
     "",
     "## Summary",
     "",
-    "No real separate-session transcript envelope was supplied, and this artifact does not claim separate-session confirmation. It prepares a fresh post-PR #490 Manual Codex Former Draft Copy Packet plus the exact return envelope needed for a future separate user-started Codex session.",
+    "A real separate-session transcript envelope has now been supplied after this prep packet was generated. This artifact keeps the post-PR #490 Manual Codex Former Draft Copy Packet metadata stable and points current validation to the follow-up separate-session provenance-clean capture dogfood.",
     "",
     "## Why This Follows PR #490",
     "",
@@ -676,6 +679,7 @@ function renderArtifact({ evaluation, scenarios, context, packetValidation }) {
     "## Evaluation Conclusion",
     "",
     evaluation.answered_questions.evaluation_conclusion,
+    `Follow-up capture artifact: ${SEPARATE_SESSION_CAPTURE_PACKET_PREP_FOLLOW_UP_ARTIFACT_PATH}`,
     "",
     "## Files Changed",
     "",
@@ -703,11 +707,11 @@ function renderArtifact({ evaluation, scenarios, context, packetValidation }) {
     "",
     "## Skipped Checks With Concrete Reasons",
     "",
-    "- Real separate-session transcript dogfood: skipped because no real separate-session transcript envelope was supplied.",
+    "- Real separate-session transcript dogfood: run by npm run dogfood:perspective-codex-former-separate-session-provenance-clean-capture because the supplied transcript must be validated without mutating this prepared packet.",
     `- Browser/computer-use validation: ${noBrowserComputerUseReason}`,
     "- DB validation: skipped because this PR adds no DB schema, persistence path, or state writer.",
     "- Provider/model validation: skipped because this PR intentionally does not call Codex, OpenAI, provider/model APIs, or SDKs from implementation.",
-    "- Successful transcript validation bundle: skipped until a real separate-session transcript envelope is returned.",
+    "- Successful transcript validation bundle: delegated to the separate-session provenance-clean capture dogfood.",
     "",
     "## What Codex Did Not Do",
     "",

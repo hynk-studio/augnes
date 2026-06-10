@@ -1,12 +1,12 @@
 # Perspective Codex Former Separate-Session Capture Packet Prep
 
 Generated at: 2026-06-10T00:00:00.000Z
-Conclusion: BLOCKED / WAITING_FOR_TRANSCRIPT
+Conclusion: PASS with follow-up
 Recommended next implementation PR title: Capture separate-session provenance-clean Codex former transcript
 
 ## Summary
 
-No real separate-session transcript envelope was supplied, and this artifact does not claim separate-session confirmation. It prepares a fresh post-PR #490 Manual Codex Former Draft Copy Packet plus the exact return envelope needed for a future separate user-started Codex session.
+A real separate-session transcript envelope has now been supplied after this prep packet was generated. This artifact keeps the post-PR #490 Manual Codex Former Draft Copy Packet metadata stable and points current validation to the follow-up separate-session provenance-clean capture dogfood.
 
 ## Why This Follows PR #490
 
@@ -14,12 +14,12 @@ PR #490 proved the provenance-clean same-session fallback and explicitly left se
 
 ## Whether Real Separate-Session Transcript Was Supplied
 
-No real separate-session transcript envelope was supplied. The current artifact is a prep packet and return envelope only.
-Transcript available: false
+A real separate-session transcript envelope has now been supplied. This prep artifact remains the immutable packet-generation record, and the follow-up capture dogfood validates the returned draft.
+Transcript available: true
 
 ## Capture Method And Provenance
 
-Not captured yet. The prepared return template requires capture_method: human_manual, prompt_was_generated_by_manual_copy_packet: true, source_manual_copy_packet_id, source_former_input_packet_id, and source_prompt_hash.
+A real separate-session human_manual transcript is available and is validated by the follow-up capture dogfood.
 capture_method template: human_manual
 codex_surface_label template: separate user-started Codex session
 prompt_was_generated_by_manual_copy_packet template: true
@@ -43,23 +43,23 @@ Capture return envelope matches packet: true
 
 ## Contract-Fit Result
 
-Not run because no real separate-session CodexPerspectiveCandidateDraft transcript was supplied.
-Result: not_run_no_transcript
+Delegated to npm run dogfood:perspective-codex-former-separate-session-provenance-clean-capture.
+Result: delegated_to_follow_up_capture_dogfood
 
 ## Direct Validation Result
 
-Not run because no real separate-session CodexPerspectiveCandidateDraft transcript was supplied.
-Result: not_run_no_transcript
+Delegated to npm run dogfood:perspective-codex-former-separate-session-provenance-clean-capture.
+Result: delegated_to_follow_up_capture_dogfood
 
 ## Alignment Safety-Net Result
 
-Not run because there is no transcript to align; keep alignment as a future safety-net comparison only.
-Result: not_run_no_transcript
+Delegated to the follow-up capture dogfood; alignment remains a safety net and is not counted as direct success.
+Result: delegated_to_follow_up_capture_dogfood
 
 ## Downstream Guidance Result
 
-Not run because direct candidate validation has not produced candidate-compatible review material.
-Result: not_run_no_transcript
+Delegated to the follow-up capture dogfood and must remain advisory-only if direct validation produces candidate-compatible review material.
+Result: delegated_to_follow_up_capture_dogfood
 
 ## Stale Wording Regression Result
 
@@ -69,7 +69,8 @@ Post-capture stale-state guard present: true
 
 ## Evaluation Conclusion
 
-BLOCKED / WAITING_FOR_TRANSCRIPT because no real separate-session transcript envelope was supplied.
+PASS with follow-up: the prep packet metadata is complete and the supplied separate-session transcript is handled by the follow-up capture dogfood.
+Follow-up capture artifact: reports/dogfood/2026-06-10-perspective-codex-former-separate-session-provenance-clean-capture.md
 
 ## Files Changed
 
@@ -287,11 +288,11 @@ This PR is a pure local separate-session capture dogfood/prep docs/report/smoke 
 
 ## Skipped Checks With Concrete Reasons
 
-- Real separate-session transcript dogfood: skipped because no real separate-session transcript envelope was supplied.
+- Real separate-session transcript dogfood: run by npm run dogfood:perspective-codex-former-separate-session-provenance-clean-capture because the supplied transcript must be validated without mutating this prepared packet.
 - Browser/computer-use validation: Not run: this PR is pure local separate-session transcript capture prep docs/report/smoke/package work and adds no UI, route, browser-visible surface, clipboard automation, or interactive copy control.
 - DB validation: skipped because this PR adds no DB schema, persistence path, or state writer.
 - Provider/model validation: skipped because this PR intentionally does not call Codex, OpenAI, provider/model APIs, or SDKs from implementation.
-- Successful transcript validation bundle: skipped until a real separate-session transcript envelope is returned.
+- Successful transcript validation bundle: delegated to the separate-session provenance-clean capture dogfood.
 
 ## What Codex Did Not Do
 
@@ -339,13 +340,13 @@ Capture separate-session provenance-clean Codex former transcript
 ### Separate Session Transcript Availability
 
 Scenario id: separate_session_transcript_availability
-Conclusion: WAITING_FOR_TRANSCRIPT
-Blocked reasons: No real separate-session transcript envelope was supplied.; Same-session PR #490 material is not reused as separate-session capture.
+Conclusion: PASS
+Blocked reasons: None
 
 Dogfood notes:
-- The task prompt supplied the required envelope shape, but not a filled envelope.
-- Local search found prior same-session and older transcript material, not a fresh separate-session envelope for this packet.
-- This script does not fabricate returned CodexPerspectiveCandidateDraft JSON.
+- A real separate-session transcript envelope was supplied after PR #491 merged.
+- This prep slice preserves the immutable generated packet metadata and delegates returned-draft validation to the separate-session provenance-clean capture dogfood.
+- The prepared packet is no longer the current blocker; the follow-up capture dogfood decides PASS, PASS with follow-up, or BLOCKED from the supplied envelope.
 
 ### Generated Packet Match
 
@@ -369,16 +370,16 @@ Dogfood notes:
 - The report stores the exact return envelope to paste back after the manual session returns a bounded response.
 - The envelope provenance fields are generated from the fresh packet, not old transcript metadata.
 
-### No Confirmation Claim Without Transcript
+### No Prep-Only Confirmation Claim
 
 Scenario id: no_confirmation_claim_without_transcript
 Conclusion: PASS
 Blocked reasons: None
 
 Dogfood notes:
-- Contract fit is not run because there is no returned CodexPerspectiveCandidateDraft.
-- Direct validation is not run because there is no returned CodexPerspectiveCandidateDraft.
-- Alignment and Worker-Facing Guidance are reserved for the real transcript follow-up.
+- The prep artifact is not counted as direct validation success.
+- Contract fit, direct validation, alignment, and Worker-Facing Guidance run in the follow-up capture dogfood against the supplied returned draft.
+- This keeps the prep packet historical while avoiding a stale current-state blocker after transcript pasteback.
 
 ### Authority Boundary
 
