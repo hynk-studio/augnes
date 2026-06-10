@@ -11,6 +11,18 @@ const projectionReportFile =
   "reports/2026-06-10-perspective-codex-former-constellation-projection.md";
 const projectionSmokeFile =
   "scripts/smoke-perspective-codex-former-constellation-projection.mjs";
+const fixturePreviewDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_FIXTURE_PREVIEW_V0_1.md";
+const fixturePreviewReportFile =
+  "reports/2026-06-10-perspective-codex-former-constellation-fixture-preview.md";
+const fixturePreviewPassFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-pass-with-follow-up.json";
+const fixturePreviewBlockedFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-blocked.json";
+const fixturePreviewDogfoodFile =
+  "scripts/dogfood-perspective-codex-former-constellation-fixture-preview.mjs";
+const fixturePreviewSmokeFile =
+  "scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs";
 const productSurfaceDesignSmokeFile =
   "scripts/smoke-perspective-codex-former-product-surface-design.mjs";
 const workflowCloseoutSmokeFile =
@@ -34,6 +46,12 @@ const allowedChangedFiles = new Set([
   projectionDocFile,
   projectionReportFile,
   projectionSmokeFile,
+  fixturePreviewDocFile,
+  fixturePreviewReportFile,
+  fixturePreviewPassFixtureFile,
+  fixturePreviewBlockedFixtureFile,
+  fixturePreviewDogfoodFile,
+  fixturePreviewSmokeFile,
   productSurfaceDesignSmokeFile,
   workflowCloseoutSmokeFile,
   manualWorkflowDocsSmokeFile,
@@ -334,6 +352,7 @@ function assertChangedFileBoundary() {
     assert(
       changedFile === packageFile ||
         changedFile === projectionModuleFile ||
+        changedFile === fixturePreviewDogfoodFile ||
         changedFile.startsWith("docs/") ||
         changedFile.startsWith("reports/") ||
         changedFile.startsWith("scripts/smoke-"),

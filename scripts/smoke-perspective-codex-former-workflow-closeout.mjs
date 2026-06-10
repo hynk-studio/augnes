@@ -37,6 +37,18 @@ const constellationProjectionReportFile =
   "reports/2026-06-10-perspective-codex-former-constellation-projection.md";
 const constellationProjectionSmokeFile =
   "scripts/smoke-perspective-codex-former-constellation-projection.mjs";
+const fixturePreviewDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_FIXTURE_PREVIEW_V0_1.md";
+const fixturePreviewReportFile =
+  "reports/2026-06-10-perspective-codex-former-constellation-fixture-preview.md";
+const fixturePreviewPassFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-pass-with-follow-up.json";
+const fixturePreviewBlockedFixtureFile =
+  "reports/fixtures/2026-06-10-codex-former-constellation-blocked.json";
+const fixturePreviewDogfoodFile =
+  "scripts/dogfood-perspective-codex-former-constellation-fixture-preview.mjs";
+const fixturePreviewSmokeFile =
+  "scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -57,6 +69,12 @@ const allowedChangedFiles = new Set([
   constellationProjectionDocFile,
   constellationProjectionReportFile,
   constellationProjectionSmokeFile,
+  fixturePreviewDocFile,
+  fixturePreviewReportFile,
+  fixturePreviewPassFixtureFile,
+  fixturePreviewBlockedFixtureFile,
+  fixturePreviewDogfoodFile,
+  fixturePreviewSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -219,6 +237,7 @@ function assertChangedFileBoundary() {
     assert(
       changedFile === packageFile ||
         changedFile === constellationProjectionModuleFile ||
+        changedFile === fixturePreviewDogfoodFile ||
         changedFile.startsWith("docs/") ||
         changedFile.startsWith("reports/") ||
         changedFile.startsWith("scripts/smoke-"),
