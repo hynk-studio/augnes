@@ -148,6 +148,10 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CODEX_FORMER_PRODUCT_SURFACE_DESIGN_V0_1.md",
   "reports/2026-06-10-perspective-codex-former-product-surface-design.md",
   "scripts/smoke-perspective-codex-former-product-surface-design.mjs",
+  "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts",
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PROJECTION_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-constellation-projection.md",
+  "scripts/smoke-perspective-codex-former-constellation-projection.mjs",
   packageFile,
   manualCopyPacketFile,
   promptContractFile,
@@ -892,7 +896,9 @@ function assertChangedFileBoundary() {
           changedFile === promptContractFile ||
           changedFile === formerInputPacketFile ||
           changedFile === draftPipelineFile ||
-          changedFile === draftSchemaAlignmentHelperFile) &&
+          changedFile === draftSchemaAlignmentHelperFile ||
+          changedFile ===
+            "lib/perspective-ingest/perspective-codex-former-constellation-projection.ts") &&
         !changedFile.startsWith("db/") &&
         !changedFile.startsWith("migrations/") &&
         !changedFile.startsWith("fixtures/") &&
