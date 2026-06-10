@@ -44,6 +44,12 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PROJECTION_V0_1.md",
   "reports/2026-06-10-perspective-codex-former-constellation-projection.md",
   "scripts/smoke-perspective-codex-former-constellation-projection.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_FIXTURE_PREVIEW_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-constellation-fixture-preview.md",
+  "reports/fixtures/2026-06-10-codex-former-constellation-pass-with-follow-up.json",
+  "reports/fixtures/2026-06-10-codex-former-constellation-blocked.json",
+  "scripts/dogfood-perspective-codex-former-constellation-fixture-preview.mjs",
+  "scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs",
   "scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs",
   "scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs",
 ]);
