@@ -29,6 +29,52 @@ Confirm the copyable prompt includes
 `CodexPerspectiveFormerDraftPromptContract v0.1`, and confirm stale PR #479
 prompt wording is absent.
 
+### Operator Capture Helper
+
+The local helper is the preferred operator-facing wrapper for this manual
+workflow. It reduces copy/paste and provenance mistakes, but it does not paste
+into Codex, call Codex from Augnes, use the Codex SDK, call provider/model APIs,
+or create accepted Augnes state.
+
+The helper does not paste into Codex; the separate user-started session remains
+a human-operated step.
+
+Prepare a packet into a deterministic local output directory:
+
+```bash
+npm run perspective:codex-former:capture-packet -- --out-dir /tmp/augnes-codex-former-capture
+```
+
+Prepare mode writes:
+
+- a copyable prompt file;
+- a capture return envelope template file;
+- a metadata file with `source_manual_copy_packet_id`,
+  `source_former_input_packet_id`, `source_prompt_hash`, and the former input
+  packet needed for later validation.
+
+It prints the same ids/hash and output paths to stdout. It fails if the stable
+prompt contract label is missing, stale PR #479 wording is present, or generated
+provenance values are missing or `not_supplied_in_chat`.
+
+After the human returns a separate-session capture envelope, validate it with
+the metadata from prepare mode:
+
+```bash
+npm run perspective:codex-former:validate-capture -- --envelope /tmp/augnes-codex-former-capture/returned-envelope.txt --metadata /tmp/augnes-codex-former-capture/codex-former-capture-metadata.json
+```
+
+Validate mode verifies envelope provenance, confirms ids/hash match metadata,
+extracts exactly one returned candidate draft JSON object, runs contract-fit,
+runs direct validation/normalization with the same former input packet, runs
+schema alignment only as a safety-net comparison, and runs Worker-Facing
+Guidance only after direct validation returns candidate-compatible material.
+
+The validate result prints `PASS`, `PASS with follow-up`, or `BLOCKED with
+useful findings`. The helper reports unknown pointer warnings and
+`needs_review` basis quality rather than hiding them. Candidate-compatible
+material remains `non_committed` review material.
+
 ### B. Paste Into Separate Codex Session
 
 Start a separate user-started Codex session and paste only

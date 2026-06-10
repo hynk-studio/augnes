@@ -15,6 +15,12 @@ const separateSessionPrepSmokeFile =
   "scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs";
 const manualCopyPacketSmokeFile =
   "scripts/smoke-perspective-codex-former-manual-copy-packet.mjs";
+const captureHelperFile =
+  "scripts/perspective-codex-former-capture-helper.mjs";
+const captureHelperSmokeFile =
+  "scripts/smoke-perspective-codex-former-capture-helper.mjs";
+const captureHelperReportFile =
+  "reports/2026-06-10-perspective-codex-former-capture-helper.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -26,6 +32,9 @@ const allowedChangedFiles = new Set([
   separateSessionCaptureSmokeFile,
   separateSessionPrepSmokeFile,
   manualCopyPacketSmokeFile,
+  captureHelperFile,
+  captureHelperSmokeFile,
+  captureHelperReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -70,6 +79,13 @@ function assertManualWorkflowDoc() {
     "validateAndNormalizeCodexPerspectiveCandidateDraft",
     "alignment only as a safety-net comparison",
     "Worker-Facing Guidance only after direct validation",
+    "Operator Capture Helper",
+    "npm run perspective:codex-former:capture-packet",
+    "npm run perspective:codex-former:validate-capture",
+    "copyable prompt file",
+    "capture return envelope template file",
+    "metadata file",
+    "The helper does not paste into Codex",
     "PASS with follow-up",
     "BLOCKED with useful findings",
     "pointer_ref:draft.evidence_pointer_refs[0]",
