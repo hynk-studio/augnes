@@ -263,6 +263,7 @@
     "smoke:perspective-codex-former-constellation-fixture-preview": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-constellation-fixture-preview.mjs",
     "dogfood:perspective-codex-former-constellation-preview-data-adapter": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/dogfood-perspective-codex-former-constellation-preview-data-adapter.mjs",
     "smoke:perspective-codex-former-constellation-preview-data-adapter": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-constellation-preview-data-adapter.mjs",
+    "smoke:perspective-codex-former-constellation-preview-fixture-surface-design": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-constellation-preview-fixture-surface-design.mjs",
     "smoke:perspective-codex-former-real-transcript-capture-instructions": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",

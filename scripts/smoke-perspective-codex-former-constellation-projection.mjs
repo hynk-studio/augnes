@@ -37,6 +37,12 @@ const previewDataAdapterDogfoodFile =
   "scripts/dogfood-perspective-codex-former-constellation-preview-data-adapter.mjs";
 const previewDataAdapterSmokeFile =
   "scripts/smoke-perspective-codex-former-constellation-preview-data-adapter.mjs";
+const fixtureSurfaceDesignDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CONSTELLATION_PREVIEW_FIXTURE_SURFACE_DESIGN_V0_1.md";
+const fixtureSurfaceDesignReportFile =
+  "reports/2026-06-10-perspective-codex-former-constellation-preview-fixture-surface-design.md";
+const fixtureSurfaceDesignSmokeFile =
+  "scripts/smoke-perspective-codex-former-constellation-preview-fixture-surface-design.mjs";
 const productSurfaceDesignSmokeFile =
   "scripts/smoke-perspective-codex-former-product-surface-design.mjs";
 const workflowCloseoutSmokeFile =
@@ -73,6 +79,9 @@ const allowedChangedFiles = new Set([
   previewDataAdapterBlockedFixtureFile,
   previewDataAdapterDogfoodFile,
   previewDataAdapterSmokeFile,
+  fixtureSurfaceDesignDocFile,
+  fixtureSurfaceDesignReportFile,
+  fixtureSurfaceDesignSmokeFile,
   productSurfaceDesignSmokeFile,
   workflowCloseoutSmokeFile,
   manualWorkflowDocsSmokeFile,
