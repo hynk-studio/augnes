@@ -248,6 +248,8 @@
     "smoke:perspective-codex-former-provenance-stale-wording": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs",
     "dogfood:perspective-codex-former-provenance-clean-transcript-capture": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/dogfood-perspective-codex-former-provenance-clean-transcript-capture.mjs",
     "smoke:perspective-codex-former-provenance-clean-transcript-capture": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs",
+    "dogfood:perspective-codex-former-separate-session-capture-packet-prep": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/dogfood-perspective-codex-former-separate-session-capture-packet-prep.mjs",
+    "smoke:perspective-codex-former-separate-session-capture-packet-prep": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-separate-session-capture-packet-prep.mjs",
     "smoke:perspective-codex-former-real-transcript-capture-instructions": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
