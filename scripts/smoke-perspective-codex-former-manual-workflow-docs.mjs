@@ -23,6 +23,10 @@ const captureHelperReportFile =
   "reports/2026-06-10-perspective-codex-former-capture-helper.md";
 const parameterizedCaptureHelperReportFile =
   "reports/2026-06-10-perspective-codex-former-capture-helper-parameterized-input.md";
+const sourceInputTemplateDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_CAPTURE_SOURCE_INPUT_TEMPLATE_V0_1.md";
+const sourceInputHardeningReportFile =
+  "reports/2026-06-10-perspective-codex-former-source-input-hardening.md";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -38,11 +42,19 @@ const allowedChangedFiles = new Set([
   captureHelperSmokeFile,
   captureHelperReportFile,
   parameterizedCaptureHelperReportFile,
+  sourceInputTemplateDocFile,
+  sourceInputHardeningReportFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
-const docText = readFileSync(docFile, "utf8");
-const reportText = readFileSync(reportFile, "utf8");
+const docText = `${readFileSync(docFile, "utf8")}\n${readFileSync(
+  sourceInputTemplateDocFile,
+  "utf8",
+)}`;
+const reportText = `${readFileSync(reportFile, "utf8")}\n${readFileSync(
+  sourceInputHardeningReportFile,
+  "utf8",
+)}`;
 const smokeText = readFileSync(smokeFile, "utf8");
 
 assert.equal(existsSync(docFile), true, `${docFile} must exist`);
@@ -92,7 +104,10 @@ function assertManualWorkflowDoc() {
     "--source-input",
     "capture_source_kind",
     "source_input_hash",
+    "PERSPECTIVE_CODEX_FORMER_CAPTURE_SOURCE_INPUT_TEMPLATE_V0_1.md",
     "exactly one returned candidate draft JSON object",
+    "Perspective Codex Former Capture Source Input Template v0.1",
+    "generated Formation Input Bundle path",
     "PASS with follow-up",
     "BLOCKED with useful findings",
     "pointer_ref:draft.evidence_pointer_refs[0]",
