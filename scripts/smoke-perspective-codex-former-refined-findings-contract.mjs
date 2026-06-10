@@ -39,6 +39,14 @@ const provenanceStaleWordingDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_PROVENANCE_STALE_WORDING_V0_1.md";
 const provenanceStaleWordingReportFile =
   "reports/2026-06-09-perspective-codex-former-provenance-stale-wording.md";
+const provenanceCleanTranscriptCaptureDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-provenance-clean-transcript-capture.mjs";
+const provenanceCleanTranscriptCaptureSmokeFile =
+  "scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs";
+const provenanceCleanTranscriptCaptureDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROVENANCE_CLEAN_TRANSCRIPT_CAPTURE_V0_1.md";
+const provenanceCleanTranscriptCaptureReportFile =
+  "reports/dogfood/2026-06-10-perspective-codex-former-provenance-clean-transcript-capture.md";
 const neighboringSmokeAllowlistFiles = [
   "scripts/smoke-perspective-candidate-builder-fixture.mjs",
   "scripts/smoke-perspective-codex-former-draft-schema-alignment.mjs",
@@ -75,6 +83,10 @@ const allowedChangedFiles = new Set([
   provenanceStaleWordingSmokeFile,
   provenanceStaleWordingDocFile,
   provenanceStaleWordingReportFile,
+  provenanceCleanTranscriptCaptureDogfoodScriptFile,
+  provenanceCleanTranscriptCaptureSmokeFile,
+  provenanceCleanTranscriptCaptureDocFile,
+  provenanceCleanTranscriptCaptureReportFile,
   ...neighboringSmokeAllowlistFiles,
 ]);
 
