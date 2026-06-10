@@ -63,7 +63,21 @@ export interface ManualCodexPerspectiveFormerDraftCopyPacketV0 {
     intended_codex_surface: string | null;
     usage_notes: string[];
   };
+  copyable_prompt_hash: string;
   copyable_codex_prompt_text: string;
+  capture_return_envelope: {
+    envelope_label: "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET";
+    capture_method: "human_manual";
+    codex_surface_label: string | null;
+    prompt_was_generated_by_manual_copy_packet: true;
+    source_manual_copy_packet_id: string;
+    source_former_input_packet_id: string;
+    source_prompt_hash: string;
+    captured_at: "<timestamp or unknown>";
+    redaction_notes: string[];
+    copyable_capture_return_template: string;
+    returned_codex_response_placeholder: "<returned JSON>";
+  };
   expected_codex_response_contract: {
     response_kind: "CodexPerspectiveCandidateDraft JSON";
     return_json_only: true;
@@ -191,10 +205,18 @@ export function buildManualCodexPerspectiveFormerDraftCopyPacket(
     manualContext,
     omittedCopyInputUnsafeFieldCount: omittedUnsafeFields.size,
   });
+  const packetId = buildManualCopyPacketId(input.former_input_packet);
   const copyablePromptText = buildCopyableCodexPromptText({
     formerInputPacket: input.former_input_packet,
     promptContract,
     manualContext,
+  });
+  const copyablePromptHash = buildCopyablePromptHash(copyablePromptText);
+  const captureReturnEnvelope = buildCaptureReturnEnvelope({
+    packetId,
+    formerInputPacket: input.former_input_packet,
+    manualContext,
+    copyablePromptHash,
   });
   const unsafePromptDetected =
     containsUnsafeCodexPerspectiveMaterial(copyablePromptText);
@@ -212,7 +234,7 @@ export function buildManualCodexPerspectiveFormerDraftCopyPacket(
   return {
     packet_version: "manual_codex_perspective_former_draft_copy_packet.v0.1",
     packet_kind: "manual_codex_perspective_former_draft_copy_packet",
-    packet_id: buildManualCopyPacketId(input.former_input_packet),
+    packet_id: packetId,
     generated_at: generatedAt,
     copy_status: copyStatus,
     copy_status_reasons: uniqueTextList(copyStatusReasons),
@@ -228,7 +250,9 @@ export function buildManualCodexPerspectiveFormerDraftCopyPacket(
       source_packet_id: promptContract.source_former_input_packet.packet_id,
     },
     manual_context: manualContext,
+    copyable_prompt_hash: copyablePromptHash,
     copyable_codex_prompt_text: copyablePromptText,
+    capture_return_envelope: captureReturnEnvelope,
     expected_codex_response_contract: {
       response_kind: "CodexPerspectiveCandidateDraft JSON",
       return_json_only: true,
@@ -320,6 +344,10 @@ export function evaluateManualCodexPerspectiveFormerDraftCopyPacket(
 ): ManualCodexPerspectiveFormerDraftCopyPacketEvaluationV0 {
   const blockedReasons: string[] = [];
   const warnings: string[] = [];
+  const stalePr479ContractWording = [
+    "Use the PR #479",
+    "prompt contract below.",
+  ].join(" ");
 
   if (containsUnsafeCodexPerspectiveMaterial(JSON.stringify(packet))) {
     blockedReasons.push("packet output includes unsafe material marker");
@@ -338,6 +366,50 @@ export function evaluateManualCodexPerspectiveFormerDraftCopyPacket(
   }
   if (!packet.copyable_codex_prompt_text.includes("Return JSON only")) {
     blockedReasons.push("copyable prompt is missing JSON-only instruction");
+  }
+  if (
+    packet.copyable_codex_prompt_text.includes(
+      stalePr479ContractWording,
+    )
+  ) {
+    blockedReasons.push("copyable prompt uses stale PR #479 contract label");
+  }
+  if (
+    !packet.copyable_codex_prompt_text.includes(
+      "Prompt contract: CodexPerspectiveFormerDraftPromptContract v0.1",
+    )
+  ) {
+    blockedReasons.push("copyable prompt is missing stable prompt contract label");
+  }
+  if (
+    !packet.copyable_codex_prompt_text.includes(
+      "The former input packet may mention that a transcript is missing because it was generated before this capture.",
+    )
+  ) {
+    blockedReasons.push("copyable prompt is missing pre-capture gap guidance");
+  }
+  if (
+    packet.capture_return_envelope.source_manual_copy_packet_id !==
+      packet.packet_id ||
+    packet.capture_return_envelope.source_former_input_packet_id !==
+      packet.source_former_input_packet.packet_id ||
+    packet.capture_return_envelope.source_prompt_hash !==
+      packet.copyable_prompt_hash
+  ) {
+    blockedReasons.push("capture return envelope provenance does not match packet");
+  }
+  if (
+    !packet.capture_return_envelope.copyable_capture_return_template.includes(
+      "RETURNED_CODEX_RESPONSE:",
+    ) ||
+    !packet.capture_return_envelope.copyable_capture_return_template.includes(
+      "source_manual_copy_packet_id:",
+    ) ||
+    !packet.capture_return_envelope.copyable_capture_return_template.includes(
+      "source_prompt_hash:",
+    )
+  ) {
+    blockedReasons.push("capture return envelope is missing required fields");
   }
   if (!packet.copyable_codex_prompt_text.includes("pointer-only")) {
     blockedReasons.push("copyable prompt is missing pointer-only instruction");
@@ -592,7 +664,10 @@ function buildCopyableCodexPromptText({
     `Reviewer: ${manualContext.reviewer_label ?? "manual reviewer"}`,
     `Intended Codex surface: ${manualContext.intended_codex_surface ?? "user-started Codex session"}`,
     "",
-    "Use the PR #479 prompt contract below.",
+    "Use the current Codex former draft prompt contract below.",
+    "Prompt contract: CodexPerspectiveFormerDraftPromptContract v0.1",
+    `Contract version: ${promptContract.contract_version}`,
+    "This contract includes the latest local canonical-schema, thesis-boundary, and tension-kind guidance.",
     "",
     promptContract.copyable_former_draft_prompt_text.trimEnd(),
     "",
@@ -604,6 +679,11 @@ function buildCopyableCodexPromptText({
     "- Use only pointer-only refs from the former input packet.",
     "- Form a neutral perspective beyond a plain summary.",
     "- If the packet is insufficient, return needs_review or blocked draft material with visible reasons.",
+    "- The former input packet may mention that a transcript is missing because it was generated before this capture. Do not repeat that as current state after this response exists.",
+    "- Treat this response as the captured draft output to be locally validated.",
+    "- Use needs_review because local validation has not yet run, not because this response does not exist.",
+    "- It is okay to say future validation is still needed.",
+    "- It is not okay to phrase the current returned transcript as still absent.",
     "- Do not include raw diffs, raw review material, raw source material, private material, provider material, token material, billing material, API credentials, hidden reasoning, or generated raw model material.",
     "- Do not claim proof, evidence, readiness, approval, merge, GitHub mutation, Codex execution, provider/model execution, or Core-decision authority.",
     "- Set all authority flags false.",
@@ -616,6 +696,61 @@ function buildCopyableCodexPromptText({
   ];
 
   return `${lines.join("\n").trimEnd()}\n`;
+}
+
+function buildCopyablePromptHash(copyablePromptText: string): string {
+  return stableHash(copyablePromptText);
+}
+
+function buildCaptureReturnEnvelope({
+  packetId,
+  formerInputPacket,
+  manualContext,
+  copyablePromptHash,
+}: {
+  packetId: string;
+  formerInputPacket: CodexPerspectiveFormerInputPacketV0;
+  manualContext: ManualCodexPerspectiveFormerDraftCopyPacketV0["manual_context"];
+  copyablePromptHash: string;
+}): ManualCodexPerspectiveFormerDraftCopyPacketV0["capture_return_envelope"] {
+  const codexSurfaceLabel =
+    manualContext.intended_codex_surface ?? "<surface>";
+  const redactionNotes = [
+    "Included only returned CodexPerspectiveCandidateDraft JSON or bounded response text.",
+    "No hidden reasoning, cookies, tokens, account data, provider logs, raw page dumps, raw PR diffs, raw review payloads, unrelated chat text, or secrets included.",
+  ];
+  const lines = [
+    "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
+    "",
+    "capture_method: human_manual",
+    `codex_surface_label: ${codexSurfaceLabel}`,
+    "prompt_was_generated_by_manual_copy_packet: true",
+    `source_manual_copy_packet_id: ${packetId}`,
+    `source_former_input_packet_id: ${formerInputPacket.packet_id}`,
+    `source_prompt_hash: ${copyablePromptHash}`,
+    "captured_at: <timestamp or unknown>",
+    "",
+    "TRANSCRIPT_REDACTION_NOTES:",
+    ...redactionNotes.map((note) => `- ${note}`),
+    "",
+    "RETURNED_CODEX_RESPONSE:",
+    "<returned JSON>",
+    "END RETURNED_CODEX_RESPONSE",
+  ];
+
+  return {
+    envelope_label: "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
+    capture_method: "human_manual",
+    codex_surface_label: codexSurfaceLabel,
+    prompt_was_generated_by_manual_copy_packet: true,
+    source_manual_copy_packet_id: packetId,
+    source_former_input_packet_id: formerInputPacket.packet_id,
+    source_prompt_hash: copyablePromptHash,
+    captured_at: "<timestamp or unknown>",
+    redaction_notes: redactionNotes,
+    copyable_capture_return_template: `${lines.join("\n").trimEnd()}\n`,
+    returned_codex_response_placeholder: "<returned JSON>",
+  };
 }
 
 function buildManualReviewChecklist({

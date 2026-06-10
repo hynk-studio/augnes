@@ -3,6 +3,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 const packageFile = "package.json";
+const manualCopyPacketFile =
+  "lib/perspective-ingest/perspective-codex-former-manual-copy-packet.ts";
 const dogfoodScriptFile =
   "scripts/dogfood-perspective-codex-former-manual-copy-transcript.mjs";
 const smokeFile =
@@ -77,6 +79,14 @@ const secondRefinedTranscriptDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_SECOND_REFINED_TRANSCRIPT_DOGFOOD_V0_1.md";
 const secondRefinedTranscriptReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-second-refined-transcript.md";
+const provenanceStaleWordingDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-provenance-stale-wording.mjs";
+const provenanceStaleWordingSmokeFile =
+  "scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs";
+const provenanceStaleWordingDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROVENANCE_STALE_WORDING_V0_1.md";
+const provenanceStaleWordingReportFile =
+  "reports/2026-06-09-perspective-codex-former-provenance-stale-wording.md";
 const refinedFindingsContractDogfoodScriptFile =
   "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
 const refinedFindingsContractSmokeFile =
@@ -90,6 +100,7 @@ const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
 const allowedChangedFiles = new Set([
   packageFile,
+  manualCopyPacketFile,
   dogfoodScriptFile,
   smokeFile,
   docFile,
@@ -127,6 +138,10 @@ const allowedChangedFiles = new Set([
   secondRefinedTranscriptSmokeFile,
   secondRefinedTranscriptDocFile,
   secondRefinedTranscriptReportFile,
+  provenanceStaleWordingDogfoodScriptFile,
+  provenanceStaleWordingSmokeFile,
+  provenanceStaleWordingDocFile,
+  provenanceStaleWordingReportFile,
   refinedFindingsContractDogfoodScriptFile,
   refinedFindingsContractSmokeFile,
   refinedFindingsContractDocFile,

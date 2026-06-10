@@ -91,6 +91,14 @@ const secondRefinedTranscriptDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_SECOND_REFINED_TRANSCRIPT_DOGFOOD_V0_1.md";
 const secondRefinedTranscriptReportFile =
   "reports/dogfood/2026-06-09-perspective-codex-former-second-refined-transcript.md";
+const provenanceStaleWordingDogfoodScriptFile =
+  "scripts/dogfood-perspective-codex-former-provenance-stale-wording.mjs";
+const provenanceStaleWordingSmokeFile =
+  "scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs";
+const provenanceStaleWordingDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PROVENANCE_STALE_WORDING_V0_1.md";
+const provenanceStaleWordingReportFile =
+  "reports/2026-06-09-perspective-codex-former-provenance-stale-wording.md";
 const refinedFindingsContractDogfoodScriptFile =
   "scripts/dogfood-perspective-codex-former-refined-findings-contract.mjs";
 const refinedFindingsContractSmokeFile =
@@ -150,6 +158,10 @@ const allowedChangedFiles = new Set([
   secondRefinedTranscriptSmokeFile,
   secondRefinedTranscriptDocFile,
   secondRefinedTranscriptReportFile,
+  provenanceStaleWordingDogfoodScriptFile,
+  provenanceStaleWordingSmokeFile,
+  provenanceStaleWordingDocFile,
+  provenanceStaleWordingReportFile,
   refinedFindingsContractDogfoodScriptFile,
   refinedFindingsContractSmokeFile,
   refinedFindingsContractDocFile,
@@ -216,7 +228,23 @@ function assertManualCopyPacketSourceIsPureLocal() {
     "authority_flags",
     "browser_or_computer_use_validation",
     "Not run: no browser/computer-use validation required",
+    "copyable_prompt_hash",
+    "capture_return_envelope",
+    "Prompt contract: CodexPerspectiveFormerDraftPromptContract v0.1",
+    "The former input packet may mention that a transcript is missing because it was generated before this capture.",
+    "Do not repeat that as current state after this response exists.",
+    "Use needs_review because local validation has not yet run, not because this response does not exist.",
+    "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
+    "source_manual_copy_packet_id",
+    "source_former_input_packet_id",
+    "source_prompt_hash",
+    "RETURNED_CODEX_RESPONSE",
   ]);
+  assert.equal(
+    manualCopyPacketText.includes("Use the PR #479 prompt contract below."),
+    false,
+    "manual copy packet source must not render stale PR #479 contract wording",
+  );
 
   for (const forbiddenMarker of [
     ["read", "File"].join(""),
@@ -289,13 +317,69 @@ function assertReadyManualCopyPacket() {
     "Set all authority flags false.",
     "draft/review material only",
     "validateAndNormalizeCodexPerspectiveCandidateDraft",
+    "Prompt contract: CodexPerspectiveFormerDraftPromptContract v0.1",
+    "The former input packet may mention that a transcript is missing because it was generated before this capture.",
+    "Do not repeat that as current state after this response exists.",
+    "Treat this response as the captured draft output to be locally validated.",
+    "Use needs_review because local validation has not yet run, not because this response does not exist.",
   ]);
+  assert.equal(
+    packet.copyable_codex_prompt_text.includes(
+      "Use the PR #479 prompt contract below.",
+    ),
+    false,
+    "copyable prompt must not use stale PR #479 contract wording",
+  );
+  assert.doesNotMatch(
+    packet.copyable_codex_prompt_text,
+    /Prompt contract:.*PR #/,
+    "copyable prompt must not identify prompt contract by PR number",
+  );
+  assertCaptureReturnEnvelope(packet);
   assert.equal(
     packet.returned_draft_validation_instructions.validation_function,
     "validateAndNormalizeCodexPerspectiveCandidateDraft",
   );
   assertAuthorityFalse(packet.authority_flags);
   assertNoUnsafeMarkerText("ready manual copy packet", packet);
+}
+
+function assertCaptureReturnEnvelope(packet) {
+  const envelope = packet.capture_return_envelope;
+  const template = envelope.copyable_capture_return_template;
+
+  assert.equal(packet.copyable_prompt_hash.length > 0, true);
+  assert.equal(envelope.envelope_label, "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET");
+  assert.equal(envelope.capture_method, "human_manual");
+  assert.equal(envelope.prompt_was_generated_by_manual_copy_packet, true);
+  assert.equal(envelope.source_manual_copy_packet_id, packet.packet_id);
+  assert.equal(
+    envelope.source_former_input_packet_id,
+    packet.source_former_input_packet.packet_id,
+  );
+  assert.equal(envelope.source_prompt_hash, packet.copyable_prompt_hash);
+  assertContainsAll(template, [
+    "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
+    "capture_method: human_manual",
+    "codex_surface_label:",
+    "prompt_was_generated_by_manual_copy_packet: true",
+    "source_manual_copy_packet_id:",
+    "source_former_input_packet_id:",
+    "source_prompt_hash:",
+    "captured_at: <timestamp or unknown>",
+    "TRANSCRIPT_REDACTION_NOTES:",
+    "RETURNED_CODEX_RESPONSE:",
+    "END RETURNED_CODEX_RESPONSE",
+    "No hidden reasoning",
+    "cookies",
+    "tokens",
+    "account data",
+    "provider logs",
+    "raw page dumps",
+    "raw PR diffs",
+    "raw review payloads",
+    "secrets",
+  ]);
 }
 
 function assertNeedsReviewManualCopyPacket() {
@@ -317,7 +401,9 @@ function assertNeedsReviewManualCopyPacket() {
   assertContainsAll(packet.copyable_codex_prompt_text, [
     "If the packet is insufficient, return needs_review or blocked draft material with visible reasons.",
     "Do not claim checks passed unless the former input packet provides check summaries.",
+    "Use needs_review because local validation has not yet run, not because this response does not exist.",
   ]);
+  assertCaptureReturnEnvelope(packet);
   assert.equal(
     packet.copyable_codex_prompt_text.includes("ready_to_merge"),
     false,
