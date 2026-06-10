@@ -33,6 +33,12 @@ const workflowCloseoutReportFile =
   "reports/2026-06-10-perspective-codex-former-workflow-closeout.md";
 const workflowCloseoutSmokeFile =
   "scripts/smoke-perspective-codex-former-workflow-closeout.mjs";
+const productSurfaceDesignDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_PRODUCT_SURFACE_DESIGN_V0_1.md";
+const productSurfaceDesignReportFile =
+  "reports/2026-06-10-perspective-codex-former-product-surface-design.md";
+const productSurfaceDesignSmokeFile =
+  "scripts/smoke-perspective-codex-former-product-surface-design.mjs";
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -53,6 +59,9 @@ const allowedChangedFiles = new Set([
   workflowCloseoutDocFile,
   workflowCloseoutReportFile,
   workflowCloseoutSmokeFile,
+  productSurfaceDesignDocFile,
+  productSurfaceDesignReportFile,
+  productSurfaceDesignSmokeFile,
 ]);
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));

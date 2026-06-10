@@ -37,6 +37,9 @@ const allowedChangedFiles = new Set([
   "docs/PERSPECTIVE_CODEX_FORMER_WORKFLOW_CLOSEOUT_V0_1.md",
   "reports/2026-06-10-perspective-codex-former-workflow-closeout.md",
   "scripts/smoke-perspective-codex-former-workflow-closeout.mjs",
+  "docs/PERSPECTIVE_CODEX_FORMER_PRODUCT_SURFACE_DESIGN_V0_1.md",
+  "reports/2026-06-10-perspective-codex-former-product-surface-design.md",
+  "scripts/smoke-perspective-codex-former-product-surface-design.mjs",
   "scripts/smoke-perspective-codex-former-provenance-clean-transcript-capture.mjs",
   "scripts/smoke-perspective-codex-former-provenance-stale-wording.mjs",
 ]);
