@@ -62,6 +62,7 @@ export type CodexFormerLocalAdapterPrepareDryRunSummaryV0 = {
   helper_exit_status: "not_run";
   helper_command_kind: "existing_capture_helper_prepare";
   helper_command_argv: string[];
+  helper_command_argv_hash: string;
   helper_command_summary: string;
   helper_output_paths: {
     manual_copy_packet_path: null;
@@ -79,6 +80,17 @@ export type CodexFormerLocalAdapterPrepareDryRunSummaryV0 = {
   };
   next_safe_action: string;
   caveats: string[];
+  execution_readiness: {
+    ready_for_prepare_execution: boolean;
+    status: "ready" | "not_ready";
+    blockers: string[];
+    warnings: string[];
+    checked_requirements: Array<{
+      id: string;
+      status: "passed" | "failed" | "warning";
+      detail: string;
+    }>;
+  };
   authority_flags: CodexFormerLocalAdapterPrepareAuthorityFlags;
 };
 
@@ -94,9 +106,36 @@ export type BuildCodexFormerLocalAdapterPrepareDryRunSummaryInput = {
   manifestPath?: string | null;
   manifestHash?: string | null;
   expectedSourceInputHash?: string | null;
+  helperAvailability?: {
+    packageScriptPresent: boolean;
+    scriptPath: string;
+    scriptPresent: boolean;
+    scriptIsFile: boolean;
+  };
+  helperOutDirStatus?: {
+    existsAsFile: boolean;
+    existsAsNonEmptyDirectory: boolean;
+    createdByDryRun: boolean;
+  };
+  prepareSummaryOutsideHelperOutDir?: boolean;
 };
 
 const sha256Pattern = /^[a-f0-9]{64}$/;
+const requiredExecutionReadinessIds = [
+  "source_input_valid",
+  "source_input_hash_matches_preflight",
+  "preflight_summary_valid",
+  "preflight_status_passed",
+  "helper_package_script_present",
+  "helper_script_present",
+  "helper_command_argv_constructed",
+  "helper_out_dir_not_created_by_dry_run",
+  "helper_out_dir_not_existing_file",
+  "helper_out_dir_not_non_empty_directory",
+  "prepare_summary_outside_helper_out_dir",
+  "no_forbidden_authority_behavior",
+  "no_helper_execution",
+] as const;
 
 export function validateCodexFormerLocalAdapterPrepareDryRunInput(
   input: BuildCodexFormerLocalAdapterPrepareDryRunSummaryInput,
@@ -119,7 +158,7 @@ export function validateCodexFormerLocalAdapterPrepareDryRunInput(
     hasText(input.expectedSourceInputHash) &&
     input.expectedSourceInputHash !== input.sourceInputHash
   ) {
-    errors.push("prepare expected source input hash does not match source input bytes");
+    errors.push("prepare.expected_source_input_hash does not match source input bytes");
   }
 
   const sourceInputValidation = validateCodexFormerLocalAdapterSourceInput(
@@ -153,10 +192,22 @@ export function validateCodexFormerLocalAdapterPrepareDryRunInput(
     );
     errors.push(...manifestValidation.errors);
     if (!hasText(input.manifestPath)) {
-      errors.push("prepare manifest_path is required when manifest is supplied");
+      errors.push("prepare.manifest_path is required when manifest is supplied");
     }
     if (!isSha256(input.manifestHash)) {
-      errors.push("prepare manifest_hash must be a sha256 hash when manifest is supplied");
+      errors.push("prepare.manifest_hash must be a sha256 hash when manifest is supplied");
+    }
+    if (input.manifest.work_id !== input.sourceInput.work_id) {
+      errors.push("prepare.manifest.work_id must match source_input.work_id");
+    }
+    if (input.manifest.scope !== input.sourceInput.scope) {
+      errors.push("prepare.manifest.scope must match source_input.scope");
+    }
+    if (!sameStringArray(input.manifest.changed_files, input.sourceInput.changed_files)) {
+      errors.push("prepare.manifest.changed_files must match source_input.changed_files exactly");
+    }
+    if (!sameStringArray(input.manifest.source_pr_refs, input.sourceInput.source_pr_refs)) {
+      errors.push("prepare.manifest.source_pr_refs must match source_input.source_pr_refs exactly");
     }
     for (const marker of collectUnsafeCodexFormerLocalAdapterManifestMarkers(
       input.manifest,
@@ -173,6 +224,32 @@ export function validateCodexFormerLocalAdapterPrepareDryRunInput(
     errors.push(
       `prepare source input contains unsafe marker category at ${marker.path}: ${marker.marker_kind}`,
     );
+  }
+
+  const helperAvailability = normalizeHelperAvailability(input.helperAvailability);
+  if (!helperAvailability.packageScriptPresent) {
+    errors.push("prepare.helper.package_script is missing");
+  }
+  if (!helperAvailability.scriptPresent) {
+    errors.push("prepare.helper.script_path is missing");
+  }
+  if (!helperAvailability.scriptIsFile) {
+    errors.push("prepare.helper.script_path must be a file");
+  }
+  const helperOutDirStatus = normalizeHelperOutDirStatus(
+    input.helperOutDirStatus,
+  );
+  if (helperOutDirStatus.existsAsFile) {
+    errors.push("prepare.out_dir must not be an existing file");
+  }
+  if (helperOutDirStatus.existsAsNonEmptyDirectory) {
+    errors.push("prepare.out_dir must not be a non-empty directory");
+  }
+  if (helperOutDirStatus.createdByDryRun) {
+    errors.push("prepare.out_dir must not be created by dry-run");
+  }
+  if (input.prepareSummaryOutsideHelperOutDir === false) {
+    errors.push("prepare.prepare_summary_out must not be inside helper out-dir");
   }
 
   return { valid: errors.length === 0, errors: uniqueStrings(errors) };
@@ -233,6 +310,15 @@ export function buildCodexFormerLocalAdapterPrepareDryRunSummary(
     helperOutDir: input.helperOutDir,
     sourceInputPath: input.sourceInputPath,
   });
+  const helperCommandArgvHash = hashCodexFormerLocalAdapterContent(
+    stableStringifyCodexFormerLocalAdapterJson(helperCommandArgv),
+  );
+  const executionReadiness = buildExecutionReadiness({
+    helperAvailability: normalizeHelperAvailability(input.helperAvailability),
+    helperOutDirStatus: normalizeHelperOutDirStatus(input.helperOutDirStatus),
+    prepareSummaryOutsideHelperOutDir:
+      input.prepareSummaryOutsideHelperOutDir !== false,
+  });
   const summary: CodexFormerLocalAdapterPrepareDryRunSummaryV0 = {
     prepare_summary_version: CODEX_FORMER_LOCAL_ADAPTER_PREPARE_SUMMARY_VERSION,
     mode: "prepare-orchestration-dry-run",
@@ -248,6 +334,7 @@ export function buildCodexFormerLocalAdapterPrepareDryRunSummary(
     helper_exit_status: "not_run",
     helper_command_kind: "existing_capture_helper_prepare",
     helper_command_argv: helperCommandArgv,
+    helper_command_argv_hash: helperCommandArgvHash,
     helper_command_summary:
       "Dry-run argv for existing capture helper prepare mode with bounded source input and explicit out-dir; command was not executed.",
     helper_output_paths: {
@@ -270,7 +357,9 @@ export function buildCodexFormerLocalAdapterPrepareDryRunSummary(
       "Dry-run only; helper was not executed.",
       "No Codex call was made.",
       "No clipboard automation was performed.",
+      "execution_readiness is not permission to execute automatically.",
     ],
+    execution_readiness: executionReadiness,
     authority_flags: buildFalsePrepareAuthorityFlags(),
   };
 
@@ -355,6 +444,130 @@ function buildFalsePrepareAuthorityFlags(): CodexFormerLocalAdapterPrepareAuthor
     surface_export_created: false,
     core_decision: false,
   };
+}
+
+function buildExecutionReadiness({
+  helperAvailability,
+  helperOutDirStatus,
+  prepareSummaryOutsideHelperOutDir,
+}: {
+  helperAvailability: NonNullable<
+    BuildCodexFormerLocalAdapterPrepareDryRunSummaryInput["helperAvailability"]
+  >;
+  helperOutDirStatus: NonNullable<
+    BuildCodexFormerLocalAdapterPrepareDryRunSummaryInput["helperOutDirStatus"]
+  >;
+  prepareSummaryOutsideHelperOutDir: boolean;
+}): CodexFormerLocalAdapterPrepareDryRunSummaryV0["execution_readiness"] {
+  const checkedRequirements: CodexFormerLocalAdapterPrepareDryRunSummaryV0["execution_readiness"]["checked_requirements"] = [
+    requirement("source_input_valid", true, "Source input passed local adapter preflight validation."),
+    requirement(
+      "source_input_hash_matches_preflight",
+      true,
+      "Source input hash matched the passed preflight summary.",
+    ),
+    requirement("preflight_summary_valid", true, "Preflight summary shape is valid."),
+    requirement("preflight_status_passed", true, "Preflight summary status is passed."),
+    requirement(
+      "helper_package_script_present",
+      helperAvailability.packageScriptPresent,
+      "package.json defines perspective:codex-former:capture-packet.",
+    ),
+    requirement(
+      "helper_script_present",
+      helperAvailability.scriptPresent && helperAvailability.scriptIsFile,
+      `${helperAvailability.scriptPath} exists and is a file.`,
+    ),
+    requirement(
+      "helper_command_argv_constructed",
+      true,
+      "Helper command argv was constructed as an array and not executed.",
+    ),
+    requirement(
+      "helper_out_dir_not_created_by_dry_run",
+      !helperOutDirStatus.createdByDryRun,
+      "Dry-run did not create the helper out-dir.",
+    ),
+    requirement(
+      "helper_out_dir_not_existing_file",
+      !helperOutDirStatus.existsAsFile,
+      "Helper out-dir is not an existing file.",
+    ),
+    requirement(
+      "helper_out_dir_not_non_empty_directory",
+      !helperOutDirStatus.existsAsNonEmptyDirectory,
+      "Helper out-dir is not a non-empty directory.",
+    ),
+    requirement(
+      "prepare_summary_outside_helper_out_dir",
+      prepareSummaryOutsideHelperOutDir,
+      "Prepare summary output is outside the helper out-dir.",
+    ),
+    requirement(
+      "no_forbidden_authority_behavior",
+      true,
+      "Dry-run summary authority flags remain false.",
+    ),
+    requirement(
+      "no_helper_execution",
+      true,
+      "Prepare helper and validate helper were not executed.",
+    ),
+  ];
+  const blockers = checkedRequirements
+    .filter((item) => item.status === "failed")
+    .map((item) => item.detail);
+  return {
+    ready_for_prepare_execution: blockers.length === 0,
+    status: blockers.length === 0 ? "ready" : "not_ready",
+    blockers,
+    warnings: [
+      "execution_readiness is for future execution review only, not permission to execute automatically.",
+    ],
+    checked_requirements: checkedRequirements,
+  };
+}
+
+function requirement(
+  id: (typeof requiredExecutionReadinessIds)[number],
+  passed: boolean,
+  detail: string,
+) {
+  return {
+    id,
+    status: passed ? "passed" as const : "failed" as const,
+    detail,
+  };
+}
+
+function normalizeHelperAvailability(
+  value?: BuildCodexFormerLocalAdapterPrepareDryRunSummaryInput["helperAvailability"],
+) {
+  return value ?? {
+    packageScriptPresent: true,
+    scriptPath: "scripts/perspective-codex-former-capture-helper.mjs",
+    scriptPresent: true,
+    scriptIsFile: true,
+  };
+}
+
+function normalizeHelperOutDirStatus(
+  value?: BuildCodexFormerLocalAdapterPrepareDryRunSummaryInput["helperOutDirStatus"],
+) {
+  return value ?? {
+    existsAsFile: false,
+    existsAsNonEmptyDirectory: false,
+    createdByDryRun: false,
+  };
+}
+
+function sameStringArray(left: string[], right: string[]) {
+  return (
+    Array.isArray(left) &&
+    Array.isArray(right) &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
 }
 
 function isSha256(value: unknown): value is string {

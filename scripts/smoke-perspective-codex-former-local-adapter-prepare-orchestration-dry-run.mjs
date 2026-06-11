@@ -297,7 +297,7 @@ function runRejectionCoverage() {
       "--out-dir",
       helperOutDir,
     ]),
-    ["source input file does not exist"],
+    ["prepare.source_input_path file does not exist"],
   );
 
   const invalidSourceInputPath = join(rejectionDir, "invalid-source-input.json");
@@ -397,7 +397,7 @@ function runRejectionCoverage() {
       "--expected-source-input-hash",
       "1".repeat(64),
     ]),
-    ["expected source input hash does not match source input bytes"],
+    ["prepare.expected_source_input_hash does not match source input bytes"],
   );
 
   const existingFileOutDir = join(rejectionDir, "existing-file-out-dir");
@@ -644,7 +644,6 @@ function assertNoForbiddenImplementationSurfaces() {
 	    ["execFile", "Sync"].join(""),
 	    ["execFile", "("].join(""),
 	    ["spawn", "("].join(""),
-    "perspective-codex-former-capture-helper",
     "perspective:codex-former:validate-capture",
   ]) {
     assert.equal(
@@ -674,8 +673,11 @@ function assertChangedFileBoundary() {
     libFile,
     cliFile,
     smokeFile,
+    "scripts/smoke-perspective-codex-former-local-adapter-prepare-dry-run-hardening.mjs",
     docFile,
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_DRY_RUN_HARDENING_V0_1.md",
     reportFile,
+    "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-dry-run-hardening.md",
     dryRunFixtureFile,
   ]);
   for (const changedFile of collectChangedFiles()) {
