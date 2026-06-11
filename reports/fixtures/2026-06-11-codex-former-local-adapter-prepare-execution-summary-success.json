@@ -1,0 +1,191 @@
+{
+  "mode": "prepare-orchestration-execution",
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "manifest_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-manifest-valid.json",
+  "manifest_hash": "3eb081ae5e7b6aff3722f58ed22c6336c8eb166e89d86135f5525a7af782ba60",
+  "source_input_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+  "source_input_hash": "293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+  "authority_flags": {
+    "accepted_state_created": false,
+    "proof_evidence_readiness_created": false,
+    "review_decision_created": false,
+    "provider_model_calls": false,
+    "codex_sdk_calls": false,
+    "github_api_calls": false,
+    "db_writes": false,
+    "clipboard_automation": false,
+    "live_codex_capture": false,
+    "runtime_fixture_mutation": false,
+    "core_decision": false,
+    "network_calls": false,
+    "prepare_helper_executed": true,
+    "surface_export_created": false,
+    "validate_helper_executed": false
+  },
+  "caveats": [
+    "Prepare execution ran only the existing local capture helper prepare path.",
+    "No Codex call was made.",
+    "No validate helper was run.",
+    "No accepted state, proof/evidence/readiness record, review decision, surface export, DB write, GitHub API call, provider/model API call, network call, or clipboard automation was performed.",
+    "prepare_helper_executed true is operational provenance only; it is not acceptance, validation, readiness, or authority."
+  ],
+  "dry_run_summary_hash": "4e89a4072884d68eb7e58d90447613eac448f7edeed187e23e0b0543aa67a321",
+  "dry_run_summary_path": "/tmp/augnes-codex-former-local-adapter-prepare-execution-dry-run-summary.json",
+  "execution_readiness_snapshot": {
+    "status": "ready",
+    "blockers": [],
+    "checked_requirements": [
+      {
+        "status": "passed",
+        "detail": "Source input passed local adapter preflight validation.",
+        "id": "source_input_valid"
+      },
+      {
+        "status": "passed",
+        "detail": "Source input hash matched the passed preflight summary.",
+        "id": "source_input_hash_matches_preflight"
+      },
+      {
+        "status": "passed",
+        "detail": "Preflight summary shape is valid.",
+        "id": "preflight_summary_valid"
+      },
+      {
+        "status": "passed",
+        "detail": "Preflight summary status is passed.",
+        "id": "preflight_status_passed"
+      },
+      {
+        "status": "passed",
+        "detail": "package.json defines perspective:codex-former:capture-packet.",
+        "id": "helper_package_script_present"
+      },
+      {
+        "status": "passed",
+        "detail": "scripts/perspective-codex-former-capture-helper.mjs exists and is a file.",
+        "id": "helper_script_present"
+      },
+      {
+        "status": "passed",
+        "detail": "Helper command argv was constructed as an array and not executed.",
+        "id": "helper_command_argv_constructed"
+      },
+      {
+        "status": "passed",
+        "detail": "Dry-run did not create the helper out-dir.",
+        "id": "helper_out_dir_not_created_by_dry_run"
+      },
+      {
+        "status": "passed",
+        "detail": "Helper out-dir is not an existing file.",
+        "id": "helper_out_dir_not_existing_file"
+      },
+      {
+        "status": "passed",
+        "detail": "Helper out-dir is not a non-empty directory.",
+        "id": "helper_out_dir_not_non_empty_directory"
+      },
+      {
+        "status": "passed",
+        "detail": "Prepare summary output is outside the helper out-dir.",
+        "id": "prepare_summary_outside_helper_out_dir"
+      },
+      {
+        "status": "passed",
+        "detail": "Dry-run summary authority flags remain false.",
+        "id": "no_forbidden_authority_behavior"
+      },
+      {
+        "status": "passed",
+        "detail": "Prepare helper and validate helper were not executed.",
+        "id": "no_helper_execution"
+      }
+    ],
+    "ready_for_prepare_execution": true,
+    "warnings": [
+      "execution_readiness is for future execution review only, not permission to execute automatically."
+    ]
+  },
+  "failure_kind": null,
+  "helper_command_argv": [
+    "npm",
+    "run",
+    "perspective:codex-former:capture-packet",
+    "--",
+    "--out-dir",
+    "/tmp/augnes-codex-former-local-adapter-prepare-execution",
+    "--source-input",
+    "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+    "--generated-at",
+    "2026-06-11T00:00:00.000Z"
+  ],
+  "helper_command_argv_hash": "8bf47c6725c3e30a06c352c061ce9b6d8d730754d446376f371c7a584679354a",
+  "helper_command_kind": "existing_capture_helper_prepare",
+  "helper_exit_code": 0,
+  "helper_exit_status": "success",
+  "helper_out_dir": "/tmp/augnes-codex-former-local-adapter-prepare-execution",
+  "helper_output_hashes": {
+    "former_input_packet_hash": null,
+    "helper_metadata_hash": "2a13e0127991061e1b82d6e243558be41b4762f3f8e5a5a073e20919fe68816c",
+    "manual_copy_packet_hash": null,
+    "prompt_hash": "d0b3aa85b0851059306fa0cab383527f03d3ac89db38233cf73b9b3d7a3b870c",
+    "return_envelope_template_hash": "ed314934dc470c96a77eb487980fd4dde013fd45f609a121999dbbf3fd0cf989"
+  },
+  "helper_output_paths": {
+    "former_input_packet_path": null,
+    "helper_metadata_path": "/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-metadata.json",
+    "manual_copy_packet_path": null,
+    "prompt_path": "/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-copyable-prompt.txt",
+    "return_envelope_template_path": "/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-return-envelope-template.txt"
+  },
+  "helper_output_refs": {
+    "former_input_packet_ref": "codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami",
+    "manual_copy_packet_ref": "manual-codex-former-copy:v0.1:1d44vfz"
+  },
+  "helper_output_sizes": {
+    "former_input_packet_size_bytes": null,
+    "helper_metadata_size_bytes": 12271,
+    "manual_copy_packet_size_bytes": null,
+    "prompt_size_bytes": 11197,
+    "return_envelope_template_size_bytes": 788
+  },
+  "helper_stderr_summary": {
+    "included_line_count": 0,
+    "line_count": 0,
+    "lines": [],
+    "max_chars": 4000,
+    "max_lines": 40,
+    "omitted_line_count": 0,
+    "truncated": false,
+    "unsafe_marker_omitted": false
+  },
+  "helper_stdout_summary": {
+    "included_line_count": 13,
+    "line_count": 13,
+    "lines": [
+      "",
+      "> augnes@0.1.0 perspective:codex-former:capture-packet",
+      "> ./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/perspective-codex-former-capture-helper.mjs prepare --out-dir /tmp/augnes-codex-former-local-adapter-prepare-execution --source-input reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json --generated-at 2026-06-11T00:00:00.000Z",
+      "",
+      "mode=prepare",
+      "capture_source_kind=bounded_source_input_file",
+      "source_input_hash=293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+      "source_manual_copy_packet_id=manual-codex-former-copy:v0.1:1d44vfz",
+      "source_former_input_packet_id=codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami",
+      "source_prompt_hash=2xhw7m",
+      "copyable_prompt_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-copyable-prompt.txt",
+      "capture_return_envelope_template_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-return-envelope-template.txt",
+      "metadata_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-metadata.json"
+    ],
+    "max_chars": 4000,
+    "max_lines": 40,
+    "omitted_line_count": 0,
+    "truncated": false,
+    "unsafe_marker_omitted": false
+  },
+  "next_safe_action": "Use the generated manual copy packet / prompt in a separate user-started Codex session, then return exactly one candidate envelope for validation.",
+  "output_discovery_status": "complete",
+  "preflight_summary_hash": "5c81f213100aa9295e4f3fa6d987c0d627ab302e8175310fa8889fe0405d24da",
+  "preflight_summary_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input-preflight-summary.json",
+  "prepare_execution_summary_version": "codex_former_local_adapter_prepare_execution_summary.v0.1"
+}
