@@ -131,8 +131,10 @@ function assertSourceContracts() {
   ]);
   assertIncludesAll(cliText, [
     "--dry-run",
-    "prepare orchestration currently supports --dry-run only",
-    "option --dry-run does not accept a value",
+    "--execute",
+    "prepare orchestration requires exactly one of --dry-run or --execute",
+    "prepare orchestration cannot use --dry-run and --execute together",
+    "does not accept a value",
     "mode=${summary.mode}",
     "preflight_status=",
     "helper_exit_status=",
@@ -272,7 +274,7 @@ function runRejectionCoverage() {
       "--out-dir",
       helperOutDir,
     ]),
-    ["prepare orchestration currently supports --dry-run only"],
+    ["prepare orchestration requires exactly one of --dry-run or --execute"],
   );
   assertIncludesAll(expectCliFailure(["--dry-run", "true"]), [
     "option --dry-run does not accept a value",
@@ -640,10 +642,6 @@ function assertNoForbiddenImplementationSurfaces() {
     ["record", "Proof"].join(""),
     ["create", "Evidence"].join(""),
 	    ["commit", "State", "Update"].join(""),
-	    "node:child_process",
-	    ["execFile", "Sync"].join(""),
-	    ["execFile", "("].join(""),
-	    ["spawn", "("].join(""),
     "perspective:codex-former:validate-capture",
   ]) {
     assert.equal(
@@ -679,6 +677,10 @@ function assertChangedFileBoundary() {
     reportFile,
     "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-dry-run-hardening.md",
     dryRunFixtureFile,
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_V0_1.md",
+    "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution.md",
+    "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json",
+    "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution.mjs",
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(

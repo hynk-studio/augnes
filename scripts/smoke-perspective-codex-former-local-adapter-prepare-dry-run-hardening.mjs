@@ -567,10 +567,6 @@ function assertNoForbiddenImplementationSurfaces() {
     ["record", "Proof"].join(""),
     ["create", "Evidence"].join(""),
     ["commit", "State", "Update"].join(""),
-    "node:child_process",
-    ["execFile", "Sync"].join(""),
-    ["execFile", "("].join(""),
-    ["spawn", "("].join(""),
     "perspective:codex-former:validate-capture",
   ]) {
     assert.equal(
@@ -604,6 +600,10 @@ function assertChangedFileBoundary() {
     docFile,
     reportFile,
     fixtureFile,
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_V0_1.md",
+    "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution.md",
+    "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json",
+    "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution.mjs",
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(
