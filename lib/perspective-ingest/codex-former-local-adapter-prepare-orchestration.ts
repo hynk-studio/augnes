@@ -105,6 +105,13 @@ export type CodexFormerLocalAdapterPrepareExecutionLogSummary = {
   max_lines: number;
   max_chars: number;
   lines: string[];
+  normalized_lines: string[];
+  line_events: Array<{
+    category: "npm_wrapper" | "helper_kv" | "blank" | "other" | "omitted_unsafe";
+    text: string | null;
+  }>;
+  npm_wrapper_line_count: number;
+  helper_kv_line_count: number;
 };
 
 export type CodexFormerLocalAdapterPrepareExecutionOutputPaths = {
@@ -136,6 +143,15 @@ export type CodexFormerLocalAdapterPrepareExecutionOutputSizes = {
   helper_metadata_size_bytes: number | null;
 };
 
+export type CodexFormerLocalAdapterPrepareExecutionMetadataChecks = {
+  metadata_parse_status: "parsed" | "missing" | "invalid_json";
+  source_input_hash_match: boolean | "not_present";
+  generated_at_match: boolean | "not_present";
+  prompt_hash_match: boolean | "not_comparable" | "not_present";
+  metadata_source_prompt_hash: string | null;
+  prompt_file_sha256: string | null;
+};
+
 export type CodexFormerLocalAdapterPrepareExecutionDiscovery = {
   status: "complete" | "incomplete" | "failed" | "not_run";
   paths: CodexFormerLocalAdapterPrepareExecutionOutputPaths;
@@ -143,6 +159,53 @@ export type CodexFormerLocalAdapterPrepareExecutionDiscovery = {
   hashes: CodexFormerLocalAdapterPrepareExecutionOutputHashes;
   sizes: CodexFormerLocalAdapterPrepareExecutionOutputSizes;
   caveats: string[];
+  metadata_checks: CodexFormerLocalAdapterPrepareExecutionMetadataChecks;
+};
+
+export type CodexFormerLocalAdapterPrepareHelperRunSummary = {
+  helper_invocation_attempted: boolean;
+  helper_process_started: boolean;
+  helper_exit_status: "success" | "failed";
+  helper_exit_code: number | null;
+  stdout: string;
+  stderr: string;
+  spawn_error_name: string | null;
+};
+
+export type CodexFormerLocalAdapterPrepareExecutionResult =
+  | "success"
+  | "helper_failed"
+  | "output_incomplete"
+  | "invocation_failed";
+
+export type CodexFormerLocalAdapterPrepareExecutionFailureKind =
+  | "helper_exit_nonzero"
+  | "output_discovery_incomplete"
+  | "helper_spawn_failed"
+  | "summary_write_failed";
+
+export type CodexFormerLocalAdapterPrepareExecutionOutcome = {
+  execution_result: CodexFormerLocalAdapterPrepareExecutionResult;
+  failure_kind: CodexFormerLocalAdapterPrepareExecutionFailureKind | null;
+  prepare_helper_executed: boolean;
+};
+
+export type CodexFormerLocalAdapterPrepareOutputFileSnapshot = {
+  path: string;
+  text: string;
+  size_bytes: number;
+};
+
+export type DiscoverCodexFormerLocalAdapterPrepareOutputsInput = {
+  helperExitStatus: "success" | "failed";
+  helperOutDir: string;
+  sourceInputHash: string;
+  generatedAt: string;
+  files: {
+    prompt: CodexFormerLocalAdapterPrepareOutputFileSnapshot | null;
+    returnEnvelopeTemplate: CodexFormerLocalAdapterPrepareOutputFileSnapshot | null;
+    metadata: CodexFormerLocalAdapterPrepareOutputFileSnapshot | null;
+  };
 };
 
 export type CodexFormerLocalAdapterPrepareExecutionSummaryV0 = {
@@ -161,6 +224,8 @@ export type CodexFormerLocalAdapterPrepareExecutionSummaryV0 = {
   helper_command_kind: "existing_capture_helper_prepare";
   helper_command_argv: string[];
   helper_command_argv_hash: string;
+  helper_invocation_attempted: boolean;
+  helper_process_started: boolean;
   helper_exit_status: "success" | "failed";
   helper_exit_code: number | null;
   helper_stdout_summary: CodexFormerLocalAdapterPrepareExecutionLogSummary;
@@ -169,11 +234,14 @@ export type CodexFormerLocalAdapterPrepareExecutionSummaryV0 = {
   helper_output_refs: CodexFormerLocalAdapterPrepareExecutionOutputRefs;
   helper_output_hashes: CodexFormerLocalAdapterPrepareExecutionOutputHashes;
   helper_output_sizes: CodexFormerLocalAdapterPrepareExecutionOutputSizes;
+  helper_metadata_checks: CodexFormerLocalAdapterPrepareExecutionMetadataChecks;
+  output_discovery_caveats: string[];
   output_discovery_status: "complete" | "incomplete" | "failed" | "not_run";
+  execution_result: CodexFormerLocalAdapterPrepareExecutionResult;
   next_safe_action: string;
   caveats: string[];
   execution_readiness_snapshot: CodexFormerLocalAdapterPrepareDryRunSummaryV0["execution_readiness"];
-  failure_kind: "helper_exit_nonzero" | "output_discovery_incomplete" | null;
+  failure_kind: CodexFormerLocalAdapterPrepareExecutionFailureKind | null;
   authority_flags: CodexFormerLocalAdapterPrepareAuthorityFlags;
 };
 
@@ -214,8 +282,7 @@ export type CodexFormerLocalAdapterPrepareExecutionContext = {
 
 export type BuildCodexFormerLocalAdapterPrepareExecutionSummaryInput = {
   context: CodexFormerLocalAdapterPrepareExecutionContext;
-  helperExitStatus: "success" | "failed";
-  helperExitCode: number | null;
+  helperRunSummary: CodexFormerLocalAdapterPrepareHelperRunSummary;
   helperStdoutSummary: CodexFormerLocalAdapterPrepareExecutionLogSummary;
   helperStderrSummary: CodexFormerLocalAdapterPrepareExecutionLogSummary;
   outputDiscovery: CodexFormerLocalAdapterPrepareExecutionDiscovery;
@@ -561,12 +628,10 @@ export function buildCodexFormerLocalAdapterPrepareExecutionSummary(
   summary: CodexFormerLocalAdapterPrepareExecutionSummaryV0;
   summaryJson: string;
 } {
-  const failureKind =
-    input.helperExitStatus === "failed"
-      ? "helper_exit_nonzero"
-      : input.outputDiscovery.status === "incomplete"
-        ? "output_discovery_incomplete"
-        : null;
+  const outcome = buildCodexFormerLocalAdapterPrepareExecutionOutcome({
+    helperRunSummary: input.helperRunSummary,
+    outputDiscoveryStatus: input.outputDiscovery.status,
+  });
   const summary: CodexFormerLocalAdapterPrepareExecutionSummaryV0 = {
     prepare_execution_summary_version:
       CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_SUMMARY_VERSION,
@@ -584,30 +649,298 @@ export function buildCodexFormerLocalAdapterPrepareExecutionSummary(
     helper_command_kind: "existing_capture_helper_prepare",
     helper_command_argv: input.context.helperCommandArgv,
     helper_command_argv_hash: input.context.helperCommandArgvHash,
-    helper_exit_status: input.helperExitStatus,
-    helper_exit_code: input.helperExitCode,
+    helper_invocation_attempted:
+      input.helperRunSummary.helper_invocation_attempted,
+    helper_process_started: input.helperRunSummary.helper_process_started,
+    helper_exit_status: input.helperRunSummary.helper_exit_status,
+    helper_exit_code: input.helperRunSummary.helper_exit_code,
     helper_stdout_summary: input.helperStdoutSummary,
     helper_stderr_summary: input.helperStderrSummary,
     helper_output_paths: input.outputDiscovery.paths,
     helper_output_refs: input.outputDiscovery.refs,
     helper_output_hashes: input.outputDiscovery.hashes,
     helper_output_sizes: input.outputDiscovery.sizes,
+    helper_metadata_checks: input.outputDiscovery.metadata_checks,
+    output_discovery_caveats: input.outputDiscovery.caveats,
     output_discovery_status: input.outputDiscovery.status,
-    next_safe_action: buildExecutionNextSafeAction(input.outputDiscovery.status),
+    execution_result: outcome.execution_result,
+    next_safe_action: buildExecutionNextSafeAction(outcome.execution_result),
     caveats: buildExecutionCaveats({
-      helperExitStatus: input.helperExitStatus,
+      helperRunSummary: input.helperRunSummary,
       outputDiscovery: input.outputDiscovery,
+      outcome,
     }),
     execution_readiness_snapshot: input.context.dryRunSummary.execution_readiness,
-    failure_kind: failureKind,
+    failure_kind: outcome.failure_kind,
     authority_flags: buildPrepareAuthorityFlags({
-      prepareHelperExecuted: true,
+      prepareHelperExecuted: outcome.prepare_helper_executed,
     }),
   };
 
   return {
     summary,
     summaryJson: stableStringifyCodexFormerLocalAdapterPrepareJson(summary),
+  };
+}
+
+export function buildCodexFormerLocalAdapterPrepareHelperRunSummary({
+  helperInvocationAttempted,
+  helperExitCode,
+  stdout,
+  stderr,
+  spawnErrorName,
+}: {
+  helperInvocationAttempted: boolean;
+  helperExitCode: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  spawnErrorName?: string | null;
+}): CodexFormerLocalAdapterPrepareHelperRunSummary {
+  const helperProcessStarted = helperInvocationAttempted && helperExitCode !== null;
+  return {
+    helper_invocation_attempted: helperInvocationAttempted,
+    helper_process_started: helperProcessStarted,
+    helper_exit_status:
+      helperProcessStarted && helperExitCode === 0 ? "success" : "failed",
+    helper_exit_code: helperExitCode,
+    stdout: typeof stdout === "string" ? stdout : "",
+    stderr: typeof stderr === "string" ? stderr : "",
+    spawn_error_name: hasText(spawnErrorName) ? spawnErrorName : null,
+  };
+}
+
+export function buildCodexFormerLocalAdapterPrepareExecutionOutcome({
+  helperRunSummary,
+  outputDiscoveryStatus,
+}: {
+  helperRunSummary: CodexFormerLocalAdapterPrepareHelperRunSummary;
+  outputDiscoveryStatus: CodexFormerLocalAdapterPrepareExecutionDiscovery["status"];
+}): CodexFormerLocalAdapterPrepareExecutionOutcome {
+  if (
+    helperRunSummary.helper_invocation_attempted &&
+    !helperRunSummary.helper_process_started
+  ) {
+    return {
+      execution_result: "invocation_failed",
+      failure_kind: "helper_spawn_failed",
+      prepare_helper_executed: false,
+    };
+  }
+  if (helperRunSummary.helper_exit_status === "failed") {
+    return {
+      execution_result: "helper_failed",
+      failure_kind: "helper_exit_nonzero",
+      prepare_helper_executed: helperRunSummary.helper_process_started,
+    };
+  }
+  if (outputDiscoveryStatus !== "complete") {
+    return {
+      execution_result: "output_incomplete",
+      failure_kind: "output_discovery_incomplete",
+      prepare_helper_executed: helperRunSummary.helper_process_started,
+    };
+  }
+  return {
+    execution_result: "success",
+    failure_kind: null,
+    prepare_helper_executed: helperRunSummary.helper_process_started,
+  };
+}
+
+export function buildCodexFormerLocalAdapterPrepareExecutionLogSummary(
+  text: string,
+  {
+    maxLines = 40,
+    maxChars = 4000,
+  }: {
+    maxLines?: number;
+    maxChars?: number;
+  } = {},
+): CodexFormerLocalAdapterPrepareExecutionLogSummary {
+  const rawText = typeof text === "string" ? text : "";
+  const rawLines = rawText.length > 0 ? rawText.split(/\r?\n/) : [];
+  if (rawLines.at(-1) === "") rawLines.pop();
+
+  const lines: string[] = [];
+  const normalizedLines: string[] = [];
+  const lineEvents: CodexFormerLocalAdapterPrepareExecutionLogSummary["line_events"] = [];
+  let charCount = 0;
+  let truncated = false;
+  let unsafeMarkerOmitted = false;
+  let npmWrapperLineCount = 0;
+  let helperKvLineCount = 0;
+
+  for (const line of rawLines) {
+    const category = classifyPrepareExecutionLogLine(line);
+    if (category === "npm_wrapper") npmWrapperLineCount += 1;
+    if (category === "helper_kv") helperKvLineCount += 1;
+    if (containsPrepareExecutionUnsafeMarkerCategory(line)) {
+      unsafeMarkerOmitted = true;
+      truncated = true;
+      lineEvents.push({ category: "omitted_unsafe", text: null });
+      continue;
+    }
+    if (lines.length >= maxLines) {
+      truncated = true;
+      continue;
+    }
+    const remainingChars = maxChars - charCount;
+    if (remainingChars <= 0) {
+      truncated = true;
+      continue;
+    }
+
+    const truncationSuffix = "[truncated]";
+    const includedLine =
+      line.length > remainingChars
+        ? remainingChars <= truncationSuffix.length
+          ? truncationSuffix.slice(0, remainingChars)
+          : `${line.slice(0, remainingChars - truncationSuffix.length)}${truncationSuffix}`
+        : line;
+    if (includedLine !== line) {
+      truncated = true;
+    }
+    lines.push(includedLine);
+    normalizedLines.push(normalizePrepareExecutionLogLine(includedLine, category));
+    lineEvents.push({
+      category,
+      text: normalizePrepareExecutionLogLine(includedLine, category),
+    });
+    charCount += includedLine.length;
+  }
+
+  return {
+    line_count: rawLines.length,
+    included_line_count: lines.length,
+    truncated,
+    omitted_line_count: rawLines.length - lines.length,
+    unsafe_marker_omitted: unsafeMarkerOmitted,
+    max_lines: maxLines,
+    max_chars: maxChars,
+    lines,
+    normalized_lines: normalizedLines,
+    line_events: lineEvents,
+    npm_wrapper_line_count: npmWrapperLineCount,
+    helper_kv_line_count: helperKvLineCount,
+  };
+}
+
+export function discoverCodexFormerLocalAdapterPrepareOutputs(
+  input: DiscoverCodexFormerLocalAdapterPrepareOutputsInput,
+): CodexFormerLocalAdapterPrepareExecutionDiscovery {
+  const metadataRead = readPrepareExecutionMetadata(input.files.metadata?.text ?? null);
+  const metadata = metadataRead.value;
+  const paths: CodexFormerLocalAdapterPrepareExecutionOutputPaths = {
+    manual_copy_packet_path: null,
+    former_input_packet_path: null,
+    prompt_path: input.files.prompt?.path ?? null,
+    return_envelope_template_path:
+      input.files.returnEnvelopeTemplate?.path ?? null,
+    helper_metadata_path: input.files.metadata?.path ?? null,
+  };
+  const refs: CodexFormerLocalAdapterPrepareExecutionOutputRefs = {
+    manual_copy_packet_ref: null,
+    former_input_packet_ref: null,
+  };
+  const hashes: CodexFormerLocalAdapterPrepareExecutionOutputHashes = {
+    manual_copy_packet_hash: null,
+    former_input_packet_hash: null,
+    prompt_hash: input.files.prompt
+      ? hashCodexFormerLocalAdapterContent(input.files.prompt.text)
+      : null,
+    return_envelope_template_hash: input.files.returnEnvelopeTemplate
+      ? hashCodexFormerLocalAdapterContent(input.files.returnEnvelopeTemplate.text)
+      : null,
+    helper_metadata_hash: input.files.metadata
+      ? hashCodexFormerLocalAdapterContent(input.files.metadata.text)
+      : null,
+  };
+  const sizes: CodexFormerLocalAdapterPrepareExecutionOutputSizes = {
+    manual_copy_packet_size_bytes: null,
+    former_input_packet_size_bytes: null,
+    prompt_size_bytes: input.files.prompt?.size_bytes ?? null,
+    return_envelope_template_size_bytes:
+      input.files.returnEnvelopeTemplate?.size_bytes ?? null,
+    helper_metadata_size_bytes: input.files.metadata?.size_bytes ?? null,
+  };
+  const caveats: string[] = [];
+  const metadataChecks = buildPrepareExecutionMetadataChecks({
+    metadata,
+    metadataParseStatus: metadataRead.status,
+    sourceInputHash: input.sourceInputHash,
+    generatedAt: input.generatedAt,
+    promptFileSha256: hashes.prompt_hash,
+  });
+
+  if (!input.files.metadata) {
+    caveats.push("helper metadata output was missing");
+  }
+  if (metadataRead.status === "invalid_json") {
+    caveats.push("helper metadata JSON was invalid");
+  }
+  if (!input.files.prompt) {
+    caveats.push("copyable prompt output was missing");
+  }
+  if (!input.files.returnEnvelopeTemplate) {
+    caveats.push("return envelope template output was missing");
+  }
+
+  if (metadata) {
+    refs.manual_copy_packet_ref = boundedPrepareExecutionRef(
+      metadata.source_manual_copy_packet_id,
+      "source_manual_copy_packet_id",
+      caveats,
+    );
+    refs.former_input_packet_ref = boundedPrepareExecutionRef(
+      metadata.source_former_input_packet_id,
+      "source_former_input_packet_id",
+      caveats,
+    );
+    if (metadataChecks.source_input_hash_match === false) {
+      caveats.push("helper metadata source_input_hash did not match source input bytes");
+    }
+    if (metadataChecks.generated_at_match === false) {
+      caveats.push("helper metadata generated_at did not match execution generated_at");
+    }
+    if (metadata.capture_source_kind !== "bounded_source_input_file") {
+      caveats.push("helper metadata capture_source_kind was not bounded_source_input_file");
+    }
+    if (metadataChecks.prompt_hash_match === false) {
+      caveats.push("helper metadata source_prompt_hash did not match prompt file hash");
+    }
+    if (!isNonAuthorizingPrepareExecutionMetadata(metadata.authority_boundary)) {
+      caveats.push("helper metadata authority_boundary was missing or not non-authorizing");
+    }
+  }
+
+  const complete =
+    input.helperExitStatus === "success" &&
+    Boolean(
+      metadata &&
+        input.files.prompt &&
+        input.files.returnEnvelopeTemplate &&
+        input.files.metadata &&
+        hashes.prompt_hash &&
+        hashes.return_envelope_template_hash &&
+        hashes.helper_metadata_hash &&
+        refs.manual_copy_packet_ref &&
+        refs.former_input_packet_ref,
+    ) &&
+    caveats.length === 0;
+
+  return {
+    status:
+      input.helperExitStatus === "failed"
+        ? "failed"
+        : complete
+          ? "complete"
+          : "incomplete",
+    paths,
+    refs,
+    hashes,
+    sizes,
+    caveats: uniqueStrings(caveats),
+    metadata_checks: metadataChecks,
   };
 }
 
@@ -975,26 +1308,28 @@ function buildPrepareAuthorityFlags({
 }
 
 function buildExecutionNextSafeAction(
-  status: CodexFormerLocalAdapterPrepareExecutionDiscovery["status"],
+  executionResult: CodexFormerLocalAdapterPrepareExecutionResult,
 ) {
-  if (status === "complete") {
+  if (executionResult === "success") {
     return "Use the generated manual copy packet / prompt in a separate user-started Codex session, then return exactly one candidate envelope for validation.";
   }
-  if (status === "failed") {
+  if (executionResult === "helper_failed" || executionResult === "invocation_failed") {
     return "Inspect the preserved helper output directory and rerun prepare execution only after correcting the local helper failure.";
   }
-  if (status === "incomplete") {
+  if (executionResult === "output_incomplete") {
     return "Inspect the preserved helper output directory and metadata before using any generated prepare output.";
   }
   return "Run prepare execution only after a reviewed dry-run summary is available.";
 }
 
 function buildExecutionCaveats({
-  helperExitStatus,
+  helperRunSummary,
   outputDiscovery,
+  outcome,
 }: {
-  helperExitStatus: "success" | "failed";
+  helperRunSummary: CodexFormerLocalAdapterPrepareHelperRunSummary;
   outputDiscovery: CodexFormerLocalAdapterPrepareExecutionDiscovery;
+  outcome: CodexFormerLocalAdapterPrepareExecutionOutcome;
 }) {
   const caveats = [
     "Prepare execution ran only the existing local capture helper prepare path.",
@@ -1003,10 +1338,16 @@ function buildExecutionCaveats({
     "No accepted state, proof/evidence/readiness record, review decision, surface export, DB write, GitHub API call, provider/model API call, network call, or clipboard automation was performed.",
     "prepare_helper_executed true is operational provenance only; it is not acceptance, validation, readiness, or authority.",
   ];
-  if (helperExitStatus === "failed") {
+  if (
+    helperRunSummary.helper_invocation_attempted &&
+    !helperRunSummary.helper_process_started
+  ) {
+    caveats.push("Helper invocation was attempted but the process did not start.");
+  }
+  if (outcome.execution_result === "helper_failed") {
     caveats.push("Helper exited non-zero; output directory was preserved for inspection.");
   }
-  if (outputDiscovery.status === "incomplete") {
+  if (outcome.execution_result === "output_incomplete") {
     caveats.push("Helper exited zero but output discovery was incomplete.");
   }
   if (outputDiscovery.status === "failed") {
@@ -1014,6 +1355,192 @@ function buildExecutionCaveats({
   }
   caveats.push(...outputDiscovery.caveats);
   return uniqueStrings(caveats);
+}
+
+function readPrepareExecutionMetadata(text: string | null): {
+  status: CodexFormerLocalAdapterPrepareExecutionMetadataChecks["metadata_parse_status"];
+  value: Record<string, unknown> | null;
+} {
+  if (!hasText(text)) {
+    return { status: "missing", value: null };
+  }
+  try {
+    const parsed = JSON.parse(text);
+    return isRecord(parsed)
+      ? { status: "parsed", value: parsed }
+      : { status: "invalid_json", value: null };
+  } catch {
+    return { status: "invalid_json", value: null };
+  }
+}
+
+function buildPrepareExecutionMetadataChecks({
+  metadata,
+  metadataParseStatus,
+  sourceInputHash,
+  generatedAt,
+  promptFileSha256,
+}: {
+  metadata: Record<string, unknown> | null;
+  metadataParseStatus: CodexFormerLocalAdapterPrepareExecutionMetadataChecks["metadata_parse_status"];
+  sourceInputHash: string;
+  generatedAt: string;
+  promptFileSha256: string | null;
+}): CodexFormerLocalAdapterPrepareExecutionMetadataChecks {
+  const metadataSourcePromptHash = hasText(metadata?.source_prompt_hash)
+    ? String(metadata?.source_prompt_hash)
+    : null;
+  return {
+    metadata_parse_status: metadataParseStatus,
+    source_input_hash_match: hasText(metadata?.source_input_hash)
+      ? metadata?.source_input_hash === sourceInputHash
+      : "not_present",
+    generated_at_match: hasText(metadata?.generated_at)
+      ? metadata?.generated_at === generatedAt
+      : "not_present",
+    prompt_hash_match: derivePrepareExecutionPromptHashMatch({
+      metadataSourcePromptHash,
+      promptFileSha256,
+    }),
+    metadata_source_prompt_hash: metadataSourcePromptHash,
+    prompt_file_sha256: promptFileSha256,
+  };
+}
+
+function derivePrepareExecutionPromptHashMatch({
+  metadataSourcePromptHash,
+  promptFileSha256,
+}: {
+  metadataSourcePromptHash: string | null;
+  promptFileSha256: string | null;
+}): CodexFormerLocalAdapterPrepareExecutionMetadataChecks["prompt_hash_match"] {
+  if (!metadataSourcePromptHash || !promptFileSha256) return "not_present";
+  if (!isSha256(metadataSourcePromptHash)) return "not_comparable";
+  return metadataSourcePromptHash === promptFileSha256;
+}
+
+function boundedPrepareExecutionRef(
+  value: unknown,
+  label: string,
+  caveats: string[],
+) {
+  if (!hasText(value)) {
+    caveats.push(`helper metadata ${label} was missing`);
+    return null;
+  }
+  if (containsPrepareExecutionUnsafeMarkerCategory(value)) {
+    caveats.push(`helper metadata ${label} contained an unsafe marker category`);
+    return null;
+  }
+  const trimmed = String(value).trim();
+  if (trimmed.length > 240) {
+    caveats.push(`helper metadata ${label} was bounded to 240 characters`);
+    return trimmed.slice(0, 240);
+  }
+  return trimmed;
+}
+
+function isNonAuthorizingPrepareExecutionMetadata(authorityBoundary: unknown) {
+  if (!isRecord(authorityBoundary)) return false;
+  return (
+    authorityBoundary.output_is_draft_review_material_only === true &&
+    authorityBoundary.accepted_augnes_state === false &&
+    authorityBoundary.proof_evidence_readiness_records === false &&
+    authorityBoundary.provider_model_api_calls === false &&
+    authorityBoundary.codex_sdk_calls === false &&
+    authorityBoundary.codex_execution === false &&
+    authorityBoundary.db_writes === false &&
+    authorityBoundary.runtime_routes === false &&
+    authorityBoundary.ui === false &&
+    authorityBoundary.clipboard_automation === false &&
+    authorityBoundary.github_mutation === false &&
+    authorityBoundary.approval_merge_publish_core_decision === false
+  );
+}
+
+function classifyPrepareExecutionLogLine(
+  line: string,
+): CodexFormerLocalAdapterPrepareExecutionLogSummary["line_events"][number]["category"] {
+  if (line.trim().length === 0) return "blank";
+  if (line.startsWith("> ")) return "npm_wrapper";
+  if (/^[a-zA-Z0-9_]+=[^\n]*$/.test(line)) return "helper_kv";
+  return "other";
+}
+
+function normalizePrepareExecutionLogLine(
+  line: string,
+  category: CodexFormerLocalAdapterPrepareExecutionLogSummary["line_events"][number]["category"],
+) {
+  if (category === "npm_wrapper") return "[npm-wrapper]";
+  return line;
+}
+
+function containsPrepareExecutionUnsafeMarkerCategory(value: unknown) {
+  const lowered = String(value ?? "").toLowerCase();
+  const exactMarkers = [
+    ["private", "payload"].join("_"),
+    ["provider", "payload"].join("_"),
+    ["raw", "source", "payload"].join("_"),
+    ["raw", "candidate", "payload"].join("_"),
+    ["raw", "private", "payload"].join("_"),
+    ["raw", "pr", "diff"].join("_"),
+    ["raw", "page", "dump"].join("_"),
+    ["raw", "review", "payload"].join("_"),
+    ["oauth", "token"].join("_"),
+    ["access", "token"].join("_"),
+    ["refresh", "token"].join("_"),
+    ["api", "key"].join("_"),
+    ["hidden", "reasoning"].join("_"),
+  ];
+  const prefixMarkers = [
+    ["sk", "proj"].join("-") + "-",
+    ["gh", "p_"].join(""),
+  ];
+  const phraseMarkers = [
+    "raw diff",
+    "raw diffs",
+    "raw pr diff",
+    "raw review payload",
+    "raw page dump",
+    "provider log",
+    "provider logs",
+    "hidden reasoning",
+    "account data",
+    "raw screenshot",
+    "raw screenshots",
+    "screenshot payload",
+    "screenshots included",
+    "screenshot included",
+    "unrelated private",
+    "private payload",
+    "provider payload",
+    "raw source payload",
+    "raw candidate payload",
+    "raw private payload",
+  ];
+  const tokenBoundaryMarkers = ["cookie", "cookies", "token", "tokens", "secret", "secrets"];
+  return (
+    exactMarkers.some((marker) => includesExactMarker(lowered, marker)) ||
+    prefixMarkers.some((marker) => lowered.includes(marker)) ||
+    phraseMarkers.some((marker) => lowered.includes(marker)) ||
+    tokenBoundaryMarkers.some((marker) => includesWordBoundaryMarker(lowered, marker))
+  );
+}
+
+function includesExactMarker(value: string, marker: string) {
+  const escaped = escapeRegExp(marker);
+  return new RegExp(`(^|[^a-z0-9_])${escaped}([^a-z0-9_]|$)`, "i").test(
+    value,
+  );
+}
+
+function includesWordBoundaryMarker(value: string, marker: string) {
+  const escaped = escapeRegExp(marker);
+  return new RegExp(`\\b${escaped}\\b`, "i").test(value);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function buildExecutionReadiness({
@@ -1165,7 +1692,11 @@ export default {
   buildCodexFormerLocalAdapterPrepareCommandArgv,
   buildCodexFormerLocalAdapterPrepareDryRunSummary,
   buildCodexFormerLocalAdapterPrepareExecutionContext,
+  buildCodexFormerLocalAdapterPrepareExecutionLogSummary,
+  buildCodexFormerLocalAdapterPrepareExecutionOutcome,
   buildCodexFormerLocalAdapterPrepareExecutionSummary,
+  buildCodexFormerLocalAdapterPrepareHelperRunSummary,
+  discoverCodexFormerLocalAdapterPrepareOutputs,
   hashCodexFormerLocalAdapterPrepareContent,
   stableStringifyCodexFormerLocalAdapterPrepareJson,
   validateCodexFormerLocalAdapterPrepareDryRunInput,

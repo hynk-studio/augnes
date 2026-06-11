@@ -284,6 +284,7 @@
     "smoke:perspective-codex-former-local-adapter-prepare-dry-run-hardening": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-prepare-dry-run-hardening.mjs",
     "smoke:perspective-codex-former-local-adapter-prepare-execution-design": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-prepare-execution-design.mjs",
     "smoke:perspective-codex-former-local-adapter-prepare-execution": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-prepare-execution.mjs",
+    "smoke:perspective-codex-former-local-adapter-prepare-execution-hardening": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-prepare-execution-hardening.mjs",
     "smoke:perspective-codex-former-real-transcript-capture-instructions": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",

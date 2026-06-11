@@ -7,7 +7,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import localAdapter from "../lib/perspective-ingest/codex-former-local-adapter-manifest-to-source-input.ts";
 import prepareOrchestration from "../lib/perspective-ingest/codex-former-local-adapter-prepare-orchestration.ts";
@@ -20,7 +20,10 @@ const {
 const {
   buildCodexFormerLocalAdapterPrepareDryRunSummary,
   buildCodexFormerLocalAdapterPrepareExecutionContext,
+  buildCodexFormerLocalAdapterPrepareExecutionLogSummary,
   buildCodexFormerLocalAdapterPrepareExecutionSummary,
+  buildCodexFormerLocalAdapterPrepareHelperRunSummary,
+  discoverCodexFormerLocalAdapterPrepareOutputs,
 } = prepareOrchestration;
 
 const valueRequiredOptions = new Set([
@@ -274,22 +277,21 @@ function runExecute(options) {
 
   reserveHelperOutDirForExecution(helperOutDirPath);
   const helperRun = runCaptureHelperPrepare(context.helperCommandArgv);
-  const helperExitStatus = helperRun.exitCode === 0 ? "success" : "failed";
-  const outputDiscovery = discoverHelperOutputs({
-    helperExitStatus,
-    helperOutDirPath,
+  const outputDiscovery = discoverCodexFormerLocalAdapterPrepareOutputs({
+    helperExitStatus: helperRun.helper_exit_status,
+    helperOutDir,
     sourceInputHash,
     generatedAt: context.generatedAt,
+    files: collectHelperOutputFiles(helperOutDirPath),
   });
   const result = buildCodexFormerLocalAdapterPrepareExecutionSummary({
     context,
-    helperExitStatus,
-    helperExitCode: helperRun.exitCode,
-    helperStdoutSummary: buildBoundedLogSummary(helperRun.stdout, {
+    helperRunSummary: helperRun,
+    helperStdoutSummary: buildCodexFormerLocalAdapterPrepareExecutionLogSummary(helperRun.stdout, {
       maxLines: boundedLogLines,
       maxChars: defaultBoundedLogChars,
     }),
-    helperStderrSummary: buildBoundedLogSummary(helperRun.stderr, {
+    helperStderrSummary: buildCodexFormerLocalAdapterPrepareExecutionLogSummary(helperRun.stderr, {
       maxLines: boundedLogLines,
       maxChars: defaultBoundedLogChars,
     }),
@@ -447,10 +449,37 @@ function runCaptureHelperPrepare(helperCommandArgv) {
   if (child.error) {
     stderrParts.push(`spawn_error=${child.error.name}`);
   }
-  return {
-    exitCode: typeof child.status === "number" ? child.status : null,
+  return buildCodexFormerLocalAdapterPrepareHelperRunSummary({
+    helperInvocationAttempted: true,
+    helperExitCode: typeof child.status === "number" ? child.status : null,
     stdout: child.stdout ?? "",
     stderr: stderrParts.join("\n"),
+    spawnErrorName: child.error?.name ?? null,
+  });
+}
+
+function collectHelperOutputFiles(helperOutDirPath) {
+  return {
+    prompt: readOutputFileSnapshot(
+      resolve(helperOutDirPath, helperOutputFileNames.prompt),
+    ),
+    returnEnvelopeTemplate: readOutputFileSnapshot(
+      resolve(helperOutDirPath, helperOutputFileNames.returnEnvelopeTemplate),
+    ),
+    metadata: readOutputFileSnapshot(
+      resolve(helperOutDirPath, helperOutputFileNames.metadata),
+    ),
+  };
+}
+
+function readOutputFileSnapshot(path) {
+  if (!existsSync(path) || statSync(path).isDirectory()) {
+    return null;
+  }
+  return {
+    path,
+    text: readFileSync(path, "utf8"),
+    size_bytes: statSync(path).size,
   };
 }
 
@@ -461,261 +490,6 @@ function parseBoundedLogLines(value) {
     throw new Error("option --bounded-log-lines must be an integer from 1 to 200");
   }
   return parsed;
-}
-
-function buildBoundedLogSummary(text, { maxLines, maxChars }) {
-  const rawText = typeof text === "string" ? text : "";
-  const rawLines = rawText.length > 0 ? rawText.split(/\r?\n/) : [];
-  if (rawLines.at(-1) === "") rawLines.pop();
-  const lines = [];
-  let charCount = 0;
-  let truncated = false;
-  let unsafeMarkerOmitted = false;
-
-  for (const line of rawLines) {
-    if (containsUnsafeMarkerCategory(line)) {
-      unsafeMarkerOmitted = true;
-      truncated = true;
-      continue;
-    }
-    if (lines.length >= maxLines) {
-      truncated = true;
-      continue;
-    }
-    const remainingChars = maxChars - charCount;
-    if (remainingChars <= 0) {
-      truncated = true;
-      continue;
-    }
-    if (line.length > remainingChars) {
-      lines.push(`${line.slice(0, Math.max(0, remainingChars - 12))}[truncated]`);
-      charCount = maxChars;
-      truncated = true;
-      continue;
-    }
-    lines.push(line);
-    charCount += line.length;
-  }
-
-  return {
-    line_count: rawLines.length,
-    included_line_count: lines.length,
-    truncated,
-    omitted_line_count: rawLines.length - lines.length,
-    unsafe_marker_omitted: unsafeMarkerOmitted,
-    max_lines: maxLines,
-    max_chars: maxChars,
-    lines,
-  };
-}
-
-function discoverHelperOutputs({
-  helperExitStatus,
-  helperOutDirPath,
-  sourceInputHash,
-  generatedAt,
-}) {
-  const paths = emptyOutputPaths();
-  const refs = {
-    manual_copy_packet_ref: null,
-    former_input_packet_ref: null,
-  };
-  const hashes = emptyOutputHashes();
-  const sizes = emptyOutputSizes();
-  const caveats = [];
-  const knownMetadataPath = resolve(helperOutDirPath, helperOutputFileNames.metadata);
-  const knownPromptPath = resolve(helperOutDirPath, helperOutputFileNames.prompt);
-  const knownReturnEnvelopePath = resolve(
-    helperOutDirPath,
-    helperOutputFileNames.returnEnvelopeTemplate,
-  );
-  const metadataInfo = readJsonFileInfoIfPresent(knownMetadataPath);
-  const metadata = metadataInfo.value;
-
-  const promptCandidatePath =
-    stringOrNull(metadata?.output_paths?.copyable_prompt_path) ?? knownPromptPath;
-  const returnEnvelopeCandidatePath =
-    stringOrNull(metadata?.output_paths?.capture_return_envelope_template_path) ??
-    knownReturnEnvelopePath;
-  const metadataCandidatePath =
-    stringOrNull(metadata?.output_paths?.metadata_path) ?? knownMetadataPath;
-
-  const promptInfo = readFileInfoIfPresent(promptCandidatePath);
-  const returnEnvelopeInfo = readFileInfoIfPresent(returnEnvelopeCandidatePath);
-  const helperMetadataInfo = readFileInfoIfPresent(metadataCandidatePath);
-
-  if (promptInfo) {
-    paths.prompt_path = promptCandidatePath;
-    hashes.prompt_hash = promptInfo.hash;
-    sizes.prompt_size_bytes = promptInfo.sizeBytes;
-  } else {
-    caveats.push("copyable prompt output was missing");
-  }
-  if (returnEnvelopeInfo) {
-    paths.return_envelope_template_path = returnEnvelopeCandidatePath;
-    hashes.return_envelope_template_hash = returnEnvelopeInfo.hash;
-    sizes.return_envelope_template_size_bytes = returnEnvelopeInfo.sizeBytes;
-  } else {
-    caveats.push("return envelope template output was missing");
-  }
-  if (helperMetadataInfo) {
-    paths.helper_metadata_path = metadataCandidatePath;
-    hashes.helper_metadata_hash = helperMetadataInfo.hash;
-    sizes.helper_metadata_size_bytes = helperMetadataInfo.sizeBytes;
-  } else {
-    caveats.push("helper metadata output was missing");
-  }
-
-  if (!metadata) {
-    caveats.push("helper metadata could not be parsed");
-  } else {
-    refs.manual_copy_packet_ref = boundedSafeRef(
-      metadata.source_manual_copy_packet_id,
-      "source_manual_copy_packet_id",
-      caveats,
-    );
-    refs.former_input_packet_ref = boundedSafeRef(
-      metadata.source_former_input_packet_id,
-      "source_former_input_packet_id",
-      caveats,
-    );
-    if (metadata.source_input_hash !== sourceInputHash) {
-      caveats.push("helper metadata source_input_hash did not match source input bytes");
-    }
-    if (metadata.generated_at !== generatedAt) {
-      caveats.push("helper metadata generated_at did not match execution generated_at");
-    }
-    if (metadata.capture_source_kind !== "bounded_source_input_file") {
-      caveats.push("helper metadata capture_source_kind was not bounded_source_input_file");
-    }
-    if (!hasText(metadata.source_prompt_hash)) {
-      caveats.push("helper metadata source_prompt_hash was missing");
-    }
-    if (!isNonAuthorizingHelperMetadata(metadata.authority_boundary)) {
-      caveats.push("helper metadata authority_boundary was missing or not non-authorizing");
-    }
-  }
-
-  const complete =
-    helperExitStatus === "success" &&
-    Boolean(
-      metadata &&
-        paths.prompt_path &&
-        paths.return_envelope_template_path &&
-        paths.helper_metadata_path &&
-        hashes.prompt_hash &&
-        hashes.return_envelope_template_hash &&
-        hashes.helper_metadata_hash &&
-        refs.manual_copy_packet_ref &&
-        refs.former_input_packet_ref,
-    ) &&
-    caveats.length === 0;
-
-  return {
-    status: helperExitStatus === "failed" ? "failed" : complete ? "complete" : "incomplete",
-    paths,
-    refs,
-    hashes,
-    sizes,
-    caveats,
-  };
-}
-
-function readJsonFileInfoIfPresent(path) {
-  const info = readFileInfoIfPresent(path);
-  if (!info) return { value: null, info: null };
-  try {
-    return {
-      value: JSON.parse(info.text),
-      info,
-    };
-  } catch {
-    return {
-      value: null,
-      info,
-    };
-  }
-}
-
-function readFileInfoIfPresent(path) {
-  if (!hasText(path) || !existsSync(path) || statSync(path).isDirectory()) {
-    return null;
-  }
-  const text = readFileSync(path, "utf8");
-  return {
-    text,
-    hash: hashCodexFormerLocalAdapterContent(text),
-    sizeBytes: statSync(path).size,
-  };
-}
-
-function emptyOutputPaths() {
-  return {
-    manual_copy_packet_path: null,
-    former_input_packet_path: null,
-    prompt_path: null,
-    return_envelope_template_path: null,
-    helper_metadata_path: null,
-  };
-}
-
-function emptyOutputHashes() {
-  return {
-    manual_copy_packet_hash: null,
-    former_input_packet_hash: null,
-    prompt_hash: null,
-    return_envelope_template_hash: null,
-    helper_metadata_hash: null,
-  };
-}
-
-function emptyOutputSizes() {
-  return {
-    manual_copy_packet_size_bytes: null,
-    former_input_packet_size_bytes: null,
-    prompt_size_bytes: null,
-    return_envelope_template_size_bytes: null,
-    helper_metadata_size_bytes: null,
-  };
-}
-
-function boundedSafeRef(value, label, caveats) {
-  if (!hasText(value)) {
-    caveats.push(`helper metadata ${label} was missing`);
-    return null;
-  }
-  if (containsUnsafeMarkerCategory(value)) {
-    caveats.push(`helper metadata ${label} contained an unsafe marker category`);
-    return null;
-  }
-  const trimmed = String(value).trim();
-  if (trimmed.length > 240) {
-    caveats.push(`helper metadata ${label} was bounded to 240 characters`);
-    return trimmed.slice(0, 240);
-  }
-  return trimmed;
-}
-
-function isNonAuthorizingHelperMetadata(authorityBoundary) {
-  return (
-    authorityBoundary &&
-    authorityBoundary.output_is_draft_review_material_only === true &&
-    authorityBoundary.accepted_augnes_state === false &&
-    authorityBoundary.proof_evidence_readiness_records === false &&
-    authorityBoundary.provider_model_api_calls === false &&
-    authorityBoundary.codex_sdk_calls === false &&
-    authorityBoundary.codex_execution === false &&
-    authorityBoundary.db_writes === false &&
-    authorityBoundary.runtime_routes === false &&
-    authorityBoundary.ui === false &&
-    authorityBoundary.clipboard_automation === false &&
-    authorityBoundary.github_mutation === false &&
-    authorityBoundary.approval_merge_publish_core_decision === false
-  );
-}
-
-function stringOrNull(value) {
-  return hasText(value) ? String(value) : null;
 }
 
 function readHelperAvailability() {
@@ -773,75 +547,8 @@ function printExecutionSummary(summary, executionSummaryPath) {
   console.log(`helper_exit_status=${summary.helper_exit_status}`);
   console.log(`helper_exit_code=${summary.helper_exit_code}`);
   console.log(`output_discovery_status=${summary.output_discovery_status}`);
+  console.log(`execution_result=${summary.execution_result}`);
   console.log("authority_boundary=review-only local-only non-authorizing");
-}
-
-function containsUnsafeMarkerCategory(value) {
-  const lowered = String(value ?? "").toLowerCase();
-  const exactMarkers = [
-    ["private", "payload"].join("_"),
-    ["provider", "payload"].join("_"),
-    ["raw", "source", "payload"].join("_"),
-    ["raw", "candidate", "payload"].join("_"),
-    ["raw", "private", "payload"].join("_"),
-    ["raw", "pr", "diff"].join("_"),
-    ["raw", "page", "dump"].join("_"),
-    ["raw", "review", "payload"].join("_"),
-    ["oauth", "token"].join("_"),
-    ["access", "token"].join("_"),
-    ["refresh", "token"].join("_"),
-    ["api", "key"].join("_"),
-    ["hidden", "reasoning"].join("_"),
-  ];
-  const prefixMarkers = [
-    ["sk", "proj"].join("-") + "-",
-    ["gh", "p_"].join(""),
-  ];
-  const phraseMarkers = [
-    "raw diff",
-    "raw diffs",
-    "raw pr diff",
-    "raw review payload",
-    "raw page dump",
-    "provider log",
-    "provider logs",
-    "hidden reasoning",
-    "account data",
-    "raw screenshot",
-    "raw screenshots",
-    "screenshot payload",
-    "screenshots included",
-    "screenshot included",
-    "unrelated private",
-    "private payload",
-    "provider payload",
-    "raw source payload",
-    "raw candidate payload",
-    "raw private payload",
-  ];
-  const tokenBoundaryMarkers = ["cookie", "cookies", "token", "tokens", "secret", "secrets"];
-  return (
-    exactMarkers.some((marker) => includesExactMarker(lowered, marker)) ||
-    prefixMarkers.some((marker) => lowered.includes(marker)) ||
-    phraseMarkers.some((marker) => lowered.includes(marker)) ||
-    tokenBoundaryMarkers.some((marker) => includesWordBoundaryMarker(lowered, marker))
-  );
-}
-
-function includesExactMarker(value, marker) {
-  const escaped = escapeRegExp(marker);
-  return new RegExp(`(^|[^a-z0-9_])${escaped}([^a-z0-9_]|$)`, "i").test(
-    value,
-  );
-}
-
-function includesWordBoundaryMarker(value, marker) {
-  const escaped = escapeRegExp(marker);
-  return new RegExp(`\\b${escaped}\\b`, "i").test(value);
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function hasText(value) {
