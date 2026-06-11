@@ -29,6 +29,7 @@ const valueRequiredOptions = new Set([
   "out-dir",
   "source-input",
   "preflight-summary",
+  "prepare-execution-summary",
   "generated-at",
   "session-panel-out",
   "inbox-item-out",
@@ -91,6 +92,14 @@ export function runLocalAdapterSurfaceSnapshotsCli(argv) {
     : {
         preflightSummary: null,
         preflightSummaryPath: null,
+        preflightSummaryHash: null,
+      };
+  const prepareExecutionPayload = options["prepare-execution-summary"]
+    ? readPrepareExecutionSummary(String(options["prepare-execution-summary"]))
+    : {
+        prepareExecutionSummary: null,
+        prepareExecutionSummaryPath: null,
+        prepareExecutionSummaryHash: null,
       };
 
   const result = buildCodexFormerLocalAdapterSurfaceSnapshots({
@@ -104,6 +113,12 @@ export function runLocalAdapterSurfaceSnapshotsCli(argv) {
     sourceInputHash: sourceInputPayload.sourceInputHash,
     preflightSummary: preflightPayload.preflightSummary,
     preflightSummaryPath: preflightPayload.preflightSummaryPath,
+    preflightSummaryHash: preflightPayload.preflightSummaryHash,
+    prepareExecutionSummary: prepareExecutionPayload.prepareExecutionSummary,
+    prepareExecutionSummaryPath:
+      prepareExecutionPayload.prepareExecutionSummaryPath,
+    prepareExecutionSummaryHash:
+      prepareExecutionPayload.prepareExecutionSummaryHash,
     generatedAtOverride: hasText(options["generated-at"])
       ? String(options["generated-at"])
       : null,
@@ -121,6 +136,8 @@ export function runLocalAdapterSurfaceSnapshotsCli(argv) {
     snapshot_state: result.snapshotState,
     manifest_hash: result.snapshotSummary.manifest_hash,
     source_input_hash: result.snapshotSummary.source_input_hash ?? "none",
+    prepare_execution_summary_hash:
+      result.snapshotSummary.prepare_execution_summary_hash ?? "none",
     authority_boundary: "review-only local-only non-authorizing",
   };
   printSummary(summary);
@@ -154,6 +171,25 @@ function readPreflightSummary(preflightSummaryPath) {
       "preflight summary file",
     ),
     preflightSummaryPath,
+    preflightSummaryHash:
+      hashCodexFormerLocalAdapterContent(preflightSummaryText),
+  };
+}
+
+function readPrepareExecutionSummary(prepareExecutionSummaryPath) {
+  const prepareExecutionSummaryReadPath = resolve(prepareExecutionSummaryPath);
+  const prepareExecutionSummaryText = readFile(
+    prepareExecutionSummaryReadPath,
+    "prepare execution summary",
+  );
+  return {
+    prepareExecutionSummary: parseJson(
+      prepareExecutionSummaryText,
+      "prepare execution summary file",
+    ),
+    prepareExecutionSummaryPath,
+    prepareExecutionSummaryHash:
+      hashCodexFormerLocalAdapterContent(prepareExecutionSummaryText),
   };
 }
 
@@ -240,6 +276,9 @@ function printSummary(summary) {
   console.log(`snapshot_state=${summary.snapshot_state}`);
   console.log(`manifest_hash=${summary.manifest_hash}`);
   console.log(`source_input_hash=${summary.source_input_hash}`);
+  console.log(
+    `prepare_execution_summary_hash=${summary.prepare_execution_summary_hash}`,
+  );
   console.log(`authority_boundary=${summary.authority_boundary}`);
 }
 
