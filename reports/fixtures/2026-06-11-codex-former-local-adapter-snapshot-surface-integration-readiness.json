@@ -1,0 +1,138 @@
+{
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "status": "ready_for_ui_implementation",
+  "authority_flags": {
+    "accepted_state_created": false,
+    "proof_evidence_readiness_created": false,
+    "review_decision_created": false,
+    "provider_model_calls": false,
+    "codex_sdk_calls": false,
+    "github_api_calls": false,
+    "db_writes": false,
+    "clipboard_automation": false,
+    "live_codex_capture": false,
+    "runtime_fixture_mutation": false,
+    "core_decision": false,
+    "network_calls": false,
+    "surface_export_created": false
+  },
+  "accessibility_plan": {
+    "inbox_keyboard_order": [
+      "filter bar",
+      "item list",
+      "selected item summary",
+      "warning/evidence details",
+      "authority details"
+    ],
+    "requirements": [
+      "Status must not rely on color alone.",
+      "Prepared/waiting must be textually distinct from approved/accepted/reviewable.",
+      "Collapsed sections must expose expanded/collapsed state in future UI.",
+      "No hover-only information.",
+      "Screen reader labels must include status, caveat, review-only boundary, and next safe action."
+    ],
+    "session_panel_keyboard_order": [
+      "scenario selector",
+      "status card",
+      "timeline",
+      "warning groups",
+      "evidence cards",
+      "authority details",
+      "privacy/caveat details"
+    ]
+  },
+  "blockers": [],
+  "browser_validation_required_for_next_ui_pr": true,
+  "caveats": [
+    "UI not implemented.",
+    "Runtime integration not implemented.",
+    "Validation not implemented.",
+    "Returned candidate capture not implemented.",
+    "Constellation handoff not available for prepared state."
+  ],
+  "copy_and_density_policy": {
+    "expanded_details": [
+      "Expanded details may show hashes, helper output refs, output sizes, and authority flags.",
+      "Never show raw prompt, source input, packet, transcript, or private marker content.",
+      "prepare_helper_executed must be labeled operational provenance only."
+    ],
+    "inbox": [
+      "Show title, stage/reviewability, one caveat, max two badges, max three compact authority tags, and warning count.",
+      "Do not show a full evidence dump by default.",
+      "Prepared remains waiting and not reviewable."
+    ],
+    "prohibited_control_copy": [
+      "Accept",
+      "Approve",
+      "Promote",
+      "Reject",
+      "Merge",
+      "Deploy",
+      "Validate",
+      "Run Codex"
+    ],
+    "session_panel": [
+      "Show one primary status, one caveat, one next safe action, compact timeline, warning count, and authority summary.",
+      "Prepared must stay paired with waiting for Codex return.",
+      "Local snapshot available must not be rendered as product approval or graph handoff."
+    ]
+  },
+  "generated_view_model_paths": {
+    "inbox_surface_view_models_path": "/tmp/augnes-codex-former-local-adapter-snapshot-surface-integration/codex-former-local-adapter-inbox-surface-view-models.json",
+    "readiness_path": "/tmp/augnes-codex-former-local-adapter-snapshot-surface-integration/codex-former-local-adapter-snapshot-surface-integration-readiness.json",
+    "session_panel_surface_view_models_path": "/tmp/augnes-codex-former-local-adapter-snapshot-surface-integration/codex-former-local-adapter-session-panel-surface-view-models.json"
+  },
+  "next_ui_pr_browser_validation_matrix": [
+    "render session panel not_ready",
+    "render session panel waiting",
+    "render session panel prepared",
+    "render inbox all",
+    "render inbox not_ready filter",
+    "render inbox waiting filter",
+    "render inbox prepared filter",
+    "select prepared item",
+    "verify no accepted-state implication",
+    "verify no reviewable implication",
+    "verify no Constellation handoff for prepared",
+    "verify no raw prompt/source/packet content",
+    "verify keyboard navigation",
+    "verify 390px no horizontal overflow",
+    "verify no console errors",
+    "verify no external provider/model/GitHub/Codex/OpenAI traffic"
+  ],
+  "prepared_operational_provenance": {
+    "operational_provenance_only": true,
+    "prepare_helper_executed": true
+  },
+  "readiness_version": "codex_former_local_adapter_snapshot_surface_integration_readiness.v0.1",
+  "required_future_ui_routes": [
+    {
+      "label": "Future read-only adapter snapshot Session Panel fixture route",
+      "route_created_in_this_pr": false,
+      "suggestion_only": true,
+      "surface": "session_panel"
+    },
+    {
+      "label": "Future read-only adapter snapshot Capture Review Inbox fixture route",
+      "route_created_in_this_pr": false,
+      "suggestion_only": true,
+      "surface": "capture_review_inbox"
+    }
+  ],
+  "scenario_coverage": [
+    "not_ready",
+    "waiting",
+    "prepared_waiting_for_codex_return"
+  ],
+  "surfaces": [
+    "session_panel",
+    "capture_review_inbox"
+  ],
+  "ui_implementation_scope": {
+    "fixture_backed": true,
+    "local_only": true,
+    "no_persistence": true,
+    "no_runtime_mutation": true,
+    "read_only": true
+  }
+}
