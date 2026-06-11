@@ -29,6 +29,12 @@ const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_MANIFEST_TO_SOURCE_INPUT_V0_1.md";
 const reportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-manifest-to-source-input.md";
+const hardeningSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-source-input-preflight-hardening.mjs";
+const hardeningDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_SOURCE_INPUT_PREFLIGHT_HARDENING_V0_1.md";
+const hardeningReportFile =
+  "reports/2026-06-11-perspective-codex-former-local-adapter-source-input-preflight-hardening.md";
 const designDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_CODEX_INTEGRATION_ADAPTER_DESIGN_V0_1.md";
 const validManifestFixtureFile =
@@ -549,8 +555,11 @@ function assertChangedFileBoundary() {
     libFile,
     cliFile,
     smokeFile,
+    hardeningSmokeFile,
     docFile,
+    hardeningDocFile,
     reportFile,
+    hardeningReportFile,
     validManifestFixtureFile,
     expectedSourceInputFixtureFile,
   ]);

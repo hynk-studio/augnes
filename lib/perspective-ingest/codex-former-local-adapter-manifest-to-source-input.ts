@@ -6,6 +6,8 @@ export const CODEX_FORMER_LOCAL_ADAPTER_SOURCE_KIND =
   "local_bounded_manifest";
 export const CODEX_FORMER_LOCAL_ADAPTER_METADATA_VERSION =
   "codex_former_local_adapter_metadata.v0.1";
+export const CODEX_FORMER_LOCAL_ADAPTER_SOURCE_INPUT_PREFLIGHT_SUMMARY_VERSION =
+  "codex_former_local_adapter_source_input_preflight_summary.v0.1";
 
 export type CodexFormerLocalAdapterCheckStatus =
   | "passed"
@@ -135,6 +137,18 @@ export type CodexFormerLocalAdapterValidationResult = {
   errors: string[];
 };
 
+export type CodexFormerLocalAdapterSourceInputPreflightSummary = {
+  preflight_summary_version: typeof CODEX_FORMER_LOCAL_ADAPTER_SOURCE_INPUT_PREFLIGHT_SUMMARY_VERSION;
+  mode: "source-input-preflight";
+  generated_at: string | null;
+  source_input_path: string;
+  source_input_hash: string;
+  status: "passed" | "failed";
+  errors: string[];
+  warning_count: number;
+  authority_flags: CodexFormerLocalAdapterMetadata["authority_flags"];
+};
+
 export type CodexFormerLocalAdapterUnsafeMarker = {
   path: string;
   marker_kind:
@@ -171,6 +185,51 @@ const optionalManifestFields = [
 const maxStringLength = 1200;
 const maxOperatorNotesLength = 800;
 const maxArrayLength = 60;
+
+const allowedManifestFields = [
+  "adapter_manifest_version",
+  "adapter_source_kind",
+  "generated_at",
+  "scope",
+  "work_id",
+  "work_session_label",
+  "codex_surface_label",
+  "source_pr_refs",
+  "changed_files",
+  "changed_files_summary",
+  "tests_checks_run",
+  "skipped_checks",
+  "unresolved_gaps",
+  "readiness",
+  ...optionalManifestFields,
+];
+const allowedCheckRunFields = [
+  "check_id",
+  "command",
+  "status",
+  "result_summary",
+];
+const allowedSkippedCheckFields = [
+  "check_id",
+  "skipped_reason",
+  "result_summary",
+];
+const allowedGapFields = ["gap_id", "summary"];
+const allowedReadinessFields = ["status", "reasons"];
+const allowedSourceInputFields = [
+  "generated_at",
+  "scope",
+  "work_id",
+  "source_pr_refs",
+  "changed_files",
+  "changed_files_summary",
+  "tests_checks_run",
+  "skipped_checks",
+  "unresolved_gaps",
+  "readiness",
+  "source_privacy_redaction_notes",
+  "authority_boundaries",
+];
 
 const exactUnsafeManifestMarkers = [
   ["private", "payload"].join("_"),
@@ -225,7 +284,9 @@ const tokenBoundaryUnsafeManifestMarkers = [
 const preferredJsonKeyOrder = [
   "adapter_manifest_version",
   "adapter_metadata_version",
+  "preflight_summary_version",
   "adapter_source_kind",
+  "mode",
   "generated_at",
   "scope",
   "work_id",
@@ -256,6 +317,9 @@ const preferredJsonKeyOrder = [
   "manifest_hash",
   "source_input_path",
   "source_input_hash",
+  "status",
+  "errors",
+  "warning_count",
   "manifest_work_id",
   "manifest_scope",
   "source_input_work_id",
@@ -364,6 +428,8 @@ export function validateCodexFormerLocalAdapterManifest(
   }
   const manifest = value;
 
+  pushUnknownFieldErrors(manifest, allowedManifestFields, "manifest", errors);
+
   requireExactString(
     manifest,
     "adapter_manifest_version",
@@ -411,6 +477,12 @@ export function validateCodexFormerLocalAdapterManifest(
     errors,
   );
   testsChecksRun.forEach((item, index) => {
+    pushUnknownFieldErrors(
+      item,
+      allowedCheckRunFields,
+      `manifest.tests_checks_run[${index}]`,
+      errors,
+    );
     requireBoundedString(item.check_id, `tests_checks_run[${index}].check_id`, errors);
     requireBoundedString(item.command, `tests_checks_run[${index}].command`, errors);
     const status = readBoundedString(
@@ -437,6 +509,12 @@ export function validateCodexFormerLocalAdapterManifest(
     errors,
   );
   skippedChecks.forEach((item, index) => {
+    pushUnknownFieldErrors(
+      item,
+      allowedSkippedCheckFields,
+      `manifest.skipped_checks[${index}]`,
+      errors,
+    );
     requireBoundedString(item.check_id, `skipped_checks[${index}].check_id`, errors);
     requireBoundedString(
       item.skipped_reason,
@@ -458,6 +536,12 @@ export function validateCodexFormerLocalAdapterManifest(
     errors,
   );
   unresolvedGaps.forEach((item, index) => {
+    pushUnknownFieldErrors(
+      item,
+      allowedGapFields,
+      `manifest.unresolved_gaps[${index}]`,
+      errors,
+    );
     requireBoundedString(item.gap_id, `unresolved_gaps[${index}].gap_id`, errors);
     requireBoundedString(item.summary, `unresolved_gaps[${index}].summary`, errors);
   });
@@ -466,6 +550,12 @@ export function validateCodexFormerLocalAdapterManifest(
   if (!isRecord(readiness)) {
     errors.push("manifest readiness must be an object");
   } else {
+    pushUnknownFieldErrors(
+      readiness,
+      allowedReadinessFields,
+      "manifest.readiness",
+      errors,
+    );
     const readinessStatus = readBoundedString(
       readiness.status,
       "readiness.status",
@@ -537,7 +627,284 @@ export function assertCodexFormerLocalAdapterManifest(
 export function collectUnsafeCodexFormerLocalAdapterManifestMarkers(
   value: unknown,
 ): CodexFormerLocalAdapterUnsafeMarker[] {
-  const strings = collectStringValues(value);
+  return collectUnsafeCodexFormerLocalAdapterMarkers(value, "manifest");
+}
+
+export function collectUnsafeCodexFormerLocalAdapterSourceInputMarkers(
+  value: unknown,
+): CodexFormerLocalAdapterUnsafeMarker[] {
+  return collectUnsafeCodexFormerLocalAdapterMarkers(value, "source_input");
+}
+
+export function validateCodexFormerLocalAdapterSourceInput(
+  value: unknown,
+): CodexFormerLocalAdapterValidationResult {
+  const errors: string[] = [];
+  if (!isRecord(value)) {
+    return { valid: false, errors: ["source input JSON must be an object"] };
+  }
+  const sourceInput = value;
+
+  pushUnknownFieldErrors(
+    sourceInput,
+    allowedSourceInputFields,
+    "source_input",
+    errors,
+  );
+
+  for (const field of [
+    "generated_at",
+    "scope",
+    "work_id",
+    "changed_files_summary",
+  ]) {
+    requireSourceInputBoundedString(sourceInput[field], field, errors);
+  }
+
+  const sourcePrRefs = readSourceInputStringArray(
+    sourceInput.source_pr_refs,
+    "source_pr_refs",
+    errors,
+  );
+  if (sourcePrRefs.length === 0) {
+    errors.push(
+      "source_input source_pr_refs must include at least one bounded source reference",
+    );
+  }
+
+  const changedFiles = readSourceInputStringArray(
+    sourceInput.changed_files,
+    "changed_files",
+    errors,
+  );
+  if (changedFiles.length === 0) {
+    errors.push("source_input changed_files must include at least one file");
+  }
+  changedFiles.forEach((filePath, index) => {
+    if (!isSafeRelativeFilePath(filePath)) {
+      errors.push(
+        `source_input.changed_files[${index}] must be a safe relative file path`,
+      );
+    }
+  });
+
+  const testsChecksRun = readSourceInputObjectArray(
+    sourceInput.tests_checks_run,
+    "tests_checks_run",
+    errors,
+  );
+  testsChecksRun.forEach((item, index) => {
+    pushUnknownFieldErrors(
+      item,
+      allowedCheckRunFields,
+      `source_input.tests_checks_run[${index}]`,
+      errors,
+    );
+    requireSourceInputBoundedString(
+      item.check_id,
+      `tests_checks_run[${index}].check_id`,
+      errors,
+    );
+    requireSourceInputBoundedString(
+      item.command,
+      `tests_checks_run[${index}].command`,
+      errors,
+    );
+    const status = readSourceInputBoundedString(
+      item.status,
+      `tests_checks_run[${index}].status`,
+      errors,
+    );
+    if (
+      status &&
+      !helperCompatibleCheckStatuses.includes(status as "passed" | "failed")
+    ) {
+      errors.push(
+        `source_input.tests_checks_run[${index}].status must be passed or failed`,
+      );
+    }
+    requireSourceInputBoundedString(
+      item.result_summary,
+      `tests_checks_run[${index}].result_summary`,
+      errors,
+    );
+  });
+
+  const skippedChecks = readSourceInputObjectArray(
+    sourceInput.skipped_checks,
+    "skipped_checks",
+    errors,
+  );
+  skippedChecks.forEach((item, index) => {
+    pushUnknownFieldErrors(
+      item,
+      allowedSkippedCheckFields,
+      `source_input.skipped_checks[${index}]`,
+      errors,
+    );
+    requireSourceInputBoundedString(
+      item.check_id,
+      `skipped_checks[${index}].check_id`,
+      errors,
+    );
+    requireSourceInputBoundedString(
+      item.skipped_reason,
+      `skipped_checks[${index}].skipped_reason`,
+      errors,
+    );
+    if (item.result_summary !== undefined) {
+      requireSourceInputBoundedString(
+        item.result_summary,
+        `skipped_checks[${index}].result_summary`,
+        errors,
+      );
+    }
+  });
+
+  const unresolvedGaps = readSourceInputObjectArray(
+    sourceInput.unresolved_gaps,
+    "unresolved_gaps",
+    errors,
+  );
+  unresolvedGaps.forEach((item, index) => {
+    pushUnknownFieldErrors(
+      item,
+      allowedGapFields,
+      `source_input.unresolved_gaps[${index}]`,
+      errors,
+    );
+    requireSourceInputBoundedString(
+      item.gap_id,
+      `unresolved_gaps[${index}].gap_id`,
+      errors,
+    );
+    requireSourceInputBoundedString(
+      item.summary,
+      `unresolved_gaps[${index}].summary`,
+      errors,
+    );
+  });
+
+  const readiness = sourceInput.readiness;
+  if (!isRecord(readiness)) {
+    errors.push("source_input.readiness must be an object");
+  } else {
+    pushUnknownFieldErrors(
+      readiness,
+      allowedReadinessFields,
+      "source_input.readiness",
+      errors,
+    );
+    const readinessStatus = readSourceInputBoundedString(
+      readiness.status,
+      "readiness.status",
+      errors,
+    );
+    if (
+      readinessStatus &&
+      !supportedReadinessStatuses.includes(
+        readinessStatus as CodexFormerLocalAdapterReadinessStatus,
+      )
+    ) {
+      errors.push("source_input.readiness.status is unsupported");
+    }
+    const reasons = readSourceInputStringArray(
+      readiness.reasons,
+      "readiness.reasons",
+      errors,
+    );
+    if (reasons.length === 0) {
+      errors.push(
+        "source_input.readiness.reasons must include at least one reason",
+      );
+    }
+  }
+
+  if (sourceInput.source_privacy_redaction_notes !== undefined) {
+    readSourceInputStringArray(
+      sourceInput.source_privacy_redaction_notes,
+      "source_privacy_redaction_notes",
+      errors,
+    );
+  }
+  if (sourceInput.authority_boundaries !== undefined) {
+    readSourceInputStringArray(
+      sourceInput.authority_boundaries,
+      "authority_boundaries",
+      errors,
+    );
+  }
+
+  const readinessReasons =
+    isRecord(readiness) && Array.isArray(readiness.reasons)
+      ? readiness.reasons.filter((reason) => hasText(reason)).length
+      : 0;
+  if (
+    testsChecksRun.length === 0 &&
+    skippedChecks.length === 0 &&
+    unresolvedGaps.length === 0 &&
+    readinessReasons === 0
+  ) {
+    errors.push(
+      "source_input requires verification material: checks, skipped checks, unresolved gaps, or readiness reasons",
+    );
+  }
+
+  for (const marker of collectUnsafeCodexFormerLocalAdapterSourceInputMarkers(
+    sourceInput,
+  )) {
+    errors.push(
+      `unsafe marker category found at ${marker.path}: ${marker.marker_kind}`,
+    );
+  }
+
+  return { valid: errors.length === 0, errors: uniqueStrings(errors) };
+}
+
+export function assertCodexFormerLocalAdapterSourceInput(
+  value: unknown,
+): CodexFormerLocalAdapterSourceInput {
+  const validation = validateCodexFormerLocalAdapterSourceInput(value);
+  if (!validation.valid) {
+    throw new Error(validation.errors.join("; "));
+  }
+  return value as CodexFormerLocalAdapterSourceInput;
+}
+
+export function buildCodexFormerLocalAdapterSourceInputPreflightSummary({
+  errors,
+  sourceInput,
+  sourceInputHash,
+  sourceInputPath,
+}: {
+  sourceInput: unknown;
+  sourceInputPath: string;
+  sourceInputHash: string;
+  errors?: string[];
+}): CodexFormerLocalAdapterSourceInputPreflightSummary {
+  const normalizedErrors = uniqueStrings(errors ?? []);
+  return {
+    preflight_summary_version:
+      CODEX_FORMER_LOCAL_ADAPTER_SOURCE_INPUT_PREFLIGHT_SUMMARY_VERSION,
+    mode: "source-input-preflight",
+    generated_at:
+      isRecord(sourceInput) && typeof sourceInput.generated_at === "string"
+        ? sourceInput.generated_at
+        : null,
+    source_input_path: sourceInputPath,
+    source_input_hash: sourceInputHash,
+    status: normalizedErrors.length === 0 ? "passed" : "failed",
+    errors: normalizedErrors,
+    warning_count: 0,
+    authority_flags: buildFalseAuthorityFlags(),
+  };
+}
+
+function collectUnsafeCodexFormerLocalAdapterMarkers(
+  value: unknown,
+  rootPath: string,
+): CodexFormerLocalAdapterUnsafeMarker[] {
+  const strings = collectStringValues(value, rootPath);
   const markers: CodexFormerLocalAdapterUnsafeMarker[] = [];
   for (const item of strings) {
     const lowered = item.value.toLowerCase();
@@ -672,6 +1039,93 @@ function readObjectArray(value: unknown, field: string, errors: string[]) {
   });
 }
 
+function requireSourceInputBoundedString(
+  value: unknown,
+  field: string,
+  errors: string[],
+) {
+  const text = readSourceInputBoundedString(value, field, errors);
+  if (!text) {
+    errors.push(`source_input.${field} must be a non-empty string`);
+  }
+  return text;
+}
+
+function readSourceInputBoundedString(
+  value: unknown,
+  field: string,
+  errors: string[],
+) {
+  if (typeof value !== "string") {
+    errors.push(`source_input.${field} must be a string`);
+    return null;
+  }
+  if (value.trim().length === 0) {
+    return null;
+  }
+  if (value.length > maxStringLength) {
+    errors.push(`source_input.${field} is too long`);
+  }
+  return value;
+}
+
+function readSourceInputStringArray(
+  value: unknown,
+  field: string,
+  errors: string[],
+) {
+  if (!Array.isArray(value)) {
+    errors.push(`source_input.${field} must be an array`);
+    return [];
+  }
+  if (value.length > maxArrayLength) {
+    errors.push(`source_input.${field} has too many items`);
+  }
+  return value.flatMap((item, index) => {
+    const text = requireSourceInputBoundedString(
+      item,
+      `${field}[${index}]`,
+      errors,
+    );
+    return text === null ? [] : [text];
+  });
+}
+
+function readSourceInputObjectArray(
+  value: unknown,
+  field: string,
+  errors: string[],
+) {
+  if (!Array.isArray(value)) {
+    errors.push(`source_input.${field} must be an array`);
+    return [];
+  }
+  if (value.length > maxArrayLength) {
+    errors.push(`source_input.${field} has too many items`);
+  }
+  return value.flatMap((item, index) => {
+    if (!isRecord(item)) {
+      errors.push(`source_input.${field}[${index}] must be an object`);
+      return [];
+    }
+    return [item];
+  });
+}
+
+function pushUnknownFieldErrors(
+  record: UnknownRecord,
+  allowedFields: string[],
+  path: string,
+  errors: string[],
+) {
+  const allowed = new Set(allowedFields);
+  for (const field of Object.keys(record)) {
+    if (!allowed.has(field)) {
+      errors.push(`${path}.${field} is not allowed in v0.1`);
+    }
+  }
+}
+
 function isSafeRelativeFilePath(value: string) {
   if (!hasText(value)) return false;
   if (value.startsWith("/") || value.startsWith("\\\\")) return false;
@@ -786,11 +1240,16 @@ function isRecord(value: unknown): value is UnknownRecord {
 export default {
   CODEX_FORMER_LOCAL_ADAPTER_MANIFEST_VERSION,
   CODEX_FORMER_LOCAL_ADAPTER_METADATA_VERSION,
+  CODEX_FORMER_LOCAL_ADAPTER_SOURCE_INPUT_PREFLIGHT_SUMMARY_VERSION,
   CODEX_FORMER_LOCAL_ADAPTER_SOURCE_KIND,
   assertCodexFormerLocalAdapterManifest,
+  assertCodexFormerLocalAdapterSourceInput,
+  buildCodexFormerLocalAdapterSourceInputPreflightSummary,
   buildCodexFormerSourceInputFromLocalAdapterManifest,
   collectUnsafeCodexFormerLocalAdapterManifestMarkers,
+  collectUnsafeCodexFormerLocalAdapterSourceInputMarkers,
   hashCodexFormerLocalAdapterContent,
   stableStringifyCodexFormerLocalAdapterJson,
   validateCodexFormerLocalAdapterManifest,
+  validateCodexFormerLocalAdapterSourceInput,
 };
