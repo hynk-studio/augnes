@@ -1,0 +1,63 @@
+{
+  "adapter_manifest_version": "codex_former_local_adapter_manifest.v0.1",
+  "adapter_source_kind": "local_bounded_manifest",
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "scope": "project:augnes",
+  "work_id": "AG-codex-former-local-adapter-manifest-to-source-input",
+  "work_session_label": "Local Codex adapter manifest-to-source-input implementation",
+  "codex_surface_label": "separate user-started Codex session",
+  "source_pr_refs": [
+    "pr:hynk-studio/augnes#508"
+  ],
+  "changed_files": [
+    "lib/perspective-ingest/codex-former-local-adapter-manifest-to-source-input.ts",
+    "scripts/perspective-codex-former-local-adapter-manifest-to-source-input.mjs",
+    "scripts/smoke-perspective-codex-former-local-adapter-manifest-to-source-input.mjs",
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_MANIFEST_TO_SOURCE_INPUT_V0_1.md",
+    "reports/2026-06-11-perspective-codex-former-local-adapter-manifest-to-source-input.md",
+    "package.json"
+  ],
+  "changed_files_summary": "Bounded local adapter implementation scope for manifest-to-source-input mode. Benign terms include tokenizer, tokenization, and secretariat.",
+  "tests_checks_run": [
+    {
+      "check_id": "check:typecheck",
+      "command": "npm run typecheck",
+      "status": "passed",
+      "result_summary": "Typecheck is expected for the local adapter implementation."
+    },
+    {
+      "check_id": "check:local-adapter-smoke",
+      "command": "npm run smoke:perspective-codex-former-local-adapter-manifest-to-source-input",
+      "status": "passed",
+      "result_summary": "Adapter smoke validates deterministic conversion, rejection cases, and helper compatibility."
+    }
+  ],
+  "skipped_checks": [
+    {
+      "check_id": "check:browser-computer-use",
+      "skipped_reason": "Browser validation skipped because this CLI implementation adds no UI, route, browser-visible surface, clipboard automation, or browser-computer-use capture.",
+      "result_summary": "No browser-visible surface was added."
+    }
+  ],
+  "unresolved_gaps": [
+    {
+      "gap_id": "gap:preflight-mode",
+      "summary": "Source-input preflight mode remains future work after this narrow manifest-to-source-input implementation."
+    },
+    {
+      "gap_id": "gap:surface-snapshots",
+      "summary": "Session Panel and Inbox adapter snapshots remain future read-only fixture work."
+    }
+  ],
+  "readiness": {
+    "status": "needs_review",
+    "reasons": [
+      "This adapter output is review-only source input for the existing helper.",
+      "Prepare and validate orchestration remain out of scope."
+    ]
+  },
+  "operator_notes_bounded": "Only bounded local summaries are represented in this manifest.",
+  "existing_helper_metadata_path": null,
+  "returned_envelope_path": null,
+  "validation_summary_path": null
+}
