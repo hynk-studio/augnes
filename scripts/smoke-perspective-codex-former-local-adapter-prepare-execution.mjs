@@ -22,10 +22,16 @@ const dryRunSmokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-orchestration-dry-run.mjs";
 const hardeningSmokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-dry-run-hardening.mjs";
+const executionHardeningSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution-hardening.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_V0_1.md";
+const executionHardeningDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_HARDENING_V0_1.md";
 const reportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution.md";
+const executionHardeningReportFile =
+  "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution-hardening.md";
 const fixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json";
 const sourceInputFixtureFile =
@@ -96,8 +102,11 @@ function assertFilesExist() {
     libFile,
     cliFile,
     smokeFile,
+    executionHardeningSmokeFile,
     docFile,
+    executionHardeningDocFile,
     reportFile,
+    executionHardeningReportFile,
     fixtureFile,
     sourceInputFixtureFile,
     preflightSummaryFixtureFile,
@@ -133,6 +142,10 @@ function assertSourceContracts() {
     "codex-former-copyable-prompt.txt",
     "codex-former-capture-return-envelope-template.txt",
     "codex-former-capture-metadata.json",
+    "execution_result=",
+    "buildCodexFormerLocalAdapterPrepareHelperRunSummary",
+    "buildCodexFormerLocalAdapterPrepareExecutionLogSummary",
+    "discoverCodexFormerLocalAdapterPrepareOutputs",
   ]);
 }
 
@@ -191,6 +204,7 @@ function runExecutionHappyPath() {
     "helper_exit_status=success",
     "helper_exit_code=0",
     "output_discovery_status=complete",
+    "execution_result=success",
     "authority_boundary=review-only local-only non-authorizing",
   ]);
   assert.equal(
@@ -402,8 +416,16 @@ function assertExecutionSummaryShape(summary) {
   assert.equal(summary.helper_exit_status, "success");
   assert.equal(summary.helper_exit_code, 0);
   assert.equal(summary.output_discovery_status, "complete");
+  assert.equal(summary.execution_result, "success");
   assert.equal(summary.failure_kind, null);
+  assert.equal(summary.helper_invocation_attempted, true);
+  assert.equal(summary.helper_process_started, true);
   assert.equal(summary.authority_flags.prepare_helper_executed, true);
+  assert.equal(summary.helper_metadata_checks.metadata_parse_status, "parsed");
+  assert.equal(summary.helper_metadata_checks.source_input_hash_match, true);
+  assert.equal(summary.helper_metadata_checks.generated_at_match, true);
+  assert.equal(summary.helper_metadata_checks.prompt_hash_match, "not_comparable");
+  assert.deepEqual(summary.output_discovery_caveats, []);
   for (const key of [
     "validate_helper_executed",
     "network_calls",
@@ -427,6 +449,10 @@ function assertExecutionSummaryShape(summary) {
     assert(logSummary.lines.join("").length <= logSummary.max_chars);
     assert.equal(typeof logSummary.truncated, "boolean");
     assert.equal(typeof logSummary.unsafe_marker_omitted, "boolean");
+    assert(Array.isArray(logSummary.normalized_lines));
+    assert(Array.isArray(logSummary.line_events));
+    assert.equal(typeof logSummary.npm_wrapper_line_count, "number");
+    assert.equal(typeof logSummary.helper_kv_line_count, "number");
   }
 }
 
@@ -594,8 +620,11 @@ function assertChangedFileBoundary() {
     smokeFile,
     dryRunSmokeFile,
     hardeningSmokeFile,
+    executionHardeningSmokeFile,
     docFile,
+    executionHardeningDocFile,
     reportFile,
+    executionHardeningReportFile,
     fixtureFile,
   ]);
   for (const changedFile of collectChangedFiles()) {

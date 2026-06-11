@@ -678,9 +678,12 @@ function assertChangedFileBoundary() {
     "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-dry-run-hardening.md",
     dryRunFixtureFile,
     "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_V0_1.md",
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_HARDENING_V0_1.md",
     "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution.md",
+    "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution-hardening.md",
     "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json",
     "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution.mjs",
+    "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution-hardening.mjs",
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(

@@ -106,6 +106,7 @@
       "execution_readiness is for future execution review only, not permission to execute automatically."
     ]
   },
+  "execution_result": "success",
   "failure_kind": null,
   "helper_command_argv": [
     "npm",
@@ -123,6 +124,15 @@
   "helper_command_kind": "existing_capture_helper_prepare",
   "helper_exit_code": 0,
   "helper_exit_status": "success",
+  "helper_invocation_attempted": true,
+  "helper_metadata_checks": {
+    "generated_at_match": true,
+    "metadata_parse_status": "parsed",
+    "metadata_source_prompt_hash": "2xhw7m",
+    "prompt_file_sha256": "d0b3aa85b0851059306fa0cab383527f03d3ac89db38233cf73b9b3d7a3b870c",
+    "prompt_hash_match": "not_comparable",
+    "source_input_hash_match": true
+  },
   "helper_out_dir": "/tmp/augnes-codex-former-local-adapter-prepare-execution",
   "helper_output_hashes": {
     "former_input_packet_hash": null,
@@ -149,19 +159,79 @@
     "prompt_size_bytes": 11197,
     "return_envelope_template_size_bytes": 788
   },
+  "helper_process_started": true,
   "helper_stderr_summary": {
+    "helper_kv_line_count": 0,
     "included_line_count": 0,
     "line_count": 0,
+    "line_events": [],
     "lines": [],
     "max_chars": 4000,
     "max_lines": 40,
+    "normalized_lines": [],
+    "npm_wrapper_line_count": 0,
     "omitted_line_count": 0,
     "truncated": false,
     "unsafe_marker_omitted": false
   },
   "helper_stdout_summary": {
+    "helper_kv_line_count": 9,
     "included_line_count": 13,
     "line_count": 13,
+    "line_events": [
+      {
+        "category": "blank",
+        "text": ""
+      },
+      {
+        "category": "npm_wrapper",
+        "text": "[npm-wrapper]"
+      },
+      {
+        "category": "npm_wrapper",
+        "text": "[npm-wrapper]"
+      },
+      {
+        "category": "blank",
+        "text": ""
+      },
+      {
+        "category": "helper_kv",
+        "text": "mode=prepare"
+      },
+      {
+        "category": "helper_kv",
+        "text": "capture_source_kind=bounded_source_input_file"
+      },
+      {
+        "category": "helper_kv",
+        "text": "source_input_hash=293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa"
+      },
+      {
+        "category": "helper_kv",
+        "text": "source_manual_copy_packet_id=manual-codex-former-copy:v0.1:1d44vfz"
+      },
+      {
+        "category": "helper_kv",
+        "text": "source_former_input_packet_id=codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami"
+      },
+      {
+        "category": "helper_kv",
+        "text": "source_prompt_hash=2xhw7m"
+      },
+      {
+        "category": "helper_kv",
+        "text": "copyable_prompt_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-copyable-prompt.txt"
+      },
+      {
+        "category": "helper_kv",
+        "text": "capture_return_envelope_template_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-return-envelope-template.txt"
+      },
+      {
+        "category": "helper_kv",
+        "text": "metadata_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-metadata.json"
+      }
+    ],
     "lines": [
       "",
       "> augnes@0.1.0 perspective:codex-former:capture-packet",
@@ -179,11 +249,28 @@
     ],
     "max_chars": 4000,
     "max_lines": 40,
+    "normalized_lines": [
+      "",
+      "[npm-wrapper]",
+      "[npm-wrapper]",
+      "",
+      "mode=prepare",
+      "capture_source_kind=bounded_source_input_file",
+      "source_input_hash=293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+      "source_manual_copy_packet_id=manual-codex-former-copy:v0.1:1d44vfz",
+      "source_former_input_packet_id=codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami",
+      "source_prompt_hash=2xhw7m",
+      "copyable_prompt_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-copyable-prompt.txt",
+      "capture_return_envelope_template_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-return-envelope-template.txt",
+      "metadata_path=/tmp/augnes-codex-former-local-adapter-prepare-execution/codex-former-capture-metadata.json"
+    ],
+    "npm_wrapper_line_count": 2,
     "omitted_line_count": 0,
     "truncated": false,
     "unsafe_marker_omitted": false
   },
   "next_safe_action": "Use the generated manual copy packet / prompt in a separate user-started Codex session, then return exactly one candidate envelope for validation.",
+  "output_discovery_caveats": [],
   "output_discovery_status": "complete",
   "preflight_summary_hash": "5c81f213100aa9295e4f3fa6d987c0d627ab302e8175310fa8889fe0405d24da",
   "preflight_summary_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input-preflight-summary.json",
