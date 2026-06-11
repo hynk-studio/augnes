@@ -2,10 +2,11 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import localAdapter from "../lib/perspective-ingest/codex-former-local-adapter-manifest-to-source-input.ts";
 import prepareOrchestration from "../lib/perspective-ingest/codex-former-local-adapter-prepare-orchestration.ts";
@@ -29,6 +30,8 @@ const valueRequiredOptions = new Set([
 ]);
 
 const booleanOptions = new Set(["dry-run"]);
+const captureHelperPackageScript = "perspective:codex-former:capture-packet";
+const captureHelperScriptPath = "scripts/perspective-codex-former-capture-helper.mjs";
 
 export function runLocalAdapterPrepareOrchestrationCli(argv) {
   const options = parseOptions(argv);
@@ -47,7 +50,7 @@ export function runLocalAdapterPrepareOrchestrationCli(argv) {
   const preflightSummaryReadPath = resolve(preflightSummaryPath);
   const helperOutDir = String(options["out-dir"]);
   const helperOutDirPath = resolve(helperOutDir);
-  ensureOutDirShape(helperOutDirPath, "--out-dir");
+  const helperOutDirStatus = inspectOutDirShape(helperOutDirPath, "--out-dir");
 
   const prepareSummaryPath = hasText(options["prepare-summary-out"])
     ? String(options["prepare-summary-out"])
@@ -57,14 +60,20 @@ export function runLocalAdapterPrepareOrchestrationCli(argv) {
     : null;
   if (prepareSummaryWritePath) {
     ensureWritableFilePath(prepareSummaryWritePath, "--prepare-summary-out");
+    if (isInsideOrEqual(helperOutDirPath, prepareSummaryWritePath)) {
+      throw new Error("prepare.prepare_summary_out must not be inside helper out-dir");
+    }
     ensureDistinctPaths([
       ["--source-input", sourceInputReadPath],
       ["--preflight-summary", preflightSummaryReadPath],
+      ...(hasText(options.manifest)
+        ? [["--manifest", resolve(String(options.manifest))]]
+        : []),
       ["--prepare-summary-out", prepareSummaryWritePath],
     ]);
   }
 
-  const sourceInputText = readFile(sourceInputReadPath, "source input");
+  const sourceInputText = readFile(sourceInputReadPath, "prepare.source_input_path");
   const sourceInput = assertCodexFormerLocalAdapterSourceInput(
     parseJson(sourceInputText, "source input file"),
   );
@@ -73,7 +82,7 @@ export function runLocalAdapterPrepareOrchestrationCli(argv) {
 
   const preflightSummaryText = readFile(
     preflightSummaryReadPath,
-    "preflight summary",
+    "prepare.preflight_summary_path",
   );
   const preflightSummary = parseJson(
     preflightSummaryText,
@@ -104,6 +113,11 @@ export function runLocalAdapterPrepareOrchestrationCli(argv) {
     expectedSourceInputHash: hasText(options["expected-source-input-hash"])
       ? String(options["expected-source-input-hash"])
       : null,
+    helperAvailability: readHelperAvailability(),
+    helperOutDirStatus,
+    prepareSummaryOutsideHelperOutDir: prepareSummaryWritePath
+      ? !isInsideOrEqual(helperOutDirPath, prepareSummaryWritePath)
+      : true,
   });
 
   if (prepareSummaryWritePath) {
@@ -116,7 +130,7 @@ export function runLocalAdapterPrepareOrchestrationCli(argv) {
 
 function readManifest(manifestPath) {
   const manifestReadPath = resolve(manifestPath);
-  const manifestText = readFile(manifestReadPath, "manifest");
+  const manifestText = readFile(manifestReadPath, "prepare.manifest_path");
   const manifest = assertCodexFormerLocalAdapterManifest(
     parseJson(manifestText, "manifest file"),
   );
@@ -183,10 +197,18 @@ function writeTextFile(path, text) {
   writeFileSync(path, text, "utf8");
 }
 
-function ensureOutDirShape(path, optionLabel) {
+function inspectOutDirShape(path, optionLabel) {
   if (existsSync(path) && !statSync(path).isDirectory()) {
     throw new Error(`option ${optionLabel} must not point to an existing file`);
   }
+  if (existsSync(path) && readdirSync(path).length > 0) {
+    throw new Error("prepare.out_dir must not be a non-empty directory");
+  }
+  return {
+    existsAsFile: false,
+    existsAsNonEmptyDirectory: false,
+    createdByDryRun: false,
+  };
 }
 
 function ensureWritableFilePath(path, optionLabel) {
@@ -205,6 +227,36 @@ function ensureDistinctPaths(entries) {
     }
     seen.set(path, optionLabel);
   }
+}
+
+function isInsideOrEqual(parentPath, childPath) {
+  const relativePath = relative(parentPath, childPath);
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !isAbsolute(relativePath))
+  );
+}
+
+function readHelperAvailability() {
+  const packageJsonPath = resolve("package.json");
+  let packageScriptPresent = false;
+  try {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    packageScriptPresent = Boolean(
+      packageJson?.scripts?.[captureHelperPackageScript],
+    );
+  } catch {
+    packageScriptPresent = false;
+  }
+  const helperReadPath = resolve(captureHelperScriptPath);
+  const scriptPresent = existsSync(helperReadPath);
+  const scriptIsFile = scriptPresent && statSync(helperReadPath).isFile();
+  return {
+    packageScriptPresent,
+    scriptPath: captureHelperScriptPath,
+    scriptPresent,
+    scriptIsFile,
+  };
 }
 
 function printSummary(summary, prepareSummaryPath) {

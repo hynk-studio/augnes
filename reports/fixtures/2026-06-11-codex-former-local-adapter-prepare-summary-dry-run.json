@@ -25,9 +25,85 @@
   "caveats": [
     "Dry-run only; helper was not executed.",
     "No Codex call was made.",
-    "No clipboard automation was performed."
+    "No clipboard automation was performed.",
+    "execution_readiness is not permission to execute automatically."
   ],
   "dry_run": true,
+  "execution_readiness": {
+    "status": "ready",
+    "blockers": [],
+    "checked_requirements": [
+      {
+        "status": "passed",
+        "detail": "Source input passed local adapter preflight validation.",
+        "id": "source_input_valid"
+      },
+      {
+        "status": "passed",
+        "detail": "Source input hash matched the passed preflight summary.",
+        "id": "source_input_hash_matches_preflight"
+      },
+      {
+        "status": "passed",
+        "detail": "Preflight summary shape is valid.",
+        "id": "preflight_summary_valid"
+      },
+      {
+        "status": "passed",
+        "detail": "Preflight summary status is passed.",
+        "id": "preflight_status_passed"
+      },
+      {
+        "status": "passed",
+        "detail": "package.json defines perspective:codex-former:capture-packet.",
+        "id": "helper_package_script_present"
+      },
+      {
+        "status": "passed",
+        "detail": "scripts/perspective-codex-former-capture-helper.mjs exists and is a file.",
+        "id": "helper_script_present"
+      },
+      {
+        "status": "passed",
+        "detail": "Helper command argv was constructed as an array and not executed.",
+        "id": "helper_command_argv_constructed"
+      },
+      {
+        "status": "passed",
+        "detail": "Dry-run did not create the helper out-dir.",
+        "id": "helper_out_dir_not_created_by_dry_run"
+      },
+      {
+        "status": "passed",
+        "detail": "Helper out-dir is not an existing file.",
+        "id": "helper_out_dir_not_existing_file"
+      },
+      {
+        "status": "passed",
+        "detail": "Helper out-dir is not a non-empty directory.",
+        "id": "helper_out_dir_not_non_empty_directory"
+      },
+      {
+        "status": "passed",
+        "detail": "Prepare summary output is outside the helper out-dir.",
+        "id": "prepare_summary_outside_helper_out_dir"
+      },
+      {
+        "status": "passed",
+        "detail": "Dry-run summary authority flags remain false.",
+        "id": "no_forbidden_authority_behavior"
+      },
+      {
+        "status": "passed",
+        "detail": "Prepare helper and validate helper were not executed.",
+        "id": "no_helper_execution"
+      }
+    ],
+    "ready_for_prepare_execution": true,
+    "warnings": [
+      "execution_readiness is for future execution review only, not permission to execute automatically."
+    ]
+  },
   "helper_command_argv": [
     "npm",
     "run",
@@ -40,6 +116,7 @@
     "--generated-at",
     "2026-06-11T00:00:00.000Z"
   ],
+  "helper_command_argv_hash": "bc37286f39c1a57504d908ea7d1e5205cfb0c17bb0d0e3975746be14a7235833",
   "helper_command_kind": "existing_capture_helper_prepare",
   "helper_command_summary": "Dry-run argv for existing capture helper prepare mode with bounded source input and explicit out-dir; command was not executed.",
   "helper_exit_status": "not_run",
