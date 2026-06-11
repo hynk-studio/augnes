@@ -1,0 +1,140 @@
+{
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "warning_count": 2,
+  "authority_flags": {
+    "accepted_state_created": false,
+    "proof_evidence_readiness_created": false,
+    "review_decision_created": false,
+    "provider_model_calls": false,
+    "codex_sdk_calls": false,
+    "github_api_calls": false,
+    "db_writes": false,
+    "clipboard_automation": false,
+    "live_codex_capture": false,
+    "runtime_fixture_mutation": false,
+    "core_decision": false,
+    "network_calls": false,
+    "prepare_helper_executed": true,
+    "surface_export_created": false,
+    "validate_helper_executed": false
+  },
+  "accepted_state": false,
+  "authority_facts": [
+    {
+      "label": "review_only",
+      "value": "true"
+    },
+    {
+      "label": "accepted_state",
+      "value": "false"
+    },
+    {
+      "label": "candidate_count",
+      "value": "0"
+    },
+    {
+      "label": "decision_authority",
+      "value": "none"
+    },
+    {
+      "label": "prepare_helper_executed",
+      "value": "operational_provenance_only"
+    },
+    {
+      "label": "validate_helper_executed",
+      "value": "false"
+    }
+  ],
+  "authority_tags": [
+    "review_only",
+    "no_accepted_state",
+    "no_validate_helper",
+    "no_codex_call",
+    "no_review_decision"
+  ],
+  "badges": [
+    "prepared",
+    "waiting"
+  ],
+  "blocked_reason_count": 0,
+  "blocked_reason_summary": {
+    "examples": [],
+    "label": "No blocked reasons"
+  },
+  "candidate_count": 0,
+  "caveat": "Manual Codex return has not been captured.",
+  "evidence": {
+    "execution_result": "success",
+    "helper_command_argv_hash": "8bf47c6725c3e30a06c352c061ce9b6d8d730754d446376f371c7a584679354a",
+    "helper_out_dir": "/tmp/augnes-codex-former-local-adapter-prepare-execution",
+    "helper_output_hashes": {
+      "former_input_packet_hash": null,
+      "helper_metadata_hash": "2a13e0127991061e1b82d6e243558be41b4762f3f8e5a5a073e20919fe68816c",
+      "manual_copy_packet_hash": null,
+      "prompt_hash": "d0b3aa85b0851059306fa0cab383527f03d3ac89db38233cf73b9b3d7a3b870c",
+      "return_envelope_template_hash": "ed314934dc470c96a77eb487980fd4dde013fd45f609a121999dbbf3fd0cf989"
+    },
+    "helper_output_refs": {
+      "former_input_packet_ref": "codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami",
+      "manual_copy_packet_ref": "manual-codex-former-copy:v0.1:1d44vfz"
+    },
+    "helper_output_sizes": {
+      "former_input_packet_size_bytes": null,
+      "helper_metadata_size_bytes": 12271,
+      "manual_copy_packet_size_bytes": null,
+      "prompt_size_bytes": 11197,
+      "return_envelope_template_size_bytes": 788
+    },
+    "operational_provenance_only": true,
+    "output_discovery_status": "complete",
+    "prepare_execution_summary_hash": "e5206191273134cbcc8d72a2b740cb6d0cd27e151cfa17040afc7159725ea61b",
+    "prepare_execution_summary_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json",
+    "prepare_helper_executed": true,
+    "validate_helper_executed": false
+  },
+  "item_id": "local-adapter-prepared-waiting-for-codex-return",
+  "metadata_match": "not_run",
+  "next_safe_action": "Use generated prompt/manual copy packet in a separate user-started Codex session, then return exactly one candidate envelope.",
+  "primary_status": "Prepared, waiting for Codex return",
+  "privacy": {
+    "bounded_summaries_only": true,
+    "raw_payloads_included": false,
+    "unsafe_input_material_omitted": true
+  },
+  "review_only": true,
+  "reviewability": "waiting",
+  "safe_links": {
+    "constellation_preview": {
+      "available": false,
+      "detail": "Constellation Preview is not available before a returned candidate is validated.",
+      "href": null,
+      "label": "Not ready"
+    },
+    "session_panel": {
+      "available": false,
+      "detail": "Session Panel snapshot/status is available as a local snapshot reference only.",
+      "href": null,
+      "label": "Session Panel local snapshot"
+    }
+  },
+  "snapshot_kind": "capture_review_inbox_item",
+  "snapshot_version": "codex_former_local_adapter_inbox_item_snapshot.v0.1",
+  "source": {
+    "manifest_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-manifest-valid.json",
+    "manifest_hash": "3eb081ae5e7b6aff3722f58ed22c6336c8eb166e89d86135f5525a7af782ba60",
+    "source_input_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+    "source_input_hash": "293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+    "preflight_status": "passed",
+    "preflight_summary_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input-preflight-summary.json"
+  },
+  "source_session_label": "Local Codex adapter manifest-to-source-input implementation",
+  "stage": "prepared_waiting_for_codex_return",
+  "title": "Prepared, waiting for Codex return",
+  "warning_summary": {
+    "examples": [
+      "Manual Codex return has not been captured.",
+      "Validation has not run."
+    ],
+    "label": "Prepared waiting state"
+  }
+}

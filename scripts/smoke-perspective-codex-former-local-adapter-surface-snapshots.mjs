@@ -30,12 +30,22 @@ const cliFile =
   "scripts/perspective-codex-former-local-adapter-surface-snapshots.mjs";
 const smokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-surface-snapshots.mjs";
+const prepareOutputSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-prepare-output-snapshots.mjs";
+const prepareExecutionSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution.mjs";
+const prepareExecutionHardeningSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution-hardening.mjs";
 const preflightSmokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-source-input-preflight-hardening.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_SURFACE_SNAPSHOTS_V0_1.md";
+const prepareOutputDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_OUTPUT_SNAPSHOTS_V0_1.md";
 const reportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-surface-snapshots.md";
+const prepareOutputReportFile =
+  "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-output-snapshots.md";
 const validManifestFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-manifest-valid.json";
 const sourceInputFixtureFile =
@@ -50,6 +60,12 @@ const inboxNotReadyFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-not-ready.json";
 const inboxWaitingFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-waiting.json";
+const sessionPreparedFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-snapshot-prepared.json";
+const inboxPreparedFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-prepared.json";
+const preparedSummaryFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-output-snapshot-summary.json";
 const sessionFixtureHelperFile =
   "lib/perspective-ingest/codex-former-session-perspective-panel-fixture-surface.ts";
 const inboxFixtureHelperFile =
@@ -119,16 +135,24 @@ function assertFilesExist() {
     adapterLibFile,
     cliFile,
     smokeFile,
+    prepareOutputSmokeFile,
+    prepareExecutionSmokeFile,
+    prepareExecutionHardeningSmokeFile,
     preflightSmokeFile,
     docFile,
+    prepareOutputDocFile,
     reportFile,
+    prepareOutputReportFile,
     validManifestFixtureFile,
     sourceInputFixtureFile,
     preflightSummaryFixtureFile,
     sessionNotReadyFixtureFile,
     sessionWaitingFixtureFile,
+    sessionPreparedFixtureFile,
     inboxNotReadyFixtureFile,
     inboxWaitingFixtureFile,
+    inboxPreparedFixtureFile,
+    preparedSummaryFixtureFile,
     sessionFixtureHelperFile,
     inboxFixtureHelperFile,
   ]) {
@@ -147,8 +171,10 @@ function assertSourceContracts() {
     "validateCodexFormerLocalAdapterSurfaceSnapshotInputs",
     "not-prepared",
     "waiting-for-candidate",
+    "prepared-waiting-for-codex-return",
     "not_ready",
     "waiting",
+    "prepared_waiting_for_codex_return",
   ]);
   assertIncludesAll(cliText, [
     "manifest",
@@ -628,14 +654,22 @@ function assertChangedFileBoundary() {
     libFile,
     cliFile,
     smokeFile,
+    prepareOutputSmokeFile,
+    prepareExecutionSmokeFile,
+    prepareExecutionHardeningSmokeFile,
     preflightSmokeFile,
     docFile,
+    prepareOutputDocFile,
     reportFile,
+    prepareOutputReportFile,
     preflightSummaryFixtureFile,
     sessionNotReadyFixtureFile,
     sessionWaitingFixtureFile,
+    sessionPreparedFixtureFile,
     inboxNotReadyFixtureFile,
     inboxWaitingFixtureFile,
+    inboxPreparedFixtureFile,
+    preparedSummaryFixtureFile,
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(

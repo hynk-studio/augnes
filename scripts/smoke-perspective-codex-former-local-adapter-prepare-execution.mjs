@@ -14,26 +14,44 @@ import { join } from "node:path";
 const packageFile = "package.json";
 const libFile =
   "lib/perspective-ingest/codex-former-local-adapter-prepare-orchestration.ts";
+const surfaceSnapshotsLibFile =
+  "lib/perspective-ingest/codex-former-local-adapter-surface-snapshots.ts";
 const cliFile =
   "scripts/perspective-codex-former-local-adapter-prepare-orchestration.mjs";
+const surfaceSnapshotsCliFile =
+  "scripts/perspective-codex-former-local-adapter-surface-snapshots.mjs";
 const smokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution.mjs";
+const surfaceSnapshotsSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-surface-snapshots.mjs";
 const dryRunSmokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-orchestration-dry-run.mjs";
 const hardeningSmokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-dry-run-hardening.mjs";
 const executionHardeningSmokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution-hardening.mjs";
+const prepareOutputSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-prepare-output-snapshots.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_V0_1.md";
 const executionHardeningDocFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_HARDENING_V0_1.md";
+const prepareOutputDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_OUTPUT_SNAPSHOTS_V0_1.md";
 const reportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution.md";
 const executionHardeningReportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution-hardening.md";
+const prepareOutputReportFile =
+  "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-output-snapshots.md";
 const fixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json";
+const sessionPreparedFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-snapshot-prepared.json";
+const inboxPreparedFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-prepared.json";
+const preparedSummaryFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-output-snapshot-summary.json";
 const sourceInputFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json";
 const preflightSummaryFixtureFile =
@@ -100,8 +118,11 @@ function assertFilesExist() {
   for (const file of [
     packageFile,
     libFile,
+    surfaceSnapshotsLibFile,
     cliFile,
+    surfaceSnapshotsCliFile,
     smokeFile,
+    surfaceSnapshotsSmokeFile,
     executionHardeningSmokeFile,
     docFile,
     executionHardeningDocFile,
@@ -616,16 +637,25 @@ function assertChangedFileBoundary() {
   const allowedChangedFiles = new Set([
     packageFile,
     libFile,
+    surfaceSnapshotsLibFile,
     cliFile,
+    surfaceSnapshotsCliFile,
     smokeFile,
+    surfaceSnapshotsSmokeFile,
     dryRunSmokeFile,
     hardeningSmokeFile,
     executionHardeningSmokeFile,
+    prepareOutputSmokeFile,
     docFile,
     executionHardeningDocFile,
+    prepareOutputDocFile,
     reportFile,
     executionHardeningReportFile,
+    prepareOutputReportFile,
     fixtureFile,
+    sessionPreparedFixtureFile,
+    inboxPreparedFixtureFile,
+    preparedSummaryFixtureFile,
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(
