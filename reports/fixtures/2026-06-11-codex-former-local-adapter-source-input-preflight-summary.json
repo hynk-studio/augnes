@@ -1,0 +1,23 @@
+{
+  "preflight_summary_version": "codex_former_local_adapter_source_input_preflight_summary.v0.1",
+  "mode": "source-input-preflight",
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "source_input_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+  "source_input_hash": "293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+  "status": "passed",
+  "errors": [],
+  "warning_count": 0,
+  "authority_flags": {
+    "accepted_state_created": false,
+    "proof_evidence_readiness_created": false,
+    "review_decision_created": false,
+    "provider_model_calls": false,
+    "codex_sdk_calls": false,
+    "github_api_calls": false,
+    "db_writes": false,
+    "clipboard_automation": false,
+    "live_codex_capture": false,
+    "runtime_fixture_mutation": false,
+    "core_decision": false
+  }
+}
