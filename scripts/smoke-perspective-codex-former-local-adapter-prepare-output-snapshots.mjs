@@ -24,10 +24,20 @@ const prepareExecutionHardeningSmokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-execution-hardening.mjs";
 const smokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-prepare-output-snapshots.mjs";
+const snapshotSurfaceIntegrationSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-snapshot-surface-integration.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_PREPARE_OUTPUT_SNAPSHOTS_V0_1.md";
+const snapshotSurfaceIntegrationDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_SNAPSHOT_SURFACE_INTEGRATION_V0_1.md";
 const reportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-output-snapshots.md";
+const snapshotSurfaceIntegrationReportFile =
+  "reports/2026-06-11-perspective-codex-former-local-adapter-snapshot-surface-integration.md";
+const snapshotSurfaceIntegrationLibFile =
+  "lib/perspective-ingest/codex-former-local-adapter-snapshot-surface-integration.ts";
+const snapshotSurfaceIntegrationCliFile =
+  "scripts/perspective-codex-former-local-adapter-snapshot-surface-integration.mjs";
 const manifestFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-manifest-valid.json";
 const sourceInputFixtureFile =
@@ -50,6 +60,12 @@ const inboxPreparedFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-prepared.json";
 const preparedSummaryFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-output-snapshot-summary.json";
+const sessionSurfaceViewModelsFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-surface-view-models.json";
+const inboxSurfaceViewModelsFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-surface-view-models.json";
+const snapshotSurfaceIntegrationReadinessFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-snapshot-surface-integration-readiness.json";
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
 
@@ -683,11 +699,19 @@ function assertChangedFileBoundary() {
     prepareExecutionSmokeFile,
     prepareExecutionHardeningSmokeFile,
     smokeFile,
+    snapshotSurfaceIntegrationSmokeFile,
     docFile,
+    snapshotSurfaceIntegrationDocFile,
     reportFile,
+    snapshotSurfaceIntegrationReportFile,
+    snapshotSurfaceIntegrationLibFile,
+    snapshotSurfaceIntegrationCliFile,
     sessionPreparedFixtureFile,
     inboxPreparedFixtureFile,
     preparedSummaryFixtureFile,
+    sessionSurfaceViewModelsFixtureFile,
+    inboxSurfaceViewModelsFixtureFile,
+    snapshotSurfaceIntegrationReadinessFixtureFile,
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(
