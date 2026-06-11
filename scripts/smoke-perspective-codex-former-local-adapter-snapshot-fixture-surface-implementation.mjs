@@ -26,6 +26,16 @@ const smokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-snapshot-fixture-surface-implementation.mjs";
 const browserSmokeFile =
   "scripts/browser-smoke-perspective-codex-former-local-adapter-snapshot-fixture-surface.mjs";
+const hardeningDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_SNAPSHOT_FIXTURE_SURFACE_HARDENING_V0_1.md";
+const hardeningReportFile =
+  "reports/2026-06-11-perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening.md";
+const hardeningBrowserReportFile =
+  "reports/browser/2026-06-11-perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening.md";
+const hardeningSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening.mjs";
+const hardeningBrowserSmokeFile =
+  "scripts/browser-smoke-perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening.mjs";
 const sessionFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-surface-view-models.json";
 const inboxFixtureFile =
@@ -426,6 +436,11 @@ function assertChangedFileBoundary() {
     browserReportFile,
     smokeFile,
     browserSmokeFile,
+    hardeningDocFile,
+    hardeningReportFile,
+    hardeningBrowserReportFile,
+    hardeningSmokeFile,
+    hardeningBrowserSmokeFile,
   ]);
 
   for (const file of allChanged) {

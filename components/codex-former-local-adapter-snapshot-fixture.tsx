@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  FORBIDDEN_INTERACTIVE_CONTROL_COPY,
   filterLocalAdapterSnapshotInboxItems,
+  normalizeAuthorityFlagsForDisplay,
   type LocalAdapterSnapshotFixtureSurfaceFilter,
   type LocalAdapterSnapshotFixtureSurfaceValidation,
 } from "@/lib/perspective-ingest/codex-former-local-adapter-snapshot-fixture-surface";
@@ -176,6 +178,7 @@ function SessionPanelPreview({
 
       <div
         className="codex-former-adapter-snapshot-button-row"
+        role="group"
         aria-label="Session scenario selector"
       >
         {scenarios.map((scenario) => (
@@ -188,6 +191,7 @@ function SessionPanelPreview({
                 ? "codex-former-adapter-snapshot-chip is-active"
                 : "codex-former-adapter-snapshot-chip"
             }
+            aria-label={`Show ${scenario.snapshot_state} local snapshot preview. This is not validation, review, acceptance, or handoff.`}
             data-augnes-snapshot-scenario={scenario.snapshot_state}
             onClick={() => onScenarioChange(scenario.scenario_id)}
           >
@@ -198,10 +202,18 @@ function SessionPanelPreview({
 
       <article
         className={`codex-former-adapter-snapshot-status tone-${selectedScenario.display_tone}`}
+        aria-label={`${selectedScenario.primary_status_label}. ${selectedScenario.caveat_label}. review-only ${selectedScenario.review_only}. accepted state ${selectedScenario.accepted_state}. validation available ${selectedScenario.handoff_status.validation_available}. Constellation available ${selectedScenario.handoff_status.constellation_available}.`}
       >
         <h3>Status Card</h3>
         <strong>{selectedScenario.primary_status_label}</strong>
         <p>{selectedScenario.caveat_label}</p>
+        {selectedScenario.snapshot_state ===
+        "prepared_waiting_for_codex_return" ? (
+          <p className="codex-former-adapter-snapshot-status-note">
+            Prepared here means local snapshot inspection only; it is not
+            approved, not reviewable, not validated, and not a graph handoff.
+          </p>
+        ) : null}
         <dl>
           <DetailRow
             label="next safe action"
@@ -229,6 +241,7 @@ function SessionPanelPreview({
               selectedScenario.handoff_status.returned_candidate_available,
             )}
           />
+          <DetailRow label="review candidate available" value="false" />
           <DetailRow
             label="prepare_helper_executed"
             value={
@@ -240,6 +253,22 @@ function SessionPanelPreview({
           />
         </dl>
       </article>
+
+      <section className="codex-former-adapter-snapshot-handoff-boundary">
+        <h3>Local Snapshot / Handoff Boundary</h3>
+        <dl>
+          <DetailRow
+            label="local snapshot inspection"
+            value="visible in this read-only fixture surface"
+          />
+          <DetailRow
+            label="graph/review handoff"
+            value="unavailable"
+          />
+          <DetailRow label="runtime/product navigation" value="unavailable" />
+          <DetailRow label="validation handoff" value="unavailable" />
+        </dl>
+      </section>
 
       <section className="codex-former-adapter-snapshot-timeline">
         <h3>Compact Timeline</h3>
@@ -364,6 +393,7 @@ function CaptureReviewInboxPreview({
 
       <div
         className="codex-former-adapter-snapshot-button-row"
+        role="group"
         aria-label="Inbox filter bar"
       >
         {inboxViewModels.filters.map((filter) => (
@@ -376,6 +406,7 @@ function CaptureReviewInboxPreview({
                 ? "codex-former-adapter-snapshot-chip is-active"
                 : "codex-former-adapter-snapshot-chip"
             }
+            aria-label={`Filter adapter snapshot inbox by ${filter}. This filter is local only and not an action.`}
             data-augnes-snapshot-filter={filter}
             onClick={() => onFilterChange(filter)}
           >
@@ -402,6 +433,7 @@ function CaptureReviewInboxPreview({
                   : `codex-former-adapter-snapshot-item tone-${item.display_tone}`
               }
               data-augnes-snapshot-inbox-item={item.item_id}
+              aria-label={buildInboxItemAriaLabel(item)}
               onClick={() => onItemSelect(item.item_id)}
             >
               <strong>{item.title}</strong>
@@ -426,7 +458,7 @@ function CaptureReviewInboxPreview({
               <span className="codex-former-adapter-snapshot-badge-row">
                 <small>warning count {item.warning_count}</small>
                 <small>candidate_count {item.candidate_count}</small>
-                <small>blocked_reason_count {item.blocked_reason_count}</small>
+                <small>hold_reason_count {item.blocked_reason_count}</small>
               </span>
             </button>
           ))}
@@ -463,8 +495,12 @@ function CaptureReviewInboxPreview({
                   label="reviewable count"
                   value={String(inboxViewModels.counts.reviewable)}
                 />
+                <DetailRow label="accepted state" value="false" />
+                <DetailRow label="validation unavailable" value="true" />
+                <DetailRow label="Constellation unavailable" value="true" />
+                <DetailRow label="review candidate unavailable" value="true" />
               </dl>
-              <SafeLinks item={selectedItem} />
+              <HandoffAvailability item={selectedItem} />
             </>
           ) : (
             <p>No item selected.</p>
@@ -516,6 +552,13 @@ function CaptureReviewInboxPreview({
               <DetailRow label="accepted state" value="false" />
               <DetailRow label="review decision" value="false" />
               <DetailRow label="Constellation link" value="unavailable" />
+              {buildInboxAuthorityFlagsForDisplay(selectedItem).map((flag) => (
+                <DetailRow
+                  key={flag.label}
+                  label={flag.label}
+                  value={flag.value}
+                />
+              ))}
             </dl>
           </details>
 
@@ -559,12 +602,15 @@ function IntegrationReadinessPreview({
   return (
     <section
       className="codex-former-adapter-snapshot-readiness"
-      aria-label="Integration Readiness"
+      aria-label="Integration Readiness. Implementation readiness only, not product readiness."
     >
       <header>
         <p className="panel-eyebrow">Integration Readiness</p>
         <h2>Integration Readiness</h2>
-        <p>{readiness.status}</p>
+        <p>
+          {readiness.status}; implementation readiness only, not product
+          readiness, validation, acceptance, or runtime handoff.
+        </p>
       </header>
 
       <div className="codex-former-adapter-snapshot-readiness-grid">
@@ -591,9 +637,15 @@ function IntegrationReadinessPreview({
                   : "false"
               }
             />
-            {Object.entries(readiness.authority_flags).map(([label, value]) => (
-              <DetailRow key={label} label={label} value={String(value)} />
-            ))}
+            {normalizeAuthorityFlagsForDisplay(readiness.authority_flags).map(
+              (flag) => (
+                <DetailRow
+                  key={flag.label}
+                  label={flag.label}
+                  value={flag.value}
+                />
+              ),
+            )}
           </dl>
         </section>
       </div>
@@ -633,7 +685,7 @@ function IntegrationReadinessPreview({
           <small>policy text only; not controls, links, or next actions</small>
         </summary>
         <div className="codex-former-adapter-snapshot-tag-row">
-          {readiness.copy_and_density_policy.prohibited_control_copy.map((term) => (
+          {FORBIDDEN_INTERACTIVE_CONTROL_COPY.map((term) => (
             <span key={term}>{term}</span>
           ))}
         </div>
@@ -691,30 +743,71 @@ function AuthorityFacts({
         {facts.map((fact) => (
           <DetailRow key={fact.label} label={fact.label} value={fact.value} />
         ))}
-        {Object.entries(flags).map(([label, value]) => (
-          <DetailRow key={label} label={label} value={String(value)} />
+        {normalizeAuthorityFlagsForDisplay(flags).map((flag) => (
+          <DetailRow key={flag.label} label={flag.label} value={flag.value} />
         ))}
       </dl>
     </>
   );
 }
 
-function SafeLinks({ item }: { item: LocalAdapterInboxSurfaceItem }) {
+function HandoffAvailability({ item }: { item: LocalAdapterInboxSurfaceItem }) {
   return (
     <section className="codex-former-adapter-snapshot-safe-links">
-      <h4>Safe Links</h4>
+      <h4>Local Snapshot / Handoff Availability</h4>
       <span>
-        {item.safe_links.session_panel.label}: available{" "}
-        {String(item.safe_links.session_panel.available)};{" "}
+        Local snapshot inspection: visible in this read-only fixture surface.
+      </span>
+      <span>
+        {item.safe_links.session_panel.label}: link unavailable;{" "}
         {item.safe_links.session_panel.detail}
       </span>
       <span>
-        {item.safe_links.constellation_preview.label}: available{" "}
-        {String(item.safe_links.constellation_preview.available)};{" "}
+        {item.safe_links.constellation_preview.label}: handoff unavailable;{" "}
         {item.safe_links.constellation_preview.detail}
       </span>
+      <span>Validation handoff: unavailable before returned candidate validation.</span>
+      <span>Review candidate: unavailable for prepared local snapshots.</span>
     </section>
   );
+}
+
+function buildInboxItemAriaLabel(item: LocalAdapterInboxSurfaceItem) {
+  const isPrepared = item.stage === "prepared_waiting_for_codex_return";
+  return [
+    item.title,
+    `reviewability ${item.reviewability}`,
+    `candidate count ${item.candidate_count}`,
+    `hold reason count ${item.blocked_reason_count}`,
+    isPrepared ? "not reviewable" : null,
+    item.safe_links.constellation_preview.available
+      ? "Constellation handoff available"
+      : "no Constellation handoff",
+    "local selection only",
+  ]
+    .filter(Boolean)
+    .join(". ");
+}
+
+function buildInboxAuthorityFlagsForDisplay(item: LocalAdapterInboxSurfaceItem) {
+  return normalizeAuthorityFlagsForDisplay({
+    accepted_state_created: false,
+    proof_evidence_readiness_created: false,
+    review_decision_created: false,
+    surface_export_created: false,
+    validate_helper_executed: false,
+    prepare_helper_executed:
+      item.stage === "prepared_waiting_for_codex_return" ? true : false,
+    provider_model_calls: false,
+    codex_sdk_calls: false,
+    github_api_calls: false,
+    network_calls: false,
+    db_writes: false,
+    clipboard_automation: false,
+    live_codex_capture: false,
+    runtime_fixture_mutation: false,
+    core_decision: false,
+  });
 }
 
 function ReadinessList({

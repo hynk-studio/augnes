@@ -50,7 +50,49 @@ const uiForbiddenControlCopy = [
   "Deploy",
   "Validate",
   "Run Codex",
+  "PASS",
+  "BLOCKED",
 ];
+
+export const FORBIDDEN_INTERACTIVE_CONTROL_COPY = uiForbiddenControlCopy;
+
+export type LocalAdapterAuthorityFlagDisplay = {
+  label: string;
+  value: "false" | "operational provenance only";
+};
+
+const authorityFlagDisplayOrder = [
+  "accepted_state_created",
+  "proof_evidence_readiness_created",
+  "review_decision_created",
+  "surface_export_created",
+  "validate_helper_executed",
+  "prepare_helper_executed",
+  "provider_model_calls",
+  "codex_sdk_calls",
+  "github_api_calls",
+  "network_calls",
+  "db_writes",
+  "clipboard_automation",
+  "live_codex_capture",
+  "runtime_fixture_mutation",
+  "core_decision",
+];
+
+export function normalizeAuthorityFlagsForDisplay(
+  flags: Record<string, boolean | undefined> = {},
+): LocalAdapterAuthorityFlagDisplay[] {
+  return authorityFlagDisplayOrder.map((label) => {
+    const rawValue = flags[label] === true;
+    return {
+      label,
+      value:
+        label === "prepare_helper_executed" && rawValue
+          ? "operational provenance only"
+          : "false",
+    };
+  });
+}
 
 export function validateCodexFormerLocalAdapterSnapshotFixtureSurface(
   input: LocalAdapterSnapshotFixtureSurfaceInput,
@@ -197,10 +239,26 @@ export function validateCodexFormerLocalAdapterSnapshotFixtureSurface(
   ) {
     errors.push("prepared operational provenance must stay non-authorizing");
   }
+  for (const scenario of sessionViewModels.scenarios) {
+    const normalizedFlags = normalizeAuthorityFlagsForDisplay(
+      scenario.authority_details.flags,
+    );
+    if (
+      normalizedFlags.some(
+        (flag) =>
+          flag.label !== "prepare_helper_executed" &&
+          flag.value !== "false",
+      )
+    ) {
+      errors.push(`authority flags must not normalize to true: ${scenario.scenario_id}`);
+    }
+  }
 
   const policyTerms =
     readiness.copy_and_density_policy.prohibited_control_copy ?? [];
-  for (const term of uiForbiddenControlCopy) {
+  for (const term of uiForbiddenControlCopy.filter(
+    (term) => term !== "PASS" && term !== "BLOCKED",
+  )) {
     if (!policyTerms.includes(term)) {
       errors.push(`missing prohibited control-copy policy term: ${term}`);
     }
