@@ -38,6 +38,26 @@ const implementationReportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-manifest-to-source-input.md";
 const reportFile =
   "reports/2026-06-11-perspective-codex-former-local-adapter-source-input-preflight-hardening.md";
+const snapshotLibFile =
+  "lib/perspective-ingest/codex-former-local-adapter-surface-snapshots.ts";
+const snapshotCliFile =
+  "scripts/perspective-codex-former-local-adapter-surface-snapshots.mjs";
+const snapshotSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-surface-snapshots.mjs";
+const snapshotDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_SURFACE_SNAPSHOTS_V0_1.md";
+const snapshotReportFile =
+  "reports/2026-06-11-perspective-codex-former-local-adapter-surface-snapshots.md";
+const preflightSummaryFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input-preflight-summary.json";
+const sessionNotReadySnapshotFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-snapshot-not-ready.json";
+const sessionWaitingSnapshotFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-snapshot-waiting.json";
+const inboxNotReadySnapshotFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-not-ready.json";
+const inboxWaitingSnapshotFixtureFile =
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-waiting.json";
 const validManifestFixtureFile =
   "reports/fixtures/2026-06-11-codex-former-local-adapter-manifest-valid.json";
 const expectedSourceInputFixtureFile =
@@ -673,13 +693,23 @@ function assertChangedFileBoundary() {
   const allowedChangedFiles = new Set([
     packageFile,
     libFile,
+    snapshotLibFile,
     cliFile,
+    snapshotCliFile,
     manifestSmokeFile,
     smokeFile,
+    snapshotSmokeFile,
     docFile,
+    snapshotDocFile,
     reportFile,
+    snapshotReportFile,
     validManifestFixtureFile,
     expectedSourceInputFixtureFile,
+    preflightSummaryFixtureFile,
+    sessionNotReadySnapshotFixtureFile,
+    sessionWaitingSnapshotFixtureFile,
+    inboxNotReadySnapshotFixtureFile,
+    inboxWaitingSnapshotFixtureFile,
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(

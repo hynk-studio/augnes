@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "warning_count": 1,
+  "authority_flags": {
+    "accepted_state_created": false,
+    "proof_evidence_readiness_created": false,
+    "review_decision_created": false,
+    "provider_model_calls": false,
+    "codex_sdk_calls": false,
+    "github_api_calls": false,
+    "db_writes": false,
+    "clipboard_automation": false,
+    "live_codex_capture": false,
+    "runtime_fixture_mutation": false,
+    "core_decision": false
+  },
+  "accepted_state": false,
+  "authority_facts": [
+    {
+      "label": "review_only",
+      "value": "true"
+    },
+    {
+      "label": "accepted_state",
+      "value": "false"
+    },
+    {
+      "label": "candidate_count",
+      "value": "0"
+    },
+    {
+      "label": "decision_authority",
+      "value": "none"
+    }
+  ],
+  "authority_tags": [
+    "review_only",
+    "advisory_only",
+    "no_accepted_state",
+    "no_db_write",
+    "no_provider_call",
+    "no_codex_sdk_call",
+    "no_github_mutation",
+    "no_core_decision"
+  ],
+  "badges": [
+    "waiting",
+    "review_only"
+  ],
+  "blocked_reason_count": 0,
+  "blocked_reason_summary": {
+    "examples": [],
+    "label": "No blocked reasons"
+  },
+  "candidate_count": 0,
+  "caveat": "Source input preflight passed; returned candidate envelope is missing.",
+  "item_id": "capture-review:local-adapter:AG-codex-former-local-adapter-manifest-to-source-input:waiting",
+  "metadata_match": "not_run",
+  "next_safe_action": "Use the existing capture helper prepare output with a separate user-started Codex session, then return exactly one candidate envelope.",
+  "primary_status": "Waiting for returned candidate",
+  "privacy": {
+    "bounded_summaries_only": true,
+    "raw_payloads_included": false,
+    "unsafe_input_material_omitted": true
+  },
+  "review_only": true,
+  "reviewability": "waiting",
+  "safe_links": {
+    "constellation_preview": {
+      "available": false,
+      "detail": "No Constellation Preview handoff is available for not_ready or waiting adapter snapshots.",
+      "href": null,
+      "label": "Not ready"
+    },
+    "session_panel": {
+      "available": false,
+      "detail": "Session Panel snapshot is available as local JSON.",
+      "href": null,
+      "label": "Session Panel local snapshot"
+    }
+  },
+  "snapshot_kind": "capture_review_inbox_item",
+  "snapshot_version": "codex_former_local_adapter_inbox_item_snapshot.v0.1",
+  "source": {
+    "manifest_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-manifest-valid.json",
+    "manifest_hash": "3eb081ae5e7b6aff3722f58ed22c6336c8eb166e89d86135f5525a7af782ba60",
+    "source_input_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+    "source_input_hash": "293f5cf6b2af374b0d314a2a1f3542c66e5fa3a414914e831ffc8344f90267fa",
+    "preflight_status": "passed",
+    "preflight_summary_path": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input-preflight-summary.json"
+  },
+  "source_session_label": "Local Codex adapter manifest-to-source-input implementation",
+  "title": "Waiting for returned candidate",
+  "warning_summary": {
+    "examples": [
+      "Source input preflight passed; returned candidate envelope is pending."
+    ],
+    "label": "Waiting state"
+  }
+}
