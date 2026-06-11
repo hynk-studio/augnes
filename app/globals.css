@@ -1045,6 +1045,416 @@
   text-decoration: none;
 }
 
+.codex-former-inbox-shell {
+  width: min(1480px, calc(100% - 28px));
+}
+
+.codex-former-inbox-surface {
+  display: grid;
+  gap: 14px;
+  border-color: rgba(40, 93, 159, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.9));
+}
+
+.codex-former-inbox-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.72fr) minmax(230px, 0.72fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.codex-former-inbox-header h1 {
+  margin: 0;
+  color: #101827;
+  font-size: 1.82rem;
+  line-height: 1.08;
+}
+
+.codex-former-inbox-header p:not(.panel-eyebrow) {
+  max-width: 760px;
+  margin: 6px 0 0;
+  color: #46556b;
+  font-size: 0.94rem;
+  line-height: 1.42;
+}
+
+.codex-former-inbox-counts,
+.codex-former-inbox-boundary {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.codex-former-inbox-counts span,
+.codex-former-inbox-boundary span,
+.codex-former-inbox-boundary strong {
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid #d9e1ec;
+  border-radius: 999px;
+  color: #3e4f66;
+  background: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.codex-former-inbox-filter-bar {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgba(40, 93, 159, 0.18);
+  border-radius: 8px;
+  background: #f7fbff;
+}
+
+.codex-former-inbox-filter-bar > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.codex-former-inbox-filter {
+  min-height: 34px;
+  min-width: 0;
+  padding: 6px 11px;
+  border-color: #d6dfeb;
+  color: #243044;
+  background: #ffffff;
+  font-size: 0.82rem;
+  white-space: normal;
+}
+
+.codex-former-inbox-filter:hover:not(:disabled),
+.codex-former-inbox-filter:focus-visible,
+.codex-former-inbox-item:hover:not(:disabled),
+.codex-former-inbox-item:focus-visible,
+.codex-former-inbox-link-row a:focus-visible,
+.codex-former-inbox-authority > summary:focus-visible {
+  outline: 3px solid rgba(40, 93, 159, 0.24);
+  outline-offset: 2px;
+}
+
+.codex-former-inbox-filter.is-active {
+  border-color: rgba(13, 79, 62, 0.26);
+  color: var(--accent-strong);
+  background: #f3fbf7;
+}
+
+.codex-former-inbox-filter-bar p {
+  margin: 0;
+  color: #536174;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.codex-former-inbox-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.codex-former-inbox-detail-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.codex-former-inbox-list,
+.codex-former-inbox-selected,
+.codex-former-inbox-triage,
+.codex-former-inbox-authority,
+.codex-former-inbox-actions,
+.codex-former-inbox-empty-state {
+  min-width: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.codex-former-inbox-list,
+.codex-former-inbox-selected,
+.codex-former-inbox-triage,
+.codex-former-inbox-actions,
+.codex-former-inbox-empty-state {
+  padding: 12px;
+}
+
+.codex-former-inbox-list h2,
+.codex-former-inbox-selected h2,
+.codex-former-inbox-triage h2,
+.codex-former-inbox-actions h2,
+.codex-former-inbox-empty-state h2 {
+  margin: 0;
+  color: #152034;
+  font-size: 1rem;
+}
+
+.codex-former-inbox-list p,
+.codex-former-inbox-selected p,
+.codex-former-inbox-triage p,
+.codex-former-inbox-actions p,
+.codex-former-inbox-empty-state p {
+  margin: 5px 0 0;
+  color: #526176;
+  font-size: 0.84rem;
+  font-weight: 620;
+  line-height: 1.42;
+}
+
+.codex-former-inbox-card-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.codex-former-inbox-item {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid #d9e1ec;
+  border-left: 4px solid var(--blue);
+  border-radius: 8px;
+  color: #172033;
+  background: #ffffff;
+  text-align: left;
+  box-shadow: none;
+}
+
+.codex-former-inbox-item.tone-neutral {
+  border-left-color: #9aa7b7;
+}
+
+.codex-former-inbox-item.tone-warning {
+  border-left-color: var(--amber);
+  background: #fffdf8;
+}
+
+.codex-former-inbox-item.tone-blocked {
+  border-left-color: var(--danger);
+  background: #fff8f8;
+}
+
+.codex-former-inbox-item.is-selected {
+  border-color: rgba(13, 79, 62, 0.42);
+  background: #f3fbf7;
+}
+
+.codex-former-inbox-item-main,
+.codex-former-inbox-item-status,
+.codex-former-inbox-item-metrics,
+.codex-former-inbox-badge-row {
+  min-width: 0;
+}
+
+.codex-former-inbox-item-main strong,
+.codex-former-inbox-selected > strong,
+.codex-former-inbox-empty-state strong {
+  display: block;
+  color: #172033;
+  font-size: 0.94rem;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.codex-former-inbox-item-main span {
+  display: block;
+  margin-top: 3px;
+  color: #5b6879;
+  font-size: 0.76rem;
+  font-weight: 620;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.codex-former-inbox-item-status,
+.codex-former-inbox-item-metrics,
+.codex-former-inbox-badge-row,
+.codex-former-inbox-triage-stats,
+.codex-former-inbox-tag-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.codex-former-inbox-item-status span,
+.codex-former-inbox-item-metrics span,
+.codex-former-inbox-badge-row span,
+.codex-former-inbox-triage-stats span,
+.codex-former-inbox-tag-grid span,
+.codex-former-inbox-disabled-link,
+.codex-former-inbox-actions > span,
+.codex-former-inbox-empty-state article > span {
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid #d9e1ec;
+  border-radius: 999px;
+  color: #3e4f66;
+  background: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.codex-former-inbox-badge-row span {
+  border-style: dashed;
+}
+
+.codex-former-inbox-selected {
+  border-left: 4px solid var(--blue);
+}
+
+.codex-former-inbox-selected dl,
+.codex-former-inbox-authority dl {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+}
+
+.codex-former-inbox-selected dl div,
+.codex-former-inbox-authority dl div {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.38fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid #e1e7ef;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.codex-former-inbox-selected dt,
+.codex-former-inbox-authority dt {
+  color: #536174;
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.codex-former-inbox-selected dd,
+.codex-former-inbox-authority dd {
+  margin: 0;
+  color: #46556b;
+  font-size: 0.78rem;
+  font-weight: 620;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.codex-former-inbox-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.codex-former-inbox-link-row a {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid rgba(40, 93, 159, 0.28);
+  border-radius: 8px;
+  color: var(--blue);
+  background: #f7fbff;
+  font-size: 0.82rem;
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.codex-former-inbox-link-row a span {
+  color: #526176;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.codex-former-inbox-triage {
+  border-left: 4px solid var(--amber);
+}
+
+.codex-former-inbox-triage.tone-blocked {
+  border-left-color: var(--danger);
+  background: #fff8f8;
+}
+
+.codex-former-inbox-triage article {
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid #e2e7ef;
+  border-left: 4px solid var(--amber);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.codex-former-inbox-triage article.tone-blocked {
+  border-left-color: var(--danger);
+  background: #fff8f8;
+}
+
+.codex-former-inbox-triage article strong {
+  display: block;
+  margin-top: 5px;
+  color: #172033;
+  font-size: 0.86rem;
+}
+
+.codex-former-inbox-triage ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: #43536a;
+  font-size: 0.8rem;
+  font-weight: 630;
+  line-height: 1.38;
+}
+
+.codex-former-inbox-authority {
+  padding: 0;
+}
+
+.codex-former-inbox-authority > summary {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  cursor: pointer;
+  color: #263142;
+  font-weight: 780;
+}
+
+.codex-former-inbox-authority > summary small {
+  color: #667386;
+  font-size: 0.75rem;
+  font-weight: 680;
+}
+
+.codex-former-inbox-authority[open] > summary {
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.codex-former-inbox-authority > :not(summary) {
+  margin: 10px 12px;
+}
+
+.codex-former-inbox-empty-state {
+  display: grid;
+  gap: 10px;
+  border-left: 4px solid var(--blue);
+}
+
+.codex-former-inbox-empty-state article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 @media (max-width: 1100px) {
   .codex-former-fixture-header,
   .codex-former-preview-layout,
@@ -1052,7 +1462,9 @@
   .codex-former-summary-strip,
   .codex-former-session-panel-header,
   .codex-former-session-panel-session-header,
-  .codex-former-session-panel-grid {
+  .codex-former-session-panel-grid,
+  .codex-former-inbox-header,
+  .codex-former-inbox-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1072,12 +1484,14 @@
 
 @media (max-width: 760px) {
   .codex-former-fixture-shell,
-  .codex-former-session-panel-shell {
+  .codex-former-session-panel-shell,
+  .codex-former-inbox-shell {
     width: min(100% - 24px, 1500px);
   }
 
   .codex-former-fixture-header h1,
-  .codex-former-session-panel-header h1 {
+  .codex-former-session-panel-header h1,
+  .codex-former-inbox-header h1 {
     font-size: 1.35rem;
   }
 
@@ -1109,7 +1523,12 @@
   .codex-former-session-panel-status,
   .codex-former-session-panel-evidence,
   .codex-former-session-panel-action,
-  .codex-former-session-panel-handoff {
+  .codex-former-session-panel-handoff,
+  .codex-former-inbox-list,
+  .codex-former-inbox-selected,
+  .codex-former-inbox-triage,
+  .codex-former-inbox-actions,
+  .codex-former-inbox-empty-state {
     padding: 10px;
   }
 
@@ -1124,7 +1543,9 @@
   .codex-former-detail-section-list dl div,
   .codex-former-session-panel-status dl div,
   .codex-former-session-panel-evidence dl div,
-  .codex-former-session-panel-authority dl div {
+  .codex-former-session-panel-authority dl div,
+  .codex-former-inbox-selected dl div,
+  .codex-former-inbox-authority dl div {
     grid-template-columns: minmax(0, 1fr);
   }
 }

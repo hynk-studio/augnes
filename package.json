@@ -270,6 +270,8 @@
     "smoke:perspective-codex-former-session-perspective-panel-fixture-surface-implementation": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-session-perspective-panel-fixture-surface-implementation.mjs",
     "browser:perspective-codex-former-session-perspective-panel-fixture-surface": "node scripts/browser-smoke-perspective-codex-former-session-perspective-panel-fixture-surface.mjs",
     "smoke:perspective-codex-former-capture-review-inbox-fixture-surface-design": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-capture-review-inbox-fixture-surface-design.mjs",
+    "smoke:perspective-codex-former-capture-review-inbox-fixture-surface-implementation": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-capture-review-inbox-fixture-surface-implementation.mjs",
+    "browser:perspective-codex-former-capture-review-inbox-fixture-surface": "node scripts/browser-smoke-perspective-codex-former-capture-review-inbox-fixture-surface.mjs",
     "smoke:perspective-codex-former-real-transcript-capture-instructions": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-real-transcript-capture-instructions.mjs",
     "smoke:perspective-node-copy-humanization": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-node-copy-humanization.mjs",
     "smoke:perspective-temporal-spatial-projection-builders": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-temporal-spatial-projection-builders.mjs",
