@@ -1,0 +1,396 @@
+.shell {
+  box-sizing: border-box;
+  min-height: 100vh;
+  width: 100%;
+  background:
+    linear-gradient(180deg, rgba(247, 249, 244, 0.96), rgba(238, 244, 241, 0.98)),
+    #f7f9f4;
+  color: #171717;
+  padding: 32px;
+}
+
+.surface,
+.surface *,
+.surface *::before,
+.surface *::after {
+  box-sizing: border-box;
+}
+
+.surface {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+
+.header,
+.panel,
+.summaryPanel,
+.details,
+.alert {
+  border: 1px solid rgba(23, 23, 23, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 44px rgba(15, 118, 110, 0.08);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 24px;
+  padding: 28px;
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.header h1,
+.panel h2,
+.summaryPanel h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+
+.panel h2,
+.summaryPanel h2 {
+  font-size: 1.2rem;
+}
+
+.header p:not(.eyebrow),
+.panelHeader p:not(.eyebrow),
+.summaryPanel p,
+.details p,
+.alert p,
+.itemButton span,
+.statusPanel p {
+  color: #3f4547;
+  line-height: 1.55;
+}
+
+.boundaryPills,
+.buttonRow,
+.badgeRow,
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.boundaryPills {
+  max-width: 360px;
+  justify-content: flex-end;
+}
+
+.boundaryPills span,
+.badgeRow small,
+.tagRow span {
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  background: #eef8f5;
+  color: #115e59;
+  padding: 6px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.panel,
+.summaryPanel,
+.alert {
+  min-width: 0;
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.panelHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.chip {
+  min-height: 40px;
+  border: 1px solid rgba(23, 23, 23, 0.16);
+  background: #ffffff;
+  color: #171717;
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chip:hover,
+.chip:focus-visible,
+.itemButton:hover,
+.itemButton:focus-visible,
+.details > summary:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.32);
+  outline-offset: 2px;
+}
+
+.activeChip {
+  border-color: #0f766e;
+  background: #d9f2ed;
+  color: #0b4b45;
+}
+
+.statusPanel,
+.boundaryBox,
+.miniPanel,
+.itemList,
+.selectedItemPanel,
+.tagPanel {
+  min-width: 0;
+  border: 1px solid rgba(23, 23, 23, 0.1);
+  background: #fbfbf8;
+  padding: 16px;
+}
+
+.statusPanel {
+  display: grid;
+  gap: 12px;
+  border-left-width: 6px;
+}
+
+.statusPanel h3,
+.statusPanel h4,
+.boundaryBox h3,
+.miniPanel h3,
+.itemList h3,
+.selectedItemPanel h3,
+.tagPanel h4 {
+  margin: 0;
+  color: #171717;
+  font-size: 1rem;
+}
+
+.tonePass {
+  border-left-color: #15803d;
+  background: #f1fbf3;
+}
+
+.toneFollowUp {
+  border-left-color: #b7791f;
+  background: #fff8e8;
+}
+
+.toneBlocked {
+  border-left-color: #b91c1c;
+  background: #fff1f0;
+}
+
+.caveat {
+  margin: 0;
+  font-weight: 800;
+}
+
+.detailGrid,
+.compactGrid {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.detailGrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+.compactGrid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.detailGrid div,
+.compactGrid div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid rgba(23, 23, 23, 0.08);
+  padding-top: 8px;
+}
+
+.detailGrid dt,
+.compactGrid dt {
+  color: #586063;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.detailGrid dd,
+.compactGrid dd {
+  margin: 0;
+  color: #171717;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.boundaryPills span,
+.badgeRow small,
+.tagRow span {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.details {
+  padding: 0;
+  overflow: hidden;
+}
+
+.details > summary {
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  padding: 14px 16px;
+  color: #171717;
+  font-weight: 900;
+}
+
+.details > summary span {
+  color: #586063;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.details > :not(summary) {
+  margin: 0 16px 16px;
+}
+
+.inboxLayout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
+}
+
+.itemList,
+.selectedItemPanel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.itemButton {
+  width: 100%;
+  min-height: 128px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(23, 23, 23, 0.12);
+  background: #ffffff;
+  color: #171717;
+  padding: 12px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.itemButton strong {
+  font-size: 0.95rem;
+}
+
+.selectedItem {
+  border-color: #2563eb;
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.miniPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.miniPanel ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #24292b;
+  line-height: 1.55;
+}
+
+.policyDetails {
+  background: #fffaf0;
+  border-color: rgba(183, 121, 31, 0.28);
+}
+
+.alert {
+  border-color: rgba(185, 28, 28, 0.24);
+  background: #fff1f0;
+}
+
+.alert ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    padding: 22px;
+  }
+
+  .header,
+  .previewGrid,
+  .inboxLayout,
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .boundaryPills {
+    max-width: none;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    padding: 12px;
+  }
+
+  .header,
+  .panel,
+  .summaryPanel,
+  .alert {
+    padding: 16px;
+  }
+
+  .header h1 {
+    font-size: 1.38rem;
+  }
+
+  .buttonRow,
+  .boundaryPills {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .chip {
+    width: 100%;
+  }
+
+  .detailGrid,
+  .compactGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .itemButton {
+    min-height: 0;
+  }
+}
