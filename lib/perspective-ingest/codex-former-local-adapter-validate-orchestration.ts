@@ -623,6 +623,21 @@ function collectCandidateDraftShapeErrors(candidate: unknown, index: number) {
       errors.push(`${prefix}.${field} must be an array`);
     }
   }
+  if (Array.isArray(candidate.evidence_pointer_refs)) {
+    candidate.evidence_pointer_refs.forEach((pointer, pointerIndex) => {
+      const pointerPrefix = `${prefix}.evidence_pointer_refs[${pointerIndex}]`;
+      if (!isRecord(pointer)) {
+        errors.push(`${pointerPrefix} must be an object`);
+        return;
+      }
+      if (!hasText(stringField(pointer, "pointer_kind"))) {
+        errors.push(`${pointerPrefix}.pointer_kind must be a non-empty string`);
+      }
+      if (!hasText(stringField(pointer, "ref"))) {
+        errors.push(`${pointerPrefix}.ref must be a non-empty string`);
+      }
+    });
+  }
   const basisQualitySuggestion = recordField(
     candidate,
     "basis_quality_suggestion",
@@ -652,7 +667,13 @@ function collectCandidateDraftShapeErrors(candidate: unknown, index: number) {
 
 function collectPointerWarnings(candidate: CodexPerspectiveCandidateDraftV0) {
   const warnings: string[] = [];
-  for (const [index, pointer] of candidate.evidence_pointer_refs.entries()) {
+  const pointerRefs = Array.isArray(candidate.evidence_pointer_refs)
+    ? candidate.evidence_pointer_refs
+    : [];
+  for (const [index, pointer] of pointerRefs.entries()) {
+    if (!isRecord(pointer)) {
+      continue;
+    }
     if (pointer.pointer_semantics !== "pointer_only") {
       warnings.push(`evidence_pointer_refs[${index}] is not pointer_only`);
     }

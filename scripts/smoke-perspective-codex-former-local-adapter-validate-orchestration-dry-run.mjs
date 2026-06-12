@@ -122,6 +122,8 @@ function assertSourceContracts() {
     "invalid draft field shape: selected_material.source_pr_refs must be an array",
     "invalid draft field shape: basis_quality_suggestion.reasons must be an array",
     "source_former_input_packet.role is missing or wrong",
+    "evidence_pointer_refs[",
+    "must be an object",
   ]);
   assertIncludesAll(cliText, [
     "--dry-run",
@@ -263,6 +265,34 @@ function assertNegativeCoverage() {
       },
     }),
   }, ["invalid draft field shape: basis_quality_suggestion.reasons must be an array"]);
+  assertBlocked("evidence-pointer-null", {
+    envelopeText: buildEnvelopeForCandidate({
+      ...readyCandidate,
+      evidence_pointer_refs: [null],
+    }),
+  }, ["candidate[0].evidence_pointer_refs[0] must be an object"]);
+  const pointerWarning = runScenario("evidence-pointer-not-pointer-only", {
+    envelopeText: buildEnvelopeForCandidate({
+      ...readyCandidate,
+      evidence_pointer_refs: [
+        {
+          ...readyCandidate.evidence_pointer_refs[0],
+          pointer_semantics: "not_pointer_only",
+        },
+      ],
+    }),
+  }).summary;
+  assert.equal(
+    pointerWarning.dry_run_result,
+    "warnings_before_validate_execution",
+  );
+  assert(
+    pointerWarning.pointer_warnings.includes(
+      "evidence_pointer_refs[0] is not pointer_only",
+    ),
+    "pointer warning must preserve non-pointer-only evidence refs",
+  );
+  assert.equal(pointerWarning.authority_flags.validate_helper_executed, false);
   assertBlocked("source-former-role-wrong", {
     envelopeText: buildEnvelopeForCandidate({
       ...readyCandidate,
