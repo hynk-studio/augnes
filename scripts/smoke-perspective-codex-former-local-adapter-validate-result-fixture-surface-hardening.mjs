@@ -331,11 +331,16 @@ function assertChangedFileBoundary() {
     helperFile,
     baseSmokeFile,
     "scripts/smoke-perspective-codex-former-local-adapter-validate-result-snapshots.mjs",
+    "scripts/smoke-perspective-codex-former-local-adapter-validate-orchestration-execution.mjs",
     hardeningSmokeFile,
     hardeningBrowserSmokeFile,
     hardeningDocFile,
     hardeningReportFile,
     hardeningBrowserReportFile,
+    "scripts/smoke-perspective-codex-former-local-adapter-v0-1-closeout.mjs",
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_V0_1_CLOSEOUT.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-v0-1-closeout.md",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-v0-1-closeout-summary.json",
     packageFile,
   ];
   for (const file of changedFiles) {

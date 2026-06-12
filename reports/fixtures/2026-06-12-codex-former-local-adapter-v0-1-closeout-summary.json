@@ -1,0 +1,115 @@
+{
+  "summary_version": "codex_former_local_adapter_v0_1_closeout_summary.v0.1",
+  "mode": "local-codex-adapter-v0-1-closeout",
+  "generated_at": "2026-06-12T00:00:00.000Z",
+  "status": "complete_for_local_fixture_backed_v0_1",
+  "completed_stages": [
+    "bounded_source_input",
+    "prepare_dry_run",
+    "prepare_execution",
+    "prepared_waiting_snapshots",
+    "prepared_waiting_read_only_ui",
+    "prepared_waiting_ui_hardening",
+    "validate_orchestration_design",
+    "validate_orchestration_dry_run",
+    "validate_orchestration_execution",
+    "validate_result_snapshots",
+    "validate_result_read_only_ui",
+    "validate_result_ui_hardening",
+    "browser_validation"
+  ],
+  "required_routes": [
+    "http://127.0.0.1:3000/cockpit/perspective/codex-former/local-adapter-snapshot-fixture",
+    "http://127.0.0.1:3000/cockpit/perspective/codex-former/local-adapter-validate-result-fixture"
+  ],
+  "required_fixtures": {
+    "source_input": "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+    "prepare_dry_run_summary": "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-summary-dry-run.json",
+    "prepare_execution_summary": "reports/fixtures/2026-06-11-codex-former-local-adapter-prepare-execution-summary-success.json",
+    "prepared_waiting_snapshots": [
+      "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-snapshot-prepared.json",
+      "reports/fixtures/2026-06-11-codex-former-local-adapter-session-panel-snapshot-waiting.json",
+      "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-prepared.json",
+      "reports/fixtures/2026-06-11-codex-former-local-adapter-inbox-item-waiting.json",
+      "reports/fixtures/2026-06-11-codex-former-local-adapter-snapshot-surface-integration-readiness.json"
+    ],
+    "returned_candidate_envelope": "reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-ready.txt",
+    "validate_dry_run_summary": "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-dry-run-summary-ready.json",
+    "validate_execution_summaries": [
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass-with-follow-up.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-blocked.json"
+    ],
+    "validate_result_snapshots": [
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass-with-follow-up.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-blocked.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass-with-follow-up.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-blocked.json",
+      "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-snapshot-summary.json"
+    ]
+  },
+  "required_reports": [
+    "reports/2026-06-11-perspective-codex-former-local-adapter-manifest-to-source-input.md",
+    "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-orchestration-dry-run.md",
+    "reports/2026-06-11-perspective-codex-former-local-adapter-prepare-execution.md",
+    "reports/2026-06-11-perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-validate-orchestration-dry-run.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-validate-orchestration-execution.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-validate-result-snapshots.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.md"
+  ],
+  "required_browser_reports": [
+    "reports/browser/2026-06-11-perspective-codex-former-local-adapter-snapshot-fixture-surface.md",
+    "reports/browser/2026-06-11-perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening.md",
+    "reports/browser/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface.md",
+    "reports/browser/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.md"
+  ],
+  "required_smokes": [
+    "smoke:perspective-codex-former-local-adapter-manifest-to-source-input",
+    "smoke:perspective-codex-former-local-adapter-prepare-orchestration-dry-run",
+    "smoke:perspective-codex-former-local-adapter-prepare-execution",
+    "smoke:perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening",
+    "smoke:perspective-codex-former-local-adapter-validate-orchestration-dry-run",
+    "smoke:perspective-codex-former-local-adapter-validate-orchestration-execution",
+    "smoke:perspective-codex-former-local-adapter-validate-result-snapshots",
+    "smoke:perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening",
+    "smoke:perspective-codex-former-local-adapter-v0-1-closeout",
+    "browser:perspective-codex-former-local-adapter-snapshot-fixture-surface",
+    "browser:perspective-codex-former-local-adapter-snapshot-fixture-surface-hardening",
+    "browser:perspective-codex-former-local-adapter-validate-result-fixture-surface",
+    "browser:perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening"
+  ],
+  "authority_boundary": {
+    "accepted_state_created": false,
+    "review_decision_created": false,
+    "db_writes": false,
+    "network_calls": false,
+    "provider_model_api_calls": false,
+    "codex_calls": false,
+    "codex_sdk_calls": false,
+    "github_mutation": false,
+    "core_decision": false,
+    "proof_evidence_readiness_records_created": false,
+    "persistence": false,
+    "surface_export": false,
+    "clipboard_automation": false,
+    "runtime_fixture_mutation": false,
+    "runtime_product_state_created": false,
+    "automatic_promotion": false
+  },
+  "remaining_non_v0_1_scope": [
+    "accepted state design",
+    "persistence design",
+    "review decision records",
+    "runtime/product handoff",
+    "Constellation/Core handoff",
+    "provider/model integration",
+    "Codex SDK integration",
+    "GitHub mutation",
+    "automatic promotion",
+    "proof/evidence/readiness record creation"
+  ],
+  "next_recommended_axis": "Design accepted-state / persistence boundary only after separate product decision, or pause this axis and start the next prioritized Augnes feature. Do not continue fixture UI hardening unless a concrete regression appears."
+}
