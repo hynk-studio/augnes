@@ -1,11 +1,21 @@
 import {
   hashCodexFormerLocalAdapterContent,
   stableStringifyCodexFormerLocalAdapterJson,
+  validateCodexFormerLocalAdapterSourceInput,
+  type CodexFormerLocalAdapterSourceInput,
 } from "@/lib/perspective-ingest/codex-former-local-adapter-manifest-to-source-input";
+import { buildPerspectiveFormationInputBundle } from "@/lib/perspective-ingest/perspective-formation-input-bundle";
+import { buildCodexPerspectiveFormerInputPacket } from "@/lib/perspective-ingest/perspective-codex-former-input-packet";
+import { alignCodexPerspectiveCandidateDraftSchemaFromModelOutput } from "@/lib/perspective-ingest/perspective-codex-candidate-draft-schema-alignment";
 import type { CodexPerspectiveCandidateDraftV0 } from "@/lib/perspective-ingest/perspective-codex-candidate-draft-pipeline";
+import { validateAndNormalizeCodexPerspectiveCandidateDraft } from "@/lib/perspective-ingest/perspective-codex-candidate-draft-pipeline";
+import { evaluateCodexPerspectiveCandidateDraftPromptContractFit } from "@/lib/perspective-ingest/perspective-codex-former-prompt-contract";
+import { buildWorkerFacingPerspectiveGuidanceFromCandidate } from "@/lib/perspective-ingest/perspective-worker-facing-guidance";
 
 export const CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_DRY_RUN_SUMMARY_VERSION =
   "codex_former_local_adapter_validate_dry_run_summary.v0.1";
+export const CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_SUMMARY_VERSION =
+  "codex_former_local_adapter_validate_summary.v0.1";
 export const CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_SUMMARY_VERSION =
   "codex_former_local_adapter_prepare_execution_summary.v0.1";
 
@@ -18,6 +28,26 @@ export type CodexFormerLocalAdapterValidateMatchStatus =
   | boolean
   | "not_comparable"
   | "not_present";
+
+export type CodexFormerLocalAdapterValidateResultState =
+  | "PASS"
+  | "PASS with follow-up"
+  | "BLOCKED";
+
+export type CodexFormerLocalAdapterValidateExecutionResult =
+  | "success"
+  | "blocked"
+  | "failed";
+
+export type CodexFormerLocalAdapterValidateFailureKind =
+  | "dry_run_blocked"
+  | "dry_run_summary_stale"
+  | "source_input_invalid"
+  | "former_input_packet_mismatch"
+  | "contract_fit_violation"
+  | "direct_validation_blocked"
+  | "worker_facing_guidance_boundary_failed"
+  | null;
 
 export type CodexFormerLocalAdapterValidateAuthorityFlags = {
   accepted_state_created: false;
@@ -80,6 +110,72 @@ export type CodexFormerLocalAdapterValidateDryRunSummaryV0 = {
   authority_flags: CodexFormerLocalAdapterValidateAuthorityFlags;
 };
 
+export type CodexFormerLocalAdapterValidateExecutionSummaryV0 = {
+  summary_version: typeof CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_SUMMARY_VERSION;
+  mode: "validate-orchestration";
+  generated_at: string;
+  source_input_path: string;
+  source_input_hash: string;
+  prepare_execution_summary_path: string;
+  prepare_execution_summary_hash: string;
+  dry_run_summary_path: string | null;
+  dry_run_summary_hash: string | null;
+  returned_envelope_path: string;
+  returned_envelope_hash: string;
+  candidate_count: number;
+  result_state: CodexFormerLocalAdapterValidateResultState;
+  execution_result: CodexFormerLocalAdapterValidateExecutionResult;
+  failure_kind: CodexFormerLocalAdapterValidateFailureKind;
+  provenance_status: "complete" | "blocked";
+  metadata_match: boolean;
+  source_manual_copy_packet_id: string | null;
+  source_manual_copy_packet_id_match: CodexFormerLocalAdapterValidateMatchStatus;
+  former_input_packet_id: string | null;
+  former_input_packet_id_match: CodexFormerLocalAdapterValidateMatchStatus;
+  source_prompt_hash: string | null;
+  source_prompt_hash_match: CodexFormerLocalAdapterValidateMatchStatus;
+  prompt_file_sha256: string | null;
+  prompt_file_sha256_match: CodexFormerLocalAdapterValidateMatchStatus;
+  candidate_shape_status:
+    CodexFormerLocalAdapterValidateDryRunSummaryV0["candidate_shape_status"];
+  contract_fit_status:
+    | "fits_contract"
+    | "needs_review"
+    | "violates_contract"
+    | "not_run";
+  contract_fit_warning_count: number;
+  direct_validation_status:
+    | "ready_for_review"
+    | "needs_review"
+    | "blocked"
+    | "not_run";
+  candidate_compatible_review_material: boolean;
+  candidate_authority: "non_committed" | null;
+  candidate_basis_quality: "sufficient_for_review" | "needs_review" | "blocked" | null;
+  alignment_safety_net_status: "aligned" | "needs_review" | "blocked" | "not_run";
+  alignment_counted_as_direct_success: false;
+  worker_facing_guidance_status:
+    | "actionable_advisory"
+    | "resolve_gaps_first"
+    | "stop_or_defer"
+    | "skipped_candidate_compatible_review_material_absent"
+    | "skipped_blocked_candidate"
+    | "not_run";
+  worker_facing_guidance_advisory_only: boolean;
+  warnings: string[];
+  pointer_warnings: string[];
+  blocked_reasons: string[];
+  next_safe_action: string;
+  candidate_material_is_review_only: true;
+  returned_candidate_treated_as_trusted_runtime_state: false;
+  authority_flags: CodexFormerLocalAdapterValidateAuthorityFlags;
+  validate_orchestration_execute_ran: true;
+  contract_fit_evaluation_ran: boolean;
+  direct_candidate_validation_ran: boolean;
+  schema_alignment_safety_net_ran: boolean;
+  worker_facing_guidance_ran: boolean;
+};
+
 export type BuildCodexFormerLocalAdapterValidateDryRunSummaryInput = {
   generatedAt?: string | null;
   sourceInputPath: string;
@@ -90,6 +186,12 @@ export type BuildCodexFormerLocalAdapterValidateDryRunSummaryInput = {
   returnedEnvelopeText: string;
   promptArtifactText?: string | null;
 };
+
+export type BuildCodexFormerLocalAdapterValidateExecutionSummaryInput =
+  BuildCodexFormerLocalAdapterValidateDryRunSummaryInput & {
+    dryRunSummaryPath?: string | null;
+    dryRunSummaryText?: string | null;
+  };
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -384,6 +486,262 @@ export function buildCodexFormerLocalAdapterValidateDryRunSummary(
     candidate_material_is_review_only: true,
     returned_candidate_treated_as_trusted_runtime_state: false,
     authority_flags: buildFalseValidateAuthorityFlags(),
+  };
+
+  return {
+    summary,
+    summaryJson: stableStringifyCodexFormerLocalAdapterJson(summary),
+  };
+}
+
+export function buildCodexFormerLocalAdapterValidateExecutionSummary(
+  input: BuildCodexFormerLocalAdapterValidateExecutionSummaryInput,
+): {
+  summary: CodexFormerLocalAdapterValidateExecutionSummaryV0;
+  summaryJson: string;
+} {
+  const generatedAt = hasText(input.generatedAt)
+    ? input.generatedAt.trim()
+    : new Date().toISOString();
+  const dryRunBuild = buildCodexFormerLocalAdapterValidateDryRunSummary({
+    ...input,
+    generatedAt,
+  });
+  const dryRunSummary = dryRunBuild.summary;
+  const sourceInput = parseJsonRecord(input.sourceInputText);
+  const envelope = parseReturnedCandidateEnvelope(input.returnedEnvelopeText);
+  const extraction = extractCandidateDrafts(envelope.returnedText);
+  const candidate =
+    extraction.parsedObjects.length === 1 &&
+    extraction.compatibleCandidates.length === 1
+      ? extraction.compatibleCandidates[0]
+      : null;
+  const warnings = [...dryRunSummary.warnings];
+  const pointerWarnings = [...dryRunSummary.pointer_warnings];
+  const blockedReasons = [...dryRunSummary.blocked_reasons];
+  const dryRunSummaryHash = hasText(input.dryRunSummaryText)
+    ? hashCodexFormerLocalAdapterContent(input.dryRunSummaryText)
+    : null;
+
+  const suppliedDryRunSummary = hasText(input.dryRunSummaryText)
+    ? parseJsonRecord(input.dryRunSummaryText)
+    : null;
+  if (hasText(input.dryRunSummaryText) && !suppliedDryRunSummary) {
+    blockedReasons.push("dry-run summary is missing or invalid JSON");
+  }
+  if (suppliedDryRunSummary) {
+    blockedReasons.push(
+      ...collectDryRunSummaryEquivalenceErrors({
+        suppliedDryRunSummary,
+        currentDryRunSummary: dryRunSummary,
+      }),
+    );
+  }
+
+  const sourceInputValidation = sourceInput
+    ? validateCodexFormerLocalAdapterSourceInput(sourceInput)
+    : { valid: false, errors: ["source input is not valid JSON object"] };
+  if (!sourceInputValidation.valid) {
+    blockedReasons.push(
+      ...sourceInputValidation.errors.map(
+        (error) => `source input validation failed: ${error}`,
+      ),
+    );
+  }
+
+  const formerInputPacket = sourceInputValidation.valid
+    ? buildCodexPerspectiveFormerInputPacket(
+        buildPerspectiveFormationInputBundle(
+          sourceInput as CodexFormerLocalAdapterSourceInput,
+        ),
+      )
+    : null;
+  if (
+    formerInputPacket &&
+    hasText(dryRunSummary.former_input_packet_id) &&
+    formerInputPacket.packet_id !== dryRunSummary.former_input_packet_id
+  ) {
+    blockedReasons.push(
+      "rebuilt former input packet id does not match envelope or prepare provenance",
+    );
+  }
+
+  const preValidationBlocked = blockedReasons.length > 0;
+  const contractFit =
+    !preValidationBlocked && formerInputPacket && candidate
+      ? evaluateCodexPerspectiveCandidateDraftPromptContractFit({
+          former_input_packet: formerInputPacket,
+          draft: candidate,
+        })
+      : null;
+  if (contractFit) {
+    warnings.push(...formatContractFitWarnings(contractFit.warnings));
+    if (contractFit.status === "violates_contract") {
+      blockedReasons.push("contract-fit evaluation found a hard violation");
+    }
+  }
+
+  const directValidation =
+    !preValidationBlocked && formerInputPacket && candidate
+      ? validateAndNormalizeCodexPerspectiveCandidateDraft({
+          former_input_packet: formerInputPacket,
+          draft: candidate,
+        })
+      : null;
+  if (directValidation) {
+    warnings.push(...formatDirectValidationWarnings(directValidation.warnings));
+    if (directValidation.status === "blocked") {
+      blockedReasons.push(...directValidation.blocked_reasons);
+    }
+  }
+
+  const alignment =
+    !preValidationBlocked && formerInputPacket && candidate
+      ? alignCodexPerspectiveCandidateDraftSchemaFromModelOutput({
+          former_input_packet: formerInputPacket,
+          draft: candidate,
+        })
+      : null;
+  if (alignment) {
+    warnings.push(...formatAlignmentWarnings(alignment.warnings));
+    if (alignment.alignment_status === "blocked") {
+      warnings.push(
+        ...alignment.blocked_reasons.map(
+          (reason) => `schema alignment safety-net blocked comparison: ${reason}`,
+        ),
+      );
+    }
+  }
+
+  const candidateReviewMaterial =
+    directValidation?.candidate_review_material ?? null;
+  if (
+    candidateReviewMaterial &&
+    candidateReviewMaterial.authority !== "non_committed"
+  ) {
+    blockedReasons.push("candidate authority must remain non_committed");
+  }
+  if (
+    candidateReviewMaterial &&
+    candidateReviewMaterial.privacy.raw_payloads_included !== false
+  ) {
+    blockedReasons.push("candidate-compatible review material cannot include raw payloads");
+  }
+
+  const validationBlocked = blockedReasons.length > 0;
+  const guidance =
+    !validationBlocked && candidateReviewMaterial
+      ? buildWorkerFacingPerspectiveGuidanceFromCandidate({
+          candidate: candidateReviewMaterial,
+          guidance_context: {
+            work_goal:
+              candidateReviewMaterial.selected_material.changed_files_summary,
+            bounded_summary: candidateReviewMaterial.thesis,
+          },
+        })
+      : null;
+  const guidanceBoundary = guidance
+    ? evaluateWorkerFacingGuidanceBoundary(guidance)
+    : { advisoryOnly: false, blockedReasons: [] };
+  if (guidance) {
+    if (!guidanceBoundary.advisoryOnly) {
+      blockedReasons.push(...guidanceBoundary.blockedReasons);
+    }
+  } else if (validationBlocked) {
+    warnings.push("Worker-Facing Guidance skipped for blocked candidate.");
+  } else if (!candidateReviewMaterial) {
+    warnings.push(
+      "Worker-Facing Guidance skipped because candidate-compatible review material is absent.",
+    );
+  }
+
+  const resultState = buildExecutionResultState({
+    blockedReasons,
+    warnings,
+    pointerWarnings,
+    contractFitStatus: contractFit?.status ?? "not_run",
+    directValidationStatus: directValidation?.status ?? "not_run",
+    candidateReviewMaterial,
+    guidanceAdvisoryOnly: guidanceBoundary.advisoryOnly,
+  });
+  const failureKind = buildExecutionFailureKind({
+    blockedReasons,
+    dryRunSummarySupplied: hasText(input.dryRunSummaryText),
+    dryRunSummaryErrors: suppliedDryRunSummary
+      ? collectDryRunSummaryEquivalenceErrors({
+          suppliedDryRunSummary,
+          currentDryRunSummary: dryRunSummary,
+        })
+      : hasText(input.dryRunSummaryText)
+        ? ["dry-run summary is missing or invalid JSON"]
+        : [],
+    sourceInputValid: sourceInputValidation.valid,
+    formerInputPacketMatches:
+      !formerInputPacket ||
+      !hasText(dryRunSummary.former_input_packet_id) ||
+      formerInputPacket.packet_id === dryRunSummary.former_input_packet_id,
+    contractFitStatus: contractFit?.status ?? "not_run",
+    directValidationStatus: directValidation?.status ?? "not_run",
+    guidanceBoundary,
+  });
+
+  const summary: CodexFormerLocalAdapterValidateExecutionSummaryV0 = {
+    summary_version: CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_SUMMARY_VERSION,
+    mode: "validate-orchestration",
+    generated_at: generatedAt,
+    source_input_path: input.sourceInputPath,
+    source_input_hash: dryRunSummary.source_input_hash,
+    prepare_execution_summary_path: input.prepareExecutionSummaryPath,
+    prepare_execution_summary_hash: dryRunSummary.prepare_execution_summary_hash,
+    dry_run_summary_path: input.dryRunSummaryPath ?? null,
+    dry_run_summary_hash: dryRunSummaryHash,
+    returned_envelope_path: input.returnedEnvelopePath,
+    returned_envelope_hash: dryRunSummary.returned_envelope_hash,
+    candidate_count: dryRunSummary.candidate_count,
+    result_state: resultState,
+    execution_result: resultState === "BLOCKED" ? "blocked" : "success",
+    failure_kind: resultState === "BLOCKED" ? failureKind : null,
+    provenance_status: blockedReasons.length === 0 ? "complete" : "blocked",
+    metadata_match: dryRunSummary.metadata_match,
+    source_manual_copy_packet_id: dryRunSummary.source_manual_copy_packet_id,
+    source_manual_copy_packet_id_match:
+      dryRunSummary.source_manual_copy_packet_id_match,
+    former_input_packet_id: dryRunSummary.former_input_packet_id,
+    former_input_packet_id_match: dryRunSummary.former_input_packet_id_match,
+    source_prompt_hash: dryRunSummary.source_prompt_hash,
+    source_prompt_hash_match: dryRunSummary.source_prompt_hash_match,
+    prompt_file_sha256: dryRunSummary.prompt_file_sha256,
+    prompt_file_sha256_match: dryRunSummary.prompt_file_sha256_match,
+    candidate_shape_status: dryRunSummary.candidate_shape_status,
+    contract_fit_status: contractFit?.status ?? "not_run",
+    contract_fit_warning_count: contractFit?.warnings.length ?? 0,
+    direct_validation_status: directValidation?.status ?? "not_run",
+    candidate_compatible_review_material: Boolean(candidateReviewMaterial),
+    candidate_authority: candidateReviewMaterial?.authority ?? null,
+    candidate_basis_quality:
+      candidateReviewMaterial?.basis_quality.status ?? null,
+    alignment_safety_net_status: alignment?.alignment_status ?? "not_run",
+    alignment_counted_as_direct_success: false,
+    worker_facing_guidance_status: guidance
+      ? guidance.guidance_status
+      : validationBlocked
+        ? "skipped_blocked_candidate"
+        : candidateReviewMaterial
+          ? "not_run"
+          : "skipped_candidate_compatible_review_material_absent",
+    worker_facing_guidance_advisory_only: guidanceBoundary.advisoryOnly,
+    warnings: uniqueStrings(warnings),
+    pointer_warnings: uniqueStrings(pointerWarnings),
+    blocked_reasons: uniqueStrings(blockedReasons),
+    next_safe_action: buildExecutionNextSafeAction(resultState),
+    candidate_material_is_review_only: true,
+    returned_candidate_treated_as_trusted_runtime_state: false,
+    authority_flags: buildFalseValidateAuthorityFlags(),
+    validate_orchestration_execute_ran: true,
+    contract_fit_evaluation_ran: Boolean(contractFit),
+    direct_candidate_validation_ran: Boolean(directValidation),
+    schema_alignment_safety_net_ran: Boolean(alignment),
+    worker_facing_guidance_ran: Boolean(guidance),
   };
 
   return {
@@ -746,6 +1104,219 @@ function buildNextSafeAction(
   return "Fix blocked dry-run findings before validate execution.";
 }
 
+function collectDryRunSummaryEquivalenceErrors({
+  suppliedDryRunSummary,
+  currentDryRunSummary,
+}: {
+  suppliedDryRunSummary: UnknownRecord;
+  currentDryRunSummary: CodexFormerLocalAdapterValidateDryRunSummaryV0;
+}) {
+  const errors: string[] = [];
+  if (
+    stringField(suppliedDryRunSummary, "summary_version") !==
+    CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_DRY_RUN_SUMMARY_VERSION
+  ) {
+    errors.push("dry-run summary version is unsupported");
+  }
+  if (stringField(suppliedDryRunSummary, "mode") !== "validate-orchestration-dry-run") {
+    errors.push("dry-run summary mode is unsupported");
+  }
+  for (const field of [
+    "source_input_hash",
+    "prepare_execution_summary_hash",
+    "returned_envelope_hash",
+    "dry_run_result",
+    "candidate_shape_status",
+    "source_manual_copy_packet_id",
+    "former_input_packet_id",
+    "source_prompt_hash",
+  ] as const) {
+    if (suppliedDryRunSummary[field] !== currentDryRunSummary[field]) {
+      errors.push(`dry-run summary is stale: ${field} does not match current inputs`);
+    }
+  }
+  if (suppliedDryRunSummary.candidate_count !== currentDryRunSummary.candidate_count) {
+    errors.push("dry-run summary is stale: candidate_count does not match current inputs");
+  }
+  if (
+    suppliedDryRunSummary.source_manual_copy_packet_id_match !==
+    currentDryRunSummary.source_manual_copy_packet_id_match
+  ) {
+    errors.push(
+      "dry-run summary is stale: source_manual_copy_packet_id_match does not match current inputs",
+    );
+  }
+  if (
+    suppliedDryRunSummary.former_input_packet_id_match !==
+    currentDryRunSummary.former_input_packet_id_match
+  ) {
+    errors.push(
+      "dry-run summary is stale: former_input_packet_id_match does not match current inputs",
+    );
+  }
+  if (
+    suppliedDryRunSummary.source_prompt_hash_match !==
+    currentDryRunSummary.source_prompt_hash_match
+  ) {
+    errors.push(
+      "dry-run summary is stale: source_prompt_hash_match does not match current inputs",
+    );
+  }
+  return uniqueStrings(errors);
+}
+
+function formatContractFitWarnings(
+  warnings: readonly { field: string; summary: string }[],
+) {
+  return warnings.map(
+    (warning) => `contract-fit warning ${warning.field}: ${warning.summary}`,
+  );
+}
+
+function formatDirectValidationWarnings(
+  warnings: readonly { field: string; summary: string }[],
+) {
+  return warnings.map(
+    (warning) => `direct validation warning ${warning.field}: ${warning.summary}`,
+  );
+}
+
+function formatAlignmentWarnings(
+  warnings: readonly { field: string; summary: string }[],
+) {
+  return warnings.map(
+    (warning) => `schema alignment safety-net warning ${warning.field}: ${warning.summary}`,
+  );
+}
+
+function evaluateWorkerFacingGuidanceBoundary(guidance: {
+  scope_alignment?: { advisory_only?: unknown };
+  authority_boundary?: unknown;
+  next_smallest_useful_actions?: readonly unknown[];
+  stop_or_defer_actions?: readonly unknown[];
+  authority_flags?: UnknownRecord;
+}) {
+  const blockedReasons: string[] = [];
+  if (guidance.scope_alignment?.advisory_only !== true) {
+    blockedReasons.push("Worker-Facing Guidance scope alignment is not advisory-only");
+  }
+  if (
+    typeof guidance.authority_boundary !== "string" ||
+    !guidance.authority_boundary.includes("Local advisory worker guidance only")
+  ) {
+    blockedReasons.push("Worker-Facing Guidance authority boundary is missing");
+  }
+  for (const [field, value] of Object.entries(guidance.authority_flags ?? {})) {
+    if (value !== false) {
+      blockedReasons.push(`Worker-Facing Guidance authority flag must be false: ${field}`);
+    }
+  }
+  for (const [collectionName, actions] of [
+    ["next_smallest_useful_actions", guidance.next_smallest_useful_actions],
+    ["stop_or_defer_actions", guidance.stop_or_defer_actions],
+  ] as const) {
+    for (const [index, action] of (actions ?? []).entries()) {
+      if (!isRecord(action)) {
+        blockedReasons.push(`Worker-Facing Guidance ${collectionName}[${index}] is not an object`);
+        continue;
+      }
+      if (action.advisory_only !== true || action.codex_execution !== false) {
+        blockedReasons.push(
+          `Worker-Facing Guidance ${collectionName}[${index}] is not advisory-only`,
+        );
+      }
+    }
+  }
+  return {
+    advisoryOnly: blockedReasons.length === 0,
+    blockedReasons: uniqueStrings(blockedReasons),
+  };
+}
+
+function buildExecutionResultState({
+  blockedReasons,
+  warnings,
+  pointerWarnings,
+  contractFitStatus,
+  directValidationStatus,
+  candidateReviewMaterial,
+  guidanceAdvisoryOnly,
+}: {
+  blockedReasons: readonly string[];
+  warnings: readonly string[];
+  pointerWarnings: readonly string[];
+  contractFitStatus: CodexFormerLocalAdapterValidateExecutionSummaryV0["contract_fit_status"];
+  directValidationStatus: CodexFormerLocalAdapterValidateExecutionSummaryV0["direct_validation_status"];
+  candidateReviewMaterial: { authority: string; basis_quality: { status: string } } | null;
+  guidanceAdvisoryOnly: boolean;
+}): CodexFormerLocalAdapterValidateResultState {
+  if (
+    blockedReasons.length > 0 ||
+    contractFitStatus === "violates_contract" ||
+    directValidationStatus === "blocked" ||
+    !candidateReviewMaterial ||
+    candidateReviewMaterial.authority !== "non_committed" ||
+    !guidanceAdvisoryOnly
+  ) {
+    return "BLOCKED";
+  }
+  if (
+    warnings.length > 0 ||
+    pointerWarnings.length > 0 ||
+    contractFitStatus === "needs_review" ||
+    directValidationStatus === "needs_review" ||
+    candidateReviewMaterial.basis_quality.status !== "sufficient_for_review"
+  ) {
+    return "PASS with follow-up";
+  }
+  return "PASS";
+}
+
+function buildExecutionFailureKind({
+  blockedReasons,
+  dryRunSummarySupplied,
+  dryRunSummaryErrors,
+  sourceInputValid,
+  formerInputPacketMatches,
+  contractFitStatus,
+  directValidationStatus,
+  guidanceBoundary,
+}: {
+  blockedReasons: readonly string[];
+  dryRunSummarySupplied: boolean;
+  dryRunSummaryErrors: readonly string[];
+  sourceInputValid: boolean;
+  formerInputPacketMatches: boolean;
+  contractFitStatus: CodexFormerLocalAdapterValidateExecutionSummaryV0["contract_fit_status"];
+  directValidationStatus: CodexFormerLocalAdapterValidateExecutionSummaryV0["direct_validation_status"];
+  guidanceBoundary: { advisoryOnly: boolean; blockedReasons: readonly string[] };
+}): CodexFormerLocalAdapterValidateFailureKind {
+  if (blockedReasons.length === 0) return null;
+  if (dryRunSummarySupplied && dryRunSummaryErrors.length > 0) {
+    return "dry_run_summary_stale";
+  }
+  if (!sourceInputValid) return "source_input_invalid";
+  if (!formerInputPacketMatches) return "former_input_packet_mismatch";
+  if (contractFitStatus === "violates_contract") return "contract_fit_violation";
+  if (directValidationStatus === "blocked") return "direct_validation_blocked";
+  if (!guidanceBoundary.advisoryOnly && guidanceBoundary.blockedReasons.length > 0) {
+    return "worker_facing_guidance_boundary_failed";
+  }
+  return "dry_run_blocked";
+}
+
+function buildExecutionNextSafeAction(
+  resultState: CodexFormerLocalAdapterValidateResultState,
+) {
+  if (resultState === "PASS") {
+    return "Review the local validation summary; PASS is review-only and is not approval, acceptance, mergeability, product readiness, persistence, surface export, or a Core decision.";
+  }
+  if (resultState === "PASS with follow-up") {
+    return "Review warning and follow-up material before any future accepted-state or persistence design; this summary remains review-only.";
+  }
+  return "Fix blocked validation findings locally before relying on this returned candidate for review material.";
+}
+
 function parseEnvelopeField(text: string, fieldName: string) {
   const match = text.match(new RegExp(`^${fieldName}:\\s*(.+)$`, "m"));
   return match?.[1]?.trim() ?? null;
@@ -794,7 +1365,9 @@ function uniqueStrings(values: string[]) {
 export default {
   CODEX_FORMER_LOCAL_ADAPTER_PREPARE_EXECUTION_SUMMARY_VERSION,
   CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_DRY_RUN_SUMMARY_VERSION,
+  CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_SUMMARY_VERSION,
   buildCodexFormerLocalAdapterValidateDryRunSummary,
+  buildCodexFormerLocalAdapterValidateExecutionSummary,
   buildFalseValidateAuthorityFlags,
   extractCandidateDrafts,
   parseReturnedCandidateEnvelope,

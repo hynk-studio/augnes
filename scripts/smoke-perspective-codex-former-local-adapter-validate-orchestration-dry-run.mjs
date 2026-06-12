@@ -127,7 +127,8 @@ function assertSourceContracts() {
   ]);
   assertIncludesAll(cliText, [
     "--dry-run",
-    "--execute is not implemented in this dry-run slice",
+    "result_state=",
+    "contract_fit_status=",
     "validate orchestration cannot use --dry-run and --execute together",
     "validate dry-run requires --",
     "validate_helper_executed=false",
@@ -381,15 +382,17 @@ function assertMissingReturnedEnvelope() {
 }
 
 function assertExecuteFlagsRejected() {
-  assertIncludesAll(runCliExpectFailure([
+  assertIncludesAll(runCli([
     "--execute",
+    "--generated-at",
+    generatedAt,
     "--source-input",
     sourceInputFixtureFile,
     "--prepare-execution-summary",
     prepareExecutionSummaryFixtureFile,
     "--returned-envelope",
     returnedEnvelopeFixtureFile,
-  ]), ["--execute is not implemented in this dry-run slice"]);
+  ]), ["mode=validate-orchestration", "result_state=PASS with follow-up"]);
   assertIncludesAll(runCliExpectFailure([
     "--dry-run",
     "--execute",
@@ -475,6 +478,17 @@ function assertChangedFileBoundary() {
     reportFile,
     returnedEnvelopeFixtureFile,
     readySummaryFixtureFile,
+    "scripts/smoke-perspective-codex-former-local-adapter-validate-orchestration-execution.mjs",
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_ORCHESTRATION_EXECUTION_V0_1.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-validate-orchestration-execution.md",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-pass.txt",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-blocked.txt",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass.json",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass-with-follow-up.json",
+    "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-blocked.json",
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(

@@ -11,11 +11,14 @@ import validateOrchestration from "../lib/perspective-ingest/codex-former-local-
 
 const { buildCodexFormerLocalAdapterValidateDryRunSummary } =
   validateOrchestration;
+const { buildCodexFormerLocalAdapterValidateExecutionSummary } =
+  validateOrchestration;
 
 const valueRequiredOptions = new Set([
   "source-input",
   "prepare-execution-summary",
   "returned-envelope",
+  "dry-run-summary",
   "validation-summary-out",
   "generated-at",
 ]);
@@ -29,12 +32,77 @@ export function runLocalAdapterValidateOrchestrationCli(argv) {
     throw new Error("validate orchestration cannot use --dry-run and --execute together");
   }
   if (execute) {
-    throw new Error("validate orchestration --execute is not implemented in this dry-run slice");
+    return runExecute(options);
   }
   if (!dryRun) {
-    throw new Error("validate orchestration requires --dry-run for this slice");
+    throw new Error("validate orchestration requires either --dry-run or --execute");
   }
   return runDryRun(options);
+}
+
+function runExecute(options) {
+  for (const optionName of [
+    "source-input",
+    "prepare-execution-summary",
+    "returned-envelope",
+  ]) {
+    if (!hasText(options[optionName])) {
+      throw new Error(`validate execution requires --${optionName} <path>`);
+    }
+  }
+
+  const sourceInputPath = String(options["source-input"]);
+  const prepareExecutionSummaryPath = String(
+    options["prepare-execution-summary"],
+  );
+  const returnedEnvelopePath = String(options["returned-envelope"]);
+  const dryRunSummaryPath = hasText(options["dry-run-summary"])
+    ? String(options["dry-run-summary"])
+    : null;
+  const validationSummaryPath = hasText(options["validation-summary-out"])
+    ? String(options["validation-summary-out"])
+    : null;
+
+  const sourceInputText = readLocalFile(
+    resolve(sourceInputPath),
+    "validate.source_input_path",
+  );
+  const prepareExecutionSummaryText = readLocalFile(
+    resolve(prepareExecutionSummaryPath),
+    "validate.prepare_execution_summary_path",
+  );
+  const returnedEnvelopeText = readLocalFile(
+    resolve(returnedEnvelopePath),
+    "validate.returned_envelope_path",
+  );
+  const dryRunSummaryText = dryRunSummaryPath
+    ? readLocalFile(resolve(dryRunSummaryPath), "validate.dry_run_summary_path")
+    : null;
+  const promptArtifactText = readPromptArtifactIfAvailable(
+    prepareExecutionSummaryText,
+  );
+
+  const result = buildCodexFormerLocalAdapterValidateExecutionSummary({
+    generatedAt: hasText(options["generated-at"])
+      ? String(options["generated-at"])
+      : null,
+    sourceInputPath,
+    sourceInputText,
+    prepareExecutionSummaryPath,
+    prepareExecutionSummaryText,
+    returnedEnvelopePath,
+    returnedEnvelopeText,
+    dryRunSummaryPath,
+    dryRunSummaryText,
+    promptArtifactText,
+  });
+
+  if (validationSummaryPath) {
+    writeTextFile(resolve(validationSummaryPath), result.summaryJson);
+  }
+
+  printExecutionSummary(result.summary, validationSummaryPath);
+  return result;
 }
 
 function runDryRun(options) {
@@ -175,6 +243,42 @@ function printDryRunSummary(summary, validationSummaryPath) {
   );
   console.log(
     `worker_facing_guidance_eligibility=${summary.worker_facing_guidance_eligibility}`,
+  );
+  console.log("validate_helper_executed=false");
+  console.log("authority_boundary=review-only local-only non-authorizing");
+}
+
+function printExecutionSummary(summary, validationSummaryPath) {
+  console.log(`mode=${summary.mode}`);
+  console.log(`source_input_path=${summary.source_input_path}`);
+  console.log(
+    `prepare_execution_summary_path=${summary.prepare_execution_summary_path}`,
+  );
+  console.log(`returned_envelope_path=${summary.returned_envelope_path}`);
+  if (summary.dry_run_summary_path) {
+    console.log(`dry_run_summary_path=${summary.dry_run_summary_path}`);
+  }
+  if (validationSummaryPath) {
+    console.log(`validation_summary_path=${validationSummaryPath}`);
+  }
+  console.log(`result_state=${summary.result_state}`);
+  console.log(`execution_result=${summary.execution_result}`);
+  console.log(`candidate_count=${summary.candidate_count}`);
+  console.log(`candidate_shape_status=${summary.candidate_shape_status}`);
+  console.log(`contract_fit_status=${summary.contract_fit_status}`);
+  console.log(`direct_validation_status=${summary.direct_validation_status}`);
+  console.log(
+    `candidate_compatible_review_material=${summary.candidate_compatible_review_material}`,
+  );
+  console.log(`alignment_safety_net_status=${summary.alignment_safety_net_status}`);
+  console.log(
+    `alignment_counted_as_direct_success=${summary.alignment_counted_as_direct_success}`,
+  );
+  console.log(
+    `worker_facing_guidance_status=${summary.worker_facing_guidance_status}`,
+  );
+  console.log(
+    `worker_facing_guidance_advisory_only=${summary.worker_facing_guidance_advisory_only}`,
   );
   console.log("validate_helper_executed=false");
   console.log("authority_boundary=review-only local-only non-authorizing");
