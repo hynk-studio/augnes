@@ -74,7 +74,8 @@ Future validate orchestration should require these local inputs:
 - optional expected source input hash;
 - optional expected source_manual_copy_packet_id;
 - optional expected former_input_packet_id;
-- optional expected prompt_hash.
+- optional expected source_prompt_hash;
+- optional expected prompt_file_sha256.
 
 The returned envelope must be local file input supplied by a human after a separate user-started Codex session. The adapter must not fetch it, scrape it from a browser, read it from a DB, call Codex for it, call a provider/model API for it, or automate the clipboard.
 
@@ -104,7 +105,16 @@ The adapter-facing aliases are:
 
 - `source_manual_copy_packet_id` check uses the envelope `source_manual_copy_packet_id`;
 - `former_input_packet_id` check uses the envelope `source_former_input_packet_id`;
-- `prompt_hash` check uses the envelope `source_prompt_hash`.
+- `source_prompt_hash` check uses the envelope `source_prompt_hash`;
+- `prompt_file_sha256` check uses the prompt artifact byte hash recorded by prepare execution output discovery when available.
+
+`source_manual_copy_packet_id` and `source_prompt_hash` are envelope/helper metadata provenance fields, not required candidate draft fields. They must be checked against helper metadata and prepare execution summary records, but future candidate validation must not require the candidate draft itself to carry those two fields.
+
+`source_prompt_hash` or `copyable_prompt_hash` identifies the generated copyable prompt contract value carried in the return envelope and helper metadata. `prompt_file_sha256` is prompt artifact byte hash for the prompt file on disk. They are related provenance signals, but they are not the same field and must not be collapsed into a single `prompt_hash`.
+
+source_prompt_hash is envelope/helper metadata provenance.
+
+prompt_file_sha256 is prompt artifact byte hash.
 
 The returned response may be a JSON object or bounded prose containing exactly one balanced candidate JSON object. In both cases extraction must produce exactly one `CodexPerspectiveCandidateDraft` object before downstream validation runs.
 
@@ -118,49 +128,86 @@ The adapter must not choose a best candidate, merge candidates, discard extras, 
 
 ## Candidate Envelope JSON Shape
 
-The extracted candidate JSON object should match the existing Codex Former candidate draft contract used by direct local validation.
+The extracted candidate JSON object should match the existing `CodexPerspectiveCandidateDraftV0` validator contract used by direct local validation.
 
-At design level, the object must include:
+At design level, the object must be compatible with `validateAndNormalizeCodexPerspectiveCandidateDraft` and include the canonical draft version, kind, source former input packet reference, material, warning, privacy, authority, and forbidden-action fields:
 
 ```json
 {
-  "draft_kind": "CodexPerspectiveCandidateDraft",
-  "draft_version": "v0.1",
-  "source_former_input_packet_id": "codex-perspective-former-input:v0.1:<id>",
-  "source_manual_copy_packet_id": "manual-codex-former-copy:v0.1:<id>",
-  "source_prompt_hash": "<prompt hash>",
-  "candidate_summary": {
-    "status": "draft",
-    "summary": "bounded summary"
+  "draft_version": "codex_perspective_candidate_draft.v0.1",
+  "draft_kind": "codex_perspective_candidate_draft",
+  "source_former_input_packet": {
+    "packet_version": "codex_perspective_former_input_packet.v0.1",
+    "packet_id": "codex-perspective-former-input:v0.1:<id>",
+    "role": "codex_perspective_former"
   },
-  "basis_quality_suggestion": {
-    "status": "sufficient_for_review | needs_review"
+  "thesis": "Bounded neutral perspective useful beyond a plain summary.",
+  "selected_material": {
+    "changed_files": [
+      "path/to/reviewed-file.ts"
+    ],
+    "changed_files_summary": "Bounded summary of selected material.",
+    "work_id": "work-or-null",
+    "source_pr_refs": [
+      "pr:hynk-studio/augnes#000"
+    ]
   },
   "evidence_pointer_refs": [
     {
-      "ref": "pointer_ref:<bounded local reference>",
-      "semantics": "pointer_only"
+      "pointer_kind": "evidence_row_ref",
+      "pointer_semantics": "pointer_only",
+      "ref": "evidence:row:<bounded-reference>"
     }
   ],
-  "recommended_next_actions": [],
-  "authority_flags": {
-    "accepted_state_created": false,
-    "review_decision_created": false,
-    "proof_evidence_readiness_created": false,
-    "provider_model_calls": false,
-    "codex_sdk_calls": false,
-    "github_mutation": false,
-    "db_writes": false,
-    "core_decision": false,
-    "automatic_promotion": false
+  "unresolved_tensions": [
+    {
+      "tension_kind": "readiness_reason",
+      "summary": "Bounded uncertainty or review caveat.",
+      "source_ref": "readiness:needs_review"
+    }
+  ],
+  "basis_quality_suggestion": {
+    "status": "sufficient_for_review | needs_review | blocked",
+    "reasons": [
+      "Bounded basis-quality reason."
+    ]
   },
+  "next_action_candidates": [
+    {
+      "action_id": "review_candidate",
+      "summary": "Review the non-committed candidate material."
+    }
+  ],
+  "user_core_decision_questions": [
+    "Bounded question for human/Core review."
+  ],
+  "qualification_notes": [
+    "Bounded qualification note."
+  ],
   "privacy_flags": {
-    "raw_payloads_included": false
-  }
+    "raw_payloads_included": false,
+    "unsafe_input_material_omitted": true,
+    "omitted_unsafe_fields": []
+  },
+  "authority_flags": {
+    "committed_state": false,
+    "persistence": false,
+    "provider_model_api_calls": false,
+    "proof_evidence_readiness_writes": false,
+    "codex_execution": false,
+    "github_mutation": false,
+    "merge_publish_approval": false,
+    "core_decision": false
+  },
+  "forbidden_actions": [
+    "Do not create accepted state, review decisions, proof/evidence/readiness records, GitHub mutation, provider/model calls, Codex execution, persistence, or Core decisions."
+  ]
 }
 ```
 
-The exact future implementation should continue to use the existing local candidate validators rather than a parallel schema. This JSON shape is a design contract for required provenance, pointer-only evidence semantics, review-only authority, and bounded material.
+The exact future implementation should continue to use the existing local candidate validators rather than a parallel schema. This JSON shape is a design contract for validator compatibility, pointer-only evidence semantics, review-only authority, and bounded material.
+
+The candidate draft does not need to include `source_manual_copy_packet_id` or `source_prompt_hash`. Those are envelope/helper metadata provenance fields. The candidate must include `source_former_input_packet`, and `candidate.source_former_input_packet.packet_id` must match `envelope.source_former_input_packet_id` and helper/source former input packet provenance.
 
 Candidate content remains untrusted even when this shape is present. Shape compatibility is a prerequisite for review material, not a runtime trust grant.
 
@@ -177,14 +224,17 @@ Required checks:
 - helper metadata source input hash matches source input bytes when metadata exposes it;
 - helper metadata `source_manual_copy_packet_id` matches prepare execution summary output discovery;
 - helper metadata `source_former_input_packet_id` or `former_input_packet_id` matches prepare execution summary output discovery;
-- helper metadata `source_prompt_hash`, `copyable_prompt_hash`, or prompt output hash matches prepare execution summary `prompt_hash`;
+- helper metadata `source_prompt_hash` or `copyable_prompt_hash` matches envelope `source_prompt_hash`;
+- prompt artifact byte hashing records `prompt_file_sha256` separately from `source_prompt_hash`;
+- prepare execution summary `prompt_file_sha256` matches the prompt artifact byte hash when both are present;
 - returned envelope provenance fields are present and not `not_supplied_in_chat`;
 - envelope `capture_method` is `human_manual`;
 - envelope `codex_surface_label` is `separate user-started Codex session`;
 - envelope `prompt_was_generated_by_manual_copy_packet` is true;
-- source_manual_copy_packet_id check passes across envelope, extracted candidate, helper metadata, and prepare execution summary;
-- former_input_packet_id check passes across envelope `source_former_input_packet_id`, extracted candidate `source_former_input_packet_id`, helper metadata, source input packet id, and prepare execution summary;
-- prompt_hash check passes across envelope `source_prompt_hash`, extracted candidate `source_prompt_hash`, helper metadata, prompt output metadata, and prepare execution summary;
+- source_manual_copy_packet_id check passes across envelope, helper metadata, and prepare execution summary;
+- former_input_packet_id check passes across envelope `source_former_input_packet_id`, candidate `source_former_input_packet.packet_id`, helper metadata, source input packet id, and prepare execution summary;
+- source_prompt_hash check passes across envelope `source_prompt_hash`, helper metadata `source_prompt_hash` or `copyable_prompt_hash`, and prepare execution summary prompt contract provenance;
+- prompt_file_sha256 check passes across prompt artifact byte hash and prepare execution summary prompt artifact metadata;
 - extracted candidate points back to the same former input packet used by direct validation.
 
 Any mismatch blocks validation. Mismatches are validation results, not product decisions.
@@ -201,7 +251,7 @@ The prepare execution summary is the local provenance anchor for:
 - helper metadata path and hash;
 - manual copy packet path, id, hash, and size when available;
 - former input packet path, id, hash, and size when available;
-- prompt path and prompt_hash;
+- prompt path, `source_prompt_hash` or `copyable_prompt_hash`, and `prompt_file_sha256` when available;
 - return envelope template path and hash;
 - prepare helper command argv and hash;
 - authority flags proving no provider/model, Codex SDK, GitHub, DB, persistence, accepted state, review decision, or Core decision behavior.
@@ -288,8 +338,10 @@ Required fields:
 - `source_manual_copy_packet_id_match`
 - `former_input_packet_id`
 - `former_input_packet_id_match`
-- `prompt_hash`
-- `prompt_hash_match`
+- `source_prompt_hash`
+- `source_prompt_hash_match`
+- `prompt_file_sha256`
+- `prompt_file_sha256_match`
 - `contract_fit_status`
 - `direct_validation_status`
 - `candidate_compatible_review_material`
@@ -473,7 +525,7 @@ This design PR requires:
 - `git diff --check`
 - `git diff --cached --check`
 
-A later implementation PR should additionally test local dry-run, local execution, candidate_count zero/multiple blocking, provenance mismatch blocking, prompt_hash mismatch blocking, source_manual_copy_packet_id mismatch blocking, former_input_packet_id mismatch blocking, pointer warning preservation, Worker-Facing Guidance skip/run behavior, summary schema validation, and authority-denylist regressions.
+A later implementation PR should additionally test local dry-run, local execution, candidate_count zero/multiple blocking, provenance mismatch blocking, source_prompt_hash mismatch blocking, prompt_file_sha256 mismatch blocking, source_manual_copy_packet_id mismatch blocking, former_input_packet_id mismatch blocking, pointer warning preservation, Worker-Facing Guidance skip/run behavior, summary schema validation, and authority-denylist regressions.
 
 ## Recommended Next PR
 

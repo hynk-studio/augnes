@@ -23,7 +23,7 @@ The design covers:
 - returned candidate envelope input contract;
 - `candidate_count` exactly one rule;
 - candidate envelope JSON shape;
-- source_manual_copy_packet_id, former_input_packet_id, and prompt_hash checks;
+- source_manual_copy_packet_id, former_input_packet_id, source_prompt_hash, and prompt_file_sha256 checks;
 - metadata/provenance matching against source input and prepare execution summary;
 - validate dry-run command plan;
 - validate execution command plan;
@@ -44,9 +44,13 @@ The returned envelope must come from a human after a separate user-started Codex
 
 - `source_manual_copy_packet_id`;
 - `source_former_input_packet_id`, checked as former_input_packet_id by the adapter;
-- `source_prompt_hash`, checked as prompt_hash by the adapter.
+- `source_prompt_hash`, checked as source_prompt_hash by the adapter.
 
-The returned response may be a JSON object or bounded prose containing JSON, but extraction must produce exactly one `CodexPerspectiveCandidateDraft` object. `candidate_count` of zero, more than one, unknown, or unparsable is `BLOCKED`.
+The returned response may be a JSON object or bounded prose containing JSON, but extraction must produce exactly one existing-validator-compatible `codex_perspective_candidate_draft.v0.1` / `codex_perspective_candidate_draft` object. The candidate shape must use `source_former_input_packet`, `thesis`, `selected_material`, `evidence_pointer_refs`, `unresolved_tensions`, `basis_quality_suggestion`, `next_action_candidates`, `user_core_decision_questions`, `qualification_notes`, `privacy_flags`, `authority_flags`, and `forbidden_actions`.
+
+`source_manual_copy_packet_id` and `source_prompt_hash` are envelope/helper metadata provenance fields, not required candidate draft fields. `candidate.source_former_input_packet.packet_id` must match envelope `source_former_input_packet_id` and helper/source former input packet provenance. `source_prompt_hash` or `copyable_prompt_hash` is the prompt contract provenance value; `prompt_file_sha256` is prompt artifact byte hash. `candidate_count` of zero, more than one, unknown, or unparsable is `BLOCKED`.
+
+source_prompt_hash is envelope/helper metadata provenance. prompt_file_sha256 is prompt artifact byte hash.
 
 The future adapter must match the envelope and extracted candidate against source input, helper metadata, and prepare execution summary. Candidate text alone is never enough provenance.
 
@@ -64,7 +68,7 @@ The future summary version is `codex_former_local_adapter_validate_summary.v0.1`
 
 The future mode is `validate-orchestration`.
 
-The summary records source input hash, prepare execution summary hash, helper metadata hash, returned envelope hash, candidate_count, result state, provenance status, metadata match status, source_manual_copy_packet_id match, former_input_packet_id match, prompt_hash match, contract-fit status, direct-validation status, candidate-compatible review material status, alignment safety-net status, Worker-Facing Guidance status, warnings, pointer warnings, blocked reasons, next safe action, and authority flags.
+The summary records source input hash, prepare execution summary hash, helper metadata hash, returned envelope hash, candidate_count, result state, provenance status, metadata match status, source_manual_copy_packet_id match, former_input_packet_id match, source_prompt_hash and source_prompt_hash_match, prompt_file_sha256 and prompt_file_sha256_match, contract-fit status, direct-validation status, candidate-compatible review material status, alignment safety-net status, Worker-Facing Guidance status, warnings, pointer warnings, blocked reasons, next safe action, and authority flags.
 
 The validation summary is review-only. Returned candidate content must not be treated as trusted runtime state.
 
