@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-06-12T00:00:00.000Z",
+  "validation_summary_path": "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-blocked.json",
+  "warning_count": 1,
+  "review_decision_created": false,
+  "accepted_state": false,
+  "authority_tags": [
+    "review_only",
+    "no_accepted_state",
+    "no_review_decision",
+    "no_proof_evidence_readiness",
+    "no_persistence",
+    "no_surface_export",
+    "no_runtime_product_state",
+    "no_provider_model_api",
+    "no_codex",
+    "no_github_mutation",
+    "no_core_decision",
+    "not_automated_rejection"
+  ],
+  "badges": [
+    "review-only",
+    "BLOCKED",
+    "1 warning(s)",
+    "2 blocked reason(s)"
+  ],
+  "blocked_reason_count": 2,
+  "candidate_count": 0,
+  "caveat": "BLOCKED is a validation result, not automated rejection, retry, promotion, persistence, or product decision.",
+  "item_id": "local-adapter-validation-blocked",
+  "next_safe_action": "Fix blocked validation findings locally before relying on this returned candidate for review material.",
+  "pointer_warning_count": 0,
+  "result_state": "BLOCKED",
+  "review_candidate_available": false,
+  "review_only": true,
+  "reviewability": "blocked",
+  "safe_links": {
+    "read_only_validate_result_ui": {
+      "available": false,
+      "detail": "Future read-only validate result UI is not implemented in this snapshot PR.",
+      "href": null
+    },
+    "runtime_handoff": {
+      "available": false,
+      "detail": "Runtime handoff is unavailable because snapshots are review-only local fixtures.",
+      "href": null
+    },
+    "validation_summary": {
+      "available": true,
+      "hash": "030433ef803174506b40fcebc639077af4971462417324ac0766c276af8fae91",
+      "href": null,
+      "path": "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-blocked.json"
+    }
+  },
+  "snapshot_kind": "validate_result_inbox_item",
+  "snapshot_version": "codex_former_local_adapter_validate_result_inbox_item.v0.1",
+  "stage": "validate_result_snapshot",
+  "summary_line": "BLOCKED, review-only finding; candidate_count=0; warnings=1; blocked_reasons=2.",
+  "title": "Validate result: BLOCKED",
+  "validation_summary_hash": "030433ef803174506b40fcebc639077af4971462417324ac0766c276af8fae91",
+  "worker_guidance_available": false
+}

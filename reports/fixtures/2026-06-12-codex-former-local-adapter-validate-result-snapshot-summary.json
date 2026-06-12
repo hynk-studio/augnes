@@ -1,0 +1,84 @@
+{
+  "mode": "validate-result-snapshots",
+  "generated_at": "2026-06-12T00:00:00.000Z",
+  "authority_boundary": {
+    "accepted_state_created": false,
+    "review_decision_created": false,
+    "codex_sdk_calls": false,
+    "db_writes": false,
+    "clipboard_automation": false,
+    "core_decision": false,
+    "codex_calls": false,
+    "github_mutation": false,
+    "network_calls": false,
+    "persistence": false,
+    "proof_evidence_readiness_records_created": false,
+    "provider_model_api_calls": false,
+    "review_only": true,
+    "runtime_product_state_created": false,
+    "surface_export": false
+  },
+  "blocked_reason_count_by_state": {
+    "BLOCKED": 2,
+    "PASS": 0,
+    "PASS with follow-up": 0
+  },
+  "browser_validation_requirement": "A later UI PR must add browser/computer-use validation because this snapshot PR adds no UI, route, browser-visible surface, clipboard automation, browser capture, runtime fixture mutation, or product navigation behavior.",
+  "candidate_count_by_state": {
+    "BLOCKED": 0,
+    "PASS": 1,
+    "PASS with follow-up": 1
+  },
+  "covered_result_states": [
+    "PASS",
+    "PASS with follow-up",
+    "BLOCKED"
+  ],
+  "covered_surfaces": [
+    "Session Panel",
+    "Capture Review Inbox",
+    "future read-only validate result UI"
+  ],
+  "emitted_snapshot_hashes": {
+    "inbox": {
+      "blocked": "fc3a9a05f2cbbdb521bd574683a2d022e7cb8c3d5cb7ee600fc3c57a5766fa4e",
+      "pass": "b4befaeb6cc5ee1cc35d7c9fa31dda1763281b9d4aaad2e36d6d96476e2075df",
+      "pass_with_follow_up": "f3f0f4f1ab0bffd66988bb2528df98ebb8e2d777f4afb9a52b05dbad2408d206"
+    },
+    "session_panel": {
+      "blocked": "4314eca867ec677b02320c2d5bc84f5cd6c14c43acadc903826a9576333f4b2d",
+      "pass": "ffc7c1966b6c89763fe0b0179dc1391bbe01c0f56182a58d25bca531b36201dc",
+      "pass_with_follow_up": "53b6d1163de3fcafefa6d76aa43f1c971735cb8d11746f3abe374190642ed838"
+    }
+  },
+  "emitted_snapshot_paths": {
+    "summary": "/tmp/augnes-codex-former-local-adapter-validate-result-snapshots/2026-06-12-codex-former-local-adapter-validate-result-snapshot-summary.json",
+    "inbox": {
+      "blocked": "/tmp/augnes-codex-former-local-adapter-validate-result-snapshots/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-blocked.json",
+      "pass": "/tmp/augnes-codex-former-local-adapter-validate-result-snapshots/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass.json",
+      "pass_with_follow_up": "/tmp/augnes-codex-former-local-adapter-validate-result-snapshots/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass-with-follow-up.json"
+    },
+    "session_panel": {
+      "blocked": "/tmp/augnes-codex-former-local-adapter-validate-result-snapshots/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-blocked.json",
+      "pass": "/tmp/augnes-codex-former-local-adapter-validate-result-snapshots/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass.json",
+      "pass_with_follow_up": "/tmp/augnes-codex-former-local-adapter-validate-result-snapshots/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass-with-follow-up.json"
+    }
+  },
+  "future_ui_path": "A later read-only validate result UI may consume these fixtures without adding accepted-state, persistence, DB, provider/model, Codex, GitHub, clipboard, surface export, or Core authority.",
+  "input_summary_hashes": {
+    "blocked": "030433ef803174506b40fcebc639077af4971462417324ac0766c276af8fae91",
+    "pass": "5a863f7a4d7c373faa7371a63b09da905ae4e948c26991f8efb3c785a91ecd67",
+    "pass_with_follow_up": "0ce72021f6ef378a4765d74d68d860eeabfc29848f79b6291c31616c05955283"
+  },
+  "input_summary_paths": {
+    "blocked": "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-blocked.json",
+    "pass": "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass.json",
+    "pass_with_follow_up": "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass-with-follow-up.json"
+  },
+  "summary_version": "codex_former_local_adapter_validate_result_snapshot_summary.v0.1",
+  "warning_count_by_state": {
+    "BLOCKED": 1,
+    "PASS": 0,
+    "PASS with follow-up": 5
+  }
+}

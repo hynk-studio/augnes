@@ -23,6 +23,16 @@ const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_ORCHESTRATION_EXECUTION_V0_1.md";
 const reportFile =
   "reports/2026-06-12-perspective-codex-former-local-adapter-validate-orchestration-execution.md";
+const validateResultSnapshotsLibFile =
+  "lib/perspective-ingest/codex-former-local-adapter-validate-result-snapshots.ts";
+const validateResultSnapshotsCliFile =
+  "scripts/perspective-codex-former-local-adapter-validate-result-snapshots.mjs";
+const validateResultSnapshotsSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-validate-result-snapshots.mjs";
+const validateResultSnapshotsDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_SNAPSHOTS_V0_1.md";
+const validateResultSnapshotsReportFile =
+  "reports/2026-06-12-perspective-codex-former-local-adapter-validate-result-snapshots.md";
 const passSourceInputFixtureFile =
   "reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json";
 const passPrepareSummaryFixtureFile =
@@ -45,6 +55,20 @@ const followUpSummaryFixtureFile =
   "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass-with-follow-up.json";
 const blockedSummaryFixtureFile =
   "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-blocked.json";
+const validateResultSessionPassFixtureFile =
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass.json";
+const validateResultSessionFollowUpFixtureFile =
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-pass-with-follow-up.json";
+const validateResultSessionBlockedFixtureFile =
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-session-panel-snapshot-blocked.json";
+const validateResultInboxPassFixtureFile =
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass.json";
+const validateResultInboxFollowUpFixtureFile =
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-pass-with-follow-up.json";
+const validateResultInboxBlockedFixtureFile =
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-inbox-item-blocked.json";
+const validateResultSnapshotSummaryFixtureFile =
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-result-snapshot-summary.json";
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
 const tmpRoot =
@@ -544,6 +568,18 @@ function assertChangedFileBoundary() {
     passSummaryFixtureFile,
     followUpSummaryFixtureFile,
     blockedSummaryFixtureFile,
+    validateResultSnapshotsLibFile,
+    validateResultSnapshotsCliFile,
+    validateResultSnapshotsSmokeFile,
+    validateResultSnapshotsDocFile,
+    validateResultSnapshotsReportFile,
+    validateResultSessionPassFixtureFile,
+    validateResultSessionFollowUpFixtureFile,
+    validateResultSessionBlockedFixtureFile,
+    validateResultInboxPassFixtureFile,
+    validateResultInboxFollowUpFixtureFile,
+    validateResultInboxBlockedFixtureFile,
+    validateResultSnapshotSummaryFixtureFile,
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(
