@@ -297,6 +297,7 @@
     "browser:perspective-codex-former-local-adapter-validate-result-fixture-surface": "node scripts/browser-smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface.mjs",
     "smoke:perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.mjs",
     "browser:perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening": "node scripts/browser-smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.mjs",
+    "smoke:perspective-codex-former-local-adapter-v0-1-closeout": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-v0-1-closeout.mjs",
     "smoke:perspective-codex-former-local-adapter-snapshot-surface-integration": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-snapshot-surface-integration.mjs",
     "smoke:perspective-codex-former-local-adapter-snapshot-fixture-surface-implementation": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-snapshot-fixture-surface-implementation.mjs",
     "browser:perspective-codex-former-local-adapter-snapshot-fixture-surface": "node scripts/browser-smoke-perspective-codex-former-local-adapter-snapshot-fixture-surface.mjs",
