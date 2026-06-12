@@ -142,14 +142,28 @@ function assertSourceContracts() {
     "PASS, review-only",
     "PASS with follow-up, review-only",
     "BLOCKED, review-only finding",
+    "PASS summary warnings must be empty",
+    "PASS summary pointer_warnings must be empty",
     "candidate_material_is_review_only must be true",
     "returned_candidate_treated_as_trusted_runtime_state must be false",
     "alignment_counted_as_direct_success must be false",
     "PASS summary blocked_reasons must be empty",
+    "PASS summary contract_fit_status must be fits_contract",
+    "PASS summary direct_validation_status must be ready_for_review",
     "PASS summary candidate_compatible_review_material must be true",
     "PASS summary candidate_authority must be non_committed",
+    "PASS summary candidate_basis_quality must be sufficient_for_review",
+    "PASS summary candidate_shape_status must be existing_validator_compatible",
     "PASS summary worker_facing_guidance_advisory_only must be true",
+    "PASS summary worker_facing_guidance_status must be actionable_advisory",
+    "PASS with follow-up summary blocked_reasons must be empty",
     "PASS with follow-up summary candidate_compatible_review_material must be true",
+    "PASS with follow-up summary candidate_authority must be non_committed",
+    "PASS with follow-up summary worker_facing_guidance_advisory_only must be true",
+    "PASS with follow-up summary direct_validation_status must not be blocked",
+    "PASS with follow-up summary contract_fit_status must not be violates_contract",
+    "PASS with follow-up summary candidate_shape_status must be existing_validator_compatible",
+    "BLOCKED summary blocked_reasons must not be empty",
     "BLOCKED summary must not claim review candidate availability",
     "public validate result snapshot contains unsafe marker",
   ]);
@@ -198,6 +212,15 @@ function assertDocsAndReport() {
     "read-only validate result fixture surface",
     "Browser/computer-use validation is skipped",
     "Implement the read-only validate result fixture surface",
+    "`PASS` summaries with non-empty `warnings`, non-empty `pointer_warnings`, or non-empty `blocked_reasons`",
+    "`PASS` summaries whose `contract_fit_status` is not `fits_contract`",
+    "`PASS` summaries whose `direct_validation_status` is not `ready_for_review`",
+    "`PASS` summaries whose `candidate_basis_quality` is not `sufficient_for_review`",
+    "`PASS` summaries whose `worker_facing_guidance_status` is not `actionable_advisory`",
+    "`PASS with follow-up` summaries with non-empty `blocked_reasons`",
+    "`PASS with follow-up` summaries whose `direct_validation_status` is `blocked`",
+    "`PASS with follow-up` summaries whose `contract_fit_status` is `violates_contract`",
+    "`BLOCKED` summaries with empty `blocked_reasons`",
   ]);
 }
 
@@ -464,21 +487,69 @@ function assertNegativeCoverage() {
   assertFailureWithMutatedSummary("pass-blocked-reasons", "pass", (summary) => {
     summary.blocked_reasons = ["must not be present"];
   }, ["PASS summary blocked_reasons must be empty"]);
+  assertFailureWithMutatedSummary("pass-warnings", "pass", (summary) => {
+    summary.warnings = ["must not be present"];
+  }, ["PASS summary warnings must be empty"]);
+  assertFailureWithMutatedSummary("pass-pointer-warnings", "pass", (summary) => {
+    summary.pointer_warnings = ["must not be present"];
+  }, ["PASS summary pointer_warnings must be empty"]);
+  assertFailureWithMutatedSummary("pass-direct-needs-review", "pass", (summary) => {
+    summary.direct_validation_status = "needs_review";
+  }, ["PASS summary direct_validation_status must be ready_for_review"]);
+  assertFailureWithMutatedSummary("pass-contract-needs-review", "pass", (summary) => {
+    summary.contract_fit_status = "needs_review";
+  }, ["PASS summary contract_fit_status must be fits_contract"]);
   assertFailureWithMutatedSummary("pass-no-review-material", "pass", (summary) => {
     summary.candidate_compatible_review_material = false;
   }, ["PASS summary candidate_compatible_review_material must be true"]);
   assertFailureWithMutatedSummary("pass-committed-authority", "pass", (summary) => {
     summary.candidate_authority = "committed";
   }, ["PASS summary candidate_authority must be non_committed"]);
+  assertFailureWithMutatedSummary("pass-basis-needs-review", "pass", (summary) => {
+    summary.candidate_basis_quality = "needs_review";
+  }, ["PASS summary candidate_basis_quality must be sufficient_for_review"]);
+  assertFailureWithMutatedSummary("pass-shape-wrong", "pass", (summary) => {
+    summary.candidate_shape_status = "wrong_shape";
+  }, ["PASS summary candidate_shape_status must be existing_validator_compatible"]);
   assertFailureWithMutatedSummary("pass-guidance-not-advisory", "pass", (summary) => {
     summary.worker_facing_guidance_advisory_only = false;
   }, ["PASS summary worker_facing_guidance_advisory_only must be true"]);
+  assertFailureWithMutatedSummary("pass-guidance-resolve-gaps", "pass", (summary) => {
+    summary.worker_facing_guidance_status = "resolve_gaps_first";
+  }, ["PASS summary worker_facing_guidance_status must be actionable_advisory"]);
   assertFailureWithMutatedSummary("follow-up-no-review-material", "follow-up", (summary) => {
     summary.candidate_compatible_review_material = false;
   }, ["PASS with follow-up summary candidate_compatible_review_material must be true"]);
+  assertFailureWithMutatedSummary("follow-up-blocked-reasons", "follow-up", (summary) => {
+    summary.blocked_reasons = ["must not be present"];
+  }, ["PASS with follow-up summary blocked_reasons must be empty"]);
+  assertFailureWithMutatedSummary("follow-up-direct-blocked", "follow-up", (summary) => {
+    summary.direct_validation_status = "blocked";
+  }, ["PASS with follow-up summary direct_validation_status must not be blocked"]);
+  assertFailureWithMutatedSummary("follow-up-committed-authority", "follow-up", (summary) => {
+    summary.candidate_authority = "committed";
+  }, ["PASS with follow-up summary candidate_authority must be non_committed"]);
+  assertFailureWithMutatedSummary("follow-up-guidance-not-advisory", "follow-up", (summary) => {
+    summary.worker_facing_guidance_advisory_only = false;
+  }, [
+    "PASS with follow-up summary worker_facing_guidance_advisory_only must be true",
+  ]);
+  assertFailureWithMutatedSummary("follow-up-contract-violation", "follow-up", (summary) => {
+    summary.contract_fit_status = "violates_contract";
+  }, [
+    "PASS with follow-up summary contract_fit_status must not be violates_contract",
+  ]);
+  assertFailureWithMutatedSummary("follow-up-shape-wrong", "follow-up", (summary) => {
+    summary.candidate_shape_status = "wrong_shape";
+  }, [
+    "PASS with follow-up summary candidate_shape_status must be existing_validator_compatible",
+  ]);
   assertFailureWithMutatedSummary("blocked-authority-drift", "blocked", (summary) => {
     summary.authority_flags.network_calls = true;
   }, ["blockedSummary authority flag drift: network_calls must be false"]);
+  assertFailureWithMutatedSummary("blocked-no-blocked-reasons", "blocked", (summary) => {
+    summary.blocked_reasons = [];
+  }, ["BLOCKED summary blocked_reasons must not be empty"]);
   assertFailureWithMutatedSummary("blocked-review-candidate-claim", "blocked", (summary) => {
     summary.candidate_compatible_review_material = true;
   }, ["BLOCKED summary must not claim review candidate availability"]);

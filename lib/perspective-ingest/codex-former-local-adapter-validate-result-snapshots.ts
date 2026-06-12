@@ -557,8 +557,25 @@ function validateInputSummary(
   errors.push(...collectAuthorityDrift(summary, label));
 
   if (expectedState === "PASS") {
+    if (Array.isArray(summary.warnings) && summary.warnings.length > 0) {
+      errors.push("PASS summary warnings must be empty");
+    }
+    if (
+      Array.isArray(summary.pointer_warnings) &&
+      summary.pointer_warnings.length > 0
+    ) {
+      errors.push("PASS summary pointer_warnings must be empty");
+    }
     if (Array.isArray(summary.blocked_reasons) && summary.blocked_reasons.length > 0) {
       errors.push("PASS summary blocked_reasons must be empty");
+    }
+    if (summary.contract_fit_status !== "fits_contract") {
+      errors.push("PASS summary contract_fit_status must be fits_contract");
+    }
+    if (summary.direct_validation_status !== "ready_for_review") {
+      errors.push(
+        "PASS summary direct_validation_status must be ready_for_review",
+      );
     }
     if (summary.candidate_compatible_review_material !== true) {
       errors.push("PASS summary candidate_compatible_review_material must be true");
@@ -566,19 +583,64 @@ function validateInputSummary(
     if (summary.candidate_authority !== "non_committed") {
       errors.push("PASS summary candidate_authority must be non_committed");
     }
+    if (summary.candidate_basis_quality !== "sufficient_for_review") {
+      errors.push(
+        "PASS summary candidate_basis_quality must be sufficient_for_review",
+      );
+    }
+    if (summary.candidate_shape_status !== "existing_validator_compatible") {
+      errors.push(
+        "PASS summary candidate_shape_status must be existing_validator_compatible",
+      );
+    }
     if (summary.worker_facing_guidance_advisory_only !== true) {
       errors.push("PASS summary worker_facing_guidance_advisory_only must be true");
     }
+    if (summary.worker_facing_guidance_status !== "actionable_advisory") {
+      errors.push(
+        "PASS summary worker_facing_guidance_status must be actionable_advisory",
+      );
+    }
   }
-  if (
-    expectedState === "PASS with follow-up" &&
-    summary.candidate_compatible_review_material !== true
-  ) {
-    errors.push(
-      "PASS with follow-up summary candidate_compatible_review_material must be true",
-    );
+  if (expectedState === "PASS with follow-up") {
+    if (Array.isArray(summary.blocked_reasons) && summary.blocked_reasons.length > 0) {
+      errors.push("PASS with follow-up summary blocked_reasons must be empty");
+    }
+    if (summary.candidate_compatible_review_material !== true) {
+      errors.push(
+        "PASS with follow-up summary candidate_compatible_review_material must be true",
+      );
+    }
+    if (summary.candidate_authority !== "non_committed") {
+      errors.push(
+        "PASS with follow-up summary candidate_authority must be non_committed",
+      );
+    }
+    if (summary.worker_facing_guidance_advisory_only !== true) {
+      errors.push(
+        "PASS with follow-up summary worker_facing_guidance_advisory_only must be true",
+      );
+    }
+    if (summary.direct_validation_status === "blocked") {
+      errors.push(
+        "PASS with follow-up summary direct_validation_status must not be blocked",
+      );
+    }
+    if (summary.contract_fit_status === "violates_contract") {
+      errors.push(
+        "PASS with follow-up summary contract_fit_status must not be violates_contract",
+      );
+    }
+    if (summary.candidate_shape_status !== "existing_validator_compatible") {
+      errors.push(
+        "PASS with follow-up summary candidate_shape_status must be existing_validator_compatible",
+      );
+    }
   }
   if (expectedState === "BLOCKED") {
+    if (Array.isArray(summary.blocked_reasons) && summary.blocked_reasons.length === 0) {
+      errors.push("BLOCKED summary blocked_reasons must not be empty");
+    }
     if (summary.candidate_compatible_review_material === true) {
       errors.push("BLOCKED summary must not claim review candidate availability");
     }
