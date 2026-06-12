@@ -1,0 +1,92 @@
+REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET
+
+capture_method: human_manual
+codex_surface_label: separate user-started Codex session
+prompt_was_generated_by_manual_copy_packet: true
+source_manual_copy_packet_id: manual-codex-former-copy:v0.1:1d44vfz
+source_former_input_packet_id: codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami
+source_prompt_hash: 2xhw7m
+captured_at: 2026-06-12T00:00:00.000Z
+
+TRANSCRIPT_REDACTION_NOTES:
+- Included only one bounded CodexPerspectiveCandidateDraft JSON object.
+- No hidden reasoning, cookies, tokens, account data, provider logs, raw page dumps, raw PR diffs, raw review payloads, unrelated chat text, or secrets included.
+
+RETURNED_CODEX_RESPONSE:
+{
+  "draft_version": "codex_perspective_candidate_draft.v0.1",
+  "draft_kind": "codex_perspective_candidate_draft",
+  "source_former_input_packet": {
+    "packet_version": "codex_perspective_former_input_packet.v0.1",
+    "packet_id": "codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami",
+    "role": "codex_perspective_former"
+  },
+  "thesis": "The useful local perspective is that validate orchestration dry-run can check returned envelope provenance and candidate shape before any validate execution or product state exists.",
+  "selected_material": {
+    "changed_files": [
+      "lib/perspective-ingest/codex-former-local-adapter-manifest-to-source-input.ts",
+      "scripts/perspective-codex-former-local-adapter-manifest-to-source-input.mjs",
+      "scripts/smoke-perspective-codex-former-local-adapter-manifest-to-source-input.mjs",
+      "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_MANIFEST_TO_SOURCE_INPUT_V0_1.md",
+      "reports/2026-06-11-perspective-codex-former-local-adapter-manifest-to-source-input.md",
+      "package.json"
+    ],
+    "changed_files_summary": "Bounded local adapter manifest-to-source-input implementation scope; validate dry-run remains review-only and local-only.",
+    "work_id": "AG-codex-former-local-adapter-manifest-to-source-input",
+    "source_pr_refs": [
+      "pr:hynk-studio/augnes#508"
+    ]
+  },
+  "evidence_pointer_refs": [
+    {
+      "pointer_kind": "perspective_ref",
+      "pointer_semantics": "pointer_only",
+      "ref": "perspective:codex-former-local-adapter-validate-orchestration-dry-run:v0.1"
+    }
+  ],
+  "unresolved_tensions": [
+    {
+      "tension_kind": "readiness_reason",
+      "summary": "Dry-run readiness is not validate execution readiness, acceptance, persistence, or a Core decision.",
+      "source_ref": "readiness:dry-run-only"
+    }
+  ],
+  "basis_quality_suggestion": {
+    "status": "needs_review",
+    "reasons": [
+      "The fixture preserves provenance ids and bounded review material but still requires future local validate execution."
+    ]
+  },
+  "next_action_candidates": [
+    {
+      "action_id": "review_candidate",
+      "summary": "Review the validate dry-run summary before implementing validate execution."
+    }
+  ],
+  "user_core_decision_questions": [
+    "Is the dry-run contract enough to proceed to a separate validate execution implementation PR?"
+  ],
+  "qualification_notes": [
+    "This candidate fixture is bounded and review-only; it is not accepted Augnes state."
+  ],
+  "privacy_flags": {
+    "raw_payloads_included": false,
+    "unsafe_input_material_omitted": true,
+    "omitted_unsafe_fields": []
+  },
+  "authority_flags": {
+    "committed_state": false,
+    "persistence": false,
+    "provider_model_api_calls": false,
+    "proof_evidence_readiness_writes": false,
+    "codex_execution": false,
+    "github_mutation": false,
+    "merge_publish_approval": false,
+    "core_decision": false
+  },
+  "forbidden_actions": [
+    "Do not run validate execution from this dry-run.",
+    "Do not create accepted state, review decisions, proof/evidence/readiness records, DB writes, network calls, Codex calls, provider/model calls, GitHub mutation, surface export, clipboard automation, automatic promotion, or Core decisions."
+  ]
+}
+END RETURNED_CODEX_RESPONSE
