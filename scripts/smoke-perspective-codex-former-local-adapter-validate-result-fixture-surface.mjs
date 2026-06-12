@@ -340,9 +340,15 @@ function assertChangedFileBoundary() {
     "lib/perspective-ingest/codex-former-local-adapter-validate-result-fixture-surface.ts",
     "scripts/smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface.mjs",
     "scripts/browser-smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface.mjs",
+    "scripts/smoke-perspective-codex-former-local-adapter-validate-result-snapshots.mjs",
+    "scripts/smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.mjs",
+    "scripts/browser-smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.mjs",
     "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_FIXTURE_SURFACE_V0_1.md",
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_FIXTURE_SURFACE_HARDENING_V0_1.md",
     "reports/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.md",
     "reports/browser/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface.md",
+    "reports/browser/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.md",
     "package.json",
   ];
   for (const file of changedFiles) {

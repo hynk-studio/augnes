@@ -41,6 +41,27 @@ export type ValidateResultAuthorityFlagRow = {
   boundary: "non-authorizing" | "review-only boundary" | "unexpected";
 };
 
+export const forbiddenValidateResultExecutableControlTerms = [
+  "Accept",
+  "Approve",
+  "Promote",
+  "Reject",
+  "Merge",
+  "Deploy",
+  "Persist",
+  "Export",
+  "Run Codex",
+  "Call Codex",
+  "Call Provider",
+  "Call provider/model",
+  "Create review decision",
+  "Create accepted state",
+  "Handoff to runtime",
+  "Create readiness",
+  "Create evidence",
+  "Create proof",
+] as const;
+
 const expectedScenarios = [
   {
     key: "pass",
@@ -169,6 +190,16 @@ export function normalizeValidateResultAuthorityFlagsForDisplay(flags: object) {
         boundary: "unexpected",
       };
     });
+}
+
+export function findForbiddenValidateResultExecutableControlCopy(
+  controls: readonly string[],
+) {
+  return controls.flatMap((control) =>
+    forbiddenValidateResultExecutableControlTerms
+      .filter((term) => control.includes(term))
+      .map((term) => ({ control, term })),
+  );
 }
 
 export function validateCodexFormerLocalAdapterValidateResultFixtureSurface(
@@ -387,7 +418,9 @@ export default {
   CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_FIXTURE_SURFACE_ROUTE,
   defaultValidateResultInboxItemId,
   defaultValidateResultScenarioId,
+  findForbiddenValidateResultExecutableControlCopy,
   filterValidateResultInboxItems,
+  forbiddenValidateResultExecutableControlTerms,
   getValidateResultInboxItems,
   getValidateResultSessionPanelScenarios,
   getValidateResultTone,
