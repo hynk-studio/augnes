@@ -23,6 +23,24 @@ const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_SNAPSHOTS_V0_1.md";
 const reportFile =
   "reports/2026-06-12-perspective-codex-former-local-adapter-validate-result-snapshots.md";
+const hardeningSurfaceComponentFile =
+  "app/cockpit/perspective/codex-former/local-adapter-validate-result-fixture/validate-result-fixture-surface.tsx";
+const hardeningSurfaceCssFile =
+  "app/cockpit/perspective/codex-former/local-adapter-validate-result-fixture/validate-result-fixture-surface.module.css";
+const hardeningSurfaceHelperFile =
+  "lib/perspective-ingest/codex-former-local-adapter-validate-result-fixture-surface.ts";
+const hardeningSurfaceBaseSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface.mjs";
+const hardeningSurfaceSmokeFile =
+  "scripts/smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.mjs";
+const hardeningSurfaceBrowserSmokeFile =
+  "scripts/browser-smoke-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.mjs";
+const hardeningSurfaceDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_FIXTURE_SURFACE_HARDENING_V0_1.md";
+const hardeningSurfaceReportFile =
+  "reports/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.md";
+const hardeningSurfaceBrowserReportFile =
+  "reports/browser/2026-06-12-perspective-codex-former-local-adapter-validate-result-fixture-surface-hardening.md";
 const passSummaryFixtureFile =
   "reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass.json";
 const followUpSummaryFixtureFile =
@@ -730,6 +748,15 @@ function assertChangedFileBoundary() {
     inboxFollowUpFixtureFile,
     inboxBlockedFixtureFile,
     snapshotSummaryFixtureFile,
+    hardeningSurfaceComponentFile,
+    hardeningSurfaceCssFile,
+    hardeningSurfaceHelperFile,
+    hardeningSurfaceBaseSmokeFile,
+    hardeningSurfaceSmokeFile,
+    hardeningSurfaceBrowserSmokeFile,
+    hardeningSurfaceDocFile,
+    hardeningSurfaceReportFile,
+    hardeningSurfaceBrowserReportFile,
   ]);
   for (const changedFile of collectChangedFiles()) {
     assert(
@@ -741,7 +768,9 @@ function assertChangedFileBoundary() {
         changedFile.startsWith("lib/") ||
         changedFile.startsWith("scripts/") ||
         changedFile.startsWith("docs/") ||
-        changedFile.startsWith("reports/"),
+        changedFile.startsWith("reports/") ||
+        changedFile === hardeningSurfaceComponentFile ||
+        changedFile === hardeningSurfaceCssFile,
       `validate result snapshots must stay lib/scripts/docs/report/fixtures/package scope: ${changedFile}`,
     );
   }

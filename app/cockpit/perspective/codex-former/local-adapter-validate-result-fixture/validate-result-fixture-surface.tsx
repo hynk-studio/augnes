@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import styles from "./validate-result-fixture-surface.module.css";
 import {
   CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_FIXTURE_SURFACE_ROUTE,
@@ -60,6 +60,8 @@ export function CodexFormerLocalAdapterValidateResultFixtureSurface({
     "summary-authority": false,
     "policy-boundary": true,
   });
+  const scenarioStatusId = useId();
+  const inboxStatusId = useId();
 
   const selectedScenario =
     scenarios.find((scenario) => scenario.scenario_id === selectedScenarioId) ??
@@ -130,6 +132,7 @@ export function CodexFormerLocalAdapterValidateResultFixtureSurface({
             onDetailOpenChange={setDetailOpen}
             onScenarioChange={setSelectedScenarioId}
             openDetails={openDetails}
+            scenarioStatusId={scenarioStatusId}
             scenarios={scenarios}
             selectedScenario={selectedScenario}
           />
@@ -140,6 +143,7 @@ export function CodexFormerLocalAdapterValidateResultFixtureSurface({
             onFilterChange={setSelectedFilter}
             onItemSelect={setSelectedItemId}
             openDetails={openDetails}
+            inboxStatusId={inboxStatusId}
             selectedFilter={selectedFilter}
             selectedItem={selectedItem}
           />
@@ -164,12 +168,14 @@ function SessionPanelPreview({
   onDetailOpenChange,
   onScenarioChange,
   openDetails,
+  scenarioStatusId,
   scenarios,
   selectedScenario,
 }: {
   scenarios: CodexFormerLocalAdapterValidateResultSessionPanelSnapshotV0[];
   selectedScenario: CodexFormerLocalAdapterValidateResultSessionPanelSnapshotV0;
   openDetails: Record<DetailKey, boolean>;
+  scenarioStatusId: string;
   onScenarioChange: (scenarioId: CodexFormerLocalAdapterValidateResultScenarioId) => void;
   onDetailOpenChange: (key: DetailKey, open: boolean) => void;
 }) {
@@ -186,6 +192,17 @@ function SessionPanelPreview({
         <p>Default scenario is PASS with follow-up to show caution pressure.</p>
       </header>
 
+      <p
+        className={styles.selectionEvidence}
+        data-augnes-selected-scenario-evidence={selectedScenario.scenario_id}
+        id={scenarioStatusId}
+      >
+        Current scenario: {selectedScenario.result_state};{" "}
+        {selectedScenario.primary_status}; review-only fixture material, not
+        approval, acceptance, mergeability, product readiness, persistence,
+        export, runtime state, or Core decision.
+      </p>
+
       <div
         className={styles.buttonRow}
         role="group"
@@ -195,6 +212,17 @@ function SessionPanelPreview({
           <button
             key={scenario.scenario_id}
             type="button"
+            aria-current={
+              scenario.scenario_id === selectedScenario.scenario_id
+                ? "true"
+                : undefined
+            }
+            aria-describedby={scenarioStatusId}
+            aria-label={`${scenario.result_state} scenario, review-only fixture preview${
+              scenario.scenario_id === selectedScenario.scenario_id
+                ? ", currently selected"
+                : ""
+            }`}
             aria-pressed={scenario.scenario_id === selectedScenario.scenario_id}
             className={classNames(
               styles.chip,
@@ -368,6 +396,7 @@ function CaptureReviewInboxPreview({
   onFilterChange,
   onItemSelect,
   openDetails,
+  inboxStatusId,
   selectedFilter,
   selectedItem,
 }: {
@@ -376,6 +405,7 @@ function CaptureReviewInboxPreview({
   selectedFilter: ValidateResultFixtureSurfaceFilter;
   selectedItem: CodexFormerLocalAdapterValidateResultInboxItemV0 | null;
   openDetails: Record<DetailKey, boolean>;
+  inboxStatusId: string;
   onFilterChange: (filter: ValidateResultFixtureSurfaceFilter) => void;
   onItemSelect: (itemId: string) => void;
   onDetailOpenChange: (key: DetailKey, open: boolean) => void;
@@ -405,6 +435,17 @@ function CaptureReviewInboxPreview({
         </p>
       </header>
 
+      <p
+        className={styles.selectionEvidence}
+        data-augnes-selected-inbox-evidence={selectedItem?.item_id ?? "none"}
+        id={inboxStatusId}
+      >
+        Current inbox item: {selectedItem?.title ?? "none"}; reviewability{" "}
+        {selectedItem?.reviewability ?? "none"} means local review material only,
+        not approval, acceptance, persistence, mergeability, product readiness,
+        review decision, or Core decision.
+      </p>
+
       <div
         className={styles.buttonRow}
         role="group"
@@ -414,6 +455,11 @@ function CaptureReviewInboxPreview({
           <button
             key={filter}
             type="button"
+            aria-current={filter === selectedFilter ? "true" : undefined}
+            aria-describedby={inboxStatusId}
+            aria-label={`${filter} inbox filter, local view state only${
+              filter === selectedFilter ? ", currently selected" : ""
+            }`}
             aria-pressed={filter === selectedFilter}
             className={classNames(
               styles.chip,
@@ -435,6 +481,11 @@ function CaptureReviewInboxPreview({
             <button
               key={item.item_id}
               type="button"
+              aria-current={item.item_id === selectedItem?.item_id ? "true" : undefined}
+              aria-describedby={inboxStatusId}
+              aria-label={`${item.title}; ${item.reviewability}; ${item.summary_line}; review-only fixture material${
+                item.item_id === selectedItem?.item_id ? "; currently selected" : ""
+              }`}
               aria-pressed={item.item_id === selectedItem?.item_id}
               className={classNames(
                 styles.itemButton,
@@ -448,7 +499,7 @@ function CaptureReviewInboxPreview({
               <span>stage {item.stage}</span>
               <span>reviewability {item.reviewability}</span>
               <span>{item.summary_line}</span>
-              <span>{item.caveat}</span>
+              <span>review-only selector label</span>
               <span className={styles.badgeRow}>
                 {item.badges.map((badge) => (
                   <small key={badge}>{badge}</small>
@@ -542,6 +593,7 @@ function SelectedInboxItem({
       <details
         className={styles.details}
         data-augnes-details="inbox-safe-links"
+        data-augnes-safe-links="availability-text-only"
         open={openDetails["inbox-safe-links"]}
         onToggle={(event) =>
           onDetailOpenChange("inbox-safe-links", event.currentTarget.open)
@@ -549,8 +601,16 @@ function SelectedInboxItem({
       >
         <summary>
           Safe Link Availability
-          <span>availability text only, no navigation target</span>
+          <span>availability text only, no href, no navigation target</span>
         </summary>
+        <p
+          className={styles.safeLinkNotice}
+          data-augnes-safe-link-navigation="none"
+        >
+          Safe links are non-navigational availability labels. The
+          validation_summary path and hash are local fixture reference only;
+          read_only_validate_result_ui and runtime_handoff remain unavailable.
+        </p>
         <dl className={styles.detailGrid}>
           <DetailRow
             label="validation_summary available"
@@ -562,11 +622,11 @@ function SelectedInboxItem({
           />
           <DetailRow
             label="validation_summary path"
-            value={item.safe_links.validation_summary.path}
+            value={`${item.safe_links.validation_summary.path} / local fixture reference only`}
           />
           <DetailRow
             label="validation_summary hash"
-            value={item.safe_links.validation_summary.hash}
+            value={`${item.safe_links.validation_summary.hash} / local fixture reference only`}
           />
           <DetailRow
             label="read_only_validate_result_ui available"
@@ -581,6 +641,10 @@ function SelectedInboxItem({
             value={item.safe_links.read_only_validate_result_ui.detail}
           />
           <DetailRow
+            label="read_only_validate_result_ui boundary"
+            value="unavailable / no href / no navigation / no product authority"
+          />
+          <DetailRow
             label="runtime_handoff available"
             value={String(item.safe_links.runtime_handoff.available)}
           />
@@ -591,6 +655,10 @@ function SelectedInboxItem({
           <DetailRow
             label="runtime_handoff detail"
             value={item.safe_links.runtime_handoff.detail}
+          />
+          <DetailRow
+            label="runtime_handoff boundary"
+            value="unavailable / no href / no navigation / no runtime state"
           />
         </dl>
       </details>
@@ -722,8 +790,9 @@ function PolicyBoundary({
       <p>
         This fixture surface has no controls labeled Accept, Approve, Promote,
         Reject, Merge, Deploy, Persist, Export, Run Codex, Call Codex, Call
-        provider/model, Create review decision, Create accepted state, or Handoff
-        to runtime.
+        Provider, Call provider/model, Create review decision, Create accepted
+        state, Handoff to runtime, Create readiness, Create evidence, or Create
+        proof.
       </p>
       <p>
         PASS remains review-only. PASS with follow-up remains review material
