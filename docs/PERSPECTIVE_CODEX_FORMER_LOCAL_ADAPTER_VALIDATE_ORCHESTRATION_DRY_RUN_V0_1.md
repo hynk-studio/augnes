@@ -66,9 +66,9 @@ Dry-run extracts balanced JSON objects from `RETURNED_CODEX_RESPONSE` bounds.
 
 `candidate_count` counts existing-validator-compatible `codex_perspective_candidate_draft.v0.1` objects only.
 
-Readiness requires `candidate_count: 1`.
+Readiness requires exactly one parsed JSON object and exactly one existing-validator-compatible candidate draft.
 
-The dry-run reports `blocked_before_validate_execution` when candidate_count is zero, multiple, unknown, unparsable, or wrong shape. It does not choose a best candidate, merge candidate objects, discard extras, retry with Codex, or run model/provider regeneration.
+The dry-run reports `blocked_before_validate_execution` when candidate_count is zero, multiple, unknown, unparsable, or wrong shape. It also blocks ambiguous multiple-object returned material, including the case where one object is compatible and another parsed object is wrong shape. It does not choose a best candidate, merge candidate objects, discard extras, retry with Codex, or run model/provider regeneration.
 
 ## Existing-Validator-Compatible Candidate Draft Shape
 
@@ -91,6 +91,8 @@ The candidate object must match the local `CodexPerspectiveCandidateDraftV0` val
 
 The dry-run requires `candidate.source_former_input_packet.packet_id` to match the envelope `source_former_input_packet_id` and helper/source former input packet provenance.
 
+The dry-run also checks nested runtime-shape prerequisites aligned with the existing validator, including `source_former_input_packet.packet_version`, `source_former_input_packet.packet_id`, `source_former_input_packet.role`, `selected_material.changed_files`, `selected_material.source_pr_refs`, `basis_quality_suggestion.status`, and `basis_quality_suggestion.reasons`.
+
 `source_manual_copy_packet_id` and `source_prompt_hash` are envelope/helper metadata provenance fields, not required candidate draft fields.
 
 ## source_prompt_hash versus prompt_file_sha256
@@ -112,6 +114,8 @@ The dry-run verifies:
 - prepare output discovery is complete;
 - source input hash matches prepare execution summary `source_input_hash`;
 - returned envelope has the expected header and response bounds;
+- header provenance fields are parsed only from the header/preamble before `RETURNED_CODEX_RESPONSE`;
+- returned response content cannot supply or repair missing header provenance fields;
 - envelope `capture_method` is `human_manual`;
 - envelope `codex_surface_label` is `separate user-started Codex session`;
 - envelope `prompt_was_generated_by_manual_copy_packet` is true;

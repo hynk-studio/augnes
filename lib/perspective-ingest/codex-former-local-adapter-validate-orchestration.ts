@@ -166,7 +166,10 @@ export function buildCodexFormerLocalAdapterValidateDryRunSummary(
   const envelope = parseReturnedCandidateEnvelope(input.returnedEnvelopeText);
   const extraction = extractCandidateDrafts(envelope.returnedText);
   const candidateCount = extraction.compatibleCandidates.length;
-  const candidate = candidateCount === 1 ? extraction.compatibleCandidates[0] : null;
+  const candidate =
+    extraction.parsedObjects.length === 1 && candidateCount === 1
+      ? extraction.compatibleCandidates[0]
+      : null;
 
   const blockedReasons: string[] = [];
   const warnings: string[] = [];
@@ -287,7 +290,17 @@ export function buildCodexFormerLocalAdapterValidateDryRunSummary(
       `expected exactly one existing-validator-compatible candidate draft; found ${candidateCount}`,
     );
   }
-  if (candidateCount === 0 && extraction.parsedObjects.length > 0) {
+  if (extraction.parsedObjects.length !== 1) {
+    blockedReasons.push(
+      `expected exactly one returned JSON object; found ${extraction.parsedObjects.length}`,
+    );
+  }
+  if (extraction.parsedObjects.length > 1) {
+    blockedReasons.push(
+      "ambiguous returned candidate material contains multiple JSON objects and cannot be selected automatically",
+    );
+  }
+  if (extraction.candidateShapeErrors.length > 0) {
     blockedReasons.push(...extraction.candidateShapeErrors);
   }
   if (candidateCount > 1) {
@@ -382,7 +395,11 @@ export function buildCodexFormerLocalAdapterValidateDryRunSummary(
 export function parseReturnedCandidateEnvelope(envelopeText: string): ParsedEnvelope {
   const text = typeof envelopeText === "string" ? envelopeText : "";
   const errors: string[] = [];
-  if (!text.includes("REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET")) {
+  const responseMarkerMatch = text.match(/^RETURNED_CODEX_RESPONSE:/m);
+  const headerText = responseMarkerMatch
+    ? text.slice(0, responseMarkerMatch.index)
+    : text;
+  if (!headerText.includes("REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET")) {
     errors.push("capture envelope header missing");
   }
   const returnedResponseMatch = text.match(
@@ -392,21 +409,21 @@ export function parseReturnedCandidateEnvelope(envelopeText: string): ParsedEnve
     errors.push("RETURNED_CODEX_RESPONSE bounds missing");
   }
   const fields = {
-    capture_method: parseEnvelopeField(text, "capture_method"),
-    codex_surface_label: parseEnvelopeField(text, "codex_surface_label"),
+    capture_method: parseEnvelopeField(headerText, "capture_method"),
+    codex_surface_label: parseEnvelopeField(headerText, "codex_surface_label"),
     prompt_was_generated_by_manual_copy_packet: parseEnvelopeBooleanField(
-      text,
+      headerText,
       "prompt_was_generated_by_manual_copy_packet",
     ),
     source_manual_copy_packet_id: parseEnvelopeField(
-      text,
+      headerText,
       "source_manual_copy_packet_id",
     ),
     source_former_input_packet_id: parseEnvelopeField(
-      text,
+      headerText,
       "source_former_input_packet_id",
     ),
-    source_prompt_hash: parseEnvelopeField(text, "source_prompt_hash"),
+    source_prompt_hash: parseEnvelopeField(headerText, "source_prompt_hash"),
   };
   return {
     fields,
@@ -556,14 +573,43 @@ function collectCandidateDraftShapeErrors(candidate: unknown, index: number) {
   );
   if (!sourceFormerInputPacket) {
     errors.push(`${prefix}.source_former_input_packet must be an object`);
-  } else if (!hasText(stringField(sourceFormerInputPacket, "packet_id"))) {
-    errors.push(`${prefix}.source_former_input_packet.packet_id is missing`);
+  } else {
+    if (
+      stringField(sourceFormerInputPacket, "packet_version") !==
+      "codex_perspective_former_input_packet.v0.1"
+    ) {
+      errors.push(
+        `${prefix}.source_former_input_packet.packet_version is missing or wrong`,
+      );
+    }
+    if (!hasText(stringField(sourceFormerInputPacket, "packet_id"))) {
+      errors.push(`${prefix}.source_former_input_packet.packet_id is missing`);
+    }
+    if (
+      stringField(sourceFormerInputPacket, "role") !== "codex_perspective_former"
+    ) {
+      errors.push(
+        `${prefix}.source_former_input_packet.role is missing or wrong`,
+      );
+    }
   }
   if (!hasText(stringField(candidate, "thesis"))) {
     errors.push(`${prefix}.thesis is required`);
   }
-  if (!isRecord(candidate.selected_material)) {
+  const selectedMaterial = recordField(candidate, "selected_material");
+  if (!selectedMaterial) {
     errors.push(`${prefix}.selected_material must be an object`);
+  } else {
+    if (!Array.isArray(selectedMaterial.changed_files)) {
+      errors.push(
+        `invalid draft field shape: selected_material.changed_files must be an array`,
+      );
+    }
+    if (!Array.isArray(selectedMaterial.source_pr_refs)) {
+      errors.push(
+        `invalid draft field shape: selected_material.source_pr_refs must be an array`,
+      );
+    }
   }
   for (const field of [
     "evidence_pointer_refs",
@@ -577,8 +623,23 @@ function collectCandidateDraftShapeErrors(candidate: unknown, index: number) {
       errors.push(`${prefix}.${field} must be an array`);
     }
   }
-  if (!isRecord(candidate.basis_quality_suggestion)) {
+  const basisQualitySuggestion = recordField(
+    candidate,
+    "basis_quality_suggestion",
+  );
+  if (!basisQualitySuggestion) {
     errors.push(`${prefix}.basis_quality_suggestion must be an object`);
+  } else {
+    if (!hasText(stringField(basisQualitySuggestion, "status"))) {
+      errors.push(
+        `${prefix}.basis_quality_suggestion.status must be a string`,
+      );
+    }
+    if (!Array.isArray(basisQualitySuggestion.reasons)) {
+      errors.push(
+        `invalid draft field shape: basis_quality_suggestion.reasons must be an array`,
+      );
+    }
   }
   if (!isRecord(candidate.privacy_flags)) {
     errors.push(`${prefix}.privacy_flags must be an object`);
@@ -644,6 +705,7 @@ function buildCandidateShapeStatus({
   parsedObjectCount: number;
   parseErrorCount: number;
 }): CodexFormerLocalAdapterValidateDryRunSummaryV0["candidate_shape_status"] {
+  if (parsedObjectCount > 1) return "multiple_candidates";
   if (candidateCount === 1) return "existing_validator_compatible";
   if (candidateCount > 1) return "multiple_candidates";
   if (parseErrorCount > 0) return "unparsable";

@@ -37,13 +37,17 @@ Final validation states PASS, PASS with follow-up, and BLOCKED are not used as d
 
 ## Candidate And Provenance Contract
 
-The dry-run enforces the exactly-one candidate rule. Candidate_count is based on existing-validator-compatible `codex_perspective_candidate_draft.v0.1` / `codex_perspective_candidate_draft` objects.
+The dry-run enforces the exactly-one candidate rule. Readiness requires exactly one parsed JSON object and exactly one existing-validator-compatible `codex_perspective_candidate_draft.v0.1` / `codex_perspective_candidate_draft` object. Ambiguous multiple-object returned material is refused instead of selecting one object, including one-valid-plus-one-wrong-shape responses.
 
 The candidate shape requires `source_former_input_packet`, `thesis`, `selected_material`, `evidence_pointer_refs`, `unresolved_tensions`, `basis_quality_suggestion`, `next_action_candidates`, `user_core_decision_questions`, `qualification_notes`, `privacy_flags`, `authority_flags`, and `forbidden_actions`.
 
 `candidate.source_former_input_packet.packet_id` must match envelope `source_former_input_packet_id` and helper/source former input packet provenance.
 
+Nested runtime-shape checks align with the existing validator for `source_former_input_packet.packet_version`, `source_former_input_packet.packet_id`, `source_former_input_packet.role`, `selected_material.changed_files`, `selected_material.source_pr_refs`, `basis_quality_suggestion.status`, and `basis_quality_suggestion.reasons`.
+
 source_prompt_hash is envelope/helper metadata provenance. prompt_file_sha256 is prompt artifact byte hash. The dry-run keeps source_prompt_hash/copyable_prompt_hash separate from prompt_file_sha256.
+
+Returned envelope provenance is parsed only from the header/preamble before `RETURNED_CODEX_RESPONSE`; returned response content cannot supply or repair missing header fields.
 
 ## Dry-Run Summary
 
@@ -62,8 +66,14 @@ The dry-run smoke covers:
 - missing `RETURNED_CODEX_RESPONSE` bounds;
 - candidate_count zero;
 - candidate_count multiple;
+- one valid candidate plus one wrong-shape JSON object;
 - unsupported draft_version or draft_kind;
 - candidate missing required fields;
+- missing header provenance hidden in returned response prose;
+- selected_material.changed_files not an array;
+- selected_material.source_pr_refs not an array;
+- basis_quality_suggestion.reasons not an array;
+- source_former_input_packet.role missing or wrong;
 - candidate.source_former_input_packet.packet_id mismatch;
 - source_manual_copy_packet_id mismatch;
 - source_prompt_hash mismatch;

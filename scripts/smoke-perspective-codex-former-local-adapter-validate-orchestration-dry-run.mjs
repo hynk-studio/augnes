@@ -116,6 +116,12 @@ function assertSourceContracts() {
     "buildCodexFormerLocalAdapterValidateDryRunSummary",
     "parseReturnedCandidateEnvelope",
     "extractCandidateDrafts",
+    "headerText",
+    "ambiguous returned candidate material",
+    "invalid draft field shape: selected_material.changed_files must be an array",
+    "invalid draft field shape: selected_material.source_pr_refs must be an array",
+    "invalid draft field shape: basis_quality_suggestion.reasons must be an array",
+    "source_former_input_packet.role is missing or wrong",
   ]);
   assertIncludesAll(cliText, [
     "--dry-run",
@@ -171,9 +177,34 @@ function assertPromptFileComparableMatch() {
 
 function assertNegativeCoverage() {
   assertMissingReturnedEnvelope();
+  assertExecuteFlagsRejected();
   assertBlocked("missing-bounds", {
     envelopeText: readyEnvelopeText.replace("RETURNED_CODEX_RESPONSE:", "RETURNED_CODEX_RESPONSE_MISSING:"),
   }, ["RETURNED_CODEX_RESPONSE bounds missing"]);
+  assertBlocked("header-source-prompt-from-response-not-trusted", {
+    envelopeText: removeHeaderField(
+      buildEnvelopeForReturnedText(
+        `source_prompt_hash: 2xhw7m\n${JSON.stringify(readyCandidate, null, 2)}`,
+      ),
+      "source_prompt_hash",
+    ),
+  }, ["source_prompt_hash is required"]);
+  assertBlocked("header-manual-copy-from-response-not-trusted", {
+    envelopeText: removeHeaderField(
+      buildEnvelopeForReturnedText(
+        `source_manual_copy_packet_id: manual-codex-former-copy:v0.1:1d44vfz\n${JSON.stringify(readyCandidate, null, 2)}`,
+      ),
+      "source_manual_copy_packet_id",
+    ),
+  }, ["source_manual_copy_packet_id is required"]);
+  assertBlocked("header-former-input-from-response-not-trusted", {
+    envelopeText: removeHeaderField(
+      buildEnvelopeForReturnedText(
+        `source_former_input_packet_id: codex-perspective-former-input:v0.1:project-augnes-ag-codex-former-local-adapter-man:10f6ami\n${JSON.stringify(readyCandidate, null, 2)}`,
+      ),
+      "source_former_input_packet_id",
+    ),
+  }, ["source_former_input_packet_id is required"]);
   assertBlocked("candidate-zero", {
     envelopeText: buildEnvelopeForReturnedText("bounded prose without candidate JSON"),
   }, ["expected exactly one existing-validator-compatible candidate draft; found 0"]);
@@ -182,6 +213,17 @@ function assertNegativeCoverage() {
       `${JSON.stringify(readyCandidate)}\n${JSON.stringify(readyCandidate)}`,
     ),
   }, ["candidate_count multiple is blocked before validate execution"]);
+  assertBlocked("candidate-valid-plus-wrong-shape", {
+    envelopeText: buildEnvelopeForReturnedText(
+      `${JSON.stringify(readyCandidate)}\n${JSON.stringify({
+        draft_version: "codex_perspective_candidate_draft.v0.1",
+        draft_kind: "codex_perspective_candidate_draft",
+      })}`,
+    ),
+  }, [
+    "ambiguous returned candidate material contains multiple JSON objects",
+    "candidate[1].source_former_input_packet is missing",
+  ]);
   assertBlocked("unsupported-version-kind", {
     envelopeText: buildEnvelopeForCandidate({
       ...readyCandidate,
@@ -194,6 +236,42 @@ function assertNegativeCoverage() {
   assertBlocked("missing-required-field", {
     envelopeText: buildEnvelopeForCandidate(missingFieldCandidate),
   }, ["candidate[0].thesis is missing"]);
+  assertBlocked("selected-changed-files-not-array", {
+    envelopeText: buildEnvelopeForCandidate({
+      ...readyCandidate,
+      selected_material: {
+        ...readyCandidate.selected_material,
+        changed_files: "not-array",
+      },
+    }),
+  }, ["invalid draft field shape: selected_material.changed_files must be an array"]);
+  assertBlocked("selected-source-pr-refs-not-array", {
+    envelopeText: buildEnvelopeForCandidate({
+      ...readyCandidate,
+      selected_material: {
+        ...readyCandidate.selected_material,
+        source_pr_refs: "not-array",
+      },
+    }),
+  }, ["invalid draft field shape: selected_material.source_pr_refs must be an array"]);
+  assertBlocked("basis-reasons-not-array", {
+    envelopeText: buildEnvelopeForCandidate({
+      ...readyCandidate,
+      basis_quality_suggestion: {
+        ...readyCandidate.basis_quality_suggestion,
+        reasons: "not-array",
+      },
+    }),
+  }, ["invalid draft field shape: basis_quality_suggestion.reasons must be an array"]);
+  assertBlocked("source-former-role-wrong", {
+    envelopeText: buildEnvelopeForCandidate({
+      ...readyCandidate,
+      source_former_input_packet: {
+        ...readyCandidate.source_former_input_packet,
+        role: "wrong_role",
+      },
+    }),
+  }, ["candidate[0].source_former_input_packet.role is missing or wrong"]);
   assertBlocked("former-input-mismatch", {
     envelopeText: buildEnvelopeForCandidate({
       ...readyCandidate,
@@ -270,6 +348,28 @@ function assertMissingReturnedEnvelope() {
       ]),
     /validate.returned_envelope_path file does not exist/,
   );
+}
+
+function assertExecuteFlagsRejected() {
+  assertIncludesAll(runCliExpectFailure([
+    "--execute",
+    "--source-input",
+    sourceInputFixtureFile,
+    "--prepare-execution-summary",
+    prepareExecutionSummaryFixtureFile,
+    "--returned-envelope",
+    returnedEnvelopeFixtureFile,
+  ]), ["--execute is not implemented in this dry-run slice"]);
+  assertIncludesAll(runCliExpectFailure([
+    "--dry-run",
+    "--execute",
+    "--source-input",
+    sourceInputFixtureFile,
+    "--prepare-execution-summary",
+    prepareExecutionSummaryFixtureFile,
+    "--returned-envelope",
+    returnedEnvelopeFixtureFile,
+  ]), ["cannot use --dry-run and --execute together"]);
 }
 
 function assertBlocked(name, overrides, expectedReasons) {
@@ -412,6 +512,19 @@ function runCli(args) {
   });
 }
 
+function runCliExpectFailure(args) {
+  try {
+    runCli(args);
+  } catch (error) {
+    return [
+      error?.stdout?.toString?.() ?? "",
+      error?.stderr?.toString?.() ?? "",
+      error instanceof Error ? error.message : String(error),
+    ].join("\n");
+  }
+  assert.fail("expected CLI command to fail");
+}
+
 function buildEnvelopeForCandidate(candidate) {
   return buildEnvelopeForReturnedText(JSON.stringify(candidate, null, 2));
 }
@@ -421,6 +534,10 @@ function buildEnvelopeForReturnedText(returnedText) {
     /RETURNED_CODEX_RESPONSE:\s*[\s\S]*?\s*END RETURNED_CODEX_RESPONSE/,
     `RETURNED_CODEX_RESPONSE:\n${returnedText}\nEND RETURNED_CODEX_RESPONSE`,
   );
+}
+
+function removeHeaderField(envelopeText, fieldName) {
+  return envelopeText.replace(new RegExp(`^${fieldName}: .+\\n`, "m"), "");
 }
 
 function extractReadyCandidate() {
