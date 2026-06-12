@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-06-12T00:00:00.000Z",
+  "scope": "project:augnes",
+  "work_id": "AG-codex-former-local-adapter-validate-execution-pass",
+  "source_pr_refs": [
+    "pr:hynk-studio/augnes#523"
+  ],
+  "changed_files": [
+    "lib/perspective-ingest/codex-former-local-adapter-validate-orchestration.ts",
+    "scripts/perspective-codex-former-local-adapter-validate-orchestration.mjs",
+    "scripts/smoke-perspective-codex-former-local-adapter-validate-orchestration-execution.mjs",
+    "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_ORCHESTRATION_EXECUTION_V0_1.md",
+    "reports/2026-06-12-perspective-codex-former-local-adapter-validate-orchestration-execution.md",
+    "package.json"
+  ],
+  "changed_files_summary": "Bounded local validate orchestration execution implementation with local contract-fit, direct validation, schema-alignment safety-net, and advisory guidance only.",
+  "tests_checks_run": [
+    {
+      "check_id": "check:typecheck",
+      "command": "npm run typecheck",
+      "status": "passed",
+      "result_summary": "Typecheck passes for the local validate orchestration execution slice."
+    },
+    {
+      "check_id": "check:validate-execution-smoke",
+      "command": "npm run smoke:perspective-codex-former-local-adapter-validate-orchestration-execution",
+      "status": "passed",
+      "result_summary": "Execution smoke covers PASS, PASS with follow-up, BLOCKED, stale dry-run summaries, pointer warnings, and local-only authority boundaries."
+    }
+  ],
+  "skipped_checks": [],
+  "unresolved_gaps": [],
+  "readiness": {
+    "status": "reviewable_with_follow_up",
+    "reasons": [
+      "This fixture is deterministic review material for the local validate execution implementation and does not create accepted state."
+    ]
+  },
+  "source_privacy_redaction_notes": [
+    "Only bounded local adapter implementation summaries are included.",
+    "Raw unsafe, private, source, provider, credential, browser-capture, and transcript material is omitted."
+  ],
+  "authority_boundaries": [
+    "Local review-only validate summary output; no accepted Augnes state.",
+    "No proof, evidence, readiness, review decision, provider/model, Codex SDK, GitHub API, DB, clipboard, live Codex capture, merge, deploy, or Core decision behavior."
+  ]
+}
