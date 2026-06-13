@@ -1,10 +1,16 @@
 import {
   PERSPECTIVE_MEMORY_ITEM_API_ROUTE,
+  PERSPECTIVE_MEMORY_ITEM_STORE_BACKEND,
   isPerspectiveMemoryItemKind,
   isPerspectiveMemoryItemStatus,
   type PerspectiveMemoryItemKind,
   type PerspectiveMemoryItemStatus,
 } from "@/lib/perspective-ingest/perspective-memory-item";
+import {
+  PERSPECTIVE_MEMORY_ITEM_SEARCH_MAX_LIMIT,
+  searchPerspectiveMemoryItems,
+  type PerspectiveMemoryItemSearchActiveState,
+} from "@/lib/perspective-ingest/perspective-memory-item-search";
 import {
   createPerspectiveMemoryItemFromBoundaryRecord,
   listPerspectiveMemoryItems,
@@ -17,31 +23,74 @@ export const dynamic = "force-dynamic";
 type JsonBodyResult = { value: Record<string, unknown> } | { error: string };
 type StatusParseResult = { value: PerspectiveMemoryItemStatus | null } | { error: string };
 type KindParseResult = { value: PerspectiveMemoryItemKind | null } | { error: string };
+type ValidationStateParseResult =
+  | { value: "PASS" | "PASS with follow-up" | null }
+  | { error: string };
+type ActiveStateParseResult =
+  | { value: PerspectiveMemoryItemSearchActiveState | null }
+  | { error: string };
+type BooleanParseResult = { value: boolean | null } | { error: string };
 type LimitParseResult = { value: number | null } | { error: string };
 
 export function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const query = searchParams.get("q") ?? searchParams.get("search") ?? "";
   const itemStatus = parseItemStatus(searchParams.get("item_status"));
   if ("error" in itemStatus) return blockedResponse([itemStatus.error], 400);
   const memoryKind = parseMemoryKind(searchParams.get("memory_kind"));
   if ("error" in memoryKind) return blockedResponse([memoryKind.error], 400);
+  const sourceValidationResultState = parseSourceValidationResultState(
+    searchParams.get("source_validation_result_state"),
+  );
+  if ("error" in sourceValidationResultState) {
+    return blockedResponse([sourceValidationResultState.error], 400);
+  }
+  const activeState = parseActiveState(searchParams.get("active_state"));
+  if ("error" in activeState) return blockedResponse([activeState.error], 400);
+  const hasWarnings = parseOptionalBoolean(searchParams.get("has_warnings"));
+  if ("error" in hasWarnings) return blockedResponse([hasWarnings.error], 400);
   const limit = parseLimit(searchParams.get("limit"));
   if ("error" in limit) return blockedResponse([limit.error], 400);
+  const sourceBoundaryRecordId = searchParams.get("source_boundary_record_id");
+  const searchRequested =
+    searchParams.has("q") ||
+    searchParams.has("search") ||
+    sourceValidationResultState.value != null ||
+    activeState.value != null ||
+    hasWarnings.value != null;
   const items = listPerspectiveMemoryItems({
     itemStatus: itemStatus.value,
     memoryKind: memoryKind.value,
-    sourceBoundaryRecordId: searchParams.get("source_boundary_record_id"),
-    limit: limit.value,
+    sourceBoundaryRecordId,
+    sourceValidationResultState: sourceValidationResultState.value,
+    limit: searchRequested ? PERSPECTIVE_MEMORY_ITEM_SEARCH_MAX_LIMIT : limit.value,
   });
+  const result = searchRequested
+    ? {
+        ...items,
+        ...searchPerspectiveMemoryItems(items.items, {
+          query,
+          itemStatus: itemStatus.value,
+          memoryKind: memoryKind.value,
+          sourceValidationResultState: sourceValidationResultState.value,
+          sourceBoundaryRecordId,
+          activeState: activeState.value,
+          hasWarnings: hasWarnings.value,
+          limit: limit.value,
+        }),
+      }
+    : items;
   return NextResponse.json({
     ok: true,
     route: PERSPECTIVE_MEMORY_ITEM_API_ROUTE,
-    persistence_backend: "sqlite:lib/db.ts",
-    result: items,
+    persistence_backend: PERSPECTIVE_MEMORY_ITEM_STORE_BACKEND,
+    result,
     authority_boundary: {
       perspective_memory_items_read: true,
+      search_read_only: true,
       core_decision_created: false,
       core_memory_created: false,
+      state_entry_created: false,
       runtime_handoff_created: false,
       automatic_runtime_injection_created: false,
       automatic_promotion_created: false,
@@ -126,6 +175,37 @@ function parseMemoryKind(value: string | null): KindParseResult {
     return { error: `memory_kind is not supported: ${value}` };
   }
   return { value };
+}
+
+function parseSourceValidationResultState(
+  value: string | null,
+): ValidationStateParseResult {
+  if (!value) return { value: null };
+  if (value !== "PASS" && value !== "PASS with follow-up") {
+    return {
+      error: `source_validation_result_state is not supported: ${value}`,
+    };
+  }
+  return { value };
+}
+
+function parseActiveState(value: string | null): ActiveStateParseResult {
+  if (!value) return { value: null };
+  if (value === "active" || value === "active-ish") {
+    return { value: "active-ish" };
+  }
+  if (value === "inactive" || value === "inactive-ish") {
+    return { value: "inactive-ish" };
+  }
+  return { error: `active_state is not supported: ${value}` };
+}
+
+function parseOptionalBoolean(value: string | null): BooleanParseResult {
+  if (!value) return { value: null };
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "yes"].includes(normalized)) return { value: true };
+  if (["false", "0", "no"].includes(normalized)) return { value: false };
+  return { error: `has_warnings must be true or false: ${value}` };
 }
 
 function parseLimit(value: string | null): LimitParseResult {

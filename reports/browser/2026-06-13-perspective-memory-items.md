@@ -43,6 +43,7 @@ Persistence backend marker: `sqlite:lib/db.ts`.
 - link back to boundary inbox visible
 - link back to local queue route visible
 - link to operator flow visible
+- link to read-only search route visible at `/cockpit/perspective/memory-items/search`
 - 390px viewport had no horizontal overflow
 - 768px viewport had no horizontal overflow
 - desktop viewport had no horizontal overflow

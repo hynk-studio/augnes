@@ -196,11 +196,13 @@ export function listPerspectiveMemoryItems({
   itemStatus,
   memoryKind,
   sourceBoundaryRecordId,
+  sourceValidationResultState,
   limit = 50,
 }: {
   itemStatus?: PerspectiveMemoryItemStatus | null;
   memoryKind?: PerspectiveMemoryItemKind | null;
   sourceBoundaryRecordId?: string | null;
+  sourceValidationResultState?: "PASS" | "PASS with follow-up" | null;
   limit?: number | null;
 } = {}): PerspectiveMemoryItemListV0 {
   const clauses: string[] = [];
@@ -265,6 +267,7 @@ export function listPerspectiveMemoryItems({
             itemStatus,
             memoryKind,
             sourceBoundaryRecordId,
+            sourceValidationResultState,
             limit,
           },
         ),

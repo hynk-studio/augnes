@@ -57,6 +57,8 @@ Status controls are limited to:
 
 The dashboard shows unavailable Core/runtime actions as policy text only.
 
+The dashboard now links to `/cockpit/perspective/memory-items/search` with the label `Search persisted perspective-memory items`. Search and retrieval behavior lives on that read-only route, not behind the dashboard status controls.
+
 ## browser validation
 
 Browser validation covers:
@@ -97,4 +99,4 @@ No Core decision, Core memory, state entry, runtime handoff, automatic runtime i
 
 ## recommended next PR
 
-Add a read-only retrieval/search surface for persisted perspective-memory items. Core-facing promotion should wait for a separate explicit product decision.
+Add a read-only synthesis/review surface that consumes selected persisted perspective-memory items, or add saved local search views if repeated retrieval workflows become common. Core-facing promotion should wait for a separate explicit product decision.

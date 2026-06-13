@@ -4,6 +4,7 @@ This follows PR #537. Boundary records made locally-ready write proposals durabl
 
 Route:
 - `/cockpit/perspective/memory-items`
+- `/cockpit/perspective/memory-items/search`
 
 API:
 - `GET /api/perspective/memory/items`
@@ -95,6 +96,14 @@ Status controls update only `item_status`:
 
 The dashboard does not enable Send to Core, Create Core decision, Auto inject into runtime, Auto promote, Provider/model enrich, GitHub mutation, Commit state entry, Deploy, or runtime handoff.
 
+## Read-Only Search
+
+The dashboard links to `/cockpit/perspective/memory-items/search` with the label `Search persisted perspective-memory items`.
+
+The search route is a retrieval-only surface for persisted perspective-memory items. It searches bounded title, summary, source refs, evidence refs, source lineage, hashes, risk notes, unresolved tensions, carry-forward questions, and suggested next review action. It returns deterministic match metadata and snippets through `GET /api/perspective/memory/items` when `q`, `search`, `source_validation_result_state`, `active_state`, or `has_warnings` query params are present.
+
+The search route does not expose status mutation controls, item creation controls, boundary creation controls, Core controls, runtime controls, provider/model controls, Codex SDK controls, GitHub mutation controls, state entry controls, or deployment controls. It uses no vector search and no embeddings.
+
 ## Browser Validation
 
 Browser validation covers operator flow creation, local queue proposal/checklist readiness, boundary record creation, item creation from the boundary inbox, and the dedicated memory items dashboard. The validation uses an isolated `AUGNES_DB_PATH` and confirms refresh persistence through API/SQLite.
@@ -105,4 +114,4 @@ This PR does not implement Core-facing promotion, Core memory, runtime prompt in
 
 ## Recommended Next PR
 
-Add a read-only retrieval/search surface for persisted perspective-memory items. Only design Core-facing promotion after a separate explicit product decision.
+Add a read-only synthesis/review surface that consumes selected persisted perspective-memory items, or add saved local search views if repeated retrieval workflows become common. Only design Core-facing promotion after a separate explicit product decision.

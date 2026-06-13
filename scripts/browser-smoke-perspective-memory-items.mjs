@@ -43,6 +43,7 @@ for (const phrase of [
   "link back to boundary inbox visible",
   "link back to local queue route visible",
   "link to operator flow visible",
+  "link to read-only search route visible",
   "390px viewport had no horizontal overflow",
   "768px viewport had no horizontal overflow",
   "desktop viewport had no horizontal overflow",
