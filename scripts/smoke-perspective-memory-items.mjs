@@ -114,6 +114,13 @@ function assertStaticFiles() {
     "sqlite:lib/db.ts",
     "buildPerspectiveMemoryItemFromBoundaryRecord",
     "canBuildPerspectiveMemoryItemFromBoundaryRecord",
+    "isItemContent",
+    "isItemAcceptance",
+    "isSourceBoundarySnapshot",
+    "isAvailability",
+    "isItemAuthorityBoundary",
+    "isStringArray",
+    "collectPerspectiveMemoryItemUnsafeMarkers(item).length",
     "should_write_to_memory_now",
     "automatic_runtime_injection_enabled: false",
     "core_memory_enabled: false",
@@ -230,6 +237,69 @@ function assertItemModelBehavior() {
   );
   assert.equal(passItem.item.authority_boundary.provider_model_call_created, false);
   assert.equal(passItem.item.authority_boundary.github_mutation_created, false);
+  assert.equal(
+    itemModel.safeParsePerspectiveMemoryItem(JSON.stringify(passItem.item))
+      ?.item_id,
+    passItem.item.item_id,
+  );
+  assertMalformedPersistedItemRejected(
+    "missing content.source_refs",
+    passItem.item,
+    (item) => {
+      delete item.content.source_refs;
+    },
+  );
+  assertMalformedPersistedItemRejected(
+    "content.risk_notes not an array",
+    passItem.item,
+    (item) => {
+      item.content.risk_notes = "warning text";
+    },
+  );
+  assertMalformedPersistedItemRejected(
+    "missing acceptance.acceptance_label",
+    passItem.item,
+    (item) => {
+      delete item.acceptance.acceptance_label;
+    },
+  );
+  assertMalformedPersistedItemRejected(
+    "source boundary snapshot write-now flag true",
+    passItem.item,
+    (item) => {
+      item.source_boundary_snapshot.checklist_ready_for_memory_write_now = true;
+    },
+  );
+  assertMalformedPersistedItemRejected(
+    "availability automatic runtime injection true",
+    passItem.item,
+    (item) => {
+      item.availability.automatic_runtime_injection_enabled = true;
+    },
+  );
+  assertMalformedPersistedItemRejected(
+    "authority state entry true",
+    passItem.item,
+    (item) => {
+      item.authority_boundary.state_entry_created = true;
+    },
+  );
+  assertMalformedPersistedItemRejected(
+    "unsafe marker in content summary",
+    passItem.item,
+    (item) => {
+      item.content.summary = "TOKEN=unsafe";
+    },
+  );
+  assertMalformedPersistedItemRejected(
+    "unsafe marker in source boundary snapshot",
+    passItem.item,
+    (item) => {
+      item.source_boundary_snapshot.user_confirmation_from_boundary_record = {
+        unsafe: "TOKEN=unsafe",
+      };
+    },
+  );
 
   const passFollowUp = itemModel.buildPerspectiveMemoryItemFromBoundaryRecord({
     nowIso: "2026-06-13T00:01:01.000Z",
@@ -367,6 +437,22 @@ function assertStoreBehavior() {
   const listed = itemStore.listPerspectiveMemoryItems({ limit: 10 });
   assert.equal(listed.item_list_version, itemModel.PERSPECTIVE_MEMORY_ITEM_LIST_VERSION);
   assert.equal(listed.items.length, 1);
+  const malformedStoredItem = cloneItem(created.item);
+  malformedStoredItem.item_id = "perspective-memory-item:malformed-row";
+  malformedStoredItem.source_boundary_record_id =
+    "perspective-memory-boundary:malformed-row";
+  delete malformedStoredItem.content.source_refs;
+  insertMemoryItemRow(created.item, {
+    item_id: malformedStoredItem.item_id,
+    source_boundary_record_id: malformedStoredItem.source_boundary_record_id,
+    item_json: JSON.stringify(malformedStoredItem),
+  });
+  const listedAfterMalformed = itemStore.listPerspectiveMemoryItems({ limit: 10 });
+  assert.equal(
+    listedAfterMalformed.items.length,
+    1,
+    "malformed persisted item_json row must be ignored during list rehydration",
+  );
   const byBoundary = itemStore.getPerspectiveMemoryItemBySourceBoundaryRecord(
     boundary.record_id,
   );
@@ -447,6 +533,20 @@ function assertBlocked(label, input) {
   assert(result.blocked_reasons.length > 0, label);
 }
 
+function assertMalformedPersistedItemRejected(label, validItem, mutate) {
+  const malformed = cloneItem(validItem);
+  mutate(malformed);
+  assert.equal(
+    itemModel.safeParsePerspectiveMemoryItem(JSON.stringify(malformed)),
+    null,
+    `safeParsePerspectiveMemoryItem must reject ${label}`,
+  );
+}
+
+function cloneItem(item) {
+  return JSON.parse(JSON.stringify(item));
+}
+
 function insertBoundaryRecord(record) {
   const db = openDatabase();
   try {
@@ -510,6 +610,100 @@ function insertBoundaryRecord(record) {
       created_at: record.created_at,
       updated_at: record.updated_at,
     });
+  } finally {
+    db.close();
+  }
+}
+
+function insertMemoryItemRow(validItem, overrides = {}) {
+  const row = {
+    item_id: overrides.item_id ?? validItem.item_id,
+    item_status: overrides.item_status ?? validItem.item_status,
+    memory_kind: overrides.memory_kind ?? validItem.memory_kind,
+    source_boundary_record_id:
+      overrides.source_boundary_record_id ??
+      validItem.source_boundary_record_id,
+    source_checklist_id: overrides.source_checklist_id ?? validItem.source_checklist_id,
+    source_proposal_id: overrides.source_proposal_id ?? validItem.source_proposal_id,
+    source_queue_item_id: overrides.source_queue_item_id ?? validItem.source_queue_item_id,
+    source_candidate_draft_id:
+      overrides.source_candidate_draft_id ??
+      validItem.source_candidate_draft_id,
+    source_validation_result_state:
+      overrides.source_validation_result_state ??
+      validItem.source_validation_result_state,
+    source_validation_summary_hash:
+      overrides.source_validation_summary_hash ??
+      validItem.source_validation_summary_hash,
+    source_input_ref: overrides.source_input_ref ?? validItem.source_input_ref,
+    source_input_hash: overrides.source_input_hash ?? validItem.source_input_hash,
+    prepare_summary_ref:
+      overrides.prepare_summary_ref ?? validItem.prepare_summary_ref,
+    prepare_execution_summary_hash:
+      overrides.prepare_execution_summary_hash ??
+      validItem.prepare_execution_summary_hash,
+    returned_envelope_hash:
+      overrides.returned_envelope_hash ?? validItem.returned_envelope_hash,
+    source_proposal_hash:
+      overrides.source_proposal_hash ?? validItem.source_proposal_hash,
+    item_title: overrides.item_title ?? validItem.content.title,
+    item_summary: overrides.item_summary ?? validItem.content.summary,
+    item_json: overrides.item_json ?? JSON.stringify(validItem),
+    created_at: overrides.created_at ?? validItem.created_at,
+    updated_at: overrides.updated_at ?? validItem.updated_at,
+  };
+  const db = openDatabase();
+  try {
+    db.prepare(
+      `
+        INSERT INTO perspective_memory_items (
+          item_id,
+          item_status,
+          memory_kind,
+          source_boundary_record_id,
+          source_checklist_id,
+          source_proposal_id,
+          source_queue_item_id,
+          source_candidate_draft_id,
+          source_validation_result_state,
+          source_validation_summary_hash,
+          source_input_ref,
+          source_input_hash,
+          prepare_summary_ref,
+          prepare_execution_summary_hash,
+          returned_envelope_hash,
+          source_proposal_hash,
+          item_title,
+          item_summary,
+          item_json,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          @item_id,
+          @item_status,
+          @memory_kind,
+          @source_boundary_record_id,
+          @source_checklist_id,
+          @source_proposal_id,
+          @source_queue_item_id,
+          @source_candidate_draft_id,
+          @source_validation_result_state,
+          @source_validation_summary_hash,
+          @source_input_ref,
+          @source_input_hash,
+          @prepare_summary_ref,
+          @prepare_execution_summary_hash,
+          @returned_envelope_hash,
+          @source_proposal_hash,
+          @item_title,
+          @item_summary,
+          @item_json,
+          @created_at,
+          @updated_at
+        )
+      `,
+    ).run(row);
   } finally {
     db.close();
   }

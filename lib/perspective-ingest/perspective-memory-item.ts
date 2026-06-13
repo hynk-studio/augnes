@@ -548,6 +548,9 @@ function buildAuthorityBoundary(): PerspectiveMemoryItemV0["authority_boundary"]
 function isPerspectiveMemoryItem(value: unknown): value is PerspectiveMemoryItemV0 {
   if (!isRecord(value)) return false;
   const item = value as PerspectiveMemoryItemV0;
+  if (collectPerspectiveMemoryItemUnsafeMarkers(item).length > 0) {
+    return false;
+  }
   return (
     item.item_version === PERSPECTIVE_MEMORY_ITEM_VERSION &&
     typeof item.item_id === "string" &&
@@ -570,28 +573,87 @@ function isPerspectiveMemoryItem(value: unknown): value is PerspectiveMemoryItem
     typeof item.source_proposal_hash === "string" &&
     item.memory_kind === "perspective_candidate" &&
     isPerspectiveMemoryItemStatus(item.item_status) &&
-    isRecord(item.content) &&
-    item.content.content_version === PERSPECTIVE_MEMORY_ITEM_CONTENT_VERSION &&
-    isRecord(item.acceptance) &&
-    item.acceptance.user_confirmed_create_persisted_perspective_memory_item ===
-      true &&
-    item.acceptance.user_confirmed_not_core_decision === true &&
-    item.acceptance.user_confirmed_no_automatic_runtime_injection === true &&
-    item.acceptance.user_confirmed_source_boundary_record_preserved === true &&
-    isRecord(item.source_boundary_snapshot) &&
-    isRecord(item.availability) &&
-    item.availability.automatic_runtime_injection_enabled === false &&
-    item.availability.core_memory_enabled === false &&
-    isRecord(item.authority_boundary) &&
-    item.authority_boundary.perspective_memory_item_created === true &&
-    item.authority_boundary.accepted_product_memory_item_created === true &&
-    item.authority_boundary.core_decision_created === false &&
-    item.authority_boundary.core_memory_created === false &&
-    item.authority_boundary.runtime_handoff_created === false &&
-    item.authority_boundary.automatic_runtime_injection_created === false &&
-    item.authority_boundary.automatic_promotion_created === false &&
-    item.authority_boundary.provider_model_call_created === false &&
-    item.authority_boundary.github_mutation_created === false
+    isItemContent(item.content) &&
+    isItemAcceptance(item.acceptance) &&
+    isSourceBoundarySnapshot(item.source_boundary_snapshot) &&
+    isAvailability(item.availability) &&
+    isItemAuthorityBoundary(item.authority_boundary)
+  );
+}
+
+function isItemContent(value: unknown): value is PerspectiveMemoryItemV0["content"] {
+  if (!isRecord(value)) return false;
+  return (
+    value.content_version === PERSPECTIVE_MEMORY_ITEM_CONTENT_VERSION &&
+    typeof value.title === "string" &&
+    typeof value.summary === "string" &&
+    isStringArray(value.source_refs) &&
+    isStringArray(value.evidence_refs) &&
+    isStringArray(value.risk_notes) &&
+    isStringArray(value.unresolved_tensions) &&
+    isStringArray(value.carry_forward_questions) &&
+    typeof value.suggested_next_review_action === "string"
+  );
+}
+
+function isItemAcceptance(
+  value: unknown,
+): value is PerspectiveMemoryItemV0["acceptance"] {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.accepted_at === "string" &&
+    value.acceptance_label === "Create persisted perspective-memory item" &&
+    value.user_confirmed_create_persisted_perspective_memory_item === true &&
+    value.user_confirmed_not_core_decision === true &&
+    value.user_confirmed_no_automatic_runtime_injection === true &&
+    value.user_confirmed_source_boundary_record_preserved === true
+  );
+}
+
+function isSourceBoundarySnapshot(
+  value: unknown,
+): value is PerspectiveMemoryItemV0["source_boundary_snapshot"] {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.boundary_status_at_creation === "string" &&
+    value.checklist_ready_for_product_persistence_review === true &&
+    value.checklist_ready_for_memory_write_now === false &&
+    value.proposed_memory_payload_should_write_to_memory_now === false &&
+    isRecord(value.user_confirmation_from_boundary_record) &&
+    isRecord(value.checklist_gate_summary) &&
+    isRecord(value.proposal_diff_summary)
+  );
+}
+
+function isAvailability(
+  value: unknown,
+): value is PerspectiveMemoryItemV0["availability"] {
+  if (!isRecord(value)) return false;
+  return (
+    value.visible_in_perspective_memory_items === true &&
+    value.eligible_for_manual_review === true &&
+    value.eligible_for_future_retrieval_surfaces === true &&
+    value.eligible_for_future_synthesis_surfaces === true &&
+    value.automatic_runtime_injection_enabled === false &&
+    value.core_memory_enabled === false
+  );
+}
+
+function isItemAuthorityBoundary(
+  value: unknown,
+): value is PerspectiveMemoryItemV0["authority_boundary"] {
+  if (!isRecord(value)) return false;
+  return (
+    value.perspective_memory_item_created === true &&
+    value.accepted_product_memory_item_created === true &&
+    value.core_decision_created === false &&
+    value.core_memory_created === false &&
+    value.state_entry_created === false &&
+    value.runtime_handoff_created === false &&
+    value.automatic_runtime_injection_created === false &&
+    value.automatic_promotion_created === false &&
+    value.provider_model_call_created === false &&
+    value.github_mutation_created === false
   );
 }
 
@@ -627,6 +689,10 @@ function itemSortValue(item: PerspectiveMemoryItemV0) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 const unsafeMemoryItemMarkers = [
