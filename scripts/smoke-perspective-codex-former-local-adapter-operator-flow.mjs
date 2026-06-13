@@ -462,6 +462,15 @@ function assertComponentSource() {
     "prepare_execution_summary_hash",
     "returned_envelope_hash",
     "authority_flags",
+    "defaultCandidateActionChoice",
+    "resetCandidateActionPatch",
+    "candidate_action_choice: defaultCandidateActionChoice",
+    "supersede_previous_candidate_ref: undefined",
+    "shouldResetCandidateAction",
+    "result.validation_source === \"blocked_before_execution\"",
+    "result.validation_result.result_state === \"BLOCKED\"",
+    "requires real validation",
+    "disabled={!canSelectAction}",
     "Keep review-only",
     "Mark as perspective candidate",
     "Reject as memory candidate",
@@ -487,6 +496,25 @@ function assertComponentSource() {
   for (const action of operatorFlowCandidateActions) {
     assert(componentText.includes(action), `component must include ${action}`);
   }
+  assert(
+    countOccurrences(componentText, "...resetCandidateActionPatch()") >= 5,
+    "candidate_action_choice resets on edit/load/clear/preview/error paths",
+  );
+  assert(
+    componentText.includes(
+      "shouldResetCandidateAction ? resetCandidateActionPatch() : {}",
+    ),
+    "BLOCKED local validation must reset candidate_action_choice",
+  );
+  assert(
+    componentText.includes("const nextDraft = createInitialOperatorFlowDraft("),
+    "Clear local draft must restore the initial keep_review_only action",
+  );
+  assert(
+    componentText.includes("setLocalValidationRun(null)") &&
+      componentText.includes("setValidationPreview(null)"),
+    "stale validation runs must be cleared when context is not actionable",
+  );
 }
 
 function assertCssSource() {
@@ -630,6 +658,10 @@ function assertIncludesAll(source, phrases) {
   for (const phrase of phrases) {
     assert(source.includes(phrase), `expected source to include: ${phrase}`);
   }
+}
+
+function countOccurrences(source, phrase) {
+  return source.split(phrase).length - 1;
 }
 
 function createMockStorage() {

@@ -27,6 +27,8 @@ type ValidationPreviewState = {
 type LocalValidationRunState = OperatorFlowLocalValidationResponse | null;
 
 const initialIso = "1970-01-01T00:00:00.000Z";
+const defaultCandidateActionChoice: OperatorFlowCandidateAction =
+  "keep_review_only";
 
 export function CodexFormerLocalAdapterOperatorFlowSurface({
   viewModel,
@@ -124,6 +126,18 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     });
   }
 
+  function resetCandidateActionPatch(): Pick<
+    OperatorFlowPersistedDraft,
+    "candidate_action_choice"
+  > & {
+    supersede_previous_candidate_ref: undefined;
+  } {
+    return {
+      candidate_action_choice: defaultCandidateActionChoice,
+      supersede_previous_candidate_ref: undefined,
+    };
+  }
+
   function loadEnvelopeFixture(key: OperatorFlowReturnedEnvelopeFixtureKey) {
     const scenario = viewModel.scenarios[key];
     setReturnedEnvelopeText(scenario.returned_envelope_fixture.text);
@@ -139,6 +153,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
       validation_result_source: "not_run",
+      ...resetCandidateActionPatch(),
     });
     setDraftStatus(`${scenario.label} fixture loaded; envelope text not saved`);
   }
@@ -155,6 +170,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
       validation_result_source: "not_run",
+      ...resetCandidateActionPatch(),
     });
     setDraftStatus("returned envelope draft cleared");
   }
@@ -194,6 +210,8 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       draft.selected_returned_envelope_fixture_key,
     );
     setValidationPreview(preview);
+    setLocalValidationRun(null);
+    setValidationError(null);
     const scenario = viewModel.scenarios[preview.scenario_key];
     updateDraft({
       selected_source_input_ref: scenario.source_input_ref.path,
@@ -201,6 +219,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "validate_result",
       validation_result_state: preview.validation_result.result_state,
       validation_result_source: preview.validation_result.validation_source,
+      ...resetCandidateActionPatch(),
     });
     setDraftStatus("validation preview updated; no product state created");
   }
@@ -225,22 +244,34 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
         },
       );
       const result = (await response.json()) as OperatorFlowLocalValidationResponse;
+      const shouldResetCandidateAction =
+        result.validation_source === "blocked_before_execution" ||
+        result.validation_result.result_state === "BLOCKED";
       setLocalValidationRun(result);
       setValidationPreview(null);
       updateDraft({
         active_step: "validate_result",
         validation_result_state: result.validation_result.result_state,
         validation_result_source: result.validation_source,
+        ...(shouldResetCandidateAction ? resetCandidateActionPatch() : {}),
       });
       setDraftStatus(
         `${result.validation_source} completed; no product state created`,
       );
     } catch (error) {
+      setLocalValidationRun(null);
+      setValidationPreview(null);
       setValidationError(
         error instanceof Error
           ? error.message
           : "Local validation request failed",
       );
+      updateDraft({
+        active_step: "validate_result",
+        validation_result_state: "not_validated",
+        validation_result_source: "not_run",
+        ...resetCandidateActionPatch(),
+      });
       setDraftStatus("local validation bridge request failed");
     } finally {
       setValidationBusy(false);
@@ -267,6 +298,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
       validation_result_source: "not_run",
+      ...resetCandidateActionPatch(),
     });
     setDraftStatus("edited draft is not saved");
   }
