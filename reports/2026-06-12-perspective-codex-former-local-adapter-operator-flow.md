@@ -2,75 +2,44 @@
 
 ## Summary
 
-Implemented the local Codex adapter operator flow shell at `/cockpit/perspective/codex-former/local-adapter-operator-flow`.
+This PR follows PR #529 by reducing user work inside the existing operator flow instead of adding another closeout or hardening layer. The route at `/cockpit/perspective/codex-former/local-adapter-operator-flow` now has a primary `Run local validation` action that posts the selected source/prepare refs plus the returned envelope textarea content to a local Node bridge.
 
-This PR turns the closed v0.1 local adapter proof chain into a single user-facing route for the manual Augnes / Codex loop. The route shows source and prepare context, presents a bounded Codex-ready Copy For Codex handoff packet, supports returned envelope paste/load, previews PASS / PASS with follow-up / BLOCKED validation results, shows warnings and `next_safe_action`, shows bounded candidate review material, and lets the user choose one local draft action.
-
-## Review Follow-up
-
-PR #529 review found that the Copy For Codex panel was still too much like a refs/instructions stub. This patch updates `buildCopyPacketPreview` so the copied packet is a bounded Codex-ready handoff packet, not only file refs.
-
-The packet now includes:
-
-- clear task statement to produce exactly one `CodexPerspectiveCandidateDraft`;
-- source context summary with `work_id`, `changed_files_summary`, changed files, PR refs, readiness status/reasons, bounded test/check summaries, skipped-check summary, and unresolved-gap summary;
-- prepare/provenance section with source input and prepare summary path/hash refs, former input packet ref, manual copy packet ref, and source prompt/provenance hash when available;
-- output contract with `draft_version`, `draft_kind`, and required candidate fields;
-- authority/privacy boundary and returned envelope instruction;
-- next user step to paste the returned envelope and select `Validate locally / Preview validation result`.
-
-Path/hash refs remain included as provenance, but the copied packet now carries enough bounded context to reduce user glue work. It still avoids dumping raw source packet JSON, raw private material, provider logs, token material, raw returned envelope markers, raw diffs, raw review payloads, and browser dumps.
+The bridge at `/api/perspective/codex-former/local-adapter-operator-flow/validate` calls the existing validate orchestration execution library directly and returns a bounded result marked `real_local_validate_execution`.
 
 ## Changed Files
 
 - `app/cockpit/perspective/codex-former/local-adapter-operator-flow/page.tsx`
 - `app/cockpit/perspective/codex-former/local-adapter-operator-flow/operator-flow-surface.tsx`
 - `app/cockpit/perspective/codex-former/local-adapter-operator-flow/operator-flow-surface.module.css`
+- `app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts`
 - `lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts`
+- `lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts`
 - `scripts/smoke-perspective-codex-former-local-adapter-operator-flow.mjs`
 - `scripts/browser-smoke-perspective-codex-former-local-adapter-operator-flow.mjs`
 - `docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_V0_1.md`
 - `reports/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md`
 - `reports/browser/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md`
-- `package.json`
 
-## Fixture Inputs
+## Bridge Behavior
 
-The route uses committed local adapter fixtures for:
+`Run local validation` runs the real local validate execution path through `buildCodexFormerLocalAdapterValidateExecutionSummary`. It renders `result_state`, `execution_result`, `failure_kind`, candidate count, warnings, pointer warnings, blocked reasons, next safe action, candidate-compatible review material, worker-facing guidance status, candidate basis/authority, source/prepare/returned-envelope hashes, local validation summary hash, and authority flags.
 
-- source input refs and hashes;
-- prepare execution summaries and manual copy packet refs;
-- returned envelope fixtures for PASS, PASS with follow-up, and BLOCKED;
-- validate execution summaries for PASS, PASS with follow-up, and BLOCKED.
+The PASS / PASS with follow-up / BLOCKED committed returned-envelope fixtures validate through the same bridge as PASS, PASS with follow-up, and BLOCKED. Malformed textarea content returns a visible BLOCKED result with blocked reasons instead of crashing the route.
 
-No raw fixture payload is inlined in the component or helper source.
+## Preview Boundary
 
-## Local Draft Boundary
+`Preview fixture result` remains as a secondary aid and is visibly marked `fixture_preview`. It is not the primary path and does not replace local validation execution.
 
-Candidate action controls are visible:
+## Local-Only Boundary
 
-- `keep_review_only`
-- `accept_as_perspective_candidate`
-- `reject_from_memory_candidate`
-- `supersede_previous_candidate`
+The bridge is local-only and non-authorizing. It does not call provider/model APIs, Codex, Codex SDK, GitHub, product DB, Core, or external network services. It creates no accepted Augnes state, no review decision, no proof/evidence/readiness records, no runtime handoff, no product handoff, and no automatic promotion.
 
-They are local draft choices only. They create no accepted Augnes state, no review decision, no product DB persistence, no Core decision, no product readiness, no mergeability, no runtime handoff, and no automatic promotion.
+Returned envelope text is still saved only after explicit `Save draft locally`. Automatic localStorage updates persist bounded metadata, including `validation_result_state` and `validation_result_source`, but do not store raw returned envelope text by default.
 
-## Persistence Boundary
+## Browser Validation
 
-The localStorage namespace is `augnes.codexFormer.localAdapterOperatorFlow.v0.1`.
+Browser validation covers route load, no console warnings/errors, no unexpected external traffic, textarea visibility, PASS/PASS with follow-up/BLOCKED fixture loading, `Run local validation` results, malformed envelope BLOCKED handling, `real_local_validate_execution` source display, localStorage metadata updates, candidate action selection after PASS validation, refresh/clear draft behavior, and 390px / 768px / desktop overflow checks.
 
-Metadata is saved automatically. Returned envelope text is saved only when the user explicitly selects Save draft locally. The route does not persist hidden reasoning, provider logs, tokens, secrets, raw private material, raw source packets, browser dumps, raw diffs, raw review payloads, or raw candidate payloads by default.
+## Next Recommended PR
 
-## Verification
-
-- `npm run smoke:perspective-codex-former-local-adapter-operator-flow` passed.
-- `npm run browser:perspective-codex-former-local-adapter-operator-flow` passed.
-- `npm run typecheck` passed.
-- `npm run build` passed.
-- `git diff --check` passed.
-- Browser validation at `http://127.0.0.1:3000/cockpit/perspective/codex-former/local-adapter-operator-flow` passed with 0 console warnings/errors, 0 unexpected external refs, 13 focusable controls, PASS/PASS with follow-up/BLOCKED fixture interaction coverage, and 0 horizontal overflow at 390px, 768px, and desktop.
-
-## Scope Boundaries
-
-This shell has no provider/model calls, no Codex SDK calls, no GitHub mutation, no DB writes, no network behavior, no automatic clipboard behavior, no accepted Augnes state, no review decision, and no Core decision behavior.
+Add local accepted-candidate draft model and persistence boundary inside the operator flow, using the actual validation result as input.
