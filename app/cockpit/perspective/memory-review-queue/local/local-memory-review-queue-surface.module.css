@@ -253,6 +253,26 @@
   padding-top: 16px;
 }
 
+.proposalPanel {
+  min-width: 0;
+  border-top: 1px solid #edf0f2;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.proposalList {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.proposalDetail {
+  min-width: 0;
+  border-top: 1px solid #edf0f2;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
 .preview h3 {
   margin: 0 0 8px;
   font-size: 1rem;
