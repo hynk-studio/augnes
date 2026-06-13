@@ -326,6 +326,9 @@ function assertFilesAndSource() {
     "data-augnes-product-persistence-boundary-panel",
     "data-augnes-create-product-persistence-boundary-record",
     "data-augnes-product-persistence-boundary-record-list",
+    "PERSPECTIVE_MEMORY_BOUNDARY_REVIEW_INBOX_ROUTE",
+    "Open persisted boundary review inbox",
+    "data-augnes-open-boundary-review-inbox",
     "can_create_accepted_memory",
     "can_create_core_decision",
     "can_auto_promote",
@@ -333,6 +336,7 @@ function assertFilesAndSource() {
   assertIncludesAll(boundaryModelText, [
     "perspective_memory_product_persistence_boundary_record.v0.1",
     "perspective_memory_product_persistence_boundary_record_list.v0.1",
+    "/cockpit/perspective/memory-boundary-review-inbox",
     "/api/perspective/memory/product-persistence-boundary/records",
     "buildPerspectiveMemoryProductPersistenceBoundaryRecord",
     "can_create_accepted_memory: false",

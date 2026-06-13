@@ -52,6 +52,7 @@ for (const phrase of [
   "boundary status update to locally_reviewing_boundary_record works",
   "boundary status update to kept_for_later works",
   "boundary status update to retracted_before_memory_write works",
+  "Open persisted boundary review inbox visible",
   "unchecking one required gate returns to in_review",
   "PASS with follow-up proposal requires pass_follow_up_caveat_reviewed",
   "source queue item removal makes checklist blocked or source state caveat visible",
