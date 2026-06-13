@@ -115,6 +115,13 @@ export type OperatorFlowRef = {
   generated_at: string;
 };
 
+export type OperatorFlowCheckSummary = {
+  check_id: string;
+  command: string;
+  status: string;
+  result_summary: string;
+};
+
 export type OperatorFlowValidationPreview = {
   result_state: CodexFormerLocalAdapterValidateResultState;
   candidate_count: number;
@@ -135,15 +142,22 @@ export type OperatorFlowScenarioViewModel = {
   label: string;
   source_input_ref: OperatorFlowRef & {
     changed_files_count: number;
+    changed_files: string[];
     readiness_status: string;
+    readiness_reasons: string[];
     source_pr_refs: string[];
     summary: string;
+    tests_checks_run: OperatorFlowCheckSummary[];
+    skipped_checks_summary: string;
+    unresolved_gaps_summary: string;
   };
   prepare_summary_ref: OperatorFlowRef & {
     status: string;
     output_discovery_status: string;
     former_input_packet_ref: string;
     manual_copy_packet_ref: string;
+    source_prompt_hash: string | null;
+    source_manual_copy_packet_id: string | null;
     next_safe_action: string;
   };
   returned_envelope_fixture: {
@@ -513,7 +527,11 @@ export function validateCodexFormerLocalAdapterOperatorFlowViewModel(
 function buildScenario(
   input: OperatorFlowScenarioInput,
 ): OperatorFlowScenarioViewModel {
-  const validateSummary = input.validateSummary;
+  const validateSummary =
+    input.validateSummary as CodexFormerLocalAdapterValidateExecutionSummaryForSnapshots & {
+      source_manual_copy_packet_id?: string | null;
+      source_prompt_hash?: string | null;
+    };
   return {
     key: input.key,
     label: input.label,
@@ -523,9 +541,14 @@ function buildScenario(
       hash: validateSummary.source_input_hash,
       generated_at: input.sourceInput.generated_at,
       changed_files_count: input.sourceInput.changed_files.length,
+      changed_files: input.sourceInput.changed_files,
       readiness_status: input.sourceInput.readiness.status,
+      readiness_reasons: input.sourceInput.readiness.reasons,
       source_pr_refs: input.sourceInput.source_pr_refs,
       summary: input.sourceInput.changed_files_summary,
+      tests_checks_run: input.sourceInput.tests_checks_run,
+      skipped_checks_summary: summarizeUnknownList(input.sourceInput.skipped_checks),
+      unresolved_gaps_summary: summarizeUnknownList(input.sourceInput.unresolved_gaps),
     },
     prepare_summary_ref: {
       ref: input.prepareSummary.helper_output_refs.manual_copy_packet_ref,
@@ -538,6 +561,9 @@ function buildScenario(
         input.prepareSummary.helper_output_refs.former_input_packet_ref,
       manual_copy_packet_ref:
         input.prepareSummary.helper_output_refs.manual_copy_packet_ref,
+      source_prompt_hash: validateSummary.source_prompt_hash ?? null,
+      source_manual_copy_packet_id:
+        validateSummary.source_manual_copy_packet_id ?? null,
       next_safe_action: input.prepareSummary.next_safe_action,
     },
     returned_envelope_fixture: {
@@ -580,22 +606,96 @@ function buildCopyPacketPreview(scenario: OperatorFlowScenarioViewModel) {
   return [
     "LOCAL_CODEX_ADAPTER_OPERATOR_PACKET_V0_1",
     `route: ${CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE}`,
+    "",
+    "task_statement:",
+    "Produce exactly one CodexPerspectiveCandidateDraft returned candidate envelope from this bounded Augnes local adapter context.",
+    "",
+    "source_context_summary:",
+    `work_id: ${scenario.source_input_ref.ref}`,
+    `changed_files_summary: ${scenario.source_input_ref.summary}`,
+    "changed_files:",
+    ...formatList(scenario.source_input_ref.changed_files),
+    "source_pr_refs:",
+    ...formatList(scenario.source_input_ref.source_pr_refs),
+    `readiness.status: ${scenario.source_input_ref.readiness_status}`,
+    "readiness.reasons:",
+    ...formatList(scenario.source_input_ref.readiness_reasons),
+    "tests_checks_run:",
+    ...formatCheckSummaries(scenario.source_input_ref.tests_checks_run),
+    `skipped_checks_summary: ${scenario.source_input_ref.skipped_checks_summary}`,
+    `unresolved_gaps_summary: ${scenario.source_input_ref.unresolved_gaps_summary}`,
+    "",
+    "prepare_provenance:",
     `source_input_ref: ${scenario.source_input_ref.path}`,
+    `source_input_path: ${scenario.source_input_ref.path}`,
     `source_input_hash: ${scenario.source_input_ref.hash}`,
     `prepare_summary_ref: ${scenario.prepare_summary_ref.path}`,
+    `prepare_summary_path: ${scenario.prepare_summary_ref.path}`,
     `prepare_summary_hash: ${scenario.prepare_summary_ref.hash}`,
     `former_input_packet_ref: ${scenario.prepare_summary_ref.former_input_packet_ref}`,
     `manual_copy_packet_ref: ${scenario.prepare_summary_ref.manual_copy_packet_ref}`,
+    `source_manual_copy_packet_id: ${scenario.prepare_summary_ref.source_manual_copy_packet_id ?? "not_available"}`,
+    `source_prompt_hash: ${scenario.prepare_summary_ref.source_prompt_hash ?? "not_available"}`,
+    "",
+    "output_contract:",
+    "draft_version: codex_perspective_candidate_draft.v0.1",
+    "draft_kind: codex_perspective_candidate_draft",
+    "required_fields:",
+    "- source_former_input_packet",
+    "- thesis",
+    "- selected_material",
+    "- evidence_pointer_refs",
+    "- unresolved_tensions",
+    "- basis_quality_suggestion",
+    "- next_action_candidates",
+    "- user_core_decision_questions",
+    "- qualification_notes",
+    "- privacy_flags",
+    "- authority_flags",
+    "- forbidden_actions",
+    "",
+    "authority_privacy_boundary:",
+    "- output is review material only",
+    "- no accepted state",
+    "- no review decision",
+    "- no persistence",
+    "- no DB",
+    "- no provider/model API",
+    "- no Codex SDK",
+    "- no GitHub mutation",
+    "- no Core decision",
+    "- no raw private/source/provider/token/browser material",
     "",
     "external_codex_work:",
     "1. Start a separate user-controlled Codex session.",
-    "2. Use the bounded source and prepare refs above as the work boundary.",
-    "3. Return exactly one returned candidate envelope.",
-    "4. Keep hidden reasoning, provider logs, tokens, secrets, raw diffs, raw source packets, browser dumps, and raw review payloads out of the returned material.",
+    "2. Use only the bounded context, summaries, refs, hashes, and output contract in this packet.",
+    "3. Return exactly one candidate object suitable for the RETURNED_CODEX_RESPONSE section.",
+    "4. Do not include hidden reasoning, provider logs, tokens, secrets, raw diffs, raw source packets, browser dumps, raw review payloads, or unrelated chat text.",
+    "",
+    "next_user_step:",
+    "Paste the returned envelope into the Returned Envelope panel, then select Validate locally / Preview validation result.",
     "",
     "local_boundary:",
     "This route only stages a local draft. It does not create accepted state, a review decision, product DB persistence, Core decision, provider/model call, Codex SDK call, GitHub mutation, runtime handoff, mergeability, product readiness, or automatic promotion.",
   ].join("\n");
+}
+
+function formatList(values: string[]) {
+  if (values.length === 0) return ["- none"];
+  return values.map((value) => `- ${value}`);
+}
+
+function formatCheckSummaries(values: OperatorFlowCheckSummary[]) {
+  if (values.length === 0) return ["- none"];
+  return values.map(
+    (check) =>
+      `- ${check.check_id}: ${check.status}; command: ${check.command}; summary: ${check.result_summary}`,
+  );
+}
+
+function summarizeUnknownList(values: unknown[]) {
+  if (values.length === 0) return "none";
+  return `${values.length} bounded item(s) present; inspect source input fixture manually if needed`;
 }
 
 function stableSummaryHash(

@@ -207,12 +207,61 @@ function assertHelperViewModel() {
   );
   assertIncludesAll(viewModel.copy_packet_preview, [
     "LOCAL_CODEX_ADAPTER_OPERATOR_PACKET_V0_1",
+    "task_statement:",
+    "Produce exactly one CodexPerspectiveCandidateDraft returned candidate envelope from this bounded Augnes local adapter context.",
+    "source_context_summary:",
+    "work_id:",
+    "changed_files_summary:",
+    "changed_files:",
+    "source_pr_refs:",
+    "readiness.status:",
+    "readiness.reasons:",
+    "tests_checks_run:",
+    "skipped_checks_summary:",
+    "unresolved_gaps_summary:",
+    "prepare_provenance:",
     "source_input_ref:",
+    "source_input_path:",
+    "source_input_hash:",
     "prepare_summary_ref:",
+    "prepare_summary_path:",
+    "prepare_summary_hash:",
+    "former_input_packet_ref:",
     "manual_copy_packet_ref:",
-    "Return exactly one returned candidate envelope.",
+    "source_prompt_hash:",
+    "output_contract:",
+    "draft_version: codex_perspective_candidate_draft.v0.1",
+    "draft_kind: codex_perspective_candidate_draft",
+    "required_fields:",
+    "source_former_input_packet",
+    "thesis",
+    "selected_material",
+    "evidence_pointer_refs",
+    "unresolved_tensions",
+    "basis_quality_suggestion",
+    "next_action_candidates",
+    "user_core_decision_questions",
+    "qualification_notes",
+    "privacy_flags",
+    "authority_flags",
+    "forbidden_actions",
+    "authority_privacy_boundary:",
+    "output is review material only",
+    "no accepted state",
+    "no review decision",
+    "no persistence",
+    "no DB",
+    "no provider/model API",
+    "no Codex SDK",
+    "no GitHub mutation",
+    "no Core decision",
+    "no raw private/source/provider/token/browser material",
+    "Return exactly one candidate object suitable for the RETURNED_CODEX_RESPONSE section.",
+    "Do not include hidden reasoning, provider logs, tokens, secrets, raw diffs, raw source packets, browser dumps, raw review payloads, or unrelated chat text.",
+    "Paste the returned envelope into the Returned Envelope panel, then select Validate locally / Preview validation result.",
     "This route only stages a local draft.",
   ]);
+  assertNoRawPacketPayloadMarkers(viewModel.copy_packet_preview);
 
   const previewPass = previewOperatorFlowValidationResult(
     fixtureInput.scenarios.pass.returnedEnvelopeText,
@@ -383,7 +432,7 @@ function assertNoRawFixturePayloadsInSource() {
   })) {
     for (const marker of [
       "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
-      "RETURNED_CODEX_RESPONSE",
+      "\nRETURNED_CODEX_RESPONSE:\n",
       "END RETURNED_CODEX_RESPONSE",
       "\"draft_version\": \"codex_perspective_candidate_draft.v0.1\"",
     ]) {
@@ -393,6 +442,27 @@ function assertNoRawFixturePayloadsInSource() {
         `${file} must not inline raw returned envelope marker ${marker}`,
       );
     }
+  }
+}
+
+function assertNoRawPacketPayloadMarkers(packet) {
+  for (const marker of [
+    "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
+    "\nRETURNED_CODEX_RESPONSE:\n",
+    "\nEND RETURNED_CODEX_RESPONSE",
+    "BEGIN_HIDDEN_REASONING",
+    "HIDDEN_REASONING:",
+    "PROVIDER_LOG:",
+    "PROVIDER_LOGS:",
+    "TOKEN=",
+    "sk-",
+    "raw_source_packet:",
+  ]) {
+    assert.equal(
+      packet.includes(marker),
+      false,
+      `copy packet must not inline raw marker ${marker}`,
+    );
   }
 }
 

@@ -19,6 +19,7 @@ for (const phrase of [
   "No unexpected external traffic",
   "source/prepare panel visible",
   "copy-for-Codex panel visible",
+  "copy-for-Codex panel includes bounded Codex-ready task/context/contract packet",
   "returned envelope textarea visible",
   "Load PASS envelope fixture works",
   "Load PASS with follow-up envelope fixture works",

@@ -4,7 +4,22 @@
 
 Implemented the local Codex adapter operator flow shell at `/cockpit/perspective/codex-former/local-adapter-operator-flow`.
 
-This PR turns the closed v0.1 local adapter proof chain into a single user-facing route for the manual Augnes / Codex loop. The route shows source and prepare context, presents a bounded Copy For Codex packet, supports returned envelope paste/load, previews PASS / PASS with follow-up / BLOCKED validation results, shows warnings and `next_safe_action`, shows bounded candidate review material, and lets the user choose one local draft action.
+This PR turns the closed v0.1 local adapter proof chain into a single user-facing route for the manual Augnes / Codex loop. The route shows source and prepare context, presents a bounded Codex-ready Copy For Codex handoff packet, supports returned envelope paste/load, previews PASS / PASS with follow-up / BLOCKED validation results, shows warnings and `next_safe_action`, shows bounded candidate review material, and lets the user choose one local draft action.
+
+## Review Follow-up
+
+PR #529 review found that the Copy For Codex panel was still too much like a refs/instructions stub. This patch updates `buildCopyPacketPreview` so the copied packet is a bounded Codex-ready handoff packet, not only file refs.
+
+The packet now includes:
+
+- clear task statement to produce exactly one `CodexPerspectiveCandidateDraft`;
+- source context summary with `work_id`, `changed_files_summary`, changed files, PR refs, readiness status/reasons, bounded test/check summaries, skipped-check summary, and unresolved-gap summary;
+- prepare/provenance section with source input and prepare summary path/hash refs, former input packet ref, manual copy packet ref, and source prompt/provenance hash when available;
+- output contract with `draft_version`, `draft_kind`, and required candidate fields;
+- authority/privacy boundary and returned envelope instruction;
+- next user step to paste the returned envelope and select `Validate locally / Preview validation result`.
+
+Path/hash refs remain included as provenance, but the copied packet now carries enough bounded context to reduce user glue work. It still avoids dumping raw source packet JSON, raw private material, provider logs, token material, raw returned envelope markers, raw diffs, raw review payloads, and browser dumps.
 
 ## Changed Files
 

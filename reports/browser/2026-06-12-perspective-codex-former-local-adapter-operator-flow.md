@@ -9,6 +9,7 @@ Route: `/cockpit/perspective/codex-former/local-adapter-operator-flow`
 - No unexpected external traffic
 - source/prepare panel visible
 - copy-for-Codex panel visible
+- copy-for-Codex panel includes bounded Codex-ready task/context/contract packet
 - returned envelope textarea visible
 - Load PASS envelope fixture works
 - Load PASS with follow-up envelope fixture works
@@ -35,8 +36,10 @@ The route presents the returned envelope text only inside the user-editable retu
 - Console warnings/errors captured: `0`
 - Unexpected external refs observed in DOM: `0`
 - Focusable main controls observed: `13`
+- Copy packet length after review follow-up: `4134`
+- Copy packet sections verified after review follow-up: `task_statement`, `source_context_summary`, `prepare_provenance`, `output_contract`, `authority_privacy_boundary`, and `next_user_step`
 - Horizontal overflow results:
   - `390px`: `0`
   - `768px`: `0`
   - `desktop`: `0`
-- Interaction pass covered PASS, PASS with follow-up, and BLOCKED fixture loading; validation preview; all candidate actions; explicit local draft save; refresh restore; local draft clear; and cleared-state refresh.
+- Interaction pass covered PASS, PASS with follow-up, and BLOCKED fixture loading; validation preview; all candidate actions; explicit local draft save; refresh restore; local draft clear; cleared-state refresh; and a Copy For Codex packet containing bounded source summary plus output-contract context.
