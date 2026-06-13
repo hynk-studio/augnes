@@ -2,24 +2,28 @@
 
 ## Summary
 
-This PR follows PR #534 by adding an explicit local review gate for memory write proposals. The write proposal to checklist flow lets a user create a local checklist, check required and conditional gates, add bounded notes, recompute readiness, and see whether the proposal is locally ready for a future product persistence review.
+This report follows PR #534 and PR #535 by describing the explicit local review gate for memory write proposals and the Product Persistence Boundary now created from locally-ready checklists. The write proposal to checklist flow lets a user create a local checklist, check required and conditional gates, add bounded notes, recompute readiness, and see whether the proposal is locally ready for product persistence boundary review.
 
-The checklist is local-only and non-authorizing. It creates no accepted Augnes memory, no product DB persistence, no review decision, no Core decision, no runtime handoff, no provider/model/Codex/GitHub call, and no automatic promotion.
+The checklist itself is local-only and non-authorizing. A separate confirmed boundary action can persist a product-side SQLite boundary record, but it creates no accepted Augnes memory, no product memory write, no review decision, no Core decision, no runtime handoff, no provider/model/Codex/GitHub call, and no automatic promotion.
 
 ## Changed Files
 
 - `lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist.ts`
 - `lib/perspective-ingest/perspective-memory-local-write-proposal.ts`
+- `lib/perspective-ingest/perspective-memory-product-persistence-boundary.ts`
 - `app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.tsx`
 - `app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.module.css`
 - `scripts/smoke-perspective-memory-local-write-proposal-review-checklist.mjs`
+- `scripts/smoke-perspective-memory-product-persistence-boundary.mjs`
 - `scripts/smoke-perspective-memory-local-write-proposal.mjs`
 - `scripts/smoke-perspective-memory-local-review-queue.mjs`
 - `scripts/browser-smoke-perspective-memory-local-review-queue.mjs`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_V0_1.md`
+- `docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_V0_1.md`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_V0_1.md`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_V0_1.md`
 - `reports/2026-06-13-perspective-memory-local-write-proposal-review-checklist.md`
+- `reports/2026-06-13-perspective-memory-product-persistence-boundary.md`
 - `reports/2026-06-13-perspective-memory-local-write-proposal.md`
 - `reports/browser/2026-06-13-perspective-memory-local-review-queue.md`
 - `package.json`
@@ -46,10 +50,12 @@ Checklists persist only in browser localStorage. They store bounded proposal ref
 
 They do not store raw returned envelope text, raw prompt text, raw source packet, raw candidate payload, hidden reasoning, provider logs, tokens, secrets, browser dumps, raw diffs, raw review payloads, or private material.
 
+The Product Persistence Boundary panel consumes only locally-ready checklists. The server re-validates the bounded checklist, proposal, queue item, readiness summary, false `ready_for_memory_write_now`, authority flags, and explicit confirmations before writing the SQLite boundary record.
+
 ## Browser Validation
 
-Browser validation covers creating a PASS candidate draft, queueing it, creating a local write proposal, creating a local review checklist, checking gates, moving readiness from `not_started` to `in_review`, reaching `locally_ready_for_product_persistence_review`, confirming `ready_for_memory_write_now=false`, unchecking a required gate, restoring the checklist after refresh, and showing blocked source-state caveats when the source queue item is removed.
+Browser validation covers creating a PASS candidate draft, queueing it, creating a local write proposal, creating a local review checklist, checking gates, moving readiness from `not_started` to `in_review`, reaching `locally_ready_for_product_persistence_review`, confirming `ready_for_memory_write_now=false`, creating a product persistence boundary record after confirmations, restoring the persisted record after refresh, unchecking a required gate, and showing blocked source-state caveats when the source queue item is removed.
 
 ## Next Recommended PR
 
-Implement a minimal product persistence boundary for locally-ready write proposals behind explicit user confirmation if the product decision is ready. If not, add a local export/review packet for locally-ready proposals instead.
+Add a minimal persisted boundary record review inbox/dashboard if records need cross-session visibility outside the queue route. Implement actual accepted memory writes only after an explicit product decision and review of the boundary record model.

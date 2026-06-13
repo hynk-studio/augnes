@@ -1081,7 +1081,8 @@ function assertMemoryReviewQueueModel() {
     "can_create_memory_write",
     "not accepted Augnes memory",
     "not review decision",
-    "not product DB persistence",
+    "local review state until explicit boundary record",
+    "boundary record is product persistence only",
     "not Core decision",
     "data-augnes-local-memory-review-queue-list",
     "data-augnes-memory-candidate-preview",
@@ -1608,7 +1609,8 @@ function assertDocsAndReports() {
     "can_create_memory_write: false",
     "not accepted Augnes memory",
     "not review decision",
-    "not product DB persistence",
+    "Product Persistence Boundary",
+    "sqlite:lib/db.ts",
     "not Core decision",
   ]);
   assertIncludesAll(memoryReviewQueueReportText, [
@@ -1664,7 +1666,7 @@ function assertRuntimeBoundary() {
         `${file} must not contain runtime call marker ${forbidden}`,
       );
     }
-    if (file !== componentFile) {
+    if (file !== componentFile && file !== memoryReviewQueueComponentFile) {
       assert.equal(
         source.includes("fetch("),
         false,
@@ -1676,6 +1678,10 @@ function assertRuntimeBoundary() {
   assertIncludesAll(componentText, [
     "fetch(",
     "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE",
+  ]);
+  assertIncludesAll(memoryReviewQueueComponentText, [
+    "fetch(",
+    "PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE",
   ]);
 }
 

@@ -95,7 +95,9 @@ Allowed local controls:
 - Clear selected checklist
 - Clear all local checklists
 
-There is no enabled Write to memory, Commit memory, Accept memory, Send to Core, review decision, product DB persistence, or automatic promotion control.
+There is no enabled Write to memory, Commit memory, Accept memory, Send to Core, review decision, accepted memory, Core decision, or automatic promotion control.
+
+After PR #536, a locally-ready checklist can feed a separate Product Persistence Boundary panel with an explicit user confirmation control: `Create product persistence boundary record`. That record is product-side SQLite persistence for boundary review only. It is not accepted Augnes memory, not a product memory write, and not a Core decision.
 
 ## Persistence Boundary
 
@@ -106,6 +108,7 @@ It does not store raw returned envelope text, raw prompt text, raw source packet
 ## Verification
 
 - Static smoke: `npm run smoke:perspective-memory-local-write-proposal-review-checklist`
+- Boundary smoke: `npm run smoke:perspective-memory-product-persistence-boundary`
 - Write proposal smoke: `npm run smoke:perspective-memory-local-write-proposal`
 - Queue smoke: `npm run smoke:perspective-memory-local-review-queue`
 - Browser route smoke: `npm run browser:perspective-memory-local-review-queue`

@@ -225,6 +225,7 @@ export function openDatabase() {
   migrateVerificationEvidenceRecordsTable(db);
   migrateTemporalPreviewReviewArtifactsTable(db);
   migrateTemporalPreviewReviewArtifactIdempotencyTable(db);
+  migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   return db;
 }
 
@@ -1805,6 +1806,66 @@ function migrateTemporalPreviewReviewArtifactIdempotencyTable(
     `
       CREATE INDEX IF NOT EXISTS idx_temporal_review_artifact_idem_scope_artifact
         ON temporal_preview_review_artifact_idempotency(scope, artifact_id)
+    `,
+  ];
+
+  for (const sql of indexes) {
+    db.prepare(sql).run();
+  }
+}
+
+function migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(
+  db: Database.Database,
+) {
+  db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
+        record_id TEXT PRIMARY KEY,
+        boundary_status TEXT NOT NULL CHECK (
+          boundary_status IN (
+            'product_persistence_boundary_recorded',
+            'locally_reviewing_boundary_record',
+            'kept_for_later',
+            'retracted_before_memory_write'
+          )
+        ),
+        source_checklist_id TEXT NOT NULL,
+        source_proposal_id TEXT NOT NULL,
+        source_queue_item_id TEXT NOT NULL,
+        source_candidate_draft_id TEXT NOT NULL,
+        source_validation_result_state TEXT NOT NULL CHECK (
+          source_validation_result_state IN ('PASS', 'PASS with follow-up')
+        ),
+        source_validation_summary_hash TEXT NOT NULL,
+        source_input_ref TEXT NOT NULL,
+        source_input_hash TEXT NOT NULL,
+        prepare_summary_ref TEXT NOT NULL,
+        prepare_execution_summary_hash TEXT NOT NULL,
+        returned_envelope_hash TEXT NOT NULL,
+        source_proposal_hash TEXT NOT NULL,
+        record_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `,
+  ).run();
+
+  const indexes = [
+    `
+      CREATE INDEX IF NOT EXISTS idx_perspective_memory_boundary_status_time
+        ON perspective_memory_product_persistence_boundary_records(boundary_status, created_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_perspective_memory_boundary_checklist
+        ON perspective_memory_product_persistence_boundary_records(source_checklist_id)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_perspective_memory_boundary_proposal
+        ON perspective_memory_product_persistence_boundary_records(source_proposal_id)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_perspective_memory_boundary_queue
+        ON perspective_memory_product_persistence_boundary_records(source_queue_item_id)
     `,
   ];
 

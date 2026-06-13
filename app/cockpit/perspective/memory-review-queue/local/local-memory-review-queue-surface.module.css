@@ -280,6 +280,19 @@
   padding-top: 16px;
 }
 
+.boundaryPanel {
+  min-width: 0;
+  border-top: 1px solid #d7dee3;
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.confirmationBox {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .gateList {
   display: grid;
   gap: 10px;

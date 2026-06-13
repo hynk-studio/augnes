@@ -2,16 +2,22 @@
 
 ## Summary
 
-This report now covers the local review queue after PR #533, the local write proposal panel from PR #534, and the follow-on Local Write Proposal Review Checklist. The route now carries a selected local candidate draft through queue review, local write proposal inspection, and local checklist readiness before any product persistence decision.
+This report now covers the local review queue after PR #533, the local write proposal panel from PR #534, the Local Write Proposal Review Checklist from PR #535, and the Product Persistence Boundary panel. The route now carries a selected local candidate draft through queue review, local write proposal inspection, local checklist readiness, and an explicit product persistence boundary record.
 
-The flow is still local-only and non-authoritative. It creates no accepted Augnes memory, no review decision, no product DB persistence, no Core decision, no runtime handoff, no provider/model/Codex/GitHub call, and no automatic promotion.
+Queue, proposal, and checklist state remain browser-local and non-authoritative. The new boundary action creates a durable product-side SQLite boundary record after explicit confirmation. It still creates no accepted Augnes memory, no product memory write, no review decision, no Core decision, no runtime handoff, no provider/model/Codex/GitHub call, and no automatic promotion.
 
 ## Changed Files
 
 - `lib/perspective-ingest/perspective-memory-local-review-queue.ts`
 - `lib/perspective-ingest/perspective-memory-local-write-proposal.ts`
 - `lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist.ts`
+- `lib/perspective-ingest/perspective-memory-product-persistence-boundary.ts`
+- `lib/perspective-ingest/perspective-memory-product-persistence-boundary-store.ts`
 - `lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts`
+- `lib/db.ts`
+- `lib/db/schema.sql`
+- `app/api/perspective/memory/product-persistence-boundary/records/route.ts`
+- `app/api/perspective/memory/product-persistence-boundary/records/[recordId]/route.ts`
 - `app/cockpit/perspective/codex-former/local-adapter-operator-flow/operator-flow-surface.tsx`
 - `app/cockpit/perspective/codex-former/local-adapter-operator-flow/operator-flow-surface.module.css`
 - `app/cockpit/perspective/memory-review-queue/local/page.tsx`
@@ -21,16 +27,19 @@ The flow is still local-only and non-authoritative. It creates no accepted Augne
 - `scripts/smoke-perspective-memory-local-review-queue.mjs`
 - `scripts/smoke-perspective-memory-local-write-proposal.mjs`
 - `scripts/smoke-perspective-memory-local-write-proposal-review-checklist.mjs`
+- `scripts/smoke-perspective-memory-product-persistence-boundary.mjs`
 - `scripts/browser-smoke-perspective-codex-former-local-adapter-operator-flow.mjs`
 - `scripts/browser-smoke-perspective-memory-local-review-queue.mjs`
 - `docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_V0_1.md`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_V0_1.md`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_V0_1.md`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_V0_1.md`
+- `docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_V0_1.md`
 - `reports/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md`
 - `reports/2026-06-13-perspective-memory-local-review-queue.md`
 - `reports/2026-06-13-perspective-memory-local-write-proposal.md`
 - `reports/2026-06-13-perspective-memory-local-write-proposal-review-checklist.md`
+- `reports/2026-06-13-perspective-memory-product-persistence-boundary.md`
 - `reports/browser/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md`
 - `reports/browser/2026-06-13-perspective-memory-local-review-queue.md`
 - `package.json`
@@ -76,6 +85,16 @@ The checklist gate model requires source refs, validation result, proposed paylo
 
 Readiness can show `locally_ready_for_product_persistence_review` only when all required gates pass and source state remains acceptable. The readiness summary exposes `ready_for_product_persistence_review`, `ready_for_memory_write_now=false`, blocked reasons, warnings, and next action. This does not create actual memory writes.
 
+## Product Persistence Boundary Behavior
+
+The queue route now includes a `Product Persistence Boundary` panel backed by `/api/perspective/memory/product-persistence-boundary/records` and the existing SQLite product store through `lib/db.ts`.
+
+A selected checklist can create a boundary record only when it is `locally_ready_for_product_persistence_review`, `ready_for_product_persistence_review=true`, `ready_for_memory_write_now=false`, the source proposal is still acceptable, the source queue item is not removed, and all authority boundaries remain non-authorizing. The user must confirm that the record is not accepted Augnes memory, not a Core decision, and not automatic promotion.
+
+The persisted record stores bounded refs, hashes, proposed payload preview, proposal diff summary, checklist gate summary, user confirmation flags, boundary status, false write/Core action flags, and authority boundary. It does not store raw returned envelope text, raw prompt/source/candidate material, provider logs, tokens, browser dumps, raw diffs, or private material.
+
+Boundary status updates are limited to `locally_reviewing_boundary_record`, `kept_for_later`, and `retracted_before_memory_write`.
+
 ## Stale/Missing Source
 
 Queue items compare their source validation hash, source input hash, prepare execution hash, and returned envelope hash with the current local candidate draft list.
@@ -88,18 +107,18 @@ Checklists track source proposal state separately. Matching proposal state shows
 
 ## Persistence Boundary
 
-The queue stores bounded refs, hashes, counts, source PR refs, changed file count, bounded review summary, deterministic preview fields, status metadata, and authority boundary flags. The proposal list stores bounded proposal payloads, source refs/hashes, counts, diff summaries, review notes, status metadata, and local-only authority flags. The checklist list stores bounded proposal refs, source ids, source proposal hash, gate statuses, bounded local notes, readiness summary, and local-only authority flags. None of these namespaces store raw returned envelope text, raw prompt/source/candidate/private/provider/token/browser material, raw diffs, or raw review payloads.
+The queue stores bounded refs, hashes, counts, source PR refs, changed file count, bounded review summary, deterministic preview fields, status metadata, and authority boundary flags. The proposal list stores bounded proposal payloads, source refs/hashes, counts, diff summaries, review notes, status metadata, and local-only authority flags. The checklist list stores bounded proposal refs, source ids, source proposal hash, gate statuses, bounded local notes, readiness summary, and local-only authority flags. The product persistence boundary table stores bounded boundary records in SQLite. None of these stores contain raw returned envelope text, raw prompt/source/candidate/private/provider/token/browser material, raw diffs, or raw review payloads.
 
-The queue persists separately from operator-flow metadata and the local candidate draft list. Write proposals persist separately from the queue in `augnes.perspectiveMemory.localWriteProposals.v0.1`. Checklists persist separately in `augnes.perspectiveMemory.localWriteProposalReviewChecklists.v0.1`. Clearing the candidate draft list does not clear the queue, proposals, or checklists. `Clear queue` clears only the local queue namespace; proposal and checklist clear actions clear only their respective namespaces.
+The queue persists separately from operator-flow metadata and the local candidate draft list. Write proposals persist separately from the queue in `augnes.perspectiveMemory.localWriteProposals.v0.1`. Checklists persist separately in `augnes.perspectiveMemory.localWriteProposalReviewChecklists.v0.1`. Boundary records persist separately in `perspective_memory_product_persistence_boundary_records`. Clearing the candidate draft list does not clear the queue, proposals, checklists, or persisted boundary records.
 
 ## Browser Validation
 
-Browser validation covers the operator route and queue route: route load, no console warnings/errors, no unexpected external traffic, PASS/PASS with follow-up draft creation and queueing, queue item id display, queue item count, list selection, preview display, source refs/hashes, warning counts, authority boundary, filters, local review-only actions, proposal eligibility, `Create local memory write proposal`, proposal id/status display, proposed memory payload, `should_write_to_memory_now=false`, proposal diff summary, `Create local review checklist`, required and conditional gates, `locally_ready_for_product_persistence_review`, `ready_for_memory_write_now=false`, source-state blocking, selected/all checklist clearing, refresh restore, no horizontal overflow at 390px / 768px / desktop, and no clipboard/provider/model/Codex SDK/GitHub/DB/network behavior.
+Browser validation covers the operator route and queue route: route load, no console warnings/errors, no unexpected external traffic, PASS/PASS with follow-up draft creation and queueing, queue item id display, queue item count, list selection, preview display, source refs/hashes, warning counts, authority boundary, filters, local review-only actions, proposal eligibility, `Create local memory write proposal`, proposal id/status display, proposed memory payload, `should_write_to_memory_now=false`, proposal diff summary, `Create local review checklist`, required and conditional gates, `locally_ready_for_product_persistence_review`, `ready_for_memory_write_now=false`, Product Persistence Boundary panel, confirmation checkboxes, disabled create button until confirmations are checked, persisted boundary record id/detail, boundary status transitions, refresh restore, no horizontal overflow at 390px / 768px / desktop, and no clipboard/provider/model/Codex SDK/GitHub/network behavior except same-origin app/API routes.
 
 ## Out Of Scope
 
-This PR does not create production DB persistence, accepted Augnes memory, review decisions, Core decisions, provider/model API calls, Codex SDK calls, GitHub mutation, runtime handoff, actual memory writes, or automatic promotion.
+This PR does not create accepted Augnes memory, product memory writes, review decisions, Core decisions, provider/model API calls, Codex SDK calls, GitHub mutation, runtime handoff, or automatic promotion.
 
 ## Next Recommended PR
 
-Implement a minimal product persistence boundary for locally-ready write proposals behind explicit user confirmation if the product decision is ready. If not, add a local export/review packet for locally-ready proposals.
+Add a minimal persisted boundary record review inbox/dashboard if records need cross-session visibility outside the queue route. Implement actual accepted memory writes only after an explicit product decision and review of the boundary record model.

@@ -4,7 +4,9 @@
 
 Local write proposals follow PR #533 by adding the missing “what would be written to memory?” artifact after a user reviews a local perspective-memory queue item.
 
-The proposal is still local-only. It is not accepted Augnes memory, not product DB persistence, not review decision, not Core decision, not runtime handoff, and not automatic promotion. It does not call provider/model APIs, Codex, Codex SDK, GitHub, or any network service.
+The proposal itself is still local-only. It is not accepted Augnes memory, not product DB persistence, not review decision, not Core decision, not runtime handoff, and not automatic promotion. It does not call provider/model APIs, Codex, Codex SDK, GitHub, or any network service.
+
+After PR #536, a proposal whose checklist reaches `locally_ready_for_product_persistence_review` can feed a separate Product Persistence Boundary action on the queue route. That action writes a bounded SQLite product boundary record only after explicit user confirmation. The proposal remains unchanged in localStorage and no accepted memory or Core decision is created.
 
 ## Storage
 
@@ -102,9 +104,16 @@ Checklist readiness can show `locally_ready_for_product_persistence_review` only
 
 Conditional gates keep review pressure explicit: `pass_follow_up_caveat_reviewed` is required for `PASS with follow-up`, and `supersede_impact_reviewed` is required for supersede proposals.
 
+## Product Persistence Boundary
+
+The queue route can create a Product Persistence Boundary record from a selected locally-ready checklist. The boundary record is persisted through `/api/perspective/memory/product-persistence-boundary/records` into `sqlite:lib/db.ts` and stores only bounded refs, hashes, proposed payload preview, proposal diff summary, checklist gate summary, confirmation flags, and authority boundary.
+
+This boundary record is not accepted Augnes memory, not a product memory write, not a review decision, not a Core decision, not runtime handoff, and not automatic promotion.
+
 ## Verification
 
 - Static smoke: `npm run smoke:perspective-memory-local-write-proposal`
 - Checklist smoke: `npm run smoke:perspective-memory-local-write-proposal-review-checklist`
+- Product persistence boundary smoke: `npm run smoke:perspective-memory-product-persistence-boundary`
 - Queue smoke: `npm run smoke:perspective-memory-local-review-queue`
 - Browser report smoke: `npm run browser:perspective-memory-local-review-queue`

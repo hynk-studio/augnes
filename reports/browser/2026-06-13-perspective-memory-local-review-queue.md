@@ -33,6 +33,21 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - final_user_intent_confirmed gate required
 - locally_ready_for_product_persistence_review visible after all required gates
 - ready_for_memory_write_now false visible
+- product persistence boundary panel visible
+- confirmation checkboxes visible
+- Create product persistence boundary record disabled until confirmations checked
+- persisted record id visible
+- record detail visible
+- proposed_memory_payload visible in boundary record
+- checklist_gate_summary visible
+- user_confirmation visible
+- can_create_accepted_memory false visible
+- can_create_core_decision false visible
+- can_auto_promote false visible
+- refresh still shows boundary record
+- boundary status update to locally_reviewing_boundary_record works
+- boundary status update to kept_for_later works
+- boundary status update to retracted_before_memory_write works
 - unchecking one required gate returns to in_review
 - PASS with follow-up proposal requires pass_follow_up_caveat_reviewed
 - source queue item removal makes checklist blocked or source state caveat visible
@@ -65,7 +80,7 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - 768px viewport had no horizontal overflow
 - desktop viewport had no horizontal overflow
 - no clipboard automation
-- no provider/model/Codex SDK/GitHub/DB/network behavior
+- no provider/model/Codex SDK/GitHub/network behavior except same-origin app/API routes
 - no accepted memory/review decision/Core decision behavior
 - no raw returned envelope/private/provider/token/browser/source/candidate material visible outside the returned envelope textarea
 
@@ -83,6 +98,12 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - The checklist id, `checklist_status`, required gates, readiness summary, `ready_for_product_persistence_review`, and `ready_for_memory_write_now=false` were visible.
 - A PASS proposal showed `pass_follow_up_caveat_reviewed` as `not_applicable`.
 - Checking required gates moved readiness from `not_started` to `in_review`, and checking `final_user_intent_confirmed` after the other required gates showed `locally_ready_for_product_persistence_review`.
+- The Product Persistence Boundary panel showed eligibility, the API route, `sqlite:lib/db.ts`, and confirmation checkboxes.
+- `Create product persistence boundary record` remained disabled until the not-accepted-memory, not-Core-decision, and no-automatic-promotion confirmations were checked.
+- Creating the product persistence boundary record returned a persisted record id and selected record detail.
+- The boundary detail showed `proposed_memory_payload`, `checklist_gate_summary`, `user_confirmation`, authority boundary, `can_create_accepted_memory=false`, `can_create_core_decision=false`, and `can_auto_promote=false`.
+- Refresh restored the persisted boundary record through the same-origin API.
+- Boundary status updates worked for `locally_reviewing_boundary_record`, `kept_for_later`, and `retracted_before_memory_write`.
 - Unchecking one required gate returned the checklist to `in_review`.
 - A PASS with follow-up proposal required `pass_follow_up_caveat_reviewed`.
 - Removing the source queue item made the checklist show a blocked readiness/source state caveat.
