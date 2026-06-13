@@ -261,6 +261,10 @@ export type OperatorFlowPersistedDraft = {
   returned_envelope_text?: string;
   validation_result_state: OperatorFlowValidationResultState;
   validation_result_source: OperatorFlowValidationSource;
+  validation_summary_hash?: string;
+  source_input_hash?: string;
+  prepare_execution_summary_hash?: string;
+  returned_envelope_hash?: string;
   candidate_action_choice: OperatorFlowCandidateAction;
   supersede_previous_candidate_ref?: string;
 };
@@ -415,6 +419,12 @@ export function safeParseOperatorFlowDraft(
       validation_result_source:
         asValidationSource(parsed.validation_result_source) ??
         fallback.validation_result_source,
+      validation_summary_hash: stringOrUndefined(parsed.validation_summary_hash),
+      source_input_hash: stringOrUndefined(parsed.source_input_hash),
+      prepare_execution_summary_hash: stringOrUndefined(
+        parsed.prepare_execution_summary_hash,
+      ),
+      returned_envelope_hash: stringOrUndefined(parsed.returned_envelope_hash),
       candidate_action_choice:
         asCandidateAction(parsed.candidate_action_choice) ??
         fallback.candidate_action_choice,
@@ -447,6 +457,19 @@ export function toPersistableOperatorFlowDraft(
     validation_result_source: draft.validation_result_source,
     candidate_action_choice: draft.candidate_action_choice,
   };
+  if (draft.validation_summary_hash?.trim()) {
+    persistable.validation_summary_hash = draft.validation_summary_hash;
+  }
+  if (draft.source_input_hash?.trim()) {
+    persistable.source_input_hash = draft.source_input_hash;
+  }
+  if (draft.prepare_execution_summary_hash?.trim()) {
+    persistable.prepare_execution_summary_hash =
+      draft.prepare_execution_summary_hash;
+  }
+  if (draft.returned_envelope_hash?.trim()) {
+    persistable.returned_envelope_hash = draft.returned_envelope_hash;
+  }
   if (
     draft.returned_envelope_draft_saved_explicitly &&
     typeof draft.returned_envelope_text === "string" &&
@@ -877,6 +900,10 @@ function stringOrDefault(value: unknown, fallback: string) {
 
 function stringOrNull(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
+}
+
+function stringOrUndefined(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
