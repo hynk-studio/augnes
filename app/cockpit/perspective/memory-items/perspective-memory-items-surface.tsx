@@ -13,6 +13,9 @@ import {
 import {
   PERSPECTIVE_MEMORY_ITEM_SEARCH_ROUTE,
 } from "@/lib/perspective-ingest/perspective-memory-item-search";
+import {
+  PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE,
+} from "@/lib/perspective-ingest/perspective-memory-item-review-workspace";
 import styles from "./perspective-memory-items-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
@@ -171,6 +174,13 @@ export function PerspectiveMemoryItemsSurface() {
             data-augnes-memory-items-search-link="true"
           >
             Search persisted perspective-memory items
+          </Link>
+          <Link
+            className={styles.linkButton}
+            href={PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE}
+            data-augnes-memory-items-review-workspace-link="true"
+          >
+            Review selected perspective-memory items
           </Link>
           <Link
             className={styles.linkButton}
@@ -352,6 +362,15 @@ function PerspectiveMemoryItemDetail({
         title="Persisted Perspective-Memory Item Detail"
         detail={item.item_version}
       />
+      <Link
+        className={styles.linkButton}
+        href={`${PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE}?item_ids=${encodeURIComponent(
+          item.item_id,
+        )}`}
+        data-augnes-memory-items-review-selected-item-link="true"
+      >
+        Open selected item in review workspace
+      </Link>
       <p className={styles.boundaryText}>
         Item status controls update only `item_status`. Send to Core, Create Core
         decision, Auto inject into runtime, Auto promote, Provider/model enrich,

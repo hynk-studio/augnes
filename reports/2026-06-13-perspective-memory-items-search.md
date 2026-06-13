@@ -55,6 +55,8 @@ The search route renders:
 
 The route does not expose status mutation controls, item creation controls, boundary creation controls, write/commit/Core/runtime/provider/GitHub controls, state entry controls, or deployment controls.
 
+The search route now links to `/cockpit/perspective/memory-items/review` with `Open review workspace`. Selected results expose `Review this item`, which preselects that item through `?item_ids=<item_id>` for deterministic read-only review packet generation.
+
 ## persistence behavior
 
 Search uses the existing SQLite-backed `perspective_memory_items` store through `lib/db.ts`. It loads a bounded item list and performs deterministic TypeScript matching over persisted item JSON. No FTS table, vector DB, embeddings, provider/model search, localStorage-only search, or new persistence table is added.
@@ -103,7 +105,7 @@ No Core-facing promotion, Core memory, Core decision, state entry, runtime hando
 
 ## Next recommended PR
 
-After this PR:
-1. Add a read-only synthesis/review surface that consumes selected persisted perspective-memory items.
-2. Or add saved local search views if users need repeated retrieval workflows.
+After the review-workspace PR:
+1. Add saved local review workspaces if users need repeated manual review sessions.
+2. Or add a persisted review packet table only if product decision is explicit.
 3. Do not implement Core-facing promotion unless separately and explicitly decided.

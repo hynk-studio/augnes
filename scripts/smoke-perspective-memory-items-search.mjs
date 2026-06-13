@@ -21,6 +21,10 @@ const searchComponentFile =
   "app/cockpit/perspective/memory-items/search/perspective-memory-item-search-surface.tsx";
 const searchCssFile =
   "app/cockpit/perspective/memory-items/search/perspective-memory-item-search-surface.module.css";
+const reviewRouteFile =
+  "app/cockpit/perspective/memory-items/review/page.tsx";
+const reviewComponentFile =
+  "app/cockpit/perspective/memory-items/review/perspective-memory-item-review-workspace-surface.tsx";
 const dashboardComponentFile =
   "app/cockpit/perspective/memory-items/perspective-memory-items-surface.tsx";
 const browserSmokeFile =
@@ -44,6 +48,8 @@ const apiRouteText = readFileSync(apiRouteFile, "utf8");
 const searchRouteText = readFileSync(searchRouteFile, "utf8");
 const searchComponentText = readFileSync(searchComponentFile, "utf8");
 const searchCssText = readFileSync(searchCssFile, "utf8");
+const reviewRouteText = readFileSync(reviewRouteFile, "utf8");
+const reviewComponentText = readFileSync(reviewComponentFile, "utf8");
 const dashboardComponentText = readFileSync(dashboardComponentFile, "utf8");
 const searchDocText = readFileSync(searchDocFile, "utf8");
 const itemDocText = readFileSync(itemDocFile, "utf8");
@@ -65,6 +71,8 @@ function assertStaticFiles() {
     searchRouteFile,
     searchComponentFile,
     searchCssFile,
+    reviewRouteFile,
+    reviewComponentFile,
     dashboardComponentFile,
     browserSmokeFile,
     itemBrowserSmokeFile,
@@ -83,6 +91,10 @@ function assertStaticFiles() {
   assert.equal(
     packageJson.scripts["browser:perspective-memory-items-search"],
     "node scripts/browser-smoke-perspective-memory-items-search.mjs",
+  );
+  assert.equal(
+    packageJson.scripts["smoke:perspective-memory-items-review-workspace"],
+    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-review-workspace.mjs",
   );
 
   assertIncludesAll(itemSearchText, [
@@ -343,6 +355,11 @@ function assertApiAndRouteReadOnlyBoundary() {
     "data-augnes-memory-items-search-availability",
     "data-augnes-memory-items-search-authority-boundary",
     "data-augnes-memory-items-search-read-only-boundary",
+    "data-augnes-memory-items-search-review-workspace-link",
+    "data-augnes-memory-items-search-review-this-item-link",
+    "Open review workspace",
+    "Review this item",
+    "PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE",
     "all statuses",
     "accepted",
     "reviewing",
@@ -377,6 +394,11 @@ function assertApiAndRouteReadOnlyBoundary() {
     "Search persisted perspective-memory items",
     "PERSPECTIVE_MEMORY_ITEM_SEARCH_ROUTE",
     "data-augnes-memory-items-search-link",
+  ]);
+  assertIncludesAll(reviewRouteText + reviewComponentText, [
+    "PerspectiveMemoryItemReviewWorkspaceSurface",
+    "data-augnes-perspective-memory-items-review-route",
+    "data-augnes-memory-items-review-packet",
   ]);
 
   assertNoIncludes(searchComponentText, [
@@ -466,6 +488,7 @@ function assertDocsReports() {
     "source boundary trace visible",
     "authority boundary visible",
     "refresh preserves persisted item results through API/SQLite",
+    "link to review workspace visible",
   ]);
 }
 

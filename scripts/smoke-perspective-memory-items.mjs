@@ -35,6 +35,12 @@ const searchComponentFile =
   "app/cockpit/perspective/memory-items/search/perspective-memory-item-search-surface.tsx";
 const searchCssFile =
   "app/cockpit/perspective/memory-items/search/perspective-memory-item-search-surface.module.css";
+const reviewRouteFile =
+  "app/cockpit/perspective/memory-items/review/page.tsx";
+const reviewComponentFile =
+  "app/cockpit/perspective/memory-items/review/perspective-memory-item-review-workspace-surface.tsx";
+const reviewCssFile =
+  "app/cockpit/perspective/memory-items/review/perspective-memory-item-review-workspace-surface.module.css";
 const boundaryInboxComponentFile =
   "app/cockpit/perspective/memory-boundary-review-inbox/memory-boundary-review-inbox-surface.tsx";
 const boundaryInboxDocFile =
@@ -62,6 +68,8 @@ const dashboardComponentText = readFileSync(dashboardComponentFile, "utf8");
 const dashboardCssText = readFileSync(dashboardCssFile, "utf8");
 const searchRouteText = readFileSync(searchRouteFile, "utf8");
 const searchComponentText = readFileSync(searchComponentFile, "utf8");
+const reviewRouteText = readFileSync(reviewRouteFile, "utf8");
+const reviewComponentText = readFileSync(reviewComponentFile, "utf8");
 const boundaryInboxComponentText = readFileSync(
   boundaryInboxComponentFile,
   "utf8",
@@ -98,6 +106,9 @@ function assertStaticFiles() {
     searchRouteFile,
     searchComponentFile,
     searchCssFile,
+    reviewRouteFile,
+    reviewComponentFile,
+    reviewCssFile,
     boundaryInboxComponentFile,
     itemDocFile,
     itemReportFile,
@@ -114,6 +125,10 @@ function assertStaticFiles() {
   assert.equal(
     packageJson.scripts["smoke:perspective-memory-items-search"],
     "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-search.mjs",
+  );
+  assert.equal(
+    packageJson.scripts["smoke:perspective-memory-items-review-workspace"],
+    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-review-workspace.mjs",
   );
   assert.equal(
     packageJson.scripts["browser:perspective-memory-items"],
@@ -200,6 +215,11 @@ function assertStaticFiles() {
     "data-augnes-memory-items-search-link",
     "Search persisted perspective-memory items",
     "PERSPECTIVE_MEMORY_ITEM_SEARCH_ROUTE",
+    "data-augnes-memory-items-review-workspace-link",
+    "data-augnes-memory-items-review-selected-item-link",
+    "Review selected perspective-memory items",
+    "Open selected item in review workspace",
+    "PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE",
     "not Core decision",
     "not automatic runtime injection",
     "sqlite:lib/db.ts",
@@ -207,6 +227,11 @@ function assertStaticFiles() {
   assertIncludesAll(searchRouteText + searchComponentText, [
     "PerspectiveMemoryItemSearchSurface",
     "data-augnes-perspective-memory-items-search-route",
+  ]);
+  assertIncludesAll(reviewRouteText + reviewComponentText, [
+    "PerspectiveMemoryItemReviewWorkspaceSurface",
+    "data-augnes-perspective-memory-items-review-route",
+    "data-augnes-memory-items-review-packet",
   ]);
   assertIncludesAll(dashboardCssText, [
     ".shell",
