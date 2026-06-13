@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`/cockpit/perspective/codex-former/local-adapter-operator-flow` is a local-only operator shell for the manual Augnes / Codex loop. It lets a user see the current source and prepare references, copy a bounded Codex-ready handoff packet into a separate user-started Codex session, paste or load one returned envelope, run real local validation, inspect bounded candidate review material, choose a local draft next action, and manage a small bounded local candidate draft list from one route.
+`/cockpit/perspective/codex-former/local-adapter-operator-flow` is a local-only operator shell for the manual Augnes / Codex loop. It lets a user see the current source and prepare references, copy a bounded Codex-ready handoff packet into a separate user-started Codex session, paste or load one returned envelope, run real local validation, inspect bounded candidate review material, choose a local draft next action, manage a small bounded local candidate draft list, and queue a selected local candidate draft for local perspective-memory review from one route.
 
 The route is product-facing, but it remains non-authoritative. It does not call a provider/model, Codex SDK, GitHub, database, Core runtime, or clipboard API. It does not create accepted state, review decisions, product readiness, mergeability, runtime handoff, persistence to a product DB, or automatic promotion.
 
@@ -15,6 +15,9 @@ The route is product-facing, but it remains non-authoritative. It does not call 
 - Candidate draft list schema version: `codex_former_local_adapter_candidate_draft_list.v0.1`
 - Legacy single candidate draft namespace migrated when valid: `augnes.codexFormer.localAdapterAcceptedCandidateDrafts.v0.1`
 - Accepted-candidate draft schema version: `codex_former_local_adapter_accepted_candidate_draft.v0.1`
+- Local memory review queue route: `/cockpit/perspective/memory-review-queue/local`
+- Local memory review queue storage namespace: `augnes.perspectiveMemory.localReviewQueue.v0.1`
+- Local memory review queue schema version: `perspective_memory_local_review_queue.v0.1`
 - Source input fixtures:
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json`
   - `reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json`
@@ -42,6 +45,7 @@ The route is product-facing, but it remains non-authoritative. It does not call 
 8. Choose one local draft action.
 9. Select `Create local perspective candidate draft`, `Create local memory rejection draft`, or `Create local supersede draft` when the selected action is eligible.
 10. Select, replace, clear selected, or clear all items in the Local Candidate Draft List.
+11. Select `Queue for perspective-memory review` for an eligible selected draft, then open the local memory review queue route.
 
 `Preview fixture result` remains available as a secondary aid, and is visibly marked with `fixture_preview`. The primary action posts the selected source/prepare refs and current textarea content to the local bridge and displays `real_local_validate_execution` when the existing validate orchestration execution path runs. Invalid bridge inputs are returned as `blocked_before_execution`.
 
@@ -73,6 +77,16 @@ The list stores bounded refs, hashes, counts, warnings, pointer warnings, `next_
 Creating any draft appends a new item without overwriting older drafts. The list is sorted newest first, deduped by `draft_id`, and capped at 20 drafts. `Replace selected draft with current candidate draft` is explicit and preserves the selected draft id while updating the selected record from the current eligible candidate action.
 
 For each draft, the UI compares `validation_summary_hash`, `source_input_hash`, `prepare_execution_summary_hash`, and `returned_envelope_hash` against the current real local validation. Matching drafts show `current_local_candidate_draft`; differing drafts show `stale_local_candidate_draft`; if there is no current real local validation, drafts show `no_current_validation`. Stored drafts are never silently updated when validation changes.
+
+## Local Perspective-Memory Review Queue
+
+The Local Candidate Draft List now has a Perspective-Memory Review Queue panel. A selected local candidate draft can be queued with `Queue for perspective-memory review` when it is a current `draft_candidate` or `supersedes_previous_candidate`, came from `real_local_validate_execution`, has `PASS` or `PASS with follow-up`, and still matches the current validation hashes.
+
+The queue action creates a local queue item in `augnes.perspectiveMemory.localReviewQueue.v0.1`; it does not remove or overwrite the local candidate draft. The panel shows queue item id, queue status, active queue item count, whether the selected draft is already queued, blocked reasons, and an `Open local memory review queue` route reference.
+
+Rejected memory candidates remain visible in the draft list but are not queue-eligible for memory write review. A `PASS with follow-up` draft can be queued, but the queue preview carries a warning caveat.
+
+Clearing the local operator draft does not clear the candidate draft list or the local memory review queue. Clearing the local candidate draft list does not clear the local memory review queue. Queue management is explicit in `/cockpit/perspective/memory-review-queue/local`.
 
 ## Copy For Codex Packet
 
@@ -116,6 +130,8 @@ Persisted fields:
 
 Local candidate draft records persist separately in `augnes.codexFormer.localAdapterAcceptedCandidateDraftList.v0.1`. `Clear local draft` resets operator-flow metadata but does not clear the candidate draft list. `Clear selected local candidate draft` removes only the selected list item. `Clear all local candidate drafts` clears the list namespace and the legacy single-record namespace.
 
+Local memory review queue items persist separately in `augnes.perspectiveMemory.localReviewQueue.v0.1`. Queue items store bounded refs, hashes, counts, review summaries, deterministic memory candidate previews, queue status, review-only controls, and authority boundary flags. They do not store raw returned envelope text, raw source packets, raw prompts, raw candidate payloads, private/provider/token/browser material, raw diffs, or raw review payloads.
+
 Not persisted by default:
 
 - hidden reasoning
@@ -135,7 +151,9 @@ Not persisted by default:
 - `lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts` owns the local validation bridge helper. It reads only committed source/prepare fixtures selected by ref, uses the returned envelope textarea content, calls `buildCodexFormerLocalAdapterValidateExecutionSummary` directly, and returns a bounded summary.
 - `lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts` owns the bounded local accepted-candidate draft model, eligibility checks, staleness checks, unsafe marker rejection, and legacy single-record localStorage helpers.
 - `lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts` owns the list payload, migration from the legacy single draft slot, append/replace/remove/clear helpers, max-list bound, dedupe, and current/stale status checks.
+- `lib/perspective-ingest/perspective-memory-local-review-queue.ts` owns the local memory review queue payload, queue item builder, deterministic bounded memory candidate preview, append/remove/status helpers, max-list bound, dedupe, unsafe marker rejection, and source draft current/stale/missing checks.
 - `app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts` exposes the same-origin Node route for the browser surface.
+- `app/cockpit/perspective/memory-review-queue/local/page.tsx` exposes the local queue inspection route.
 - `operator-flow-surface.tsx` keeps UI state local and writes only bounded metadata automatically.
 - Returned envelope text is loaded into the textarea only through user action or explicit saved local draft restore.
 - The route avoids clipboard APIs. The Copy For Codex panel is a selectable bounded handoff preview.

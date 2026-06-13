@@ -21,6 +21,20 @@ import {
   type CodexFormerLocalAdapterAcceptedCandidateDraftV0,
 } from "@/lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft";
 import {
+  PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE,
+  PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE,
+  appendPerspectiveMemoryLocalReviewQueueItem,
+  buildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft,
+  canBuildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft,
+  createEmptyPerspectiveMemoryLocalReviewQueue,
+  findPerspectiveMemoryLocalReviewQueueItemBySourceDraft,
+  loadPerspectiveMemoryLocalReviewQueueFromStorage,
+  removePerspectiveMemoryLocalReviewQueueItem,
+  savePerspectiveMemoryLocalReviewQueueToStorage,
+  type PerspectiveMemoryLocalReviewQueueItemV0,
+  type PerspectiveMemoryLocalReviewQueueV0,
+} from "@/lib/perspective-ingest/perspective-memory-local-review-queue";
+import {
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
   clearOperatorFlowDraftFromStorage,
   createInitialOperatorFlowDraft,
@@ -45,6 +59,9 @@ type ValidationPreviewState = {
 type LocalValidationRunState = OperatorFlowLocalValidationResponse | null;
 type CandidateDraftEligibility = ReturnType<
   typeof canBuildCodexFormerLocalAdapterAcceptedCandidateDraft
+>;
+type CandidateDraftQueueEligibility = ReturnType<
+  typeof canBuildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft
 >;
 
 const initialIso = "1970-01-01T00:00:00.000Z";
@@ -76,6 +93,13 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     useState<string | null>(null);
   const [candidateDraftStatus, setCandidateDraftStatus] = useState(
     "local candidate draft list not loaded",
+  );
+  const [localReviewQueue, setLocalReviewQueue] =
+    useState<PerspectiveMemoryLocalReviewQueueV0>(() =>
+      createEmptyPerspectiveMemoryLocalReviewQueue(initialIso),
+    );
+  const [localReviewQueueStatus, setLocalReviewQueueStatus] = useState(
+    "local memory review queue not loaded",
   );
   const skipNextAutoSave = useRef(false);
 
@@ -121,6 +145,17 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             ? "local candidate draft list restored"
             : "no local candidate drafts",
     );
+    const loadedLocalReviewQueue =
+      loadPerspectiveMemoryLocalReviewQueueFromStorage(
+        window.localStorage,
+        new Date().toISOString(),
+      );
+    setLocalReviewQueue(loadedLocalReviewQueue);
+    setLocalReviewQueueStatus(
+      loadedLocalReviewQueue.items.length > 0
+        ? "local memory review queue restored"
+        : "no local memory review queue items",
+    );
   }, [viewModel]);
 
   useEffect(() => {
@@ -161,6 +196,28 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     candidateDraftList.drafts.find(
       (item) => item.draft_id === selectedCandidateDraftId,
     ) ?? null;
+  const selectedCandidateDraftCurrentStatus = selectedCandidateDraft
+    ? getCodexFormerLocalAdapterCandidateDraftCurrentStatus(
+        selectedCandidateDraft,
+        currentValidationForCandidateDrafts,
+      )
+    : null;
+  const selectedCandidateDraftQueuedItem = selectedCandidateDraft
+    ? findPerspectiveMemoryLocalReviewQueueItemBySourceDraft(
+        localReviewQueue,
+        selectedCandidateDraft.draft_id,
+      )
+    : null;
+  const selectedCandidateDraftQueueEligibility = selectedCandidateDraft
+    ? canBuildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft({
+        draft: selectedCandidateDraft,
+        sourceDraftCurrentStatus:
+          selectedCandidateDraftCurrentStatus ?? "no_current_validation",
+      })
+    : {
+        eligible: false,
+        blocked_reasons: ["select a local candidate draft before queueing"],
+      };
   const acceptDraftEligibility =
     canBuildCodexFormerLocalAdapterAcceptedCandidateDraft({
       candidateAction: "accept_as_perspective_candidate",
@@ -212,6 +269,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       "candidate_action_choice",
       "supersede_previous_candidate_ref",
       `${CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE} stores explicit local candidate draft lists`,
+      `${PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE} stores explicit local memory review queue items`,
     ],
     [],
   );
@@ -461,6 +519,66 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     setCandidateDraftStatus("all local candidate drafts cleared");
   }
 
+  function queueSelectedCandidateDraftForMemoryReview() {
+    if (!selectedCandidateDraft || !selectedCandidateDraftCurrentStatus) {
+      setLocalReviewQueueStatus(
+        "select a local candidate draft before queueing for perspective-memory review",
+      );
+      return;
+    }
+    if (selectedCandidateDraftQueuedItem) {
+      setLocalReviewQueueStatus(
+        `selected draft is already queued as ${selectedCandidateDraftQueuedItem.queue_item_id}`,
+      );
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const result = buildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft({
+      nowIso,
+      queueItemId: `local-memory-review-queue-item:${Date.now()}`,
+      draft: selectedCandidateDraft,
+      sourceDraftCurrentStatus: selectedCandidateDraftCurrentStatus,
+    });
+    if (!result.ok) {
+      setLocalReviewQueueStatus(
+        `memory review queue blocked: ${result.blocked_reasons.join("; ")}`,
+      );
+      return;
+    }
+    const nextQueue = appendPerspectiveMemoryLocalReviewQueueItem(
+      localReviewQueue,
+      result.item,
+      nowIso,
+    );
+    setLocalReviewQueue(nextQueue);
+    savePerspectiveMemoryLocalReviewQueueToStorage(
+      window.localStorage,
+      nextQueue,
+    );
+    setLocalReviewQueueStatus(
+      `queued for perspective-memory review: ${result.item.queue_item_id}`,
+    );
+  }
+
+  function removeQueueItemForSelectedCandidateDraft() {
+    if (!selectedCandidateDraftQueuedItem) {
+      setLocalReviewQueueStatus("selected draft has no active queue item");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const nextQueue = removePerspectiveMemoryLocalReviewQueueItem(
+      localReviewQueue,
+      selectedCandidateDraftQueuedItem.queue_item_id,
+      nowIso,
+    );
+    setLocalReviewQueue(nextQueue);
+    savePerspectiveMemoryLocalReviewQueueToStorage(
+      window.localStorage,
+      nextQueue,
+    );
+    setLocalReviewQueueStatus("removed queue item for selected draft");
+  }
+
   function previewValidationResult() {
     const preview = previewOperatorFlowValidationResult(
       returnedEnvelopeText,
@@ -686,9 +804,13 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             acceptEligibility={acceptDraftEligibility}
             rejectEligibility={rejectDraftEligibility}
             supersedeEligibility={supersedeDraftEligibility}
+            queueEligibility={selectedCandidateDraftQueueEligibility}
             supersedePreviousCandidateRef={
               draft.supersede_previous_candidate_ref ?? ""
             }
+            localReviewQueue={localReviewQueue}
+            localReviewQueueStatus={localReviewQueueStatus}
+            selectedQueueItem={selectedCandidateDraftQueuedItem}
             onSelectDraft={setSelectedCandidateDraftId}
             onCreateAccepted={() =>
               createLocalCandidateDraft("accept_as_perspective_candidate")
@@ -702,6 +824,8 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             onReplaceSelected={replaceSelectedLocalCandidateDraft}
             onClearSelected={clearSelectedLocalCandidateDraft}
             onClearAll={clearAllLocalCandidateDrafts}
+            onQueueSelected={queueSelectedCandidateDraftForMemoryReview}
+            onRemoveSelectedQueueItem={removeQueueItemForSelectedCandidateDraft}
           />
           <LocalStorageBoundaryPanel persistedFields={persistedFields} />
         </div>
@@ -1150,7 +1274,11 @@ function LocalCandidateDraftListPanel({
   acceptEligibility,
   rejectEligibility,
   supersedeEligibility,
+  queueEligibility,
   supersedePreviousCandidateRef,
+  localReviewQueue,
+  localReviewQueueStatus,
+  selectedQueueItem,
   onSelectDraft,
   onCreateAccepted,
   onCreateRejected,
@@ -1158,6 +1286,8 @@ function LocalCandidateDraftListPanel({
   onReplaceSelected,
   onClearSelected,
   onClearAll,
+  onQueueSelected,
+  onRemoveSelectedQueueItem,
 }: {
   candidateDraftList: CodexFormerLocalAdapterCandidateDraftListV0;
   selectedCandidateDraftId: string | null;
@@ -1168,7 +1298,11 @@ function LocalCandidateDraftListPanel({
   acceptEligibility: CandidateDraftEligibility;
   rejectEligibility: CandidateDraftEligibility;
   supersedeEligibility: CandidateDraftEligibility;
+  queueEligibility: CandidateDraftQueueEligibility;
   supersedePreviousCandidateRef: string;
+  localReviewQueue: PerspectiveMemoryLocalReviewQueueV0;
+  localReviewQueueStatus: string;
+  selectedQueueItem: PerspectiveMemoryLocalReviewQueueItemV0 | null;
   onSelectDraft: (draftId: string) => void;
   onCreateAccepted: () => void;
   onCreateRejected: () => void;
@@ -1176,6 +1310,8 @@ function LocalCandidateDraftListPanel({
   onReplaceSelected: () => void;
   onClearSelected: () => void;
   onClearAll: () => void;
+  onQueueSelected: () => void;
+  onRemoveSelectedQueueItem: () => void;
 }) {
   const selectedCandidateDraft =
     candidateDraftList.drafts.find(
@@ -1201,6 +1337,13 @@ function LocalCandidateDraftListPanel({
     candidateDraftList.drafts.length > 0
       ? `${candidateDraftList.drafts.length} local candidate drafts`
       : "no_local_candidate_drafts";
+  const queueSelectedDisabled =
+    !selectedCandidateDraft ||
+    !queueEligibility.eligible ||
+    selectedQueueItem != null;
+  const activeQueueItemCount = localReviewQueue.items.filter(
+    (item) => item.queue_status !== "removed_from_queue",
+  ).length;
 
   return (
     <section
@@ -1302,6 +1445,84 @@ function LocalCandidateDraftListPanel({
           value={String(currentValidation.candidate_count)}
         />
       </dl>
+      <div
+        className={styles.queuePanel}
+        data-augnes-memory-review-queue-panel="true"
+      >
+        <PanelHeader
+          eyebrow="9. Memory Review Queue"
+          title="Perspective-Memory Review Queue"
+          detail="local queue only"
+        />
+        <p className={styles.boundaryText}>
+          Queue items are local queue only. They are not accepted Augnes memory,
+          not review decision, not product DB persistence, not Core decision,
+          not runtime handoff, and not automatic promotion.
+        </p>
+        <div className={styles.buttonRow}>
+          <button
+            type="button"
+            className={styles.primaryButton}
+            data-augnes-queue-selected-candidate-draft="true"
+            disabled={queueSelectedDisabled}
+            onClick={onQueueSelected}
+          >
+            Queue for perspective-memory review
+          </button>
+          <button
+            type="button"
+            className={styles.button}
+            data-augnes-remove-selected-queue-item="true"
+            disabled={!selectedQueueItem}
+            onClick={onRemoveSelectedQueueItem}
+          >
+            Remove queue item for selected draft
+          </button>
+          <a
+            className={styles.linkButton}
+            data-augnes-open-local-memory-review-queue="true"
+            href={PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE}
+          >
+            Open local memory review queue
+          </a>
+        </div>
+        <dl className={styles.detailGrid}>
+          <DetailRow
+            label="review_queue_storage_namespace"
+            value={PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE}
+          />
+          <DetailRow
+            label="review_queue_item_count"
+            value={String(activeQueueItemCount)}
+          />
+          <DetailRow
+            label="review_queue_status"
+            value={localReviewQueueStatus}
+          />
+          <DetailRow
+            label="selected_queue_item_id"
+            value={selectedQueueItem?.queue_item_id ?? "none"}
+          />
+          <DetailRow
+            label="selected_queue_status"
+            value={selectedQueueItem?.queue_status ?? "not_queued"}
+          />
+          <DetailRow
+            label="selected_draft_already_queued"
+            value={String(selectedQueueItem != null)}
+          />
+          <DetailRow
+            label="queue_route"
+            value={PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE}
+          />
+        </dl>
+        <ResultList
+          title="memory_review_queue_blocked_reasons"
+          values={
+            queueEligibility.eligible ? [] : queueEligibility.blocked_reasons
+          }
+        />
+      </div>
       {candidateDraftList.drafts.length > 0 ? (
         <div className={styles.draftList} data-augnes-candidate-draft-list="true">
           {candidateDraftList.drafts.map((candidateDraft) => {
