@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import acceptedCandidateDraft from "../lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts";
 import localValidateBridge from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
 import operatorFlow from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
 
+const {
+  CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+  CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION,
+  buildCodexFormerLocalAdapterAcceptedCandidateDraft,
+  canBuildCodexFormerLocalAdapterAcceptedCandidateDraft,
+  clearCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage,
+  collectAcceptedCandidateDraftUnsafeMarkers,
+  isCodexFormerLocalAdapterAcceptedCandidateDraftStale,
+  loadCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage,
+  saveCodexFormerLocalAdapterAcceptedCandidateDraftToStorage,
+  safeParseCodexFormerLocalAdapterAcceptedCandidateDraft,
+} = acceptedCandidateDraft;
 const { runOperatorFlowLocalValidationBridge } = localValidateBridge;
 const {
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE,
@@ -30,6 +43,8 @@ const helperFile =
   "lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
 const localValidateBridgeFile =
   "lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
+const acceptedCandidateDraftFile =
+  "lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts";
 const localValidateRouteFile =
   "app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts";
 const smokeFile =
@@ -72,6 +87,10 @@ const componentText = readFileSync(componentFile, "utf8");
 const cssText = readFileSync(cssFile, "utf8");
 const helperText = readFileSync(helperFile, "utf8");
 const localValidateBridgeText = readFileSync(localValidateBridgeFile, "utf8");
+const acceptedCandidateDraftText = readFileSync(
+  acceptedCandidateDraftFile,
+  "utf8",
+);
 const localValidateRouteText = readFileSync(localValidateRouteFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
@@ -122,6 +141,7 @@ assertFilesExist();
 assertRouteSource();
 assertHelperViewModel();
 assertLocalValidationBridge();
+assertAcceptedCandidateDraftModel();
 assertComponentSource();
 assertCssSource();
 assertDocsAndReports();
@@ -154,6 +174,7 @@ function assertFilesExist() {
     cssFile,
     helperFile,
     localValidateBridgeFile,
+    acceptedCandidateDraftFile,
     localValidateRouteFile,
     smokeFile,
     browserSmokeFile,
@@ -238,6 +259,10 @@ function assertHelperViewModel() {
     "real_local_validate_execution",
     "blocked_before_execution",
     "validation_result_source",
+    "validation_summary_hash",
+    "source_input_hash",
+    "prepare_execution_summary_hash",
+    "returned_envelope_hash",
     "operatorFlowSourceInputRefs",
     "operatorFlowPrepareExecutionSummaryRefs",
   ]);
@@ -336,11 +361,22 @@ function assertHelperViewModel() {
     JSON.stringify({
       returned_envelope_draft_saved_explicitly: true,
       returned_envelope_text: "explicit local draft",
+      validation_summary_hash: "hash:validation",
+      source_input_hash: "hash:source",
+      prepare_execution_summary_hash: "hash:prepare",
+      returned_envelope_hash: "hash:returned",
     }),
     viewModel,
     "2026-06-12T00:00:00.000Z",
   );
   assert.equal(savedTextDraft.returned_envelope_text, "explicit local draft");
+  assert.equal(savedTextDraft.validation_summary_hash, "hash:validation");
+  assert.equal(savedTextDraft.source_input_hash, "hash:source");
+  assert.equal(
+    savedTextDraft.prepare_execution_summary_hash,
+    "hash:prepare",
+  );
+  assert.equal(savedTextDraft.returned_envelope_hash, "hash:returned");
 
   const storage = createMockStorage();
   const initialDraft = createInitialOperatorFlowDraft(
@@ -436,6 +472,203 @@ function assertLocalValidationBridge() {
   assert.equal(invalidRef.validation_result.failure_kind, "blocked_before_execution");
 }
 
+function assertAcceptedCandidateDraftModel() {
+  const viewModel =
+    buildCodexFormerLocalAdapterOperatorFlowViewModel(fixtureInput);
+  assertIncludesAll(acceptedCandidateDraftText, [
+    "CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE",
+    CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION,
+    "buildCodexFormerLocalAdapterAcceptedCandidateDraft",
+    "isCodexFormerLocalAdapterAcceptedCandidateDraftStale",
+    "raw_prompt",
+    "raw_candidate",
+    "browser_dump",
+    "product_db_persistence: false",
+    "accepted_augnes_state_created: false",
+    "review_decision_created: false",
+    "core_decision_created: false",
+    "runtime_handoff_created: false",
+    "automatic_promotion: false",
+  ]);
+
+  const pass = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass",
+    source_input_ref: sourcePassFile,
+    prepare_summary_ref: preparePassFile,
+    returned_envelope_text: fixtureInput.scenarios.pass.returnedEnvelopeText,
+  });
+  const followUp = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass_with_follow_up",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text:
+      fixtureInput.scenarios.pass_with_follow_up.returnedEnvelopeText,
+  });
+  const blocked = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "blocked",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text: fixtureInput.scenarios.blocked.returnedEnvelopeText,
+  });
+
+  const acceptedPass = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: pass.validation_result,
+    scenarioKey: "pass",
+  });
+  assert.equal(acceptedPass.ok, true);
+  assert.equal(acceptedPass.draft.draft_version, CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION);
+  assert.equal(acceptedPass.draft.local_status, "draft_candidate");
+  assert.equal(acceptedPass.draft.validation_result_state, "PASS");
+  assert.equal(acceptedPass.draft.validation_source, "real_local_validate_execution");
+  assert.equal(acceptedPass.draft.candidate_count, 1);
+  assert.equal(acceptedPass.draft.candidate_compatible_review_material, true);
+  assert.equal(acceptedPass.draft.candidate_authority, "non_committed");
+  assert.equal(
+    acceptedPass.draft.authority_boundary.accepted_augnes_state_created,
+    false,
+  );
+  assert.equal("returned_envelope_text" in acceptedPass.draft, false);
+  assert.equal("raw_prompt" in acceptedPass.draft, false);
+  assert.equal("raw_candidate" in acceptedPass.draft, false);
+  assert.deepEqual(
+    collectAcceptedCandidateDraftUnsafeMarkers(acceptedPass.draft),
+    [],
+  );
+  assertNoRawCandidateDraftMarkers(acceptedPass.draft);
+
+  const acceptedFollowUp = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: followUp.validation_result,
+    scenarioKey: "pass_with_follow_up",
+  });
+  assert.equal(acceptedFollowUp.ok, true);
+  assert.equal(
+    acceptedFollowUp.draft.validation_result_state,
+    "PASS with follow-up",
+  );
+  assert(acceptedFollowUp.draft.warnings.length > 0);
+
+  const blockedAccepted = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: blocked.validation_result,
+    scenarioKey: "blocked",
+  });
+  assert.equal(blockedAccepted.ok, false);
+  assert(
+    blockedAccepted.blocked_reasons.includes(
+      "candidate draft requires PASS or PASS with follow-up validation",
+    ),
+  );
+
+  const fixturePreviewAccepted = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: viewModel.scenarios.pass.validation_result,
+    scenarioKey: "pass",
+  });
+  assert.equal(fixturePreviewAccepted.ok, false);
+  assert(
+    fixturePreviewAccepted.blocked_reasons.includes(
+      "validation_source must be real_local_validate_execution",
+    ),
+  );
+
+  const rejectedBlocked = buildCandidateDraft({
+    action: "reject_from_memory_candidate",
+    validation: blocked.validation_result,
+    scenarioKey: "blocked",
+  });
+  assert.equal(rejectedBlocked.ok, true);
+  assert.equal(rejectedBlocked.draft.local_status, "rejected_memory_candidate");
+  assert.equal(rejectedBlocked.draft.validation_result_state, "BLOCKED");
+
+  const supersedeWithoutRef = buildCandidateDraft({
+    action: "supersede_previous_candidate",
+    validation: pass.validation_result,
+    scenarioKey: "pass",
+  });
+  assert.equal(supersedeWithoutRef.ok, false);
+  assert(
+    supersedeWithoutRef.blocked_reasons.includes(
+      "supersede draft requires supersede_previous_candidate_ref",
+    ),
+  );
+
+  const supersedeWithRef = buildCandidateDraft({
+    action: "supersede_previous_candidate",
+    validation: pass.validation_result,
+    scenarioKey: "pass",
+    supersedesDraftId: "local-candidate-draft:previous",
+  });
+  assert.equal(supersedeWithRef.ok, true);
+  assert.equal(supersedeWithRef.draft.local_status, "supersedes_previous_candidate");
+  assert.equal(
+    supersedeWithRef.draft.supersedes_draft_id,
+    "local-candidate-draft:previous",
+  );
+
+  assert.equal(
+    canBuildCodexFormerLocalAdapterAcceptedCandidateDraft({
+      candidateAction: "accept_as_perspective_candidate",
+      validation: pass.validation_result,
+    }).eligible,
+    true,
+  );
+  assert.equal(
+    canBuildCodexFormerLocalAdapterAcceptedCandidateDraft({
+      candidateAction: "accept_as_perspective_candidate",
+      validation: blocked.validation_result,
+    }).eligible,
+    false,
+  );
+  assert.equal(
+    isCodexFormerLocalAdapterAcceptedCandidateDraftStale(
+      acceptedPass.draft,
+      pass.validation_result,
+    ),
+    false,
+  );
+  assert.equal(
+    isCodexFormerLocalAdapterAcceptedCandidateDraftStale(
+      acceptedPass.draft,
+      followUp.validation_result,
+    ),
+    true,
+  );
+
+  const storage = createMockStorage();
+  saveCodexFormerLocalAdapterAcceptedCandidateDraftToStorage(
+    storage,
+    acceptedPass.draft,
+  );
+  assert.equal(
+    storage.values.has(
+      CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    ),
+    true,
+  );
+  assert.deepEqual(
+    loadCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage(storage),
+    acceptedPass.draft,
+  );
+  clearCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage(storage);
+  assert.equal(
+    storage.values.has(
+      CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    ),
+    false,
+  );
+  assert.equal(
+    safeParseCodexFormerLocalAdapterAcceptedCandidateDraft(
+      JSON.stringify({
+        ...acceptedPass.draft,
+        review_summary: "TOKEN=unsafe",
+      }),
+    ),
+    null,
+  );
+}
+
 function assertComponentSource() {
   assertIncludesAll(componentText, [
     "Local Codex Adapter Operator Flow",
@@ -446,6 +679,7 @@ function assertComponentSource() {
     "Validate Result",
     "Candidate Review Material",
     "Next Action",
+    "Accepted Candidate Draft",
     "Local Storage Boundary",
     "Load PASS envelope fixture",
     "Load PASS with follow-up envelope fixture",
@@ -455,6 +689,12 @@ function assertComponentSource() {
     "Clear local draft",
     "Run local validation",
     "Preview fixture result",
+    "Create local perspective candidate draft",
+    "Create local memory rejection draft",
+    "Create local supersede draft",
+    "Clear local candidate draft",
+    "stale_local_candidate_draft",
+    "CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE",
     "real_local_validate_execution",
     "validation_result_source",
     "validation_summary_hash",
@@ -464,13 +704,19 @@ function assertComponentSource() {
     "authority_flags",
     "defaultCandidateActionChoice",
     "resetCandidateActionPatch",
+    "resetValidationHashPatch",
+    "localValidationHashPatch",
+    "candidateDraftMatchesPersistedValidation",
     "candidate_action_choice: defaultCandidateActionChoice",
     "supersede_previous_candidate_ref: undefined",
     "shouldResetCandidateAction",
     "result.validation_source === \"blocked_before_execution\"",
     "result.validation_result.result_state === \"BLOCKED\"",
+    "actionEligibility",
+    "reject_from_memory_candidate: rejectDraftEligibility.eligible",
     "requires real validation",
-    "disabled={!canSelectAction}",
+    "disabled={!actionCanBeSelected}",
+    "BLOCKED validation can only create",
     "Keep review-only",
     "Mark as perspective candidate",
     "Reject as memory candidate",
@@ -485,6 +731,11 @@ function assertComponentSource() {
     "data-augnes-run-local-validation",
     "data-augnes-validate-preview",
     "data-augnes-candidate-action",
+    "data-augnes-create-accepted-candidate-draft",
+    "data-augnes-create-rejection-candidate-draft",
+    "data-augnes-create-supersede-candidate-draft",
+    "data-augnes-clear-candidate-draft",
+    "data-augnes-local-candidate-draft-status",
     "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE",
   ]);
   assert(componentText.includes("fetch("), "component must call local bridge");
@@ -507,6 +758,13 @@ function assertComponentSource() {
     "BLOCKED local validation must reset candidate_action_choice",
   );
   assert(
+    componentText.includes("supersede_previous_candidate_ref:") &&
+      componentText.includes(
+        "action === \"supersede_previous_candidate\"",
+      ),
+    "supersede_previous_candidate_ref must be cleared when the action resets away from supersede",
+  );
+  assert(
     componentText.includes("const nextDraft = createInitialOperatorFlowDraft("),
     "Clear local draft must restore the initial keep_review_only action",
   );
@@ -526,6 +784,7 @@ function assertCssSource() {
     ".statusStrip",
     ".copyArea",
     ".envelopeArea",
+    ".draftDetailGrid",
     ".actionGrid",
     ".errorText",
     ":disabled",
@@ -540,10 +799,17 @@ function assertDocsAndReports() {
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE,
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_STORAGE_NAMESPACE,
+    CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION,
     "Run local validation",
     "real_local_validate_execution",
     "fixture_preview",
     "blocked_before_execution",
+    "Create local perspective candidate draft",
+    "Create local memory rejection draft",
+    "Create local supersede draft",
+    "Clear local candidate draft",
+    "stale_local_candidate_draft",
     "keep_review_only",
     "accept_as_perspective_candidate",
     "reject_from_memory_candidate",
@@ -555,9 +821,14 @@ function assertDocsAndReports() {
     routeFile,
     helperFile,
     localValidateBridgeFile,
+    acceptedCandidateDraftFile,
     localValidateRouteFile,
     "Run local validation",
     "real_local_validate_execution",
+    "accepted-candidate draft",
+    CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    "BLOCKED rejection-only",
+    "stale_local_candidate_draft",
     "fixture_preview",
     "PASS / PASS with follow-up / BLOCKED",
     "no accepted Augnes state",
@@ -571,6 +842,7 @@ function assertRuntimeBoundary() {
     [componentFile]: componentText,
     [helperFile]: helperText,
     [localValidateBridgeFile]: localValidateBridgeText,
+    [acceptedCandidateDraftFile]: acceptedCandidateDraftText,
     [localValidateRouteFile]: localValidateRouteText,
   };
   for (const [file, source] of Object.entries(sourceByFile)) {
@@ -662,6 +934,56 @@ function assertIncludesAll(source, phrases) {
 
 function countOccurrences(source, phrase) {
   return source.split(phrase).length - 1;
+}
+
+function buildCandidateDraft({
+  action,
+  validation,
+  scenarioKey,
+  supersedesDraftId,
+}) {
+  const viewModel =
+    buildCodexFormerLocalAdapterOperatorFlowViewModel(fixtureInput);
+  const scenario = viewModel.scenarios[scenarioKey];
+  return buildCodexFormerLocalAdapterAcceptedCandidateDraft({
+    nowIso: "2026-06-12T00:00:00.000Z",
+    draftId: `local-candidate-draft:${action}:${scenarioKey}`,
+    operatorFlowDraftId: "local-adapter-operator-flow-draft:v0.1",
+    candidateAction: action,
+    validation,
+    sourceInputRef: scenario.source_input_ref.path,
+    prepareSummaryRef: scenario.prepare_summary_ref.path,
+    reviewSummary: scenario.candidate_review_material.review_summary,
+    changedFilesCount: scenario.candidate_review_material.changed_files_count,
+    sourcePrRefs: scenario.candidate_review_material.source_pr_refs,
+    supersedesDraftId,
+  });
+}
+
+function assertNoRawCandidateDraftMarkers(draft) {
+  const serialized = JSON.stringify(draft);
+  for (const marker of [
+    "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
+    "RETURNED_CODEX_RESPONSE",
+    "END RETURNED_CODEX_RESPONSE",
+    "draft_kind: codex_perspective_candidate_draft",
+    "raw_source_packet",
+    "raw_prompt",
+    "raw_candidate",
+    "raw private",
+    "PROVIDER_LOG",
+    "PROVIDER_LOGS",
+    "TOKEN=",
+    "browser_dump",
+    "raw_diff",
+    "raw_review_payload",
+  ]) {
+    assert.equal(
+      serialized.includes(marker),
+      false,
+      `candidate draft must not persist raw marker ${marker}`,
+    );
+  }
 }
 
 function createMockStorage() {

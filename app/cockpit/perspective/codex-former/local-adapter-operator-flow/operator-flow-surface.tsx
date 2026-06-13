@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./operator-flow-surface.module.css";
 import {
+  CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+  buildCodexFormerLocalAdapterAcceptedCandidateDraft,
+  canBuildCodexFormerLocalAdapterAcceptedCandidateDraft,
+  clearCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage,
+  isCodexFormerLocalAdapterAcceptedCandidateDraftStale,
+  loadCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage,
+  saveCodexFormerLocalAdapterAcceptedCandidateDraftToStorage,
+  type CodexFormerLocalAdapterAcceptedCandidateDraftAction,
+  type CodexFormerLocalAdapterAcceptedCandidateDraftV0,
+} from "@/lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft";
+import {
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
   clearOperatorFlowDraftFromStorage,
   createInitialOperatorFlowDraft,
@@ -25,6 +36,9 @@ type ValidationPreviewState = {
 } | null;
 
 type LocalValidationRunState = OperatorFlowLocalValidationResponse | null;
+type CandidateDraftEligibility = ReturnType<
+  typeof canBuildCodexFormerLocalAdapterAcceptedCandidateDraft
+>;
 
 const initialIso = "1970-01-01T00:00:00.000Z";
 const defaultCandidateActionChoice: OperatorFlowCandidateAction =
@@ -47,6 +61,11 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
   const [validationBusy, setValidationBusy] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState("local metadata not saved");
+  const [candidateDraft, setCandidateDraft] =
+    useState<CodexFormerLocalAdapterAcceptedCandidateDraftV0 | null>(null);
+  const [candidateDraftStatus, setCandidateDraftStatus] = useState(
+    "local candidate draft not loaded",
+  );
   const skipNextAutoSave = useRef(false);
 
   useEffect(() => {
@@ -66,6 +85,16 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       loadedDraft.returned_envelope_draft_saved_explicitly
         ? "saved local draft restored"
         : "bounded local metadata restored",
+    );
+    const loadedCandidateDraft =
+      loadCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage(
+        window.localStorage,
+      );
+    setCandidateDraft(loadedCandidateDraft);
+    setCandidateDraftStatus(
+      loadedCandidateDraft
+        ? "local candidate draft restored"
+        : "no local candidate draft",
     );
   }, [viewModel]);
 
@@ -87,6 +116,48 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     localValidationRun?.validation_result ??
     validationPreview?.validation_result ??
     displayScenario.validation_result;
+  const candidateDraftMatchesPersistedValidation =
+    candidateDraft != null &&
+    draft.validation_result_source === "real_local_validate_execution" &&
+    draft.validation_summary_hash === candidateDraft.validation_summary_hash &&
+    draft.source_input_hash === candidateDraft.source_input_hash &&
+    draft.prepare_execution_summary_hash ===
+      candidateDraft.prepare_execution_summary_hash &&
+    draft.returned_envelope_hash === candidateDraft.returned_envelope_hash;
+  const candidateDraftIsStale = candidateDraft
+    ? !candidateDraftMatchesPersistedValidation &&
+      isCodexFormerLocalAdapterAcceptedCandidateDraftStale(
+        candidateDraft,
+        currentValidation,
+      )
+    : false;
+  const acceptDraftEligibility =
+    canBuildCodexFormerLocalAdapterAcceptedCandidateDraft({
+      candidateAction: "accept_as_perspective_candidate",
+      validation: currentValidation,
+    });
+  const rejectDraftEligibility =
+    canBuildCodexFormerLocalAdapterAcceptedCandidateDraft({
+      candidateAction: "reject_from_memory_candidate",
+      validation: currentValidation,
+    });
+  const supersedeDraftEligibility =
+    canBuildCodexFormerLocalAdapterAcceptedCandidateDraft({
+      candidateAction: "supersede_previous_candidate",
+      validation: currentValidation,
+      supersedesDraftId: draft.supersede_previous_candidate_ref,
+    });
+  const candidateActionEligibility: Record<OperatorFlowCandidateAction, boolean> =
+    {
+      keep_review_only:
+        currentValidation.validation_source === "real_local_validate_execution",
+      accept_as_perspective_candidate: acceptDraftEligibility.eligible,
+      reject_from_memory_candidate: rejectDraftEligibility.eligible,
+      supersede_previous_candidate:
+        currentValidation.validation_source ===
+          "real_local_validate_execution" &&
+        currentValidation.result_state !== "BLOCKED",
+    };
 
   const activeFixtureLabel = draft.selected_returned_envelope_fixture_key
     ? viewModel.scenarios[draft.selected_returned_envelope_fixture_key].label
@@ -104,8 +175,13 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       "returned_envelope_text only after Save draft locally",
       "validation_result_state",
       "validation_result_source",
+      "validation_summary_hash after real local validation",
+      "source_input_hash after real local validation",
+      "prepare_execution_summary_hash after real local validation",
+      "returned_envelope_hash after real local validation",
       "candidate_action_choice",
       "supersede_previous_candidate_ref",
+      `${CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE} stores only explicit local candidate drafts`,
     ],
     [],
   );
@@ -138,6 +214,39 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     };
   }
 
+  function resetValidationHashPatch(): Pick<
+    OperatorFlowPersistedDraft,
+    | "validation_summary_hash"
+    | "source_input_hash"
+    | "prepare_execution_summary_hash"
+    | "returned_envelope_hash"
+  > {
+    return {
+      validation_summary_hash: undefined,
+      source_input_hash: undefined,
+      prepare_execution_summary_hash: undefined,
+      returned_envelope_hash: undefined,
+    };
+  }
+
+  function localValidationHashPatch(
+    validation: OperatorFlowValidationPreview,
+  ): Pick<
+    OperatorFlowPersistedDraft,
+    | "validation_summary_hash"
+    | "source_input_hash"
+    | "prepare_execution_summary_hash"
+    | "returned_envelope_hash"
+  > {
+    return {
+      validation_summary_hash: validation.validation_summary_hash,
+      source_input_hash: validation.source_input_hash,
+      prepare_execution_summary_hash:
+        validation.prepare_execution_summary_hash,
+      returned_envelope_hash: validation.returned_envelope_hash,
+    };
+  }
+
   function loadEnvelopeFixture(key: OperatorFlowReturnedEnvelopeFixtureKey) {
     const scenario = viewModel.scenarios[key];
     setReturnedEnvelopeText(scenario.returned_envelope_fixture.text);
@@ -153,6 +262,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
       validation_result_source: "not_run",
+      ...resetValidationHashPatch(),
       ...resetCandidateActionPatch(),
     });
     setDraftStatus(`${scenario.label} fixture loaded; envelope text not saved`);
@@ -170,6 +280,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
       validation_result_source: "not_run",
+      ...resetValidationHashPatch(),
       ...resetCandidateActionPatch(),
     });
     setDraftStatus("returned envelope draft cleared");
@@ -203,6 +314,52 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     setDraftStatus("local draft cleared");
   }
 
+  function createLocalCandidateDraft(
+    action: CodexFormerLocalAdapterAcceptedCandidateDraftAction,
+  ) {
+    if (draft.candidate_action_choice !== action) {
+      setCandidateDraftStatus(
+        `select ${action} before creating a local candidate draft`,
+      );
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const result = buildCodexFormerLocalAdapterAcceptedCandidateDraft({
+      nowIso,
+      draftId: `local-candidate-draft:${Date.now()}`,
+      operatorFlowDraftId: draft.draft_id,
+      candidateAction: action,
+      validation: currentValidation,
+      sourceInputRef: draft.selected_source_input_ref,
+      prepareSummaryRef: draft.selected_prepare_summary_ref,
+      reviewSummary: displayScenario.candidate_review_material.review_summary,
+      changedFilesCount:
+        displayScenario.candidate_review_material.changed_files_count,
+      sourcePrRefs: displayScenario.candidate_review_material.source_pr_refs,
+      supersedesDraftId: draft.supersede_previous_candidate_ref,
+    });
+    if (!result.ok) {
+      setCandidateDraftStatus(
+        `local candidate draft blocked: ${result.blocked_reasons.join("; ")}`,
+      );
+      return;
+    }
+    setCandidateDraft(result.draft);
+    saveCodexFormerLocalAdapterAcceptedCandidateDraftToStorage(
+      window.localStorage,
+      result.draft,
+    );
+    setCandidateDraftStatus(`${result.draft.local_status} saved locally`);
+  }
+
+  function clearLocalCandidateDraft() {
+    clearCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage(
+      window.localStorage,
+    );
+    setCandidateDraft(null);
+    setCandidateDraftStatus("local candidate draft cleared");
+  }
+
   function previewValidationResult() {
     const preview = previewOperatorFlowValidationResult(
       returnedEnvelopeText,
@@ -219,6 +376,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "validate_result",
       validation_result_state: preview.validation_result.result_state,
       validation_result_source: preview.validation_result.validation_source,
+      ...resetValidationHashPatch(),
       ...resetCandidateActionPatch(),
     });
     setDraftStatus("validation preview updated; no product state created");
@@ -253,6 +411,9 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
         active_step: "validate_result",
         validation_result_state: result.validation_result.result_state,
         validation_result_source: result.validation_source,
+        ...(result.validation_source === "real_local_validate_execution"
+          ? localValidationHashPatch(result.validation_result)
+          : resetValidationHashPatch()),
         ...(shouldResetCandidateAction ? resetCandidateActionPatch() : {}),
       });
       setDraftStatus(
@@ -270,6 +431,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
         active_step: "validate_result",
         validation_result_state: "not_validated",
         validation_result_source: "not_run",
+        ...resetValidationHashPatch(),
         ...resetCandidateActionPatch(),
       });
       setDraftStatus("local validation bridge request failed");
@@ -282,6 +444,10 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     updateDraft({
       active_step: "candidate_action",
       candidate_action_choice: action,
+      supersede_previous_candidate_ref:
+        action === "supersede_previous_candidate"
+          ? draft.supersede_previous_candidate_ref
+          : undefined,
     });
     setDraftStatus(`${action} selected as local draft only`);
   }
@@ -298,6 +464,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
       validation_result_source: "not_run",
+      ...resetValidationHashPatch(),
       ...resetCandidateActionPatch(),
     });
     setDraftStatus("edited draft is not saved");
@@ -402,13 +569,32 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
                 active_step: "candidate_action",
               })
             }
-            canSelectAction={
-              currentValidation.validation_source ===
-                "real_local_validate_execution" &&
-              currentValidation.result_state !== "BLOCKED"
-            }
+            actionEligibility={candidateActionEligibility}
             validationResultState={currentValidation.result_state}
             validationSource={currentValidation.validation_source}
+          />
+          <AcceptedCandidateDraftPanel
+            candidateDraft={candidateDraft}
+            candidateDraftIsStale={candidateDraftIsStale}
+            candidateDraftStatus={candidateDraftStatus}
+            currentValidation={currentValidation}
+            selectedAction={draft.candidate_action_choice}
+            acceptEligibility={acceptDraftEligibility}
+            rejectEligibility={rejectDraftEligibility}
+            supersedeEligibility={supersedeDraftEligibility}
+            supersedePreviousCandidateRef={
+              draft.supersede_previous_candidate_ref ?? ""
+            }
+            onCreateAccepted={() =>
+              createLocalCandidateDraft("accept_as_perspective_candidate")
+            }
+            onCreateRejected={() =>
+              createLocalCandidateDraft("reject_from_memory_candidate")
+            }
+            onCreateSupersede={() =>
+              createLocalCandidateDraft("supersede_previous_candidate")
+            }
+            onClear={clearLocalCandidateDraft}
           />
           <LocalStorageBoundaryPanel persistedFields={persistedFields} />
         </div>
@@ -778,7 +964,7 @@ function CandidateActionPanel({
   supersedePreviousCandidateRef,
   onActionSelect,
   onSupersedeRefChange,
-  canSelectAction,
+  actionEligibility,
   validationResultState,
   validationSource,
 }: {
@@ -786,40 +972,45 @@ function CandidateActionPanel({
   supersedePreviousCandidateRef: string;
   onActionSelect: (action: OperatorFlowCandidateAction) => void;
   onSupersedeRefChange: (value: string) => void;
-  canSelectAction: boolean;
+  actionEligibility: Record<OperatorFlowCandidateAction, boolean>;
   validationResultState: string;
   validationSource: string;
 }) {
+  const anyActionEligible = Object.values(actionEligibility).some(Boolean);
   return (
     <section className={styles.panel} aria-label="Next action panel">
       <PanelHeader
         eyebrow="7. Local Draft Action"
         title="Next Action"
-        detail={canSelectAction ? actionChoice : "requires real validation"}
+        detail={anyActionEligible ? actionChoice : "requires real validation"}
       />
       <p className={styles.boundaryText}>
-        Action choices unlock after a non-blocked
-        real_local_validate_execution result. Current validation is{" "}
-        {validationResultState} from {validationSource}.
+        Accepted and supersede actions unlock after a non-blocked
+        real_local_validate_execution result. BLOCKED validation can only create
+        a rejection draft after Reject as memory candidate is selected. Current
+        validation is {validationResultState} from {validationSource}.
       </p>
       <div className={styles.actionGrid}>
-        {operatorFlowCandidateActions.map((action) => (
-          <button
-            key={action}
-            type="button"
-            className={classNames(
-              styles.actionButton,
-              actionChoice === action ? styles.activeAction : "",
-            )}
-            data-augnes-candidate-action={action}
-            aria-pressed={actionChoice === action}
-            disabled={!canSelectAction}
-            onClick={() => onActionSelect(action)}
-          >
-            <span>{actionButtonLabel(action)}</span>
-            <code>{action}</code>
-          </button>
-        ))}
+        {operatorFlowCandidateActions.map((action) => {
+          const actionCanBeSelected = actionEligibility[action];
+          return (
+            <button
+              key={action}
+              type="button"
+              className={classNames(
+                styles.actionButton,
+                actionChoice === action ? styles.activeAction : "",
+              )}
+              data-augnes-candidate-action={action}
+              aria-pressed={actionChoice === action}
+              disabled={!actionCanBeSelected}
+              onClick={() => onActionSelect(action)}
+            >
+              <span>{actionButtonLabel(action)}</span>
+              <code>{action}</code>
+            </button>
+          );
+        })}
       </div>
       {actionChoice === "supersede_previous_candidate" ? (
         <label className={styles.fieldLabel}>
@@ -829,7 +1020,7 @@ function CandidateActionPanel({
             value={supersedePreviousCandidateRef}
             onChange={(event) => onSupersedeRefChange(event.target.value)}
             placeholder="candidate ref"
-            disabled={!canSelectAction}
+            disabled={!actionEligibility.supersede_previous_candidate}
           />
         </label>
       ) : null}
@@ -838,6 +1029,254 @@ function CandidateActionPanel({
         state, review decisions, product DB persistence, Core decisions, product
         readiness, mergeability, runtime handoff, or automatic promotion.
       </p>
+    </section>
+  );
+}
+
+function AcceptedCandidateDraftPanel({
+  candidateDraft,
+  candidateDraftIsStale,
+  candidateDraftStatus,
+  currentValidation,
+  selectedAction,
+  acceptEligibility,
+  rejectEligibility,
+  supersedeEligibility,
+  supersedePreviousCandidateRef,
+  onCreateAccepted,
+  onCreateRejected,
+  onCreateSupersede,
+  onClear,
+}: {
+  candidateDraft: CodexFormerLocalAdapterAcceptedCandidateDraftV0 | null;
+  candidateDraftIsStale: boolean;
+  candidateDraftStatus: string;
+  currentValidation: OperatorFlowValidationPreview;
+  selectedAction: OperatorFlowCandidateAction;
+  acceptEligibility: CandidateDraftEligibility;
+  rejectEligibility: CandidateDraftEligibility;
+  supersedeEligibility: CandidateDraftEligibility;
+  supersedePreviousCandidateRef: string;
+  onCreateAccepted: () => void;
+  onCreateRejected: () => void;
+  onCreateSupersede: () => void;
+  onClear: () => void;
+}) {
+  const visibleStatus = candidateDraft
+    ? candidateDraftIsStale
+      ? "stale_local_candidate_draft"
+      : candidateDraft.local_status
+    : "no_local_candidate_draft";
+  const acceptDisabled =
+    selectedAction !== "accept_as_perspective_candidate" ||
+    !acceptEligibility.eligible;
+  const rejectDisabled =
+    selectedAction !== "reject_from_memory_candidate" ||
+    !rejectEligibility.eligible;
+  const supersedeDisabled =
+    selectedAction !== "supersede_previous_candidate" ||
+    !supersedeEligibility.eligible ||
+    !supersedePreviousCandidateRef.trim();
+
+  return (
+    <section
+      className={styles.panel}
+      aria-label="Accepted candidate draft panel"
+      data-augnes-local-candidate-draft-status={visibleStatus}
+    >
+      <PanelHeader
+        eyebrow="8. Local Candidate Draft"
+        title="Accepted Candidate Draft"
+        detail={visibleStatus}
+      />
+      <p className={styles.boundaryText}>
+        Candidate drafts are local draft only. They are not accepted Augnes
+        state, not review decision, not product DB persistence, not Core
+        decision, not runtime handoff, and not automatic promotion.
+      </p>
+      <div className={styles.buttonRow}>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          data-augnes-create-accepted-candidate-draft="true"
+          disabled={acceptDisabled}
+          onClick={onCreateAccepted}
+        >
+          Create local perspective candidate draft
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-create-rejection-candidate-draft="true"
+          disabled={rejectDisabled}
+          onClick={onCreateRejected}
+        >
+          Create local memory rejection draft
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-create-supersede-candidate-draft="true"
+          disabled={supersedeDisabled}
+          onClick={onCreateSupersede}
+        >
+          Create local supersede draft
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-clear-candidate-draft="true"
+          disabled={!candidateDraft}
+          onClick={onClear}
+        >
+          Clear local candidate draft
+        </button>
+      </div>
+      <dl className={styles.detailGrid}>
+        <DetailRow label="candidate_draft_status" value={visibleStatus} />
+        <DetailRow label="candidate_draft_note" value={candidateDraftStatus} />
+        <DetailRow
+          label="current_validation_source"
+          value={currentValidation.validation_source}
+        />
+        <DetailRow
+          label="current_result_state"
+          value={currentValidation.result_state}
+        />
+        <DetailRow
+          label="current_candidate_count"
+          value={String(currentValidation.candidate_count)}
+        />
+      </dl>
+      {candidateDraft ? (
+        <>
+          <dl className={classNames(styles.detailGrid, styles.draftDetailGrid)}>
+            <DetailRow label="draft_id" value={candidateDraft.draft_id} />
+            <DetailRow label="local_status" value={candidateDraft.local_status} />
+            <DetailRow
+              label="candidate_action"
+              value={candidateDraft.candidate_action}
+            />
+            <DetailRow
+              label="validation_result_state"
+              value={candidateDraft.validation_result_state}
+            />
+            <DetailRow
+              label="validation_source"
+              value={candidateDraft.validation_source}
+            />
+            <DetailRow
+              label="validation_summary_hash"
+              value={candidateDraft.validation_summary_hash}
+            />
+            <DetailRow
+              label="source_input_ref"
+              value={candidateDraft.source_input_ref}
+            />
+            <DetailRow
+              label="source_input_hash"
+              value={candidateDraft.source_input_hash}
+            />
+            <DetailRow
+              label="prepare_summary_ref"
+              value={candidateDraft.prepare_summary_ref}
+            />
+            <DetailRow
+              label="prepare_execution_summary_hash"
+              value={candidateDraft.prepare_execution_summary_hash}
+            />
+            <DetailRow
+              label="returned_envelope_hash"
+              value={candidateDraft.returned_envelope_hash}
+            />
+            <DetailRow
+              label="candidate_count"
+              value={String(candidateDraft.candidate_count)}
+            />
+            <DetailRow
+              label="candidate_basis_quality"
+              value={candidateDraft.candidate_basis_quality ?? "none"}
+            />
+            <DetailRow
+              label="candidate_authority"
+              value={candidateDraft.candidate_authority ?? "none"}
+            />
+            <DetailRow
+              label="worker_facing_guidance_status"
+              value={candidateDraft.worker_facing_guidance_status}
+            />
+            <DetailRow
+              label="warning_count"
+              value={String(candidateDraft.warnings.length)}
+            />
+            <DetailRow
+              label="pointer_warning_count"
+              value={String(candidateDraft.pointer_warnings.length)}
+            />
+            <DetailRow
+              label="next_safe_action"
+              value={candidateDraft.next_safe_action}
+            />
+            <DetailRow
+              label="review_summary"
+              value={candidateDraft.review_summary}
+            />
+            <DetailRow
+              label="changed_files_count"
+              value={String(candidateDraft.changed_files_count)}
+            />
+            <DetailRow
+              label="source_pr_refs"
+              value={
+                candidateDraft.source_pr_refs.length > 0
+                  ? candidateDraft.source_pr_refs.join(", ")
+                  : "none"
+              }
+            />
+            {candidateDraft.supersedes_draft_id ? (
+              <DetailRow
+                label="supersedes_draft_id"
+                value={candidateDraft.supersedes_draft_id}
+              />
+            ) : null}
+            <DetailRow
+              label="authority_boundary"
+              value={formatCandidateDraftAuthorityBoundary(candidateDraft)}
+            />
+          </dl>
+          <ResultList title="candidate_draft_warnings" values={candidateDraft.warnings} />
+          <ResultList
+            title="candidate_draft_pointer_warnings"
+            values={candidateDraft.pointer_warnings}
+          />
+        </>
+      ) : (
+        <p className={styles.boundaryText}>
+          No local candidate draft has been created in{" "}
+          {CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE}.
+        </p>
+      )}
+      {candidateDraftIsStale ? (
+        <p className={styles.errorText} data-augnes-stale-candidate-draft="true">
+          stale_local_candidate_draft: current validation hashes differ from the
+          stored local candidate draft. Clear or recreate it before carrying it
+          forward.
+        </p>
+      ) : null}
+      <ResultList
+        title="accepted_draft_blocked_reasons"
+        values={
+          acceptEligibility.eligible ? [] : acceptEligibility.blocked_reasons
+        }
+      />
+      <ResultList
+        title="supersede_draft_blocked_reasons"
+        values={
+          supersedeEligibility.eligible
+            ? []
+            : supersedeEligibility.blocked_reasons
+        }
+      />
     </section>
   );
 }
@@ -937,6 +1376,14 @@ function formatAuthorityFlags(
   flags: OperatorFlowValidationPreview["authority_flags"],
 ) {
   return Object.entries(flags).map(([key, value]) => `${key}: ${String(value)}`);
+}
+
+function formatCandidateDraftAuthorityBoundary(
+  draft: CodexFormerLocalAdapterAcceptedCandidateDraftV0,
+) {
+  return Object.entries(draft.authority_boundary)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join("; ");
 }
 
 function classNames(...classes: string[]) {

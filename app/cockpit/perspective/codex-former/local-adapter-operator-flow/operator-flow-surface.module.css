@@ -56,12 +56,15 @@
 
 .boundaryPills span,
 .tagList li {
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid #c9d2d8;
   background: #ffffff;
   border-radius: 999px;
   color: #29414f;
   font-size: 0.78rem;
   font-weight: 700;
+  overflow-wrap: anywhere;
   padding: 7px 10px;
 }
 
@@ -151,6 +154,10 @@
   display: grid;
   gap: 9px;
   margin: 0;
+}
+
+.draftDetailGrid {
+  margin-top: 12px;
 }
 
 .detailRow {

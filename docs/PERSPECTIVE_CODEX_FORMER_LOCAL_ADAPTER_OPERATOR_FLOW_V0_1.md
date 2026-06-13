@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`/cockpit/perspective/codex-former/local-adapter-operator-flow` is a local-only operator shell for the manual Augnes / Codex loop. It lets a user see the current source and prepare references, copy a bounded Codex-ready handoff packet into a separate user-started Codex session, paste or load one returned envelope, run real local validation, inspect bounded candidate review material, and choose a local draft next action from one route.
+`/cockpit/perspective/codex-former/local-adapter-operator-flow` is a local-only operator shell for the manual Augnes / Codex loop. It lets a user see the current source and prepare references, copy a bounded Codex-ready handoff packet into a separate user-started Codex session, paste or load one returned envelope, run real local validation, inspect bounded candidate review material, choose a local draft next action, and create a bounded local accepted-candidate draft record from one route.
 
 The route is product-facing, but it remains non-authoritative. It does not call a provider/model, Codex SDK, GitHub, database, Core runtime, or clipboard API. It does not create accepted state, review decisions, product readiness, mergeability, runtime handoff, persistence to a product DB, or automatic promotion.
 
@@ -11,6 +11,8 @@ The route is product-facing, but it remains non-authoritative. It does not call 
 - Route: `/cockpit/perspective/codex-former/local-adapter-operator-flow`
 - Local validation bridge: `/api/perspective/codex-former/local-adapter-operator-flow/validate`
 - Storage namespace: `augnes.codexFormer.localAdapterOperatorFlow.v0.1`
+- Accepted-candidate draft storage namespace: `augnes.codexFormer.localAdapterAcceptedCandidateDrafts.v0.1`
+- Accepted-candidate draft schema version: `codex_former_local_adapter_accepted_candidate_draft.v0.1`
 - Source input fixtures:
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json`
   - `reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json`
@@ -36,6 +38,7 @@ The route is product-facing, but it remains non-authoritative. It does not call 
 6. Review `validation_source`, `result_state`, `execution_result`, `failure_kind`, candidate count, warnings, pointer warnings, blocked reasons, `next_safe_action`, `candidate_compatible_review_material`, `worker_facing_guidance_status`, candidate basis/authority, hashes, and authority flags.
 7. Inspect bounded candidate review material when available.
 8. Choose one local draft action.
+9. Select `Create local perspective candidate draft`, `Create local memory rejection draft`, or `Create local supersede draft` when the selected action is eligible.
 
 `Preview fixture result` remains available as a secondary aid, and is visibly marked with `fixture_preview`. The primary action posts the selected source/prepare refs and current textarea content to the local bridge and displays `real_local_validate_execution` when the existing validate orchestration execution path runs. Invalid bridge inputs are returned as `blocked_before_execution`.
 
@@ -49,6 +52,20 @@ The visible action choices are:
 - `supersede_previous_candidate`
 
 These controls are intentionally local draft only user-intent choices. They do not create accepted Augnes state, review decisions, memory decisions, persistence to a product DB, Core decisions, runtime handoff, readiness, mergeability, or automatic promotion.
+
+## Local Accepted-Candidate Drafts
+
+An accepted-candidate draft is a local user-intent record that says the current validated candidate should be carried forward as a perspective candidate draft. A rejected-memory candidate draft says the candidate should not be carried forward into memory. A superseded-candidate draft says the current candidate should supersede a previous local candidate draft.
+
+The record is stored only in `augnes.codexFormer.localAdapterAcceptedCandidateDrafts.v0.1` with `draft_version=codex_former_local_adapter_accepted_candidate_draft.v0.1`. It stores bounded refs, hashes, counts, warnings, pointer warnings, `next_safe_action`, review summary, candidate authority/basis quality labels, local status, and local user intent. It does not store raw returned envelope text, raw prompt text, raw source packet, raw candidate payload, hidden reasoning, provider logs, tokens, secrets, raw diffs, raw review payloads, browser dumps, or private material.
+
+`Create local perspective candidate draft` is enabled only after a `real_local_validate_execution` result with `PASS` or `PASS with follow-up`, `candidate_count=1`, candidate-compatible review material, non-committed candidate authority, false authority flags, and explicit `accept_as_perspective_candidate` selection.
+
+`Create local memory rejection draft` is available after a `real_local_validate_execution` result when the user explicitly selects `reject_from_memory_candidate`. This includes `BLOCKED` validation, so BLOCKED remains rejection-only and cannot create an accepted-candidate draft.
+
+`Create local supersede draft` requires `real_local_validate_execution`, `PASS` or `PASS with follow-up`, explicit `supersede_previous_candidate`, and a non-empty `supersede_previous_candidate_ref`.
+
+If the current validation hashes differ from the saved local candidate draft hashes, the UI shows `stale_local_candidate_draft`. The old local candidate draft is not silently updated; the user must clear or recreate it.
 
 ## Copy For Codex Packet
 
@@ -82,9 +99,15 @@ Persisted fields:
 - `returned_envelope_draft_saved_explicitly`
 - `validation_result_state`
 - `validation_result_source`
+- `validation_summary_hash` after real local validation
+- `source_input_hash` after real local validation
+- `prepare_execution_summary_hash` after real local validation
+- `returned_envelope_hash` after real local validation
 - `candidate_action_choice`
 - `supersede_previous_candidate_ref`
 - `returned_envelope_text` only when the user explicitly selects Save draft locally
+
+Local candidate draft records persist separately in `augnes.codexFormer.localAdapterAcceptedCandidateDrafts.v0.1`. `Clear local draft` resets the operator-flow metadata but does not clear the candidate draft; `Clear local candidate draft` clears that separate record.
 
 Not persisted by default:
 
@@ -103,6 +126,7 @@ Not persisted by default:
 
 - `lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts` owns route constants, scenario view-model construction, validation preview mapping, and safe localStorage parse/save/reset helpers.
 - `lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts` owns the local validation bridge helper. It reads only committed source/prepare fixtures selected by ref, uses the returned envelope textarea content, calls `buildCodexFormerLocalAdapterValidateExecutionSummary` directly, and returns a bounded summary.
+- `lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts` owns the bounded local accepted-candidate draft model, eligibility checks, staleness checks, unsafe marker rejection, and separate localStorage helpers.
 - `app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts` exposes the same-origin Node route for the browser surface.
 - `operator-flow-surface.tsx` keeps UI state local and writes only bounded metadata automatically.
 - Returned envelope text is loaded into the textarea only through user action or explicit saved local draft restore.
