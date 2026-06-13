@@ -160,6 +160,41 @@
   margin-top: 12px;
 }
 
+.draftList {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.draftListItem {
+  min-width: 0;
+  border: 1px solid #d7dee3;
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 12px;
+}
+
+.selectedDraftListItem {
+  border-color: #2f6f5e;
+  background: #f1faf6;
+}
+
+.draftListItemHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.draftListItemHeader strong,
+.draftListItemHeader span {
+  min-width: 0;
+  color: #263842;
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
 .detailRow {
   min-width: 0;
   display: grid;
@@ -211,6 +246,7 @@
   color: #485c68;
   font-size: 0.88rem;
   line-height: 1.48;
+  overflow-wrap: anywhere;
 }
 
 .cleanList {
@@ -332,6 +368,7 @@
   margin: 8px 0 0;
   padding-left: 20px;
   color: #344650;
+  overflow-wrap: anywhere;
 }
 
 .resultList p {

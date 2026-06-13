@@ -3,13 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./operator-flow-surface.module.css";
 import {
-  CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+  CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
+  appendCodexFormerLocalAdapterCandidateDraftToList,
+  clearCodexFormerLocalAdapterCandidateDraftListFromStorage,
+  createEmptyCodexFormerLocalAdapterCandidateDraftList,
+  getCodexFormerLocalAdapterCandidateDraftCurrentStatus,
+  loadCodexFormerLocalAdapterCandidateDraftListFromStorage,
+  removeCodexFormerLocalAdapterCandidateDraftFromList,
+  replaceCodexFormerLocalAdapterCandidateDraftInList,
+  saveCodexFormerLocalAdapterCandidateDraftListToStorage,
+  type CodexFormerLocalAdapterCandidateDraftListV0,
+} from "@/lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list";
+import {
   buildCodexFormerLocalAdapterAcceptedCandidateDraft,
   canBuildCodexFormerLocalAdapterAcceptedCandidateDraft,
-  clearCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage,
-  isCodexFormerLocalAdapterAcceptedCandidateDraftStale,
-  loadCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage,
-  saveCodexFormerLocalAdapterAcceptedCandidateDraftToStorage,
   type CodexFormerLocalAdapterAcceptedCandidateDraftAction,
   type CodexFormerLocalAdapterAcceptedCandidateDraftV0,
 } from "@/lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft";
@@ -61,10 +68,14 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
   const [validationBusy, setValidationBusy] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState("local metadata not saved");
-  const [candidateDraft, setCandidateDraft] =
-    useState<CodexFormerLocalAdapterAcceptedCandidateDraftV0 | null>(null);
+  const [candidateDraftList, setCandidateDraftList] =
+    useState<CodexFormerLocalAdapterCandidateDraftListV0>(() =>
+      createEmptyCodexFormerLocalAdapterCandidateDraftList(initialIso),
+    );
+  const [selectedCandidateDraftId, setSelectedCandidateDraftId] =
+    useState<string | null>(null);
   const [candidateDraftStatus, setCandidateDraftStatus] = useState(
-    "local candidate draft not loaded",
+    "local candidate draft list not loaded",
   );
   const skipNextAutoSave = useRef(false);
 
@@ -86,15 +97,29 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
         ? "saved local draft restored"
         : "bounded local metadata restored",
     );
-    const loadedCandidateDraft =
-      loadCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage(
+    const loadedCandidateDraftList =
+      loadCodexFormerLocalAdapterCandidateDraftListFromStorage(
         window.localStorage,
+        new Date().toISOString(),
       );
-    setCandidateDraft(loadedCandidateDraft);
+    if (loadedCandidateDraftList.migrated_single_draft) {
+      saveCodexFormerLocalAdapterCandidateDraftListToStorage(
+        window.localStorage,
+        loadedCandidateDraftList.list,
+      );
+    }
+    setCandidateDraftList(loadedCandidateDraftList.list);
+    setSelectedCandidateDraftId(
+      loadedCandidateDraftList.list.drafts[0]?.draft_id ?? null,
+    );
     setCandidateDraftStatus(
-      loadedCandidateDraft
-        ? "local candidate draft restored"
-        : "no local candidate draft",
+      loadedCandidateDraftList.ignored_invalid_single_draft
+        ? "ignored invalid local candidate draft during migration"
+        : loadedCandidateDraftList.migrated_single_draft
+          ? "migrated single local candidate draft into list"
+          : loadedCandidateDraftList.list.drafts.length > 0
+            ? "local candidate draft list restored"
+            : "no local candidate drafts",
     );
   }, [viewModel]);
 
@@ -116,21 +141,26 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     localValidationRun?.validation_result ??
     validationPreview?.validation_result ??
     displayScenario.validation_result;
-  const candidateDraftMatchesPersistedValidation =
-    candidateDraft != null &&
+  const currentValidationForCandidateDrafts =
     draft.validation_result_source === "real_local_validate_execution" &&
-    draft.validation_summary_hash === candidateDraft.validation_summary_hash &&
-    draft.source_input_hash === candidateDraft.source_input_hash &&
-    draft.prepare_execution_summary_hash ===
-      candidateDraft.prepare_execution_summary_hash &&
-    draft.returned_envelope_hash === candidateDraft.returned_envelope_hash;
-  const candidateDraftIsStale = candidateDraft
-    ? !candidateDraftMatchesPersistedValidation &&
-      isCodexFormerLocalAdapterAcceptedCandidateDraftStale(
-        candidateDraft,
-        currentValidation,
-      )
-    : false;
+    draft.validation_summary_hash &&
+    draft.source_input_hash &&
+    draft.prepare_execution_summary_hash &&
+    draft.returned_envelope_hash
+      ? {
+          ...currentValidation,
+          validation_source: "real_local_validate_execution" as const,
+          validation_summary_hash: draft.validation_summary_hash,
+          source_input_hash: draft.source_input_hash,
+          prepare_execution_summary_hash:
+            draft.prepare_execution_summary_hash,
+          returned_envelope_hash: draft.returned_envelope_hash,
+        }
+      : currentValidation;
+  const selectedCandidateDraft =
+    candidateDraftList.drafts.find(
+      (item) => item.draft_id === selectedCandidateDraftId,
+    ) ?? null;
   const acceptDraftEligibility =
     canBuildCodexFormerLocalAdapterAcceptedCandidateDraft({
       candidateAction: "accept_as_perspective_candidate",
@@ -181,7 +211,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       "returned_envelope_hash after real local validation",
       "candidate_action_choice",
       "supersede_previous_candidate_ref",
-      `${CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE} stores only explicit local candidate drafts`,
+      `${CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE} stores explicit local candidate draft lists`,
     ],
     [],
   );
@@ -316,6 +346,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
 
   function createLocalCandidateDraft(
     action: CodexFormerLocalAdapterAcceptedCandidateDraftAction,
+    mode: "append" | "replace" = "append",
   ) {
     if (draft.candidate_action_choice !== action) {
       setCandidateDraftStatus(
@@ -324,9 +355,16 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       return;
     }
     const nowIso = new Date().toISOString();
+    if (mode === "replace" && !selectedCandidateDraft) {
+      setCandidateDraftStatus("select a local candidate draft before replacing");
+      return;
+    }
     const result = buildCodexFormerLocalAdapterAcceptedCandidateDraft({
       nowIso,
-      draftId: `local-candidate-draft:${Date.now()}`,
+      draftId:
+        mode === "replace" && selectedCandidateDraft
+          ? selectedCandidateDraft.draft_id
+          : `local-candidate-draft:${Date.now()}`,
       operatorFlowDraftId: draft.draft_id,
       candidateAction: action,
       validation: currentValidation,
@@ -344,20 +382,83 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       );
       return;
     }
-    setCandidateDraft(result.draft);
-    saveCodexFormerLocalAdapterAcceptedCandidateDraftToStorage(
+    const nextDraft =
+      mode === "replace" && selectedCandidateDraft
+        ? {
+            ...result.draft,
+            created_at: selectedCandidateDraft.created_at,
+            updated_at: nowIso,
+          }
+        : result.draft;
+    const nextList =
+      mode === "replace"
+        ? replaceCodexFormerLocalAdapterCandidateDraftInList(
+            candidateDraftList,
+            nextDraft,
+            nowIso,
+          )
+        : appendCodexFormerLocalAdapterCandidateDraftToList(
+            candidateDraftList,
+            nextDraft,
+            nowIso,
+          );
+    setCandidateDraftList(nextList);
+    setSelectedCandidateDraftId(nextDraft.draft_id);
+    saveCodexFormerLocalAdapterCandidateDraftListToStorage(
       window.localStorage,
-      result.draft,
+      nextList,
     );
-    setCandidateDraftStatus(`${result.draft.local_status} saved locally`);
+    setCandidateDraftStatus(
+      mode === "replace"
+        ? `${nextDraft.local_status} replaced selected local candidate draft`
+        : `${nextDraft.local_status} appended to local candidate draft list`,
+    );
   }
 
-  function clearLocalCandidateDraft() {
-    clearCodexFormerLocalAdapterAcceptedCandidateDraftFromStorage(
+  function replaceSelectedLocalCandidateDraft() {
+    if (
+      draft.candidate_action_choice === "accept_as_perspective_candidate" ||
+      draft.candidate_action_choice === "reject_from_memory_candidate" ||
+      draft.candidate_action_choice === "supersede_previous_candidate"
+    ) {
+      createLocalCandidateDraft(draft.candidate_action_choice, "replace");
+      return;
+    }
+    setCandidateDraftStatus(
+      "select a candidate action before replacing a local candidate draft",
+    );
+  }
+
+  function clearSelectedLocalCandidateDraft() {
+    if (!selectedCandidateDraft) {
+      setCandidateDraftStatus("no selected local candidate draft to clear");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const nextList = removeCodexFormerLocalAdapterCandidateDraftFromList(
+      candidateDraftList,
+      selectedCandidateDraft.draft_id,
+      nowIso,
+    );
+    setCandidateDraftList(nextList);
+    setSelectedCandidateDraftId(nextList.drafts[0]?.draft_id ?? null);
+    saveCodexFormerLocalAdapterCandidateDraftListToStorage(
+      window.localStorage,
+      nextList,
+    );
+    setCandidateDraftStatus("selected local candidate draft cleared");
+  }
+
+  function clearAllLocalCandidateDrafts() {
+    const nowIso = new Date().toISOString();
+    const nextList =
+      createEmptyCodexFormerLocalAdapterCandidateDraftList(nowIso);
+    clearCodexFormerLocalAdapterCandidateDraftListFromStorage(
       window.localStorage,
     );
-    setCandidateDraft(null);
-    setCandidateDraftStatus("local candidate draft cleared");
+    setCandidateDraftList(nextList);
+    setSelectedCandidateDraftId(null);
+    setCandidateDraftStatus("all local candidate drafts cleared");
   }
 
   function previewValidationResult() {
@@ -573,11 +674,14 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             validationResultState={currentValidation.result_state}
             validationSource={currentValidation.validation_source}
           />
-          <AcceptedCandidateDraftPanel
-            candidateDraft={candidateDraft}
-            candidateDraftIsStale={candidateDraftIsStale}
+          <LocalCandidateDraftListPanel
+            candidateDraftList={candidateDraftList}
+            selectedCandidateDraftId={selectedCandidateDraftId}
             candidateDraftStatus={candidateDraftStatus}
             currentValidation={currentValidation}
+            currentValidationForCandidateDrafts={
+              currentValidationForCandidateDrafts
+            }
             selectedAction={draft.candidate_action_choice}
             acceptEligibility={acceptDraftEligibility}
             rejectEligibility={rejectDraftEligibility}
@@ -585,6 +689,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             supersedePreviousCandidateRef={
               draft.supersede_previous_candidate_ref ?? ""
             }
+            onSelectDraft={setSelectedCandidateDraftId}
             onCreateAccepted={() =>
               createLocalCandidateDraft("accept_as_perspective_candidate")
             }
@@ -594,7 +699,9 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             onCreateSupersede={() =>
               createLocalCandidateDraft("supersede_previous_candidate")
             }
-            onClear={clearLocalCandidateDraft}
+            onReplaceSelected={replaceSelectedLocalCandidateDraft}
+            onClearSelected={clearSelectedLocalCandidateDraft}
+            onClearAll={clearAllLocalCandidateDrafts}
           />
           <LocalStorageBoundaryPanel persistedFields={persistedFields} />
         </div>
@@ -1033,40 +1140,47 @@ function CandidateActionPanel({
   );
 }
 
-function AcceptedCandidateDraftPanel({
-  candidateDraft,
-  candidateDraftIsStale,
+function LocalCandidateDraftListPanel({
+  candidateDraftList,
+  selectedCandidateDraftId,
   candidateDraftStatus,
   currentValidation,
+  currentValidationForCandidateDrafts,
   selectedAction,
   acceptEligibility,
   rejectEligibility,
   supersedeEligibility,
   supersedePreviousCandidateRef,
+  onSelectDraft,
   onCreateAccepted,
   onCreateRejected,
   onCreateSupersede,
-  onClear,
+  onReplaceSelected,
+  onClearSelected,
+  onClearAll,
 }: {
-  candidateDraft: CodexFormerLocalAdapterAcceptedCandidateDraftV0 | null;
-  candidateDraftIsStale: boolean;
+  candidateDraftList: CodexFormerLocalAdapterCandidateDraftListV0;
+  selectedCandidateDraftId: string | null;
   candidateDraftStatus: string;
   currentValidation: OperatorFlowValidationPreview;
+  currentValidationForCandidateDrafts: OperatorFlowValidationPreview;
   selectedAction: OperatorFlowCandidateAction;
   acceptEligibility: CandidateDraftEligibility;
   rejectEligibility: CandidateDraftEligibility;
   supersedeEligibility: CandidateDraftEligibility;
   supersedePreviousCandidateRef: string;
+  onSelectDraft: (draftId: string) => void;
   onCreateAccepted: () => void;
   onCreateRejected: () => void;
   onCreateSupersede: () => void;
-  onClear: () => void;
+  onReplaceSelected: () => void;
+  onClearSelected: () => void;
+  onClearAll: () => void;
 }) {
-  const visibleStatus = candidateDraft
-    ? candidateDraftIsStale
-      ? "stale_local_candidate_draft"
-      : candidateDraft.local_status
-    : "no_local_candidate_draft";
+  const selectedCandidateDraft =
+    candidateDraftList.drafts.find(
+      (draft) => draft.draft_id === selectedCandidateDraftId,
+    ) ?? null;
   const acceptDisabled =
     selectedAction !== "accept_as_perspective_candidate" ||
     !acceptEligibility.eligible;
@@ -1077,17 +1191,27 @@ function AcceptedCandidateDraftPanel({
     selectedAction !== "supersede_previous_candidate" ||
     !supersedeEligibility.eligible ||
     !supersedePreviousCandidateRef.trim();
+  const replaceDisabled =
+    !selectedCandidateDraft ||
+    (selectedAction === "accept_as_perspective_candidate" && acceptDisabled) ||
+    (selectedAction === "reject_from_memory_candidate" && rejectDisabled) ||
+    (selectedAction === "supersede_previous_candidate" && supersedeDisabled) ||
+    selectedAction === "keep_review_only";
+  const listStatus =
+    candidateDraftList.drafts.length > 0
+      ? `${candidateDraftList.drafts.length} local candidate drafts`
+      : "no_local_candidate_drafts";
 
   return (
     <section
       className={styles.panel}
-      aria-label="Accepted candidate draft panel"
-      data-augnes-local-candidate-draft-status={visibleStatus}
+      aria-label="Local candidate draft list panel"
+      data-augnes-local-candidate-draft-list-status={listStatus}
     >
       <PanelHeader
-        eyebrow="8. Local Candidate Draft"
-        title="Accepted Candidate Draft"
-        detail={visibleStatus}
+        eyebrow="8. Local Candidate Drafts"
+        title="Local Candidate Draft List"
+        detail={listStatus}
       />
       <p className={styles.boundaryText}>
         Candidate drafts are local draft only. They are not accepted Augnes
@@ -1125,19 +1249,49 @@ function AcceptedCandidateDraftPanel({
         <button
           type="button"
           className={styles.button}
-          data-augnes-clear-candidate-draft="true"
-          disabled={!candidateDraft}
-          onClick={onClear}
+          data-augnes-replace-selected-candidate-draft="true"
+          disabled={replaceDisabled}
+          onClick={onReplaceSelected}
         >
-          Clear local candidate draft
+          Replace selected draft with current candidate draft
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-clear-selected-candidate-draft="true"
+          disabled={!selectedCandidateDraft}
+          onClick={onClearSelected}
+        >
+          Clear selected local candidate draft
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-clear-all-candidate-drafts="true"
+          disabled={candidateDraftList.drafts.length === 0}
+          onClick={onClearAll}
+        >
+          Clear all local candidate drafts
         </button>
       </div>
       <dl className={styles.detailGrid}>
-        <DetailRow label="candidate_draft_status" value={visibleStatus} />
-        <DetailRow label="candidate_draft_note" value={candidateDraftStatus} />
+        <DetailRow label="candidate_draft_list_status" value={listStatus} />
+        <DetailRow label="candidate_draft_list_note" value={candidateDraftStatus} />
+        <DetailRow
+          label="list_storage_namespace"
+          value={CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE}
+        />
+        <DetailRow
+          label="selected_draft_id"
+          value={selectedCandidateDraft?.draft_id ?? "none"}
+        />
+        <DetailRow
+          label="list_updated_at"
+          value={candidateDraftList.updated_at}
+        />
         <DetailRow
           label="current_validation_source"
-          value={currentValidation.validation_source}
+          value={currentValidationForCandidateDrafts.validation_source}
         />
         <DetailRow
           label="current_result_state"
@@ -1148,121 +1302,112 @@ function AcceptedCandidateDraftPanel({
           value={String(currentValidation.candidate_count)}
         />
       </dl>
-      {candidateDraft ? (
-        <>
-          <dl className={classNames(styles.detailGrid, styles.draftDetailGrid)}>
-            <DetailRow label="draft_id" value={candidateDraft.draft_id} />
-            <DetailRow label="local_status" value={candidateDraft.local_status} />
-            <DetailRow
-              label="candidate_action"
-              value={candidateDraft.candidate_action}
-            />
-            <DetailRow
-              label="validation_result_state"
-              value={candidateDraft.validation_result_state}
-            />
-            <DetailRow
-              label="validation_source"
-              value={candidateDraft.validation_source}
-            />
-            <DetailRow
-              label="validation_summary_hash"
-              value={candidateDraft.validation_summary_hash}
-            />
-            <DetailRow
-              label="source_input_ref"
-              value={candidateDraft.source_input_ref}
-            />
-            <DetailRow
-              label="source_input_hash"
-              value={candidateDraft.source_input_hash}
-            />
-            <DetailRow
-              label="prepare_summary_ref"
-              value={candidateDraft.prepare_summary_ref}
-            />
-            <DetailRow
-              label="prepare_execution_summary_hash"
-              value={candidateDraft.prepare_execution_summary_hash}
-            />
-            <DetailRow
-              label="returned_envelope_hash"
-              value={candidateDraft.returned_envelope_hash}
-            />
-            <DetailRow
-              label="candidate_count"
-              value={String(candidateDraft.candidate_count)}
-            />
-            <DetailRow
-              label="candidate_basis_quality"
-              value={candidateDraft.candidate_basis_quality ?? "none"}
-            />
-            <DetailRow
-              label="candidate_authority"
-              value={candidateDraft.candidate_authority ?? "none"}
-            />
-            <DetailRow
-              label="worker_facing_guidance_status"
-              value={candidateDraft.worker_facing_guidance_status}
-            />
-            <DetailRow
-              label="warning_count"
-              value={String(candidateDraft.warnings.length)}
-            />
-            <DetailRow
-              label="pointer_warning_count"
-              value={String(candidateDraft.pointer_warnings.length)}
-            />
-            <DetailRow
-              label="next_safe_action"
-              value={candidateDraft.next_safe_action}
-            />
-            <DetailRow
-              label="review_summary"
-              value={candidateDraft.review_summary}
-            />
-            <DetailRow
-              label="changed_files_count"
-              value={String(candidateDraft.changed_files_count)}
-            />
-            <DetailRow
-              label="source_pr_refs"
-              value={
-                candidateDraft.source_pr_refs.length > 0
-                  ? candidateDraft.source_pr_refs.join(", ")
-                  : "none"
-              }
-            />
-            {candidateDraft.supersedes_draft_id ? (
-              <DetailRow
-                label="supersedes_draft_id"
-                value={candidateDraft.supersedes_draft_id}
-              />
-            ) : null}
-            <DetailRow
-              label="authority_boundary"
-              value={formatCandidateDraftAuthorityBoundary(candidateDraft)}
-            />
-          </dl>
-          <ResultList title="candidate_draft_warnings" values={candidateDraft.warnings} />
-          <ResultList
-            title="candidate_draft_pointer_warnings"
-            values={candidateDraft.pointer_warnings}
-          />
-        </>
+      {candidateDraftList.drafts.length > 0 ? (
+        <div className={styles.draftList} data-augnes-candidate-draft-list="true">
+          {candidateDraftList.drafts.map((candidateDraft) => {
+            const itemStatus =
+              getCodexFormerLocalAdapterCandidateDraftCurrentStatus(
+                candidateDraft,
+                currentValidationForCandidateDrafts,
+              );
+            return (
+              <article
+                key={candidateDraft.draft_id}
+                className={classNames(
+                  styles.draftListItem,
+                  selectedCandidateDraftId === candidateDraft.draft_id
+                    ? styles.selectedDraftListItem
+                    : "",
+                )}
+                data-augnes-candidate-draft-id={candidateDraft.draft_id}
+                data-augnes-candidate-draft-current-status={itemStatus}
+              >
+                <div className={styles.draftListItemHeader}>
+                  <button
+                    type="button"
+                    className={styles.button}
+                    data-augnes-select-candidate-draft={candidateDraft.draft_id}
+                    aria-pressed={
+                      selectedCandidateDraftId === candidateDraft.draft_id
+                    }
+                    onClick={() => onSelectDraft(candidateDraft.draft_id)}
+                  >
+                    Select draft
+                  </button>
+                  <strong>{candidateDraft.local_status}</strong>
+                  <span>{itemStatus}</span>
+                </div>
+                <dl className={classNames(styles.detailGrid, styles.draftDetailGrid)}>
+                  <DetailRow label="draft_id" value={candidateDraft.draft_id} />
+                  <DetailRow
+                    label="local_status"
+                    value={candidateDraft.local_status}
+                  />
+                  <DetailRow
+                    label="candidate_action"
+                    value={candidateDraft.candidate_action}
+                  />
+                  <DetailRow
+                    label="validation_result_state"
+                    value={candidateDraft.validation_result_state}
+                  />
+                  <DetailRow
+                    label="validation_source"
+                    value={candidateDraft.validation_source}
+                  />
+                  <DetailRow
+                    label="stale_state"
+                    value={itemStatus}
+                  />
+                  <DetailRow
+                    label="warning_count"
+                    value={String(candidateDraft.warnings.length)}
+                  />
+                  <DetailRow
+                    label="pointer_warning_count"
+                    value={String(candidateDraft.pointer_warnings.length)}
+                  />
+                  <DetailRow
+                    label="source_input_ref"
+                    value={candidateDraft.source_input_ref}
+                  />
+                  <DetailRow
+                    label="prepare_summary_ref"
+                    value={candidateDraft.prepare_summary_ref}
+                  />
+                  <DetailRow
+                    label="returned_envelope_hash"
+                    value={candidateDraft.returned_envelope_hash}
+                  />
+                  <DetailRow
+                    label="created_at"
+                    value={candidateDraft.created_at}
+                  />
+                  <DetailRow
+                    label="updated_at"
+                    value={candidateDraft.updated_at}
+                  />
+                  {candidateDraft.supersedes_draft_id ? (
+                    <DetailRow
+                      label="supersedes_draft_id"
+                      value={candidateDraft.supersedes_draft_id}
+                    />
+                  ) : null}
+                  <DetailRow
+                    label="authority_boundary"
+                    value={formatCandidateDraftAuthorityBoundary(candidateDraft)}
+                  />
+                </dl>
+              </article>
+            );
+          })}
+        </div>
       ) : (
         <p className={styles.boundaryText}>
-          No local candidate draft has been created in{" "}
-          {CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE}.
+          No local candidate drafts have been created in{" "}
+          {CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE}.
         </p>
       )}
-      {candidateDraftIsStale ? (
-        <p className={styles.errorText} data-augnes-stale-candidate-draft="true">
-          stale_local_candidate_draft: current validation hashes differ from the
-          stored local candidate draft. Clear or recreate it before carrying it
-          forward.
-        </p>
-      ) : null}
       <ResultList
         title="accepted_draft_blocked_reasons"
         values={

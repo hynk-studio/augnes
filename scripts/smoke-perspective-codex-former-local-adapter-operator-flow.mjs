@@ -1,9 +1,25 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import acceptedCandidateDraft from "../lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts";
+import candidateDraftList from "../lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
 import localValidateBridge from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
 import operatorFlow from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
 
+const {
+  CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_MAX_DRAFTS,
+  CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
+  CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_VERSION,
+  appendCodexFormerLocalAdapterCandidateDraftToList,
+  clearCodexFormerLocalAdapterCandidateDraftListFromStorage,
+  collectCodexFormerLocalAdapterCandidateDraftListUnsafeMarkers,
+  createEmptyCodexFormerLocalAdapterCandidateDraftList,
+  getCodexFormerLocalAdapterCandidateDraftCurrentStatus,
+  loadCodexFormerLocalAdapterCandidateDraftListFromStorage,
+  removeCodexFormerLocalAdapterCandidateDraftFromList,
+  replaceCodexFormerLocalAdapterCandidateDraftInList,
+  saveCodexFormerLocalAdapterCandidateDraftListToStorage,
+  safeParseCodexFormerLocalAdapterCandidateDraftList,
+} = candidateDraftList;
 const {
   CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
   CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION,
@@ -45,6 +61,8 @@ const localValidateBridgeFile =
   "lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
 const acceptedCandidateDraftFile =
   "lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts";
+const candidateDraftListFile =
+  "lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
 const localValidateRouteFile =
   "app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts";
 const smokeFile =
@@ -91,6 +109,7 @@ const acceptedCandidateDraftText = readFileSync(
   acceptedCandidateDraftFile,
   "utf8",
 );
+const candidateDraftListText = readFileSync(candidateDraftListFile, "utf8");
 const localValidateRouteText = readFileSync(localValidateRouteFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
@@ -142,6 +161,7 @@ assertRouteSource();
 assertHelperViewModel();
 assertLocalValidationBridge();
 assertAcceptedCandidateDraftModel();
+assertCandidateDraftListModel();
 assertComponentSource();
 assertCssSource();
 assertDocsAndReports();
@@ -175,6 +195,7 @@ function assertFilesExist() {
     helperFile,
     localValidateBridgeFile,
     acceptedCandidateDraftFile,
+    candidateDraftListFile,
     localValidateRouteFile,
     smokeFile,
     browserSmokeFile,
@@ -669,6 +690,272 @@ function assertAcceptedCandidateDraftModel() {
   );
 }
 
+function assertCandidateDraftListModel() {
+  const viewModel =
+    buildCodexFormerLocalAdapterOperatorFlowViewModel(fixtureInput);
+  assertIncludesAll(candidateDraftListText, [
+    CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
+    CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_VERSION,
+    "CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_MAX_DRAFTS = 20",
+    "loadCodexFormerLocalAdapterCandidateDraftListFromStorage",
+    "appendCodexFormerLocalAdapterCandidateDraftToList",
+    "replaceCodexFormerLocalAdapterCandidateDraftInList",
+    "removeCodexFormerLocalAdapterCandidateDraftFromList",
+    "clearCodexFormerLocalAdapterCandidateDraftListFromStorage",
+    "migrated_single_draft",
+    "ignored_invalid_single_draft",
+    "current_local_candidate_draft",
+    "stale_local_candidate_draft",
+    "no_current_validation",
+  ]);
+
+  const pass = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass",
+    source_input_ref: sourcePassFile,
+    prepare_summary_ref: preparePassFile,
+    returned_envelope_text: fixtureInput.scenarios.pass.returnedEnvelopeText,
+  });
+  const followUp = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass_with_follow_up",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text:
+      fixtureInput.scenarios.pass_with_follow_up.returnedEnvelopeText,
+  });
+  const blocked = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "blocked",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text: fixtureInput.scenarios.blocked.returnedEnvelopeText,
+  });
+
+  const acceptedPass = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: pass.validation_result,
+    scenarioKey: "pass",
+    draftId: "local-candidate-draft:accepted-pass",
+  });
+  const acceptedFollowUp = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: followUp.validation_result,
+    scenarioKey: "pass_with_follow_up",
+    draftId: "local-candidate-draft:accepted-follow-up",
+  });
+  const rejectedBlocked = buildCandidateDraft({
+    action: "reject_from_memory_candidate",
+    validation: blocked.validation_result,
+    scenarioKey: "blocked",
+    draftId: "local-candidate-draft:rejected-blocked",
+  });
+  const supersedeDraft = buildCandidateDraft({
+    action: "supersede_previous_candidate",
+    validation: pass.validation_result,
+    scenarioKey: "pass",
+    draftId: "local-candidate-draft:supersede-pass",
+    supersedesDraftId: "local-candidate-draft:accepted-pass",
+  });
+  assert.equal(acceptedPass.ok, true);
+  assert.equal(acceptedFollowUp.ok, true);
+  assert.equal(rejectedBlocked.ok, true);
+  assert.equal(supersedeDraft.ok, true);
+
+  let list = createEmptyCodexFormerLocalAdapterCandidateDraftList(
+    "2026-06-12T00:00:00.000Z",
+  );
+  list = appendCodexFormerLocalAdapterCandidateDraftToList(
+    list,
+    acceptedPass.draft,
+    "2026-06-12T00:00:01.000Z",
+  );
+  list = appendCodexFormerLocalAdapterCandidateDraftToList(
+    list,
+    acceptedFollowUp.draft,
+    "2026-06-12T00:00:02.000Z",
+  );
+  list = appendCodexFormerLocalAdapterCandidateDraftToList(
+    list,
+    rejectedBlocked.draft,
+    "2026-06-12T00:00:03.000Z",
+  );
+  list = appendCodexFormerLocalAdapterCandidateDraftToList(
+    list,
+    supersedeDraft.draft,
+    "2026-06-12T00:00:04.000Z",
+  );
+  assert.equal(list.list_version, CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_VERSION);
+  assert.equal(list.drafts.length, 4);
+  assert(list.drafts.some((draft) => draft.local_status === "draft_candidate"));
+  assert(
+    list.drafts.some(
+      (draft) => draft.local_status === "rejected_memory_candidate",
+    ),
+  );
+  assert(
+    list.drafts.some(
+      (draft) => draft.local_status === "supersedes_previous_candidate",
+    ),
+  );
+  assert(
+    list.drafts.some(
+      (draft) =>
+        draft.supersedes_draft_id === "local-candidate-draft:accepted-pass",
+    ),
+  );
+  assert.deepEqual(
+    collectCodexFormerLocalAdapterCandidateDraftListUnsafeMarkers(list),
+    [],
+  );
+
+  const deduped = appendCodexFormerLocalAdapterCandidateDraftToList(
+    list,
+    acceptedPass.draft,
+    "2026-06-12T00:00:05.000Z",
+  );
+  assert.equal(deduped.drafts.length, 4);
+
+  let bounded = createEmptyCodexFormerLocalAdapterCandidateDraftList(
+    "2026-06-12T00:00:00.000Z",
+  );
+  for (let index = 0; index < CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_MAX_DRAFTS + 5; index += 1) {
+    bounded = appendCodexFormerLocalAdapterCandidateDraftToList(
+      bounded,
+      {
+        ...acceptedPass.draft,
+        draft_id: `local-candidate-draft:bounded-${index}`,
+        created_at: `2026-06-12T00:${String(index).padStart(2, "0")}:00.000Z`,
+        updated_at: `2026-06-12T00:${String(index).padStart(2, "0")}:30.000Z`,
+      },
+      `2026-06-12T01:${String(index).padStart(2, "0")}:00.000Z`,
+    );
+  }
+  assert.equal(
+    bounded.drafts.length,
+    CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_MAX_DRAFTS,
+  );
+
+  const replacedDraft = {
+    ...acceptedPass.draft,
+    local_status: rejectedBlocked.draft.local_status,
+    candidate_action: rejectedBlocked.draft.candidate_action,
+    validation_result_state: rejectedBlocked.draft.validation_result_state,
+    updated_at: "2026-06-12T00:00:06.000Z",
+  };
+  const replaced = replaceCodexFormerLocalAdapterCandidateDraftInList(
+    list,
+    replacedDraft,
+    "2026-06-12T00:00:06.000Z",
+  );
+  assert.equal(replaced.drafts.length, 4);
+  assert.equal(
+    replaced.drafts.find(
+      (draft) => draft.draft_id === acceptedPass.draft.draft_id,
+    )?.local_status,
+    "rejected_memory_candidate",
+  );
+
+  const removed = removeCodexFormerLocalAdapterCandidateDraftFromList(
+    list,
+    acceptedPass.draft.draft_id,
+    "2026-06-12T00:00:07.000Z",
+  );
+  assert.equal(removed.drafts.length, 3);
+  assert.equal(
+    removed.drafts.some(
+      (draft) => draft.draft_id === acceptedPass.draft.draft_id,
+    ),
+    false,
+  );
+
+  assert.equal(
+    getCodexFormerLocalAdapterCandidateDraftCurrentStatus(
+      acceptedPass.draft,
+      pass.validation_result,
+    ),
+    "current_local_candidate_draft",
+  );
+  assert.equal(
+    getCodexFormerLocalAdapterCandidateDraftCurrentStatus(
+      acceptedPass.draft,
+      followUp.validation_result,
+    ),
+    "stale_local_candidate_draft",
+  );
+  assert.equal(
+    getCodexFormerLocalAdapterCandidateDraftCurrentStatus(
+      acceptedPass.draft,
+      viewModel.scenarios.pass.validation_result,
+    ),
+    "no_current_validation",
+  );
+
+  const storage = createMockStorage();
+  saveCodexFormerLocalAdapterCandidateDraftListToStorage(storage, list);
+  assert.equal(
+    storage.values.has(
+      CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
+    ),
+    true,
+  );
+  assert.equal(
+    loadCodexFormerLocalAdapterCandidateDraftListFromStorage(
+      storage,
+      "2026-06-12T00:00:08.000Z",
+    ).list.drafts.length,
+    4,
+  );
+
+  const migrationStorage = createMockStorage();
+  migrationStorage.setItem(
+    CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    JSON.stringify(acceptedPass.draft),
+  );
+  const migrated = loadCodexFormerLocalAdapterCandidateDraftListFromStorage(
+    migrationStorage,
+    "2026-06-12T00:00:09.000Z",
+  );
+  assert.equal(migrated.migrated_single_draft, true);
+  assert.equal(migrated.list.drafts.length, 1);
+
+  const invalidMigrationStorage = createMockStorage();
+  invalidMigrationStorage.setItem(
+    CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    JSON.stringify({ ...acceptedPass.draft, review_summary: "TOKEN=unsafe" }),
+  );
+  const invalidMigration = loadCodexFormerLocalAdapterCandidateDraftListFromStorage(
+    invalidMigrationStorage,
+    "2026-06-12T00:00:10.000Z",
+  );
+  assert.equal(invalidMigration.ignored_invalid_single_draft, true);
+  assert.equal(invalidMigration.list.drafts.length, 0);
+
+  const unsafeParsedList = safeParseCodexFormerLocalAdapterCandidateDraftList(
+    JSON.stringify({
+      list_version: CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_VERSION,
+      updated_at: "2026-06-12T00:00:11.000Z",
+      drafts: [
+        acceptedPass.draft,
+        { ...acceptedPass.draft, draft_id: "unsafe", review_summary: "TOKEN=unsafe" },
+      ],
+    }),
+    "2026-06-12T00:00:11.000Z",
+  );
+  assert.equal(unsafeParsedList.drafts.length, 1);
+
+  clearCodexFormerLocalAdapterCandidateDraftListFromStorage(storage);
+  assert.equal(
+    storage.values.has(
+      CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
+    ),
+    false,
+  );
+  assert.equal(
+    storage.values.has(
+      CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    ),
+    false,
+  );
+}
+
 function assertComponentSource() {
   assertIncludesAll(componentText, [
     "Local Codex Adapter Operator Flow",
@@ -679,7 +966,7 @@ function assertComponentSource() {
     "Validate Result",
     "Candidate Review Material",
     "Next Action",
-    "Accepted Candidate Draft",
+    "Local Candidate Draft List",
     "Local Storage Boundary",
     "Load PASS envelope fixture",
     "Load PASS with follow-up envelope fixture",
@@ -692,9 +979,12 @@ function assertComponentSource() {
     "Create local perspective candidate draft",
     "Create local memory rejection draft",
     "Create local supersede draft",
-    "Clear local candidate draft",
-    "stale_local_candidate_draft",
-    "CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE",
+    "Replace selected draft with current candidate draft",
+    "Clear selected local candidate draft",
+    "Clear all local candidate drafts",
+    "Select draft",
+    "getCodexFormerLocalAdapterCandidateDraftCurrentStatus",
+    "CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE",
     "real_local_validate_execution",
     "validation_result_source",
     "validation_summary_hash",
@@ -706,7 +996,7 @@ function assertComponentSource() {
     "resetCandidateActionPatch",
     "resetValidationHashPatch",
     "localValidationHashPatch",
-    "candidateDraftMatchesPersistedValidation",
+    "currentValidationForCandidateDrafts",
     "candidate_action_choice: defaultCandidateActionChoice",
     "supersede_previous_candidate_ref: undefined",
     "shouldResetCandidateAction",
@@ -734,8 +1024,12 @@ function assertComponentSource() {
     "data-augnes-create-accepted-candidate-draft",
     "data-augnes-create-rejection-candidate-draft",
     "data-augnes-create-supersede-candidate-draft",
-    "data-augnes-clear-candidate-draft",
-    "data-augnes-local-candidate-draft-status",
+    "data-augnes-replace-selected-candidate-draft",
+    "data-augnes-clear-selected-candidate-draft",
+    "data-augnes-clear-all-candidate-drafts",
+    "data-augnes-candidate-draft-list",
+    "data-augnes-select-candidate-draft",
+    "data-augnes-local-candidate-draft-list-status",
     "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE",
   ]);
   assert(componentText.includes("fetch("), "component must call local bridge");
@@ -785,6 +1079,9 @@ function assertCssSource() {
     ".copyArea",
     ".envelopeArea",
     ".draftDetailGrid",
+    ".draftList",
+    ".draftListItem",
+    ".selectedDraftListItem",
     ".actionGrid",
     ".errorText",
     ":disabled",
@@ -799,6 +1096,8 @@ function assertDocsAndReports() {
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE,
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_STORAGE_NAMESPACE,
+    CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
+    CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_VERSION,
     CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
     CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION,
     "Run local validation",
@@ -808,8 +1107,12 @@ function assertDocsAndReports() {
     "Create local perspective candidate draft",
     "Create local memory rejection draft",
     "Create local supersede draft",
-    "Clear local candidate draft",
+    "Clear selected local candidate draft",
+    "Clear all local candidate drafts",
+    "Local Candidate Draft List",
+    "current_local_candidate_draft",
     "stale_local_candidate_draft",
+    "no_current_validation",
     "keep_review_only",
     "accept_as_perspective_candidate",
     "reject_from_memory_candidate",
@@ -822,11 +1125,15 @@ function assertDocsAndReports() {
     helperFile,
     localValidateBridgeFile,
     acceptedCandidateDraftFile,
+    candidateDraftListFile,
     localValidateRouteFile,
     "Run local validation",
     "real_local_validate_execution",
-    "accepted-candidate draft",
-    CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
+    "local candidate draft list",
+    CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
+    "migrate",
+    "Clear selected",
+    "Clear all",
     "BLOCKED rejection-only",
     "stale_local_candidate_draft",
     "fixture_preview",
@@ -843,6 +1150,7 @@ function assertRuntimeBoundary() {
     [helperFile]: helperText,
     [localValidateBridgeFile]: localValidateBridgeText,
     [acceptedCandidateDraftFile]: acceptedCandidateDraftText,
+    [candidateDraftListFile]: candidateDraftListText,
     [localValidateRouteFile]: localValidateRouteText,
   };
   for (const [file, source] of Object.entries(sourceByFile)) {
@@ -940,6 +1248,7 @@ function buildCandidateDraft({
   action,
   validation,
   scenarioKey,
+  draftId,
   supersedesDraftId,
 }) {
   const viewModel =
@@ -947,7 +1256,7 @@ function buildCandidateDraft({
   const scenario = viewModel.scenarios[scenarioKey];
   return buildCodexFormerLocalAdapterAcceptedCandidateDraft({
     nowIso: "2026-06-12T00:00:00.000Z",
-    draftId: `local-candidate-draft:${action}:${scenarioKey}`,
+    draftId: draftId ?? `local-candidate-draft:${action}:${scenarioKey}`,
     operatorFlowDraftId: "local-adapter-operator-flow-draft:v0.1",
     candidateAction: action,
     validation,
