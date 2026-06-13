@@ -15,6 +15,24 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - queue item count visible
 - queued item list visible
 - select queue item works
+- proposal eligibility visible
+- Create local memory write proposal works
+- proposal id visible
+- proposal_status visible
+- proposed memory payload visible
+- should_write_to_memory_now false visible
+- authority boundary visible for proposal
+- proposal diff summary visible
+- PASS with follow-up proposal includes warning/risk caveat
+- Mark proposal reviewing locally works
+- Keep proposal for later works
+- Reject proposal locally works
+- Mark proposal superseded locally works
+- clear selected proposal works
+- clear all proposals works
+- refresh restores proposals
+- selected queue item shows already has proposal
+- removing queue item makes proposal show missing/removed source state
 - memory candidate preview visible
 - source refs/hashes visible
 - warning counts visible
@@ -40,6 +58,19 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - A queue item created from the operator flow appeared in the list with `queue_status=queued_for_memory_review`, source candidate draft id, local status, validation result state, warning count, and pointer warning count.
 - Selecting the queue item showed the bounded memory candidate preview with title, bounded summary, supporting refs, risk notes, unresolved tensions, and next review action.
 - Source refs/hashes, returned envelope hash, validation summary hash, authority boundary, and `can_create_memory_write=false` were visible.
+- The Local Memory Write Proposal panel showed proposal eligibility for the selected queue item.
+- `Create local memory write proposal` created a local proposal in `augnes.perspectiveMemory.localWriteProposals.v0.1`.
+- The proposal id, `proposal_status=draft_write_proposal`, proposed memory payload, `should_write_to_memory_now=false`, proposal diff summary, and proposal authority boundary were visible.
+- A PASS with follow-up queue item proposal included the warning/risk caveat in `risk_notes`.
+- `Mark proposal reviewing locally` updated the proposal to `reviewing_write_proposal`.
+- `Keep proposal for later` updated the proposal to `kept_for_later`.
+- `Reject proposal locally` updated the proposal to `rejected_locally`.
+- `Mark proposal superseded locally` updated the proposal to `superseded_locally`.
+- `Clear selected proposal` removed only the selected local write proposal.
+- `Clear all local write proposals` cleared only the proposal namespace.
+- Refresh restored proposals from localStorage.
+- Selecting a queue item with an existing proposal showed the already-proposed id and status.
+- Removing the source queue item made the proposal show `source_queue_item_removed`; clearing the queue made the proposal show `source_queue_item_missing`.
 - Filters for all, queued, reviewing, kept, removed, and stale/missing source changed the visible list as expected.
 - `Mark reviewing locally` updated the selected item to `reviewing_locally`.
 - `Keep for later` updated the selected item to `kept_for_later`.

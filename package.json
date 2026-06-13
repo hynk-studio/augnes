@@ -300,6 +300,7 @@
     "smoke:perspective-codex-former-local-adapter-operator-flow": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-operator-flow.mjs",
     "browser:perspective-codex-former-local-adapter-operator-flow": "node scripts/browser-smoke-perspective-codex-former-local-adapter-operator-flow.mjs",
     "smoke:perspective-memory-local-review-queue": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-local-review-queue.mjs",
+    "smoke:perspective-memory-local-write-proposal": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-local-write-proposal.mjs",
     "browser:perspective-memory-local-review-queue": "node scripts/browser-smoke-perspective-memory-local-review-queue.mjs",
     "smoke:perspective-codex-former-local-adapter-v0-1-closeout": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-v0-1-closeout.mjs",
     "smoke:perspective-codex-former-local-adapter-snapshot-surface-integration": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-snapshot-surface-integration.mjs",

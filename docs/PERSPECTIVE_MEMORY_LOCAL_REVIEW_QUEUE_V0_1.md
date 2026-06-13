@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`/cockpit/perspective/memory-review-queue/local` is a local-only review queue for Codex candidate drafts created in the local adapter operator flow. It follows PR #532 by giving the selected local candidate draft a visible next product step: queue for perspective-memory review, inspect a bounded memory candidate preview, and make local review-only status choices.
+`/cockpit/perspective/memory-review-queue/local` is a local-only review queue for Codex candidate drafts created in the local adapter operator flow. It follows PR #533 by giving the selected local candidate draft a visible next product step: queue for perspective-memory review, inspect a bounded memory candidate preview, create a Local Memory Write Proposal, and make local review-only status choices.
 
 This route is non-authoritative. It is not accepted Augnes memory, not review decision, not product DB persistence, not Core decision, not runtime handoff, and not automatic promotion. It does not call provider/model APIs, Codex, Codex SDK, GitHub, or a product database.
 
@@ -14,6 +14,7 @@ This route is non-authoritative. It is not accepted Augnes memory, not review de
 - Queue item version: `perspective_memory_local_review_queue_item.v0.1`
 - Preview version: `perspective_memory_candidate_preview.v0.1`
 - Source draft list namespace: `augnes.codexFormer.localAdapterAcceptedCandidateDraftList.v0.1`
+- Local write proposal storage namespace: `augnes.perspectiveMemory.localWriteProposals.v0.1`
 
 The queue payload is:
 
@@ -68,8 +69,19 @@ The local route renders:
 - source refs/hashes and warning counts;
 - authority boundary;
 - local review-only actions: Mark reviewing locally, Keep for later, Remove from queue, and Return to candidate drafts, local note only.
+- Local Memory Write Proposal panel with `Create local memory write proposal`, proposed payload, proposal diff summary, local status controls, and source queue item state.
 
 The route updates only localStorage. `Remove from queue` marks the item `removed_from_queue`; `Clear queue` clears only the queue namespace.
+
+## Local Memory Write Proposal
+
+The proposal panel turns the selected queue item into a local proposal artifact that answers what could later be written to perspective memory. It stores proposals in `augnes.perspectiveMemory.localWriteProposals.v0.1` and keeps them separate from the queue.
+
+Proposal creation is allowed only for selected queue items with `queued_for_memory_review`, `reviewing_locally`, or `kept_for_later`; `PASS` or `PASS with follow-up`; source candidate local status `draft_candidate` or `supersedes_previous_candidate`; and `current_with_source_candidate_draft`. Removed queue items, rejected memory candidates, BLOCKED results, stale source state, and missing source state do not create write proposals.
+
+The proposal payload includes deterministic fields only: title, summary, `memory_kind=perspective_candidate`, source refs, evidence refs, risk notes, unresolved tensions, carry-forward questions, suggested next review action, and `should_write_to_memory_now: false`.
+
+Proposal controls are local-only: Mark proposal reviewing locally, Keep proposal for later, Reject proposal locally, Mark proposal superseded locally, Clear selected proposal, and Clear all local write proposals. There is no enabled Write to memory, Commit memory, or Accept memory action.
 
 ## Stale And Missing Source
 
@@ -81,9 +93,12 @@ The queue route compares queue item hashes with the current local candidate draf
 
 Queue items are not auto-updated from source candidate drafts. Requeueing is explicit.
 
+Proposal source state compares `source_queue_item_id` against the current local review queue and shows `source_queue_item_current`, `source_queue_item_status_changed`, `source_queue_item_missing`, or `source_queue_item_removed`. Proposals are not auto-updated when queue items change.
+
 ## Verification
 
 - Static smoke: `npm run smoke:perspective-memory-local-review-queue`
+- Write proposal smoke: `npm run smoke:perspective-memory-local-write-proposal`
 - Operator smoke: `npm run smoke:perspective-codex-former-local-adapter-operator-flow`
 - Browser report smoke: `npm run browser:perspective-memory-local-review-queue`
 - Browser route: `http://127.0.0.1:3000/cockpit/perspective/memory-review-queue/local`

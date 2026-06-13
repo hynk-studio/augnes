@@ -5,6 +5,7 @@ import candidateDraftList from "../lib/perspective-ingest/codex-former-local-ada
 import localValidateBridge from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
 import operatorFlow from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
 import memoryReviewQueue from "../lib/perspective-ingest/perspective-memory-local-review-queue.ts";
+import writeProposal from "../lib/perspective-ingest/perspective-memory-local-write-proposal.ts";
 
 const {
   buildCodexFormerLocalAdapterAcceptedCandidateDraft,
@@ -40,12 +41,19 @@ const {
   safeParsePerspectiveMemoryLocalReviewQueue,
   updatePerspectiveMemoryLocalReviewQueueItemStatus,
 } = memoryReviewQueue;
+const {
+  PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
+  PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_VERSION,
+  buildPerspectiveMemoryLocalWriteProposalFromQueueItem,
+} = writeProposal;
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
 const packageFile = "package.json";
 const helperFile =
   "lib/perspective-ingest/perspective-memory-local-review-queue.ts";
+const writeProposalHelperFile =
+  "lib/perspective-ingest/perspective-memory-local-write-proposal.ts";
 const candidateDraftListFile =
   "lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
 const routeFile =
@@ -60,6 +68,12 @@ const docFile = "docs/PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_V0_1.md";
 const reportFile = "reports/2026-06-13-perspective-memory-local-review-queue.md";
 const browserSmokeFile =
   "scripts/browser-smoke-perspective-memory-local-review-queue.mjs";
+const writeProposalSmokeFile =
+  "scripts/smoke-perspective-memory-local-write-proposal.mjs";
+const writeProposalDocFile =
+  "docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_V0_1.md";
+const writeProposalReportFile =
+  "reports/2026-06-13-perspective-memory-local-write-proposal.md";
 const browserReportFile =
   "reports/browser/2026-06-13-perspective-memory-local-review-queue.md";
 
@@ -86,6 +100,7 @@ const returnedBlockedFile =
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
+const writeProposalHelperText = readFileSync(writeProposalHelperFile, "utf8");
 const candidateDraftListText = readFileSync(candidateDraftListFile, "utf8");
 const routeText = readFileSync(routeFile, "utf8");
 const componentText = readFileSync(componentFile, "utf8");
@@ -94,6 +109,8 @@ const operatorComponentText = readFileSync(operatorComponentFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
 const browserReportText = readFileSync(browserReportFile, "utf8");
+const writeProposalDocText = readFileSync(writeProposalDocFile, "utf8");
+const writeProposalReportText = readFileSync(writeProposalReportFile, "utf8");
 
 const fixtureInput = {
   scenarios: {
@@ -152,11 +169,16 @@ function assertPackageScripts() {
     packageJson.scripts["browser:perspective-memory-local-review-queue"],
     "node scripts/browser-smoke-perspective-memory-local-review-queue.mjs",
   );
+  assert.equal(
+    packageJson.scripts["smoke:perspective-memory-local-write-proposal"],
+    `${expectedTsxCommand} scripts/smoke-perspective-memory-local-write-proposal.mjs`,
+  );
 }
 
 function assertFilesAndSource() {
   for (const file of [
     helperFile,
+    writeProposalHelperFile,
     candidateDraftListFile,
     routeFile,
     componentFile,
@@ -165,7 +187,10 @@ function assertFilesAndSource() {
     docFile,
     reportFile,
     browserSmokeFile,
+    writeProposalSmokeFile,
     browserReportFile,
+    writeProposalDocFile,
+    writeProposalReportFile,
   ]) {
     assert.equal(existsSync(file), true, `${file} must exist`);
   }
@@ -228,6 +253,32 @@ function assertFilesAndSource() {
     "not Core decision",
     "data-augnes-memory-queue-filter",
     "data-augnes-memory-candidate-preview",
+    "Local Memory Write Proposal",
+    "Create local memory write proposal",
+    "Proposed Memory Payload",
+    "Proposal Diff Summary",
+    "should_write_to_memory_now",
+    "PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE",
+    "data-augnes-local-write-proposal-panel",
+    "data-augnes-create-local-memory-write-proposal",
+    "data-augnes-local-write-proposal-list",
+    "data-augnes-proposed-memory-payload",
+    "data-augnes-proposal-diff-summary",
+  ]);
+  assertIncludesAll(writeProposalHelperText, [
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_VERSION,
+    "perspective_memory_local_write_proposal_list.v0.1",
+    "perspective_memory_candidate_write_payload.v0.1",
+    "buildPerspectiveMemoryLocalWriteProposalFromQueueItem",
+    "should_write_to_memory_now: false",
+    "accepted_augnes_memory_created: false",
+    "product_db_persistence: false",
+    "review_decision_created: false",
+    "core_decision_created: false",
+    "raw_prompt",
+    "raw_candidate",
+    "browser_dump",
   ]);
   assertIncludesAll(cssText, [
     ".shell",
@@ -307,6 +358,19 @@ function assertQueueModelBehavior() {
   );
   assert.equal(passQueueItem.item.review_only_actions.can_create_memory_write, false);
   assertNoRawQueueItemMarkers(passQueueItem.item);
+  const passWriteProposal =
+    buildPerspectiveMemoryLocalWriteProposalFromQueueItem({
+      nowIso: "2026-06-13T00:00:01.000Z",
+      proposalId: "local-memory-write-proposal:pass",
+      queueItem: passQueueItem.item,
+      queueSourceState: "current_with_source_candidate_draft",
+    });
+  assert.equal(passWriteProposal.ok, true);
+  assert.equal(
+    passWriteProposal.proposal.proposed_memory_payload
+      .should_write_to_memory_now,
+    false,
+  );
 
   const followUpQueueItem = buildQueueItem({
     draft: acceptedFollowUp.draft,
@@ -316,6 +380,19 @@ function assertQueueModelBehavior() {
   assert(
     followUpQueueItem.item.memory_candidate_preview.risk_notes.some((note) =>
       note.includes("PASS with follow-up"),
+    ),
+  );
+  const followUpWriteProposal =
+    buildPerspectiveMemoryLocalWriteProposalFromQueueItem({
+      nowIso: "2026-06-13T00:00:02.000Z",
+      proposalId: "local-memory-write-proposal:follow-up",
+      queueItem: followUpQueueItem.item,
+      queueSourceState: "current_with_source_candidate_draft",
+    });
+  assert.equal(followUpWriteProposal.ok, true);
+  assert(
+    followUpWriteProposal.proposal.proposed_memory_payload.risk_notes.some(
+      (note) => note.includes("PASS with follow-up"),
     ),
   );
 
@@ -520,6 +597,9 @@ function assertDocsReportsAndBoundaries() {
     "source_candidate_draft_missing",
     "can_create_memory_write: false",
     "not accepted Augnes memory",
+    "Local Memory Write Proposal",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
+    "Create local memory write proposal",
   ]);
   assertIncludesAll(reportText, [
     "# Perspective Memory Local Review Queue Report",
@@ -530,6 +610,25 @@ function assertDocsReportsAndBoundaries() {
     "visible local review queue",
     "bounded memory candidate preview",
     "stale/missing source",
+    "no accepted Augnes memory",
+    "local write proposal",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
+  ]);
+  assertIncludesAll(writeProposalDocText, [
+    "# Perspective Memory Local Write Proposal v0.1",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_VERSION,
+    "selected queue item",
+    "Create local memory write proposal",
+    "should_write_to_memory_now: false",
+    "not accepted Augnes memory",
+  ]);
+  assertIncludesAll(writeProposalReportText, [
+    "# Perspective Memory Local Write Proposal Report",
+    writeProposalHelperFile,
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
+    "queue item to local write proposal flow",
+    "deterministic payload builder",
     "no accepted Augnes memory",
   ]);
   assertIncludesAll(browserReportText, [
@@ -545,6 +644,7 @@ function assertDocsReportsAndBoundaries() {
 
   for (const [file, source] of Object.entries({
     [helperFile]: helperText,
+    [writeProposalHelperFile]: writeProposalHelperText,
     [routeFile]: routeText,
     [componentFile]: componentText,
     [operatorComponentFile]: operatorComponentText,
