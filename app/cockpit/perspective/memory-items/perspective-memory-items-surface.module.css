@@ -1,9 +1,9 @@
 .shell {
   box-sizing: border-box;
   min-height: 100vh;
+  overflow-x: hidden;
   background: #f6f7f9;
   color: #1d252c;
-  overflow-x: hidden;
   padding: 24px;
 }
 
@@ -41,9 +41,9 @@
 
 .header h1 {
   margin: 0;
-  max-width: 860px;
-  font-size: clamp(2rem, 6vw, 4.4rem);
-  line-height: 0.96;
+  max-width: 840px;
+  font-size: clamp(2rem, 6vw, 4.2rem);
+  line-height: 0.98;
   letter-spacing: 0;
 }
 
@@ -65,21 +65,31 @@
 .boundaryPills span {
   max-width: 100%;
   min-width: 0;
+  overflow-wrap: anywhere;
   border: 1px solid #c9d2d8;
-  background: #ffffff;
   border-radius: 999px;
+  background: #ffffff;
   color: #29414f;
   font-size: 0.78rem;
   font-weight: 700;
-  overflow-wrap: anywhere;
   padding: 7px 10px;
 }
 
-.navRow {
+.navRow,
+.filterRow,
+.buttonRow {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.navRow {
   margin-bottom: 14px;
+}
+
+.filterRow,
+.buttonRow {
+  margin-bottom: 12px;
 }
 
 .button,
@@ -121,11 +131,16 @@
   margin: 8px 0 18px;
 }
 
-.statusStrip div {
+.statusStrip div,
+.panel,
+.itemListEntry {
   min-width: 0;
-  background: #ffffff;
   border: 1px solid #d7dee3;
   border-radius: 8px;
+  background: #ffffff;
+}
+
+.statusStrip div {
   padding: 12px;
 }
 
@@ -154,10 +169,6 @@
 }
 
 .panel {
-  min-width: 0;
-  background: #ffffff;
-  border: 1px solid #d7dee3;
-  border-radius: 8px;
   padding: 16px;
   box-shadow: 0 12px 30px rgba(35, 48, 58, 0.08);
 }
@@ -182,44 +193,6 @@
   overflow-wrap: anywhere;
 }
 
-.filterRow,
-.buttonRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.confirmationBox {
-  display: grid;
-  gap: 8px;
-  margin: 14px 0;
-}
-
-.gateItem {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  border: 1px solid #d7dee3;
-  border-radius: 8px;
-  background: #fbfcfd;
-  padding: 10px;
-}
-
-.gateItem input {
-  margin-top: 2px;
-}
-
-.gateItem span {
-  min-width: 0;
-  color: #1f2f38;
-  font-size: 0.9rem;
-  line-height: 1.42;
-  overflow-wrap: anywhere;
-}
-
 .boundaryText {
   margin: 10px 0 0;
   color: #40505a;
@@ -235,9 +208,6 @@
 }
 
 .itemListEntry {
-  min-width: 0;
-  border: 1px solid #d7dee3;
-  border-radius: 8px;
   background: #fbfcfd;
   padding: 12px;
 }
@@ -284,17 +254,17 @@
   padding-top: 0;
 }
 
+.detailRow dt,
+.detailRow dd {
+  min-width: 0;
+}
+
 .detailRow dd {
   margin: 0;
   color: #1f2f38;
   font-size: 0.9rem;
   line-height: 1.42;
   overflow-wrap: anywhere;
-}
-
-.detailRow dt,
-.detailRow dd {
-  min-width: 0;
 }
 
 .policyBox,

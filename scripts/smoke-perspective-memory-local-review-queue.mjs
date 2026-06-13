@@ -66,6 +66,9 @@ const boundaryModelFile =
   "lib/perspective-ingest/perspective-memory-product-persistence-boundary.ts";
 const boundaryStoreFile =
   "lib/perspective-ingest/perspective-memory-product-persistence-boundary-store.ts";
+const memoryItemsDocFile = "docs/PERSPECTIVE_MEMORY_ITEMS_V0_1.md";
+const memoryItemsRouteFile = "app/cockpit/perspective/memory-items/page.tsx";
+const memoryItemsApiRouteFile = "app/api/perspective/memory/items/route.ts";
 const candidateDraftListFile =
   "lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
 const routeFile =
@@ -137,6 +140,8 @@ const browserReportText = readFileSync(browserReportFile, "utf8");
 const writeProposalDocText = readFileSync(writeProposalDocFile, "utf8");
 const checklistDocText = readFileSync(checklistDocFile, "utf8");
 const boundaryDocText = readFileSync(boundaryDocFile, "utf8");
+const memoryItemsDocText = readFileSync(memoryItemsDocFile, "utf8");
+const memoryItemsApiRouteText = readFileSync(memoryItemsApiRouteFile, "utf8");
 const writeProposalReportText = readFileSync(writeProposalReportFile, "utf8");
 const checklistReportText = readFileSync(checklistReportFile, "utf8");
 const boundaryReportText = readFileSync(boundaryReportFile, "utf8");
@@ -221,6 +226,9 @@ function assertFilesAndSource() {
     checklistHelperFile,
     boundaryModelFile,
     boundaryStoreFile,
+    memoryItemsDocFile,
+    memoryItemsRouteFile,
+    memoryItemsApiRouteFile,
     candidateDraftListFile,
     routeFile,
     componentFile,
@@ -344,6 +352,15 @@ function assertFilesAndSource() {
   assertIncludesAll(boundaryStoreText, [
     "perspective_memory_product_persistence_boundary_records",
     "sqlite:lib/db.ts",
+  ]);
+  assertIncludesAll(memoryItemsApiRouteText, [
+    "PERSPECTIVE_MEMORY_ITEM_API_ROUTE",
+    "source_boundary_record_id",
+  ]);
+  assertIncludesAll(memoryItemsDocText, [
+    "perspective-memory item",
+    "/cockpit/perspective/memory-items",
+    "Core decision",
   ]);
   assertIncludesAll(writeProposalHelperText, [
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,

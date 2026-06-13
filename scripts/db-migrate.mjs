@@ -11,6 +11,7 @@ import {
   migrateTemporalPreviewReviewArtifacts,
   migrateVerificationEvidenceRecords,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
+  migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -37,6 +38,7 @@ try {
     migrateTemporalPreviewReviewArtifactIdempotency(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
+  const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
   const result = combineMigrationResults(preSchemaResult, postSchemaResult);
 
   if (!result.table_found) {
@@ -177,6 +179,21 @@ try {
   if (perspectiveMemoryBoundaryResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${perspectiveMemoryBoundaryResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (perspectiveMemoryItemsResult.created_table) {
+    console.log(`Created perspective_memory_items table at ${dbPath}`);
+  } else if (perspectiveMemoryItemsResult.created_indexes.length === 0) {
+    console.log(
+      `Perspective memory items migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated perspective_memory_items indexes at ${dbPath}`);
+  }
+  if (perspectiveMemoryItemsResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${perspectiveMemoryItemsResult.created_indexes.join(", ")}`,
     );
   }
 } finally {

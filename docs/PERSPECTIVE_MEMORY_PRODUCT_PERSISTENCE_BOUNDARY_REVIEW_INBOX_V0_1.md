@@ -37,6 +37,8 @@ Each record list item shows status, source validation result, warning/risk indic
 
 The detail view shows source refs/hashes, `proposed_memory_payload`, `proposal_diff_summary`, `checklist_gate_summary`, `local_review_notes`, `user_confirmation`, `next_allowed_actions`, and `authority_boundary`.
 
+The inbox also includes a Perspective Memory Item panel. A reviewed, eligible boundary record can create a persisted perspective-memory item after the user confirms that the item is not a Core decision, will not be automatically injected into runtime context, and preserves the source boundary record. The item is written through `/api/perspective/memory/items` into the same `sqlite:lib/db.ts` product persistence backend and is visible at `/cockpit/perspective/memory-items`.
+
 ## Status Transitions
 
 The inbox can update only `boundary_status`:
@@ -63,10 +65,14 @@ The inbox explicitly shows:
 
 Enabled Write to memory, Commit memory, Accept memory, Send to Core, Create Core decision, Deploy, and Auto promote controls are intentionally absent.
 
+## Relationship To Perspective-Memory Items
+
+A boundary record remains the review boundary. A perspective-memory item is the durable product-level memory object created from a reviewed boundary record. Creating the item does not change the boundary record into Core memory, does not create a Core decision, and does not enable automatic runtime injection.
+
 ## Out Of Scope
 
 Accepted memory writes, product memory writes, Core decisions, review decision records, provider/model calls, Codex SDK calls, GitHub mutation, runtime handoff, and automatic promotion remain out of scope.
 
 ## Next
 
-Add explicit accepted-memory write design and implementation from reviewed boundary records only if product decision is explicit. Otherwise add a boundary-record review packet/export rather than another checklist layer.
+Use the persisted perspective-memory item dashboard for review and retrieval readiness. Add a read-only retrieval/search surface for persisted perspective-memory items next, unless a separate product decision opens Core-facing promotion.

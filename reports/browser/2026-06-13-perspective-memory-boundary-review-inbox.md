@@ -43,6 +43,14 @@ Passed on local dev server `AUGNES_DB_PATH=/tmp/augnes-boundary-inbox-browser/au
 - no accepted memory/review decision/Core decision behavior
 - no enabled Write to memory / Commit memory / Accept memory / Send to Core controls
 - no raw returned envelope/private/provider/token/browser/source/candidate material visible outside returned envelope textarea
+- memory item panel visible
+- Create persisted perspective-memory item disabled until confirmations checked
+- item confirmations visible
+- persisted perspective-memory item created
+- item id visible
+- item status accepted visible
+- item authority boundary visible
+- memory items dashboard link visible
 
 ## Evidence
 
@@ -56,6 +64,10 @@ Passed on local dev server `AUGNES_DB_PATH=/tmp/augnes-boundary-inbox-browser/au
 - Status controls updated the selected record through `locally_reviewing_boundary_record`, `kept_for_later`, and `retracted_before_memory_write` using same-origin PATCH.
 - Refresh restored the persisted record through the GET API and SQLite.
 - The inbox showed links back to the local memory review queue and the local Codex adapter operator flow.
+- The Perspective Memory Item panel showed eligibility for the selected boundary record, confirmation checkboxes for creating a persisted item, not Core decision, no automatic runtime injection, and source boundary preservation.
+- The create item action stayed disabled before confirmations, then created a persisted perspective-memory item through the same-origin items API.
+- The item summary showed item id, `item_status=accepted`, source boundary id, content title/summary, and the authority boundary with Core/runtime/provider/GitHub flags false.
+- The inbox showed a link to `/cockpit/perspective/memory-items`.
 - External resource probe returned `[]`.
 - Console warn/error probe returned `[]`.
 - Horizontal overflow was `0` at 390px, 768px, and 1280px.

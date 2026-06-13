@@ -62,10 +62,12 @@ Persisted records are also visible in the dedicated persisted boundary review in
 
 The inbox uses the same GET/PATCH boundary API and the same `sqlite:lib/db.ts` backend, but it focuses on cross-session review of persisted product persistence boundary records outside the browser-local queue workflow.
 
+The boundary inbox now also exposes the next product step: an eligible reviewed boundary record can create a persisted perspective-memory item through `/api/perspective/memory/items`. The resulting item is visible at `/cockpit/perspective/memory-items` and remains not Core memory, not a Core decision, and not automatic runtime injection.
+
 ## Out Of Scope
 
-Accepted memory writes, Core decisions, review decision records, provider/model calls, Codex SDK calls, GitHub mutation, runtime handoff, and automatic promotion remain out of scope.
+Core decisions, Core memory, review decision records, provider/model calls, Codex SDK calls, GitHub mutation, runtime handoff, automatic runtime injection, and automatic promotion remain out of scope.
 
 ## Next
 
-Use the persisted boundary review inbox for cross-session boundary record review. Implement actual accepted memory writes only after an explicit product decision.
+Use persisted perspective-memory items for read-only retrieval/search or synthesis review. Implement Core-facing promotion only after an explicit product decision.
