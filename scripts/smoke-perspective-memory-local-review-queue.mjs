@@ -6,6 +6,7 @@ import localValidateBridge from "../lib/perspective-ingest/codex-former-local-ad
 import operatorFlow from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
 import memoryReviewQueue from "../lib/perspective-ingest/perspective-memory-local-review-queue.ts";
 import writeProposal from "../lib/perspective-ingest/perspective-memory-local-write-proposal.ts";
+import checklistModel from "../lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist.ts";
 
 const {
   buildCodexFormerLocalAdapterAcceptedCandidateDraft,
@@ -46,6 +47,11 @@ const {
   PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_VERSION,
   buildPerspectiveMemoryLocalWriteProposalFromQueueItem,
 } = writeProposal;
+const {
+  PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+  PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_VERSION,
+  buildPerspectiveMemoryLocalWriteProposalReviewChecklist,
+} = checklistModel;
 
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
@@ -54,6 +60,8 @@ const helperFile =
   "lib/perspective-ingest/perspective-memory-local-review-queue.ts";
 const writeProposalHelperFile =
   "lib/perspective-ingest/perspective-memory-local-write-proposal.ts";
+const checklistHelperFile =
+  "lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist.ts";
 const candidateDraftListFile =
   "lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
 const routeFile =
@@ -70,10 +78,16 @@ const browserSmokeFile =
   "scripts/browser-smoke-perspective-memory-local-review-queue.mjs";
 const writeProposalSmokeFile =
   "scripts/smoke-perspective-memory-local-write-proposal.mjs";
+const checklistSmokeFile =
+  "scripts/smoke-perspective-memory-local-write-proposal-review-checklist.mjs";
 const writeProposalDocFile =
   "docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_V0_1.md";
+const checklistDocFile =
+  "docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_V0_1.md";
 const writeProposalReportFile =
   "reports/2026-06-13-perspective-memory-local-write-proposal.md";
+const checklistReportFile =
+  "reports/2026-06-13-perspective-memory-local-write-proposal-review-checklist.md";
 const browserReportFile =
   "reports/browser/2026-06-13-perspective-memory-local-review-queue.md";
 
@@ -101,6 +115,7 @@ const returnedBlockedFile =
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
 const writeProposalHelperText = readFileSync(writeProposalHelperFile, "utf8");
+const checklistHelperText = readFileSync(checklistHelperFile, "utf8");
 const candidateDraftListText = readFileSync(candidateDraftListFile, "utf8");
 const routeText = readFileSync(routeFile, "utf8");
 const componentText = readFileSync(componentFile, "utf8");
@@ -110,7 +125,9 @@ const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
 const browserReportText = readFileSync(browserReportFile, "utf8");
 const writeProposalDocText = readFileSync(writeProposalDocFile, "utf8");
+const checklistDocText = readFileSync(checklistDocFile, "utf8");
 const writeProposalReportText = readFileSync(writeProposalReportFile, "utf8");
+const checklistReportText = readFileSync(checklistReportFile, "utf8");
 
 const fixtureInput = {
   scenarios: {
@@ -173,12 +190,19 @@ function assertPackageScripts() {
     packageJson.scripts["smoke:perspective-memory-local-write-proposal"],
     `${expectedTsxCommand} scripts/smoke-perspective-memory-local-write-proposal.mjs`,
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:perspective-memory-local-write-proposal-review-checklist"
+    ],
+    `${expectedTsxCommand} scripts/smoke-perspective-memory-local-write-proposal-review-checklist.mjs`,
+  );
 }
 
 function assertFilesAndSource() {
   for (const file of [
     helperFile,
     writeProposalHelperFile,
+    checklistHelperFile,
     candidateDraftListFile,
     routeFile,
     componentFile,
@@ -188,9 +212,12 @@ function assertFilesAndSource() {
     reportFile,
     browserSmokeFile,
     writeProposalSmokeFile,
+    checklistSmokeFile,
     browserReportFile,
     writeProposalDocFile,
+    checklistDocFile,
     writeProposalReportFile,
+    checklistReportFile,
   ]) {
     assert.equal(existsSync(file), true, `${file} must exist`);
   }
@@ -264,6 +291,15 @@ function assertFilesAndSource() {
     "data-augnes-local-write-proposal-list",
     "data-augnes-proposed-memory-payload",
     "data-augnes-proposal-diff-summary",
+    "Local Write Proposal Review Checklist",
+    "Create local review checklist",
+    "Recompute readiness",
+    "ready_for_product_persistence_review",
+    "ready_for_memory_write_now",
+    "data-augnes-local-write-proposal-review-checklist-panel",
+    "data-augnes-create-local-review-checklist",
+    "data-augnes-checklist-gate",
+    "PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE",
   ]);
   assertIncludesAll(writeProposalHelperText, [
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
@@ -279,6 +315,15 @@ function assertFilesAndSource() {
     "raw_prompt",
     "raw_candidate",
     "browser_dump",
+  ]);
+  assertIncludesAll(checklistHelperText, [
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_VERSION,
+    "buildPerspectiveMemoryLocalWriteProposalReviewChecklist",
+    "ready_for_memory_write_now: false",
+    "local_checklist_only: true",
+    "raw_prompt",
+    "raw_candidate",
   ]);
   assertIncludesAll(cssText, [
     ".shell",
@@ -371,6 +416,18 @@ function assertQueueModelBehavior() {
       .should_write_to_memory_now,
     false,
   );
+  const passChecklist =
+    buildPerspectiveMemoryLocalWriteProposalReviewChecklist({
+      nowIso: "2026-06-13T00:00:01.000Z",
+      checklistId: "local-write-proposal-checklist:pass",
+      proposal: passWriteProposal.proposal,
+      proposalSourceState: "source_queue_item_current",
+    });
+  assert.equal(
+    passChecklist.gates.pass_follow_up_caveat_reviewed.status,
+    "not_applicable",
+  );
+  assert.equal(passChecklist.readiness_summary.ready_for_memory_write_now, false);
 
   const followUpQueueItem = buildQueueItem({
     draft: acceptedFollowUp.draft,
@@ -394,6 +451,17 @@ function assertQueueModelBehavior() {
     followUpWriteProposal.proposal.proposed_memory_payload.risk_notes.some(
       (note) => note.includes("PASS with follow-up"),
     ),
+  );
+  const followUpChecklist =
+    buildPerspectiveMemoryLocalWriteProposalReviewChecklist({
+      nowIso: "2026-06-13T00:00:02.000Z",
+      checklistId: "local-write-proposal-checklist:follow-up",
+      proposal: followUpWriteProposal.proposal,
+      proposalSourceState: "source_queue_item_current",
+    });
+  assert.equal(
+    followUpChecklist.gates.pass_follow_up_caveat_reviewed.required,
+    true,
   );
 
   const supersedeQueueItem = buildQueueItem({
@@ -600,6 +668,8 @@ function assertDocsReportsAndBoundaries() {
     "Local Memory Write Proposal",
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
     "Create local memory write proposal",
+    "Local Write Proposal Review Checklist",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
   ]);
   assertIncludesAll(reportText, [
     "# Perspective Memory Local Review Queue Report",
@@ -613,6 +683,8 @@ function assertDocsReportsAndBoundaries() {
     "no accepted Augnes memory",
     "local write proposal",
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
+    "Local Write Proposal Review Checklist",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
   ]);
   assertIncludesAll(writeProposalDocText, [
     "# Perspective Memory Local Write Proposal v0.1",
@@ -622,6 +694,13 @@ function assertDocsReportsAndBoundaries() {
     "Create local memory write proposal",
     "should_write_to_memory_now: false",
     "not accepted Augnes memory",
+    "Local Write Proposal Review Checklist",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+  ]);
+  assertIncludesAll(checklistDocText, [
+    "# Perspective Memory Local Write Proposal Review Checklist v0.1",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+    "ready_for_product_persistence_review",
   ]);
   assertIncludesAll(writeProposalReportText, [
     "# Perspective Memory Local Write Proposal Report",
@@ -630,6 +709,13 @@ function assertDocsReportsAndBoundaries() {
     "queue item to local write proposal flow",
     "deterministic payload builder",
     "no accepted Augnes memory",
+    "Local Write Proposal Review Checklist",
+    PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+  ]);
+  assertIncludesAll(checklistReportText, [
+    "# Perspective Memory Local Write Proposal Review Checklist Report",
+    checklistHelperFile,
+    "source proposal state tracking",
   ]);
   assertIncludesAll(browserReportText, [
     "Perspective Memory Local Review Queue Browser Validation",
@@ -640,11 +726,14 @@ function assertDocsReportsAndBoundaries() {
     "Keep for later works",
     "Remove from queue works",
     "Clear queue works",
+    "checklist panel visible",
+    "ready_for_memory_write_now false visible",
   ]);
 
   for (const [file, source] of Object.entries({
     [helperFile]: helperText,
     [writeProposalHelperFile]: writeProposalHelperText,
+    [checklistHelperFile]: checklistHelperText,
     [routeFile]: routeText,
     [componentFile]: componentText,
     [operatorComponentFile]: operatorComponentText,

@@ -2,21 +2,25 @@
 
 ## Summary
 
-This PR follows PR #533 by turning a selected local memory review queue item into a visible local write proposal. The queue item to local write proposal flow lets a user inspect the proposed memory payload, included and excluded fields, risks, unresolved tensions, source refs/hashes, and authority boundary before any persistence decision.
+This report now covers the local write proposal after PR #534 and the follow-on Local Write Proposal Review Checklist. PR #534 turned a selected local memory review queue item into a visible local write proposal. This PR keeps the queue item to local write proposal flow visible and adds the checklist gate that lets a user inspect proposal readiness before any future persistence decision.
 
 The proposal is still local-only. It creates no accepted Augnes memory, no review decision, no product DB persistence, no Core decision, no runtime handoff, no provider/model/Codex/GitHub call, and no automatic promotion.
 
 ## Changed Files
 
 - `lib/perspective-ingest/perspective-memory-local-write-proposal.ts`
+- `lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist.ts`
 - `app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.tsx`
 - `app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.module.css`
 - `scripts/smoke-perspective-memory-local-write-proposal.mjs`
+- `scripts/smoke-perspective-memory-local-write-proposal-review-checklist.mjs`
 - `scripts/smoke-perspective-memory-local-review-queue.mjs`
 - `scripts/browser-smoke-perspective-memory-local-review-queue.mjs`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_V0_1.md`
+- `docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_V0_1.md`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_V0_1.md`
 - `reports/2026-06-13-perspective-memory-local-write-proposal.md`
+- `reports/2026-06-13-perspective-memory-local-write-proposal-review-checklist.md`
 - `reports/2026-06-13-perspective-memory-local-review-queue.md`
 - `reports/browser/2026-06-13-perspective-memory-local-review-queue.md`
 - `package.json`
@@ -37,16 +41,24 @@ The local queue route now renders a `Local Memory Write Proposal` panel. Users c
 
 The UI keeps `can_create_memory_write=false` visible on the source queue item. It does not expose an enabled write, commit, accept, or promote action.
 
+## Local Write Proposal Review Checklist
+
+The selected proposal now has a `Local Write Proposal Review Checklist` panel backed by `augnes.perspectiveMemory.localWriteProposalReviewChecklists.v0.1`. The checklist stores bounded gate statuses, source proposal state, source queue item state, readiness summary, and bounded local notes.
+
+The checklist has required gates for source refs, validation result, proposed payload, raw material exclusion, authority boundary, risk notes, unresolved tensions, carry-forward questions, source state, and final user intent. `pass_follow_up_caveat_reviewed` is required for `PASS with follow-up`; `supersede_impact_reviewed` is required for supersede proposals.
+
+Readiness can show `locally_ready_for_product_persistence_review` only when all required gates pass and source state remains acceptable. `ready_for_memory_write_now` remains false.
+
 ## Persistence Boundary
 
-Write proposals persist only in localStorage. The proposal record stores bounded refs, hashes, counts, deterministic preview-derived payload fields, diff summaries, status metadata, and authority boundary flags.
+Write proposals and review checklists persist only in localStorage. The proposal record stores bounded refs, hashes, counts, deterministic preview-derived payload fields, diff summaries, status metadata, and authority boundary flags. The checklist record stores bounded source refs, source proposal hash, gate statuses, bounded notes, readiness summary, and authority boundary flags.
 
 It does not persist raw returned envelope text, raw prompt text, raw source packet, raw candidate payload, private/provider/token/browser material, hidden reasoning, raw diffs, or raw review payloads.
 
 ## Browser Validation
 
-Browser validation covers the operator route and queue route. The operator route creates and queues a PASS local candidate draft. The queue route loads the queue item, shows proposal eligibility, creates a local memory write proposal, displays proposal id/status, renders the proposed memory payload, shows `should_write_to_memory_now=false`, renders the proposal diff summary and authority boundary, updates proposal statuses, clears selected/all proposals, restores proposals after refresh, and shows missing/removed source queue item caveats.
+Browser validation covers the operator route and queue route. The operator route creates and queues a PASS local candidate draft. The queue route loads the queue item, creates a local memory write proposal, creates a local review checklist, checks required gates, shows `locally_ready_for_product_persistence_review`, keeps `ready_for_memory_write_now=false`, restores checklist state after refresh, and shows source-state caveats.
 
 ## Next Recommended PR
 
-Add a local memory write proposal review checklist with explicit user gates for product persistence readiness. Product persistence should remain out of scope until the product decision is ready.
+Implement a minimal product persistence boundary for locally-ready write proposals behind explicit user confirmation if the product decision is ready. If not, add a local export/review packet for locally-ready proposals.
