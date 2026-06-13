@@ -5,6 +5,7 @@ This follows PR #537. Boundary records made locally-ready write proposals durabl
 Route:
 - `/cockpit/perspective/memory-items`
 - `/cockpit/perspective/memory-items/search`
+- `/cockpit/perspective/memory-items/review`
 
 API:
 - `GET /api/perspective/memory/items`
@@ -104,6 +105,14 @@ The search route is a retrieval-only surface for persisted perspective-memory it
 
 The search route does not expose status mutation controls, item creation controls, boundary creation controls, Core controls, runtime controls, provider/model controls, Codex SDK controls, GitHub mutation controls, state entry controls, or deployment controls. It uses no vector search and no embeddings.
 
+## Read-Only Review Workspace
+
+The dashboard links to `/cockpit/perspective/memory-items/review` with the label `Review selected perspective-memory items`.
+
+The review workspace is packet-first. It selects persisted perspective-memory items and renders a deterministic `perspective_memory_item_review_packet.v0.1` with `status_counts`, `validation_result_counts`, source/evidence refs, risk_notes, unresolved_tensions, carry_forward_questions, relationship_summary, review_guidance, and a read-only authority boundary.
+
+The review workspace does not persist selections or packets, does not expose item mutation or creation controls, and does not perform provider/model synthesis, Core promotion, runtime injection, vector search, or embeddings.
+
 ## Browser Validation
 
 Browser validation covers operator flow creation, local queue proposal/checklist readiness, boundary record creation, item creation from the boundary inbox, and the dedicated memory items dashboard. The validation uses an isolated `AUGNES_DB_PATH` and confirms refresh persistence through API/SQLite.
@@ -114,4 +123,4 @@ This PR does not implement Core-facing promotion, Core memory, runtime prompt in
 
 ## Recommended Next PR
 
-Add a read-only synthesis/review surface that consumes selected persisted perspective-memory items, or add saved local search views if repeated retrieval workflows become common. Only design Core-facing promotion after a separate explicit product decision.
+Add saved local review workspaces if repeated manual review sessions become common, or add a persisted review packet table only after an explicit product decision. Only design Core-facing promotion after a separate explicit product decision.

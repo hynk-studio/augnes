@@ -42,6 +42,7 @@ Persistence backend marker: `sqlite:lib/db.ts`.
 - search route has no create memory item controls
 - search route has no enabled Core/runtime/provider/GitHub controls
 - refresh preserves persisted item results through API/SQLite
+- link to review workspace visible at `/cockpit/perspective/memory-items/review`
 - 390px viewport had no horizontal overflow
 - 768px viewport had no horizontal overflow
 - desktop viewport had no horizontal overflow
@@ -58,3 +59,5 @@ Persistence backend marker: `sqlite:lib/db.ts`.
 ## Boundary
 
 The search route is read-only retrieval. It does not expose enabled item status mutation, create memory item, create boundary record, Write to memory, Commit memory, Send to Core, Create Core decision, Auto inject runtime, runtime injection, Auto promote, provider/model enrich, GitHub mutation, Commit state entry, Deploy, runtime handoff, vector search, or embeddings behavior.
+
+Search results can link selected persisted perspective-memory items into the read-only review packet workspace. That link only preselects item ids and does not create review packet persistence, Core decisions, runtime injection, provider/model synthesis, or GitHub mutation.

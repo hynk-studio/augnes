@@ -5,6 +5,7 @@ This follows PR #538. Augnes can now create persisted perspective-memory items f
 Routes:
 - `/cockpit/perspective/memory-items`
 - `/cockpit/perspective/memory-items/search`
+- `/cockpit/perspective/memory-items/review`
 
 API:
 - `GET /api/perspective/memory/items`
@@ -18,6 +19,8 @@ Persistence backend:
 The memory items dashboard remains the status-management surface for persisted perspective-memory items. It can update `item_status` only.
 
 The search route is read-only. It exposes search, clear search, filters, reload, result selection, selected detail, source boundary trace, content preview, availability flags, and authority boundary. It does not expose status mutation controls, item creation controls, boundary creation controls, Core controls, runtime controls, provider/model controls, Codex SDK controls, GitHub mutation controls, state entry controls, or deployment controls.
+
+The search route links to `/cockpit/perspective/memory-items/review` with `Open review workspace`, and selected results can be opened in review with `Review this item`. These links only preselect items for deterministic packet review; they do not mutate or persist anything.
 
 ## Search Fields
 
@@ -97,7 +100,7 @@ This PR does not implement saved searches, synthesis, Core-facing promotion, Cor
 
 ## Next Recommended PR
 
-After this PR:
-1. Add a read-only synthesis/review surface that consumes selected persisted perspective-memory items.
-2. Or add saved local search views if users need repeated retrieval workflows.
+After the review-workspace PR:
+1. Add saved local review workspaces if users need repeated manual review sessions.
+2. Or add a persisted review packet table only if product decision is explicit.
 3. Do not implement Core-facing promotion unless separately and explicitly decided.

@@ -15,6 +15,9 @@ import {
   type PerspectiveMemoryItemSearchMetadataV0,
   type PerspectiveMemoryItemSearchResultSummaryV0,
 } from "@/lib/perspective-ingest/perspective-memory-item-search";
+import {
+  PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE,
+} from "@/lib/perspective-ingest/perspective-memory-item-review-workspace";
 import styles from "./perspective-memory-item-search-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
@@ -173,6 +176,13 @@ export function PerspectiveMemoryItemSearchSurface() {
             data-augnes-memory-items-search-dashboard-link="true"
           >
             Back to memory items dashboard
+          </Link>
+          <Link
+            className={styles.linkButton}
+            href={PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE}
+            data-augnes-memory-items-search-review-workspace-link="true"
+          >
+            Open review workspace
           </Link>
           <Link
             className={styles.linkButton}
@@ -454,6 +464,15 @@ function PerspectiveMemoryItemSearchDetail({
         title="Persisted Perspective-Memory Item Detail"
         detail={item.item_version}
       />
+      <Link
+        className={styles.linkButton}
+        href={`${PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE}?item_ids=${encodeURIComponent(
+          item.item_id,
+        )}`}
+        data-augnes-memory-items-search-review-this-item-link="true"
+      >
+        Review this item
+      </Link>
       <p className={styles.boundaryText}>
         Selected result id: {item.item_id}. This view is inspectable and
         read-only; item status, creation, Core, runtime, provider/model, and

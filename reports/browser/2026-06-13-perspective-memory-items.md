@@ -44,6 +44,7 @@ Persistence backend marker: `sqlite:lib/db.ts`.
 - link back to local queue route visible
 - link to operator flow visible
 - link to read-only search route visible at `/cockpit/perspective/memory-items/search`
+- link to review workspace visible at `/cockpit/perspective/memory-items/review` as a read-only review packet workspace
 - 390px viewport had no horizontal overflow
 - 768px viewport had no horizontal overflow
 - desktop viewport had no horizontal overflow
@@ -56,5 +57,7 @@ Persistence backend marker: `sqlite:lib/db.ts`.
 ## Boundary
 
 The dashboard shows persisted perspective-memory items as product-level durable memory items. It does not expose enabled Send to Core, Create Core decision, Auto inject into runtime, Auto promote, Provider/model enrich, GitHub mutation, Commit state entry, Deploy, runtime handoff, or automatic promotion controls.
+
+The dashboard links to the read-only review packet workspace without adding review packet writes or Core/runtime/provider/GitHub behavior.
 
 The item remains not automatic promotion and not automatic runtime injection.
