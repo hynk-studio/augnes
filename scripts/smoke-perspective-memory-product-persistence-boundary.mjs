@@ -21,6 +21,16 @@ const apiRecordRouteFile =
   "app/api/perspective/memory/product-persistence-boundary/records/[recordId]/route.ts";
 const queueSurfaceFile =
   "app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.tsx";
+const inboxRouteFile =
+  "app/cockpit/perspective/memory-boundary-review-inbox/page.tsx";
+const inboxComponentFile =
+  "app/cockpit/perspective/memory-boundary-review-inbox/memory-boundary-review-inbox-surface.tsx";
+const inboxDocFile =
+  "docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_REVIEW_INBOX_V0_1.md";
+const inboxReportFile =
+  "reports/2026-06-13-perspective-memory-boundary-review-inbox.md";
+const inboxBrowserReportFile =
+  "reports/browser/2026-06-13-perspective-memory-boundary-review-inbox.md";
 const docFile =
   "docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_V0_1.md";
 const checklistDocFile =
@@ -38,6 +48,10 @@ const schemaText = readFileSync(schemaFile, "utf8");
 const apiRouteText = readFileSync(apiRouteFile, "utf8");
 const apiRecordRouteText = readFileSync(apiRecordRouteFile, "utf8");
 const queueSurfaceText = readFileSync(queueSurfaceFile, "utf8");
+const inboxComponentText = readFileSync(inboxComponentFile, "utf8");
+const inboxDocText = readFileSync(inboxDocFile, "utf8");
+const inboxReportText = readFileSync(inboxReportFile, "utf8");
+const inboxBrowserReportText = readFileSync(inboxBrowserReportFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const checklistDocText = readFileSync(checklistDocFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
@@ -90,6 +104,11 @@ function assertStaticFiles() {
     apiRouteFile,
     apiRecordRouteFile,
     queueSurfaceFile,
+    inboxRouteFile,
+    inboxComponentFile,
+    inboxDocFile,
+    inboxReportFile,
+    inboxBrowserReportFile,
     docFile,
     checklistDocFile,
     reportFile,
@@ -111,6 +130,7 @@ function assertStaticFiles() {
     "can_create_core_decision: false",
     "can_auto_promote: false",
     "buildPerspectiveMemoryProductPersistenceBoundaryRecord",
+    "/cockpit/perspective/memory-boundary-review-inbox",
   ]);
   assertIncludesAll(storeText, [
     "openDatabase",
@@ -146,9 +166,18 @@ function assertStaticFiles() {
     "data-augnes-confirm-not-core-decision",
     "data-augnes-confirm-no-automatic-promotion",
     "data-augnes-product-persistence-boundary-record-list",
+    "Open persisted boundary review inbox",
+    "data-augnes-open-boundary-review-inbox",
     "can_create_accepted_memory",
     "can_create_core_decision",
     "can_auto_promote",
+  ]);
+  assertIncludesAll(inboxComponentText, [
+    "Boundary Review Inbox",
+    "PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE",
+    "sqlite:lib/db.ts",
+    "data-augnes-boundary-inbox-record-list",
+    "data-augnes-boundary-inbox-record-detail",
   ]);
 }
 
@@ -330,6 +359,7 @@ function assertDocsReportsAndBoundaries() {
     "server-side validation",
     PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_RECORD_VERSION,
     PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_RECORD_LIST_VERSION,
+    "/cockpit/perspective/memory-boundary-review-inbox",
   ]);
   assertIncludesAll(checklistDocText, [
     "Product Persistence Boundary",
@@ -341,6 +371,7 @@ function assertDocsReportsAndBoundaries() {
     "persistence backend chosen",
     "server-side validation",
     "browser validation",
+    "persisted boundary record review inbox",
   ]);
   assertIncludesAll(browserReportText, [
     "product persistence boundary panel visible",
@@ -348,7 +379,15 @@ function assertDocsReportsAndBoundaries() {
     "persisted record id visible",
     "refresh still shows boundary record",
     "can_create_accepted_memory false visible",
+    "Open persisted boundary review inbox visible",
     "no provider/model/Codex SDK/GitHub/network behavior except same-origin app/API routes",
+  ]);
+  assertIncludesAll(inboxDocText + inboxReportText + inboxBrowserReportText, [
+    "/cockpit/perspective/memory-boundary-review-inbox",
+    "sqlite:lib/db.ts",
+    "proposed_memory_payload",
+    "checklist_gate_summary",
+    "not accepted Augnes memory",
   ]);
   for (const [file, text] of Object.entries({
     [modelFile]: modelText,

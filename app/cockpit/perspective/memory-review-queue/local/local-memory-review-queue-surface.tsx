@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./local-memory-review-queue-surface.module.css";
 import {
@@ -62,6 +63,7 @@ import {
   type PerspectiveMemoryLocalWriteProposalReviewChecklistV0,
 } from "@/lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist";
 import {
+  PERSPECTIVE_MEMORY_BOUNDARY_REVIEW_INBOX_ROUTE,
   PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE,
   canBuildPerspectiveMemoryProductPersistenceBoundaryRecord,
   createEmptyPerspectiveMemoryProductPersistenceBoundaryRecordList,
@@ -2150,6 +2152,13 @@ function ProductPersistenceBoundaryPanel({
         >
           Reload persisted boundary records
         </button>
+        <Link
+          className={styles.linkButton}
+          href={PERSPECTIVE_MEMORY_BOUNDARY_REVIEW_INBOX_ROUTE}
+          data-augnes-open-boundary-review-inbox="true"
+        >
+          Open persisted boundary review inbox
+        </Link>
       </div>
 
       <section

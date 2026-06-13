@@ -56,10 +56,16 @@ The local memory review queue route adds a Product Persistence Boundary panel. T
 
 The UI shows `can_create_accepted_memory=false`, `can_create_core_decision=false`, and `can_auto_promote=false`.
 
+Persisted records are also visible in the dedicated persisted boundary review inbox:
+
+`/cockpit/perspective/memory-boundary-review-inbox`
+
+The inbox uses the same GET/PATCH boundary API and the same `sqlite:lib/db.ts` backend, but it focuses on cross-session review of persisted product persistence boundary records outside the browser-local queue workflow.
+
 ## Out Of Scope
 
 Accepted memory writes, Core decisions, review decision records, provider/model calls, Codex SDK calls, GitHub mutation, runtime handoff, and automatic promotion remain out of scope.
 
 ## Next
 
-Add a minimal persisted boundary record review inbox/dashboard if records need cross-session visibility outside the queue route. Implement actual accepted memory writes only after an explicit product decision.
+Use the persisted boundary review inbox for cross-session boundary record review. Implement actual accepted memory writes only after an explicit product decision.

@@ -26,6 +26,8 @@ The persisted record stores bounded refs, hashes, proposed memory payload previe
 
 The record can move through local boundary review statuses: `locally_reviewing_boundary_record`, `kept_for_later`, and `retracted_before_memory_write`.
 
+The persisted boundary record review inbox at `/cockpit/perspective/memory-boundary-review-inbox` now provides the dedicated product-facing cross-session view for these SQLite records outside the local queue route.
+
 ## server-side validation
 
 The POST API at `/api/perspective/memory/product-persistence-boundary/records` safe-parses the submitted checklist, proposal, and queue item before writing. It rejects malformed or ineligible input with BLOCKED-style JSON and `blocked_reasons`.
@@ -44,4 +46,4 @@ This PR does not create accepted Augnes memory, product memory writes, review de
 
 ## Next Recommended PR
 
-Add a minimal persisted boundary record review inbox/dashboard if records need visibility outside the queue route. Implement actual accepted memory writes only after an explicit product decision and review of the boundary record model.
+Use the persisted boundary review inbox for cross-session boundary record review. Implement actual accepted memory writes only after an explicit product decision and review of the boundary record model.

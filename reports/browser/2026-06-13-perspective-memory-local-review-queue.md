@@ -48,6 +48,7 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - boundary status update to locally_reviewing_boundary_record works
 - boundary status update to kept_for_later works
 - boundary status update to retracted_before_memory_write works
+- Open persisted boundary review inbox visible
 - unchecking one required gate returns to in_review
 - PASS with follow-up proposal requires pass_follow_up_caveat_reviewed
 - source queue item removal makes checklist blocked or source state caveat visible
@@ -104,6 +105,7 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - The boundary detail showed `proposed_memory_payload`, `checklist_gate_summary`, `user_confirmation`, authority boundary, `can_create_accepted_memory=false`, `can_create_core_decision=false`, and `can_auto_promote=false`.
 - Refresh restored the persisted boundary record through the same-origin API.
 - Boundary status updates worked for `locally_reviewing_boundary_record`, `kept_for_later`, and `retracted_before_memory_write`.
+- The Product Persistence Boundary panel showed `Open persisted boundary review inbox` pointing to `/cockpit/perspective/memory-boundary-review-inbox`.
 - Unchecking one required gate returned the checklist to `in_review`.
 - A PASS with follow-up proposal required `pass_follow_up_caveat_reviewed`.
 - Removing the source queue item made the checklist show a blocked readiness/source state caveat.
