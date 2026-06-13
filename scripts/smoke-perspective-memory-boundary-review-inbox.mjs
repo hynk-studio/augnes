@@ -16,10 +16,16 @@ const apiRecordRouteFile =
   "app/api/perspective/memory/product-persistence-boundary/records/[recordId]/route.ts";
 const localQueueSurfaceFile =
   "app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.tsx";
+const memoryItemsRouteFile = "app/cockpit/perspective/memory-items/page.tsx";
+const memoryItemsComponentFile =
+  "app/cockpit/perspective/memory-items/perspective-memory-items-surface.tsx";
+const memoryItemsApiRouteFile =
+  "app/api/perspective/memory/items/route.ts";
 const docFile =
   "docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_REVIEW_INBOX_V0_1.md";
 const boundaryDocFile =
   "docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_V0_1.md";
+const memoryItemsDocFile = "docs/PERSPECTIVE_MEMORY_ITEMS_V0_1.md";
 const reportFile =
   "reports/2026-06-13-perspective-memory-boundary-review-inbox.md";
 const browserReportFile =
@@ -35,8 +41,11 @@ const modelText = readFileSync(boundaryModelFile, "utf8");
 const apiRouteText = readFileSync(apiRouteFile, "utf8");
 const apiRecordRouteText = readFileSync(apiRecordRouteFile, "utf8");
 const localQueueSurfaceText = readFileSync(localQueueSurfaceFile, "utf8");
+const memoryItemsComponentText = readFileSync(memoryItemsComponentFile, "utf8");
+const memoryItemsApiRouteText = readFileSync(memoryItemsApiRouteFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const boundaryDocText = readFileSync(boundaryDocFile, "utf8");
+const memoryItemsDocText = readFileSync(memoryItemsDocFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
 const browserReportText = readFileSync(browserReportFile, "utf8");
 
@@ -56,8 +65,12 @@ function assertFilesAndScripts() {
     apiRouteFile,
     apiRecordRouteFile,
     localQueueSurfaceFile,
+    memoryItemsRouteFile,
+    memoryItemsComponentFile,
+    memoryItemsApiRouteFile,
     docFile,
     boundaryDocFile,
+    memoryItemsDocFile,
     reportFile,
     browserReportFile,
     browserSmokeFile,
@@ -124,6 +137,15 @@ function assertRouteSurface() {
     "PASS with follow-up",
     "has warnings",
     "retracted or kept",
+    "Perspective Memory Item",
+    "Create persisted perspective-memory item",
+    "data-augnes-perspective-memory-item-panel",
+    "data-augnes-create-perspective-memory-item",
+    "data-augnes-memory-item-confirm-create",
+    "data-augnes-memory-item-confirm-not-core-decision",
+    "data-augnes-memory-item-confirm-no-runtime-injection",
+    "data-augnes-memory-item-confirm-source-preserved",
+    "data-augnes-open-perspective-memory-items-dashboard",
   ]);
   assertIncludesAll(cssText, [
     ".shell",
@@ -142,6 +164,15 @@ function assertRouteSurface() {
   ]);
   assertIncludesAll(apiRouteText, ["GET", "POST", "listPerspectiveMemoryProductPersistenceBoundaryRecords"]);
   assertIncludesAll(apiRecordRouteText, ["PATCH", "boundary_status"]);
+  assertIncludesAll(memoryItemsApiRouteText, [
+    "PERSPECTIVE_MEMORY_ITEM_API_ROUTE",
+    "source_boundary_record_id",
+    "user_confirmed_create_persisted_perspective_memory_item",
+  ]);
+  assertIncludesAll(memoryItemsComponentText, [
+    "Perspective-Memory Items",
+    "data-augnes-perspective-memory-items-dashboard",
+  ]);
 }
 
 function assertDocsReports() {
@@ -158,11 +189,19 @@ function assertDocsReports() {
       "not product memory write",
       "not Core decision",
       "not automatic promotion",
+      "perspective-memory item",
+      "/cockpit/perspective/memory-items",
     ]);
   }
   assertIncludesAll(boundaryDocText, [
     "persisted boundary review inbox",
     "/cockpit/perspective/memory-boundary-review-inbox",
+    "/cockpit/perspective/memory-items",
+  ]);
+  assertIncludesAll(memoryItemsDocText, [
+    "perspective-memory item",
+    "source_boundary_record_id",
+    "sqlite:lib/db.ts",
   ]);
 }
 

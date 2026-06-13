@@ -25,6 +25,9 @@ const inboxRouteFile =
   "app/cockpit/perspective/memory-boundary-review-inbox/page.tsx";
 const inboxComponentFile =
   "app/cockpit/perspective/memory-boundary-review-inbox/memory-boundary-review-inbox-surface.tsx";
+const memoryItemsRouteFile = "app/cockpit/perspective/memory-items/page.tsx";
+const memoryItemsApiRouteFile = "app/api/perspective/memory/items/route.ts";
+const memoryItemsDocFile = "docs/PERSPECTIVE_MEMORY_ITEMS_V0_1.md";
 const inboxDocFile =
   "docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_REVIEW_INBOX_V0_1.md";
 const inboxReportFile =
@@ -49,6 +52,8 @@ const apiRouteText = readFileSync(apiRouteFile, "utf8");
 const apiRecordRouteText = readFileSync(apiRecordRouteFile, "utf8");
 const queueSurfaceText = readFileSync(queueSurfaceFile, "utf8");
 const inboxComponentText = readFileSync(inboxComponentFile, "utf8");
+const memoryItemsApiRouteText = readFileSync(memoryItemsApiRouteFile, "utf8");
+const memoryItemsDocText = readFileSync(memoryItemsDocFile, "utf8");
 const inboxDocText = readFileSync(inboxDocFile, "utf8");
 const inboxReportText = readFileSync(inboxReportFile, "utf8");
 const inboxBrowserReportText = readFileSync(inboxBrowserReportFile, "utf8");
@@ -106,6 +111,9 @@ function assertStaticFiles() {
     queueSurfaceFile,
     inboxRouteFile,
     inboxComponentFile,
+    memoryItemsRouteFile,
+    memoryItemsApiRouteFile,
+    memoryItemsDocFile,
     inboxDocFile,
     inboxReportFile,
     inboxBrowserReportFile,
@@ -178,6 +186,20 @@ function assertStaticFiles() {
     "sqlite:lib/db.ts",
     "data-augnes-boundary-inbox-record-list",
     "data-augnes-boundary-inbox-record-detail",
+    "Perspective Memory Item",
+    "Create persisted perspective-memory item",
+    "data-augnes-open-perspective-memory-items-dashboard",
+  ]);
+  assertIncludesAll(memoryItemsApiRouteText, [
+    "PERSPECTIVE_MEMORY_ITEM_API_ROUTE",
+    "source_boundary_record_id",
+    "user_confirmed_not_core_decision",
+    "user_confirmed_no_automatic_runtime_injection",
+  ]);
+  assertIncludesAll(memoryItemsDocText, [
+    "perspective-memory item",
+    "Core decision",
+    "not automatic runtime injection",
   ]);
 }
 

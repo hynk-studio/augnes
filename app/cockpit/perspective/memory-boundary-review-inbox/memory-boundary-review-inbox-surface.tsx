@@ -9,12 +9,33 @@ import {
   type PerspectiveMemoryProductPersistenceBoundaryRecordV0,
   type PerspectiveMemoryProductPersistenceBoundaryStatus,
 } from "@/lib/perspective-ingest/perspective-memory-product-persistence-boundary";
+import {
+  PERSPECTIVE_MEMORY_ITEM_API_ROUTE,
+  PERSPECTIVE_MEMORY_ITEMS_ROUTE,
+  canBuildPerspectiveMemoryItemFromBoundaryRecord,
+  createEmptyPerspectiveMemoryItemList,
+  type PerspectiveMemoryItemListV0,
+  type PerspectiveMemoryItemUserConfirmation,
+  type PerspectiveMemoryItemV0,
+} from "@/lib/perspective-ingest/perspective-memory-item";
 import styles from "./memory-boundary-review-inbox-surface.module.css";
 
 const LOCAL_MEMORY_REVIEW_QUEUE_ROUTE =
   "/cockpit/perspective/memory-review-queue/local";
 const OPERATOR_FLOW_ROUTE =
   "/cockpit/perspective/codex-former/local-adapter-operator-flow";
+const allItemConfirmations: Required<PerspectiveMemoryItemUserConfirmation> = {
+  user_confirmed_create_persisted_perspective_memory_item: true,
+  user_confirmed_not_core_decision: true,
+  user_confirmed_no_automatic_runtime_injection: true,
+  user_confirmed_source_boundary_record_preserved: true,
+};
+const emptyItemConfirmations: PerspectiveMemoryItemUserConfirmation = {
+  user_confirmed_create_persisted_perspective_memory_item: false,
+  user_confirmed_not_core_decision: false,
+  user_confirmed_no_automatic_runtime_injection: false,
+  user_confirmed_source_boundary_record_preserved: false,
+};
 
 const filters = [
   "all",
@@ -37,6 +58,9 @@ const emptyRecordList: PerspectiveMemoryProductPersistenceBoundaryRecordListV0 =
   records: [],
 };
 
+const emptyItemList: PerspectiveMemoryItemListV0 =
+  createEmptyPerspectiveMemoryItemList("not_loaded");
+
 export function MemoryBoundaryReviewInboxSurface() {
   const [recordList, setRecordList] =
     useState<PerspectiveMemoryProductPersistenceBoundaryRecordListV0>(
@@ -46,10 +70,20 @@ export function MemoryBoundaryReviewInboxSurface() {
   const [activeFilter, setActiveFilter] =
     useState<BoundaryInboxFilter>("all");
   const [loadStatus, setLoadStatus] = useState("records not loaded");
+  const [itemList, setItemList] =
+    useState<PerspectiveMemoryItemListV0>(emptyItemList);
+  const [itemStatus, setItemStatus] = useState("memory items not loaded");
+  const [itemConfirmations, setItemConfirmations] =
+    useState<PerspectiveMemoryItemUserConfirmation>(emptyItemConfirmations);
 
   useEffect(() => {
     void loadRecords();
+    void loadItems();
   }, []);
+
+  useEffect(() => {
+    setItemConfirmations(emptyItemConfirmations);
+  }, [selectedRecordId]);
 
   const filteredRecords = useMemo(
     () => recordList.records.filter((record) => filterRecord(activeFilter, record)),
@@ -62,6 +96,20 @@ export function MemoryBoundaryReviewInboxSurface() {
     filteredRecords[0] ??
     recordList.records[0] ??
     null;
+  const selectedRecordItem = selectedRecord
+    ? itemList.items.find(
+        (item) => item.source_boundary_record_id === selectedRecord.record_id,
+      ) ?? null
+    : null;
+  const itemEligibility = selectedRecord
+    ? canBuildPerspectiveMemoryItemFromBoundaryRecord({
+        boundaryRecord: selectedRecord,
+        userConfirmation: allItemConfirmations,
+      })
+    : {
+        eligible: false,
+        blocked_reasons: ["select a persisted boundary record"],
+      };
 
   async function loadRecords() {
     setLoadStatus("loading persisted boundary records");
@@ -99,6 +147,83 @@ export function MemoryBoundaryReviewInboxSurface() {
         }`,
       );
     }
+  }
+
+  async function loadItems() {
+    setItemStatus("loading persisted perspective-memory items");
+    try {
+      const response = await fetch(`${PERSPECTIVE_MEMORY_ITEM_API_ROUTE}?limit=100`, {
+        method: "GET",
+      });
+      const body = await response.json();
+      if (!response.ok || body?.ok !== true) {
+        const reasons = Array.isArray(body?.blocked_reasons)
+          ? body.blocked_reasons.join("; ")
+          : response.statusText;
+        setItemStatus(`memory item load blocked: ${reasons}`);
+        return;
+      }
+      const nextList = body.result as PerspectiveMemoryItemListV0;
+      setItemList(nextList);
+      setItemStatus(
+        nextList.items.length > 0
+          ? "persisted perspective-memory items loaded from sqlite"
+          : "no persisted perspective-memory items",
+      );
+    } catch (error) {
+      setItemStatus(
+        `memory item load failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  async function createMemoryItem() {
+    if (!selectedRecord) {
+      setItemStatus("select a boundary record before creating a memory item");
+      return;
+    }
+    setItemStatus("creating persisted perspective-memory item");
+    try {
+      const response = await fetch(PERSPECTIVE_MEMORY_ITEM_API_ROUTE, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          source_boundary_record_id: selectedRecord.record_id,
+          user_confirmation: itemConfirmations,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok || body?.ok !== true) {
+        const reasons = Array.isArray(body?.blocked_reasons)
+          ? body.blocked_reasons.join("; ")
+          : response.statusText;
+        setItemStatus(`memory item creation blocked: ${reasons}`);
+        return;
+      }
+      await loadItems();
+      const created = body.created === true ? "created" : "already existed";
+      setItemStatus(
+        `persisted perspective-memory item ${created}: ${body.result.item.item_id}`,
+      );
+    } catch (error) {
+      setItemStatus(
+        `memory item creation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  function updateItemConfirmation(
+    key: keyof PerspectiveMemoryItemUserConfirmation,
+    value: boolean,
+  ) {
+    setItemConfirmations((current) => ({
+      ...current,
+      [key]: value,
+    }));
   }
 
   async function updateBoundaryStatus(
@@ -201,6 +326,9 @@ export function MemoryBoundaryReviewInboxSurface() {
           <StatusCell label="active_filter" value={activeFilter} />
           <StatusCell label="selected_record_id" value={selectedRecord?.record_id ?? "none"} />
           <StatusCell label="load_status" value={loadStatus} />
+          <StatusCell label="memory_item_api_route" value={PERSPECTIVE_MEMORY_ITEM_API_ROUTE} />
+          <StatusCell label="total_item_count" value={String(itemList.items.length)} />
+          <StatusCell label="selected_record_item_id" value={selectedRecordItem?.item_id ?? "none"} />
         </section>
 
         <section className={styles.grid}>
@@ -311,6 +439,14 @@ export function MemoryBoundaryReviewInboxSurface() {
           <BoundaryRecordDetail
             record={selectedRecord}
             onUpdateBoundaryStatus={(status) => void updateBoundaryStatus(status)}
+            itemForRecord={selectedRecordItem}
+            itemList={itemList}
+            itemEligibility={itemEligibility}
+            itemStatus={itemStatus}
+            itemConfirmations={itemConfirmations}
+            onItemConfirmationChange={updateItemConfirmation}
+            onCreateMemoryItem={() => void createMemoryItem()}
+            onReloadMemoryItems={() => void loadItems()}
           />
         </section>
       </section>
@@ -321,11 +457,30 @@ export function MemoryBoundaryReviewInboxSurface() {
 function BoundaryRecordDetail({
   record,
   onUpdateBoundaryStatus,
+  itemForRecord,
+  itemList,
+  itemEligibility,
+  itemStatus,
+  itemConfirmations,
+  onItemConfirmationChange,
+  onCreateMemoryItem,
+  onReloadMemoryItems,
 }: {
   record: PerspectiveMemoryProductPersistenceBoundaryRecordV0 | null;
   onUpdateBoundaryStatus: (
     status: PerspectiveMemoryProductPersistenceBoundaryStatus,
   ) => void;
+  itemForRecord: PerspectiveMemoryItemV0 | null;
+  itemList: PerspectiveMemoryItemListV0;
+  itemEligibility: { eligible: boolean; blocked_reasons: string[] };
+  itemStatus: string;
+  itemConfirmations: PerspectiveMemoryItemUserConfirmation;
+  onItemConfirmationChange: (
+    key: keyof PerspectiveMemoryItemUserConfirmation,
+    value: boolean,
+  ) => void;
+  onCreateMemoryItem: () => void;
+  onReloadMemoryItems: () => void;
 }) {
   if (!record) {
     return (
@@ -343,6 +498,17 @@ function BoundaryRecordDetail({
           Persisted boundary records are loaded from the same-origin API and
           SQLite product store, not from localStorage.
         </p>
+        <PerspectiveMemoryItemPanel
+          record={null}
+          itemForRecord={null}
+          itemList={itemList}
+          itemEligibility={itemEligibility}
+          itemStatus={itemStatus}
+          itemConfirmations={itemConfirmations}
+          onItemConfirmationChange={onItemConfirmationChange}
+          onCreateMemoryItem={onCreateMemoryItem}
+          onReloadMemoryItems={onReloadMemoryItems}
+        />
       </section>
     );
   }
@@ -597,6 +763,220 @@ function BoundaryRecordDetail({
           values={record.checklist_gate_summary.blocked_gates}
         />
       </section>
+
+      <PerspectiveMemoryItemPanel
+        record={record}
+        itemForRecord={itemForRecord}
+        itemList={itemList}
+        itemEligibility={itemEligibility}
+        itemStatus={itemStatus}
+        itemConfirmations={itemConfirmations}
+        onItemConfirmationChange={onItemConfirmationChange}
+        onCreateMemoryItem={onCreateMemoryItem}
+        onReloadMemoryItems={onReloadMemoryItems}
+      />
+    </section>
+  );
+}
+
+function PerspectiveMemoryItemPanel({
+  record,
+  itemForRecord,
+  itemList,
+  itemEligibility,
+  itemStatus,
+  itemConfirmations,
+  onItemConfirmationChange,
+  onCreateMemoryItem,
+  onReloadMemoryItems,
+}: {
+  record: PerspectiveMemoryProductPersistenceBoundaryRecordV0 | null;
+  itemForRecord: PerspectiveMemoryItemV0 | null;
+  itemList: PerspectiveMemoryItemListV0;
+  itemEligibility: { eligible: boolean; blocked_reasons: string[] };
+  itemStatus: string;
+  itemConfirmations: PerspectiveMemoryItemUserConfirmation;
+  onItemConfirmationChange: (
+    key: keyof PerspectiveMemoryItemUserConfirmation,
+    value: boolean,
+  ) => void;
+  onCreateMemoryItem: () => void;
+  onReloadMemoryItems: () => void;
+}) {
+  const confirmationsComplete =
+    itemConfirmations.user_confirmed_create_persisted_perspective_memory_item ===
+      true &&
+    itemConfirmations.user_confirmed_not_core_decision === true &&
+    itemConfirmations.user_confirmed_no_automatic_runtime_injection === true &&
+    itemConfirmations.user_confirmed_source_boundary_record_preserved === true;
+  const canCreate =
+    record != null &&
+    itemForRecord == null &&
+    itemEligibility.eligible &&
+    confirmationsComplete;
+  return (
+    <section
+      className={styles.preview}
+      aria-label="Perspective memory item creation"
+      data-augnes-perspective-memory-item-panel="true"
+    >
+      <PanelHeader
+        eyebrow="Perspective Memory Item"
+        title="Create Persisted Perspective-Memory Item"
+        detail="sqlite product memory item"
+      />
+      <p className={styles.boundaryText}>
+        This creates a persisted perspective-memory item from the selected
+        product persistence boundary record. It is not a Core decision, not Core
+        memory, and not automatic runtime context injection.
+      </p>
+      <dl className={styles.detailGrid}>
+        <DetailRow label="memory_item_api_route" value={PERSPECTIVE_MEMORY_ITEM_API_ROUTE} />
+        <DetailRow label="memory_items_route" value={PERSPECTIVE_MEMORY_ITEMS_ROUTE} />
+        <DetailRow label="persistence_backend" value="sqlite:lib/db.ts" />
+        <DetailRow label="selected_boundary_record_id" value={record?.record_id ?? "none"} />
+        <DetailRow label="memory_item_eligible" value={String(itemEligibility.eligible)} />
+        <DetailRow label="selected_boundary_already_has_item" value={String(itemForRecord != null)} />
+        <DetailRow label="persisted_memory_item_count" value={String(itemList.items.length)} />
+        <DetailRow label="memory_item_status_note" value={itemStatus} />
+      </dl>
+      {!itemEligibility.eligible ? (
+        <ResultList
+          title="memory_item_blocked_reasons"
+          values={itemEligibility.blocked_reasons}
+        />
+      ) : null}
+      <section
+        className={styles.confirmationBox}
+        aria-label="Perspective memory item confirmations"
+        data-augnes-perspective-memory-item-confirmations="true"
+      >
+        <label className={styles.gateItem}>
+          <input
+            type="checkbox"
+            data-augnes-memory-item-confirm-create="true"
+            checked={
+              itemConfirmations
+                .user_confirmed_create_persisted_perspective_memory_item ===
+              true
+            }
+            onChange={(event) =>
+              onItemConfirmationChange(
+                "user_confirmed_create_persisted_perspective_memory_item",
+                event.currentTarget.checked,
+              )
+            }
+          />
+          <span>
+            I understand this creates a persisted perspective-memory item
+          </span>
+        </label>
+        <label className={styles.gateItem}>
+          <input
+            type="checkbox"
+            data-augnes-memory-item-confirm-not-core-decision="true"
+            checked={itemConfirmations.user_confirmed_not_core_decision === true}
+            onChange={(event) =>
+              onItemConfirmationChange(
+                "user_confirmed_not_core_decision",
+                event.currentTarget.checked,
+              )
+            }
+          />
+          <span>I understand this is not a Core decision</span>
+        </label>
+        <label className={styles.gateItem}>
+          <input
+            type="checkbox"
+            data-augnes-memory-item-confirm-no-runtime-injection="true"
+            checked={
+              itemConfirmations
+                .user_confirmed_no_automatic_runtime_injection === true
+            }
+            onChange={(event) =>
+              onItemConfirmationChange(
+                "user_confirmed_no_automatic_runtime_injection",
+                event.currentTarget.checked,
+              )
+            }
+          />
+          <span>
+            I understand this will not be automatically injected into runtime
+            context
+          </span>
+        </label>
+        <label className={styles.gateItem}>
+          <input
+            type="checkbox"
+            data-augnes-memory-item-confirm-source-preserved="true"
+            checked={
+              itemConfirmations
+                .user_confirmed_source_boundary_record_preserved === true
+            }
+            onChange={(event) =>
+              onItemConfirmationChange(
+                "user_confirmed_source_boundary_record_preserved",
+                event.currentTarget.checked,
+              )
+            }
+          />
+          <span>I understand the source boundary record will be preserved</span>
+        </label>
+      </section>
+      <div className={styles.buttonRow}>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-create-perspective-memory-item="true"
+          disabled={!canCreate}
+          onClick={onCreateMemoryItem}
+        >
+          Create persisted perspective-memory item
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-reload-perspective-memory-items="true"
+          onClick={onReloadMemoryItems}
+        >
+          Reload memory items
+        </button>
+        <Link
+          className={styles.linkButton}
+          href={PERSPECTIVE_MEMORY_ITEMS_ROUTE}
+          data-augnes-open-perspective-memory-items-dashboard="true"
+        >
+          Open perspective-memory items dashboard
+        </Link>
+      </div>
+
+      {itemForRecord ? (
+        <section
+          className={styles.preview}
+          aria-label="Perspective memory item summary"
+          data-augnes-perspective-memory-item-summary="true"
+        >
+          <PanelHeader
+            eyebrow="Created Item"
+            title="Persisted Perspective-Memory Item"
+            detail={itemForRecord.item_version}
+          />
+          <dl className={styles.detailGrid}>
+            <DetailRow label="item_id" value={itemForRecord.item_id} />
+            <DetailRow label="item_status" value={itemForRecord.item_status} />
+            <DetailRow label="memory_kind" value={itemForRecord.memory_kind} />
+            <DetailRow label="content_title" value={itemForRecord.content.title} />
+            <DetailRow
+              label="content_summary"
+              value={itemForRecord.content.summary}
+            />
+            <DetailRow
+              label="authority_boundary"
+              value={formatItemAuthorityBoundary(itemForRecord)}
+            />
+          </dl>
+        </section>
+      ) : null}
     </section>
   );
 }
@@ -682,6 +1062,12 @@ function formatUserConfirmation(
   record: PerspectiveMemoryProductPersistenceBoundaryRecordV0,
 ) {
   return Object.entries(record.user_confirmation)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join("; ");
+}
+
+function formatItemAuthorityBoundary(item: PerspectiveMemoryItemV0) {
+  return Object.entries(item.authority_boundary)
     .map(([key, value]) => `${key}: ${String(value)}`)
     .join("; ");
 }

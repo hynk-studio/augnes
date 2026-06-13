@@ -2,7 +2,7 @@
 
 ## Summary
 
-This PR adds a dedicated product-facing inbox for persisted perspective-memory product persistence boundary records. It follows PR #536 by making SQLite-backed boundary records visible and reviewable outside the local memory review queue route.
+This PR adds a dedicated product-facing inbox for persisted perspective-memory product persistence boundary records. It follows PR #536 by making SQLite-backed boundary records visible and reviewable outside the local memory review queue route. The inbox now also hosts the product step that creates persisted perspective-memory items from eligible reviewed boundary records.
 
 ## Why This Follows PR #536
 
@@ -31,6 +31,12 @@ Filters are available for all records, boundary status values, `PASS`, `PASS wit
 
 The detail panel surfaces source checklist/proposal/queue/candidate refs, validation hashes, source input and prepare hashes, returned envelope hash, `proposed_memory_payload`, `proposal_diff_summary`, `checklist_gate_summary`, `local_review_notes`, `user_confirmation`, `next_allowed_actions`, and `authority_boundary`.
 
+## Perspective-Memory Item Panel
+
+The inbox includes a Perspective Memory Item panel for the selected boundary record. The panel shows item eligibility, blocked reasons, existing item id/status when present, confirmation checkboxes, and the `Create persisted perspective-memory item` action. It links to `/cockpit/perspective/memory-items`.
+
+Item creation is server-side through `/api/perspective/memory/items`; the client submits only `source_boundary_record_id` and confirmation flags. The server reloads the boundary record from `sqlite:lib/db.ts` and validates it before writing the item.
+
 ## Status Transitions
 
 The inbox can update only `boundary_status` to:
@@ -51,8 +57,8 @@ Browser validation covers operator flow candidate creation, queueing, local writ
 
 ## Out Of Scope
 
-Accepted Augnes memory, product memory writes, review decisions, Core decisions, provider/model API calls, Codex SDK calls, GitHub mutation, runtime handoff, and automatic promotion remain out of scope.
+Core decisions, Core memory, review decisions, provider/model API calls, Codex SDK calls, GitHub mutation, runtime handoff, automatic runtime injection, and automatic promotion remain out of scope.
 
 ## Next Recommended PR
 
-Implement accepted-memory write design and implementation from reviewed boundary records only if product decision is explicit. Otherwise add a boundary-record review packet/export instead of another checklist layer.
+Add a read-only retrieval/search surface for persisted perspective-memory items. Core-facing promotion should wait for a separate explicit product decision.

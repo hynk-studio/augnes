@@ -43,6 +43,14 @@ for (const phrase of [
   "no accepted memory/review decision/Core decision behavior",
   "no enabled Write to memory / Commit memory / Accept memory / Send to Core controls",
   "no raw returned envelope/private/provider/token/browser/source/candidate material visible outside returned envelope textarea",
+  "memory item panel visible",
+  "Create persisted perspective-memory item disabled until confirmations checked",
+  "item confirmations visible",
+  "persisted perspective-memory item created",
+  "item id visible",
+  "item status accepted visible",
+  "item authority boundary visible",
+  "memory items dashboard link visible",
 ]) {
   assert(
     normalizedReport.includes(phrase),
