@@ -80,7 +80,7 @@
 
 .statusStrip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin: 8px 0 18px;
 }
@@ -246,6 +246,14 @@
   background: #f5f8fa;
 }
 
+.button:disabled,
+.primaryButton:disabled,
+.actionButton:disabled,
+.textInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .activeButton,
 .activeAction {
   border-color: #2f6f5e;
@@ -264,6 +272,14 @@
 .primaryButton:hover {
   background: #203f67;
   color: #ffffff;
+}
+
+.errorText {
+  margin: 0 0 12px;
+  color: #9a3f31;
+  font-size: 0.88rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .resultBox {

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import localValidateBridge from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
 import operatorFlow from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
 
+const { runOperatorFlowLocalValidationBridge } = localValidateBridge;
 const {
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE,
+  CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_STORAGE_NAMESPACE,
   buildCodexFormerLocalAdapterOperatorFlowViewModel,
   clearOperatorFlowDraftFromStorage,
@@ -25,6 +28,10 @@ const cssFile =
   "app/cockpit/perspective/codex-former/local-adapter-operator-flow/operator-flow-surface.module.css";
 const helperFile =
   "lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
+const localValidateBridgeFile =
+  "lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
+const localValidateRouteFile =
+  "app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts";
 const smokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-operator-flow.mjs";
 const browserSmokeFile =
@@ -64,6 +71,8 @@ const routeText = readFileSync(routeFile, "utf8");
 const componentText = readFileSync(componentFile, "utf8");
 const cssText = readFileSync(cssFile, "utf8");
 const helperText = readFileSync(helperFile, "utf8");
+const localValidateBridgeText = readFileSync(localValidateBridgeFile, "utf8");
+const localValidateRouteText = readFileSync(localValidateRouteFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
 
@@ -112,6 +121,7 @@ assertPackageScripts();
 assertFilesExist();
 assertRouteSource();
 assertHelperViewModel();
+assertLocalValidationBridge();
 assertComponentSource();
 assertCssSource();
 assertDocsAndReports();
@@ -143,6 +153,8 @@ function assertFilesExist() {
     componentFile,
     cssFile,
     helperFile,
+    localValidateBridgeFile,
+    localValidateRouteFile,
     smokeFile,
     browserSmokeFile,
     docFile,
@@ -180,6 +192,14 @@ function assertRouteSource() {
   ]);
   assert.equal(routeText.includes("process.env"), false);
   assert.equal(routeText.includes("fetch("), false);
+
+  assertIncludesAll(localValidateRouteText, [
+    "runOperatorFlowLocalValidationBridge",
+    "NextResponse.json",
+    "export const runtime = \"nodejs\"",
+    "export async function POST",
+  ]);
+  assert.equal(localValidateRouteText.includes("process.env"), false);
 }
 
 function assertHelperViewModel() {
@@ -198,6 +218,14 @@ function assertHelperViewModel() {
   assert.deepEqual(viewModel.candidate_actions, operatorFlowCandidateActions);
   assert.equal(viewModel.scenarios.pass.validation_result.result_state, "PASS");
   assert.equal(
+    viewModel.scenarios.pass.validation_result.validation_source,
+    "fixture_preview",
+  );
+  assert.equal(
+    viewModel.scenarios.pass.validation_result.execution_result,
+    "success",
+  );
+  assert.equal(
     viewModel.scenarios.pass_with_follow_up.validation_result.result_state,
     "PASS with follow-up",
   );
@@ -205,6 +233,14 @@ function assertHelperViewModel() {
     viewModel.scenarios.blocked.validation_result.result_state,
     "BLOCKED",
   );
+  assertIncludesAll(helperText, [
+    CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
+    "real_local_validate_execution",
+    "blocked_before_execution",
+    "validation_result_source",
+    "operatorFlowSourceInputRefs",
+    "operatorFlowPrepareExecutionSummaryRefs",
+  ]);
   assertIncludesAll(viewModel.copy_packet_preview, [
     "LOCAL_CODEX_ADAPTER_OPERATOR_PACKET_V0_1",
     "task_statement:",
@@ -258,7 +294,7 @@ function assertHelperViewModel() {
     "no raw private/source/provider/token/browser material",
     "Return exactly one candidate object suitable for the RETURNED_CODEX_RESPONSE section.",
     "Do not include hidden reasoning, provider logs, tokens, secrets, raw diffs, raw source packets, browser dumps, raw review payloads, or unrelated chat text.",
-    "Paste the returned envelope into the Returned Envelope panel, then select Validate locally / Preview validation result.",
+    "Paste the returned envelope into the Returned Envelope panel, then select Run local validation.",
     "This route only stages a local draft.",
   ]);
   assertNoRawPacketPayloadMarkers(viewModel.copy_packet_preview);
@@ -269,6 +305,7 @@ function assertHelperViewModel() {
     "pass",
   );
   assert.equal(previewPass.validation_result.result_state, "PASS");
+  assert.equal(previewPass.validation_result.validation_source, "fixture_preview");
   const previewFollowUp = previewOperatorFlowValidationResult(
     fixtureInput.scenarios.pass_with_follow_up.returnedEnvelopeText,
     viewModel,
@@ -310,6 +347,7 @@ function assertHelperViewModel() {
     viewModel,
     "2026-06-12T00:00:00.000Z",
   );
+  assert.equal(initialDraft.validation_result_source, "not_run");
   saveOperatorFlowDraftToStorage(storage, viewModel, initialDraft);
   assert.equal(storage.values.has(viewModel.storage_namespace), true);
   const loadedDraft = loadOperatorFlowDraftFromStorage(
@@ -318,8 +356,84 @@ function assertHelperViewModel() {
     "2026-06-12T00:00:01.000Z",
   );
   assert.equal(loadedDraft.draft_id, initialDraft.draft_id);
+  assert.equal(loadedDraft.validation_result_source, "not_run");
   clearOperatorFlowDraftFromStorage(storage, viewModel);
   assert.equal(storage.values.has(viewModel.storage_namespace), false);
+}
+
+function assertLocalValidationBridge() {
+  assertIncludesAll(localValidateBridgeText, [
+    "buildCodexFormerLocalAdapterValidateExecutionSummary",
+    "direct_validate_orchestration_library_call",
+    "real_local_validate_execution",
+    "blocked_before_execution",
+    "local-operator-flow:returned-envelope-textarea",
+    "local-operator-flow:in-memory-validate-summary",
+    "operatorFlowSourceInputRefs",
+    "operatorFlowPrepareExecutionSummaryRefs",
+  ]);
+
+  const pass = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass",
+    source_input_ref: sourcePassFile,
+    prepare_summary_ref: preparePassFile,
+    returned_envelope_text: fixtureInput.scenarios.pass.returnedEnvelopeText,
+  });
+  assert.equal(pass.validation_source, "real_local_validate_execution");
+  assert.equal(pass.validation_result.result_state, "PASS");
+  assert.equal(pass.validation_result.execution_result, "success");
+  assert.equal(pass.validation_result.candidate_count, 1);
+  assert.match(pass.validation_result.validation_summary_hash, /^[a-f0-9]{64}$/);
+
+  const followUp = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass_with_follow_up",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text:
+      fixtureInput.scenarios.pass_with_follow_up.returnedEnvelopeText,
+  });
+  assert.equal(followUp.validation_source, "real_local_validate_execution");
+  assert.equal(followUp.validation_result.result_state, "PASS with follow-up");
+  assert.equal(followUp.validation_result.execution_result, "success");
+  assert.equal(followUp.validation_result.candidate_count, 1);
+  assert(followUp.validation_result.warnings.length > 0);
+
+  const blocked = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "blocked",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text: fixtureInput.scenarios.blocked.returnedEnvelopeText,
+  });
+  assert.equal(blocked.validation_source, "real_local_validate_execution");
+  assert.equal(blocked.validation_result.result_state, "BLOCKED");
+  assert.equal(blocked.validation_result.execution_result, "blocked");
+  assert.equal(blocked.validation_result.candidate_count, 0);
+  assert(blocked.validation_result.blocked_reasons.length > 0);
+
+  const malformed = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: null,
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text: "not a returned candidate envelope",
+  });
+  assert.equal(malformed.validation_source, "real_local_validate_execution");
+  assert.equal(malformed.validation_result.result_state, "BLOCKED");
+  assert.equal(malformed.validation_result.execution_result, "blocked");
+  assert(
+    malformed.validation_result.blocked_reasons.some((reason) =>
+      reason.includes("RETURNED_CODEX_RESPONSE bounds missing"),
+    ),
+  );
+
+  const invalidRef = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: null,
+    source_input_ref: "reports/fixtures/not-a-real-source.json",
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text: "not executed",
+  });
+  assert.equal(invalidRef.validation_source, "blocked_before_execution");
+  assert.equal(invalidRef.validation_result.result_state, "BLOCKED");
+  assert.equal(invalidRef.validation_result.failure_kind, "blocked_before_execution");
 }
 
 function assertComponentSource() {
@@ -339,7 +453,15 @@ function assertComponentSource() {
     "Clear returned envelope draft",
     "Save draft locally",
     "Clear local draft",
-    "Validate locally / Preview validation result",
+    "Run local validation",
+    "Preview fixture result",
+    "real_local_validate_execution",
+    "validation_result_source",
+    "validation_summary_hash",
+    "source_input_hash",
+    "prepare_execution_summary_hash",
+    "returned_envelope_hash",
+    "authority_flags",
     "Keep review-only",
     "Mark as perspective candidate",
     "Reject as memory candidate",
@@ -351,9 +473,17 @@ function assertComponentSource() {
     "not Core decision",
     "not runtime handoff",
     "data-augnes-load-envelope",
+    "data-augnes-run-local-validation",
     "data-augnes-validate-preview",
     "data-augnes-candidate-action",
+    "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE",
   ]);
+  assert(componentText.includes("fetch("), "component must call local bridge");
+  assert.equal(
+    componentText.includes("navigator.clipboard"),
+    false,
+    "component must not use automatic clipboard behavior",
+  );
   for (const action of operatorFlowCandidateActions) {
     assert(componentText.includes(action), `component must include ${action}`);
   }
@@ -369,6 +499,8 @@ function assertCssSource() {
     ".copyArea",
     ".envelopeArea",
     ".actionGrid",
+    ".errorText",
+    ":disabled",
     "@media (max-width: 520px)",
     "overflow-wrap: anywhere",
   ]);
@@ -378,7 +510,12 @@ function assertDocsAndReports() {
   assertIncludesAll(docText, [
     "# Local Codex Adapter Operator Flow v0.1",
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE,
+    CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_STORAGE_NAMESPACE,
+    "Run local validation",
+    "real_local_validate_execution",
+    "fixture_preview",
+    "blocked_before_execution",
     "keep_review_only",
     "accept_as_perspective_candidate",
     "reject_from_memory_candidate",
@@ -389,6 +526,11 @@ function assertDocsAndReports() {
     "# Local Codex Adapter Operator Flow Report",
     routeFile,
     helperFile,
+    localValidateBridgeFile,
+    localValidateRouteFile,
+    "Run local validation",
+    "real_local_validate_execution",
+    "fixture_preview",
     "PASS / PASS with follow-up / BLOCKED",
     "no accepted Augnes state",
     "no review decision",
@@ -400,12 +542,13 @@ function assertRuntimeBoundary() {
     [routeFile]: routeText,
     [componentFile]: componentText,
     [helperFile]: helperText,
+    [localValidateBridgeFile]: localValidateBridgeText,
+    [localValidateRouteFile]: localValidateRouteText,
   };
   for (const [file, source] of Object.entries(sourceByFile)) {
     for (const forbidden of [
       "navigator.clipboard",
       "document.execCommand",
-      "fetch(",
       "XMLHttpRequest",
       "new WebSocket",
       "OpenAI",
@@ -414,6 +557,9 @@ function assertRuntimeBoundary() {
       "better-sqlite3",
       "process.env.OPENAI",
       "github.rest",
+      "createAcceptedState",
+      "reviewDecision",
+      "coreDecision",
     ]) {
       assert.equal(
         source.includes(forbidden),
@@ -421,7 +567,19 @@ function assertRuntimeBoundary() {
         `${file} must not contain runtime call marker ${forbidden}`,
       );
     }
+    if (file !== componentFile) {
+      assert.equal(
+        source.includes("fetch("),
+        false,
+        `${file} must not contain browser fetch`,
+      );
+    }
+    assert.equal(source.includes("https://"), false, `${file} must not call external URLs`);
   }
+  assertIncludesAll(componentText, [
+    "fetch(",
+    "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE",
+  ]);
 }
 
 function assertNoRawFixturePayloadsInSource() {
@@ -429,6 +587,8 @@ function assertNoRawFixturePayloadsInSource() {
     [routeFile]: routeText,
     [componentFile]: componentText,
     [helperFile]: helperText,
+    [localValidateBridgeFile]: localValidateBridgeText,
+    [localValidateRouteFile]: localValidateRouteText,
   })) {
     for (const marker of [
       "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",

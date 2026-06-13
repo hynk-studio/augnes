@@ -2,13 +2,14 @@
 
 ## Purpose
 
-`/cockpit/perspective/codex-former/local-adapter-operator-flow` is a local-only operator shell for the manual Augnes / Codex loop. It lets a user see the current source and prepare references, copy a bounded Codex-ready handoff packet into a separate user-started Codex session, paste or load one returned envelope, preview local validation, inspect bounded candidate review material, and choose a local draft next action from one route.
+`/cockpit/perspective/codex-former/local-adapter-operator-flow` is a local-only operator shell for the manual Augnes / Codex loop. It lets a user see the current source and prepare references, copy a bounded Codex-ready handoff packet into a separate user-started Codex session, paste or load one returned envelope, run real local validation, inspect bounded candidate review material, and choose a local draft next action from one route.
 
 The route is product-facing, but it remains non-authoritative. It does not call a provider/model, Codex SDK, GitHub, database, Core runtime, or clipboard API. It does not create accepted state, review decisions, product readiness, mergeability, runtime handoff, persistence to a product DB, or automatic promotion.
 
 ## Route and Fixtures
 
 - Route: `/cockpit/perspective/codex-former/local-adapter-operator-flow`
+- Local validation bridge: `/api/perspective/codex-former/local-adapter-operator-flow/validate`
 - Storage namespace: `augnes.codexFormer.localAdapterOperatorFlow.v0.1`
 - Source input fixtures:
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json`
@@ -20,7 +21,7 @@ The route is product-facing, but it remains non-authoritative. It does not call 
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-pass.txt`
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-ready.txt`
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-blocked.txt`
-- Validate summary fixtures:
+- Validate summary fixtures used for the secondary fixture preview:
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass.json`
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-pass-with-follow-up.json`
   - `reports/fixtures/2026-06-12-codex-former-local-adapter-validate-execution-summary-blocked.json`
@@ -31,10 +32,12 @@ The route is product-facing, but it remains non-authoritative. It does not call 
 2. Review the bounded Codex-ready Copy For Codex handoff packet.
 3. Start Codex separately, outside this route, using the bounded packet.
 4. Paste a returned envelope, or load PASS, PASS with follow-up, or BLOCKED fixtures.
-5. Select `Validate locally / Preview validation result`.
-6. Review `result_state`, candidate count, warnings, pointer warnings, blocked reasons, `next_safe_action`, `candidate_compatible_review_material`, and `worker_facing_guidance_status`.
+5. Select `Run local validation`.
+6. Review `validation_source`, `result_state`, `execution_result`, `failure_kind`, candidate count, warnings, pointer warnings, blocked reasons, `next_safe_action`, `candidate_compatible_review_material`, `worker_facing_guidance_status`, candidate basis/authority, hashes, and authority flags.
 7. Inspect bounded candidate review material when available.
 8. Choose one local draft action.
+
+`Preview fixture result` remains available as a secondary aid, and is visibly marked with `fixture_preview`. The primary action posts the selected source/prepare refs and current textarea content to the local bridge and displays `real_local_validate_execution` when the existing validate orchestration execution path runs. Invalid bridge inputs are returned as `blocked_before_execution`.
 
 ## Candidate Actions
 
@@ -59,7 +62,7 @@ Included bounded context:
 - former input packet ref, manual copy packet ref, and source prompt/provenance hash when available;
 - output contract with `draft_version`, `draft_kind`, and required candidate fields;
 - authority/privacy boundary and returned envelope instructions;
-- next user step to paste the returned envelope and select `Validate locally / Preview validation result`.
+- next user step to paste the returned envelope and select `Run local validation`.
 
 Path/hash refs remain included as provenance, but the copied packet also carries enough bounded source summary and output-contract context to reduce user glue work. It still avoids raw source packet JSON, raw returned candidate payloads, private material, hidden reasoning, provider logs, token material, browser dumps, raw diffs, and raw review payloads.
 
@@ -78,6 +81,7 @@ Persisted fields:
 - `selected_returned_envelope_fixture_key`
 - `returned_envelope_draft_saved_explicitly`
 - `validation_result_state`
+- `validation_result_source`
 - `candidate_action_choice`
 - `supersede_previous_candidate_ref`
 - `returned_envelope_text` only when the user explicitly selects Save draft locally
@@ -98,9 +102,12 @@ Not persisted by default:
 ## Implementation Notes
 
 - `lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts` owns route constants, scenario view-model construction, validation preview mapping, and safe localStorage parse/save/reset helpers.
+- `lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts` owns the local validation bridge helper. It reads only committed source/prepare fixtures selected by ref, uses the returned envelope textarea content, calls `buildCodexFormerLocalAdapterValidateExecutionSummary` directly, and returns a bounded summary.
+- `app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts` exposes the same-origin Node route for the browser surface.
 - `operator-flow-surface.tsx` keeps UI state local and writes only bounded metadata automatically.
 - Returned envelope text is loaded into the textarea only through user action or explicit saved local draft restore.
 - The route avoids clipboard APIs. The Copy For Codex panel is a selectable bounded handoff preview.
+- The local validation bridge does not write product DB state, accepted state, review decisions, Core decisions, proof/evidence/readiness records, or runtime handoff material.
 
 ## Verification
 

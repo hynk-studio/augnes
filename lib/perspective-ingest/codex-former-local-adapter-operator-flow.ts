@@ -1,13 +1,32 @@
 import type {
+  CodexFormerLocalAdapterValidateAuthorityFlags,
+  CodexFormerLocalAdapterValidateExecutionResult,
+  CodexFormerLocalAdapterValidateFailureKind,
+} from "@/lib/perspective-ingest/codex-former-local-adapter-validate-orchestration";
+import type {
   CodexFormerLocalAdapterValidateExecutionSummaryForSnapshots,
   CodexFormerLocalAdapterValidateResultState,
 } from "@/lib/perspective-ingest/codex-former-local-adapter-validate-result-snapshots";
 
 export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE =
   "/cockpit/perspective/codex-former/local-adapter-operator-flow";
+export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE =
+  "/api/perspective/codex-former/local-adapter-operator-flow/validate";
 
 export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_STORAGE_NAMESPACE =
   "augnes.codexFormer.localAdapterOperatorFlow.v0.1";
+export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY =
+  "review-only local-only non-authorizing";
+
+export const operatorFlowSourceInputRefs = [
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json",
+  "reports/fixtures/2026-06-11-codex-former-local-adapter-source-input.json",
+] as const;
+
+export const operatorFlowPrepareExecutionSummaryRefs = [
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass.json",
+  "reports/fixtures/2026-06-12-codex-former-local-adapter-prepare-execution-summary-pass-with-follow-up.json",
+] as const;
 
 export type OperatorFlowReturnedEnvelopeFixtureKey =
   | "pass"
@@ -25,6 +44,12 @@ export type OperatorFlowActiveStep =
 export type OperatorFlowValidationResultState =
   | "not_validated"
   | CodexFormerLocalAdapterValidateResultState;
+
+export type OperatorFlowValidationSource =
+  | "not_run"
+  | "fixture_preview"
+  | "real_local_validate_execution"
+  | "blocked_before_execution";
 
 export type OperatorFlowCandidateAction =
   | "keep_review_only"
@@ -123,7 +148,12 @@ export type OperatorFlowCheckSummary = {
 };
 
 export type OperatorFlowValidationPreview = {
+  validation_source: Exclude<OperatorFlowValidationSource, "not_run">;
   result_state: CodexFormerLocalAdapterValidateResultState;
+  execution_result: CodexFormerLocalAdapterValidateExecutionResult;
+  failure_kind:
+    | CodexFormerLocalAdapterValidateFailureKind
+    | "blocked_before_execution";
   candidate_count: number;
   warnings: string[];
   pointer_warnings: string[];
@@ -135,6 +165,29 @@ export type OperatorFlowValidationPreview = {
   candidate_authority: string | null;
   validation_summary_path: string;
   validation_summary_hash: string;
+  source_input_hash: string;
+  prepare_execution_summary_hash: string;
+  returned_envelope_hash: string;
+  authority_flags: CodexFormerLocalAdapterValidateAuthorityFlags;
+  authority_boundary: typeof CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY;
+};
+
+export type OperatorFlowLocalValidationRequest = {
+  selected_returned_envelope_fixture_key: OperatorFlowReturnedEnvelopeFixtureKey | null;
+  source_input_ref: string;
+  prepare_summary_ref: string;
+  returned_envelope_text: string;
+};
+
+export type OperatorFlowLocalValidationResponse = {
+  validation_source:
+    | "real_local_validate_execution"
+    | "blocked_before_execution";
+  validation_result: OperatorFlowValidationPreview;
+  bridge_execution_path:
+    | "direct_validate_orchestration_library_call"
+    | "blocked_before_execution";
+  boundary: typeof CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY;
 };
 
 export type OperatorFlowScenarioViewModel = {
@@ -207,6 +260,7 @@ export type OperatorFlowPersistedDraft = {
   returned_envelope_draft_saved_explicitly: boolean;
   returned_envelope_text?: string;
   validation_result_state: OperatorFlowValidationResultState;
+  validation_result_source: OperatorFlowValidationSource;
   candidate_action_choice: OperatorFlowCandidateAction;
   supersede_previous_candidate_ref?: string;
 };
@@ -264,6 +318,7 @@ export function createInitialOperatorFlowDraft(
     selected_returned_envelope_fixture_key: null,
     returned_envelope_draft_saved_explicitly: false,
     validation_result_state: "not_validated",
+    validation_result_source: "not_run",
     candidate_action_choice: defaultCandidateAction,
   };
 }
@@ -357,6 +412,9 @@ export function safeParseOperatorFlowDraft(
       validation_result_state:
         asValidationResultState(parsed.validation_result_state) ??
         fallback.validation_result_state,
+      validation_result_source:
+        asValidationSource(parsed.validation_result_source) ??
+        fallback.validation_result_source,
       candidate_action_choice:
         asCandidateAction(parsed.candidate_action_choice) ??
         fallback.candidate_action_choice,
@@ -386,6 +444,7 @@ export function toPersistableOperatorFlowDraft(
     returned_envelope_draft_saved_explicitly:
       draft.returned_envelope_draft_saved_explicitly,
     validation_result_state: draft.validation_result_state,
+    validation_result_source: draft.validation_result_source,
     candidate_action_choice: draft.candidate_action_choice,
   };
   if (
@@ -419,7 +478,10 @@ export function previewOperatorFlowValidationResult(
   if (explicitScenario) {
     return {
       scenario_key: explicitScenario.key,
-      validation_result: explicitScenario.validation_result,
+      validation_result: {
+        ...explicitScenario.validation_result,
+        validation_source: "fixture_preview",
+      },
     };
   }
 
@@ -433,26 +495,38 @@ export function previewOperatorFlowValidationResult(
   if (matchedScenario) {
     return {
       scenario_key: matchedScenario.key,
-      validation_result: matchedScenario.validation_result,
+      validation_result: {
+        ...matchedScenario.validation_result,
+        validation_source: "fixture_preview",
+      },
     };
   }
 
   if (normalized.includes("validate-execution-pass")) {
     return {
       scenario_key: "pass",
-      validation_result: viewModel.scenarios.pass.validation_result,
+      validation_result: {
+        ...viewModel.scenarios.pass.validation_result,
+        validation_source: "fixture_preview",
+      },
     };
   }
   if (normalized.includes("evidence_pointer_refs") && normalized.includes("null")) {
     return {
       scenario_key: "blocked",
-      validation_result: viewModel.scenarios.blocked.validation_result,
+      validation_result: {
+        ...viewModel.scenarios.blocked.validation_result,
+        validation_source: "fixture_preview",
+      },
     };
   }
   if (normalized.includes("manual-codex-former-copy:v0.1:1d44vfz")) {
     return {
       scenario_key: "pass_with_follow_up",
-      validation_result: viewModel.scenarios.pass_with_follow_up.validation_result,
+      validation_result: {
+        ...viewModel.scenarios.pass_with_follow_up.validation_result,
+        validation_source: "fixture_preview",
+      },
     };
   }
 
@@ -461,6 +535,9 @@ export function previewOperatorFlowValidationResult(
     scenario_key: "blocked",
     validation_result: {
       ...blocked,
+      validation_source: "fixture_preview",
+      execution_result: "blocked",
+      failure_kind: "dry_run_blocked",
       candidate_count: 0,
       warnings: [
         "Preview validation could not match the pasted envelope to a committed local fixture.",
@@ -531,6 +608,8 @@ function buildScenario(
     input.validateSummary as CodexFormerLocalAdapterValidateExecutionSummaryForSnapshots & {
       source_manual_copy_packet_id?: string | null;
       source_prompt_hash?: string | null;
+      execution_result?: string;
+      failure_kind?: string | null;
     };
   return {
     key: input.key,
@@ -575,6 +654,15 @@ function buildScenario(
     },
     validation_result: {
       result_state: validateSummary.result_state,
+      validation_source: "fixture_preview",
+      execution_result: stringOrDefault(
+        validateSummary.execution_result,
+        validateSummary.result_state === "BLOCKED" ? "blocked" : "success",
+      ) as CodexFormerLocalAdapterValidateExecutionResult,
+      failure_kind:
+        stringOrNull(validateSummary.failure_kind) as
+          | CodexFormerLocalAdapterValidateFailureKind
+          | "blocked_before_execution",
       candidate_count: validateSummary.candidate_count,
       warnings: validateSummary.warnings,
       pointer_warnings: validateSummary.pointer_warnings,
@@ -588,6 +676,13 @@ function buildScenario(
       candidate_authority: validateSummary.candidate_authority,
       validation_summary_path: input.validateSummaryPath,
       validation_summary_hash: stableSummaryHash(validateSummary),
+      source_input_hash: validateSummary.source_input_hash,
+      prepare_execution_summary_hash:
+        validateSummary.prepare_execution_summary_hash,
+      returned_envelope_hash: validateSummary.returned_envelope_hash,
+      authority_flags: validateSummary.authority_flags,
+      authority_boundary:
+        CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY,
     },
     candidate_review_material: {
       available: validateSummary.candidate_compatible_review_material,
@@ -673,7 +768,7 @@ function buildCopyPacketPreview(scenario: OperatorFlowScenarioViewModel) {
     "4. Do not include hidden reasoning, provider logs, tokens, secrets, raw diffs, raw source packets, browser dumps, raw review payloads, or unrelated chat text.",
     "",
     "next_user_step:",
-    "Paste the returned envelope into the Returned Envelope panel, then select Validate locally / Preview validation result.",
+    "Paste the returned envelope into the Returned Envelope panel, then select Run local validation.",
     "",
     "local_boundary:",
     "This route only stages a local draft. It does not create accepted state, a review decision, product DB persistence, Core decision, provider/model call, Codex SDK call, GitHub mutation, runtime handoff, mergeability, product readiness, or automatic promotion.",
@@ -746,6 +841,18 @@ function asValidationResultState(
   return null;
 }
 
+function asValidationSource(value: unknown): OperatorFlowValidationSource | null {
+  if (
+    value === "not_run" ||
+    value === "fixture_preview" ||
+    value === "real_local_validate_execution" ||
+    value === "blocked_before_execution"
+  ) {
+    return value;
+  }
+  return null;
+}
+
 function asKnownRef(
   value: unknown,
   viewModel: OperatorFlowViewModel,
@@ -762,6 +869,14 @@ function asKnownRef(
 
 function hasText(value: unknown) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function stringOrDefault(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function stringOrNull(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

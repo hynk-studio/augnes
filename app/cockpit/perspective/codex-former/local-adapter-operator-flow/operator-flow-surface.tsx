@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./operator-flow-surface.module.css";
 import {
+  CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
   clearOperatorFlowDraftFromStorage,
   createInitialOperatorFlowDraft,
   loadOperatorFlowDraftFromStorage,
@@ -11,6 +12,7 @@ import {
   previewOperatorFlowValidationResult,
   saveOperatorFlowDraftToStorage,
   type OperatorFlowCandidateAction,
+  type OperatorFlowLocalValidationResponse,
   type OperatorFlowPersistedDraft,
   type OperatorFlowReturnedEnvelopeFixtureKey,
   type OperatorFlowValidationPreview,
@@ -21,6 +23,8 @@ type ValidationPreviewState = {
   scenario_key: OperatorFlowReturnedEnvelopeFixtureKey;
   validation_result: OperatorFlowValidationPreview;
 } | null;
+
+type LocalValidationRunState = OperatorFlowLocalValidationResponse | null;
 
 const initialIso = "1970-01-01T00:00:00.000Z";
 
@@ -36,6 +40,10 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
   const [returnedEnvelopeText, setReturnedEnvelopeText] = useState("");
   const [validationPreview, setValidationPreview] =
     useState<ValidationPreviewState>(null);
+  const [localValidationRun, setLocalValidationRun] =
+    useState<LocalValidationRunState>(null);
+  const [validationBusy, setValidationBusy] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState("local metadata not saved");
   const skipNextAutoSave = useRef(false);
 
@@ -74,7 +82,9 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     viewModel.default_fixture_key;
   const displayScenario = viewModel.scenarios[displayScenarioKey];
   const currentValidation =
-    validationPreview?.validation_result ?? displayScenario.validation_result;
+    localValidationRun?.validation_result ??
+    validationPreview?.validation_result ??
+    displayScenario.validation_result;
 
   const activeFixtureLabel = draft.selected_returned_envelope_fixture_key
     ? viewModel.scenarios[draft.selected_returned_envelope_fixture_key].label
@@ -91,6 +101,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       "returned_envelope_draft_saved_explicitly",
       "returned_envelope_text only after Save draft locally",
       "validation_result_state",
+      "validation_result_source",
       "candidate_action_choice",
       "supersede_previous_candidate_ref",
     ],
@@ -117,6 +128,8 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     const scenario = viewModel.scenarios[key];
     setReturnedEnvelopeText(scenario.returned_envelope_fixture.text);
     setValidationPreview(null);
+    setLocalValidationRun(null);
+    setValidationError(null);
     updateDraft({
       selected_source_input_ref: scenario.source_input_ref.path,
       selected_prepare_summary_ref: scenario.prepare_summary_ref.path,
@@ -125,6 +138,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       returned_envelope_text: undefined,
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
+      validation_result_source: "not_run",
     });
     setDraftStatus(`${scenario.label} fixture loaded; envelope text not saved`);
   }
@@ -132,12 +146,15 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
   function clearReturnedEnvelopeDraft() {
     setReturnedEnvelopeText("");
     setValidationPreview(null);
+    setLocalValidationRun(null);
+    setValidationError(null);
     updateDraft({
       selected_returned_envelope_fixture_key: null,
       returned_envelope_draft_saved_explicitly: false,
       returned_envelope_text: undefined,
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
+      validation_result_source: "not_run",
     });
     setDraftStatus("returned envelope draft cleared");
   }
@@ -165,6 +182,8 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     setDraft(nextDraft);
     setReturnedEnvelopeText("");
     setValidationPreview(null);
+    setLocalValidationRun(null);
+    setValidationError(null);
     setDraftStatus("local draft cleared");
   }
 
@@ -181,8 +200,51 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
       selected_prepare_summary_ref: scenario.prepare_summary_ref.path,
       active_step: "validate_result",
       validation_result_state: preview.validation_result.result_state,
+      validation_result_source: preview.validation_result.validation_source,
     });
     setDraftStatus("validation preview updated; no product state created");
+  }
+
+  async function runLocalValidation() {
+    setValidationBusy(true);
+    setValidationError(null);
+    setDraftStatus("running local validation execution");
+    try {
+      const response = await fetch(
+        CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            selected_returned_envelope_fixture_key:
+              draft.selected_returned_envelope_fixture_key,
+            source_input_ref: draft.selected_source_input_ref,
+            prepare_summary_ref: draft.selected_prepare_summary_ref,
+            returned_envelope_text: returnedEnvelopeText,
+          }),
+        },
+      );
+      const result = (await response.json()) as OperatorFlowLocalValidationResponse;
+      setLocalValidationRun(result);
+      setValidationPreview(null);
+      updateDraft({
+        active_step: "validate_result",
+        validation_result_state: result.validation_result.result_state,
+        validation_result_source: result.validation_source,
+      });
+      setDraftStatus(
+        `${result.validation_source} completed; no product state created`,
+      );
+    } catch (error) {
+      setValidationError(
+        error instanceof Error
+          ? error.message
+          : "Local validation request failed",
+      );
+      setDraftStatus("local validation bridge request failed");
+    } finally {
+      setValidationBusy(false);
+    }
   }
 
   function selectCandidateAction(action: OperatorFlowCandidateAction) {
@@ -196,12 +258,15 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
   function onReturnedEnvelopeChange(value: string) {
     setReturnedEnvelopeText(value);
     setValidationPreview(null);
+    setLocalValidationRun(null);
+    setValidationError(null);
     updateDraft({
       selected_returned_envelope_fixture_key: null,
       returned_envelope_draft_saved_explicitly: false,
       returned_envelope_text: undefined,
       active_step: "returned_envelope",
       validation_result_state: "not_validated",
+      validation_result_source: "not_run",
     });
     setDraftStatus("edited draft is not saved");
   }
@@ -258,6 +323,10 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             <strong>{draft.validation_result_state}</strong>
           </div>
           <div>
+            <span>validation_result_source</span>
+            <strong>{draft.validation_result_source}</strong>
+          </div>
+          <div>
             <span>draft status</span>
             <strong>{draftStatus}</strong>
           </div>
@@ -279,6 +348,10 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
           <ValidateResultPanel
             validation={currentValidation}
             validationState={draft.validation_result_state}
+            validationSource={draft.validation_result_source}
+            validationBusy={validationBusy}
+            validationError={validationError}
+            onRunLocalValidation={runLocalValidation}
             onPreviewValidation={previewValidationResult}
           />
           <CandidateReviewMaterialPanel
@@ -297,6 +370,13 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
                 active_step: "candidate_action",
               })
             }
+            canSelectAction={
+              currentValidation.validation_source ===
+                "real_local_validate_execution" &&
+              currentValidation.result_state !== "BLOCKED"
+            }
+            validationResultState={currentValidation.result_state}
+            validationSource={currentValidation.validation_source}
           />
           <LocalStorageBoundaryPanel persistedFields={persistedFields} />
         </div>
@@ -479,10 +559,18 @@ function ReturnedEnvelopePanel({
 function ValidateResultPanel({
   validation,
   validationState,
+  validationSource,
+  validationBusy,
+  validationError,
+  onRunLocalValidation,
   onPreviewValidation,
 }: {
   validation: OperatorFlowValidationPreview;
   validationState: string;
+  validationSource: string;
+  validationBusy: boolean;
+  validationError: string | null;
+  onRunLocalValidation: () => void;
   onPreviewValidation: () => void;
 }) {
   const tone =
@@ -497,23 +585,53 @@ function ValidateResultPanel({
       <PanelHeader
         eyebrow="5. Validate"
         title="Validate Result"
-        detail="local preview only"
+        detail={validation.validation_source}
       />
       <button
         type="button"
         className={styles.primaryButton}
+        data-augnes-run-local-validation="true"
+        disabled={validationBusy}
+        onClick={onRunLocalValidation}
+      >
+        {validationBusy ? "Running local validation" : "Run local validation"}
+      </button>
+      <button
+        type="button"
+        className={styles.button}
         data-augnes-validate-preview="true"
+        disabled={validationBusy}
         onClick={onPreviewValidation}
       >
-        Validate locally / Preview validation result
+        Preview fixture result
       </button>
+      {validationError ? (
+        <p className={styles.errorText} data-augnes-validation-error="true">
+          {validationError}
+        </p>
+      ) : null}
       <div
         className={classNames(styles.resultBox, tone)}
         data-augnes-validation-result={validation.result_state}
+        data-augnes-validation-source={validation.validation_source}
       >
-        <strong>{validationState}</strong>
+        <strong>
+          {validationState} / {validationSource}
+        </strong>
         <dl className={styles.detailGrid}>
+          <DetailRow
+            label="validation_source"
+            value={validation.validation_source}
+          />
           <DetailRow label="result_state" value={validation.result_state} />
+          <DetailRow
+            label="execution_result"
+            value={validation.execution_result}
+          />
+          <DetailRow
+            label="failure_kind"
+            value={validation.failure_kind ?? "none"}
+          />
           <DetailRow
             label="candidate_count"
             value={String(validation.candidate_count)}
@@ -527,6 +645,34 @@ function ValidateResultPanel({
             value={validation.worker_facing_guidance_status}
           />
           <DetailRow
+            label="candidate_basis_quality"
+            value={validation.candidate_basis_quality ?? "none"}
+          />
+          <DetailRow
+            label="candidate_authority"
+            value={validation.candidate_authority ?? "none"}
+          />
+          <DetailRow
+            label="validation_summary_hash"
+            value={validation.validation_summary_hash}
+          />
+          <DetailRow
+            label="source_input_hash"
+            value={validation.source_input_hash}
+          />
+          <DetailRow
+            label="prepare_execution_summary_hash"
+            value={validation.prepare_execution_summary_hash}
+          />
+          <DetailRow
+            label="returned_envelope_hash"
+            value={validation.returned_envelope_hash}
+          />
+          <DetailRow
+            label="authority_boundary"
+            value={validation.authority_boundary}
+          />
+          <DetailRow
             label="next_safe_action"
             value={validation.next_safe_action}
           />
@@ -535,6 +681,10 @@ function ValidateResultPanel({
       <ResultList title="warnings" values={validation.warnings} />
       <ResultList title="pointer_warnings" values={validation.pointer_warnings} />
       <ResultList title="blocked_reasons" values={validation.blocked_reasons} />
+      <ResultList
+        title="authority_flags"
+        values={formatAuthorityFlags(validation.authority_flags)}
+      />
     </section>
   );
 }
@@ -596,19 +746,30 @@ function CandidateActionPanel({
   supersedePreviousCandidateRef,
   onActionSelect,
   onSupersedeRefChange,
+  canSelectAction,
+  validationResultState,
+  validationSource,
 }: {
   actionChoice: OperatorFlowCandidateAction;
   supersedePreviousCandidateRef: string;
   onActionSelect: (action: OperatorFlowCandidateAction) => void;
   onSupersedeRefChange: (value: string) => void;
+  canSelectAction: boolean;
+  validationResultState: string;
+  validationSource: string;
 }) {
   return (
     <section className={styles.panel} aria-label="Next action panel">
       <PanelHeader
         eyebrow="7. Local Draft Action"
         title="Next Action"
-        detail={actionChoice}
+        detail={canSelectAction ? actionChoice : "requires real validation"}
       />
+      <p className={styles.boundaryText}>
+        Action choices unlock after a non-blocked
+        real_local_validate_execution result. Current validation is{" "}
+        {validationResultState} from {validationSource}.
+      </p>
       <div className={styles.actionGrid}>
         {operatorFlowCandidateActions.map((action) => (
           <button
@@ -620,6 +781,7 @@ function CandidateActionPanel({
             )}
             data-augnes-candidate-action={action}
             aria-pressed={actionChoice === action}
+            disabled={!canSelectAction}
             onClick={() => onActionSelect(action)}
           >
             <span>{actionButtonLabel(action)}</span>
@@ -635,6 +797,7 @@ function CandidateActionPanel({
             value={supersedePreviousCandidateRef}
             onChange={(event) => onSupersedeRefChange(event.target.value)}
             placeholder="candidate ref"
+            disabled={!canSelectAction}
           />
         </label>
       ) : null}
@@ -736,6 +899,12 @@ function actionButtonLabel(action: OperatorFlowCandidateAction) {
     return "Reject as memory candidate";
   }
   return "Supersede previous candidate";
+}
+
+function formatAuthorityFlags(
+  flags: OperatorFlowValidationPreview["authority_flags"],
+) {
+  return Object.entries(flags).map(([key, value]) => `${key}: ${String(value)}`);
 }
 
 function classNames(...classes: string[]) {
