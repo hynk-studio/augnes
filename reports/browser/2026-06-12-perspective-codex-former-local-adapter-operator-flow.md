@@ -21,6 +21,10 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - Select Mark as perspective candidate
 - Create local perspective candidate draft
 - draft appears in local candidate draft list
+- Queue selected candidate draft for perspective-memory review
+- queue item id visible
+- local-only queue boundary visible
+- Open local memory review queue route reference visible
 - Draft id visible in list
 - local_status visible in list
 - authority boundary visible in list
@@ -28,6 +32,7 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - Load PASS with follow-up envelope fixture works
 - Run local validation returns PASS with follow-up
 - create second draft from PASS with follow-up
+- queue PASS with follow-up draft with warning caveat visible
 - list shows two drafts
 - warning counts visible for PASS with follow-up draft
 - Load BLOCKED envelope fixture works
@@ -35,6 +40,7 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - Mark as perspective candidate unavailable
 - Reject as memory candidate can create local rejection draft
 - list shows rejection draft
+- rejected_memory_candidate is not queue-eligible for memory write review
 - Supersede previous candidate requires previous draft ref
 - supersede draft appears with supersedes_draft_id
 - select draft from list works
@@ -52,8 +58,10 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - refresh after BLOCKED rejection draft restores rejected_memory_candidate without stale accept action
 - localStorage draft updates validation_result_state
 - localStorage candidate draft list restores separately from operator draft metadata
+- localStorage memory review queue restores separately from operator draft metadata
 - localStorage draft survives refresh for bounded metadata
 - Clear local draft does not clear candidate draft list
+- Clear local candidate draft list does not clear memory review queue
 - no automatic clipboard behavior
 - no provider/model/Codex SDK/GitHub/DB/network behavior
 - no accepted state/review decision/Core decision behavior
@@ -67,12 +75,16 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - Initial route had one returned envelope textarea, one `Run local validation` button, and one `Preview fixture result` button.
 - PASS fixture local validation rendered `result_state=PASS`, `execution_result=success`, `candidate_count=1`, `validation_source=real_local_validate_execution`, and a visible local validation summary hash.
 - PASS fixture -> Run local validation -> Mark as perspective candidate enabled `Create local perspective candidate draft`; the draft appeared in the Local Candidate Draft List with visible `draft_id`, `local_status=draft_candidate`, validation result, source/prepare refs, returned envelope hash, warning counts, and authority boundary with no accepted Augnes state, review decision, product DB persistence, Core decision, runtime handoff, or automatic promotion.
+- Queue selected candidate draft for perspective-memory review created a visible local queue item id, showed the local-only queue boundary, and rendered the Open local memory review queue route reference.
+- Refresh restored the local memory review queue separately from operator draft metadata and the candidate draft list.
 - Refresh restored the separate local candidate draft list from `augnes.codexFormer.localAdapterAcceptedCandidateDraftList.v0.1`.
 - Refresh also restored the bounded operator validation metadata visibly, including `validation_result_state=PASS` and `validation_result_source=real_local_validate_execution`.
 - PASS with follow-up fixture local validation rendered `result_state=PASS with follow-up`, `execution_result=success`, `candidate_count=1`, `validation_source=real_local_validate_execution`, and warning material.
 - PASS with follow-up -> Mark as perspective candidate -> Create local perspective candidate draft appended a second list item and rendered warning and pointer-warning counts from the local validation result.
+- Queueing the PASS with follow-up draft kept the warning caveat visible in the queue panel and did not overwrite the earlier queue item.
 - BLOCKED fixture local validation rendered `result_state=BLOCKED`, `execution_result=blocked`, `failure_kind=dry_run_blocked`, `candidate_count=0`, and visible blocked reasons.
 - BLOCKED fixture kept Mark as perspective candidate unavailable. Selecting Reject as memory candidate enabled `Create local memory rejection draft`, which appended a `local_status=rejected_memory_candidate` list item.
+- The `rejected_memory_candidate` row remained visible but was not queue-eligible for memory write review.
 - Supersede previous candidate kept `Create local supersede draft` disabled until `supersede_previous_candidate_ref` was non-empty; the created supersede draft showed `supersedes_draft_id`.
 - Selecting a draft from the list updated the selected draft id. `Clear selected local candidate draft` removed only that item. `Clear all local candidate drafts` emptied the list.
 - Editing the returned envelope after creating drafts showed `no_current_validation`; running malformed local validation then showed stored drafts as `stale_local_candidate_draft` and left saved drafts unchanged.
@@ -85,6 +97,7 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - Refresh after malformed validation did not restore stale `accept_as_perspective_candidate`; the selected local action remained `keep_review_only`.
 - Refresh restored bounded draft metadata: `validation_result_state=PASS`, `validation_result_source=real_local_validate_execution`, selected fixture `PASS`, and selected local action.
 - Clear local draft reset visible operator metadata to `validation_result_state=not_validated` and `validation_result_source=not_run` while leaving the local candidate draft list intact.
+- Clear local candidate draft list emptied only the candidate draft list and did not clear the local memory review queue.
 - External resource probe returned `[]`.
 - Console warn/error probe returned `[]`.
 - Horizontal overflow was `0` at 390px, 768px, and 1280px.

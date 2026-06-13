@@ -4,6 +4,7 @@ import acceptedCandidateDraft from "../lib/perspective-ingest/codex-former-local
 import candidateDraftList from "../lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
 import localValidateBridge from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
 import operatorFlow from "../lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
+import memoryReviewQueue from "../lib/perspective-ingest/perspective-memory-local-review-queue.ts";
 
 const {
   CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_MAX_DRAFTS,
@@ -20,6 +21,26 @@ const {
   saveCodexFormerLocalAdapterCandidateDraftListToStorage,
   safeParseCodexFormerLocalAdapterCandidateDraftList,
 } = candidateDraftList;
+const {
+  PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ITEM_VERSION,
+  PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_MAX_ITEMS,
+  PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE,
+  PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE,
+  PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION,
+  appendPerspectiveMemoryLocalReviewQueueItem,
+  buildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft,
+  canBuildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft,
+  clearPerspectiveMemoryLocalReviewQueueFromStorage,
+  collectPerspectiveMemoryLocalReviewQueueUnsafeMarkers,
+  createEmptyPerspectiveMemoryLocalReviewQueue,
+  findPerspectiveMemoryLocalReviewQueueItemBySourceDraft,
+  getPerspectiveMemoryLocalReviewQueueItemSourceState,
+  loadPerspectiveMemoryLocalReviewQueueFromStorage,
+  removePerspectiveMemoryLocalReviewQueueItem,
+  savePerspectiveMemoryLocalReviewQueueToStorage,
+  safeParsePerspectiveMemoryLocalReviewQueue,
+  updatePerspectiveMemoryLocalReviewQueueItemStatus,
+} = memoryReviewQueue;
 const {
   CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
   CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION,
@@ -63,18 +84,36 @@ const acceptedCandidateDraftFile =
   "lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts";
 const candidateDraftListFile =
   "lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
+const memoryReviewQueueFile =
+  "lib/perspective-ingest/perspective-memory-local-review-queue.ts";
 const localValidateRouteFile =
   "app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts";
+const memoryReviewQueueRouteFile =
+  "app/cockpit/perspective/memory-review-queue/local/page.tsx";
+const memoryReviewQueueComponentFile =
+  "app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.tsx";
+const memoryReviewQueueCssFile =
+  "app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.module.css";
 const smokeFile =
   "scripts/smoke-perspective-codex-former-local-adapter-operator-flow.mjs";
+const memoryReviewQueueSmokeFile =
+  "scripts/smoke-perspective-memory-local-review-queue.mjs";
 const browserSmokeFile =
   "scripts/browser-smoke-perspective-codex-former-local-adapter-operator-flow.mjs";
+const memoryReviewQueueBrowserSmokeFile =
+  "scripts/browser-smoke-perspective-memory-local-review-queue.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_V0_1.md";
+const memoryReviewQueueDocFile =
+  "docs/PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_V0_1.md";
 const reportFile =
   "reports/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md";
+const memoryReviewQueueReportFile =
+  "reports/2026-06-13-perspective-memory-local-review-queue.md";
 const browserReportFile =
   "reports/browser/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md";
+const memoryReviewQueueBrowserReportFile =
+  "reports/browser/2026-06-13-perspective-memory-local-review-queue.md";
 
 const sourcePassFile =
   "reports/fixtures/2026-06-12-codex-former-local-adapter-source-input-pass.json";
@@ -110,9 +149,27 @@ const acceptedCandidateDraftText = readFileSync(
   "utf8",
 );
 const candidateDraftListText = readFileSync(candidateDraftListFile, "utf8");
+const memoryReviewQueueText = readFileSync(memoryReviewQueueFile, "utf8");
 const localValidateRouteText = readFileSync(localValidateRouteFile, "utf8");
+const memoryReviewQueueRouteText = readFileSync(
+  memoryReviewQueueRouteFile,
+  "utf8",
+);
+const memoryReviewQueueComponentText = readFileSync(
+  memoryReviewQueueComponentFile,
+  "utf8",
+);
+const memoryReviewQueueCssText = readFileSync(
+  memoryReviewQueueCssFile,
+  "utf8",
+);
 const docText = readFileSync(docFile, "utf8");
+const memoryReviewQueueDocText = readFileSync(memoryReviewQueueDocFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
+const memoryReviewQueueReportText = readFileSync(
+  memoryReviewQueueReportFile,
+  "utf8",
+);
 
 const fixtureInput = {
   scenarios: {
@@ -162,6 +219,7 @@ assertHelperViewModel();
 assertLocalValidationBridge();
 assertAcceptedCandidateDraftModel();
 assertCandidateDraftListModel();
+assertMemoryReviewQueueModel();
 assertComponentSource();
 assertCssSource();
 assertDocsAndReports();
@@ -185,6 +243,14 @@ function assertPackageScripts() {
     ],
     `node ${browserSmokeFile}`,
   );
+  assert.equal(
+    packageJson.scripts["smoke:perspective-memory-local-review-queue"],
+    `${expectedTsxCommand} ${memoryReviewQueueSmokeFile}`,
+  );
+  assert.equal(
+    packageJson.scripts["browser:perspective-memory-local-review-queue"],
+    `node ${memoryReviewQueueBrowserSmokeFile}`,
+  );
 }
 
 function assertFilesExist() {
@@ -196,12 +262,21 @@ function assertFilesExist() {
     localValidateBridgeFile,
     acceptedCandidateDraftFile,
     candidateDraftListFile,
+    memoryReviewQueueFile,
     localValidateRouteFile,
+    memoryReviewQueueRouteFile,
+    memoryReviewQueueComponentFile,
+    memoryReviewQueueCssFile,
     smokeFile,
+    memoryReviewQueueSmokeFile,
     browserSmokeFile,
+    memoryReviewQueueBrowserSmokeFile,
     docFile,
+    memoryReviewQueueDocFile,
     reportFile,
+    memoryReviewQueueReportFile,
     browserReportFile,
+    memoryReviewQueueBrowserReportFile,
     sourcePassFile,
     sourceFollowUpFile,
     preparePassFile,
@@ -956,6 +1031,356 @@ function assertCandidateDraftListModel() {
   );
 }
 
+function assertMemoryReviewQueueModel() {
+  assertIncludesAll(memoryReviewQueueText, [
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ITEM_VERSION,
+    "PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_MAX_ITEMS = 50",
+    "buildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft",
+    "appendPerspectiveMemoryLocalReviewQueueItem",
+    "removePerspectiveMemoryLocalReviewQueueItem",
+    "updatePerspectiveMemoryLocalReviewQueueItemStatus",
+    "findPerspectiveMemoryLocalReviewQueueItemBySourceDraft",
+    "getPerspectiveMemoryLocalReviewQueueItemSourceState",
+    "current_with_source_candidate_draft",
+    "source_candidate_draft_stale",
+    "source_candidate_draft_missing",
+    "memory_candidate_preview",
+    "can_create_memory_write: false",
+    "accepted_augnes_memory_created: false",
+    "review_decision_created: false",
+    "product_db_persistence: false",
+    "core_decision_created: false",
+    "runtime_handoff_created: false",
+    "automatic_promotion: false",
+    "raw_prompt",
+    "raw_candidate",
+    "browser_dump",
+  ]);
+  assertIncludesAll(memoryReviewQueueRouteText, [
+    "LocalMemoryReviewQueueSurface",
+  ]);
+  assertIncludesAll(memoryReviewQueueComponentText, [
+    "Local Memory Review Queue",
+    "PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE",
+    "PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE",
+    "Queued Items",
+    "Queue Item Detail",
+    "Bounded Memory Candidate Preview",
+    "queued_for_memory_review",
+    "reviewing_locally",
+    "kept_for_later",
+    "removed_from_queue",
+    "stale_or_missing_source",
+    "Mark reviewing locally",
+    "Keep for later",
+    "Remove from queue",
+    "Return to candidate drafts, local note only",
+    "Clear queue",
+    "can_create_memory_write",
+    "not accepted Augnes memory",
+    "not review decision",
+    "not product DB persistence",
+    "not Core decision",
+    "data-augnes-local-memory-review-queue-list",
+    "data-augnes-memory-candidate-preview",
+  ]);
+
+  const pass = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass",
+    source_input_ref: sourcePassFile,
+    prepare_summary_ref: preparePassFile,
+    returned_envelope_text: fixtureInput.scenarios.pass.returnedEnvelopeText,
+  });
+  const followUp = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "pass_with_follow_up",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text:
+      fixtureInput.scenarios.pass_with_follow_up.returnedEnvelopeText,
+  });
+  const blocked = runOperatorFlowLocalValidationBridge({
+    selected_returned_envelope_fixture_key: "blocked",
+    source_input_ref: sourceFollowUpFile,
+    prepare_summary_ref: prepareFollowUpFile,
+    returned_envelope_text: fixtureInput.scenarios.blocked.returnedEnvelopeText,
+  });
+
+  const acceptedPass = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: pass.validation_result,
+    scenarioKey: "pass",
+    draftId: "local-candidate-draft:queue-pass",
+  });
+  const acceptedFollowUp = buildCandidateDraft({
+    action: "accept_as_perspective_candidate",
+    validation: followUp.validation_result,
+    scenarioKey: "pass_with_follow_up",
+    draftId: "local-candidate-draft:queue-follow-up",
+  });
+  const rejectedBlocked = buildCandidateDraft({
+    action: "reject_from_memory_candidate",
+    validation: blocked.validation_result,
+    scenarioKey: "blocked",
+    draftId: "local-candidate-draft:queue-rejected-blocked",
+  });
+  const supersedeDraft = buildCandidateDraft({
+    action: "supersede_previous_candidate",
+    validation: pass.validation_result,
+    scenarioKey: "pass",
+    draftId: "local-candidate-draft:queue-supersede",
+    supersedesDraftId: "local-candidate-draft:queue-pass",
+  });
+  assert.equal(acceptedPass.ok, true);
+  assert.equal(acceptedFollowUp.ok, true);
+  assert.equal(rejectedBlocked.ok, true);
+  assert.equal(supersedeDraft.ok, true);
+
+  const queuePass = buildQueueItem({
+    draft: acceptedPass.draft,
+    queueItemId: "local-memory-review-queue-item:pass",
+  });
+  assert.equal(queuePass.ok, true);
+  assert.equal(queuePass.item.item_version, PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ITEM_VERSION);
+  assert.equal(queuePass.item.source_candidate_local_status, "draft_candidate");
+  assert.equal(queuePass.item.source_validation_result_state, "PASS");
+  assert.equal(queuePass.item.queue_status, "queued_for_memory_review");
+  assert.equal(queuePass.item.review_only_actions.can_create_memory_write, false);
+  assert.equal(
+    queuePass.item.authority_boundary.accepted_augnes_memory_created,
+    false,
+  );
+  assert.equal("returned_envelope_text" in queuePass.item, false);
+  assert.equal("raw_prompt" in queuePass.item, false);
+  assert.equal("raw_candidate" in queuePass.item, false);
+  assert.deepEqual(
+    collectPerspectiveMemoryLocalReviewQueueUnsafeMarkers({
+      queue_version: PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION,
+      updated_at: "2026-06-13T00:00:00.000Z",
+      items: [queuePass.item],
+    }),
+    [],
+  );
+  assertNoRawQueueItemMarkers(queuePass.item);
+
+  const queueFollowUp = buildQueueItem({
+    draft: acceptedFollowUp.draft,
+    queueItemId: "local-memory-review-queue-item:follow-up",
+  });
+  assert.equal(queueFollowUp.ok, true);
+  assert.equal(
+    queueFollowUp.item.source_validation_result_state,
+    "PASS with follow-up",
+  );
+  assert(
+    queueFollowUp.item.memory_candidate_preview.risk_notes.some((note) =>
+      note.includes("PASS with follow-up"),
+    ),
+  );
+
+  const queueSupersede = buildQueueItem({
+    draft: supersedeDraft.draft,
+    queueItemId: "local-memory-review-queue-item:supersede",
+  });
+  assert.equal(queueSupersede.ok, true);
+  assert.equal(
+    queueSupersede.item.source_candidate_local_status,
+    "supersedes_previous_candidate",
+  );
+
+  const queueRejected = buildQueueItem({
+    draft: rejectedBlocked.draft,
+    queueItemId: "local-memory-review-queue-item:rejected",
+  });
+  assert.equal(queueRejected.ok, false);
+  assert(
+    queueRejected.blocked_reasons.includes(
+      "only draft_candidate or supersedes_previous_candidate can be queued for memory review",
+    ),
+  );
+
+  const queueFixturePreview = buildQueueItem({
+    draft: {
+      ...acceptedPass.draft,
+      validation_source: "fixture_preview",
+    },
+    queueItemId: "local-memory-review-queue-item:fixture-preview",
+  });
+  assert.equal(queueFixturePreview.ok, false);
+  assert(
+    queueFixturePreview.blocked_reasons.includes(
+      "queue item requires real_local_validate_execution",
+    ),
+  );
+
+  const queueBlocked = buildQueueItem({
+    draft: {
+      ...acceptedPass.draft,
+      validation_result_state: "BLOCKED",
+    },
+    queueItemId: "local-memory-review-queue-item:blocked",
+  });
+  assert.equal(queueBlocked.ok, false);
+  assert(queueBlocked.blocked_reasons.includes("queue item requires PASS or PASS with follow-up"));
+
+  assert.equal(
+    canBuildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft({
+      draft: acceptedPass.draft,
+      sourceDraftCurrentStatus: "current_local_candidate_draft",
+    }).eligible,
+    true,
+  );
+  assert.equal(
+    canBuildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft({
+      draft: acceptedPass.draft,
+      sourceDraftCurrentStatus: "stale_local_candidate_draft",
+    }).eligible,
+    false,
+  );
+
+  let queue = createEmptyPerspectiveMemoryLocalReviewQueue(
+    "2026-06-13T00:00:00.000Z",
+  );
+  queue = appendPerspectiveMemoryLocalReviewQueueItem(
+    queue,
+    queuePass.item,
+    "2026-06-13T00:00:01.000Z",
+  );
+  queue = appendPerspectiveMemoryLocalReviewQueueItem(
+    queue,
+    queueFollowUp.item,
+    "2026-06-13T00:00:02.000Z",
+  );
+  queue = appendPerspectiveMemoryLocalReviewQueueItem(
+    queue,
+    queueSupersede.item,
+    "2026-06-13T00:00:03.000Z",
+  );
+  assert.equal(queue.queue_version, PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION);
+  assert.equal(queue.items.length, 3);
+  const deduped = appendPerspectiveMemoryLocalReviewQueueItem(
+    queue,
+    queuePass.item,
+    "2026-06-13T00:00:04.000Z",
+  );
+  assert.equal(deduped.items.length, 3);
+
+  let bounded = createEmptyPerspectiveMemoryLocalReviewQueue(
+    "2026-06-13T00:00:00.000Z",
+  );
+  for (let index = 0; index < PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_MAX_ITEMS + 4; index += 1) {
+    bounded = appendPerspectiveMemoryLocalReviewQueueItem(
+      bounded,
+      {
+        ...queuePass.item,
+        queue_item_id: `local-memory-review-queue-item:bounded-${index}`,
+        created_at: `2026-06-13T00:${String(index).padStart(2, "0")}:00.000Z`,
+        updated_at: `2026-06-13T00:${String(index).padStart(2, "0")}:30.000Z`,
+      },
+      `2026-06-13T01:${String(index).padStart(2, "0")}:00.000Z`,
+    );
+  }
+  assert.equal(bounded.items.length, PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_MAX_ITEMS);
+
+  const reviewing = updatePerspectiveMemoryLocalReviewQueueItemStatus(
+    queue,
+    queuePass.item.queue_item_id,
+    "reviewing_locally",
+    "2026-06-13T00:00:05.000Z",
+  );
+  assert.equal(
+    reviewing.items.find((item) => item.queue_item_id === queuePass.item.queue_item_id)
+      ?.queue_status,
+    "reviewing_locally",
+  );
+  const removedStatus = updatePerspectiveMemoryLocalReviewQueueItemStatus(
+    queue,
+    queuePass.item.queue_item_id,
+    "removed_from_queue",
+    "2026-06-13T00:00:06.000Z",
+  );
+  assert.equal(
+    findPerspectiveMemoryLocalReviewQueueItemBySourceDraft(
+      removedStatus,
+      acceptedPass.draft.draft_id,
+    ),
+    null,
+  );
+  const removed = removePerspectiveMemoryLocalReviewQueueItem(
+    queue,
+    queuePass.item.queue_item_id,
+    "2026-06-13T00:00:07.000Z",
+  );
+  assert.equal(removed.items.length, 2);
+
+  let draftList = createEmptyCodexFormerLocalAdapterCandidateDraftList(
+    "2026-06-13T00:00:00.000Z",
+  );
+  draftList = appendCodexFormerLocalAdapterCandidateDraftToList(
+    draftList,
+    acceptedPass.draft,
+    "2026-06-13T00:00:01.000Z",
+  );
+  assert.equal(
+    getPerspectiveMemoryLocalReviewQueueItemSourceState(queuePass.item, draftList),
+    "current_with_source_candidate_draft",
+  );
+  const staleDraftList = replaceCodexFormerLocalAdapterCandidateDraftInList(
+    draftList,
+    { ...acceptedPass.draft, returned_envelope_hash: "different-returned-hash" },
+    "2026-06-13T00:00:02.000Z",
+  );
+  assert.equal(
+    getPerspectiveMemoryLocalReviewQueueItemSourceState(
+      queuePass.item,
+      staleDraftList,
+    ),
+    "source_candidate_draft_stale",
+  );
+  assert.equal(
+    getPerspectiveMemoryLocalReviewQueueItemSourceState(
+      queuePass.item,
+      createEmptyCodexFormerLocalAdapterCandidateDraftList(
+        "2026-06-13T00:00:03.000Z",
+      ),
+    ),
+    "source_candidate_draft_missing",
+  );
+
+  const storage = createMockStorage();
+  savePerspectiveMemoryLocalReviewQueueToStorage(storage, queue);
+  assert.equal(
+    storage.values.has(PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE),
+    true,
+  );
+  assert.equal(
+    loadPerspectiveMemoryLocalReviewQueueFromStorage(
+      storage,
+      "2026-06-13T00:00:08.000Z",
+    ).items.length,
+    3,
+  );
+  clearPerspectiveMemoryLocalReviewQueueFromStorage(storage);
+  assert.equal(
+    storage.values.has(PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE),
+    false,
+  );
+
+  const unsafeParsedQueue = safeParsePerspectiveMemoryLocalReviewQueue(
+    JSON.stringify({
+      queue_version: PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION,
+      updated_at: "2026-06-13T00:00:09.000Z",
+      items: [
+        queuePass.item,
+        { ...queuePass.item, queue_item_id: "unsafe", review_summary: "TOKEN=unsafe" },
+      ],
+    }),
+    "2026-06-13T00:00:09.000Z",
+  );
+  assert.equal(unsafeParsedQueue.items.length, 1);
+}
+
 function assertComponentSource() {
   assertIncludesAll(componentText, [
     "Local Codex Adapter Operator Flow",
@@ -967,6 +1392,7 @@ function assertComponentSource() {
     "Candidate Review Material",
     "Next Action",
     "Local Candidate Draft List",
+    "Perspective-Memory Review Queue",
     "Local Storage Boundary",
     "Load PASS envelope fixture",
     "Load PASS with follow-up envelope fixture",
@@ -982,9 +1408,18 @@ function assertComponentSource() {
     "Replace selected draft with current candidate draft",
     "Clear selected local candidate draft",
     "Clear all local candidate drafts",
+    "Queue for perspective-memory review",
+    "Open local memory review queue",
+    "Remove queue item for selected draft",
     "Select draft",
     "getCodexFormerLocalAdapterCandidateDraftCurrentStatus",
     "CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE",
+    "PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE",
+    "PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE",
+    "buildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft",
+    "findPerspectiveMemoryLocalReviewQueueItemBySourceDraft",
+    "selected_draft_already_queued",
+    "memory_review_queue_blocked_reasons",
     "real_local_validate_execution",
     "validation_result_source",
     "validation_summary_hash",
@@ -1027,6 +1462,10 @@ function assertComponentSource() {
     "data-augnes-replace-selected-candidate-draft",
     "data-augnes-clear-selected-candidate-draft",
     "data-augnes-clear-all-candidate-drafts",
+    "data-augnes-memory-review-queue-panel",
+    "data-augnes-queue-selected-candidate-draft",
+    "data-augnes-remove-selected-queue-item",
+    "data-augnes-open-local-memory-review-queue",
     "data-augnes-candidate-draft-list",
     "data-augnes-select-candidate-draft",
     "data-augnes-local-candidate-draft-list-status",
@@ -1082,7 +1521,9 @@ function assertCssSource() {
     ".draftList",
     ".draftListItem",
     ".selectedDraftListItem",
+    ".queuePanel",
     ".actionGrid",
+    ".linkButton",
     ".errorText",
     ":disabled",
     "@media (max-width: 520px)",
@@ -1100,6 +1541,9 @@ function assertDocsAndReports() {
     CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_VERSION,
     CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_STORAGE_NAMESPACE,
     CODEX_FORMER_LOCAL_ADAPTER_ACCEPTED_CANDIDATE_DRAFT_VERSION,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION,
     "Run local validation",
     "real_local_validate_execution",
     "fixture_preview",
@@ -1110,6 +1554,9 @@ function assertDocsAndReports() {
     "Clear selected local candidate draft",
     "Clear all local candidate drafts",
     "Local Candidate Draft List",
+    "Queue for perspective-memory review",
+    "Open local memory review queue",
+    "local memory review queue",
     "current_local_candidate_draft",
     "stale_local_candidate_draft",
     "no_current_validation",
@@ -1126,10 +1573,15 @@ function assertDocsAndReports() {
     localValidateBridgeFile,
     acceptedCandidateDraftFile,
     candidateDraftListFile,
+    memoryReviewQueueFile,
     localValidateRouteFile,
+    memoryReviewQueueRouteFile,
     "Run local validation",
     "real_local_validate_execution",
     "local candidate draft list",
+    "perspective-memory review queue",
+    "Queue for perspective-memory review",
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE,
     CODEX_FORMER_LOCAL_ADAPTER_CANDIDATE_DRAFT_LIST_STORAGE_NAMESPACE,
     "migrate",
     "Clear selected",
@@ -1141,6 +1593,40 @@ function assertDocsAndReports() {
     "no accepted Augnes state",
     "no review decision",
   ]);
+  assertIncludesAll(memoryReviewQueueDocText, [
+    "# Perspective Memory Local Review Queue v0.1",
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ITEM_VERSION,
+    "selected local candidate draft",
+    "Queue for perspective-memory review",
+    "memory_candidate_preview",
+    "current_with_source_candidate_draft",
+    "source_candidate_draft_stale",
+    "source_candidate_draft_missing",
+    "can_create_memory_write: false",
+    "not accepted Augnes memory",
+    "not review decision",
+    "not product DB persistence",
+    "not Core decision",
+  ]);
+  assertIncludesAll(memoryReviewQueueReportText, [
+    "# Perspective Memory Local Review Queue Report",
+    memoryReviewQueueFile,
+    memoryReviewQueueRouteFile,
+    memoryReviewQueueComponentFile,
+    PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE,
+    "selected local candidate draft",
+    "visible local review queue",
+    "bounded memory candidate preview",
+    "queued_for_memory_review",
+    "reviewing_locally",
+    "kept_for_later",
+    "removed_from_queue",
+    "stale/missing source",
+    "no accepted Augnes memory",
+  ]);
 }
 
 function assertRuntimeBoundary() {
@@ -1151,7 +1637,10 @@ function assertRuntimeBoundary() {
     [localValidateBridgeFile]: localValidateBridgeText,
     [acceptedCandidateDraftFile]: acceptedCandidateDraftText,
     [candidateDraftListFile]: candidateDraftListText,
+    [memoryReviewQueueFile]: memoryReviewQueueText,
     [localValidateRouteFile]: localValidateRouteText,
+    [memoryReviewQueueRouteFile]: memoryReviewQueueRouteText,
+    [memoryReviewQueueComponentFile]: memoryReviewQueueComponentText,
   };
   for (const [file, source] of Object.entries(sourceByFile)) {
     for (const forbidden of [
@@ -1269,6 +1758,15 @@ function buildCandidateDraft({
   });
 }
 
+function buildQueueItem({ draft, queueItemId }) {
+  return buildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft({
+    nowIso: "2026-06-13T00:00:00.000Z",
+    queueItemId,
+    draft,
+    sourceDraftCurrentStatus: "current_local_candidate_draft",
+  });
+}
+
 function assertNoRawCandidateDraftMarkers(draft) {
   const serialized = JSON.stringify(draft);
   for (const marker of [
@@ -1291,6 +1789,32 @@ function assertNoRawCandidateDraftMarkers(draft) {
       serialized.includes(marker),
       false,
       `candidate draft must not persist raw marker ${marker}`,
+    );
+  }
+}
+
+function assertNoRawQueueItemMarkers(item) {
+  const serialized = JSON.stringify(item);
+  for (const marker of [
+    "REAL TRANSCRIPT CAPTURE AFTER MANUAL COPY PACKET",
+    "RETURNED_CODEX_RESPONSE",
+    "END RETURNED_CODEX_RESPONSE",
+    "draft_kind: codex_perspective_candidate_draft",
+    "raw_source_packet",
+    "raw_prompt",
+    "raw_candidate",
+    "raw private",
+    "PROVIDER_LOG",
+    "PROVIDER_LOGS",
+    "TOKEN=",
+    "browser_dump",
+    "raw_diff",
+    "raw_review_payload",
+  ]) {
+    assert.equal(
+      serialized.includes(marker),
+      false,
+      `queue item must not persist raw marker ${marker}`,
     );
   }
 }
