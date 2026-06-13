@@ -302,6 +302,7 @@
     "smoke:perspective-memory-local-review-queue": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-local-review-queue.mjs",
     "smoke:perspective-memory-local-write-proposal": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-local-write-proposal.mjs",
     "smoke:perspective-memory-local-write-proposal-review-checklist": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-local-write-proposal-review-checklist.mjs",
+    "smoke:perspective-memory-product-persistence-boundary": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-product-persistence-boundary.mjs",
     "browser:perspective-memory-local-review-queue": "node scripts/browser-smoke-perspective-memory-local-review-queue.mjs",
     "smoke:perspective-codex-former-local-adapter-v0-1-closeout": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-v0-1-closeout.mjs",
     "smoke:perspective-codex-former-local-adapter-snapshot-surface-integration": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-codex-former-local-adapter-snapshot-surface-integration.mjs",

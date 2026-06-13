@@ -62,6 +62,10 @@ const writeProposalHelperFile =
   "lib/perspective-ingest/perspective-memory-local-write-proposal.ts";
 const checklistHelperFile =
   "lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist.ts";
+const boundaryModelFile =
+  "lib/perspective-ingest/perspective-memory-product-persistence-boundary.ts";
+const boundaryStoreFile =
+  "lib/perspective-ingest/perspective-memory-product-persistence-boundary-store.ts";
 const candidateDraftListFile =
   "lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts";
 const routeFile =
@@ -84,10 +88,14 @@ const writeProposalDocFile =
   "docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_V0_1.md";
 const checklistDocFile =
   "docs/PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_V0_1.md";
+const boundaryDocFile =
+  "docs/PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_V0_1.md";
 const writeProposalReportFile =
   "reports/2026-06-13-perspective-memory-local-write-proposal.md";
 const checklistReportFile =
   "reports/2026-06-13-perspective-memory-local-write-proposal-review-checklist.md";
+const boundaryReportFile =
+  "reports/2026-06-13-perspective-memory-product-persistence-boundary.md";
 const browserReportFile =
   "reports/browser/2026-06-13-perspective-memory-local-review-queue.md";
 
@@ -116,6 +124,8 @@ const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
 const writeProposalHelperText = readFileSync(writeProposalHelperFile, "utf8");
 const checklistHelperText = readFileSync(checklistHelperFile, "utf8");
+const boundaryModelText = readFileSync(boundaryModelFile, "utf8");
+const boundaryStoreText = readFileSync(boundaryStoreFile, "utf8");
 const candidateDraftListText = readFileSync(candidateDraftListFile, "utf8");
 const routeText = readFileSync(routeFile, "utf8");
 const componentText = readFileSync(componentFile, "utf8");
@@ -126,8 +136,10 @@ const reportText = readFileSync(reportFile, "utf8");
 const browserReportText = readFileSync(browserReportFile, "utf8");
 const writeProposalDocText = readFileSync(writeProposalDocFile, "utf8");
 const checklistDocText = readFileSync(checklistDocFile, "utf8");
+const boundaryDocText = readFileSync(boundaryDocFile, "utf8");
 const writeProposalReportText = readFileSync(writeProposalReportFile, "utf8");
 const checklistReportText = readFileSync(checklistReportFile, "utf8");
+const boundaryReportText = readFileSync(boundaryReportFile, "utf8");
 
 const fixtureInput = {
   scenarios: {
@@ -196,6 +208,10 @@ function assertPackageScripts() {
     ],
     `${expectedTsxCommand} scripts/smoke-perspective-memory-local-write-proposal-review-checklist.mjs`,
   );
+  assert.equal(
+    packageJson.scripts["smoke:perspective-memory-product-persistence-boundary"],
+    `${expectedTsxCommand} scripts/smoke-perspective-memory-product-persistence-boundary.mjs`,
+  );
 }
 
 function assertFilesAndSource() {
@@ -203,6 +219,8 @@ function assertFilesAndSource() {
     helperFile,
     writeProposalHelperFile,
     checklistHelperFile,
+    boundaryModelFile,
+    boundaryStoreFile,
     candidateDraftListFile,
     routeFile,
     componentFile,
@@ -216,8 +234,10 @@ function assertFilesAndSource() {
     browserReportFile,
     writeProposalDocFile,
     checklistDocFile,
+    boundaryDocFile,
     writeProposalReportFile,
     checklistReportFile,
+    boundaryReportFile,
   ]) {
     assert.equal(existsSync(file), true, `${file} must exist`);
   }
@@ -276,7 +296,8 @@ function assertFilesAndSource() {
     "can_create_memory_write",
     "not accepted Augnes memory",
     "not review decision",
-    "not product DB persistence",
+    "local review state until explicit boundary record",
+    "boundary record is product persistence only",
     "not Core decision",
     "data-augnes-memory-queue-filter",
     "data-augnes-memory-candidate-preview",
@@ -300,6 +321,25 @@ function assertFilesAndSource() {
     "data-augnes-create-local-review-checklist",
     "data-augnes-checklist-gate",
     "PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE",
+    "Product Persistence Boundary",
+    "Create product persistence boundary record",
+    "data-augnes-product-persistence-boundary-panel",
+    "data-augnes-create-product-persistence-boundary-record",
+    "data-augnes-product-persistence-boundary-record-list",
+    "can_create_accepted_memory",
+    "can_create_core_decision",
+    "can_auto_promote",
+  ]);
+  assertIncludesAll(boundaryModelText, [
+    "perspective_memory_product_persistence_boundary_record.v0.1",
+    "perspective_memory_product_persistence_boundary_record_list.v0.1",
+    "/api/perspective/memory/product-persistence-boundary/records",
+    "buildPerspectiveMemoryProductPersistenceBoundaryRecord",
+    "can_create_accepted_memory: false",
+  ]);
+  assertIncludesAll(boundaryStoreText, [
+    "perspective_memory_product_persistence_boundary_records",
+    "sqlite:lib/db.ts",
   ]);
   assertIncludesAll(writeProposalHelperText, [
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
@@ -670,6 +710,8 @@ function assertDocsReportsAndBoundaries() {
     "Create local memory write proposal",
     "Local Write Proposal Review Checklist",
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+    "Product Persistence Boundary",
+    "sqlite:lib/db.ts",
   ]);
   assertIncludesAll(reportText, [
     "# Perspective Memory Local Review Queue Report",
@@ -685,6 +727,7 @@ function assertDocsReportsAndBoundaries() {
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_STORAGE_NAMESPACE,
     "Local Write Proposal Review Checklist",
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+    "Product Persistence Boundary",
   ]);
   assertIncludesAll(writeProposalDocText, [
     "# Perspective Memory Local Write Proposal v0.1",
@@ -702,6 +745,11 @@ function assertDocsReportsAndBoundaries() {
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
     "ready_for_product_persistence_review",
   ]);
+  assertIncludesAll(boundaryDocText, [
+    "# Perspective Memory Product Persistence Boundary v0.1",
+    "sqlite:lib/db.ts",
+    "server-side validation",
+  ]);
   assertIncludesAll(writeProposalReportText, [
     "# Perspective Memory Local Write Proposal Report",
     writeProposalHelperFile,
@@ -711,11 +759,18 @@ function assertDocsReportsAndBoundaries() {
     "no accepted Augnes memory",
     "Local Write Proposal Review Checklist",
     PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+    "Product Persistence Boundary",
   ]);
   assertIncludesAll(checklistReportText, [
     "# Perspective Memory Local Write Proposal Review Checklist Report",
     checklistHelperFile,
     "source proposal state tracking",
+    "Product Persistence Boundary",
+  ]);
+  assertIncludesAll(boundaryReportText, [
+    "# Perspective Memory Product Persistence Boundary Report",
+    "persistence backend chosen",
+    "server-side validation",
   ]);
   assertIncludesAll(browserReportText, [
     "Perspective Memory Local Review Queue Browser Validation",
@@ -728,6 +783,8 @@ function assertDocsReportsAndBoundaries() {
     "Clear queue works",
     "checklist panel visible",
     "ready_for_memory_write_now false visible",
+    "product persistence boundary panel visible",
+    "persisted record id visible",
   ]);
 
   for (const [file, source] of Object.entries({

@@ -2,9 +2,9 @@
 
 ## Purpose
 
-`/cockpit/perspective/memory-review-queue/local` is a local-only review queue for Codex candidate drafts created in the local adapter operator flow. It follows PR #533 and PR #534 by giving the selected local candidate draft a visible next product step: queue for perspective-memory review, inspect a bounded memory candidate preview, create a Local Memory Write Proposal, complete a Local Write Proposal Review Checklist, and make local review-only status choices.
+`/cockpit/perspective/memory-review-queue/local` is a local review queue for Codex candidate drafts created in the local adapter operator flow. It follows PR #533, PR #534, and PR #535 by giving the selected local candidate draft a visible next product path: queue for perspective-memory review, inspect a bounded memory candidate preview, create a Local Memory Write Proposal, complete a Local Write Proposal Review Checklist, and, when locally ready, create a Product Persistence Boundary record.
 
-This route is non-authoritative. It is not accepted Augnes memory, not review decision, not product DB persistence, not Core decision, not runtime handoff, and not automatic promotion. It does not call provider/model APIs, Codex, Codex SDK, GitHub, or a product database.
+The queue, proposal, and checklist state remain non-authoritative local review state. The explicit Product Persistence Boundary action creates a durable product-side boundary record in SQLite, but it is still not accepted Augnes memory, not a product memory write, not review decision, not Core decision, not runtime handoff, and not automatic promotion. It does not call provider/model APIs, Codex, Codex SDK, or GitHub.
 
 ## Storage
 
@@ -16,6 +16,9 @@ This route is non-authoritative. It is not accepted Augnes memory, not review de
 - Source draft list namespace: `augnes.codexFormer.localAdapterAcceptedCandidateDraftList.v0.1`
 - Local write proposal storage namespace: `augnes.perspectiveMemory.localWriteProposals.v0.1`
 - Local write proposal review checklist namespace: `augnes.perspectiveMemory.localWriteProposalReviewChecklists.v0.1`
+- Product persistence boundary API route: `/api/perspective/memory/product-persistence-boundary/records`
+- Product persistence boundary backend: `sqlite:lib/db.ts`
+- Product persistence boundary table: `perspective_memory_product_persistence_boundary_records`
 
 The queue payload is:
 
@@ -27,7 +30,7 @@ The queue payload is:
 }
 ```
 
-Items are sorted newest first, deduped by `queue_item_id`, capped at 50, and stored only in browser localStorage.
+Queue items are sorted newest first, deduped by `queue_item_id`, capped at 50, and stored only in browser localStorage. Boundary records are stored separately through the same-origin product persistence API and do not mutate queue, proposal, or checklist localStorage.
 
 ## Queue Item Fields
 
@@ -94,6 +97,28 @@ Readiness shows `ready_for_product_persistence_review` and keeps `ready_for_memo
 
 Checklist controls are local-only: Create local review checklist, Mark checklist in review, Recompute readiness, Mark locally ready for product persistence review, Save checklist note, Clear selected checklist, and Clear all local checklists.
 
+## Product Persistence Boundary
+
+The Product Persistence Boundary panel creates the first durable product-side record from a selected checklist that is already `locally_ready_for_product_persistence_review`.
+
+Creation requires explicit user confirmations:
+
+- not accepted Augnes memory;
+- not Core decision;
+- no automatic promotion or memory write.
+
+The server re-validates the submitted bounded checklist, proposal, and queue item before writing. It requires a ready checklist, `ready_for_memory_write_now=false`, a non-rejected/non-superseded proposal, a non-removed source queue item, `can_create_memory_write=false`, `should_write_to_memory_now=false`, local-only authority flags, and no unsafe raw-material markers.
+
+Created records use `record_version=perspective_memory_product_persistence_boundary_record.v0.1` and `boundary_record_list_version=perspective_memory_product_persistence_boundary_record_list.v0.1`. The record stores bounded refs, hashes, the proposed payload preview, proposal diff summary, checklist gate summary, confirmation flags, and authority boundary. It does not store raw returned envelope text, raw prompt/source/candidate material, provider logs, tokens, browser dumps, raw diffs, or private material.
+
+Boundary status controls are product-boundary review controls only:
+
+- `locally_reviewing_boundary_record`
+- `kept_for_later`
+- `retracted_before_memory_write`
+
+The UI keeps `can_create_accepted_memory=false`, `can_create_core_decision=false`, and `can_auto_promote=false`.
+
 ## Stale And Missing Source
 
 The queue route compares queue item hashes with the current local candidate draft list:
@@ -113,6 +138,7 @@ Checklist source proposal state compares `source_proposal_id` against the curren
 - Static smoke: `npm run smoke:perspective-memory-local-review-queue`
 - Write proposal smoke: `npm run smoke:perspective-memory-local-write-proposal`
 - Checklist smoke: `npm run smoke:perspective-memory-local-write-proposal-review-checklist`
+- Product persistence boundary smoke: `npm run smoke:perspective-memory-product-persistence-boundary`
 - Operator smoke: `npm run smoke:perspective-codex-former-local-adapter-operator-flow`
 - Browser report smoke: `npm run browser:perspective-memory-local-review-queue`
 - Browser route: `http://127.0.0.1:3000/cockpit/perspective/memory-review-queue/local`

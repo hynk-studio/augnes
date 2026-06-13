@@ -61,6 +61,14 @@ import {
   type PerspectiveMemoryLocalWriteProposalReviewChecklistSourceProposalState,
   type PerspectiveMemoryLocalWriteProposalReviewChecklistV0,
 } from "@/lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist";
+import {
+  PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE,
+  canBuildPerspectiveMemoryProductPersistenceBoundaryRecord,
+  createEmptyPerspectiveMemoryProductPersistenceBoundaryRecordList,
+  type PerspectiveMemoryProductPersistenceBoundaryRecordListV0,
+  type PerspectiveMemoryProductPersistenceBoundaryRecordV0,
+  type PerspectiveMemoryProductPersistenceBoundaryStatus,
+} from "@/lib/perspective-ingest/perspective-memory-product-persistence-boundary";
 
 type QueueFilter =
   | "all"
@@ -119,6 +127,22 @@ export function LocalMemoryReviewQueueSurface() {
     "local write proposal review checklist list not loaded",
   );
   const [checklistNoteDraft, setChecklistNoteDraft] = useState("");
+  const [boundaryRecordList, setBoundaryRecordList] =
+    useState<PerspectiveMemoryProductPersistenceBoundaryRecordListV0>(() =>
+      createEmptyPerspectiveMemoryProductPersistenceBoundaryRecordList(
+        initialIso,
+      ),
+    );
+  const [selectedBoundaryRecordId, setSelectedBoundaryRecordId] =
+    useState<string | null>(null);
+  const [boundaryStatus, setBoundaryStatus] = useState(
+    "product persistence boundary records not loaded",
+  );
+  const [boundaryConfirmations, setBoundaryConfirmations] = useState({
+    user_confirmed_not_accepted_memory: false,
+    user_confirmed_not_core_decision: false,
+    user_confirmed_no_automatic_promotion: false,
+  });
 
   useEffect(() => {
     const nowIso = new Date().toISOString();
@@ -178,6 +202,7 @@ export function LocalMemoryReviewQueueSurface() {
         ? "local write proposal review checklist list restored"
         : "no local write proposal review checklists",
     );
+    void loadBoundaryRecords();
   }, []);
 
   const itemsWithSourceState = useMemo(
@@ -259,6 +284,41 @@ export function LocalMemoryReviewQueueSurface() {
     : displayChecklist
       ? "not_checked"
       : null;
+  const selectedChecklistSourceQueueItem = displayChecklist
+    ? queue.items.find(
+        (item) => item.queue_item_id === displayChecklist.source_queue_item_id,
+      ) ?? null
+    : null;
+  const selectedBoundaryRecord =
+    (selectedBoundaryRecordId
+      ? boundaryRecordList.records.find(
+          (record) => record.record_id === selectedBoundaryRecordId,
+        )
+      : null) ??
+    (displayChecklist
+      ? boundaryRecordList.records.find(
+          (record) =>
+            record.source_checklist_id === displayChecklist.checklist_id,
+        )
+      : null) ??
+    boundaryRecordList.records[0] ??
+    null;
+  const boundaryEligibility =
+    displayChecklist &&
+    selectedChecklistSourceProposal &&
+    selectedChecklistSourceQueueItem
+      ? canBuildPerspectiveMemoryProductPersistenceBoundaryRecord({
+          checklist: displayChecklist,
+          proposal: selectedChecklistSourceProposal,
+          queueItem: selectedChecklistSourceQueueItem,
+          userConfirmation: boundaryConfirmations,
+        })
+      : {
+          eligible: false,
+          blocked_reasons: [
+            "select a ready checklist, source proposal, and source queue item first",
+          ],
+        };
   const proposalEligibility =
     selectedItem && selectedSourceState
       ? canBuildPerspectiveMemoryLocalWriteProposalFromQueueItem({
@@ -326,6 +386,7 @@ export function LocalMemoryReviewQueueSurface() {
       : null;
     setSelectedChecklistId(checklist?.checklist_id ?? null);
     setChecklistNoteDraft(checklist?.local_review_notes ?? "");
+    setBoundaryConfirmations(emptyBoundaryConfirmations());
   }
 
   function selectProposal(proposalId: string) {
@@ -337,6 +398,42 @@ export function LocalMemoryReviewQueueSurface() {
       );
     setSelectedChecklistId(checklist?.checklist_id ?? null);
     setChecklistNoteDraft(checklist?.local_review_notes ?? "");
+    setBoundaryConfirmations(emptyBoundaryConfirmations());
+  }
+
+  async function loadBoundaryRecords() {
+    try {
+      const response = await fetch(
+        `${PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE}?limit=50`,
+        { method: "GET" },
+      );
+      const body = (await response.json()) as {
+        ok?: boolean;
+        result?: PerspectiveMemoryProductPersistenceBoundaryRecordListV0;
+        blocked_reasons?: string[];
+      };
+      if (!response.ok || body.ok === false || !body.result) {
+        setBoundaryStatus(
+          `boundary records blocked: ${
+            body.blocked_reasons?.join("; ") ?? response.statusText
+          }`,
+        );
+        return;
+      }
+      setBoundaryRecordList(body.result);
+      setSelectedBoundaryRecordId(body.result.records[0]?.record_id ?? null);
+      setBoundaryStatus(
+        body.result.records.length > 0
+          ? "product persistence boundary records restored from sqlite"
+          : "no product persistence boundary records",
+      );
+    } catch (error) {
+      setBoundaryStatus(
+        `boundary record load failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   function createLocalWriteProposal() {
@@ -624,6 +721,103 @@ export function LocalMemoryReviewQueueSurface() {
     setQueueStatus("local memory review queue cleared");
   }
 
+  async function createProductPersistenceBoundaryRecord() {
+    if (
+      !displayChecklist ||
+      !selectedChecklistSourceProposal ||
+      !selectedChecklistSourceQueueItem
+    ) {
+      setBoundaryStatus(
+        "select a ready checklist, source proposal, and source queue item before creating boundary record",
+      );
+      return;
+    }
+    setBoundaryStatus("creating product persistence boundary record");
+    try {
+      const response = await fetch(
+        PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            checklist: displayChecklist,
+            proposal: selectedChecklistSourceProposal,
+            queue_item: selectedChecklistSourceQueueItem,
+            user_confirmation: boundaryConfirmations,
+          }),
+        },
+      );
+      const body = (await response.json()) as {
+        ok?: boolean;
+        result?: { record?: PerspectiveMemoryProductPersistenceBoundaryRecordV0 };
+        blocked_reasons?: string[];
+      };
+      if (!response.ok || body.ok === false || !body.result?.record) {
+        setBoundaryStatus(
+          `boundary record blocked: ${
+            body.blocked_reasons?.join("; ") ?? response.statusText
+          }`,
+        );
+        return;
+      }
+      await loadBoundaryRecords();
+      setSelectedBoundaryRecordId(body.result.record.record_id);
+      setBoundaryConfirmations(emptyBoundaryConfirmations());
+      setBoundaryStatus(
+        `product persistence boundary record created: ${body.result.record.record_id}`,
+      );
+    } catch (error) {
+      setBoundaryStatus(
+        `boundary record create failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  async function updateSelectedBoundaryStatus(
+    boundary_status: PerspectiveMemoryProductPersistenceBoundaryStatus,
+  ) {
+    if (!selectedBoundaryRecord) {
+      setBoundaryStatus("select a product persistence boundary record first");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE}/${encodeURIComponent(
+          selectedBoundaryRecord.record_id,
+        )}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ boundary_status }),
+        },
+      );
+      const body = (await response.json()) as {
+        ok?: boolean;
+        result?: { record?: PerspectiveMemoryProductPersistenceBoundaryRecordV0 };
+        blocked_reasons?: string[];
+      };
+      if (!response.ok || body.ok === false || !body.result?.record) {
+        setBoundaryStatus(
+          `boundary status update blocked: ${
+            body.blocked_reasons?.join("; ") ?? response.statusText
+          }`,
+        );
+        return;
+      }
+      await loadBoundaryRecords();
+      setSelectedBoundaryRecordId(body.result.record.record_id);
+      setBoundaryStatus(`boundary record marked ${boundary_status}`);
+    } catch (error) {
+      setBoundaryStatus(
+        `boundary status update failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   return (
     <main
       className={styles.shell}
@@ -641,10 +835,10 @@ export function LocalMemoryReviewQueueSurface() {
             </p>
           </div>
           <div className={styles.boundaryPills} aria-label="Queue boundary">
-            <span>local queue only</span>
+            <span>local review state until explicit boundary record</span>
+            <span>boundary record is product persistence only</span>
             <span>not accepted Augnes memory</span>
             <span>not review decision</span>
-            <span>not product DB persistence</span>
             <span>not Core decision</span>
             <span>not runtime handoff</span>
             <span>not automatic promotion</span>
@@ -840,6 +1034,24 @@ export function LocalMemoryReviewQueueSurface() {
               onMarkChecklistReady={markChecklistReady}
               onClearSelectedChecklist={clearSelectedChecklist}
               onClearAllChecklists={clearAllChecklists}
+            />
+            <ProductPersistenceBoundaryPanel
+              boundaryRecordList={boundaryRecordList}
+              selectedBoundaryRecord={selectedBoundaryRecord}
+              selectedChecklist={displayChecklist}
+              boundaryEligibility={boundaryEligibility}
+              boundaryStatus={boundaryStatus}
+              confirmations={boundaryConfirmations}
+              onConfirmationChange={(key, value) =>
+                setBoundaryConfirmations((current) => ({
+                  ...current,
+                  [key]: value,
+                }))
+              }
+              onCreateBoundaryRecord={createProductPersistenceBoundaryRecord}
+              onSelectRecord={setSelectedBoundaryRecordId}
+              onUpdateBoundaryStatus={updateSelectedBoundaryStatus}
+              onReloadBoundaryRecords={loadBoundaryRecords}
             />
           </section>
         </div>
@@ -1791,6 +2003,499 @@ function LocalWriteProposalReviewChecklistPanel({
   );
 }
 
+function ProductPersistenceBoundaryPanel({
+  boundaryRecordList,
+  selectedBoundaryRecord,
+  selectedChecklist,
+  boundaryEligibility,
+  boundaryStatus,
+  confirmations,
+  onConfirmationChange,
+  onCreateBoundaryRecord,
+  onSelectRecord,
+  onUpdateBoundaryStatus,
+  onReloadBoundaryRecords,
+}: {
+  boundaryRecordList: PerspectiveMemoryProductPersistenceBoundaryRecordListV0;
+  selectedBoundaryRecord: PerspectiveMemoryProductPersistenceBoundaryRecordV0 | null;
+  selectedChecklist: PerspectiveMemoryLocalWriteProposalReviewChecklistV0 | null;
+  boundaryEligibility: { eligible: boolean; blocked_reasons: string[] };
+  boundaryStatus: string;
+  confirmations: {
+    user_confirmed_not_accepted_memory: boolean;
+    user_confirmed_not_core_decision: boolean;
+    user_confirmed_no_automatic_promotion: boolean;
+  };
+  onConfirmationChange: (
+    key:
+      | "user_confirmed_not_accepted_memory"
+      | "user_confirmed_not_core_decision"
+      | "user_confirmed_no_automatic_promotion",
+    value: boolean,
+  ) => void;
+  onCreateBoundaryRecord: () => void;
+  onSelectRecord: (recordId: string) => void;
+  onUpdateBoundaryStatus: (
+    status: PerspectiveMemoryProductPersistenceBoundaryStatus,
+  ) => void;
+  onReloadBoundaryRecords: () => void;
+}) {
+  return (
+    <section
+      className={styles.boundaryPanel}
+      aria-label="Product persistence boundary"
+      data-augnes-product-persistence-boundary-panel="true"
+    >
+      <PanelHeader
+        eyebrow="Product Boundary"
+        title="Product Persistence Boundary"
+        detail="sqlite product boundary record"
+      />
+      <p className={styles.boundaryText}>
+        This creates a product persistence boundary record, not accepted memory.
+        It does not write Augnes memory, create a Core decision, or promote
+        anything automatically.
+      </p>
+      <dl className={styles.detailGrid}>
+        <DetailRow
+          label="boundary_api_route"
+          value={PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE}
+        />
+        <DetailRow label="persistence_backend" value="sqlite:lib/db.ts" />
+        <DetailRow
+          label="selected_checklist_status"
+          value={selectedChecklist?.checklist_status ?? "none"}
+        />
+        <DetailRow
+          label="boundary_eligible"
+          value={String(boundaryEligibility.eligible)}
+        />
+        <DetailRow label="boundary_status_note" value={boundaryStatus} />
+        <DetailRow
+          label="persisted_boundary_record_count"
+          value={String(boundaryRecordList.records.length)}
+        />
+      </dl>
+      {!boundaryEligibility.eligible ? (
+        <ResultList
+          title="boundary_blocked_reasons"
+          values={boundaryEligibility.blocked_reasons}
+        />
+      ) : null}
+      <section
+        className={styles.confirmationBox}
+        aria-label="Boundary confirmation"
+        data-augnes-product-persistence-boundary-confirmation="true"
+      >
+        <label className={styles.gateItem}>
+          <input
+            type="checkbox"
+            data-augnes-confirm-not-accepted-memory="true"
+            checked={confirmations.user_confirmed_not_accepted_memory}
+            onChange={(event) =>
+              onConfirmationChange(
+                "user_confirmed_not_accepted_memory",
+                event.currentTarget.checked,
+              )
+            }
+          />
+          <span>I understand this is not accepted Augnes memory</span>
+        </label>
+        <label className={styles.gateItem}>
+          <input
+            type="checkbox"
+            data-augnes-confirm-not-core-decision="true"
+            checked={confirmations.user_confirmed_not_core_decision}
+            onChange={(event) =>
+              onConfirmationChange(
+                "user_confirmed_not_core_decision",
+                event.currentTarget.checked,
+              )
+            }
+          />
+          <span>I understand this is not a Core decision</span>
+        </label>
+        <label className={styles.gateItem}>
+          <input
+            type="checkbox"
+            data-augnes-confirm-no-automatic-promotion="true"
+            checked={confirmations.user_confirmed_no_automatic_promotion}
+            onChange={(event) =>
+              onConfirmationChange(
+                "user_confirmed_no_automatic_promotion",
+                event.currentTarget.checked,
+              )
+            }
+          />
+          <span>
+            I understand this will not automatically promote or write memory
+          </span>
+        </label>
+      </section>
+      <div className={styles.buttonRow}>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-create-product-persistence-boundary-record="true"
+          disabled={!boundaryEligibility.eligible}
+          onClick={onCreateBoundaryRecord}
+        >
+          Create product persistence boundary record
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-reload-product-persistence-boundary-records="true"
+          onClick={onReloadBoundaryRecords}
+        >
+          Reload persisted boundary records
+        </button>
+      </div>
+
+      <section
+        className={styles.preview}
+        aria-label="Persisted boundary record list"
+        data-augnes-product-persistence-boundary-record-list="true"
+      >
+        <PanelHeader
+          eyebrow="Records"
+          title="Persisted Boundary Records"
+          detail={boundaryRecordList.boundary_record_list_version}
+        />
+        {boundaryRecordList.records.length > 0 ? (
+          <div className={styles.itemList}>
+            {boundaryRecordList.records.map((record) => (
+              <article
+                key={record.record_id}
+                className={classNames(
+                  styles.itemListEntry,
+                  selectedBoundaryRecord?.record_id === record.record_id
+                    ? styles.selectedItem
+                    : "",
+                )}
+                data-augnes-product-persistence-boundary-record={record.record_id}
+                data-augnes-product-persistence-boundary-status={
+                  record.boundary_status
+                }
+              >
+                <div className={styles.itemHeader}>
+                  <button
+                    type="button"
+                    className={styles.button}
+                    data-augnes-select-product-persistence-boundary-record={
+                      record.record_id
+                    }
+                    aria-pressed={
+                      selectedBoundaryRecord?.record_id === record.record_id
+                    }
+                    onClick={() => onSelectRecord(record.record_id)}
+                  >
+                    Select record
+                  </button>
+                  <strong>{record.boundary_status}</strong>
+                </div>
+                <dl className={styles.detailGrid}>
+                  <DetailRow label="record_id" value={record.record_id} />
+                  <DetailRow
+                    label="source_checklist_id"
+                    value={record.source_checklist_id}
+                  />
+                  <DetailRow
+                    label="source_proposal_id"
+                    value={record.source_proposal_id}
+                  />
+                  <DetailRow
+                    label="validation_result"
+                    value={record.source_validation_result_state}
+                  />
+                  <DetailRow label="updated_at" value={record.updated_at} />
+                </dl>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.boundaryText}>
+            No product persistence boundary records have been created yet.
+          </p>
+        )}
+      </section>
+
+      {selectedBoundaryRecord ? (
+        <section
+          className={styles.preview}
+          aria-label="Persisted boundary record detail"
+          data-augnes-product-persistence-boundary-record-detail="true"
+        >
+          <PanelHeader
+            eyebrow="Record Detail"
+            title="Product Boundary Record Detail"
+            detail={selectedBoundaryRecord.record_version}
+          />
+          <div className={styles.buttonRow}>
+            <button
+              type="button"
+              className={styles.button}
+              data-augnes-boundary-status-reviewing="true"
+              onClick={() =>
+                onUpdateBoundaryStatus("locally_reviewing_boundary_record")
+              }
+            >
+              Mark boundary reviewing locally
+            </button>
+            <button
+              type="button"
+              className={styles.button}
+              data-augnes-boundary-status-kept-for-later="true"
+              onClick={() => onUpdateBoundaryStatus("kept_for_later")}
+            >
+              Keep boundary for later
+            </button>
+            <button
+              type="button"
+              className={styles.button}
+              data-augnes-boundary-status-retracted="true"
+              onClick={() =>
+                onUpdateBoundaryStatus("retracted_before_memory_write")
+              }
+            >
+              Retract before memory write
+            </button>
+          </div>
+          <dl className={styles.detailGrid}>
+            <DetailRow label="record_id" value={selectedBoundaryRecord.record_id} />
+            <DetailRow
+              label="boundary_status"
+              value={selectedBoundaryRecord.boundary_status}
+            />
+            <DetailRow
+              label="source_checklist_id"
+              value={selectedBoundaryRecord.source_checklist_id}
+            />
+            <DetailRow
+              label="source_proposal_id"
+              value={selectedBoundaryRecord.source_proposal_id}
+            />
+            <DetailRow
+              label="source_queue_item_id"
+              value={selectedBoundaryRecord.source_queue_item_id}
+            />
+            <DetailRow
+              label="source_candidate_draft_id"
+              value={selectedBoundaryRecord.source_candidate_draft_id}
+            />
+            <DetailRow
+              label="source_validation_result_state"
+              value={selectedBoundaryRecord.source_validation_result_state}
+            />
+            <DetailRow
+              label="source_validation_summary_hash"
+              value={selectedBoundaryRecord.source_validation_summary_hash}
+            />
+            <DetailRow
+              label="source_input_ref"
+              value={selectedBoundaryRecord.source_input_ref}
+            />
+            <DetailRow
+              label="source_input_hash"
+              value={selectedBoundaryRecord.source_input_hash}
+            />
+            <DetailRow
+              label="prepare_summary_ref"
+              value={selectedBoundaryRecord.prepare_summary_ref}
+            />
+            <DetailRow
+              label="prepare_execution_summary_hash"
+              value={selectedBoundaryRecord.prepare_execution_summary_hash}
+            />
+            <DetailRow
+              label="returned_envelope_hash"
+              value={selectedBoundaryRecord.returned_envelope_hash}
+            />
+            <DetailRow
+              label="checklist_ready_for_product_persistence_review"
+              value={String(
+                selectedBoundaryRecord
+                  .checklist_ready_for_product_persistence_review,
+              )}
+            />
+            <DetailRow
+              label="checklist_ready_for_memory_write_now"
+              value={String(
+                selectedBoundaryRecord.checklist_ready_for_memory_write_now,
+              )}
+            />
+            <DetailRow
+              label="can_create_accepted_memory"
+              value={String(
+                selectedBoundaryRecord.next_allowed_actions
+                  .can_create_accepted_memory,
+              )}
+            />
+            <DetailRow
+              label="can_create_core_decision"
+              value={String(
+                selectedBoundaryRecord.next_allowed_actions
+                  .can_create_core_decision,
+              )}
+            />
+            <DetailRow
+              label="can_auto_promote"
+              value={String(
+                selectedBoundaryRecord.next_allowed_actions.can_auto_promote,
+              )}
+            />
+            <DetailRow
+              label="user_confirmation"
+              value={formatBoundaryUserConfirmation(selectedBoundaryRecord)}
+            />
+            <DetailRow
+              label="authority_boundary"
+              value={formatBoundaryAuthorityBoundary(selectedBoundaryRecord)}
+            />
+          </dl>
+          <section
+            className={styles.preview}
+            aria-label="Boundary proposed memory payload"
+            data-augnes-boundary-proposed-memory-payload="true"
+          >
+            <h3>{selectedBoundaryRecord.proposed_memory_payload.title}</h3>
+            <p>{selectedBoundaryRecord.proposed_memory_payload.summary}</p>
+            <DetailRow
+              label="should_write_to_memory_now"
+              value={String(
+                selectedBoundaryRecord.proposed_memory_payload
+                  .should_write_to_memory_now,
+              )}
+            />
+            <ResultList
+              title="source_refs"
+              values={selectedBoundaryRecord.proposed_memory_payload.source_refs}
+            />
+            <ResultList
+              title="evidence_refs"
+              values={selectedBoundaryRecord.proposed_memory_payload.evidence_refs}
+            />
+            <ResultList
+              title="risk_notes"
+              values={selectedBoundaryRecord.proposed_memory_payload.risk_notes}
+            />
+            <ResultList
+              title="unresolved_tensions"
+              values={
+                selectedBoundaryRecord.proposed_memory_payload.unresolved_tensions
+              }
+            />
+            <ResultList
+              title="carry_forward_questions"
+              values={
+                selectedBoundaryRecord.proposed_memory_payload
+                  .carry_forward_questions
+              }
+            />
+          </section>
+          <section
+            className={styles.preview}
+            aria-label="Boundary checklist gate summary"
+            data-augnes-boundary-checklist-gate-summary="true"
+          >
+            <PanelHeader
+              eyebrow="Gate Summary"
+              title="Checklist Gate Summary"
+              detail="persisted boundary snapshot"
+            />
+            <dl className={styles.detailGrid}>
+              <DetailRow
+                label="required_gate_count"
+                value={String(
+                  selectedBoundaryRecord.checklist_gate_summary
+                    .required_gate_count,
+                )}
+              />
+              <DetailRow
+                label="completed_required_gate_count"
+                value={String(
+                  selectedBoundaryRecord.checklist_gate_summary
+                    .completed_required_gate_count,
+                )}
+              />
+              <DetailRow
+                label="optional_gate_count"
+                value={String(
+                  selectedBoundaryRecord.checklist_gate_summary
+                    .optional_gate_count,
+                )}
+              />
+              <DetailRow
+                label="completed_optional_gate_count"
+                value={String(
+                  selectedBoundaryRecord.checklist_gate_summary
+                    .completed_optional_gate_count,
+                )}
+              />
+            </dl>
+            <ResultList
+              title="checked_required_gates"
+              values={
+                selectedBoundaryRecord.checklist_gate_summary
+                  .checked_required_gates
+              }
+            />
+            <ResultList
+              title="not_applicable_gates"
+              values={
+                selectedBoundaryRecord.checklist_gate_summary
+                  .not_applicable_gates
+              }
+            />
+            <ResultList
+              title="blocked_gates"
+              values={selectedBoundaryRecord.checklist_gate_summary.blocked_gates}
+            />
+          </section>
+          <section
+            className={styles.preview}
+            aria-label="Boundary proposal diff summary"
+            data-augnes-boundary-proposal-diff-summary="true"
+          >
+            <PanelHeader
+              eyebrow="Diff Summary"
+              title="Proposal Diff Summary"
+              detail="raw material remains excluded"
+            />
+            <ResultList
+              title="included_from_queue_item"
+              values={
+                selectedBoundaryRecord.proposal_diff_summary
+                  .included_from_queue_item
+              }
+            />
+            <ResultList
+              title="excluded_from_queue_item"
+              values={
+                selectedBoundaryRecord.proposal_diff_summary
+                  .excluded_from_queue_item
+              }
+            />
+            <ResultList
+              title="excluded_raw_material"
+              values={
+                selectedBoundaryRecord.proposal_diff_summary.excluded_raw_material
+              }
+            />
+            <ResultList
+              title="authority_boundary_notes"
+              values={
+                selectedBoundaryRecord.proposal_diff_summary
+                  .authority_boundary_notes
+              }
+            />
+          </section>
+        </section>
+      ) : null}
+    </section>
+  );
+}
+
 function queueFilterMatches(
   filter: QueueFilter,
   item: PerspectiveMemoryLocalReviewQueueItemV0,
@@ -1874,6 +2579,30 @@ function formatChecklistAuthorityBoundary(
   return Object.entries(checklist.authority_boundary)
     .map(([key, value]) => `${key}: ${String(value)}`)
     .join("; ");
+}
+
+function formatBoundaryAuthorityBoundary(
+  record: PerspectiveMemoryProductPersistenceBoundaryRecordV0,
+) {
+  return Object.entries(record.authority_boundary)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join("; ");
+}
+
+function formatBoundaryUserConfirmation(
+  record: PerspectiveMemoryProductPersistenceBoundaryRecordV0,
+) {
+  return Object.entries(record.user_confirmation)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join("; ");
+}
+
+function emptyBoundaryConfirmations() {
+  return {
+    user_confirmed_not_accepted_memory: false,
+    user_confirmed_not_core_decision: false,
+    user_confirmed_no_automatic_promotion: false,
+  };
 }
 
 function classNames(...classes: string[]) {
