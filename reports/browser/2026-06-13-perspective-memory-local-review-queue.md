@@ -23,6 +23,23 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - should_write_to_memory_now false visible
 - authority boundary visible for proposal
 - proposal diff summary visible
+- checklist panel visible
+- create local review checklist
+- checklist id visible
+- checklist_status visible
+- required gates visible
+- PASS proposal has pass_follow_up_caveat_reviewed not_applicable
+- checking required gates changes status from not_started to in_review
+- final_user_intent_confirmed gate required
+- locally_ready_for_product_persistence_review visible after all required gates
+- ready_for_memory_write_now false visible
+- unchecking one required gate returns to in_review
+- PASS with follow-up proposal requires pass_follow_up_caveat_reviewed
+- source queue item removal makes checklist blocked or source state caveat visible
+- clear selected checklist works
+- clear all checklists works
+- refresh restores checklist
+- no enabled Write to memory / Commit memory / Accept memory / Send to Core controls
 - PASS with follow-up proposal includes warning/risk caveat
 - Mark proposal reviewing locally works
 - Keep proposal for later works
@@ -61,6 +78,18 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - The Local Memory Write Proposal panel showed proposal eligibility for the selected queue item.
 - `Create local memory write proposal` created a local proposal in `augnes.perspectiveMemory.localWriteProposals.v0.1`.
 - The proposal id, `proposal_status=draft_write_proposal`, proposed memory payload, `should_write_to_memory_now=false`, proposal diff summary, and proposal authority boundary were visible.
+- The Local Write Proposal Review Checklist panel was visible for the selected proposal.
+- `Create local review checklist` created a checklist in `augnes.perspectiveMemory.localWriteProposalReviewChecklists.v0.1`.
+- The checklist id, `checklist_status`, required gates, readiness summary, `ready_for_product_persistence_review`, and `ready_for_memory_write_now=false` were visible.
+- A PASS proposal showed `pass_follow_up_caveat_reviewed` as `not_applicable`.
+- Checking required gates moved readiness from `not_started` to `in_review`, and checking `final_user_intent_confirmed` after the other required gates showed `locally_ready_for_product_persistence_review`.
+- Unchecking one required gate returned the checklist to `in_review`.
+- A PASS with follow-up proposal required `pass_follow_up_caveat_reviewed`.
+- Removing the source queue item made the checklist show a blocked readiness/source state caveat.
+- `Clear selected checklist` removed only the selected checklist.
+- `Clear all local checklists` cleared only the checklist namespace.
+- Refresh restored the local checklist from localStorage.
+- No enabled Write to memory, Commit memory, Accept memory, or Send to Core control was present.
 - A PASS with follow-up queue item proposal included the warning/risk caveat in `risk_notes`.
 - `Mark proposal reviewing locally` updated the proposal to `reviewing_write_proposal`.
 - `Keep proposal for later` updated the proposal to `kept_for_later`.

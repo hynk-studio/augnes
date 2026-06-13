@@ -53,6 +53,8 @@ export type PerspectiveMemoryLocalWriteProposalV0 = {
   source: "perspective_memory_local_review_queue";
   source_queue_item_id: string;
   source_candidate_draft_id: string;
+  source_candidate_local_status?: PerspectiveMemoryLocalReviewQueueItemV0["source_candidate_local_status"];
+  source_candidate_action?: PerspectiveMemoryLocalReviewQueueItemV0["source_candidate_action"];
   source_validation_result_state: "PASS" | "PASS with follow-up";
   source_validation_summary_hash: string;
   source_input_ref: string;
@@ -139,6 +141,8 @@ export function buildPerspectiveMemoryLocalWriteProposalFromQueueItem(
     source: "perspective_memory_local_review_queue",
     source_queue_item_id: input.queueItem.queue_item_id,
     source_candidate_draft_id: input.queueItem.source_candidate_draft_id,
+    source_candidate_local_status: input.queueItem.source_candidate_local_status,
+    source_candidate_action: input.queueItem.source_candidate_action,
     source_validation_result_state: sourceValidationResultState,
     source_validation_summary_hash:
       input.queueItem.source_validation_summary_hash,
@@ -553,6 +557,8 @@ function isPerspectiveMemoryLocalWriteProposal(
     value.source === "perspective_memory_local_review_queue" &&
     hasText(value.source_queue_item_id) &&
     hasText(value.source_candidate_draft_id) &&
+    isOptionalText(value.source_candidate_local_status) &&
+    isOptionalText(value.source_candidate_action) &&
     isProposalValidationResultState(value.source_validation_result_state) &&
     hasText(value.source_validation_summary_hash) &&
     hasText(value.source_input_ref) &&
@@ -675,6 +681,10 @@ function boundText(value: string, maxLength: number) {
 
 function hasText(value: unknown) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isOptionalText(value: unknown) {
+  return value == null || typeof value === "string";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

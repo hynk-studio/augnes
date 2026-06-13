@@ -24,7 +24,8 @@ The proposal list is bounded to 50 items, sorted newest first, deduped by `propo
 4. Check proposal eligibility.
 5. Select `Create local memory write proposal`.
 6. Inspect proposal id, `proposal_status`, proposed memory payload, proposal diff summary, source queue item state, and authority boundary.
-7. Update local proposal status or clear proposals.
+7. Create a Local Write Proposal Review Checklist when the proposal needs an explicit local readiness gate.
+8. Update local proposal status or clear proposals.
 
 ## Eligibility
 
@@ -89,11 +90,21 @@ Allowed local controls:
 - Mark proposal superseded locally
 - Clear selected proposal
 - Clear all local write proposals
+- Create local review checklist
 
 There is no enabled Write to memory, Commit memory, or Accept memory action. Actual memory write requires a future product persistence decision.
+
+## Local Write Proposal Review Checklist
+
+The selected proposal can create a Local Write Proposal Review Checklist in `augnes.perspectiveMemory.localWriteProposalReviewChecklists.v0.1`. The checklist stores bounded gate statuses, bounded local notes, source proposal state, source queue item state, and readiness summary.
+
+Checklist readiness can show `locally_ready_for_product_persistence_review` only after required gates are checked, source proposal and queue state remain acceptable, authority boundaries are acknowledged, and `final_user_intent_confirmed` is checked. `ready_for_memory_write_now` remains false.
+
+Conditional gates keep review pressure explicit: `pass_follow_up_caveat_reviewed` is required for `PASS with follow-up`, and `supersede_impact_reviewed` is required for supersede proposals.
 
 ## Verification
 
 - Static smoke: `npm run smoke:perspective-memory-local-write-proposal`
+- Checklist smoke: `npm run smoke:perspective-memory-local-write-proposal-review-checklist`
 - Queue smoke: `npm run smoke:perspective-memory-local-review-queue`
 - Browser report smoke: `npm run browser:perspective-memory-local-review-queue`

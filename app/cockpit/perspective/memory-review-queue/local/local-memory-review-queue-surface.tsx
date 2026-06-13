@@ -39,6 +39,28 @@ import {
   type PerspectiveMemoryLocalWriteProposalStatus,
   type PerspectiveMemoryLocalWriteProposalV0,
 } from "@/lib/perspective-ingest/perspective-memory-local-write-proposal";
+import {
+  PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE,
+  appendPerspectiveMemoryLocalWriteProposalReviewChecklistToList,
+  buildPerspectiveMemoryLocalWriteProposalReviewChecklist,
+  clearPerspectiveMemoryLocalWriteProposalReviewChecklistListFromStorage,
+  createEmptyPerspectiveMemoryLocalWriteProposalReviewChecklistList,
+  findPerspectiveMemoryLocalWriteProposalReviewChecklistByProposal,
+  getPerspectiveMemoryLocalWriteProposalReviewChecklistSourceProposalState,
+  loadPerspectiveMemoryLocalWriteProposalReviewChecklistListFromStorage,
+  markPerspectiveMemoryLocalWriteProposalReviewChecklistInReview,
+  markPerspectiveMemoryLocalWriteProposalReviewChecklistReady,
+  recomputePerspectiveMemoryLocalWriteProposalReviewChecklist,
+  removePerspectiveMemoryLocalWriteProposalReviewChecklistFromList,
+  replacePerspectiveMemoryLocalWriteProposalReviewChecklistInList,
+  savePerspectiveMemoryLocalWriteProposalReviewChecklistListToStorage,
+  updatePerspectiveMemoryLocalWriteProposalReviewChecklistGate,
+  updatePerspectiveMemoryLocalWriteProposalReviewChecklistNotes,
+  type PerspectiveMemoryLocalWriteProposalReviewChecklistGateId,
+  type PerspectiveMemoryLocalWriteProposalReviewChecklistListV0,
+  type PerspectiveMemoryLocalWriteProposalReviewChecklistSourceProposalState,
+  type PerspectiveMemoryLocalWriteProposalReviewChecklistV0,
+} from "@/lib/perspective-ingest/perspective-memory-local-write-proposal-review-checklist";
 
 type QueueFilter =
   | "all"
@@ -84,6 +106,19 @@ export function LocalMemoryReviewQueueSurface() {
   const [proposalStatus, setProposalStatus] = useState(
     "local write proposal list not loaded",
   );
+  const [checklistList, setChecklistList] =
+    useState<PerspectiveMemoryLocalWriteProposalReviewChecklistListV0>(() =>
+      createEmptyPerspectiveMemoryLocalWriteProposalReviewChecklistList(
+        initialIso,
+      ),
+    );
+  const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(
+    null,
+  );
+  const [checklistStatus, setChecklistStatus] = useState(
+    "local write proposal review checklist list not loaded",
+  );
+  const [checklistNoteDraft, setChecklistNoteDraft] = useState("");
 
   useEffect(() => {
     const nowIso = new Date().toISOString();
@@ -110,18 +145,38 @@ export function LocalMemoryReviewQueueSurface() {
         nowIso,
       );
     setProposalList(loadedProposalList);
-    setSelectedProposalId(
+    const restoredProposalId =
       loadedProposalList.proposals.find(
         (proposal) =>
           proposal.source_queue_item_id === loadedQueue.items[0]?.queue_item_id,
       )?.proposal_id ??
-        loadedProposalList.proposals[0]?.proposal_id ??
-        null,
-    );
+      loadedProposalList.proposals[0]?.proposal_id ??
+      null;
+    setSelectedProposalId(restoredProposalId);
     setProposalStatus(
       loadedProposalList.proposals.length > 0
         ? "local write proposal list restored"
         : "no local write proposals",
+    );
+    const loadedChecklistList =
+      loadPerspectiveMemoryLocalWriteProposalReviewChecklistListFromStorage(
+        window.localStorage,
+        nowIso,
+      );
+    setChecklistList(loadedChecklistList);
+    const restoredChecklist =
+      (restoredProposalId
+        ? findPerspectiveMemoryLocalWriteProposalReviewChecklistByProposal(
+            loadedChecklistList,
+            restoredProposalId,
+          )
+        : null) ?? loadedChecklistList.checklists[0] ?? null;
+    setSelectedChecklistId(restoredChecklist?.checklist_id ?? null);
+    setChecklistNoteDraft(restoredChecklist?.local_review_notes ?? "");
+    setChecklistStatus(
+      loadedChecklistList.checklists.length > 0
+        ? "local write proposal review checklist list restored"
+        : "no local write proposal review checklists",
     );
   }, []);
 
@@ -164,6 +219,46 @@ export function LocalMemoryReviewQueueSurface() {
   const selectedProposalSourceState = selectedProposal
     ? getPerspectiveMemoryLocalWriteProposalSourceState(selectedProposal, queue)
     : null;
+  const checklistForSelectedProposal = selectedProposal
+    ? findPerspectiveMemoryLocalWriteProposalReviewChecklistByProposal(
+        checklistList,
+        selectedProposal.proposal_id,
+      )
+    : null;
+  const selectedChecklist =
+    selectedChecklistId
+      ? checklistList.checklists.find(
+          (checklist) => checklist.checklist_id === selectedChecklistId,
+        ) ?? checklistForSelectedProposal
+      : checklistForSelectedProposal;
+  const displayChecklist = selectedChecklist
+    ? recomputePerspectiveMemoryLocalWriteProposalReviewChecklist({
+        checklist: selectedChecklist,
+        proposalList,
+        queue,
+        nowIso: selectedChecklist.updated_at,
+      })
+    : null;
+  const selectedChecklistSourceProposalState = displayChecklist
+    ? getPerspectiveMemoryLocalWriteProposalReviewChecklistSourceProposalState(
+        displayChecklist,
+        proposalList,
+      )
+    : null;
+  const selectedChecklistSourceProposal = displayChecklist
+    ? proposalList.proposals.find(
+        (proposal) =>
+          proposal.proposal_id === displayChecklist.source_proposal_id,
+      ) ?? null
+    : null;
+  const selectedChecklistSourceQueueState = selectedChecklistSourceProposal
+    ? getPerspectiveMemoryLocalWriteProposalSourceState(
+        selectedChecklistSourceProposal,
+        queue,
+      )
+    : displayChecklist
+      ? "not_checked"
+      : null;
   const proposalEligibility =
     selectedItem && selectedSourceState
       ? canBuildPerspectiveMemoryLocalWriteProposalFromQueueItem({
@@ -223,6 +318,25 @@ export function LocalMemoryReviewQueueSurface() {
       queueItemId,
     );
     setSelectedProposalId(proposal?.proposal_id ?? null);
+    const checklist = proposal
+      ? findPerspectiveMemoryLocalWriteProposalReviewChecklistByProposal(
+          checklistList,
+          proposal.proposal_id,
+        )
+      : null;
+    setSelectedChecklistId(checklist?.checklist_id ?? null);
+    setChecklistNoteDraft(checklist?.local_review_notes ?? "");
+  }
+
+  function selectProposal(proposalId: string) {
+    setSelectedProposalId(proposalId);
+    const checklist =
+      findPerspectiveMemoryLocalWriteProposalReviewChecklistByProposal(
+        checklistList,
+        proposalId,
+      );
+    setSelectedChecklistId(checklist?.checklist_id ?? null);
+    setChecklistNoteDraft(checklist?.local_review_notes ?? "");
   }
 
   function createLocalWriteProposal() {
@@ -256,6 +370,8 @@ export function LocalMemoryReviewQueueSurface() {
       nowIso,
     );
     setSelectedProposalId(result.proposal.proposal_id);
+    setSelectedChecklistId(null);
+    setChecklistNoteDraft("");
     saveProposalList(
       nextList,
       `local memory write proposal created: ${result.proposal.proposal_id}`,
@@ -279,6 +395,192 @@ export function LocalMemoryReviewQueueSurface() {
     saveProposalList(nextList, `write proposal marked ${nextStatus}`);
   }
 
+  function saveChecklistList(
+    nextList: PerspectiveMemoryLocalWriteProposalReviewChecklistListV0,
+    nextStatus: string,
+  ) {
+    setChecklistList(nextList);
+    savePerspectiveMemoryLocalWriteProposalReviewChecklistListToStorage(
+      window.localStorage,
+      nextList,
+    );
+    setChecklistStatus(nextStatus);
+  }
+
+  function createLocalReviewChecklist() {
+    if (!selectedProposal || !selectedProposalSourceState) {
+      setChecklistStatus("select a local write proposal before creating checklist");
+      return;
+    }
+    if (checklistForSelectedProposal) {
+      setChecklistStatus(
+        `selected proposal already has checklist ${checklistForSelectedProposal.checklist_id}`,
+      );
+      setSelectedChecklistId(checklistForSelectedProposal.checklist_id);
+      setChecklistNoteDraft(checklistForSelectedProposal.local_review_notes);
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const checklist = buildPerspectiveMemoryLocalWriteProposalReviewChecklist({
+      nowIso,
+      checklistId: `local-write-proposal-checklist:${Date.now()}`,
+      proposal: selectedProposal,
+      proposalSourceState: selectedProposalSourceState,
+    });
+    const nextList =
+      appendPerspectiveMemoryLocalWriteProposalReviewChecklistToList(
+        checklistList,
+        checklist,
+        nowIso,
+      );
+    setSelectedChecklistId(checklist.checklist_id);
+    setChecklistNoteDraft(checklist.local_review_notes);
+    saveChecklistList(
+      nextList,
+      `local review checklist created: ${checklist.checklist_id}`,
+    );
+  }
+
+  function replaceSelectedChecklist(
+    checklist: PerspectiveMemoryLocalWriteProposalReviewChecklistV0,
+    status: string,
+    nowIso: string,
+  ) {
+    const nextList =
+      replacePerspectiveMemoryLocalWriteProposalReviewChecklistInList(
+        checklistList,
+        checklist,
+        nowIso,
+      );
+    setSelectedChecklistId(checklist.checklist_id);
+    saveChecklistList(nextList, status);
+  }
+
+  function updateSelectedChecklistGate(
+    gateId: PerspectiveMemoryLocalWriteProposalReviewChecklistGateId,
+    checked: boolean,
+  ) {
+    if (!displayChecklist) {
+      setChecklistStatus("select a local review checklist before changing gates");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const checklist =
+      updatePerspectiveMemoryLocalWriteProposalReviewChecklistGate({
+        checklist: displayChecklist,
+        proposalList,
+        queue,
+        nowIso,
+        gateId,
+        status: checked ? "checked" : "unchecked",
+      });
+    replaceSelectedChecklist(
+      checklist,
+      `checklist gate ${gateId} marked ${checked ? "checked" : "unchecked"}`,
+      nowIso,
+    );
+  }
+
+  function markChecklistInReview() {
+    if (!displayChecklist) {
+      setChecklistStatus("select a local review checklist before marking in review");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const checklist =
+      markPerspectiveMemoryLocalWriteProposalReviewChecklistInReview({
+        checklist: displayChecklist,
+        proposalList,
+        queue,
+        nowIso,
+      });
+    replaceSelectedChecklist(checklist, "checklist marked in_review", nowIso);
+  }
+
+  function recomputeSelectedChecklistReadiness() {
+    if (!displayChecklist) {
+      setChecklistStatus("select a local review checklist before recomputing");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const checklist = recomputePerspectiveMemoryLocalWriteProposalReviewChecklist({
+      checklist: displayChecklist,
+      proposalList,
+      queue,
+      nowIso,
+    });
+    replaceSelectedChecklist(checklist, "checklist readiness recomputed", nowIso);
+  }
+
+  function markChecklistReady() {
+    if (!displayChecklist) {
+      setChecklistStatus("select a local review checklist before marking ready");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const checklist =
+      markPerspectiveMemoryLocalWriteProposalReviewChecklistReady({
+        checklist: displayChecklist,
+        proposalList,
+        queue,
+        nowIso,
+      });
+    replaceSelectedChecklist(
+      checklist,
+      checklist.readiness_summary.ready_for_product_persistence_review
+        ? "checklist marked locally_ready_for_product_persistence_review"
+        : "checklist is not locally ready; required gates remain incomplete",
+      nowIso,
+    );
+  }
+
+  function saveChecklistNote() {
+    if (!displayChecklist) {
+      setChecklistStatus("select a local review checklist before saving notes");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const checklist =
+      updatePerspectiveMemoryLocalWriteProposalReviewChecklistNotes({
+        checklist: displayChecklist,
+        proposalList,
+        queue,
+        nowIso,
+        localReviewNotes: checklistNoteDraft,
+      });
+    replaceSelectedChecklist(checklist, "checklist note saved", nowIso);
+  }
+
+  function clearSelectedChecklist() {
+    if (!displayChecklist) {
+      setChecklistStatus("no selected local review checklist to clear");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const nextList =
+      removePerspectiveMemoryLocalWriteProposalReviewChecklistFromList(
+        checklistList,
+        displayChecklist.checklist_id,
+        nowIso,
+      );
+    setSelectedChecklistId(nextList.checklists[0]?.checklist_id ?? null);
+    setChecklistNoteDraft(nextList.checklists[0]?.local_review_notes ?? "");
+    saveChecklistList(nextList, "selected local review checklist cleared");
+  }
+
+  function clearAllChecklists() {
+    const nowIso = new Date().toISOString();
+    const nextList =
+      createEmptyPerspectiveMemoryLocalWriteProposalReviewChecklistList(nowIso);
+    clearPerspectiveMemoryLocalWriteProposalReviewChecklistListFromStorage(
+      window.localStorage,
+    );
+    setSelectedChecklistId(null);
+    setChecklistList(nextList);
+    setChecklistNoteDraft("");
+    setChecklistStatus("all local review checklists cleared");
+  }
+
   function clearSelectedProposal() {
     if (!selectedProposal) {
       setProposalStatus("no selected local write proposal to clear");
@@ -291,6 +593,14 @@ export function LocalMemoryReviewQueueSurface() {
       nowIso,
     );
     setSelectedProposalId(nextList.proposals[0]?.proposal_id ?? null);
+    setSelectedChecklistId(
+      nextList.proposals[0]
+        ? findPerspectiveMemoryLocalWriteProposalReviewChecklistByProposal(
+            checklistList,
+            nextList.proposals[0].proposal_id,
+          )?.checklist_id ?? null
+        : null,
+    );
     saveProposalList(nextList, "selected local write proposal cleared");
   }
 
@@ -300,6 +610,8 @@ export function LocalMemoryReviewQueueSurface() {
     clearPerspectiveMemoryLocalWriteProposalListFromStorage(window.localStorage);
     setSelectedProposalId(null);
     setProposalList(nextList);
+    setSelectedChecklistId(null);
+    setChecklistNoteDraft("");
     setProposalStatus("all local write proposals cleared");
   }
 
@@ -494,8 +806,17 @@ export function LocalMemoryReviewQueueSurface() {
               proposalForSelectedQueueItem={proposalForSelectedQueueItem}
               proposalEligibility={proposalEligibility}
               proposalStatus={proposalStatus}
+              checklistList={checklistList}
+              selectedChecklist={displayChecklist}
+              selectedChecklistSourceProposalState={
+                selectedChecklistSourceProposalState
+              }
+              selectedChecklistSourceQueueState={selectedChecklistSourceQueueState}
+              checklistForSelectedProposal={checklistForSelectedProposal}
+              checklistStatus={checklistStatus}
+              checklistNoteDraft={checklistNoteDraft}
               onCreateProposal={createLocalWriteProposal}
-              onSelectProposal={setSelectedProposalId}
+              onSelectProposal={selectProposal}
               onMarkReviewing={() =>
                 updateSelectedProposalStatus("reviewing_write_proposal")
               }
@@ -510,6 +831,15 @@ export function LocalMemoryReviewQueueSurface() {
               }
               onClearSelected={clearSelectedProposal}
               onClearAll={clearAllProposals}
+              onCreateChecklist={createLocalReviewChecklist}
+              onChecklistGateChange={updateSelectedChecklistGate}
+              onChecklistNoteDraftChange={setChecklistNoteDraft}
+              onSaveChecklistNote={saveChecklistNote}
+              onMarkChecklistInReview={markChecklistInReview}
+              onRecomputeChecklist={recomputeSelectedChecklistReadiness}
+              onMarkChecklistReady={markChecklistReady}
+              onClearSelectedChecklist={clearSelectedChecklist}
+              onClearAllChecklists={clearAllChecklists}
             />
           </section>
         </div>
@@ -689,6 +1019,13 @@ function LocalWriteProposalPanel({
   proposalForSelectedQueueItem,
   proposalEligibility,
   proposalStatus,
+  checklistList,
+  selectedChecklist,
+  selectedChecklistSourceProposalState,
+  selectedChecklistSourceQueueState,
+  checklistForSelectedProposal,
+  checklistStatus,
+  checklistNoteDraft,
   onCreateProposal,
   onSelectProposal,
   onMarkReviewing,
@@ -697,6 +1034,15 @@ function LocalWriteProposalPanel({
   onMarkSuperseded,
   onClearSelected,
   onClearAll,
+  onCreateChecklist,
+  onChecklistGateChange,
+  onChecklistNoteDraftChange,
+  onSaveChecklistNote,
+  onMarkChecklistInReview,
+  onRecomputeChecklist,
+  onMarkChecklistReady,
+  onClearSelectedChecklist,
+  onClearAllChecklists,
 }: {
   selectedItem: PerspectiveMemoryLocalReviewQueueItemV0 | null;
   selectedSourceState: PerspectiveMemoryLocalReviewQueueSourceState | null;
@@ -706,6 +1052,19 @@ function LocalWriteProposalPanel({
   proposalForSelectedQueueItem: PerspectiveMemoryLocalWriteProposalV0 | null;
   proposalEligibility: ProposalEligibility;
   proposalStatus: string;
+  checklistList: PerspectiveMemoryLocalWriteProposalReviewChecklistListV0;
+  selectedChecklist: PerspectiveMemoryLocalWriteProposalReviewChecklistV0 | null;
+  selectedChecklistSourceProposalState:
+    | PerspectiveMemoryLocalWriteProposalReviewChecklistSourceProposalState
+    | null;
+  selectedChecklistSourceQueueState:
+    | PerspectiveMemoryLocalWriteProposalSourceState
+    | null;
+  checklistForSelectedProposal:
+    | PerspectiveMemoryLocalWriteProposalReviewChecklistV0
+    | null;
+  checklistStatus: string;
+  checklistNoteDraft: string;
   onCreateProposal: () => void;
   onSelectProposal: (proposalId: string) => void;
   onMarkReviewing: () => void;
@@ -714,6 +1073,18 @@ function LocalWriteProposalPanel({
   onMarkSuperseded: () => void;
   onClearSelected: () => void;
   onClearAll: () => void;
+  onCreateChecklist: () => void;
+  onChecklistGateChange: (
+    gateId: PerspectiveMemoryLocalWriteProposalReviewChecklistGateId,
+    checked: boolean,
+  ) => void;
+  onChecklistNoteDraftChange: (value: string) => void;
+  onSaveChecklistNote: () => void;
+  onMarkChecklistInReview: () => void;
+  onRecomputeChecklist: () => void;
+  onMarkChecklistReady: () => void;
+  onClearSelectedChecklist: () => void;
+  onClearAllChecklists: () => void;
 }) {
   const createDisabled =
     selectedItem == null ||
@@ -896,6 +1267,15 @@ function LocalWriteProposalPanel({
                     value={proposal.source_validation_result_state}
                   />
                   <DetailRow
+                    label="checklist_status"
+                    value={
+                      findPerspectiveMemoryLocalWriteProposalReviewChecklistByProposal(
+                        checklistList,
+                        proposal.proposal_id,
+                      )?.checklist_status ?? "none"
+                    }
+                  />
+                  <DetailRow
                     label="should_write_to_memory_now"
                     value={String(
                       proposal.proposed_memory_payload
@@ -915,10 +1295,35 @@ function LocalWriteProposalPanel({
       )}
 
       {selectedProposal && selectedProposalSourceState ? (
-        <LocalWriteProposalDetail
-          proposal={selectedProposal}
-          sourceState={selectedProposalSourceState}
-        />
+        <>
+          <LocalWriteProposalDetail
+            proposal={selectedProposal}
+            sourceState={selectedProposalSourceState}
+            checklist={checklistForSelectedProposal}
+          />
+          <LocalWriteProposalReviewChecklistPanel
+            selectedProposal={selectedProposal}
+            selectedProposalSourceState={selectedProposalSourceState}
+            checklistList={checklistList}
+            selectedChecklist={selectedChecklist}
+            selectedChecklistSourceProposalState={
+              selectedChecklistSourceProposalState
+            }
+            selectedChecklistSourceQueueState={selectedChecklistSourceQueueState}
+            checklistForSelectedProposal={checklistForSelectedProposal}
+            checklistStatus={checklistStatus}
+            checklistNoteDraft={checklistNoteDraft}
+            onCreateChecklist={onCreateChecklist}
+            onChecklistGateChange={onChecklistGateChange}
+            onChecklistNoteDraftChange={onChecklistNoteDraftChange}
+            onSaveChecklistNote={onSaveChecklistNote}
+            onMarkChecklistInReview={onMarkChecklistInReview}
+            onRecomputeChecklist={onRecomputeChecklist}
+            onMarkChecklistReady={onMarkChecklistReady}
+            onClearSelectedChecklist={onClearSelectedChecklist}
+            onClearAllChecklists={onClearAllChecklists}
+          />
+        </>
       ) : null}
     </section>
   );
@@ -927,9 +1332,11 @@ function LocalWriteProposalPanel({
 function LocalWriteProposalDetail({
   proposal,
   sourceState,
+  checklist,
 }: {
   proposal: PerspectiveMemoryLocalWriteProposalV0;
   sourceState: PerspectiveMemoryLocalWriteProposalSourceState;
+  checklist: PerspectiveMemoryLocalWriteProposalReviewChecklistV0 | null;
 }) {
   return (
     <section
@@ -947,6 +1354,10 @@ function LocalWriteProposalDetail({
         <DetailRow
           label="proposal_status"
           value={proposal.proposal_status}
+        />
+        <DetailRow
+          label="review_checklist_status"
+          value={checklist?.checklist_status ?? "none"}
         />
         <DetailRow label="proposal_source_state" value={sourceState} />
         <DetailRow
@@ -1076,6 +1487,310 @@ function LocalWriteProposalDetail({
   );
 }
 
+function LocalWriteProposalReviewChecklistPanel({
+  selectedProposal,
+  selectedProposalSourceState,
+  checklistList,
+  selectedChecklist,
+  selectedChecklistSourceProposalState,
+  selectedChecklistSourceQueueState,
+  checklistForSelectedProposal,
+  checklistStatus,
+  checklistNoteDraft,
+  onCreateChecklist,
+  onChecklistGateChange,
+  onChecklistNoteDraftChange,
+  onSaveChecklistNote,
+  onMarkChecklistInReview,
+  onRecomputeChecklist,
+  onMarkChecklistReady,
+  onClearSelectedChecklist,
+  onClearAllChecklists,
+}: {
+  selectedProposal: PerspectiveMemoryLocalWriteProposalV0;
+  selectedProposalSourceState: PerspectiveMemoryLocalWriteProposalSourceState;
+  checklistList: PerspectiveMemoryLocalWriteProposalReviewChecklistListV0;
+  selectedChecklist: PerspectiveMemoryLocalWriteProposalReviewChecklistV0 | null;
+  selectedChecklistSourceProposalState:
+    | PerspectiveMemoryLocalWriteProposalReviewChecklistSourceProposalState
+    | null;
+  selectedChecklistSourceQueueState:
+    | PerspectiveMemoryLocalWriteProposalSourceState
+    | null;
+  checklistForSelectedProposal:
+    | PerspectiveMemoryLocalWriteProposalReviewChecklistV0
+    | null;
+  checklistStatus: string;
+  checklistNoteDraft: string;
+  onCreateChecklist: () => void;
+  onChecklistGateChange: (
+    gateId: PerspectiveMemoryLocalWriteProposalReviewChecklistGateId,
+    checked: boolean,
+  ) => void;
+  onChecklistNoteDraftChange: (value: string) => void;
+  onSaveChecklistNote: () => void;
+  onMarkChecklistInReview: () => void;
+  onRecomputeChecklist: () => void;
+  onMarkChecklistReady: () => void;
+  onClearSelectedChecklist: () => void;
+  onClearAllChecklists: () => void;
+}) {
+  const canMarkReady =
+    selectedChecklist?.readiness_summary.ready_for_product_persistence_review ===
+    true;
+  return (
+    <section
+      className={styles.checklistPanel}
+      aria-label="Local write proposal review checklist"
+      data-augnes-local-write-proposal-review-checklist-panel="true"
+    >
+      <PanelHeader
+        eyebrow="Checklist"
+        title="Local Write Proposal Review Checklist"
+        detail="local checklist only"
+      />
+      <p className={styles.boundaryText}>
+        This checklist can only mark a proposal locally ready for product
+        persistence review. Actual memory write remains unavailable and requires
+        future product persistence implementation.
+      </p>
+      <div className={styles.buttonRow}>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-create-local-review-checklist="true"
+          disabled={checklistForSelectedProposal != null}
+          onClick={onCreateChecklist}
+        >
+          Create local review checklist
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-mark-checklist-in-review="true"
+          disabled={!selectedChecklist}
+          onClick={onMarkChecklistInReview}
+        >
+          Mark checklist in review
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-recompute-checklist-readiness="true"
+          disabled={!selectedChecklist}
+          onClick={onRecomputeChecklist}
+        >
+          Recompute readiness
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-mark-checklist-ready="true"
+          disabled={!canMarkReady}
+          onClick={onMarkChecklistReady}
+        >
+          Mark locally ready for product persistence review
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-clear-selected-review-checklist="true"
+          disabled={!selectedChecklist}
+          onClick={onClearSelectedChecklist}
+        >
+          Clear selected checklist
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-clear-all-review-checklists="true"
+          disabled={checklistList.checklists.length === 0}
+          onClick={onClearAllChecklists}
+        >
+          Clear all local checklists
+        </button>
+      </div>
+      <dl className={styles.detailGrid}>
+        <DetailRow
+          label="checklist_storage_namespace"
+          value={
+            PERSPECTIVE_MEMORY_LOCAL_WRITE_PROPOSAL_REVIEW_CHECKLIST_STORAGE_NAMESPACE
+          }
+        />
+        <DetailRow
+          label="checklist_list_count"
+          value={String(checklistList.checklists.length)}
+        />
+        <DetailRow label="checklist_status_note" value={checklistStatus} />
+        <DetailRow
+          label="selected_proposal_id"
+          value={selectedProposal.proposal_id}
+        />
+        <DetailRow
+          label="selected_proposal_source_state"
+          value={selectedProposalSourceState}
+        />
+        <DetailRow
+          label="selected_proposal_has_checklist"
+          value={String(checklistForSelectedProposal != null)}
+        />
+        <DetailRow
+          label="selected_proposal_checklist_id"
+          value={checklistForSelectedProposal?.checklist_id ?? "none"}
+        />
+        <DetailRow
+          label="selected_proposal_checklist_status"
+          value={checklistForSelectedProposal?.checklist_status ?? "none"}
+        />
+      </dl>
+
+      {selectedChecklist ? (
+        <>
+          <section
+            className={styles.preview}
+            aria-label="Checklist readiness summary"
+            data-augnes-checklist-readiness-summary="true"
+          >
+            <PanelHeader
+              eyebrow="Readiness"
+              title="Checklist Readiness"
+              detail={selectedChecklist.readiness_summary.readiness_version}
+            />
+            <dl className={styles.detailGrid}>
+              <DetailRow
+                label="checklist_id"
+                value={selectedChecklist.checklist_id}
+              />
+              <DetailRow
+                label="checklist_status"
+                value={selectedChecklist.checklist_status}
+              />
+              <DetailRow
+                label="source_proposal_state"
+                value={selectedChecklistSourceProposalState ?? "not_checked"}
+              />
+              <DetailRow
+                label="source_queue_item_state"
+                value={selectedChecklistSourceQueueState ?? "not_checked"}
+              />
+              <DetailRow
+                label="ready_for_product_persistence_review"
+                value={String(
+                  selectedChecklist.readiness_summary
+                    .ready_for_product_persistence_review,
+                )}
+              />
+              <DetailRow
+                label="ready_for_memory_write_now"
+                value={String(
+                  selectedChecklist.readiness_summary.ready_for_memory_write_now,
+                )}
+              />
+              <DetailRow
+                label="required_gate_count"
+                value={String(selectedChecklist.required_gate_count)}
+              />
+              <DetailRow
+                label="completed_required_gate_count"
+                value={String(selectedChecklist.completed_required_gate_count)}
+              />
+              <DetailRow
+                label="optional_gate_count"
+                value={String(selectedChecklist.optional_gate_count)}
+              />
+              <DetailRow
+                label="completed_optional_gate_count"
+                value={String(selectedChecklist.completed_optional_gate_count)}
+              />
+              <DetailRow
+                label="authority_boundary"
+                value={formatChecklistAuthorityBoundary(selectedChecklist)}
+              />
+              <DetailRow
+                label="next_action"
+                value={selectedChecklist.readiness_summary.next_action}
+              />
+            </dl>
+            <ResultList
+              title="blocked_reasons"
+              values={selectedChecklist.readiness_summary.blocked_reasons}
+            />
+            <ResultList
+              title="warnings"
+              values={selectedChecklist.readiness_summary.warnings}
+            />
+          </section>
+
+          <section
+            className={styles.gateList}
+            aria-label="Checklist gates"
+            data-augnes-checklist-gate-list="true"
+          >
+            {Object.values(selectedChecklist.gates).map((gate) => (
+              <label
+                key={gate.gate_id}
+                className={styles.gateItem}
+                data-augnes-checklist-gate-row={gate.gate_id}
+              >
+                <input
+                  type="checkbox"
+                  data-augnes-checklist-gate={gate.gate_id}
+                  checked={gate.status === "checked"}
+                  disabled={gate.status === "not_applicable"}
+                  onChange={(event) =>
+                    onChecklistGateChange(
+                      gate.gate_id as PerspectiveMemoryLocalWriteProposalReviewChecklistGateId,
+                      event.currentTarget.checked,
+                    )
+                  }
+                />
+                <span>
+                  <strong>{gate.label}</strong>
+                  <small>
+                    {gate.gate_id} / {gate.required ? "required" : "optional"} /{" "}
+                    {gate.status}
+                  </small>
+                </span>
+              </label>
+            ))}
+          </section>
+
+          <section className={styles.preview} aria-label="Checklist notes">
+            <PanelHeader
+              eyebrow="Notes"
+              title="Bounded Local Review Notes"
+              detail="local notes only"
+            />
+            <textarea
+              className={styles.noteArea}
+              aria-label="Checklist local review notes"
+              data-augnes-checklist-local-review-notes="true"
+              value={checklistNoteDraft}
+              onChange={(event) =>
+                onChecklistNoteDraftChange(event.currentTarget.value)
+              }
+            />
+            <div className={styles.buttonRow}>
+              <button
+                type="button"
+                className={styles.button}
+                data-augnes-save-checklist-note="true"
+                onClick={onSaveChecklistNote}
+              >
+                Save checklist note
+              </button>
+            </div>
+          </section>
+        </>
+      ) : (
+        <p className={styles.boundaryText}>
+          No local review checklist is selected for this write proposal.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function queueFilterMatches(
   filter: QueueFilter,
   item: PerspectiveMemoryLocalReviewQueueItemV0,
@@ -1149,6 +1864,14 @@ function formatProposalAuthorityBoundary(
   proposal: PerspectiveMemoryLocalWriteProposalV0,
 ) {
   return Object.entries(proposal.authority_boundary)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join("; ");
+}
+
+function formatChecklistAuthorityBoundary(
+  checklist: PerspectiveMemoryLocalWriteProposalReviewChecklistV0,
+) {
+  return Object.entries(checklist.authority_boundary)
     .map(([key, value]) => `${key}: ${String(value)}`)
     .join("; ");
 }

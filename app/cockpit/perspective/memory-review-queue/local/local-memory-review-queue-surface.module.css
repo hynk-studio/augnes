@@ -273,6 +273,62 @@
   padding-top: 16px;
 }
 
+.checklistPanel {
+  min-width: 0;
+  border-top: 1px solid #edf0f2;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.gateList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.gateItem {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid #d7dee3;
+  border-radius: 8px;
+  background: #fbfcfd;
+  color: #263842;
+  padding: 10px;
+}
+
+.gateItem input {
+  margin-top: 2px;
+}
+
+.gateItem strong,
+.gateItem small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gateItem small {
+  margin-top: 4px;
+  color: #60727d;
+  font-size: 0.78rem;
+}
+
+.noteArea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid #c9d2d8;
+  border-radius: 8px;
+  color: #1f2f38;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  padding: 10px;
+}
+
 .preview h3 {
   margin: 0 0 8px;
   font-size: 1rem;
