@@ -10,6 +10,9 @@ import {
   type PerspectiveMemoryItemStatus,
   type PerspectiveMemoryItemV0,
 } from "@/lib/perspective-ingest/perspective-memory-item";
+import {
+  PERSPECTIVE_MEMORY_ITEM_SEARCH_ROUTE,
+} from "@/lib/perspective-ingest/perspective-memory-item-search";
 import styles from "./perspective-memory-items-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
@@ -162,6 +165,13 @@ export function PerspectiveMemoryItemsSurface() {
         </header>
 
         <nav className={styles.navRow} aria-label="Perspective-memory item navigation">
+          <Link
+            className={styles.linkButton}
+            href={PERSPECTIVE_MEMORY_ITEM_SEARCH_ROUTE}
+            data-augnes-memory-items-search-link="true"
+          >
+            Search persisted perspective-memory items
+          </Link>
           <Link
             className={styles.linkButton}
             href={BOUNDARY_INBOX_ROUTE}

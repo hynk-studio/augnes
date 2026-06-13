@@ -29,6 +29,12 @@ const dashboardComponentFile =
   "app/cockpit/perspective/memory-items/perspective-memory-items-surface.tsx";
 const dashboardCssFile =
   "app/cockpit/perspective/memory-items/perspective-memory-items-surface.module.css";
+const searchRouteFile =
+  "app/cockpit/perspective/memory-items/search/page.tsx";
+const searchComponentFile =
+  "app/cockpit/perspective/memory-items/search/perspective-memory-item-search-surface.tsx";
+const searchCssFile =
+  "app/cockpit/perspective/memory-items/search/perspective-memory-item-search-surface.module.css";
 const boundaryInboxComponentFile =
   "app/cockpit/perspective/memory-boundary-review-inbox/memory-boundary-review-inbox-surface.tsx";
 const boundaryInboxDocFile =
@@ -54,6 +60,8 @@ const apiItemRouteText = readFileSync(apiItemRouteFile, "utf8");
 const dashboardRouteText = readFileSync(dashboardRouteFile, "utf8");
 const dashboardComponentText = readFileSync(dashboardComponentFile, "utf8");
 const dashboardCssText = readFileSync(dashboardCssFile, "utf8");
+const searchRouteText = readFileSync(searchRouteFile, "utf8");
+const searchComponentText = readFileSync(searchComponentFile, "utf8");
 const boundaryInboxComponentText = readFileSync(
   boundaryInboxComponentFile,
   "utf8",
@@ -87,6 +95,9 @@ function assertStaticFiles() {
     dashboardRouteFile,
     dashboardComponentFile,
     dashboardCssFile,
+    searchRouteFile,
+    searchComponentFile,
+    searchCssFile,
     boundaryInboxComponentFile,
     itemDocFile,
     itemReportFile,
@@ -99,6 +110,10 @@ function assertStaticFiles() {
   assert.equal(
     packageJson.scripts["smoke:perspective-memory-items"],
     "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items.mjs",
+  );
+  assert.equal(
+    packageJson.scripts["smoke:perspective-memory-items-search"],
+    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-search.mjs",
   );
   assert.equal(
     packageJson.scripts["browser:perspective-memory-items"],
@@ -182,9 +197,16 @@ function assertStaticFiles() {
     "data-augnes-memory-item-status-retracted",
     "data-augnes-memory-item-status-superseded",
     "data-augnes-memory-item-status-deprecated",
+    "data-augnes-memory-items-search-link",
+    "Search persisted perspective-memory items",
+    "PERSPECTIVE_MEMORY_ITEM_SEARCH_ROUTE",
     "not Core decision",
     "not automatic runtime injection",
     "sqlite:lib/db.ts",
+  ]);
+  assertIncludesAll(searchRouteText + searchComponentText, [
+    "PerspectiveMemoryItemSearchSurface",
+    "data-augnes-perspective-memory-items-search-route",
   ]);
   assertIncludesAll(dashboardCssText, [
     ".shell",
