@@ -320,6 +320,8 @@
     "smoke:perspective-memory-reuse-live-data-dogfood-report": "node scripts/smoke-perspective-memory-reuse-live-data-dogfood-report.mjs",
     "perspective:memory-reuse-live-data-dogfood-seed": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/perspective-memory-reuse-live-data-dogfood-seed.mjs",
     "smoke:perspective-memory-reuse-live-data-dogfood-seed": "node scripts/smoke-perspective-memory-reuse-live-data-dogfood-seed.mjs",
+    "browser:perspective-memory-reuse-live-data-dogfood-harness-rerun": "node scripts/browser-smoke-perspective-memory-reuse-live-data-dogfood-harness-rerun.mjs",
+    "smoke:perspective-memory-reuse-live-data-dogfood-harness-rerun-report": "node scripts/smoke-perspective-memory-reuse-live-data-dogfood-harness-rerun-report.mjs",
     "browser:perspective-memory-local-review-queue": "node scripts/browser-smoke-perspective-memory-local-review-queue.mjs",
     "browser:perspective-memory-boundary-review-inbox": "node scripts/browser-smoke-perspective-memory-boundary-review-inbox.mjs",
     "browser:perspective-memory-items": "node scripts/browser-smoke-perspective-memory-items.mjs",
