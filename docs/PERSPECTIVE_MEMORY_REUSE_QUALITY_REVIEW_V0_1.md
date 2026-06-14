@@ -104,6 +104,39 @@ The aggregate summary includes:
 - `large_selection_warning`
 - `suggested_next_action`
 
+## Reuse Workspace Panel
+
+The reuse workspace at `/cockpit/perspective/memory-items/reuse` displays a
+read-only deterministic quality review preview panel built with
+`buildPerspectiveMemoryReuseQualityReview`.
+
+The panel is derived from the current reuse packet context:
+
+- selected persisted perspective-memory items
+- task title and task description
+- per-item `why_selected`
+- per-item `reuse_boundary`
+- current `codex_memory_brief_metadata`
+- current reuse `packet_id`
+
+The panel shows:
+
+- `review_version`
+- `dogfood_route_status: not_applicable`
+- `quality_review_preview_state`
+- `reviewable_item_count`
+- `needs_operator_review_count`
+- `missing_why_selected_count`
+- `missing_reuse_boundary_count`
+- `compact_brief_recommended`
+- `large_selection_warning`
+- `suggested_next_action`
+- item-level review states
+
+The panel is not dogfood evidence and is not route validation. It is only a
+quality review preview state for the current operator-selected reuse context.
+It uses mechanical checks only and makes no semantic truth claim.
+
 ## Authority Boundary
 
 This is preview-only deterministic local review.
