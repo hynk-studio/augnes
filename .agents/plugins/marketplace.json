@@ -17,6 +17,20 @@
       "category": "Productivity",
       "status": "local-scaffold",
       "authority": "non-authoritative workflow packaging only"
+    },
+    {
+      "name": "augnes-codex",
+      "source": {
+        "source": "local",
+        "path": "./plugins/augnes-codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "status": "local-scaffold",
+      "authority": "non-authoritative skill distribution packaging only"
     }
   ]
 }
