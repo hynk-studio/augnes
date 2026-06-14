@@ -19,13 +19,6 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-augnes-capsule-handoff-skill.mjs";
 const pluginV2SmokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
-const dogfoodReportFile = "docs/CAPSULE_HANDOFF_SKILL_DOGFOOD_REPORT_V0_1.md";
-const dogfoodSmokeFile =
-  "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
-const firstLoopCloseoutFile =
-  "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
-const firstLoopCloseoutSmokeFile =
-  "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
 const usefulnessPlanFile =
   "docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md";
 const usefulnessPlanSmokeFile =
@@ -48,10 +41,6 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
   pluginV2SmokeFile,
-  dogfoodReportFile,
-  dogfoodSmokeFile,
-  firstLoopCloseoutFile,
-  firstLoopCloseoutSmokeFile,
   usefulnessPlanFile,
   usefulnessPlanSmokeFile,
   userIntentSmokeFile,

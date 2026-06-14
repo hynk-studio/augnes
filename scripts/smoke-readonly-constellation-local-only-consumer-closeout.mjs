@@ -67,8 +67,6 @@ const capsuleHandoffSkillFile =
   "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
 const capsuleHandoffSkillSmokeFile =
   "scripts/smoke-augnes-capsule-handoff-skill.mjs";
-const capsuleDogfoodSmokeFile =
-  "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
 const userIntentSmokeFile =
   "scripts/smoke-project-constellation-user-intent-validation.mjs";
 
@@ -127,7 +125,6 @@ const allowedChangedFiles = new Set([
   usefulnessPlanSmokeFile,
   capsuleHandoffSkillFile,
   capsuleHandoffSkillSmokeFile,
-  capsuleDogfoodSmokeFile,
   userIntentSmokeFile,
 ]);
 

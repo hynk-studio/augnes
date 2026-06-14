@@ -145,8 +145,6 @@
     "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:augnes-operator-plugin-v2": "node scripts/smoke-augnes-operator-plugin-v2.mjs",
     "smoke:augnes-capsule-handoff-skill": "node scripts/smoke-augnes-capsule-handoff-skill.mjs",
-    "smoke:capsule-handoff-skill-dogfood-report": "node scripts/smoke-capsule-handoff-skill-dogfood-report.mjs",
-    "smoke:project-constellation-capsule-handoff-first-loop-closeout": "node scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs",
     "smoke:project-constellation-fixture-schema-boundary": "node scripts/smoke-project-constellation-fixture-schema-boundary.mjs",
     "smoke:codex-execution-record-boundary": "node scripts/smoke-codex-execution-record-boundary.mjs",
     "smoke:chatgpt-app-mcp-readonly-surface-boundary": "node scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs",

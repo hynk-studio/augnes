@@ -12,19 +12,14 @@ import {
 
 const typeFile = "types/codex-execution-record.ts";
 const designDoc = "docs/CODEX_SDK_EXECUTION_AUTHORITY_DESIGN_V0_1.md";
-const closeoutDoc =
-  "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-codex-execution-record-boundary.mjs";
 const designSmokeFile = "scripts/smoke-codex-sdk-execution-authority-design.mjs";
-const closeoutSmokeFile =
-  "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
 
 const inspectedFiles = [
   typeFile,
   designDoc,
-  closeoutDoc,
   indexDoc,
   packageJsonFile,
   smokeFile,
@@ -33,7 +28,6 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
   designSmokeFile,
-  closeoutSmokeFile,
 ]);
 
 const requiredExportedTypes = [
@@ -172,7 +166,7 @@ console.log(
       pass: true,
       boundary_smoke_mode: changedFilesBoundary.mode,
       type_file_checked: typeFile,
-      docs_checked: [designDoc, closeoutDoc, indexDoc],
+      docs_checked: [designDoc, indexDoc],
       package_script_checked: true,
       exported_types_checked: requiredExportedTypes.length,
       permission_profile_literals_checked: permissionProfileLiterals.length,
@@ -308,16 +302,6 @@ function assertDocPointers() {
     "does not add AG Resume behavior",
     "does not add Project Constellation runtime behavior",
     "smoke:codex-execution-record-boundary",
-  ], { textByFile });
-
-  assertContainsAll(closeoutDoc, [
-    typeFile,
-    "candidate B type-only Codex execution record boundary is now being introduced",
-    "type-only/docs/smoke/package-pointer only",
-    "does not add live Codex SDK calls",
-    "does not add provider implementation",
-    "does not add runtime execution",
-    "does not add proof/evidence writes",
   ], { textByFile });
 
   assertContainsAll(indexDoc, [

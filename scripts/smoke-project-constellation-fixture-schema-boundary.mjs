@@ -14,20 +14,15 @@ const typeFile = "types/project-constellation-fixture.ts";
 const fixtureFile =
   "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json";
 const projectDoc = "docs/PROJECT_CONSTELLATION_IA_V0_1.md";
-const closeoutDoc =
-  "docs/PROJECT_CONSTELLATION_CAPSULE_HANDOFF_FIRST_LOOP_CLOSEOUT_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-project-constellation-fixture-schema-boundary.mjs";
-const closeoutSmokeFile =
-  "scripts/smoke-project-constellation-capsule-handoff-first-loop-closeout.mjs";
 const boundaryCommonFile = "scripts/smoke-boundary-common.mjs";
 
 const inspectedFiles = [
   typeFile,
   projectDoc,
-  closeoutDoc,
   indexDoc,
   packageJsonFile,
   smokeFile,
@@ -35,7 +30,6 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
-  closeoutSmokeFile,
   boundaryCommonFile,
 ]);
 
@@ -151,7 +145,7 @@ console.log(
       boundary_smoke_mode: changedFilesBoundary.mode,
       type_file_checked: typeFile,
       fixture_path_referenced: fixtureFile,
-      docs_checked: [projectDoc, closeoutDoc, indexDoc],
+      docs_checked: [projectDoc, indexDoc],
       package_script_checked: true,
       exported_types_checked: requiredExportedTypes.length,
       literal_values_checked: requiredLiteralValues.length,
@@ -270,17 +264,6 @@ function assertDocPointers() {
     "does not implement API routes",
     "does not become source of truth",
     "smoke:project-constellation-fixture-schema-boundary",
-  ], { textByFile });
-
-  assertContainsAll(closeoutDoc, [
-    typeFile,
-    "recommended type-only fixture/schema boundary is now being introduced",
-    "type-only/docs/smoke/package-pointer only",
-    "does not add runtime behavior",
-    "does not add UI behavior",
-    "does not add graph DB",
-    "does not add persistence",
-    "does not add API routes",
   ], { textByFile });
 
   assertContainsAll(indexDoc, [
