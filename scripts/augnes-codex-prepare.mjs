@@ -8,7 +8,10 @@ const yesEnabled = args.has("--yes");
 const delegatedSetupCommand = "npm run augnes:setup-local-demo -- --yes";
 const delegatedSetupArgs = ["run", "augnes:setup-local-demo", "--", "--yes"];
 const doctorArgs = ["run", "augnes:doctor", "--", "--json"];
+const gitStatusShortArgs = ["status", "--short"];
 const prepareYesCommand = "npm run augnes:prepare -- --yes";
+const setupSummaryStartMarker = "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_BEGIN";
+const setupSummaryEndMarker = "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_END";
 
 const startCommands = {
   local_runtime: "env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000",
@@ -30,6 +33,11 @@ const result = {
     state: "not_started",
     delegated_command: delegatedSetupCommand,
   },
+  delegated_setup_summary: null,
+  setup_steps: [],
+  setup_worktree_status_before: null,
+  setup_worktree_status_after: null,
+  setup_worktree_status: null,
   after_doctor: null,
   recommended_next_actions: [],
   skipped_reasons: [],
@@ -45,12 +53,26 @@ result.before_doctor = beforeDoctorRun.doctor;
 result.setup_recommended = buildSetupRecommendation(result.before_doctor);
 
 if (yesEnabled) {
+  const worktreeStatusBefore = readWorktreeStatus("before");
   const setupRun = runSetup();
+  const delegatedSetupSummary = parseDelimitedJsonOutput(
+    setupRun.stdout,
+    setupSummaryStartMarker,
+    setupSummaryEndMarker,
+  );
+  const worktreeStatusAfter = readWorktreeStatus("after");
+  const worktreeStatus = buildSetupWorktreeStatus(worktreeStatusBefore, worktreeStatusAfter);
   result.setup_executed = true;
+  result.delegated_setup_summary = delegatedSetupSummary;
+  result.setup_steps = Array.isArray(delegatedSetupSummary?.steps) ? delegatedSetupSummary.steps : [];
+  result.setup_worktree_status_before = worktreeStatusBefore;
+  result.setup_worktree_status_after = worktreeStatusAfter;
+  result.setup_worktree_status = worktreeStatus;
   result.setup_status = {
     state: setupRun.status === 0 ? "PASS" : "FAIL",
     delegated_command: delegatedSetupCommand,
     exit_code: setupRun.status,
+    summary_parse_status: delegatedSetupSummary ? "PASS" : "WARN",
     stdout_tail: tail(setupRun.stdout),
     stderr_tail: tail(setupRun.stderr),
   };
@@ -103,6 +125,90 @@ function runSetup() {
   });
 }
 
+function readWorktreeStatus(label) {
+  const run = spawnSync("git", gitStatusShortArgs, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (run.status !== 0) {
+    return {
+      state: "UNKNOWN",
+      label,
+      exit_code: run.status,
+      detail: tail(run.stderr || run.stdout),
+      dirty: null,
+      lockfile_churn_detected: null,
+      changed_files: [],
+    };
+  }
+
+  const changedFiles = run.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return {
+    state: changedFiles.length > 0 ? "WARN" : "PASS",
+    label,
+    dirty: changedFiles.length > 0,
+    lockfile_churn_detected: changedFiles.some(isLockfileStatusLine),
+    changed_files: changedFiles,
+  };
+}
+
+function buildSetupWorktreeStatus(before, after) {
+  if (!before || !after) {
+    return null;
+  }
+
+  if (before.state === "UNKNOWN" || after.state === "UNKNOWN") {
+    return {
+      state: "UNKNOWN",
+      dirty: after.dirty,
+      before,
+      after,
+      new_dirty_entries: [],
+      preexisting_dirty_entries: before.changed_files,
+      lockfile_churn_detected: null,
+      lockfile_changed_after_setup: null,
+      lockfile_was_already_dirty_before_setup: before.lockfile_churn_detected,
+      lockfile_churn_detail: "lockfile_churn_unknown_git_status_failed",
+      attribution_warning: before.dirty
+        ? "Worktree was already dirty before setup; review before/after status before attributing changes to setup."
+        : "Worktree attribution is unknown because git status failed before or after delegated setup.",
+    };
+  }
+
+  const beforeEntries = new Set(before.changed_files);
+  const newDirtyEntries = after.changed_files.filter((line) => !beforeEntries.has(line));
+  const lockfileChangedAfterSetup = newDirtyEntries.some(isLockfileStatusLine);
+  const lockfileWasAlreadyDirtyBeforeSetup = before.changed_files.some(isLockfileStatusLine);
+  const lockfileChurnDetail = lockfileChangedAfterSetup
+    ? "lockfile_changed_after_setup"
+    : lockfileWasAlreadyDirtyBeforeSetup
+      ? "lockfile_was_already_dirty_before_setup"
+      : "no_lockfile_churn_detected";
+
+  return {
+    state: after.dirty ? "WARN" : "PASS",
+    dirty: after.dirty,
+    before,
+    after,
+    new_dirty_entries: newDirtyEntries,
+    preexisting_dirty_entries: before.changed_files,
+    lockfile_churn_detected: lockfileChangedAfterSetup,
+    lockfile_changed_after_setup: lockfileChangedAfterSetup,
+    lockfile_was_already_dirty_before_setup: lockfileWasAlreadyDirtyBeforeSetup,
+    lockfile_churn_detail: lockfileChurnDetail,
+    attribution_warning: before.dirty
+      ? "Worktree was already dirty before setup; review before/after status before attributing changes to setup."
+      : null,
+  };
+}
+
+function isLockfileStatusLine(line) {
+  return line.includes("package-lock.json");
+}
+
 function buildSetupRecommendation(doctor) {
   const dependencyChecks = [
     ["root_node_modules", "root dependency directory is missing"],
@@ -134,6 +240,20 @@ function finalizeResult() {
 
   if (result.setup_executed && result.setup_status.state === "FAIL") {
     addAction("Review the delegated setup output before retrying prepare.");
+  }
+
+  if (result.setup_executed && result.setup_status.summary_parse_status === "WARN") {
+    addAction("Review delegated setup output because the structured setup summary could not be parsed.");
+  }
+
+  if (result.setup_worktree_status?.attribution_warning) {
+    addAction(result.setup_worktree_status.attribution_warning);
+  }
+
+  if (result.setup_worktree_status?.new_dirty_entries?.length > 0) {
+    addAction("Review new worktree changes after setup before committing.");
+  } else if (result.setup_worktree_status?.dirty) {
+    addAction("Review worktree status before committing.");
   }
 
   for (const action of activeDoctor?.recommended_next_actions ?? []) {
@@ -197,6 +317,8 @@ function printHuman() {
     console.log(`after_doctor_status: ${result.after_doctor.overall_state}`);
   }
   console.log("");
+  printSetupStepOutcomes();
+  console.log("");
   console.log("## What is ready");
   for (const line of buildReadyLines(activeDoctor)) {
     console.log(`- ${line}`);
@@ -254,6 +376,19 @@ function printReport() {
   if (typeof result.setup_status.exit_code === "number") {
     console.log(`- exit_code: ${result.setup_status.exit_code}`);
   }
+  if (result.setup_status.summary_parse_status) {
+    console.log(`- summary_parse_status: ${result.setup_status.summary_parse_status}`);
+  }
+  console.log("");
+  console.log("## Delegated setup step outcomes");
+  for (const line of buildSetupStepOutcomeLines()) {
+    console.log(`- ${line}`);
+  }
+  console.log("");
+  console.log("## Setup worktree status");
+  for (const line of buildSetupWorktreeLines()) {
+    console.log(`- ${line}`);
+  }
   console.log("");
   if (result.after_doctor) {
     console.log("## After doctor status");
@@ -295,6 +430,96 @@ function buildReadyLines(doctor) {
     lines.push("No ready checks could be confirmed from doctor output.");
   }
   return lines;
+}
+
+function printSetupStepOutcomes() {
+  console.log("## Setup step outcomes");
+  for (const line of buildSetupStepOutcomeLines()) {
+    console.log(`- ${line}`);
+  }
+  console.log("");
+  console.log("## Setup worktree status");
+  for (const line of buildSetupWorktreeLines()) {
+    console.log(`- ${line}`);
+  }
+}
+
+function buildSetupStepOutcomeLines() {
+  if (!result.setup_executed) {
+    return ["Not run; pass --yes to delegate guarded setup."];
+  }
+  if (result.setup_steps.length === 0) {
+    return ["Structured setup summary unavailable; review delegated setup stdout/stderr tail."];
+  }
+
+  return result.setup_steps.map((step) => {
+    const status = step.status ?? "UNKNOWN";
+    const exitCode = typeof step.exit_code === "number" ? ` (exit ${step.exit_code})` : "";
+    const reason = step.reason ? ` - ${step.reason}` : "";
+    return `${step.label}: ${status}${exitCode}${reason}`;
+  });
+}
+
+function buildSetupWorktreeLines() {
+  if (!result.setup_executed) {
+    return ["Not checked because delegated setup was not run."];
+  }
+  if (!result.setup_worktree_status) {
+    return ["UNKNOWN: worktree status was not collected."];
+  }
+
+  const lines = [
+    `before: ${formatWorktreeStatusLine(result.setup_worktree_status.before)}`,
+    `after: ${formatWorktreeStatusLine(result.setup_worktree_status.after)}`,
+    `lockfile: ${formatLockfileChurn(result.setup_worktree_status)}`,
+  ];
+
+  if (result.setup_worktree_status.attribution_warning) {
+    lines.push(result.setup_worktree_status.attribution_warning);
+  }
+
+  if (result.setup_worktree_status.new_dirty_entries.length > 0) {
+    lines.push(...result.setup_worktree_status.new_dirty_entries.map((line) => `new after setup: ${line}`));
+  } else {
+    lines.push("new after setup: none");
+  }
+
+  if (result.setup_worktree_status.preexisting_dirty_entries.length > 0) {
+    lines.push(
+      ...result.setup_worktree_status.preexisting_dirty_entries.map((line) => `pre-existing before setup: ${line}`),
+    );
+  } else {
+    lines.push("pre-existing before setup: none");
+  }
+
+  return lines;
+}
+
+function formatWorktreeStatusLine(status) {
+  if (!status) {
+    return "UNKNOWN: not collected";
+  }
+  if (status.state === "UNKNOWN") {
+    return `UNKNOWN: ${status.detail || "git status --short failed"}`;
+  }
+  if (!status.dirty) {
+    return `${status.state}: clean`;
+  }
+  const entryWord = status.changed_files.length === 1 ? "entry" : "entries";
+  return `${status.state}: ${status.changed_files.length} dirty ${entryWord}`;
+}
+
+function formatLockfileChurn(status) {
+  if (status.lockfile_churn_detected === null) {
+    return "lockfile churn unknown because git status failed";
+  }
+  if (status.lockfile_changed_after_setup) {
+    return "lockfile changed after setup";
+  }
+  if (status.lockfile_was_already_dirty_before_setup) {
+    return "lockfile was already dirty before setup";
+  }
+  return "no lockfile churn detected";
 }
 
 function buildVisibleTerminalLines(doctor) {
@@ -344,6 +569,22 @@ function parseJsonOutput(output) {
 
   try {
     return JSON.parse(output.slice(firstBrace, lastBrace + 1));
+  } catch {
+    return null;
+  }
+}
+
+function parseDelimitedJsonOutput(output, startMarker, endMarker) {
+  if (!output) return null;
+  const start = output.indexOf(startMarker);
+  const end = output.indexOf(endMarker, start + startMarker.length);
+  if (start === -1 || end === -1 || end <= start) {
+    return null;
+  }
+
+  const jsonText = output.slice(start + startMarker.length, end).trim();
+  try {
+    return JSON.parse(jsonText);
   } catch {
     return null;
   }

@@ -4,17 +4,20 @@ Date: 2026-06-14
 
 ## Summary
 
-This report records the Augnes Codex Prepare v0.1 wrapper. The change adds a
-single repo-local entrypoint for the user request "Codex, prepare Augnes" so
-Codex can run doctor JSON, decide whether guarded local demo setup appears
-useful, optionally delegate setup after explicit `--yes`, rerun doctor, and
-produce a user/PR-ready report.
+This report records the Augnes Codex Prepare v0.1 wrapper and its delegated
+setup reporting update. Prepare remains the single repo-local entrypoint for
+the user request "Codex, prepare Augnes": it runs doctor JSON, decides whether
+guarded local demo setup appears useful, optionally delegates setup after
+explicit `--yes`, reruns doctor, and produces a user/PR-ready report.
+
+The usability update makes `prepare --yes` show delegated setup step outcomes
+without adding any direct setup authority to prepare.
 
 ## Files changed
 
 - `docs/AUGNES_CODEX_PREPARE_V0_1.md`
-- `package.json`
 - `reports/2026-06-14-augnes-codex-prepare.md`
+- `scripts/augnes-codex-local-demo-setup.mjs`
 - `scripts/augnes-codex-prepare.mjs`
 - `scripts/smoke-augnes-codex-prepare.mjs`
 
@@ -61,6 +64,13 @@ npm run augnes:setup-local-demo -- --yes
 
 Prepare never runs finite package or temp DB setup commands directly.
 
+Behavior update: `prepare --yes` now parses the guarded setup script's
+structured summary and surfaces delegated setup step outcomes in human, report,
+and JSON output. The visible outcomes cover root package install, Augnes Apps
+package install, temp demo DB reset, temp demo DB migration, and temp demo DB
+seed. Prepare also reports whether delegated setup left the worktree dirty or
+introduced new dirty status lines or lockfile churn.
+
 Prepare consumes doctor `temp_demo_db` status only. It does not inspect
 default/user DB paths and does not create, migrate, seed, write, delete, chmod,
 or directly inspect DB contents itself.
@@ -68,6 +78,66 @@ Doctor rejects `/tmp/augnes-demo.db` symlinks before read-only SQLite
 inspection, and prepare keeps the same behavior as any other non-PASS
 `temp_demo_db` result: recommend guarded setup without directly running DB
 commands.
+
+## Delegated setup summary shape
+
+The guarded setup script emits a delimited JSON summary after dry-run,
+successful execution, or failed execution:
+
+```text
+AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_BEGIN
+{ ... }
+AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_END
+```
+
+Summary fields:
+
+- `tool`: `augnes-codex-local-demo-setup`
+- `mode`: `dry-run` or `execute`
+- `demo_db_path`: `/tmp/augnes-demo.db`
+- `steps`: finite setup step objects
+- `start_commands`: manual local runtime and MCP bridge commands
+- `skipped_reasons`: concrete skipped reasons for non-setup actions
+- `boundary`: authority boundary statements
+
+Each step includes `id`, `label`, `display_command`, `attempted`, `completed`,
+`status`, and `exit_code` when run. Dry-run steps are `SKIPPED` with
+`dry_run_requires_yes`.
+
+Prepare copies the parsed summary into JSON as `delegated_setup_summary`, exposes
+the step list as `setup_steps`, and renders the same delegated setup step
+outcomes in human and report output. If summary parsing fails, prepare falls
+back to the delegated setup stdout/stderr tail and warns the user to inspect the
+raw output.
+
+Prepare reads `git status --short` before delegated setup and after delegated
+setup. The combined `setup_worktree_status` includes:
+
+- `before`: worktree status before delegated setup
+- `after`: worktree status after delegated setup
+- `new_dirty_entries`: status lines present after setup that were not present
+  before setup
+- `preexisting_dirty_entries`: status lines already present before setup
+- `lockfile_churn_detected`: whether a lockfile status line appeared newly
+  after setup, or `null` when git status failed
+- `attribution_warning`: a warning when before/after status limits attribution
+
+Dirty worktree after setup is not automatically attributed to setup if the
+worktree was already dirty. In that case prepare reports:
+
+```text
+Worktree was already dirty before setup; review before/after status before attributing changes to setup.
+```
+
+Lockfile reporting distinguishes:
+
+- lockfile changed after setup
+- lockfile was already dirty before setup
+- lockfile churn unknown because git status failed
+
+Dirty worktree or lockfile churn is a warning/action item only; dirty worktree
+reporting does not grant prepare authority to modify files. Prepare does not
+revert files, delete files, or modify worktree changes.
 
 ## User-facing flow
 
@@ -78,22 +148,23 @@ commands.
 4. If setup is recommended, user or Codex can run
    `npm run augnes:prepare -- --yes`.
 5. Prepare delegates setup to the existing guarded setup script, reruns doctor,
-   and reports before/after status.
+   and reports before/after status plus delegated setup step outcomes.
 6. Long-running local runtime and MCP bridge start commands remain visible
    terminal actions.
 
 ## Boundary
 
-This PR adds a guided prepare wrapper only. It does not add runtime authority,
-DB schema changes, direct finite setup commands in prepare, default/user DB
-writes, DB writes in prepare, secret handling, token handling,
-provider/model calls, Codex SDK execution, GitHub API calls from scripts, GitHub mutation,
-merge automation, approval automation, publication automation, retry/replay
-automation, auto-merge automation, external posting automation, proof/evidence
-writes, perspective-memory persistence, perspective-memory item creation,
-product boundary creation, product persistence boundary records, hidden daemon
-behavior, "Run Codex from ChatGPT" behavior, local runtime startup, MCP bridge
-startup, MCP tool calls, or Augnes state commit/reject authority.
+This PR keeps prepare as a guided prepare wrapper only and adds delegated setup
+reporting only. It does not add runtime authority, DB schema changes, direct
+finite setup commands in prepare, default/user DB writes, DB writes in prepare,
+secret handling, token handling, provider/model calls, Codex SDK execution,
+GitHub API calls from scripts, GitHub mutation, merge automation, approval
+automation, publication automation, retry/replay automation, auto-merge
+automation, external posting automation, proof/evidence writes,
+perspective-memory persistence, perspective-memory item creation, product
+boundary creation, product persistence boundary records, hidden daemon behavior,
+"Run Codex from ChatGPT" behavior, local runtime startup, MCP bridge startup,
+MCP tool calls, or Augnes state commit/reject authority.
 
 Boundary phrase anchors: provider/model calls; proof/evidence writes; perspective-memory persistence; product boundary creation; Augnes state commit/reject authority.
 
@@ -108,6 +179,7 @@ persistence boundary records.
 - `npm run smoke:augnes-codex-bootstrap`
 - `npm run smoke:augnes-codex-doctor`
 - `npm run smoke:augnes-codex-prepare`
+- `npm run smoke:augnes-codex-prepare-dogfood-report`
 - `npm run smoke:augnes-operator-plugin-scaffold`
 - `npm run smoke:augnes-operator-plugin-hooks`
 - `npm run typecheck`
@@ -132,5 +204,6 @@ persistence boundary records.
 
 ## Next recommended PR
 
-Improve `prepare --yes` human/report output so delegated setup step outcomes
-are visible without turning prepare into a direct DB or package setup runner.
+Dogfood the updated `prepare --yes` output in a fresh isolated checkout where
+package install and `/tmp/augnes-demo.db` setup are explicitly authorized, then
+record whether the new delegated setup step outcomes reduce setup confusion.
