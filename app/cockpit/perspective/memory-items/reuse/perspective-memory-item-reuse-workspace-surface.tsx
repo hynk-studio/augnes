@@ -21,6 +21,7 @@ import {
   PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE,
   PERSPECTIVE_MEMORY_REUSE_WORKSPACE_VERSION,
   buildPerspectiveMemoryReusePacket,
+  type PerspectiveMemoryReuseBriefMetadataV01,
   type PerspectiveMemoryReuseSelectionInput,
 } from "@/lib/perspective-ingest/perspective-memory-item-reuse-packet";
 import styles from "./perspective-memory-item-reuse-workspace-surface.module.css";
@@ -493,6 +494,7 @@ export function PerspectiveMemoryItemReuseWorkspaceSurface() {
           <ReuseOutputPanel
             packetJson={packetJson}
             codexMemoryBrief={packetResult.codex_memory_brief}
+            briefMetadata={packetResult.codex_memory_brief_metadata}
             onCopy={copyText}
           />
         </section>
@@ -504,10 +506,12 @@ export function PerspectiveMemoryItemReuseWorkspaceSurface() {
 function ReuseOutputPanel({
   packetJson,
   codexMemoryBrief,
+  briefMetadata,
   onCopy,
 }: {
   packetJson: string;
   codexMemoryBrief: string;
+  briefMetadata: PerspectiveMemoryReuseBriefMetadataV01;
   onCopy: (label: string, value: string) => void;
 }) {
   return (
@@ -557,6 +561,32 @@ function ReuseOutputPanel({
               Copy brief
             </button>
           </div>
+          <dl
+            className={styles.detailGrid}
+            aria-label="Codex Memory Brief metadata"
+            data-augnes-memory-items-reuse-brief-metadata="true"
+          >
+            <DetailRow
+              label="selected_item_count"
+              value={String(briefMetadata.selected_item_count)}
+            />
+            <DetailRow
+              label="codex_memory_brief_character_count"
+              value={String(briefMetadata.codex_memory_brief_character_count)}
+            />
+            <DetailRow
+              label="codex_memory_brief_line_count"
+              value={String(briefMetadata.codex_memory_brief_line_count)}
+            />
+            <DetailRow
+              label="has_large_selection_warning"
+              value={briefMetadata.has_large_selection_warning ? "yes" : "no"}
+            />
+            <DetailRow
+              label="compact_brief_recommended"
+              value={briefMetadata.compact_brief_recommended ? "yes" : "no"}
+            />
+          </dl>
           <textarea
             className={styles.outputTextArea}
             data-augnes-memory-items-reuse-codex-brief="true"

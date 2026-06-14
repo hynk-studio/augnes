@@ -348,6 +348,9 @@
 
 .outputBlock {
   min-width: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
 }
 
 .outputBlock h3 {
