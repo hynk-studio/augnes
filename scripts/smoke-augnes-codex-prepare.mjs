@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const files = {
   prepare: "scripts/augnes-codex-prepare.mjs",
+  setup: "scripts/augnes-codex-local-demo-setup.mjs",
   smoke: "scripts/smoke-augnes-codex-prepare.mjs",
   doc: "docs/AUGNES_CODEX_PREPARE_V0_1.md",
   report: "reports/2026-06-14-augnes-codex-prepare.md",
@@ -19,9 +20,12 @@ assert.equal(packageJson.scripts["augnes:prepare"], "node scripts/augnes-codex-p
 assert.equal(packageJson.scripts["smoke:augnes-codex-prepare"], "node scripts/smoke-augnes-codex-prepare.mjs");
 
 const prepareSource = readFileSync(files.prepare, "utf8");
+const setupSource = readFileSync(files.setup, "utf8");
 const docText = readFileSync(files.doc, "utf8");
 const reportText = readFileSync(files.report, "utf8");
 
+assertSetupSource(setupSource);
+assertSetupDryRunSummary();
 assertPrepareSource(prepareSource);
 assertPrepareJson();
 assertPrepareReport();
@@ -36,6 +40,8 @@ console.log(
       package_scripts_valid: true,
       prepare_json_supported: true,
       prepare_report_supported: true,
+      setup_summary_supported: true,
+      setup_dry_run_summary_supported: true,
       prepare_without_yes_does_not_execute_setup: true,
       prepare_delegates_setup_only: true,
       boundary_preserved: true,
@@ -61,6 +67,28 @@ function assertPrepareSource(source) {
     "temp demo DB is missing or not ready",
     "npm run augnes:prepare -- --yes",
     "dependency or temp demo DB checks",
+    "delegated_setup_summary",
+    "setup_steps",
+    "setup_worktree_status_before",
+    "setup_worktree_status_after",
+    "setup_worktree_status",
+    "const worktreeStatusBefore = readWorktreeStatus(\"before\")",
+    "const worktreeStatusAfter = readWorktreeStatus(\"after\")",
+    "buildSetupWorktreeStatus(worktreeStatusBefore, worktreeStatusAfter)",
+    "new_dirty_entries",
+    "preexisting_dirty_entries",
+    "Worktree was already dirty before setup; review before/after status before attributing changes to setup.",
+    "lockfile_changed_after_setup",
+    "lockfile_was_already_dirty_before_setup",
+    "lockfile_churn_unknown_git_status_failed",
+    "lockfile churn unknown because git status failed",
+    "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_BEGIN",
+    "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_END",
+    "Setup step outcomes",
+    "Delegated setup step outcomes",
+    "Setup worktree status",
+    "Review new worktree changes after setup before committing.",
+    "package-lock.json",
     "setup_executed",
     "recommended_next_actions",
     "skipped_reasons",
@@ -96,6 +124,11 @@ function assertPrepareSource(source) {
     /const prepareYesCommand = "npm run augnes:prepare -- --yes"/,
     "prepare should print the --yes prepare command for user approval",
   );
+  assert.match(
+    source,
+    /const worktreeStatusBefore = readWorktreeStatus\("before"\);[\s\S]+const setupRun = runSetup\(\);[\s\S]+const worktreeStatusAfter = readWorktreeStatus\("after"\);/,
+    "prepare should capture worktree status before and after delegated setup",
+  );
 
   const spawnCalls = Array.from(source.matchAll(/spawnSync\(\s*"([^"]+)"\s*,\s*([^,\n]+)/g)).map((match) => ({
     command: match[1],
@@ -104,6 +137,7 @@ function assertPrepareSource(source) {
   assert.deepEqual(spawnCalls, [
     { command: "npm", argsRef: "doctorArgs" },
     { command: "npm", argsRef: "delegatedSetupArgs" },
+    { command: "git", argsRef: "gitStatusShortArgs" },
   ]);
 
   for (const forbidden of [
@@ -130,9 +164,68 @@ function assertPrepareSource(source) {
     /\bcreateProductPersistenceBoundaryRecord\b/,
     /\bcallMcpTool\b/i,
     /\bMcpClient\b/,
+    /\bgit\s+checkout\b/,
+    /\bgit\s+reset\b/,
+    /\brevert\b/,
   ]) {
     assert.doesNotMatch(source, forbidden, `prepare source must not contain ${forbidden}`);
   }
+}
+
+function assertSetupSource(source) {
+  for (const expected of [
+    "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_BEGIN",
+    "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_END",
+    "tool: \"augnes-codex-local-demo-setup\"",
+    "mode: shouldExecute ? \"execute\" : \"dry-run\"",
+    "demo_db_path: demoDbPath",
+    "display_command",
+    "attempted: false",
+    "completed: false",
+    "status: \"SKIPPED\"",
+    "dry_run_requires_yes",
+    "exit_code",
+    "root_dependencies",
+    "apps_dependencies",
+    "temp_demo_db_reset",
+    "temp_demo_db_migrate",
+    "temp_demo_db_seed",
+    "Local demo setup does not start dev servers",
+  ]) {
+    assert.ok(source.includes(expected), `setup source should include ${expected}`);
+  }
+}
+
+function assertSetupDryRunSummary() {
+  const result = spawnSync(process.execPath, [files.setup], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  assert.equal(result.status, 0, `setup dry run should pass\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  assert.ok(result.stdout.includes("DRY RUN: pass --yes"), "setup should dry-run without --yes");
+  assert.ok(!result.stdout.includes("Executing finite local setup commands"), "setup must not execute without --yes");
+  const summary = parseDelimitedJsonOutput(
+    result.stdout,
+    "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_BEGIN",
+    "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_END",
+  );
+  assert.ok(summary, "setup dry run should emit parseable structured summary");
+  assert.equal(summary.tool, "augnes-codex-local-demo-setup");
+  assert.equal(summary.mode, "dry-run");
+  assert.equal(summary.demo_db_path, "/tmp/augnes-demo.db");
+  assert.equal(summary.steps.length, 5, "setup summary should include finite setup steps");
+  for (const step of summary.steps) {
+    assert.equal(step.attempted, false, `${step.id} must not be attempted in dry run`);
+    assert.equal(step.completed, false, `${step.id} must not be completed in dry run`);
+    assert.equal(step.status, "SKIPPED", `${step.id} must be skipped in dry run`);
+    assert.equal(step.reason, "dry_run_requires_yes", `${step.id} should explain dry-run skip reason`);
+    assert.ok(step.id, "step should include id");
+    assert.ok(step.label, "step should include label");
+    assert.ok(step.display_command, "step should include display command");
+  }
+  assert.ok(Array.isArray(summary.start_commands), "setup summary should include start commands");
+  assert.ok(Array.isArray(summary.skipped_reasons), "setup summary should include skipped reasons");
+  assert.ok(Array.isArray(summary.boundary), "setup summary should include boundary");
 }
 
 function assertPrepareJson() {
@@ -165,6 +258,19 @@ function assertPrepareJson() {
   assert.ok(Array.isArray(parsed.recommended_next_actions));
   assert.ok(Array.isArray(parsed.skipped_reasons));
   assert.ok(Array.isArray(parsed.boundary));
+  assert.equal(parsed.delegated_setup_summary, null, "prepare without --yes should not have delegated setup summary");
+  assert.deepEqual(parsed.setup_steps, [], "prepare without --yes should expose empty setup_steps array");
+  assert.equal(
+    parsed.setup_worktree_status_before,
+    null,
+    "prepare without --yes should not collect before setup worktree status",
+  );
+  assert.equal(
+    parsed.setup_worktree_status_after,
+    null,
+    "prepare without --yes should not collect after setup worktree status",
+  );
+  assert.equal(parsed.setup_worktree_status, null, "prepare without --yes should not collect setup worktree status");
 }
 
 function assertPrepareReport() {
@@ -179,6 +285,8 @@ function assertPrepareReport() {
     "## Before doctor status",
     "## Setup recommendation",
     "## Setup execution status",
+    "## Delegated setup step outcomes",
+    "## Setup worktree status",
     "## Recommended next actions",
     "## Skipped checks",
     "## Boundary",
@@ -197,6 +305,8 @@ function assertPrepareHuman() {
   for (const expected of [
     "Augnes prepare status",
     "What is ready",
+    "Setup step outcomes",
+    "Setup worktree status",
     "What Codex can safely do",
     "What still needs a visible terminal action",
     "Next commands",
@@ -219,6 +329,15 @@ function assertDocs(text) {
     "/tmp/augnes-demo.db",
     "temp demo DB readiness",
     "PR #545 dogfood",
+    "prepare --yes now shows delegated setup step outcomes",
+    "dirty worktree after setup is reported but not modified",
+    "setup_worktree_status_before",
+    "setup_worktree_status_after",
+    "Dirty worktree after setup is not automatically attributed to setup",
+    "Worktree was already dirty before setup; review before/after status before attributing changes to setup.",
+    "lockfile changed after setup",
+    "lockfile was already dirty before setup",
+    "lockfile churn unknown because git status failed",
     "Why Long-running Servers Are Not Auto-started",
     "Why User-level Codex Config Is Not Auto-written",
     "How Non-expert Users Should Use It",
@@ -241,6 +360,16 @@ function assertReport(text) {
     "temp demo DB readiness",
     "/tmp/augnes-demo.db",
     "PR #545 dogfood",
+    "Delegated setup summary shape",
+    "delegated setup step outcomes",
+    "dirty worktree",
+    "new_dirty_entries",
+    "preexisting_dirty_entries",
+    "Dirty worktree after setup is not automatically attributed to setup",
+    "Worktree was already dirty before setup; review before/after status before attributing changes to setup.",
+    "lockfile changed after setup",
+    "lockfile was already dirty before setup",
+    "lockfile churn unknown because git status failed",
     "## User-facing flow",
     "## Boundary",
     "## Verification plan",
@@ -260,4 +389,12 @@ function assertReport(text) {
   ]) {
     assert.ok(text.includes(expected), `prepare report should include ${expected}`);
   }
+}
+
+function parseDelimitedJsonOutput(output, startMarker, endMarker) {
+  const start = output.indexOf(startMarker);
+  const end = output.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(start, -1, `missing ${startMarker}`);
+  assert.notEqual(end, -1, `missing ${endMarker}`);
+  return JSON.parse(output.slice(start + startMarker.length, end).trim());
 }

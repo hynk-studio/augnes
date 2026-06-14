@@ -60,6 +60,7 @@ Setup:
 - command: `npm run augnes:setup-local-demo -- --yes`
 - purpose: finite local package and temp demo DB setup
 - guarded by explicit `--yes`
+- emits a structured setup summary for the wrapper to report
 - does not start the runtime or MCP bridge
 
 Prepare:
@@ -69,6 +70,8 @@ Prepare:
 - runs doctor JSON, parses it, decides whether setup appears useful, optionally
   delegates setup to the guarded setup script, reruns doctor after setup, and
   prints next actions
+- prepare --yes now shows delegated setup step outcomes so users can see which
+  guarded setup steps were attempted and completed
 
 Setup recommendation includes both dependency readiness and temp demo DB
 readiness. PR #545 dogfood found that prepare under-recommended setup when
@@ -114,6 +117,11 @@ With `--yes`, prepare may run only:
 npm run augnes:setup-local-demo -- --yes
 ```
 
+Prepare still does not run finite setup directly. It does not call `npm
+install`, `npm --prefix apps/augnes_apps install`, `db:reset`, `db:migrate`, or
+`demo:seed` itself. Those commands remain owned by the guarded local demo setup
+script.
+
 After the delegated setup command returns, prepare reruns:
 
 ```bash
@@ -121,8 +129,45 @@ npm run augnes:doctor -- --json
 ```
 
 The final output includes before/after doctor status, setup recommendation,
-setup execution status, recommended next actions, skipped checks, and boundary
-statements.
+setup execution status, delegated setup step outcomes, dirty worktree status,
+recommended next actions, skipped checks, and boundary statements.
+
+The delegated setup step outcomes come from the setup script's structured
+summary. Human and report output keep this short, for example:
+
+```text
+Setup step outcomes
+- root dependencies: PASS
+- Augnes Apps dependencies: PASS
+- temp demo DB reset: PASS
+- temp demo DB migration: PASS
+- temp demo DB seed: PASS
+```
+
+JSON output includes `delegated_setup_summary`, `setup_steps`,
+`setup_worktree_status_before`, `setup_worktree_status_after`, and the combined
+`setup_worktree_status`. Prepare collects `git status --short` before delegated
+setup and again after delegated setup, then reports the before/after status and
+new dirty entries after setup when that delta can be computed.
+
+Dirty worktree after setup is not automatically attributed to setup if the
+worktree was already dirty. In that case prepare prints:
+
+```text
+Worktree was already dirty before setup; review before/after status before attributing changes to setup.
+```
+
+Lockfile reporting distinguishes:
+
+- lockfile changed after setup
+- lockfile was already dirty before setup
+- lockfile churn unknown because git status failed
+
+A dirty worktree after setup is reported but not modified.
+
+This reporting exists to reduce the user confusion found during dogfood: setup
+can succeed while hiding the individual package install, temp DB reset,
+migration, and seed outcomes unless the wrapper surfaces them.
 
 ## Why Long-running Servers Are Not Auto-started
 
