@@ -51,8 +51,8 @@ Doctor:
 - command: `npm run augnes:doctor`
 - purpose: read-only diagnosis
 - checks repo root, git status, Node.js, npm, required files, dependency
-  directories, package scripts, strict runtime state brief readiness, and MCP
-  endpoint reachability
+  directories, package scripts, read-only `/tmp/augnes-demo.db` readiness,
+  strict runtime state brief readiness, and MCP endpoint reachability
 - does not run setup
 
 Setup:
@@ -69,6 +69,11 @@ Prepare:
 - runs doctor JSON, parses it, decides whether setup appears useful, optionally
   delegates setup to the guarded setup script, reruns doctor after setup, and
   prints next actions
+
+Setup recommendation includes both dependency readiness and temp demo DB
+readiness. PR #545 dogfood found that prepare under-recommended setup when
+dependency directories existed but `/tmp/augnes-demo.db` was missing. Prepare
+now treats a non-PASS doctor `temp_demo_db` check as a setup reason.
 
 Prepare never runs finite setup commands directly. It delegates setup only by
 calling:
@@ -96,6 +101,10 @@ Then it prints:
 - skipped reasons and authority boundaries
 
 It does not run setup without `--yes`.
+
+If `/tmp/augnes-demo.db` is missing, cannot be inspected read-only, lacks core
+Augnes tables, or lacks seeded demo rows, prepare should recommend setup and
+print `npm run augnes:prepare -- --yes`.
 
 ## With --yes
 
@@ -160,11 +169,20 @@ npm run augnes:prepare -- --yes
 Then run the visible terminal commands that prepare prints for the local runtime
 and MCP bridge if those services are needed.
 
+The only demo DB path checked by doctor/prepare is `/tmp/augnes-demo.db`. The
+check is read-only and does not create, migrate, seed, write, delete, chmod, or
+inspect default/user DB paths.
+Doctor rejects `/tmp/augnes-demo.db` symlinks before read-only SQLite
+inspection, and prepare treats that non-PASS `temp_demo_db` result as a guarded
+setup recommendation.
+
 ## How Codex Should Report Skipped Checks
 
 Codex should explicitly report:
 
 - safe local demo setup skipped when `--yes` was not provided
+- temp demo DB readiness warning when `/tmp/augnes-demo.db` is missing or not
+  ready
 - local runtime startup skipped because `npm run dev` is long-running
 - local MCP bridge startup skipped because bridge dev server startup is
   long-running

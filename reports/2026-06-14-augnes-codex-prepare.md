@@ -27,8 +27,13 @@ npm run augnes:prepare
 ```
 
 Prepare runs doctor JSON, parses the result, reports current status, and
-recommends setup only when doctor checks indicate local demo setup appears
-useful, such as missing dependency directories.
+recommends setup when doctor checks indicate local demo setup appears useful,
+such as missing dependency directories or non-PASS temp demo DB readiness at
+`/tmp/augnes-demo.db`.
+
+This addresses the PR #545 dogfood finding that prepare under-recommended setup
+when dependency directories existed but `/tmp/augnes-demo.db` was missing or not
+ready.
 
 JSON output:
 
@@ -56,6 +61,14 @@ npm run augnes:setup-local-demo -- --yes
 
 Prepare never runs finite package or temp DB setup commands directly.
 
+Prepare consumes doctor `temp_demo_db` status only. It does not inspect
+default/user DB paths and does not create, migrate, seed, write, delete, chmod,
+or directly inspect DB contents itself.
+Doctor rejects `/tmp/augnes-demo.db` symlinks before read-only SQLite
+inspection, and prepare keeps the same behavior as any other non-PASS
+`temp_demo_db` result: recommend guarded setup without directly running DB
+commands.
+
 ## User-facing flow
 
 1. User says "Codex, prepare Augnes."
@@ -73,14 +86,16 @@ Prepare never runs finite package or temp DB setup commands directly.
 
 This PR adds a guided prepare wrapper only. It does not add runtime authority,
 DB schema changes, direct finite setup commands in prepare, default/user DB
-writes, secret handling, token handling, provider/model calls, Codex SDK
-execution, GitHub API calls from scripts, GitHub mutation, merge automation,
-approval automation, publication automation, retry/replay automation,
-auto-merge automation, external posting automation, proof/evidence writes,
-perspective-memory persistence, perspective-memory item creation, product
-boundary creation, product persistence boundary records, hidden daemon behavior,
-"Run Codex from ChatGPT" behavior, local runtime startup, MCP bridge startup,
-MCP tool calls, or Augnes state commit/reject authority.
+writes, DB writes in prepare, secret handling, token handling,
+provider/model calls, Codex SDK execution, GitHub API calls from scripts, GitHub mutation,
+merge automation, approval automation, publication automation, retry/replay
+automation, auto-merge automation, external posting automation, proof/evidence
+writes, perspective-memory persistence, perspective-memory item creation,
+product boundary creation, product persistence boundary records, hidden daemon
+behavior, "Run Codex from ChatGPT" behavior, local runtime startup, MCP bridge
+startup, MCP tool calls, or Augnes state commit/reject authority.
+
+Boundary phrase anchors: provider/model calls; proof/evidence writes; perspective-memory persistence; product boundary creation; Augnes state commit/reject authority.
 
 Prepare does not write `~/.codex/config.toml` and does not require
 `OPENAI_API_KEY` for basic local setup.
@@ -117,6 +132,5 @@ persistence boundary records.
 
 ## Next recommended PR
 
-Add a read-only local context summary command that combines prepare output with
-the current Augnes operating contract, plugin install path, bootstrap doc,
-doctor doc, and bridge start commands for easy inclusion in Codex handoffs.
+Improve `prepare --yes` human/report output so delegated setup step outcomes
+are visible without turning prepare into a direct DB or package setup runner.

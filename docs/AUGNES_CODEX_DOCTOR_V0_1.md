@@ -75,18 +75,28 @@ Use bootstrap when Codex needs to understand how Augnes is wired.
 - root `node_modules`
 - `apps/augnes_apps/node_modules`
 - required package scripts
+- `temp_demo_db` readiness at `/tmp/augnes-demo.db`
 - `runtime_state_brief` readiness at
   `http://localhost:3000/api/state/brief?scope=project:augnes`
 - local MCP bridge endpoint reachability at `http://localhost:8787/mcp`
 
 Doctor prints recommended next actions and skipped reasons.
+`temp_demo_db` checks only `/tmp/augnes-demo.db`. It first warns with
+`missing_temp_demo_db` when that file is absent. If the path is a symlink,
+doctor warns with `symlink_temp_demo_db` and does not open it, so the check
+does not follow `/tmp/augnes-demo.db` to a default or user DB path. When the
+file exists as a regular file, doctor uses read-only SQLite inspection to check
+for core Augnes tables and seeded demo rows. If the file exists but cannot be
+inspected, or readiness cannot be proven, doctor warns with a concrete reason
+and says guarded setup may be useful.
 `runtime_state_brief` requires HTTP 200 and a successful Augnes state brief response with `runtime: "augnes"` and `scope: "project:augnes"`.
 A 404 from an unrelated service on port `3000` is a warning, not a pass.
 
 The MCP bridge check is endpoint reachability only. It may report that
 `http://localhost:8787/mcp` answered locally, but MCP tool calls are not tested.
 
-Doctor does not install packages, mutate databases, start servers, read secrets,
+Doctor does not install packages, mutate databases, create, migrate, seed,
+delete, chmod, or write `/tmp/augnes-demo.db`, start servers, read secrets,
 call providers, call Codex SDK, call GitHub APIs, write
 `~/.codex/config.toml`, create proof/evidence rows, or commit/reject Augnes
 state.
@@ -180,6 +190,10 @@ The setup script uses:
 This prevents accidental use of a production, durable, or user-specific Augnes
 database during the basic local demo path.
 
+Doctor uses the same path for the `temp_demo_db` readiness check. It rejects
+symlinks before read-only SQLite inspection and does not inspect the default
+production DB path or user-specific DB paths.
+
 The runtime start command repeats the same path:
 
 ```bash
@@ -210,6 +224,11 @@ Augnes bridge tools are registered, callable, or semantically healthy.
 Unreachable local health checks are not proof of failure. They mean the user has
 not started the corresponding local server yet, or it is listening somewhere
 else.
+
+PR #545 dogfood found that prepare under-recommended setup when dependency
+directories existed but `/tmp/augnes-demo.db` was absent. The `temp_demo_db`
+check exists so doctor and prepare can recommend the guarded setup path for
+fresh temp demo DB readiness, not only missing package directories.
 
 ## JSON Output
 
