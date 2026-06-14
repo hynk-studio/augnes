@@ -22,10 +22,14 @@ const searchComponentFile =
   "app/cockpit/perspective/memory-items/search/perspective-memory-item-search-surface.tsx";
 const reviewComponentFile =
   "app/cockpit/perspective/memory-items/review/perspective-memory-item-review-workspace-surface.tsx";
+const qualityReviewHelperFile =
+  "lib/perspective-ingest/perspective-memory-reuse-quality-review.ts";
 const docFile = "docs/PERSPECTIVE_MEMORY_REUSE_PACKET_V0_1.md";
 const reportFile = "reports/2026-06-14-perspective-memory-reuse-packet.md";
 const briefMetadataReportFile =
   "reports/2026-06-14-perspective-memory-reuse-brief-metadata.md";
+const qualityReviewPanelReportFile =
+  "reports/2026-06-14-perspective-memory-reuse-quality-review-panel.md";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
@@ -35,9 +39,14 @@ const cssText = readFileSync(cssFile, "utf8");
 const dashboardText = readFileSync(dashboardComponentFile, "utf8");
 const searchText = readFileSync(searchComponentFile, "utf8");
 const reviewText = readFileSync(reviewComponentFile, "utf8");
+const qualityReviewHelperText = readFileSync(qualityReviewHelperFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
 const briefMetadataReportText = readFileSync(briefMetadataReportFile, "utf8");
+const qualityReviewPanelReportText = readFileSync(
+  qualityReviewPanelReportFile,
+  "utf8",
+);
 
 assertStaticFilesAndScripts();
 assertReusePacketBehavior();
@@ -55,9 +64,11 @@ function assertStaticFilesAndScripts() {
     dashboardComponentFile,
     searchComponentFile,
     reviewComponentFile,
+    qualityReviewHelperFile,
     docFile,
     reportFile,
     briefMetadataReportFile,
+    qualityReviewPanelReportFile,
   ]) {
     assert.equal(existsSync(file), true, `${file} must exist`);
   }
@@ -105,6 +116,13 @@ function assertStaticFilesAndScripts() {
     "runtime_started: false",
     "mcp_bridge_started: false",
     "automatic_synthesis_created: false",
+  ]);
+  assertIncludesAll(qualityReviewHelperText, [
+    "perspective_memory_reuse_quality_review.v0.1",
+    "buildPerspectiveMemoryReuseQualityReview",
+    "mechanical_checks_only: true",
+    "semantic_truth_claim_created: false",
+    "quality_review_persisted: false",
   ]);
 }
 
@@ -326,6 +344,7 @@ function assertRouteAndNavigation() {
   assertIncludesAll(componentText, [
     "PERSPECTIVE_MEMORY_ITEM_API_ROUTE",
     "buildPerspectiveMemoryReusePacket",
+    "buildPerspectiveMemoryReuseQualityReview",
     "data-augnes-perspective-memory-items-reuse-route",
     "data-augnes-memory-items-reuse-task-title",
     "data-augnes-memory-items-reuse-task-description",
@@ -336,11 +355,32 @@ function assertRouteAndNavigation() {
     "data-augnes-memory-items-reuse-packet-json",
     "data-augnes-memory-items-reuse-codex-brief",
     "data-augnes-memory-items-reuse-brief-metadata",
+    "data-augnes-memory-items-reuse-quality-review-panel",
+    "data-augnes-memory-items-reuse-quality-review-boundary",
+    "data-augnes-memory-items-reuse-quality-review-summary",
+    "data-augnes-memory-items-reuse-quality-review-item",
+    "data-augnes-memory-items-reuse-quality-review-empty-state",
     "selected_item_count",
     "codex_memory_brief_character_count",
     "codex_memory_brief_line_count",
     "has_large_selection_warning",
     "compact_brief_recommended",
+    "review_version",
+    "dogfood_route_status",
+    "not_applicable",
+    "quality_review_preview_state",
+    "reviewable_item_count",
+    "needs_operator_review_count",
+    "missing_why_selected_count",
+    "missing_reuse_boundary_count",
+    "large_selection_warning",
+    "suggested_next_action",
+    "relevance_review_state",
+    "boundary_review_state",
+    "stale_or_misleading_risk",
+    "Mechanical checks only",
+    "no semantic truth",
+    "does not persist quality reviews",
     "data-augnes-memory-items-reuse-copy-brief",
     "data-augnes-memory-items-reuse-read-only-boundary",
     "no memory creation",
@@ -356,6 +396,8 @@ function assertRouteAndNavigation() {
     ".shell",
     ".workbenchGrid",
     ".packetPanel",
+    ".qualityReviewPanel",
+    ".qualityReviewList",
     ".statusStrip",
     ".taskGrid",
     ".outputTextArea",
@@ -399,8 +441,12 @@ function assertRouteAndNavigation() {
     "data-augnes-provider-model-enrich",
     "data-augnes-github-mutation",
     "data-augnes-commit-state-entry",
+    "data-augnes-create-quality-review",
+    "data-augnes-persist-quality-review",
+    "data-augnes-write-quality-review",
+    "data-augnes-quality-review-storage",
   ]);
-  assertNoIncludes(helperText + componentText, [
+  assertNoIncludes(helperText + componentText + qualityReviewHelperText, [
     "new OpenAI",
     "openai.chat",
     "api.openai.com",
@@ -420,6 +466,8 @@ function assertRouteAndNavigation() {
     "runtime_handoff_created: true",
     "automatic_runtime_injection_created: true",
     "automatic_promotion_created: true",
+    "quality_review_persisted: true",
+    "persistence_write_created: true",
   ]);
 }
 
@@ -478,6 +526,32 @@ function assertDocsReportsAndBoundary() {
     "No MCP tool calls",
     "No DB schema or migrations",
     "No persistence writes",
+  ]);
+  assertIncludesAll(qualityReviewPanelReportText, [
+    "Perspective Memory Reuse Quality Review panel",
+    "/cockpit/perspective/memory-items/reuse",
+    "buildPerspectiveMemoryReuseQualityReview",
+    "read-only deterministic",
+    "mechanical checks only",
+    "no semantic truth claim",
+    "dogfood_route_status: not_applicable",
+    "quality_review_preview_state",
+    "reviewable_item_count",
+    "needs_operator_review_count",
+    "missing_why_selected_count",
+    "missing_reuse_boundary_count",
+    "compact_brief_recommended",
+    "large_selection_warning",
+    "suggested_next_action",
+    "No persistence/storage",
+    "No DB schema",
+    "No provider/model calls",
+    "No OpenAI API calls",
+    "No MCP tool calls",
+    "No Codex SDK execution",
+    "No GitHub mutation",
+    "No Augnes state commit/reject authority",
+    "Next recommended PR",
   ]);
 }
 

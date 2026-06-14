@@ -24,6 +24,10 @@ import {
   type PerspectiveMemoryReuseBriefMetadataV01,
   type PerspectiveMemoryReuseSelectionInput,
 } from "@/lib/perspective-ingest/perspective-memory-item-reuse-packet";
+import {
+  buildPerspectiveMemoryReuseQualityReview,
+  type PerspectiveMemoryReuseQualityReviewV01,
+} from "@/lib/perspective-ingest/perspective-memory-reuse-quality-review";
 import styles from "./perspective-memory-item-reuse-workspace-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
@@ -91,6 +95,46 @@ export function PerspectiveMemoryItemReuseWorkspaceSurface() {
         .map((itemId) => itemList.items.find((item) => item.item_id === itemId))
         .filter((item): item is PerspectiveMemoryItemV0 => item != null),
     [itemList.items, selectedItemIds],
+  );
+  const qualityReviewResult = useMemo(
+    () =>
+      buildPerspectiveMemoryReuseQualityReview({
+        reuse_packet_id: packetResult.packet.packet_id,
+        task_title: taskTitle,
+        task_description: taskDescription,
+        selected_item_count: packetResult.packet.selected_memory_items.length,
+        codex_memory_brief_metadata: packetResult.codex_memory_brief_metadata,
+        selected_memory_items: selectedItems.map((item) => {
+          const notes = selectionNotesById[item.item_id] ?? {
+            why_selected: "",
+            reuse_boundary: "",
+          };
+          return {
+            memory_item_id: item.item_id,
+            title: item.content.title,
+            why_selected: notes.why_selected,
+            reuse_boundary: notes.reuse_boundary,
+            source_ref: item.content.source_refs[0] ?? item.source_input_ref,
+            validation_state: item.source_validation_result_state,
+            item_status: item.item_status,
+          };
+        }),
+        operator_notes: [
+          "Reuse workspace read-only quality review preview; dogfood route status not applicable.",
+        ],
+        nowIso: packetGeneratedAt,
+        reviewId: `${packetResult.packet.packet_id}:quality-review-preview`,
+      }),
+    [
+      packetGeneratedAt,
+      packetResult.codex_memory_brief_metadata,
+      packetResult.packet.packet_id,
+      packetResult.packet.selected_memory_items.length,
+      selectedItems,
+      selectionNotesById,
+      taskDescription,
+      taskTitle,
+    ],
   );
 
   async function loadItems() {
@@ -497,9 +541,150 @@ export function PerspectiveMemoryItemReuseWorkspaceSurface() {
             briefMetadata={packetResult.codex_memory_brief_metadata}
             onCopy={copyText}
           />
+          <QualityReviewPanel review={qualityReviewResult.review} />
         </section>
       </section>
     </main>
+  );
+}
+
+function QualityReviewPanel({
+  review,
+}: {
+  review: PerspectiveMemoryReuseQualityReviewV01;
+}) {
+  const previewState =
+    review.selected_item_count === 0
+      ? "no_selected_items"
+      : review.aggregate_summary.needs_operator_review_count > 0
+        ? "needs_operator_review"
+        : "mechanically_reviewable";
+
+  return (
+    <section
+      className={classNames(styles.panel, styles.qualityReviewPanel)}
+      aria-label="Perspective Memory Reuse Quality Review preview"
+      data-augnes-memory-items-reuse-quality-review-panel="true"
+    >
+      <PanelHeader
+        eyebrow="Quality Review Preview"
+        title="Mechanical Reuse Review"
+        detail="read-only deterministic local preview"
+      />
+      <section
+        className={styles.policyBox}
+        aria-label="Quality review preview boundary"
+        data-augnes-memory-items-reuse-quality-review-boundary="true"
+      >
+        <strong>Mechanical checks only</strong>
+        <p>
+          This read-only preview checks selected-item notes, validation caveats,
+          stale-ish item status, and brief metadata. It makes no semantic truth
+          claim, does not persist quality reviews, and does not create storage
+          or state authority.
+        </p>
+      </section>
+
+      <dl
+        className={styles.detailGrid}
+        aria-label="Quality review preview summary"
+        data-augnes-memory-items-reuse-quality-review-summary="true"
+      >
+        <DetailRow label="review_version" value={review.review_version} />
+        <DetailRow label="dogfood_route_status" value="not_applicable" />
+        <DetailRow label="quality_review_preview_state" value={previewState} />
+        <DetailRow
+          label="reviewable_item_count"
+          value={String(review.aggregate_summary.reviewable_item_count)}
+        />
+        <DetailRow
+          label="needs_operator_review_count"
+          value={String(review.aggregate_summary.needs_operator_review_count)}
+        />
+        <DetailRow
+          label="missing_why_selected_count"
+          value={String(review.aggregate_summary.missing_why_selected_count)}
+        />
+        <DetailRow
+          label="missing_reuse_boundary_count"
+          value={String(review.aggregate_summary.missing_reuse_boundary_count)}
+        />
+        <DetailRow
+          label="compact_brief_recommended"
+          value={review.aggregate_summary.compact_brief_recommended ? "yes" : "no"}
+        />
+        <DetailRow
+          label="large_selection_warning"
+          value={review.aggregate_summary.large_selection_warning ? "yes" : "no"}
+        />
+        <DetailRow
+          label="suggested_next_action"
+          value={review.aggregate_summary.suggested_next_action}
+        />
+      </dl>
+
+      <div className={styles.qualityReviewList}>
+        {review.item_reviews.length > 0 ? (
+          review.item_reviews.map((item) => (
+            <article
+              key={item.memory_item_id}
+              className={styles.summaryEntry}
+              data-augnes-memory-items-reuse-quality-review-item={
+                item.memory_item_id
+              }
+            >
+              <PanelHeader
+                eyebrow={item.relevance_review_state}
+                title={item.title || item.memory_item_id}
+                detail={item.memory_item_id}
+              />
+              <dl className={styles.detailGrid}>
+                <DetailRow
+                  label="validation_state"
+                  value={item.validation_state || "not provided"}
+                />
+                <DetailRow
+                  label="item_status"
+                  value={item.item_status || "not provided"}
+                />
+                <DetailRow
+                  label="has_why_selected"
+                  value={item.has_why_selected ? "yes" : "no"}
+                />
+                <DetailRow
+                  label="has_reuse_boundary"
+                  value={item.has_reuse_boundary ? "yes" : "no"}
+                />
+                <DetailRow
+                  label="relevance_review_state"
+                  value={item.relevance_review_state}
+                />
+                <DetailRow
+                  label="boundary_review_state"
+                  value={item.boundary_review_state}
+                />
+                <DetailRow
+                  label="stale_or_misleading_risk"
+                  value={item.stale_or_misleading_risk}
+                />
+                <DetailRow
+                  label="review_notes"
+                  value={item.review_notes.join("; ") || "none"}
+                />
+              </dl>
+            </article>
+          ))
+        ) : (
+          <p
+            className={styles.emptyState}
+            data-augnes-memory-items-reuse-quality-review-empty-state="true"
+          >
+            No selected persisted perspective-memory items are loaded for
+            quality review preview.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 
