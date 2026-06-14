@@ -60,6 +60,15 @@ function assertPrepareSource(source) {
     "--json",
     "--report",
     "--yes",
+    "execution_mode",
+    "setup_execution_warning",
+    "getExecutionMode",
+    "\"setup-executing\"",
+    "\"diagnostic-only\"",
+    "SETUP EXECUTION MODE: --yes delegates finite setup.",
+    "This may run package install and reset/migrate/seed /tmp/augnes-demo.db.",
+    "--json and --report do not cancel --yes.",
+    "`--yes --json` and `--yes --report` still execute setup; output mode does not cancel `--yes`.",
     "before_doctor",
     "after_doctor",
     "setup_recommended",
@@ -82,6 +91,9 @@ function assertPrepareSource(source) {
     "lockfile_was_already_dirty_before_setup",
     "lockfile_churn_unknown_git_status_failed",
     "lockfile churn unknown because git status failed",
+    "Inspect apps/augnes_apps/package-lock.json before committing setup-generated lockfile churn.",
+    "Do not assume npm metadata churn is intended; restore unrelated package-lock.json changes after inspection.",
+    "Lockfile was already dirty before setup; do not attribute apps/augnes_apps/package-lock.json to this setup run without diff review.",
     "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_BEGIN",
     "AUGNES_LOCAL_DEMO_SETUP_SUMMARY_JSON_END",
     "Setup step outcomes",
@@ -126,6 +138,21 @@ function assertPrepareSource(source) {
   );
   assert.match(
     source,
+    /function getExecutionMode\(\)[\s\S]+yesEnabled \? "setup-executing" : "diagnostic-only"/,
+    "prepare source should label setup-executing when --yes is present and diagnostic-only otherwise",
+  );
+  assert.match(
+    source,
+    /function buildSetupExecutionWarning\(\)[\s\S]+--json and --report do not cancel --yes/,
+    "prepare source should warn that --yes --json and --yes --report still execute setup",
+  );
+  assert.match(
+    source,
+    /function buildLockfileGuidance\(status\)[\s\S]+Inspect apps\/augnes_apps\/package-lock\.json[\s\S]+restore unrelated package-lock\.json changes after inspection[\s\S]+already dirty before setup/,
+    "prepare source should include lockfile churn and already-dirty guidance",
+  );
+  assert.match(
+    source,
     /const worktreeStatusBefore = readWorktreeStatus\("before"\);[\s\S]+const setupRun = runSetup\(\);[\s\S]+const worktreeStatusAfter = readWorktreeStatus\("after"\);/,
     "prepare should capture worktree status before and after delegated setup",
   );
@@ -166,6 +193,7 @@ function assertPrepareSource(source) {
     /\bMcpClient\b/,
     /\bgit\s+checkout\b/,
     /\bgit\s+reset\b/,
+    /\bgit\s+restore\b/,
     /\brevert\b/,
   ]) {
     assert.doesNotMatch(source, forbidden, `prepare source must not contain ${forbidden}`);
@@ -238,6 +266,8 @@ function assertPrepareJson() {
   assert.equal(parsed.tool, "augnes-codex-prepare");
   assert.equal(parsed.mode, "json");
   assert.equal(parsed.yes_enabled, false);
+  assert.equal(parsed.execution_mode, "diagnostic-only");
+  assert.equal(parsed.setup_execution_warning, null);
   assert.equal(parsed.setup_executed, false);
   assert.ok(parsed.before_doctor, "prepare JSON should include before doctor");
   assert.equal(parsed.after_doctor, null, "prepare without --yes should not include after doctor");
@@ -282,6 +312,7 @@ function assertPrepareReport() {
   for (const expected of [
     "## Summary",
     "## Prepare result",
+    "## Execution mode",
     "## Before doctor status",
     "## Setup recommendation",
     "## Setup execution status",
@@ -293,6 +324,7 @@ function assertPrepareReport() {
   ]) {
     assert.ok(result.stdout.includes(expected), `prepare report should include ${expected}`);
   }
+  assert.ok(result.stdout.includes("- diagnostic-only"), "prepare --report without --yes should be diagnostic-only");
   assert.doesNotMatch(result.stdout, /setup_executed: true/, "prepare --report without --yes must not execute setup");
 }
 
@@ -304,6 +336,8 @@ function assertPrepareHuman() {
   assert.equal(result.status, 0, `prepare human output should pass\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   for (const expected of [
     "Augnes prepare status",
+    "Execution mode",
+    "diagnostic-only",
     "What is ready",
     "Setup step outcomes",
     "Setup worktree status",
@@ -322,6 +356,12 @@ function assertDocs(text) {
     "How Prepare Differs From Bootstrap, Doctor, and Setup",
     "Without --yes",
     "With --yes",
+    "Execution modes",
+    "diagnostic-only",
+    "setup-executing",
+    "npm run augnes:prepare -- --yes --json",
+    "npm run augnes:prepare -- --yes --report",
+    "`--json` and `--report` do not cancel `--yes`",
     "npm run augnes:prepare -- --json",
     "npm run augnes:prepare -- --report",
     "npm run augnes:prepare -- --yes",
@@ -338,6 +378,10 @@ function assertDocs(text) {
     "lockfile changed after setup",
     "lockfile was already dirty before setup",
     "lockfile churn unknown because git status failed",
+    "Setup may alter `apps/augnes_apps/package-lock.json` under some npm versions",
+    "inspect the lockfile diff",
+    "restore unrelated npm metadata churn after inspection",
+    "Prepare reports worktree status but does not modify files",
     "Why Long-running Servers Are Not Auto-started",
     "Why User-level Codex Config Is Not Auto-written",
     "How Non-expert Users Should Use It",
@@ -357,6 +401,10 @@ function assertReport(text) {
     "## Summary",
     "## Files changed",
     "## Behavior",
+    "## Execution mode behavior",
+    "setup-executing",
+    "diagnostic-only",
+    "`--json` and `--report` do not cancel `--yes`",
     "temp demo DB readiness",
     "/tmp/augnes-demo.db",
     "PR #545 dogfood",
@@ -370,6 +418,11 @@ function assertReport(text) {
     "lockfile changed after setup",
     "lockfile was already dirty before setup",
     "lockfile churn unknown because git status failed",
+    "## Lockfile churn guidance",
+    "inspect `apps/augnes_apps/package-lock.json`",
+    "do not assume npm metadata churn is intended",
+    "restore unrelated npm metadata churn after inspection",
+    "prepare does not auto-revert files",
     "## User-facing flow",
     "## Boundary",
     "## Verification plan",

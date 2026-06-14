@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 const args = new Set(process.argv.slice(2));
 const outputMode = args.has("--json") ? "json" : args.has("--report") ? "report" : "human";
 const yesEnabled = args.has("--yes");
+const executionMode = getExecutionMode();
 
 const delegatedSetupCommand = "npm run augnes:setup-local-demo -- --yes";
 const delegatedSetupArgs = ["run", "augnes:setup-local-demo", "--", "--yes"];
@@ -23,6 +24,8 @@ const result = {
   tool: "augnes-codex-prepare",
   mode: outputMode,
   yes_enabled: yesEnabled,
+  execution_mode: executionMode,
+  setup_execution_warning: buildSetupExecutionWarning(),
   before_doctor: null,
   setup_recommended: {
     recommended: false,
@@ -125,6 +128,17 @@ function runSetup() {
   });
 }
 
+function getExecutionMode() {
+  return yesEnabled ? "setup-executing" : "diagnostic-only";
+}
+
+function buildSetupExecutionWarning() {
+  if (!yesEnabled) {
+    return null;
+  }
+  return "SETUP EXECUTION MODE: --yes delegates finite setup. This may run package install and reset/migrate/seed /tmp/augnes-demo.db. --json and --report do not cancel --yes.";
+}
+
 function readWorktreeStatus(label) {
   const run = spawnSync("git", gitStatusShortArgs, {
     encoding: "utf8",
@@ -175,6 +189,10 @@ function buildSetupWorktreeStatus(before, after) {
       attribution_warning: before.dirty
         ? "Worktree was already dirty before setup; review before/after status before attributing changes to setup."
         : "Worktree attribution is unknown because git status failed before or after delegated setup.",
+      lockfile_guidance: buildLockfileGuidance({
+        lockfile_changed_after_setup: null,
+        lockfile_was_already_dirty_before_setup: before.lockfile_churn_detected,
+      }),
     };
   }
 
@@ -202,11 +220,30 @@ function buildSetupWorktreeStatus(before, after) {
     attribution_warning: before.dirty
       ? "Worktree was already dirty before setup; review before/after status before attributing changes to setup."
       : null,
+    lockfile_guidance: buildLockfileGuidance({
+      lockfile_changed_after_setup: lockfileChangedAfterSetup,
+      lockfile_was_already_dirty_before_setup: lockfileWasAlreadyDirtyBeforeSetup,
+    }),
   };
 }
 
 function isLockfileStatusLine(line) {
   return line.includes("package-lock.json");
+}
+
+function buildLockfileGuidance(status) {
+  if (status.lockfile_changed_after_setup) {
+    return [
+      "Inspect apps/augnes_apps/package-lock.json before committing setup-generated lockfile churn.",
+      "Do not assume npm metadata churn is intended; restore unrelated package-lock.json changes after inspection.",
+    ];
+  }
+  if (status.lockfile_was_already_dirty_before_setup) {
+    return [
+      "Lockfile was already dirty before setup; do not attribute apps/augnes_apps/package-lock.json to this setup run without diff review.",
+    ];
+  }
+  return [];
 }
 
 function buildSetupRecommendation(doctor) {
@@ -233,6 +270,10 @@ function buildSetupRecommendation(doctor) {
 function finalizeResult() {
   const activeDoctor = result.after_doctor ?? result.before_doctor;
 
+  if (result.setup_execution_warning) {
+    addAction(result.setup_execution_warning);
+  }
+
   if (result.setup_recommended.recommended && !result.setup_executed) {
     addAction(`Run safe finite setup with: ${prepareYesCommand}`);
     addSkippedReason("safe local demo setup skipped: --yes was not provided.");
@@ -248,6 +289,12 @@ function finalizeResult() {
 
   if (result.setup_worktree_status?.attribution_warning) {
     addAction(result.setup_worktree_status.attribution_warning);
+  }
+
+  if (result.setup_worktree_status?.lockfile_guidance?.length > 0) {
+    for (const guidance of result.setup_worktree_status.lockfile_guidance) {
+      addAction(guidance);
+    }
   }
 
   if (result.setup_worktree_status?.new_dirty_entries?.length > 0) {
@@ -310,6 +357,8 @@ function printHuman() {
   const activeDoctor = result.after_doctor ?? result.before_doctor;
   console.log("# Augnes prepare status");
   console.log("");
+  printExecutionModeSection();
+  console.log("");
   console.log(`doctor_status: ${result.before_doctor?.overall_state ?? "unknown"}`);
   console.log(`setup_recommended: ${result.setup_recommended.recommended ? "yes" : "no"}`);
   console.log(`setup_executed: ${result.setup_executed ? "yes" : "no"}`);
@@ -358,8 +407,14 @@ function printReport() {
   console.log("## Prepare result");
   console.log(`- Mode: ${outputMode}`);
   console.log(`- yes_enabled: ${yesEnabled}`);
+  console.log(`- execution_mode: ${result.execution_mode}`);
   console.log(`- setup_executed: ${result.setup_executed}`);
   console.log(`- setup_status: ${result.setup_status.state}`);
+  console.log("");
+  console.log("## Execution mode");
+  for (const line of buildExecutionModeLines()) {
+    console.log(`- ${line}`);
+  }
   console.log("");
   console.log("## Before doctor status");
   console.log(`- ${result.before_doctor?.overall_state ?? "unknown"}`);
@@ -409,6 +464,30 @@ function printReport() {
   for (const boundary of result.boundary) {
     console.log(`- ${boundary}`);
   }
+}
+
+function printExecutionModeSection() {
+  console.log("## Execution mode");
+  for (const line of buildExecutionModeLines()) {
+    console.log(`- ${line}`);
+  }
+}
+
+function buildExecutionModeLines() {
+  if (result.execution_mode === "setup-executing") {
+    return [
+      "setup-executing",
+      result.setup_execution_warning,
+      `Delegates setup only through \`${delegatedSetupCommand}\`.`,
+      "`--yes --json` and `--yes --report` still execute setup; output mode does not cancel `--yes`.",
+    ];
+  }
+
+  return [
+    "diagnostic-only",
+    "No setup is executed because --yes was not provided.",
+    "`--json` and `--report` are output formats only when --yes is absent.",
+  ];
 }
 
 function buildReadyLines(doctor) {
@@ -476,6 +555,10 @@ function buildSetupWorktreeLines() {
 
   if (result.setup_worktree_status.attribution_warning) {
     lines.push(result.setup_worktree_status.attribution_warning);
+  }
+
+  for (const guidance of result.setup_worktree_status.lockfile_guidance ?? []) {
+    lines.push(guidance);
   }
 
   if (result.setup_worktree_status.new_dirty_entries.length > 0) {
