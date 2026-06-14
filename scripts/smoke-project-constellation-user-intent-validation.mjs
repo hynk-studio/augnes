@@ -31,8 +31,6 @@ const capsuleHandoffSkillFile =
   "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
 const capsuleHandoffSkillSmokeFile =
   "scripts/smoke-augnes-capsule-handoff-skill.mjs";
-const capsuleDogfoodSmokeFile =
-  "scripts/smoke-capsule-handoff-skill-dogfood-report.mjs";
 const readonlyCloseoutSmokeFile =
   "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
 
@@ -52,7 +50,6 @@ const allowedChangedFiles = new Set([
   usefulnessPlanSmokeFile,
   capsuleHandoffSkillFile,
   capsuleHandoffSkillSmokeFile,
-  capsuleDogfoodSmokeFile,
   readonlyCloseoutSmokeFile,
 ]);
 
