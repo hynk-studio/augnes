@@ -65,7 +65,7 @@ export function runOperatorFlowLocalValidationBridge(
 ): OperatorFlowLocalValidationResponse {
   const request = parseRequest(input);
   if (!request.ok) {
-    return buildBlockedBeforeExecutionResponse({
+    return buildOperatorFlowBlockedBeforeExecutionResponse({
       sourceInputRef: null,
       prepareSummaryRef: null,
       returnedEnvelopeText: "",
@@ -95,7 +95,7 @@ export function runOperatorFlowLocalValidationBridge(
     );
   }
   if (!sourceInputRef || !prepareSummaryRef || blockedReasons.length > 0) {
-    return buildBlockedBeforeExecutionResponse({
+    return buildOperatorFlowBlockedBeforeExecutionResponse({
       sourceInputRef,
       prepareSummaryRef,
       returnedEnvelopeText: request.value.returned_envelope_text,
@@ -131,7 +131,7 @@ export function runOperatorFlowLocalValidationBridge(
       boundary: CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY,
     };
   } catch (error) {
-    return buildBlockedBeforeExecutionResponse({
+    return buildOperatorFlowBlockedBeforeExecutionResponse({
       sourceInputRef,
       prepareSummaryRef,
       returnedEnvelopeText: request.value.returned_envelope_text,
@@ -223,7 +223,7 @@ function toOperatorFlowValidationPreview({
   };
 }
 
-function buildBlockedBeforeExecutionResponse({
+export function buildOperatorFlowBlockedBeforeExecutionResponse({
   sourceInputRef,
   prepareSummaryRef,
   returnedEnvelopeText,

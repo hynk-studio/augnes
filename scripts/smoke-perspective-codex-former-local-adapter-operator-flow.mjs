@@ -56,8 +56,11 @@ const {
 const { runOperatorFlowLocalValidationBridge } = localValidateBridge;
 const {
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE,
+  CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_ROUTE,
+  CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_VALIDATE_ROUTE,
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_STORAGE_NAMESPACE,
+  CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_INTAKE_DIR,
   buildCodexFormerLocalAdapterOperatorFlowViewModel,
   clearOperatorFlowDraftFromStorage,
   createInitialOperatorFlowDraft,
@@ -80,6 +83,8 @@ const helperFile =
   "lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts";
 const localValidateBridgeFile =
   "lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts";
+const returnedEnvelopeIntakeHelperFile =
+  "lib/perspective-ingest/codex-former-local-adapter-returned-envelope-intake.ts";
 const acceptedCandidateDraftFile =
   "lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts";
 const candidateDraftListFile =
@@ -88,6 +93,10 @@ const memoryReviewQueueFile =
   "lib/perspective-ingest/perspective-memory-local-review-queue.ts";
 const localValidateRouteFile =
   "app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts";
+const returnedEnvelopeIntakeRouteFile =
+  "app/api/perspective/codex-former/local-adapter-operator-flow/returned-envelope-intake/route.ts";
+const returnedEnvelopeIntakeValidateRouteFile =
+  "app/api/perspective/codex-former/local-adapter-operator-flow/returned-envelope-intake/validate/route.ts";
 const memoryReviewQueueRouteFile =
   "app/cockpit/perspective/memory-review-queue/local/page.tsx";
 const memoryReviewQueueComponentFile =
@@ -104,10 +113,14 @@ const memoryReviewQueueBrowserSmokeFile =
   "scripts/browser-smoke-perspective-memory-local-review-queue.mjs";
 const docFile =
   "docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_V0_1.md";
+const returnedEnvelopeIntakeDocFile =
+  "docs/PERSPECTIVE_CODEX_FORMER_RETURNED_ENVELOPE_INTAKE_V0_1.md";
 const memoryReviewQueueDocFile =
   "docs/PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_V0_1.md";
 const reportFile =
   "reports/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md";
+const returnedEnvelopeIntakeReportFile =
+  "reports/2026-06-14-perspective-codex-former-returned-envelope-intake.md";
 const memoryReviewQueueReportFile =
   "reports/2026-06-13-perspective-memory-local-review-queue.md";
 const browserReportFile =
@@ -135,6 +148,8 @@ const returnedFollowUpFile =
   "reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-ready.txt";
 const returnedBlockedFile =
   "reports/fixtures/2026-06-12-codex-former-local-adapter-returned-candidate-envelope-blocked.txt";
+const returnedEnvelopeIntakeFixtureFile =
+  "reports/intake/codex-former-returned-envelopes/2026-06-14-codex-former-local-adapter-returned-envelope-ready.txt";
 const expectedTsxCommand =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json";
 
@@ -144,6 +159,10 @@ const componentText = readFileSync(componentFile, "utf8");
 const cssText = readFileSync(cssFile, "utf8");
 const helperText = readFileSync(helperFile, "utf8");
 const localValidateBridgeText = readFileSync(localValidateBridgeFile, "utf8");
+const returnedEnvelopeIntakeHelperText = readFileSync(
+  returnedEnvelopeIntakeHelperFile,
+  "utf8",
+);
 const acceptedCandidateDraftText = readFileSync(
   acceptedCandidateDraftFile,
   "utf8",
@@ -151,6 +170,14 @@ const acceptedCandidateDraftText = readFileSync(
 const candidateDraftListText = readFileSync(candidateDraftListFile, "utf8");
 const memoryReviewQueueText = readFileSync(memoryReviewQueueFile, "utf8");
 const localValidateRouteText = readFileSync(localValidateRouteFile, "utf8");
+const returnedEnvelopeIntakeRouteText = readFileSync(
+  returnedEnvelopeIntakeRouteFile,
+  "utf8",
+);
+const returnedEnvelopeIntakeValidateRouteText = readFileSync(
+  returnedEnvelopeIntakeValidateRouteFile,
+  "utf8",
+);
 const memoryReviewQueueRouteText = readFileSync(
   memoryReviewQueueRouteFile,
   "utf8",
@@ -164,8 +191,16 @@ const memoryReviewQueueCssText = readFileSync(
   "utf8",
 );
 const docText = readFileSync(docFile, "utf8");
+const returnedEnvelopeIntakeDocText = readFileSync(
+  returnedEnvelopeIntakeDocFile,
+  "utf8",
+);
 const memoryReviewQueueDocText = readFileSync(memoryReviewQueueDocFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
+const returnedEnvelopeIntakeReportText = readFileSync(
+  returnedEnvelopeIntakeReportFile,
+  "utf8",
+);
 const memoryReviewQueueReportText = readFileSync(
   memoryReviewQueueReportFile,
   "utf8",
@@ -244,6 +279,12 @@ function assertPackageScripts() {
     `node ${browserSmokeFile}`,
   );
   assert.equal(
+    packageJson.scripts[
+      "smoke:perspective-codex-former-local-adapter-returned-envelope-intake"
+    ],
+    `${expectedTsxCommand} scripts/smoke-perspective-codex-former-local-adapter-returned-envelope-intake.mjs`,
+  );
+  assert.equal(
     packageJson.scripts["smoke:perspective-memory-local-review-queue"],
     `${expectedTsxCommand} ${memoryReviewQueueSmokeFile}`,
   );
@@ -260,10 +301,13 @@ function assertFilesExist() {
     cssFile,
     helperFile,
     localValidateBridgeFile,
+    returnedEnvelopeIntakeHelperFile,
     acceptedCandidateDraftFile,
     candidateDraftListFile,
     memoryReviewQueueFile,
     localValidateRouteFile,
+    returnedEnvelopeIntakeRouteFile,
+    returnedEnvelopeIntakeValidateRouteFile,
     memoryReviewQueueRouteFile,
     memoryReviewQueueComponentFile,
     memoryReviewQueueCssFile,
@@ -272,8 +316,10 @@ function assertFilesExist() {
     browserSmokeFile,
     memoryReviewQueueBrowserSmokeFile,
     docFile,
+    returnedEnvelopeIntakeDocFile,
     memoryReviewQueueDocFile,
     reportFile,
+    returnedEnvelopeIntakeReportFile,
     memoryReviewQueueReportFile,
     browserReportFile,
     memoryReviewQueueBrowserReportFile,
@@ -287,6 +333,7 @@ function assertFilesExist() {
     returnedPassFile,
     returnedFollowUpFile,
     returnedBlockedFile,
+    returnedEnvelopeIntakeFixtureFile,
   ]) {
     assert.equal(existsSync(file), true, `${file} must exist`);
   }
@@ -352,6 +399,9 @@ function assertHelperViewModel() {
   );
   assertIncludesAll(helperText, [
     CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
+    CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_ROUTE,
+    CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_VALIDATE_ROUTE,
+    "CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_INTAKE_DIR",
     "real_local_validate_execution",
     "blocked_before_execution",
     "validation_result_source",
@@ -503,6 +553,26 @@ function assertLocalValidationBridge() {
     "local-operator-flow:in-memory-validate-summary",
     "operatorFlowSourceInputRefs",
     "operatorFlowPrepareExecutionSummaryRefs",
+  ]);
+  assertIncludesAll(returnedEnvelopeIntakeHelperText, [
+    "CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_INTAKE_DIR",
+    "CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_MAX_BYTES = 20000",
+    "listCodexFormerLocalAdapterReturnedEnvelopeIntakeRefs",
+    "validateCodexFormerLocalAdapterReturnedEnvelopeIntake",
+    "resolveReturnedEnvelopeIntakeRef",
+    "returned_envelope_ref must stay under",
+    "returned_envelope_ref must be normalized",
+    "returned_envelope_ref must not be a symlink",
+    "runOperatorFlowLocalValidationBridge",
+    "buildOperatorFlowBlockedBeforeExecutionResponse",
+  ]);
+  assertIncludesAll(returnedEnvelopeIntakeRouteText, [
+    "listCodexFormerLocalAdapterReturnedEnvelopeIntakeRefs",
+    "export async function GET",
+  ]);
+  assertIncludesAll(returnedEnvelopeIntakeValidateRouteText, [
+    "validateCodexFormerLocalAdapterReturnedEnvelopeIntake",
+    "export async function POST",
   ]);
 
   const pass = runOperatorFlowLocalValidationBridge({
@@ -1389,6 +1459,7 @@ function assertComponentSource() {
     "Copy For Codex",
     "External Codex Work",
     "Returned Envelope",
+    "Codex Returned Envelope Intake",
     "Validate Result",
     "Candidate Review Material",
     "Next Action",
@@ -1401,6 +1472,9 @@ function assertComponentSource() {
     "Clear returned envelope draft",
     "Save draft locally",
     "Clear local draft",
+    "Refresh intake list",
+    "Load latest Codex return + validate",
+    "Load selected Codex return + validate",
     "Run local validation",
     "Preview fixture result",
     "Create local perspective candidate draft",
@@ -1419,6 +1493,8 @@ function assertComponentSource() {
     "PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE",
     "buildPerspectiveMemoryLocalReviewQueueItemFromCandidateDraft",
     "findPerspectiveMemoryLocalReviewQueueItemBySourceDraft",
+    "OperatorFlowReturnedEnvelopeIntakeListResponse",
+    "OperatorFlowReturnedEnvelopeIntakeValidationResponse",
     "selected_draft_already_queued",
     "memory_review_queue_blocked_reasons",
     "real_local_validate_execution",
@@ -1471,6 +1547,20 @@ function assertComponentSource() {
     "data-augnes-select-candidate-draft",
     "data-augnes-local-candidate-draft-list-status",
     "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE",
+    "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_ROUTE",
+    "CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_VALIDATE_ROUTE",
+    "data-augnes-returned-envelope-intake-panel",
+    "data-augnes-refresh-intake-list",
+    "data-augnes-load-latest-returned-envelope-intake",
+    "data-augnes-load-selected-returned-envelope-intake",
+    "data-augnes-intake-ref-select",
+    "latest_returned_envelope_ref",
+    "latest_hash",
+    "latest_size",
+    "latest_modified_at",
+    "invalid_intake_refs",
+    "This automation only loads one returned envelope",
+    "It does not create candidate drafts",
   ]);
   assert(componentText.includes("fetch("), "component must call local bridge");
   assert.equal(
@@ -1594,6 +1684,30 @@ function assertDocsAndReports() {
     "no accepted Augnes state",
     "no review decision",
   ]);
+  assertIncludesAll(returnedEnvelopeIntakeDocText, [
+    "# Codex Former Returned Envelope Intake v0.1",
+    CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_ROUTE,
+    CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_VALIDATE_ROUTE,
+    CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_INTAKE_DIR,
+    "manual paste + manual local validation",
+    "candidate draft creation remains user-controlled",
+    "no DB write",
+    "no memory write",
+    "no Core/runtime/provider/GitHub mutation",
+    "path safety boundary",
+    "not candidate acceptance",
+    "not memory persistence",
+  ]);
+  assertIncludesAll(returnedEnvelopeIntakeReportText, [
+    "# Codex Former Returned Envelope Intake Report",
+    "manual paste + manual local validation",
+    "candidate draft creation remains user-controlled",
+    "no DB write",
+    "no memory write",
+    "no Core/runtime/provider/GitHub mutation",
+    "not candidate acceptance",
+    "not memory persistence",
+  ]);
   assertIncludesAll(memoryReviewQueueDocText, [
     "# Perspective Memory Local Review Queue v0.1",
     PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE,
@@ -1637,10 +1751,14 @@ function assertRuntimeBoundary() {
     [componentFile]: componentText,
     [helperFile]: helperText,
     [localValidateBridgeFile]: localValidateBridgeText,
+    [returnedEnvelopeIntakeHelperFile]: returnedEnvelopeIntakeHelperText,
     [acceptedCandidateDraftFile]: acceptedCandidateDraftText,
     [candidateDraftListFile]: candidateDraftListText,
     [memoryReviewQueueFile]: memoryReviewQueueText,
     [localValidateRouteFile]: localValidateRouteText,
+    [returnedEnvelopeIntakeRouteFile]: returnedEnvelopeIntakeRouteText,
+    [returnedEnvelopeIntakeValidateRouteFile]:
+      returnedEnvelopeIntakeValidateRouteText,
     [memoryReviewQueueRouteFile]: memoryReviewQueueRouteText,
     [memoryReviewQueueComponentFile]: memoryReviewQueueComponentText,
   };
