@@ -9,6 +9,8 @@ repo implementation and verification worker. Preserve the authority boundaries.
 ## Start Of Work
 
 - Read current repo instructions and task-relevant docs before editing.
+- For Augnes code/docs/scripts implementation tasks, use Perspective Memory
+  Reuse Intake before coding so task-start context includes prior Augnes memory.
 - For Augnes workflow tasks, prefer this minimum context:
   - `README.md`
   - `docs/AUTHORITY_MATRIX.md`
@@ -19,6 +21,23 @@ repo implementation and verification worker. Preserve the authority boundaries.
 - If the local Augnes runtime is available, run `npm run codex:read-brief`.
 - If `CODEX_WORK_ID` is set, use `npm run codex:read-brief` so the Work Brief
   context is read too.
+
+## Codex Augnes Reuse Hook v0.1
+
+- Before implementing Augnes code/docs/scripts, get task-start memory context
+  with Perspective Memory Reuse Intake.
+- Use the resulting Codex Memory Brief as task context.
+- Preserve `why_selected` and `reuse_boundary` when applying selected memory.
+- Treat quality review warnings as operator-review signals, not semantic truth.
+- Do not add storage, persistence, DB schema, provider/model calls, OpenAI API
+  calls, MCP tool calls, Codex SDK execution, GitHub mutation, proof/evidence
+  writes, automatic memory creation, hidden background daemons, or Augnes state
+  commit/reject authority unless explicitly scoped.
+- Project-local hooks require Codex hook trust review; if hooks are not trusted
+  or enabled, run `npm run perspective:memory-reuse-intake -- --task "..." --brief`
+  manually when useful.
+- Report changed files, verification, skipped checks with concrete reasons, and
+  remaining friction.
 
 ## Repository Owner Examples
 
