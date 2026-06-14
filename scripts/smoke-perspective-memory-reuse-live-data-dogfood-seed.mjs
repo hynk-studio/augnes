@@ -47,6 +47,13 @@ function assertSeedScriptContract() {
     "refusing to reset or seed without --yes",
     "refused DB path outside /tmp",
     "process.env.AUGNES_DB_PATH = dbPath",
+    "assertTempDbPathSafety(dbPath)",
+    "lstatSync",
+    "realpathSync",
+    "rejectSymlinkIfPresent",
+    "SQLite artifact path",
+    "DB parent path component must not be a symlink",
+    "DB parent realpath escapes temp root",
     "resetDatabase",
     "createPerspectiveMemoryProductPersistenceBoundaryRecord",
     "createPerspectiveMemoryItemFromBoundaryRecord",
@@ -98,6 +105,9 @@ function assertDocsAndReport() {
       "does not mutate GitHub from scripts",
       "does not use default/user DB paths",
       "does not add DB schema or migrations",
+      "symlinked DB/artifact paths",
+      "parent path escapes",
+      "prior setup/prepare work",
       "does not justify a persisted return binding table",
     ]);
   }

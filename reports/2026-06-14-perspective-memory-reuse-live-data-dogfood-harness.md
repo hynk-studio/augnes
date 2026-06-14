@@ -26,6 +26,10 @@ The script:
 
 - requires `--yes` before reset/seed
 - refuses DB paths outside `/tmp`
+- rejects symlinked DB/artifact paths before reset/seed
+- rejects parent path escapes before reset/seed
+- allows macOS `/tmp` to resolve to `/private/tmp` while requiring the real
+  parent directory to remain inside the real temp root
 - resets only the explicit temp DB path
 - seeds deterministic persisted perspective-memory rows through existing helper
   paths
@@ -70,6 +74,11 @@ persistence, product boundary creation beyond deterministic seed fixture
 requirements, automatic synthesis, automatic memory creation outside explicit
 seed setup, default/user DB writes, hidden background daemons, or Augnes state
 commit/reject authority.
+
+The harness continues the temp DB safety boundary from prior setup/prepare
+work: it requires explicit `/tmp` DB paths, rejects symlinked DB/artifact paths
+and parent path escapes, and keeps default/user DB paths outside the reset/seed
+surface.
 
 This does not justify a persisted return binding table. PR #557 already found
 that the route is usable and that repeated live-data validation should happen

@@ -1,3 +1,8 @@
+import {
+  lstatSync,
+  mkdirSync,
+  realpathSync,
+} from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -5,6 +10,8 @@ const DEFAULT_TEMP_DB_PATH =
   "/tmp/augnes-perspective-memory-reuse-live-data-dogfood/augnes.db";
 const REUSE_ROUTE = "/cockpit/perspective/memory-items/reuse";
 const SCRIPT_NAME = "perspective-memory-reuse-live-data-dogfood-seed";
+const TEMP_ROOT_PATH = "/tmp";
+const SQLITE_ARTIFACT_SUFFIXES = ["-wal", "-shm", "-journal"];
 const SEEDED_ITEM_IDS = [
   "perspective-memory-item:reuse-live-data-accepted",
   "perspective-memory-item:reuse-live-data-follow-up",
@@ -30,6 +37,16 @@ if (!options.yes) {
   console.error(`Explicit temp DB path: ${dbPath}`);
   console.error("Rerun with --yes to reset and seed this temp DB.");
   printNextSteps(dbPath, []);
+  process.exit(1);
+}
+
+try {
+  assertTempDbPathSafety(dbPath);
+} catch (error) {
+  console.error(
+    `${SCRIPT_NAME}: refused unsafe temp DB path before reset/seed.`,
+  );
+  console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 
@@ -153,6 +170,130 @@ function parseArgs(args) {
 
 function isTempDbPath(candidate) {
   return candidate === "/tmp/augnes.db" || candidate.startsWith("/tmp/");
+}
+
+function assertTempDbPathSafety(candidate) {
+  const blockedReasons = [];
+  const realTempRoot = realpathSync(TEMP_ROOT_PATH);
+  const parentDir = path.dirname(candidate);
+
+  if (!isTempDbPath(candidate)) {
+    blockedReasons.push(`DB path is not under ${TEMP_ROOT_PATH}: ${candidate}`);
+  }
+  rejectSymlinkIfPresent(candidate, "DB path", blockedReasons);
+  for (const suffix of SQLITE_ARTIFACT_SUFFIXES) {
+    rejectSymlinkIfPresent(
+      `${candidate}${suffix}`,
+      `SQLite artifact path ${suffix}`,
+      blockedReasons,
+    );
+  }
+  validateAndPrepareParentDir({
+    parentDir,
+    realTempRoot,
+    blockedReasons,
+  });
+
+  if (blockedReasons.length > 0) {
+    throw new Error(blockedReasons.join("\n"));
+  }
+}
+
+function rejectSymlinkIfPresent(candidate, label, blockedReasons) {
+  const stat = lstatIfPresent(candidate);
+  if (stat?.isSymbolicLink()) {
+    blockedReasons.push(`${label} must not be a symlink: ${candidate}`);
+  }
+}
+
+function validateAndPrepareParentDir({
+  parentDir,
+  realTempRoot,
+  blockedReasons,
+}) {
+  const relativeParent = path.relative(TEMP_ROOT_PATH, parentDir);
+  if (relativeParent.startsWith("..") || path.isAbsolute(relativeParent)) {
+    blockedReasons.push(`DB parent must stay under ${TEMP_ROOT_PATH}: ${parentDir}`);
+    return;
+  }
+
+  const existingAncestor = validateExistingParentComponents({
+    parentDir,
+    relativeParent,
+    blockedReasons,
+  });
+  if (blockedReasons.length > 0) return;
+
+  const ancestorRealPath = realpathSync(existingAncestor);
+  if (!isPathInside(ancestorRealPath, realTempRoot)) {
+    blockedReasons.push(
+      `existing parent ancestor escapes temp root: ${existingAncestor} -> ${ancestorRealPath}`,
+    );
+    return;
+  }
+
+  mkdirSync(parentDir, { recursive: true });
+  const parentStat = lstatSync(parentDir);
+  if (parentStat.isSymbolicLink()) {
+    blockedReasons.push(`DB parent must not be a symlink: ${parentDir}`);
+    return;
+  }
+  const parentRealPath = realpathSync(parentDir);
+  if (!isPathInside(parentRealPath, realTempRoot)) {
+    blockedReasons.push(
+      `DB parent realpath escapes temp root: ${parentDir} -> ${parentRealPath}`,
+    );
+  }
+}
+
+function validateExistingParentComponents({
+  parentDir,
+  relativeParent,
+  blockedReasons,
+}) {
+  const parts = relativeParent
+    .split(path.sep)
+    .filter((part) => part.length > 0 && part !== ".");
+  let current = TEMP_ROOT_PATH;
+  let existingAncestor = TEMP_ROOT_PATH;
+
+  for (const part of parts) {
+    current = path.join(current, part);
+    const stat = lstatIfPresent(current);
+    if (!stat) break;
+    if (stat.isSymbolicLink()) {
+      blockedReasons.push(
+        `DB parent path component must not be a symlink: ${current}`,
+      );
+      break;
+    }
+    if (!stat.isDirectory()) {
+      blockedReasons.push(
+        `DB parent path component must be a directory: ${current}`,
+      );
+      break;
+    }
+    existingAncestor = current;
+  }
+
+  if (existingAncestor === TEMP_ROOT_PATH && parentDir === TEMP_ROOT_PATH) {
+    return TEMP_ROOT_PATH;
+  }
+  return existingAncestor;
+}
+
+function lstatIfPresent(candidate) {
+  try {
+    return lstatSync(candidate);
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function isPathInside(candidate, parent) {
+  const relative = path.relative(parent, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function assertOk(result, label) {

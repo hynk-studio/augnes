@@ -22,6 +22,13 @@ npm run perspective:memory-reuse-live-data-dogfood-seed -- --yes
 The script requires `--yes` before it resets or seeds the temp DB. It refuses
 paths outside `/tmp`.
 
+Before reset/seed, it also rejects symlinked DB/artifact paths
+(`augnes.db`, `augnes.db-wal`, `augnes.db-shm`, and `augnes.db-journal`) and
+rejects parent path escapes. The parent directory is checked with realpath
+containment under the real temp root, so macOS `/tmp` resolving to
+`/private/tmp` remains valid while symlink escapes out of temp are blocked
+where practical.
+
 After seeding, the script prints the seeded item IDs, the next runtime command,
 and the reuse route:
 
@@ -62,6 +69,10 @@ after opt-in. It does not create reuse packet persistence, return binding
 persistence, product persistence features, automatic synthesis, automatic
 memory creation outside explicit seed setup, proof/evidence writes, hidden
 background daemons, or Augnes state commit/reject authority.
+
+This continues the temp DB safety boundary from prior setup/prepare work:
+explicit temp paths only, no default/user DB writes, and no hidden runtime or
+bridge startup.
 
 This harness does not justify a persisted return binding table. After the
 harness exists, the next PR should rerun live-data browser/runtime reuse
