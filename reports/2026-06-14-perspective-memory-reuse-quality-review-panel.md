@@ -84,7 +84,10 @@ No persistence/storage is added:
 - No runtime authority
 - No Augnes state commit/reject authority
 
-No product/helper code changed. The existing helper was sufficient.
+No helper code changed. Product UI code changed only to add the read-only
+quality review preview panel inside the existing reuse workspace. The existing
+helper was sufficient, and no product persistence, API, runtime, storage, or
+authority behavior changed.
 
 ## Verification
 
