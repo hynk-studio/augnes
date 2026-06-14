@@ -42,6 +42,31 @@ For every selected item, the intake emits:
 - copyable Codex Memory Brief
 - quality review preview and warning summary from `buildPerspectiveMemoryReuseQualityReview`
 
+## v0.2 Ranking And Copy Guidance
+
+Perspective Memory Reuse Intake v0.2 keeps the same local command and read-only
+boundary while polishing deterministic ranking and copy:
+
+- Exact command memories get an exact-task/entity match boost when the task
+  directly names `Perspective Memory Reuse Intake`, `reuse intake`, `intake
+  command`, or similar command-specific terms. This lets memories whose
+  title/summary/source refs strongly identify the intake command outrank broader
+  compact-brief metadata memories.
+- No-match copy distinguishes DB path missing / no store read performed, store
+  read succeeded with zero persisted items, readable persisted items with no
+  accepted/reviewing matches, and only inactive deprecated/retracted/superseded
+  matches.
+- When `compact_brief_recommended` is true, human and `--brief` output include
+  actionable compact guidance: preserve selected memory IDs, preserve
+  `why_selected`, preserve `reuse_boundary`, preserve Return Expectations,
+  preserve the authority boundary, and trim repeated summaries, long source
+  refs, and repeated warnings first.
+
+This is ranking/copy guidance only. It does not add model ranking, storage,
+persistence, runtime authority, provider/model calls, OpenAI API calls, MCP
+calls, Codex SDK execution, GitHub mutation, DB schema, or automatic memory
+creation.
+
 ## Determinism
 
 The default CLI output is deterministic for the same task string and same persisted memory items. The intake uses a fixed preview timestamp and deterministic packet/review IDs derived from the task, selected item IDs, and limit.

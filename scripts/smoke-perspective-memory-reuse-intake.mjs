@@ -24,16 +24,20 @@ const scriptFile = "scripts/perspective-memory-reuse-intake.mjs";
 const smokeFile = "scripts/smoke-perspective-memory-reuse-intake.mjs";
 const docFile = "docs/PERSPECTIVE_MEMORY_REUSE_INTAKE_V0_1.md";
 const reportFile = "reports/2026-06-14-perspective-memory-reuse-intake.md";
+const v02ReportFile =
+  "reports/2026-06-14-perspective-memory-reuse-intake-v0-2.md";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
 const scriptText = readFileSync(scriptFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
+const v02ReportText = readFileSync(v02ReportFile, "utf8");
 
 try {
   assertStaticFilesAndScripts();
   assertPureIntakeBehavior();
+  assertV02RankingNoMatchAndCompactGuidance();
   assertStoreBackedCliBehavior();
   assertDocsReportsAndBoundary();
   assertNoForbiddenImplementationMarkers();
@@ -46,7 +50,14 @@ try {
 }
 
 function assertStaticFilesAndScripts() {
-  for (const file of [helperFile, scriptFile, smokeFile, docFile, reportFile]) {
+  for (const file of [
+    helperFile,
+    scriptFile,
+    smokeFile,
+    docFile,
+    reportFile,
+    v02ReportFile,
+  ]) {
     assert.equal(existsSync(file), true, `${file} must exist`);
   }
 
@@ -60,13 +71,22 @@ function assertStaticFilesAndScripts() {
   );
 
   assertIncludesAll(helperText, [
-    "perspective_memory_reuse_intake.v0.1",
+    "perspective_memory_reuse_intake.v0.2",
     "buildPerspectiveMemoryReuseIntakeFromStore",
     "listPerspectiveMemoryItems",
     "buildPerspectiveMemoryReusePacket",
     "buildPerspectiveMemoryReuseQualityReview",
     "why_selected",
     "reuse_boundary",
+    "selection_guidance",
+    "no_match_state",
+    "exact_task_entity_match_boost",
+    "buildExactTaskEntityMatchBoost",
+    "Store read succeeded and persisted perspective-memory items existed",
+    "Only inactive perspective-memory items matched this task",
+    "No store read was performed because the explicit perspective-memory DB path was missing",
+    "Preserve selected memory IDs.",
+    "Trim repeated summaries, long source refs, and repeated warnings first.",
     "quality_review_preview_summary",
     "deterministic_local_intake: true",
     "mechanical_keyword_matching_only: true",
@@ -203,7 +223,7 @@ function assertPureIntakeBehavior() {
 
   const human = intake.formatPerspectiveMemoryReuseIntakeHuman(first);
   assertIncludesAll(human, [
-    "# Perspective Memory Reuse Intake v0.1",
+    "# Perspective Memory Reuse Intake v0.2",
     "## Suggested Persisted Perspective-Memory Items",
     "## Codex Memory Brief",
     "## Quality Review Warning Summary",
@@ -213,6 +233,186 @@ function assertPureIntakeBehavior() {
   assertIncludesAll(brief, [
     "# Codex Memory Brief",
     "## Quality Review Warning Summary",
+  ]);
+}
+
+function assertV02RankingNoMatchAndCompactGuidance() {
+  const exactIntakeCommand = makeItem({
+    item_id: "perspective-memory-item:v02-exact-intake-command",
+    title: "Perspective Memory Reuse Intake command",
+    summary:
+      "Codex-facing reuse intake command created by PR #565 for the npm run perspective:memory-reuse-intake workflow.",
+    source_refs: [
+      "scripts/perspective-memory-reuse-intake.mjs",
+      "docs/PERSPECTIVE_MEMORY_REUSE_INTAKE_V0_1.md",
+    ],
+    evidence_refs: ["npm run perspective:memory-reuse-intake"],
+    risk_notes: ["No provider/model calls and no persistence writes."],
+  });
+  const broadCompactBrief = makeItem({
+    item_id: "perspective-memory-item:v02-broad-compact-brief",
+    title: "Compact brief guidance for larger Perspective Memory Reuse selections",
+    summary:
+      "When Perspective Memory Reuse selects several items, the Codex Memory Brief can get large and compact_brief_recommended should tell Codex what to trim.",
+    source_refs: [
+      "lib/perspective-ingest/perspective-memory-item-reuse-packet.ts",
+      "compact_brief_recommended",
+    ],
+    evidence_refs: ["codex-memory-brief-metadata", "large-selection-threshold"],
+    risk_notes: [
+      "Large selection warning should help Codex trim context without hiding selected memory IDs.",
+    ],
+    carry_forward_questions: [
+      "Does compact brief guidance preserve why_selected and reuse_boundary?",
+    ],
+  });
+  const rankingResult = intake.buildPerspectiveMemoryReuseIntake({
+    task:
+      "Review Perspective Memory Reuse Intake command ranking, no-match copy, and compact brief guidance",
+    limit: 5,
+    items: [broadCompactBrief, exactIntakeCommand],
+  });
+
+  assert.equal(
+    rankingResult.suggested_memory_items[0].memory_item_id,
+    "perspective-memory-item:v02-exact-intake-command",
+  );
+  assert(
+    rankingResult.suggested_memory_items[0].exact_task_entity_match_boost > 0,
+    "exact intake command item should receive deterministic boost",
+  );
+  assert.equal(
+    rankingResult.suggested_memory_items[0].exact_task_entity_match,
+    true,
+  );
+  assertIncludesAll(rankingResult.suggested_memory_items[0].why_selected, [
+    "Exact intake-command entity match boost applied.",
+  ]);
+
+  const readableNoActiveMatch = intake.buildPerspectiveMemoryReuseIntake({
+    task: "Investigate billing webhook retries for a remote payments integration",
+    readVia: "listPerspectiveMemoryItems",
+    items: [
+      makeItem({
+        item_id: "perspective-memory-item:v02-readable-unrelated",
+        title: "Perspective reuse unrelated local workflow",
+        summary: "Different Augnes local adapter concern.",
+      }),
+    ],
+  });
+  assert.equal(readableNoActiveMatch.suggested_memory_items.length, 0);
+  assert.equal(
+    readableNoActiveMatch.selection_guidance.no_match_state,
+    "readable_store_no_active_matches",
+  );
+  assertIncludesAll(readableNoActiveMatch.selection_guidance.no_match_message, [
+    "Store read succeeded and persisted perspective-memory items existed",
+    "no accepted/reviewing items matched this task",
+  ]);
+  assertIncludesAll(
+    intake.formatPerspectiveMemoryReuseIntakeBrief(readableNoActiveMatch),
+    [
+      "no_match_state: readable_store_no_active_matches",
+      "Store read succeeded and persisted perspective-memory items existed",
+    ],
+  );
+
+  const onlyInactiveMatch = intake.buildPerspectiveMemoryReuseIntake({
+    task: "Review Perspective Memory Reuse Intake no-match copy",
+    readVia: "listPerspectiveMemoryItems",
+    items: [
+      makeItem({
+        item_id: "perspective-memory-item:v02-inactive-intake-copy",
+        title: "Deprecated Perspective Memory Reuse Intake no-match copy",
+        summary:
+          "Old reuse intake copy that should warn but not be automatically selected.",
+        item_status: "deprecated",
+      }),
+    ],
+  });
+  assert.equal(onlyInactiveMatch.suggested_memory_items.length, 0);
+  assert.equal(
+    onlyInactiveMatch.selection_guidance.no_match_state,
+    "only_inactive_matches",
+  );
+  assertIncludesAll(onlyInactiveMatch.selection_guidance.no_match_message, [
+    "Only inactive perspective-memory items matched this task",
+    "warning context only",
+  ]);
+
+  const missingDb = intake.buildPerspectiveMemoryReuseIntake({
+    task: "Review Perspective Memory Reuse Intake command",
+    items: [],
+    extraWarnings: [
+      "Perspective-memory DB not found at /tmp/missing.db; no store read was performed.",
+    ],
+  });
+  assert.equal(
+    missingDb.selection_guidance.no_match_state,
+    "db_missing_no_store_read",
+  );
+  assertIncludesAll(missingDb.selection_guidance.no_match_message, [
+    "No store read was performed",
+    "--db-path",
+  ]);
+
+  const zeroItems = intake.buildPerspectiveMemoryReuseIntake({
+    task: "Review Perspective Memory Reuse Intake command",
+    readVia: "listPerspectiveMemoryItems",
+    items: [],
+  });
+  assert.equal(
+    zeroItems.selection_guidance.no_match_state,
+    "store_read_zero_items",
+  );
+  assertIncludesAll(zeroItems.selection_guidance.no_match_message, [
+    "Store read succeeded",
+    "zero persisted perspective-memory items",
+  ]);
+
+  const compactResult = intake.buildPerspectiveMemoryReuseIntake({
+    task:
+      "Review Perspective Memory Reuse Intake command compact brief guidance for the next bounded Augnes development slice",
+    limit: 5,
+    items: [
+      exactIntakeCommand,
+      broadCompactBrief,
+      makeItem({
+        item_id: "perspective-memory-item:v02-compact-third",
+        title: "Perspective Memory Reuse Intake copy guidance",
+        summary:
+          "The intake command should preserve selected memory IDs, why_selected, reuse_boundary, Return Expectations, and authority boundary.",
+        source_refs: ["reports/2026-06-14-perspective-memory-reuse-intake-v0-2.md"],
+        risk_notes: [
+          "Trim repeated summaries, long source refs, and repeated warnings first.",
+        ],
+      }),
+    ],
+  });
+  assert.equal(compactResult.suggested_memory_items.length, 3);
+  assert.equal(
+    compactResult.codex_memory_brief_metadata.compact_brief_recommended,
+    true,
+  );
+  assert.deepEqual(compactResult.selection_guidance.compact_brief_guidance, [
+    "Preserve selected memory IDs.",
+    "Preserve why_selected.",
+    "Preserve reuse_boundary.",
+    "Preserve Return Expectations.",
+    "Preserve the authority boundary.",
+    "Trim repeated summaries, long source refs, and repeated warnings first.",
+  ]);
+  assertIncludesAll(intake.formatPerspectiveMemoryReuseIntakeHuman(compactResult), [
+    "compact_brief_guidance:",
+    "Preserve selected memory IDs.",
+    "Trim repeated summaries, long source refs, and repeated warnings first.",
+  ]);
+  assertIncludesAll(intake.formatPerspectiveMemoryReuseIntakeBrief(compactResult), [
+    "compact_brief_guidance:",
+    "Preserve why_selected.",
+    "Preserve reuse_boundary.",
+    "Preserve Return Expectations.",
+    "Preserve the authority boundary.",
   ]);
 }
 
@@ -300,10 +500,14 @@ function assertStoreBackedCliBehavior() {
 function assertDocsReportsAndBoundary() {
   assertIncludesAll(docText, [
     "# Perspective Memory Reuse Intake v0.1",
+    "## v0.2 Ranking And Copy Guidance",
     "npm run perspective:memory-reuse-intake -- --task",
     "Codex-facing entrypoint",
     "why_selected",
     "reuse_boundary",
+    "exact-task/entity match boost",
+    "No-match copy",
+    "compact_brief_recommended",
     "quality review preview",
     "No provider/model calls",
     "No OpenAI API calls",
@@ -323,6 +527,25 @@ function assertDocsReportsAndBoundary() {
     "smoke:perspective-memory-reuse-intake",
     "typecheck",
     "git diff --check",
+  ]);
+  assertIncludesAll(v02ReportText, [
+    "# Perspective Memory Reuse Intake v0.2 Report",
+    "ranking/copy guidance only",
+    "exact-task/entity match boost",
+    "readable DB with no active matches",
+    "only inactive candidates",
+    "compact_brief_recommended",
+    "Preserve selected memory IDs",
+    "Trim repeated summaries, long source refs, and repeated warnings first",
+    "No provider/model calls",
+    "No OpenAI API calls",
+    "No MCP tool calls",
+    "No Codex SDK execution",
+    "No GitHub mutation",
+    "No persistence writes",
+    "No DB schema",
+    "No automatic memory creation",
+    "No Augnes state commit/reject authority",
   ]);
 }
 
