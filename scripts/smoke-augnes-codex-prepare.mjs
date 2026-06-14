@@ -57,6 +57,10 @@ function assertPrepareSource(source) {
     "before_doctor",
     "after_doctor",
     "setup_recommended",
+    "temp_demo_db",
+    "temp demo DB is missing or not ready",
+    "npm run augnes:prepare -- --yes",
+    "dependency or temp demo DB checks",
     "setup_executed",
     "recommended_next_actions",
     "skipped_reasons",
@@ -82,6 +86,16 @@ function assertPrepareSource(source) {
     /process\.exit\(result\.setup_status\.state === "FAIL" \? 1 : 0\)/,
     "process.exit must not be based only on setup_status.state",
   );
+  assert.match(
+    source,
+    /function buildSetupRecommendation\(doctor\)[\s\S]+"temp_demo_db", "temp demo DB is missing or not ready"[\s\S]+check\.status !== "PASS"/,
+    "prepare setup recommendation should include non-PASS temp_demo_db checks",
+  );
+  assert.match(
+    source,
+    /const prepareYesCommand = "npm run augnes:prepare -- --yes"/,
+    "prepare should print the --yes prepare command for user approval",
+  );
 
   const spawnCalls = Array.from(source.matchAll(/spawnSync\(\s*"([^"]+)"\s*,\s*([^,\n]+)/g)).map((match) => ({
     command: match[1],
@@ -96,6 +110,9 @@ function assertPrepareSource(source) {
     /\bdb:reset\b/,
     /\bdb:migrate\b/,
     /\bdemo:seed\b/,
+    /process\.env\.AUGNES_DB_PATH/,
+    /data["'],\s*["']augnes\.db/,
+    /DEFAULT_DB_PATH/,
     /spawnSync\(\s*"npm"\s*,\s*\[\s*"install"/,
     /spawnSync\(\s*"npm"\s*,\s*\[[^\]]*"dev"/,
     /spawnSync\(\s*"env"/,
@@ -132,6 +149,19 @@ function assertPrepareJson() {
   assert.ok(parsed.before_doctor, "prepare JSON should include before doctor");
   assert.equal(parsed.after_doctor, null, "prepare without --yes should not include after doctor");
   assert.ok(typeof parsed.setup_recommended?.recommended === "boolean");
+  const tempDemoDbCheck = parsed.before_doctor.checks.find((check) => check.name === "temp_demo_db");
+  assert.ok(tempDemoDbCheck, "prepare JSON should include doctor temp_demo_db check");
+  if (tempDemoDbCheck.status !== "PASS") {
+    assert.equal(parsed.setup_recommended.recommended, true, "non-PASS temp_demo_db should recommend setup");
+    assert.ok(
+      parsed.setup_recommended.reasons.some((reason) => reason.includes("temp demo DB is missing or not ready")),
+      "setup recommendation should include temp demo DB reason",
+    );
+    assert.ok(
+      parsed.recommended_next_actions.some((action) => action.includes("npm run augnes:prepare -- --yes")),
+      "prepare should print npm run augnes:prepare -- --yes when temp demo DB is not ready",
+    );
+  }
   assert.ok(Array.isArray(parsed.recommended_next_actions));
   assert.ok(Array.isArray(parsed.skipped_reasons));
   assert.ok(Array.isArray(parsed.boundary));
@@ -186,6 +216,9 @@ function assertDocs(text) {
     "npm run augnes:prepare -- --report",
     "npm run augnes:prepare -- --yes",
     "npm run augnes:setup-local-demo -- --yes",
+    "/tmp/augnes-demo.db",
+    "temp demo DB readiness",
+    "PR #545 dogfood",
     "Why Long-running Servers Are Not Auto-started",
     "Why User-level Codex Config Is Not Auto-written",
     "How Non-expert Users Should Use It",
@@ -205,6 +238,9 @@ function assertReport(text) {
     "## Summary",
     "## Files changed",
     "## Behavior",
+    "temp demo DB readiness",
+    "/tmp/augnes-demo.db",
+    "PR #545 dogfood",
     "## User-facing flow",
     "## Boundary",
     "## Verification plan",

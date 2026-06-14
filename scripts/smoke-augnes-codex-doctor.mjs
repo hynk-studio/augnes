@@ -66,6 +66,17 @@ function assertDoctorSource(source) {
     "augnes:setup-local-demo",
     "smoke:augnes-codex-bootstrap",
     "smoke:augnes-codex-doctor",
+    "temp_demo_db",
+    'const tempDemoDbPath = "/tmp/augnes-demo.db"',
+    "missing_temp_demo_db",
+    "lstatSync",
+    "isSymbolicLink()",
+    "symlink_temp_demo_db",
+    "readonly: true",
+    "fileMustExist: true",
+    "missing_core_tables",
+    "missing_seeded_demo_rows",
+    "guarded setup may be useful",
     "--json",
     "--report",
     "http://localhost:3000/api/state/brief?scope=project:augnes",
@@ -91,6 +102,32 @@ function assertDoctorSource(source) {
     /async function checkMcpBridgeReachability[\s\S]+statusCode >= 200[\s\S]+statusCode < 500[\s\S]+MCP tool calls not tested/,
     "MCP bridge check should remain reachability-only and explicitly skip tool calls",
   );
+  assert.match(
+    source,
+    /function checkTempDemoDb\(\)[\s\S]+lstatSync\(tempDemoDbPath\)[\s\S]+isSymbolicLink\(\)[\s\S]+symlink_temp_demo_db[\s\S]+new Database\(tempDemoDbPath, \{ readonly: true, fileMustExist: true \}\)[\s\S]+missing_seeded_demo_rows/,
+    "temp_demo_db should reject symlinks before read-only SQLite inspection and warn when readiness cannot be proven",
+  );
+  assert.ok(
+    source.indexOf("symlink_temp_demo_db") < source.indexOf("new Database(tempDemoDbPath"),
+    "temp_demo_db symlink rejection must happen before SQLite open",
+  );
+  assert.doesNotMatch(
+    source,
+    /process\.env\.AUGNES_DB_PATH|data["'],\s*["']augnes\.db|DEFAULT_DB_PATH/,
+    "doctor source must not inspect default/user DB paths",
+  );
+  for (const forbiddenDbWrite of [
+    /db\.exec\(/,
+    /\.run\(/,
+    /\brmSync\b/,
+    /\bmkdirSync\b/,
+    /\bchmod/,
+    /\bdb:reset\b/,
+    /\bdb:migrate\b/,
+    /\bdemo:seed\b/,
+  ]) {
+    assert.doesNotMatch(source, forbiddenDbWrite, `doctor source must not write DB or setup data: ${forbiddenDbWrite}`);
+  }
 }
 
 function assertSetupSource(source) {
@@ -163,6 +200,14 @@ function assertDoctorJson() {
   assert.ok(parsed.checks.some((check) => check.name === "repository_root"), "doctor JSON should check repo root");
   assert.ok(parsed.checks.some((check) => check.name === "node_version"), "doctor JSON should check Node");
   assert.ok(parsed.checks.some((check) => check.name === "npm_version"), "doctor JSON should check npm");
+  const tempDemoDbCheck = parsed.checks.find((check) => check.name === "temp_demo_db");
+  assert.ok(tempDemoDbCheck, "doctor JSON should include temp_demo_db check");
+  assert.match(tempDemoDbCheck.detail, /\/tmp\/augnes-demo\.db/, "temp_demo_db check should target /tmp/augnes-demo.db");
+  assert.match(
+    tempDemoDbCheck.detail,
+    /ready|missing_temp_demo_db|symlink_temp_demo_db|missing_core_tables|missing_seeded_demo_rows|sqlite_read_failed|stat_failed|not_regular_file/,
+    "temp_demo_db detail should record readiness or a concrete warning reason",
+  );
 }
 
 function assertDoctorReport() {
@@ -216,6 +261,11 @@ function assertDocs(text) {
     "How This Helps Non-expert Users",
     "does not call MCP tools",
     "`runtime_state_brief` requires HTTP 200 and a successful Augnes state brief response",
+    "`temp_demo_db` checks only `/tmp/augnes-demo.db`",
+    "missing_temp_demo_db",
+    "symlink_temp_demo_db",
+    "read-only SQLite inspection",
+    "PR #545 dogfood",
     "MCP bridge check is endpoint reachability only",
     "does not require `OPENAI_API_KEY`",
     "write `~/.codex/config.toml`",
@@ -231,6 +281,10 @@ function assertReport(text) {
     "## Summary",
     "## Files changed",
     "## Behavior",
+    "`temp_demo_db`",
+    "/tmp/augnes-demo.db",
+    "missing_temp_demo_db",
+    "symlink_temp_demo_db",
     "## Boundary",
     "## Verification plan",
     "## Skipped checks",

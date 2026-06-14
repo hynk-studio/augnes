@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import http from "node:http";
 import path from "node:path";
@@ -32,6 +32,17 @@ const startCommands = {
   mcp_bridge:
     "AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev",
 };
+
+const tempDemoDbPath = "/tmp/augnes-demo.db";
+const tempDemoDbRequiredTables = [
+  "agents",
+  "sessions",
+  "messages",
+  "state_entries",
+  "state_transitions",
+  "work_items",
+];
+const tempDemoDbSeededTables = ["agents", "sessions", "messages", "state_entries", "work_items"];
 
 const report = {
   tool: "augnes-codex-doctor",
@@ -99,11 +110,15 @@ checkNodeModules(
 );
 
 checkPackageScripts();
+await checkTempDemoDb();
 await checkRuntimeStateBrief("http://localhost:3000/api/state/brief?scope=project:augnes");
 await checkMcpBridgeReachability("http://localhost:8787/mcp");
 
-if (!hasActionContaining("augnes:setup-local-demo") && hasWarn("root_node_modules", "apps_augnes_apps_node_modules")) {
-  addAction("Run `npm run augnes:setup-local-demo -- --yes` to install packages and prepare the temp local demo DB.");
+if (
+  !hasActionContaining("augnes:setup-local-demo") &&
+  hasWarn("root_node_modules", "apps_augnes_apps_node_modules", "temp_demo_db")
+) {
+  addAction("Run `npm run augnes:setup-local-demo -- --yes` to install dependencies if needed and prepare /tmp/augnes-demo.db.");
 }
 
 if (hasWarningOrFailure("runtime_state_brief")) {
@@ -150,6 +165,103 @@ function checkPackageScripts() {
       fail(`package_script:${scriptName}`, "missing", `${scriptName} must be wired in package.json`);
     }
   }
+}
+
+async function checkTempDemoDb() {
+  let stat;
+  try {
+    stat = lstatSync(tempDemoDbPath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      warn(
+        "temp_demo_db",
+        "missing_temp_demo_db",
+        `${tempDemoDbPath} is missing; guarded setup may be useful`,
+      );
+      return;
+    }
+    warn(
+      "temp_demo_db",
+      "stat_failed",
+      `${tempDemoDbPath} exists but could not be inspected: ${error.code || error.message}`,
+    );
+    return;
+  }
+
+  if (stat.isSymbolicLink()) {
+    warn(
+      "temp_demo_db",
+      "symlink_temp_demo_db",
+      `${tempDemoDbPath} is a symlink; guarded setup may be useful because doctor does not follow temp demo DB symlinks`,
+    );
+    return;
+  }
+
+  if (!stat.isFile()) {
+    warn("temp_demo_db", "not_regular_file", `${tempDemoDbPath} exists but is not a regular file`);
+    return;
+  }
+
+  let db;
+  try {
+    const { default: Database } = await import("better-sqlite3");
+    db = new Database(tempDemoDbPath, { readonly: true, fileMustExist: true });
+    const missingTables = tempDemoDbRequiredTables.filter((tableName) => !hasSqliteTable(db, tableName));
+    if (missingTables.length > 0) {
+      warn(
+        "temp_demo_db",
+        "missing_core_tables",
+        `${tempDemoDbPath} is readable but missing core table(s): ${missingTables.join(", ")}; guarded setup may be useful`,
+      );
+      return;
+    }
+
+    const seededRows = Object.fromEntries(
+      tempDemoDbSeededTables.map((tableName) => [tableName, countRows(db, tableName)]),
+    );
+    const emptySeedTables = Object.entries(seededRows)
+      .filter(([, count]) => count < 1)
+      .map(([tableName]) => tableName);
+    if (emptySeedTables.length > 0) {
+      warn(
+        "temp_demo_db",
+        "missing_seeded_demo_rows",
+        `${tempDemoDbPath} has core tables but no seeded rows in: ${emptySeedTables.join(", ")}; guarded setup may be useful`,
+      );
+      return;
+    }
+
+    pass(
+      "temp_demo_db",
+      `${tempDemoDbPath} ready; core tables present; seeded rows present in ${formatSeededRows(seededRows)}`,
+    );
+  } catch (error) {
+    warn(
+      "temp_demo_db",
+      "sqlite_read_failed",
+      `${tempDemoDbPath} exists but read-only SQLite inspection failed: ${error.code || error.message}; guarded setup may be useful`,
+    );
+  } finally {
+    db?.close();
+  }
+}
+
+function hasSqliteTable(db, tableName) {
+  return Boolean(
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(tableName),
+  );
+}
+
+function countRows(db, tableName) {
+  return db.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get().count;
+}
+
+function formatSeededRows(seededRows) {
+  return Object.entries(seededRows)
+    .map(([tableName, count]) => `${tableName}=${count}`)
+    .join(", ");
 }
 
 async function checkRuntimeStateBrief(target) {

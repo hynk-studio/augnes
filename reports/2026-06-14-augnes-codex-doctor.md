@@ -28,8 +28,18 @@ npm run augnes:doctor
 
 It checks repository root, git status, Node.js version, npm version, required
 files, root `node_modules`, `apps/augnes_apps/node_modules`, required package
-scripts, strict `runtime_state_brief` readiness, and local MCP endpoint
-reachability.
+scripts, read-only `temp_demo_db` readiness at `/tmp/augnes-demo.db`, strict
+`runtime_state_brief` readiness, and local MCP endpoint reachability.
+
+The `temp_demo_db` check warns with `missing_temp_demo_db` when
+`/tmp/augnes-demo.db` is absent. If the path is a symlink, doctor warns with
+`symlink_temp_demo_db` and does not open it, so the check cannot follow
+`/tmp/augnes-demo.db` to a default or user DB path. When the file exists as a
+regular file, doctor inspects it as SQLite in read-only mode, checks for core
+Augnes tables and seeded rows, and warns with concrete details if readiness
+cannot be proven. This addresses the PR #545 dogfood finding that prepare
+under-recommended setup when dependency directories existed but the temp demo DB
+was absent or not ready.
 
 `runtime_state_brief` requires HTTP 200 plus a successful Augnes state brief
 response with `runtime: "augnes"` and `scope: "project:augnes"`. Non-200
@@ -75,14 +85,17 @@ started.
 ## Boundary
 
 This change improves local setup and doctor behavior only. It does not add
-runtime authority, DB schema changes, default/user DB writes, secret handling,
-provider calls, model calls, Codex SDK execution, GitHub API calls, GitHub
-mutation, merge automation, approval automation, publication automation,
-retry/replay automation, auto-merge automation, proof/evidence writes,
-perspective-memory item creation, product persistence boundary records, hidden
-daemon behavior, "Run Codex from ChatGPT" behavior, or Augnes state
-commit/reject authority.
+runtime authority, DB schema changes, DB writes in doctor, default/user DB
+writes, secret handling, provider calls, model calls, Codex SDK execution,
+GitHub API calls, GitHub mutation, merge automation, approval automation,
+publication automation, retry/replay automation, auto-merge automation,
+proof/evidence writes, perspective-memory item creation, product persistence
+boundary records, hidden daemon behavior, "Run Codex from ChatGPT" behavior, or
+Augnes state commit/reject authority.
 
+The doctor `temp_demo_db` check inspects only `/tmp/augnes-demo.db`, does not
+inspect default/user DB paths, rejects symlinks before read-only SQLite
+inspection, and does not create, migrate, seed, write, delete, or chmod the DB.
 The safe setup path uses `/tmp/augnes-demo.db` and does not require
 `OPENAI_API_KEY`.
 

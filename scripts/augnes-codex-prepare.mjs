@@ -8,6 +8,7 @@ const yesEnabled = args.has("--yes");
 const delegatedSetupCommand = "npm run augnes:setup-local-demo -- --yes";
 const delegatedSetupArgs = ["run", "augnes:setup-local-demo", "--", "--yes"];
 const doctorArgs = ["run", "augnes:doctor", "--", "--json"];
+const prepareYesCommand = "npm run augnes:prepare -- --yes";
 
 const startCommands = {
   local_runtime: "env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000",
@@ -61,7 +62,7 @@ if (yesEnabled) {
     delegated_command: delegatedSetupCommand,
     reason: result.setup_recommended.recommended
       ? "safe local demo setup appears useful, but --yes was not provided"
-      : "doctor did not find missing dependency directories that require local demo setup",
+      : "doctor did not find dependency or temp demo DB checks that require local demo setup",
   };
 }
 
@@ -106,6 +107,7 @@ function buildSetupRecommendation(doctor) {
   const dependencyChecks = [
     ["root_node_modules", "root dependency directory is missing"],
     ["apps_augnes_apps_node_modules", "Augnes Apps dependency directory is missing"],
+    ["temp_demo_db", "temp demo DB is missing or not ready"],
   ];
   const reasons = [];
 
@@ -126,7 +128,7 @@ function finalizeResult() {
   const activeDoctor = result.after_doctor ?? result.before_doctor;
 
   if (result.setup_recommended.recommended && !result.setup_executed) {
-    addAction(`Run safe finite setup with: ${delegatedSetupCommand}`);
+    addAction(`Run safe finite setup with: ${prepareYesCommand}`);
     addSkippedReason("safe local demo setup skipped: --yes was not provided.");
   }
 
@@ -202,7 +204,7 @@ function printHuman() {
   console.log("");
   console.log("## What Codex can safely do");
   console.log("- Run doctor diagnosis and parse the JSON result.");
-  console.log("- Recommend guarded local demo setup when dependency directories are missing.");
+  console.log("- Recommend guarded local demo setup when dependency directories or /tmp/augnes-demo.db readiness are missing.");
   console.log(`- Delegate finite setup only through \`${delegatedSetupCommand}\` when --yes is provided.`);
   console.log("- Produce human, JSON, or report output without starting long-running servers.");
   console.log("");
@@ -304,7 +306,7 @@ function buildVisibleTerminalLines(doctor) {
     lines.push(`Start local Augnes MCP bridge: ${startCommands.mcp_bridge}`);
   }
   if (result.setup_recommended.recommended && !result.setup_executed) {
-    lines.push(`Approve finite setup explicitly: ${delegatedSetupCommand}`);
+    lines.push(`Approve finite setup explicitly: ${prepareYesCommand}`);
   }
   if (lines.length === 0) {
     lines.push("No visible terminal action is required by current prepare output.");
