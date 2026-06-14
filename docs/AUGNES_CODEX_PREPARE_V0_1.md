@@ -37,6 +37,31 @@ Explicit finite setup:
 npm run augnes:prepare -- --yes
 ```
 
+## Execution modes
+
+Diagnostic-only commands:
+
+- `npm run augnes:prepare` is diagnostic-only human output.
+- `npm run augnes:prepare -- --json` is diagnostic-only JSON output.
+- `npm run augnes:prepare -- --report` is diagnostic-only report output.
+
+Setup-executing commands:
+
+- `npm run augnes:prepare -- --yes` is setup-executing human output.
+- `npm run augnes:prepare -- --yes --json` is setup-executing JSON output.
+- `npm run augnes:prepare -- --yes --report` is setup-executing report output.
+
+`--json` and `--report` do not cancel `--yes`. If `--yes` is present,
+prepare delegates finite setup even when the selected output format is JSON or
+report. Setup-executing output includes:
+
+```text
+SETUP EXECUTION MODE: --yes delegates finite setup.
+```
+
+That warning means prepare may run package install through the guarded setup
+script and reset, migrate, and seed `/tmp/augnes-demo.db`.
+
 ## How Prepare Differs From Bootstrap, Doctor, and Setup
 
 Bootstrap:
@@ -146,9 +171,11 @@ Setup step outcomes
 
 JSON output includes `delegated_setup_summary`, `setup_steps`,
 `setup_worktree_status_before`, `setup_worktree_status_after`, and the combined
-`setup_worktree_status`. Prepare collects `git status --short` before delegated
-setup and again after delegated setup, then reports the before/after status and
-new dirty entries after setup when that delta can be computed.
+`setup_worktree_status`. JSON output also includes `execution_mode:
+"setup-executing"` and `setup_execution_warning` when `--yes` is present.
+Prepare collects `git status --short` before delegated setup and again after
+delegated setup, then reports the before/after status and new dirty entries
+after setup when that delta can be computed.
 
 Dirty worktree after setup is not automatically attributed to setup if the
 worktree was already dirty. In that case prepare prints:
@@ -164,6 +191,13 @@ Lockfile reporting distinguishes:
 - lockfile churn unknown because git status failed
 
 A dirty worktree after setup is reported but not modified.
+
+Setup may alter `apps/augnes_apps/package-lock.json` under some npm versions.
+If that lockfile changes after setup, inspect the lockfile diff, do not assume
+npm metadata churn is intended, and restore unrelated npm metadata churn after inspection.
+If the lockfile was already dirty before setup, do not attribute it to the
+current setup run without diff review. Prepare reports worktree status but does not modify files,
+auto-revert files, run `git checkout`, or run `git reset`.
 
 This reporting exists to reduce the user confusion found during dogfood: setup
 can succeed while hiding the individual package install, temp DB reset,

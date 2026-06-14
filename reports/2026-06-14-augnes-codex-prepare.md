@@ -11,7 +11,9 @@ guarded local demo setup appears useful, optionally delegates setup after
 explicit `--yes`, reruns doctor, and produces a user/PR-ready report.
 
 The usability update makes `prepare --yes` show delegated setup step outcomes
-without adding any direct setup authority to prepare.
+without adding any direct setup authority to prepare. This follow-up also makes
+setup-executing output modes explicit so `--yes --json` and `--yes --report`
+are not mistaken for output-format-only commands.
 
 ## Files changed
 
@@ -63,6 +65,34 @@ npm run augnes:setup-local-demo -- --yes
 ```
 
 Prepare never runs finite package or temp DB setup commands directly.
+
+## Execution mode behavior
+
+Diagnostic-only commands:
+
+- `npm run augnes:prepare`
+- `npm run augnes:prepare -- --json`
+- `npm run augnes:prepare -- --report`
+
+Setup-executing commands:
+
+- `npm run augnes:prepare -- --yes`
+- `npm run augnes:prepare -- --yes --json`
+- `npm run augnes:prepare -- --yes --report`
+
+`--json` and `--report` do not cancel `--yes`. If `--yes` is present,
+prepare delegates guarded setup and may run package install plus
+reset/migrate/seed of `/tmp/augnes-demo.db` through
+`npm run augnes:setup-local-demo -- --yes`.
+
+Prepare JSON includes:
+
+- `execution_mode: "diagnostic-only"` when `--yes` is absent
+- `execution_mode: "setup-executing"` when `--yes` is present
+- `setup_execution_warning` when `--yes` is present
+
+Human and report output include an "Execution mode" section near the top, before
+setup execution status or setup step outcomes.
 
 Behavior update: `prepare --yes` now parses the guarded setup script's
 structured summary and surfaces delegated setup step outcomes in human, report,
@@ -139,6 +169,19 @@ Dirty worktree or lockfile churn is a warning/action item only; dirty worktree
 reporting does not grant prepare authority to modify files. Prepare does not
 revert files, delete files, or modify worktree changes.
 
+## Lockfile churn guidance
+
+Setup can dirty `apps/augnes_apps/package-lock.json` under some npm versions by
+changing npm metadata. Users and Codex workers should inspect `apps/augnes_apps/package-lock.json`,
+do not assume npm metadata churn is intended, and restore unrelated npm metadata churn after inspection as normal
+repo hygiene.
+
+If prepare reports "lockfile was already dirty before setup", do not attribute
+the lockfile to the current setup run without diff review.
+
+prepare does not auto-revert files, run `git checkout`, run `git reset`, or
+otherwise restore files automatically.
+
 ## User-facing flow
 
 1. User says "Codex, prepare Augnes."
@@ -180,6 +223,7 @@ persistence boundary records.
 - `npm run smoke:augnes-codex-doctor`
 - `npm run smoke:augnes-codex-prepare`
 - `npm run smoke:augnes-codex-prepare-dogfood-report`
+- `npm run smoke:augnes-codex-prepare-setup-summary-dogfood-report`
 - `npm run smoke:augnes-operator-plugin-scaffold`
 - `npm run smoke:augnes-operator-plugin-hooks`
 - `npm run typecheck`
