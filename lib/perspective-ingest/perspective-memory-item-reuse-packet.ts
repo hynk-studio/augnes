@@ -16,6 +16,8 @@ const REUSE_TITLE_LIMIT = 180;
 const REUSE_TAG_LIMIT = 40;
 const REUSE_BOUNDARY_LIMIT = 700;
 const REUSE_ARRAY_LIMIT = 80;
+export const PERSPECTIVE_MEMORY_REUSE_LARGE_SELECTION_THRESHOLD = 3;
+export const PERSPECTIVE_MEMORY_REUSE_COMPACT_BRIEF_CHARACTER_THRESHOLD = 3200;
 
 export type PerspectiveMemoryReuseSelectionInput = {
   memory_item_id: string;
@@ -82,6 +84,15 @@ export type PerspectiveMemoryReusePacketV01 = {
 export type PerspectiveMemoryReusePacketResultV01 = {
   packet: PerspectiveMemoryReusePacketV01;
   codex_memory_brief: string;
+  codex_memory_brief_metadata: PerspectiveMemoryReuseBriefMetadataV01;
+};
+
+export type PerspectiveMemoryReuseBriefMetadataV01 = {
+  selected_item_count: number;
+  codex_memory_brief_character_count: number;
+  codex_memory_brief_line_count: number;
+  has_large_selection_warning: boolean;
+  compact_brief_recommended: boolean;
 };
 
 type NormalizedPerspectiveMemoryReuseSelection = {
@@ -176,9 +187,15 @@ export function buildPerspectiveMemoryReusePacket(
     authority_boundary: buildAuthorityBoundary(),
   };
 
+  const codexMemoryBrief = buildCodexMemoryBrief(packet);
+
   return {
     packet,
-    codex_memory_brief: buildCodexMemoryBrief(packet),
+    codex_memory_brief: codexMemoryBrief,
+    codex_memory_brief_metadata: buildCodexMemoryBriefMetadata(
+      packet,
+      codexMemoryBrief,
+    ),
   };
 }
 
@@ -239,6 +256,28 @@ export function buildCodexMemoryBrief(
   }
 
   return lines.join("\n");
+}
+
+export function buildCodexMemoryBriefMetadata(
+  packet: PerspectiveMemoryReusePacketV01,
+  codexMemoryBrief: string,
+): PerspectiveMemoryReuseBriefMetadataV01 {
+  const selectedItemCount = packet.selected_memory_items.length;
+  const characterCount = codexMemoryBrief.length;
+  const lineCount =
+    codexMemoryBrief.length === 0 ? 0 : codexMemoryBrief.split("\n").length;
+  const hasLargeSelectionWarning =
+    selectedItemCount >= PERSPECTIVE_MEMORY_REUSE_LARGE_SELECTION_THRESHOLD;
+  return {
+    selected_item_count: selectedItemCount,
+    codex_memory_brief_character_count: characterCount,
+    codex_memory_brief_line_count: lineCount,
+    has_large_selection_warning: hasLargeSelectionWarning,
+    compact_brief_recommended:
+      hasLargeSelectionWarning ||
+      characterCount >=
+        PERSPECTIVE_MEMORY_REUSE_COMPACT_BRIEF_CHARACTER_THRESHOLD,
+  };
 }
 
 function normalizeSelectedInputs(

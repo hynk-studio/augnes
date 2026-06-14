@@ -24,6 +24,8 @@ const reviewComponentFile =
   "app/cockpit/perspective/memory-items/review/perspective-memory-item-review-workspace-surface.tsx";
 const docFile = "docs/PERSPECTIVE_MEMORY_REUSE_PACKET_V0_1.md";
 const reportFile = "reports/2026-06-14-perspective-memory-reuse-packet.md";
+const briefMetadataReportFile =
+  "reports/2026-06-14-perspective-memory-reuse-brief-metadata.md";
 
 const packageJson = JSON.parse(readFileSync(packageFile, "utf8"));
 const helperText = readFileSync(helperFile, "utf8");
@@ -35,6 +37,7 @@ const searchText = readFileSync(searchComponentFile, "utf8");
 const reviewText = readFileSync(reviewComponentFile, "utf8");
 const docText = readFileSync(docFile, "utf8");
 const reportText = readFileSync(reportFile, "utf8");
+const briefMetadataReportText = readFileSync(briefMetadataReportFile, "utf8");
 
 assertStaticFilesAndScripts();
 assertReusePacketBehavior();
@@ -54,6 +57,7 @@ function assertStaticFilesAndScripts() {
     reviewComponentFile,
     docFile,
     reportFile,
+    briefMetadataReportFile,
   ]) {
     assert.equal(existsSync(file), true, `${file} must exist`);
   }
@@ -76,6 +80,14 @@ function assertStaticFilesAndScripts() {
     "known_boundaries",
     "return_expectations",
     "authority_boundary",
+    "codex_memory_brief_metadata",
+    "selected_item_count",
+    "codex_memory_brief_character_count",
+    "codex_memory_brief_line_count",
+    "has_large_selection_warning",
+    "compact_brief_recommended",
+    "PERSPECTIVE_MEMORY_REUSE_LARGE_SELECTION_THRESHOLD",
+    "PERSPECTIVE_MEMORY_REUSE_COMPACT_BRIEF_CHARACTER_THRESHOLD",
     "deterministic_local_builder: true",
     "memory_item_created: false",
     "memory_item_mutated: false",
@@ -116,6 +128,16 @@ function assertReusePacketBehavior() {
     carry_forward_questions: ["Did reuse expose stale memory?"],
     source_validation_result_state: "PASS with follow-up",
     item_status: "reviewing",
+  });
+  const itemC = makeItem({
+    item_id: "perspective-memory-item:c",
+    title: "Keep reuse brief size visible",
+    summary: "Large selections should expose deterministic brief length metadata.",
+    source_refs: ["report:brief-metadata"],
+    risk_notes: ["do not replace the full Codex Memory Brief"],
+    carry_forward_questions: ["Is compact brief output needed after dogfood?"],
+    source_validation_result_state: "PASS",
+    item_status: "accepted",
   });
 
   const result = reusePacket.buildPerspectiveMemoryReusePacket({
@@ -242,6 +264,57 @@ function assertReusePacketBehavior() {
     "Remaining friction",
     "perspective-memory-item:missing",
   ]);
+  assert.equal(
+    result.codex_memory_brief_metadata.selected_item_count,
+    result.packet.selected_memory_items.length,
+  );
+  assert.equal(
+    result.codex_memory_brief_metadata.codex_memory_brief_character_count,
+    result.codex_memory_brief.length,
+  );
+  assert.equal(
+    result.codex_memory_brief_metadata.codex_memory_brief_line_count,
+    result.codex_memory_brief.split("\n").length,
+  );
+  assert.equal(
+    result.codex_memory_brief_metadata.has_large_selection_warning,
+    false,
+  );
+  assert.equal(
+    result.codex_memory_brief_metadata.compact_brief_recommended,
+    result.codex_memory_brief.length >=
+      reusePacket.PERSPECTIVE_MEMORY_REUSE_COMPACT_BRIEF_CHARACTER_THRESHOLD,
+  );
+
+  const largeSelectionResult = reusePacket.buildPerspectiveMemoryReusePacket({
+    items: [itemA, itemB, itemC],
+    selected_memory_items: [itemA, itemB, itemC].map((item) => ({
+      memory_item_id: item.item_id,
+      why_selected: "included to verify large selection metadata",
+      reuse_boundary: "metadata only; do not persist reuse binding",
+    })),
+    task_title: "Large selection metadata",
+    task_description: "Exercise deterministic brief metadata thresholds.",
+    nowIso: "2026-06-14T00:00:00.000Z",
+    packetId: "packet:large-selection-fixture",
+  });
+  assert.equal(
+    largeSelectionResult.codex_memory_brief_metadata.selected_item_count,
+    3,
+  );
+  assert.equal(
+    largeSelectionResult.codex_memory_brief_metadata.has_large_selection_warning,
+    true,
+  );
+  assert.equal(
+    largeSelectionResult.codex_memory_brief_metadata.compact_brief_recommended,
+    true,
+  );
+  assert.equal(
+    largeSelectionResult.codex_memory_brief_metadata
+      .codex_memory_brief_character_count,
+    largeSelectionResult.codex_memory_brief.length,
+  );
 
   assertNoUnsafePayloadMarkers(
     JSON.stringify(result.packet) + "\n" + result.codex_memory_brief,
@@ -262,6 +335,12 @@ function assertRouteAndNavigation() {
     "data-augnes-memory-items-reuse-boundary",
     "data-augnes-memory-items-reuse-packet-json",
     "data-augnes-memory-items-reuse-codex-brief",
+    "data-augnes-memory-items-reuse-brief-metadata",
+    "selected_item_count",
+    "codex_memory_brief_character_count",
+    "codex_memory_brief_line_count",
+    "has_large_selection_warning",
+    "compact_brief_recommended",
     "data-augnes-memory-items-reuse-copy-brief",
     "data-augnes-memory-items-reuse-read-only-boundary",
     "no memory creation",
@@ -345,7 +424,7 @@ function assertRouteAndNavigation() {
 }
 
 function assertDocsReportsAndBoundary() {
-  for (const text of [docText, reportText]) {
+  for (const text of [docText, reportText, briefMetadataReportText]) {
     assertIncludesAll(text, [
       "Perspective Memory Reuse Packet v0.1",
       "/cockpit/perspective/memory-items/reuse",
@@ -375,11 +454,30 @@ function assertDocsReportsAndBoundary() {
     "Derived tags come only from existing persisted item fields",
     "Use these memories to avoid repeating closed work",
     "Do not create memory items",
+    "Codex Memory Brief metadata",
+    "selected_item_count",
+    "codex_memory_brief_character_count",
+    "codex_memory_brief_line_count",
+    "has_large_selection_warning",
+    "compact_brief_recommended",
+    "The full Codex Memory Brief remains available",
   ]);
   assertIncludesAll(reportText, [
     "No new authority is introduced.",
     "This PR implements the reuse packet and brief portion of that loop.",
     "Browser/runtime validation is not part of this PR",
+  ]);
+  assertIncludesAll(briefMetadataReportText, [
+    "PR #559",
+    "selected count and brief length metadata",
+    "The full Codex Memory Brief remains available",
+    "No compact brief output is introduced in this slice.",
+    "does not justify persisted return binding storage",
+    "No provider/model calls",
+    "No OpenAI API calls",
+    "No MCP tool calls",
+    "No DB schema or migrations",
+    "No persistence writes",
   ]);
 }
 

@@ -107,6 +107,22 @@ It also states:
 Do not create memory items, mutate Augnes state, run provider/model calls, call
 MCP tools, use Codex SDK, or perform GitHub mutation.
 
+## Codex Memory Brief metadata
+
+The helper also returns deterministic Codex Memory Brief metadata next to the
+brief output:
+
+- `selected_item_count`
+- `codex_memory_brief_character_count`
+- `codex_memory_brief_line_count`
+- `has_large_selection_warning`
+- `compact_brief_recommended`
+
+The full Codex Memory Brief remains available. The metadata is a local size and
+selection hint for the reuse workspace UI; it does not create compact output,
+persist return bindings, write perspective-memory persistence, or call any
+provider/model, MCP, OpenAI API, Codex SDK, or GitHub API surface.
+
 ## Authority Boundary
 
 This is a deterministic local builder only.
