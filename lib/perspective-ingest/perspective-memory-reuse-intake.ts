@@ -16,9 +16,9 @@ import {
 } from "@/lib/perspective-ingest/perspective-memory-reuse-quality-review";
 
 export const PERSPECTIVE_MEMORY_REUSE_INTAKE_VERSION =
-  "perspective_memory_reuse_intake.v0.1";
+  "perspective_memory_reuse_intake.v0.2";
 export const PERSPECTIVE_MEMORY_REUSE_INTAKE_SUMMARY_VERSION =
-  "perspective_memory_reuse_intake_summary.v0.1";
+  "perspective_memory_reuse_intake_summary.v0.2";
 export const PERSPECTIVE_MEMORY_REUSE_INTAKE_DETERMINISTIC_NOW_ISO =
   "2026-06-14T00:00:00.000Z";
 export const PERSPECTIVE_MEMORY_REUSE_INTAKE_DEFAULT_LIMIT = 5;
@@ -29,9 +29,40 @@ const INTAKE_ARRAY_LIMIT = 40;
 const INTAKE_SNIPPET_LIMIT = 180;
 const INTAKE_BOUNDARY_LIMIT = 700;
 const INTAKE_HASH_PREFIX_LENGTH = 16;
+const INTAKE_COMMAND_ENTITY_MATCH_BOOST = 1400;
 
 const ACTIVE_STATUSES = ["accepted", "reviewing"] as const;
 const INACTIVE_STATUSES = ["deprecated", "retracted", "superseded"] as const;
+
+const INTAKE_COMMAND_TASK_MARKERS = [
+  "perspective memory reuse intake",
+  "memory reuse intake",
+  "reuse intake",
+  "intake command",
+  "perspective memory reuse command",
+  "perspective memory reuse cli",
+  "perspective memory reuse helper",
+];
+
+const INTAKE_COMMAND_ITEM_MARKERS = [
+  "perspective memory reuse intake",
+  "memory reuse intake command",
+  "reuse intake command",
+  "perspective memory reuse command",
+  "perspective memory reuse cli",
+  "perspective memory reuse helper",
+  "perspective memory reuse intake command",
+  "perspective memory reuse intake v0",
+];
+
+const COMPACT_BRIEF_GUIDANCE_LINES = [
+  "Preserve selected memory IDs.",
+  "Preserve why_selected.",
+  "Preserve reuse_boundary.",
+  "Preserve Return Expectations.",
+  "Preserve the authority boundary.",
+  "Trim repeated summaries, long source refs, and repeated warnings first.",
+];
 
 const STOP_WORDS = new Set([
   "about",
@@ -91,6 +122,8 @@ export type PerspectiveMemoryReuseIntakeSuggestedItemV01 = {
   item_status: PerspectiveMemoryItemStatus;
   source_validation_result_state: PerspectiveMemoryItemV0["source_validation_result_state"];
   score: number;
+  exact_task_entity_match: boolean;
+  exact_task_entity_match_boost: number;
   matched_terms: string[];
   matched_fields: PerspectiveMemoryReuseIntakeMatchField[];
   match_snippets: Array<{
@@ -107,9 +140,25 @@ export type PerspectiveMemoryReuseIntakeExcludedCandidateV01 = {
   title: string;
   item_status: PerspectiveMemoryItemStatus;
   score: number;
+  exact_task_entity_match: boolean;
+  exact_task_entity_match_boost: number;
   matched_terms: string[];
   matched_fields: PerspectiveMemoryReuseIntakeMatchField[];
   exclusion_reason: string;
+};
+
+export type PerspectiveMemoryReuseIntakeNoMatchState =
+  | "not_applicable"
+  | "db_missing_no_store_read"
+  | "store_read_zero_items"
+  | "readable_store_no_active_matches"
+  | "only_inactive_matches"
+  | "no_usable_task_keywords";
+
+export type PerspectiveMemoryReuseIntakeSelectionGuidanceV01 = {
+  no_match_state: PerspectiveMemoryReuseIntakeNoMatchState;
+  no_match_message: string;
+  compact_brief_guidance: string[];
 };
 
 export type PerspectiveMemoryReuseIntakeQualityReviewPreviewSummaryV01 = {
@@ -170,6 +219,7 @@ export type PerspectiveMemoryReuseIntakeResultV01 = {
   suggested_memory_items: PerspectiveMemoryReuseIntakeSuggestedItemV01[];
   excluded_candidates: PerspectiveMemoryReuseIntakeExcludedCandidateV01[];
   warnings: string[];
+  selection_guidance: PerspectiveMemoryReuseIntakeSelectionGuidanceV01;
   reuse_packet: PerspectiveMemoryReusePacketV01;
   codex_memory_brief: string;
   codex_memory_brief_metadata: PerspectiveMemoryReuseBriefMetadataV01;
@@ -199,6 +249,7 @@ type ScoredCandidate = {
   matched_terms: string[];
   matched_fields: PerspectiveMemoryReuseIntakeMatchField[];
   match_snippets: PerspectiveMemoryReuseIntakeSuggestedItemV01["match_snippets"];
+  exact_task_entity_match_boost: number;
   why_selected: string;
   reuse_boundary: string;
 };
@@ -264,6 +315,9 @@ export function buildPerspectiveMemoryReuseIntake(
   const task = normalizeTask(input);
   const taskKeywords = tokenizeTask(`${task.title} ${task.description}`);
   const normalizedTaskPhrase = normalizeText(`${task.title} ${task.description}`);
+  const normalizedTaskEntityText = normalizeEntityText(
+    `${task.title} ${task.description}`,
+  );
   const items = (input.items ?? []).slice(0, PERSPECTIVE_MEMORY_ITEM_MAX_ITEMS);
   const readVia =
     input.readVia ?? (input.items ? "provided_items" : "listPerspectiveMemoryItems");
@@ -273,6 +327,7 @@ export function buildPerspectiveMemoryReuseIntake(
         item,
         taskKeywords,
         normalizedTaskPhrase,
+        normalizedTaskEntityText,
       }),
     )
     .filter((candidate): candidate is ScoredCandidate => candidate != null)
@@ -285,6 +340,16 @@ export function buildPerspectiveMemoryReuseIntake(
   );
   const selectedCandidates = activeCandidates.slice(0, limit);
   const selectedItems = selectedCandidates.map((candidate) => candidate.item);
+  const noMatchGuidance = buildNoMatchGuidance({
+    inputWarnings: input.extraWarnings ?? [],
+    taskKeywords,
+    items,
+    scoredCandidates,
+    activeCandidates,
+    inactiveCandidates,
+    selectedCandidates,
+    readVia,
+  });
   const deterministicIdHash = buildDeterministicIdHash({
     taskTitle: task.title,
     taskDescription: task.description,
@@ -333,14 +398,20 @@ export function buildPerspectiveMemoryReuseIntake(
   const warnings = buildWarnings({
     inputWarnings: input.extraWarnings ?? [],
     taskKeywords,
-    items,
     selectedCandidates,
     inactiveCandidates,
+    noMatchGuidance,
   });
   const qualityReviewPreviewSummary = buildQualityReviewPreviewSummary({
     review: qualityReviewResult.review,
     warnings,
   });
+  const selectionGuidance = {
+    ...noMatchGuidance,
+    compact_brief_guidance: buildCompactBriefGuidance(
+      packetResult.codex_memory_brief_metadata,
+    ),
+  };
 
   return {
     intake_version: PERSPECTIVE_MEMORY_REUSE_INTAKE_VERSION,
@@ -365,6 +436,7 @@ export function buildPerspectiveMemoryReuseIntake(
     ),
     excluded_candidates: inactiveCandidates.map(toExcludedCandidate),
     warnings,
+    selection_guidance: selectionGuidance,
     reuse_packet: packetResult.packet,
     codex_memory_brief: packetResult.codex_memory_brief,
     codex_memory_brief_metadata: packetResult.codex_memory_brief_metadata,
@@ -379,7 +451,7 @@ export function formatPerspectiveMemoryReuseIntakeHuman(
   result: PerspectiveMemoryReuseIntakeResultV01,
 ) {
   const lines = [
-    "# Perspective Memory Reuse Intake v0.1",
+    "# Perspective Memory Reuse Intake v0.2",
     "",
     `intake_version: ${result.intake_version}`,
     `generated_at: ${result.generated_at}`,
@@ -392,7 +464,9 @@ export function formatPerspectiveMemoryReuseIntakeHuman(
   ];
 
   if (result.suggested_memory_items.length === 0) {
-    lines.push("- No persisted perspective-memory items selected.");
+    lines.push(
+      `- ${result.selection_guidance.no_match_message || "No persisted perspective-memory items selected."}`,
+    );
   } else {
     for (const item of result.suggested_memory_items) {
       lines.push(
@@ -401,6 +475,8 @@ export function formatPerspectiveMemoryReuseIntakeHuman(
         `   - item_status: ${item.item_status}`,
         `   - source_validation_result_state: ${item.source_validation_result_state}`,
         `   - score: ${item.score}`,
+        `   - exact_task_entity_match: ${item.exact_task_entity_match}`,
+        `   - exact_task_entity_match_boost: ${item.exact_task_entity_match_boost}`,
         `   - matched_fields: ${item.matched_fields.join(", ") || "none"}`,
         `   - matched_terms: ${item.matched_terms.join(", ") || "none"}`,
         `   - why_selected: ${item.why_selected}`,
@@ -467,6 +543,8 @@ export function formatQualityReviewWarningSummary(
     `missing_reuse_boundary_count: ${summary.missing_reuse_boundary_count}`,
     `compact_brief_recommended: ${summary.compact_brief_recommended}`,
     `large_selection_warning: ${summary.large_selection_warning}`,
+    `no_match_state: ${result.selection_guidance.no_match_state}`,
+    `no_match_message: ${result.selection_guidance.no_match_message || "not_applicable"}`,
     `suggested_next_action: ${summary.suggested_next_action}`,
     "warnings:",
   ];
@@ -474,6 +552,12 @@ export function formatQualityReviewWarningSummary(
     lines.push("- none");
   } else {
     for (const warning of summary.warnings) lines.push(`- ${warning}`);
+  }
+  if (result.selection_guidance.compact_brief_guidance.length > 0) {
+    lines.push("compact_brief_guidance:");
+    for (const guidance of result.selection_guidance.compact_brief_guidance) {
+      lines.push(`- ${guidance}`);
+    }
   }
   return lines.join("\n");
 }
@@ -516,10 +600,12 @@ function scoreCandidate({
   item,
   taskKeywords,
   normalizedTaskPhrase,
+  normalizedTaskEntityText,
 }: {
   item: PerspectiveMemoryItemV0;
   taskKeywords: string[];
   normalizedTaskPhrase: string;
+  normalizedTaskEntityText: string;
 }): ScoredCandidate | null {
   if (taskKeywords.length === 0) return null;
   const fieldMatches = MATCH_FIELD_DEFINITIONS.map((definition) =>
@@ -538,11 +624,18 @@ function scoreCandidate({
   );
   if (!hasEnoughMechanicalEvidence(fieldMatches, matchedTerms)) return null;
   const matchedFields = fieldMatches.map((match) => match.field);
+  const exactTaskEntityMatchBoost = buildExactTaskEntityMatchBoost({
+    item,
+    normalizedTaskEntityText,
+  });
   const score =
     fieldMatches.reduce((total, match) => {
       const phraseBonus = match.phrase_match ? 90 : 0;
       return total + match.weight * match.matched_terms.length + phraseBonus;
-    }, 0) + statusScore(item.item_status) + validationScore(item);
+    }, 0) +
+    statusScore(item.item_status) +
+    validationScore(item) +
+    exactTaskEntityMatchBoost;
   const matchSnippets = fieldMatches.map((match) => ({
     field: match.field,
     matched_terms: match.matched_terms,
@@ -552,6 +645,7 @@ function scoreCandidate({
     item,
     matchedTerms,
     fieldMatches,
+    exactTaskEntityMatchBoost,
   });
   const reuseBoundary = buildReuseBoundary({
     item,
@@ -563,6 +657,7 @@ function scoreCandidate({
     matched_terms: matchedTerms,
     matched_fields: matchedFields,
     match_snippets: matchSnippets,
+    exact_task_entity_match_boost: exactTaskEntityMatchBoost,
     why_selected: whySelected,
     reuse_boundary: reuseBoundary,
   };
@@ -607,14 +702,48 @@ function matchField({
   };
 }
 
+function buildExactTaskEntityMatchBoost({
+  item,
+  normalizedTaskEntityText,
+}: {
+  item: PerspectiveMemoryItemV0;
+  normalizedTaskEntityText: string;
+}) {
+  if (!taskNamesIntakeCommand(normalizedTaskEntityText)) return 0;
+  const itemEntityText = normalizeEntityText(
+    [
+      item.content.title,
+      item.content.summary,
+      ...item.content.source_refs,
+      ...item.content.evidence_refs,
+    ].join(" "),
+  );
+  if (!itemIdentifiesIntakeCommand(itemEntityText)) return 0;
+  return INTAKE_COMMAND_ENTITY_MATCH_BOOST;
+}
+
+function taskNamesIntakeCommand(normalizedTaskEntityText: string) {
+  return INTAKE_COMMAND_TASK_MARKERS.some((marker) =>
+    normalizedTaskEntityText.includes(marker),
+  );
+}
+
+function itemIdentifiesIntakeCommand(normalizedItemEntityText: string) {
+  return INTAKE_COMMAND_ITEM_MARKERS.some((marker) =>
+    normalizedItemEntityText.includes(marker),
+  );
+}
+
 function buildWhySelected({
   item,
   matchedTerms,
   fieldMatches,
+  exactTaskEntityMatchBoost,
 }: {
   item: PerspectiveMemoryItemV0;
   matchedTerms: string[];
   fieldMatches: FieldMatch[];
+  exactTaskEntityMatchBoost: number;
 }) {
   const fieldSummary = fieldMatches
     .slice(0, 3)
@@ -627,10 +756,14 @@ function buildWhySelected({
     item.source_validation_result_state === "PASS with follow-up"
       ? " Validation is PASS with follow-up, so keep operator review visible."
       : "";
+  const entityBoostNote =
+    exactTaskEntityMatchBoost > 0
+      ? " Exact intake-command entity match boost applied."
+      : "";
   return boundText(
     `Matched task keyword${matchedTerms.length === 1 ? "" : "s"} ${matchedTerms
       .slice(0, 8)
-      .join(", ")} in ${fieldSummary}; item status is ${item.item_status}.${validationNote}`,
+      .join(", ")} in ${fieldSummary}; item status is ${item.item_status}.${validationNote}${entityBoostNote}`,
     INTAKE_BOUNDARY_LIMIT,
   );
 }
@@ -668,6 +801,8 @@ function toSuggestedItem(
     source_validation_result_state:
       candidate.item.source_validation_result_state,
     score: candidate.score,
+    exact_task_entity_match: candidate.exact_task_entity_match_boost > 0,
+    exact_task_entity_match_boost: candidate.exact_task_entity_match_boost,
     matched_terms: candidate.matched_terms,
     matched_fields: candidate.matched_fields,
     match_snippets: candidate.match_snippets,
@@ -684,34 +819,103 @@ function toExcludedCandidate(
     title: candidate.item.content.title,
     item_status: candidate.item.item_status,
     score: candidate.score,
+    exact_task_entity_match: candidate.exact_task_entity_match_boost > 0,
+    exact_task_entity_match_boost: candidate.exact_task_entity_match_boost,
     matched_terms: candidate.matched_terms,
     matched_fields: candidate.matched_fields,
     exclusion_reason: `Matched task keywords but item status is ${candidate.item.item_status}; exclude from automatic selection and let an operator review freshness first.`,
   };
 }
 
-function buildWarnings({
+function buildNoMatchGuidance({
   inputWarnings,
   taskKeywords,
   items,
-  selectedCandidates,
+  activeCandidates,
   inactiveCandidates,
+  selectedCandidates,
+  readVia,
 }: {
   inputWarnings: string[];
   taskKeywords: string[];
   items: PerspectiveMemoryItemV0[];
+  scoredCandidates: ScoredCandidate[];
+  activeCandidates: ScoredCandidate[];
+  inactiveCandidates: ScoredCandidate[];
+  selectedCandidates: ScoredCandidate[];
+  readVia: "listPerspectiveMemoryItems" | "provided_items";
+}): Omit<
+  PerspectiveMemoryReuseIntakeSelectionGuidanceV01,
+  "compact_brief_guidance"
+> {
+  if (selectedCandidates.length > 0) {
+    return {
+      no_match_state: "not_applicable",
+      no_match_message: "",
+    };
+  }
+  if (hasNoStoreReadWarning(inputWarnings)) {
+    return {
+      no_match_state: "db_missing_no_store_read",
+      no_match_message:
+        "No store read was performed because the explicit perspective-memory DB path was missing; point --db-path at a known Augnes DB or seed an explicit temp DB, then rerun the intake command.",
+    };
+  }
+  if (taskKeywords.length === 0) {
+    return {
+      no_match_state: "no_usable_task_keywords",
+      no_match_message:
+        "No usable task keywords were found; provide a more specific task string before relying on persisted memory reuse.",
+    };
+  }
+  if (items.length === 0) {
+    return {
+      no_match_state: "store_read_zero_items",
+      no_match_message:
+        readVia === "listPerspectiveMemoryItems"
+          ? "Store read succeeded, but zero persisted perspective-memory items were available; continue without reuse or create/review accepted memory items before rerunning."
+          : "No persisted perspective-memory items were provided to the intake helper; continue without reuse or rerun against an explicit known DB path.",
+    };
+  }
+  if (activeCandidates.length === 0 && inactiveCandidates.length > 0) {
+    return {
+      no_match_state: "only_inactive_matches",
+      no_match_message:
+        "Only inactive perspective-memory items matched this task; deprecated, retracted, or superseded items are warning context only, so continue without automatic reuse or select a current accepted/reviewing item manually.",
+    };
+  }
+  return {
+    no_match_state: "readable_store_no_active_matches",
+    no_match_message:
+      "Store read succeeded and persisted perspective-memory items existed, but no accepted/reviewing items matched this task; continue without reuse or broaden the task terms before rerunning.",
+  };
+}
+
+function buildWarnings({
+  inputWarnings,
+  taskKeywords,
+  selectedCandidates,
+  inactiveCandidates,
+  noMatchGuidance,
+}: {
+  inputWarnings: string[];
+  taskKeywords: string[];
   selectedCandidates: ScoredCandidate[];
   inactiveCandidates: ScoredCandidate[];
+  noMatchGuidance: Omit<
+    PerspectiveMemoryReuseIntakeSelectionGuidanceV01,
+    "compact_brief_guidance"
+  >;
 }) {
   const warnings = [...inputWarnings];
   if (taskKeywords.length === 0) {
     warnings.push("No usable task keywords found; no candidate matching performed.");
   }
-  if (items.length === 0) {
-    warnings.push("No persisted perspective-memory items were available to read.");
-  }
-  if (selectedCandidates.length === 0) {
-    warnings.push("No accepted/reviewing perspective-memory items matched the task.");
+  if (
+    selectedCandidates.length === 0 &&
+    noMatchGuidance.no_match_message.length > 0
+  ) {
+    warnings.push(noMatchGuidance.no_match_message);
   }
   for (const candidate of inactiveCandidates) {
     warnings.push(
@@ -719,6 +923,13 @@ function buildWarnings({
     );
   }
   return uniqueBoundedStrings(warnings, INTAKE_ARRAY_LIMIT, INTAKE_TEXT_LIMIT);
+}
+
+function buildCompactBriefGuidance(
+  metadata: PerspectiveMemoryReuseBriefMetadataV01,
+) {
+  if (!metadata.compact_brief_recommended) return [];
+  return COMPACT_BRIEF_GUIDANCE_LINES;
 }
 
 function buildQualityReviewPreviewSummary({
@@ -811,6 +1022,16 @@ function isInactiveStatus(status: PerspectiveMemoryItemStatus) {
   return INACTIVE_STATUSES.some((inactiveStatus) => inactiveStatus === status);
 }
 
+function hasNoStoreReadWarning(inputWarnings: string[]) {
+  return inputWarnings.some((warning) => {
+    const normalized = normalizeText(warning);
+    return (
+      normalized.includes("db not found") ||
+      normalized.includes("no store read was performed")
+    );
+  });
+}
+
 function normalizeLimit(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
     return PERSPECTIVE_MEMORY_REUSE_INTAKE_DEFAULT_LIMIT;
@@ -899,4 +1120,12 @@ function boundText(value: string, maxLength: number) {
 
 function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeEntityText(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
