@@ -315,6 +315,7 @@
     "smoke:perspective-memory-items-review-workspace": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-review-workspace.mjs",
     "smoke:perspective-memory-items-reuse-packet": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-reuse-packet.mjs",
     "smoke:perspective-memory-reuse-quality-review": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-reuse-quality-review.mjs",
+    "smoke:perspective-memory-reuse-quality-review-dogfood-report": "node scripts/smoke-perspective-memory-reuse-quality-review-dogfood-report.mjs",
     "smoke:perspective-memory-reuse-return-binding": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-reuse-return-binding.mjs",
     "smoke:perspective-memory-reuse-return-binding-dogfood-report": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-reuse-return-binding-dogfood-report.mjs",
     "browser:perspective-memory-reuse-live-data-dogfood": "node scripts/browser-smoke-perspective-memory-reuse-live-data-dogfood.mjs",
