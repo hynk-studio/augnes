@@ -142,6 +142,7 @@
     "smoke:augnes-codex-bootstrap": "node scripts/smoke-augnes-codex-bootstrap.mjs",
     "smoke:augnes-codex-doctor": "node scripts/smoke-augnes-codex-doctor.mjs",
     "smoke:augnes-codex-prepare": "node scripts/smoke-augnes-codex-prepare.mjs",
+    "smoke:augnes-codex-prepare-dogfood-report": "node scripts/smoke-augnes-codex-prepare-dogfood-report.mjs",
     "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:augnes-operator-plugin-v2": "node scripts/smoke-augnes-operator-plugin-v2.mjs",
     "smoke:augnes-capsule-handoff-skill": "node scripts/smoke-augnes-capsule-handoff-skill.mjs",
