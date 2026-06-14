@@ -135,6 +135,8 @@
     "smoke:ag-work-resume-mapping-proposal-db-schema": "node scripts/smoke-ag-work-resume-mapping-proposal-db-schema.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-writer": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-mapping-proposal-record-writer.mjs",
     "smoke:ag-work-resume-mapping-proposal-record-read": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ag-work-resume-mapping-proposal-record-read.mjs",
+    "augnes:codex-bootstrap": "node scripts/augnes-codex-bootstrap.mjs",
+    "smoke:augnes-codex-bootstrap": "node scripts/smoke-augnes-codex-bootstrap.mjs",
     "smoke:augnes-operator-plugin-scaffold": "node scripts/smoke-augnes-operator-plugin-scaffold.mjs",
     "smoke:augnes-operator-plugin-v2": "node scripts/smoke-augnes-operator-plugin-v2.mjs",
     "smoke:augnes-capsule-handoff-skill": "node scripts/smoke-augnes-capsule-handoff-skill.mjs",

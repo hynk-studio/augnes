@@ -1,0 +1,20 @@
+# Project-local example for connecting Codex to the local Augnes MCP bridge.
+# This file is inert documentation. It is not loaded automatically.
+# Review and copy the relevant shape into your user-level Codex config only if
+# your local Codex build supports this MCP server syntax.
+#
+# Do not put secrets in this file.
+# This repository script never writes ~/.codex/config.toml.
+# Enabling this bridge does not grant commit, reject, merge, approve, publish,
+# retry, replay, auto-merge, provider, GitHub, DB write, or Augnes state authority.
+#
+# Recommended local Augnes app:
+# env -u OPENAI_API_KEY AUGNES_DB_PATH=/tmp/augnes-demo.db npm run dev -- --port 3000
+#
+# Recommended local Augnes MCP bridge:
+# npm --prefix apps/augnes_apps install
+# AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
+#
+# URL-based MCP bridge example:
+[mcp_servers.augnes_local_bridge]
+url = "http://localhost:8787/mcp"
