@@ -301,7 +301,8 @@
 .button:disabled,
 .primaryButton:disabled,
 .actionButton:disabled,
-.textInput:disabled {
+.textInput:disabled,
+.selectInput:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
@@ -428,6 +429,18 @@
   min-height: 40px;
   border: 1px solid #c8d1d8;
   border-radius: 8px;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.selectInput {
+  min-height: 40px;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #c8d1d8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #20323c;
   font: inherit;
   padding: 8px 10px;
 }

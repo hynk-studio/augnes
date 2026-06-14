@@ -12,6 +12,12 @@ export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE =
   "/cockpit/perspective/codex-former/local-adapter-operator-flow";
 export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE =
   "/api/perspective/codex-former/local-adapter-operator-flow/validate";
+export const CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_INTAKE_DIR =
+  "reports/intake/codex-former-returned-envelopes";
+export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_ROUTE =
+  "/api/perspective/codex-former/local-adapter-operator-flow/returned-envelope-intake";
+export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_VALIDATE_ROUTE =
+  "/api/perspective/codex-former/local-adapter-operator-flow/returned-envelope-intake/validate";
 
 export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_STORAGE_NAMESPACE =
   "augnes.codexFormer.localAdapterOperatorFlow.v0.1";
@@ -189,6 +195,31 @@ export type OperatorFlowLocalValidationResponse = {
     | "blocked_before_execution";
   boundary: typeof CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY;
 };
+
+export type OperatorFlowReturnedEnvelopeIntakeEntry = {
+  ref: string;
+  file_size_bytes: number;
+  content_hash: string;
+  modified_at: string;
+  valid: boolean;
+  blocked_reasons: string[];
+};
+
+export type OperatorFlowReturnedEnvelopeIntakeListResponse = {
+  intake_directory_ref: `${typeof CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_INTAKE_DIR}/`;
+  max_returned_envelope_bytes: number;
+  latest_ref: string | null;
+  latest: OperatorFlowReturnedEnvelopeIntakeEntry | null;
+  entries: OperatorFlowReturnedEnvelopeIntakeEntry[];
+  blocked_reasons: string[];
+  boundary: typeof CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_AUTHORITY_BOUNDARY;
+};
+
+export type OperatorFlowReturnedEnvelopeIntakeValidationResponse =
+  OperatorFlowLocalValidationResponse & {
+    returned_envelope_intake: OperatorFlowReturnedEnvelopeIntakeEntry | null;
+    returned_envelope_text: string | null;
+  };
 
 export type OperatorFlowScenarioViewModel = {
   key: OperatorFlowReturnedEnvelopeFixtureKey;

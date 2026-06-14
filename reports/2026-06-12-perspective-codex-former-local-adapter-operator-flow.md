@@ -2,9 +2,11 @@
 
 ## Summary
 
-This PR follows PR #532 by improving usability after local candidate draft creation. The route at `/cockpit/perspective/codex-former/local-adapter-operator-flow` now connects the local candidate draft list to a local perspective-memory review queue.
+This report now also covers the returned-envelope intake addition. The route at `/cockpit/perspective/codex-former/local-adapter-operator-flow` can load one repo-local Codex returned envelope from `reports/intake/codex-former-returned-envelopes/` and validate it through the existing local bridge.
 
 The validation bridge remains the input source. Candidate drafts can be appended or explicitly used to replace a selected draft only from a current `real_local_validate_execution` result and explicit user action; fixture preview, not-run, stale, or blocked accept paths cannot create an accepted-candidate draft. A selected current PASS or PASS with follow-up local candidate draft can now be queued for local perspective-memory review without product DB persistence or accepted memory creation.
+
+The returned-envelope intake path automates only manual paste + manual local validation. Candidate draft creation remains user-controlled after PASS or PASS with follow-up.
 
 ## Changed Files
 
@@ -15,18 +17,24 @@ The validation bridge remains the input source. Candidate drafts can be appended
 - `app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.tsx`
 - `app/cockpit/perspective/memory-review-queue/local/local-memory-review-queue-surface.module.css`
 - `app/api/perspective/codex-former/local-adapter-operator-flow/validate/route.ts`
+- `app/api/perspective/codex-former/local-adapter-operator-flow/returned-envelope-intake/route.ts`
+- `app/api/perspective/codex-former/local-adapter-operator-flow/returned-envelope-intake/validate/route.ts`
 - `lib/perspective-ingest/codex-former-local-adapter-accepted-candidate-draft.ts`
 - `lib/perspective-ingest/codex-former-local-adapter-candidate-draft-list.ts`
 - `lib/perspective-ingest/perspective-memory-local-review-queue.ts`
 - `lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts`
 - `lib/perspective-ingest/codex-former-local-adapter-operator-flow-local-validate.ts`
+- `lib/perspective-ingest/codex-former-local-adapter-returned-envelope-intake.ts`
 - `scripts/smoke-perspective-codex-former-local-adapter-operator-flow.mjs`
 - `scripts/smoke-perspective-memory-local-review-queue.mjs`
 - `scripts/browser-smoke-perspective-codex-former-local-adapter-operator-flow.mjs`
+- `scripts/smoke-perspective-codex-former-local-adapter-returned-envelope-intake.mjs`
 - `scripts/browser-smoke-perspective-memory-local-review-queue.mjs`
 - `docs/PERSPECTIVE_CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_V0_1.md`
+- `docs/PERSPECTIVE_CODEX_FORMER_RETURNED_ENVELOPE_INTAKE_V0_1.md`
 - `docs/PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_V0_1.md`
 - `reports/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md`
+- `reports/2026-06-14-perspective-codex-former-returned-envelope-intake.md`
 - `reports/2026-06-13-perspective-memory-local-review-queue.md`
 - `reports/browser/2026-06-12-perspective-codex-former-local-adapter-operator-flow.md`
 - `reports/browser/2026-06-13-perspective-memory-local-review-queue.md`
@@ -36,6 +44,14 @@ The validation bridge remains the input source. Candidate drafts can be appended
 `Run local validation` runs the real local validate execution path through `buildCodexFormerLocalAdapterValidateExecutionSummary`. It renders `result_state`, `execution_result`, `failure_kind`, candidate count, warnings, pointer warnings, blocked reasons, next safe action, candidate-compatible review material, worker-facing guidance status, candidate basis/authority, source/prepare/returned-envelope hashes, local validation summary hash, and authority flags.
 
 The PASS / PASS with follow-up / BLOCKED committed returned-envelope fixtures validate through the same bridge as PASS, PASS with follow-up, and BLOCKED. Malformed textarea content returns a visible BLOCKED result with blocked reasons instead of crashing the route.
+
+## Returned-Envelope Intake Behavior
+
+The intake list route exposes bounded refs from `reports/intake/codex-former-returned-envelopes/`, including the latest valid ref, file size, content hash, modified timestamp, and blocked reasons for invalid files.
+
+The intake validate route accepts `returned_envelope_ref`, `source_input_ref`, and `prepare_summary_ref`. It rejects arbitrary paths and only allows normalized relative refs under the allowed intake directory. It reads the selected file, sends the text through the existing local validation bridge/orchestration path, and returns the same bounded validation result shape as the manual textarea flow.
+
+It creates no candidate drafts, no perspective-memory review queue entries, no local write proposals, no checklist records, no product persistence boundary records, no DB writes, no memory writes, no persisted perspective-memory items, no Core/runtime/provider/GitHub mutation, no Codex SDK call, no vector search, and no embeddings.
 
 ## Local Candidate Draft List Behavior
 

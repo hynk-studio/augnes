@@ -16,6 +16,16 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - copy-for-Codex panel visible
 - copy-for-Codex panel includes bounded Codex-ready task/context/contract packet
 - returned envelope textarea visible
+- Codex Returned Envelope Intake panel visible
+- Refresh intake list visible
+- latest available returned envelope ref visible
+- returned envelope hash, size, and modified timestamp visible
+- Load latest Codex return + validate works
+- intake validation returns PASS with follow-up
+- intake validation source says real_local_validate_execution
+- candidate draft creation remains explicit after intake validation
+- returned envelope intake path safety boundary visible
+- intake automation only loads and validates returned envelope
 - Load PASS envelope fixture works
 - Run local validation returns PASS
 - Select Mark as perspective candidate
@@ -80,6 +90,11 @@ Passed on local dev server `npm run dev -- -H 127.0.0.1 -p 3000`.
 - Refresh restored the separate local candidate draft list from `augnes.codexFormer.localAdapterAcceptedCandidateDraftList.v0.1`.
 - Refresh also restored the bounded operator validation metadata visibly, including `validation_result_state=PASS` and `validation_result_source=real_local_validate_execution`.
 - PASS with follow-up fixture local validation rendered `result_state=PASS with follow-up`, `execution_result=success`, `candidate_count=1`, `validation_source=real_local_validate_execution`, and warning material.
+- The Codex Returned Envelope Intake panel rendered the latest available returned envelope ref from `reports/intake/codex-former-returned-envelopes/`, its hash, file size, and modified timestamp.
+- Refresh intake list kept the intake refs bounded to the allowed directory and surfaced invalid-file blocked reasons when present.
+- Load latest Codex return + validate loaded the repo-local returned envelope into the existing textarea, ran local validation through the returned-envelope intake API, and rendered `result_state=PASS with follow-up`, `execution_result=success`, `candidate_count=1`, and `validation_source=real_local_validate_execution`.
+- Candidate draft creation remained explicit after intake validation; no local candidate draft, perspective-memory queue item, write proposal, checklist record, DB write, memory write, Core/runtime/provider/Codex/GitHub mutation, vector search, or embedding was created by the intake action.
+- The returned envelope intake path safety boundary stayed visible: only normalized refs under `reports/intake/codex-former-returned-envelopes/` are allowed.
 - PASS with follow-up -> Mark as perspective candidate -> Create local perspective candidate draft appended a second list item and rendered warning and pointer-warning counts from the local validation result.
 - Queueing the PASS with follow-up draft kept the warning caveat visible in the queue panel and did not overwrite the earlier queue item.
 - BLOCKED fixture local validation rendered `result_state=BLOCKED`, `execution_result=blocked`, `failure_kind=dry_run_blocked`, `candidate_count=0`, and visible blocked reasons.

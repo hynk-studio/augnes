@@ -35,6 +35,8 @@ import {
   type PerspectiveMemoryLocalReviewQueueV0,
 } from "@/lib/perspective-ingest/perspective-memory-local-review-queue";
 import {
+  CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_ROUTE,
+  CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_VALIDATE_ROUTE,
   CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE,
   clearOperatorFlowDraftFromStorage,
   createInitialOperatorFlowDraft,
@@ -46,6 +48,8 @@ import {
   type OperatorFlowCandidateAction,
   type OperatorFlowLocalValidationResponse,
   type OperatorFlowPersistedDraft,
+  type OperatorFlowReturnedEnvelopeIntakeListResponse,
+  type OperatorFlowReturnedEnvelopeIntakeValidationResponse,
   type OperatorFlowReturnedEnvelopeFixtureKey,
   type OperatorFlowValidationPreview,
   type OperatorFlowViewModel,
@@ -84,6 +88,12 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     useState<LocalValidationRunState>(null);
   const [validationBusy, setValidationBusy] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [intakeList, setIntakeList] =
+    useState<OperatorFlowReturnedEnvelopeIntakeListResponse | null>(null);
+  const [selectedIntakeRef, setSelectedIntakeRef] = useState("");
+  const [intakeBusy, setIntakeBusy] = useState(false);
+  const [intakeStatus, setIntakeStatus] = useState("intake list not loaded");
+  const [intakeError, setIntakeError] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState("local metadata not saved");
   const [candidateDraftList, setCandidateDraftList] =
     useState<CodexFormerLocalAdapterCandidateDraftListV0>(() =>
@@ -156,6 +166,7 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
         ? "local memory review queue restored"
         : "no local memory review queue items",
     );
+    void refreshReturnedEnvelopeIntakeList();
   }, [viewModel]);
 
   useEffect(() => {
@@ -171,11 +182,24 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     validationPreview?.scenario_key ??
     draft.selected_returned_envelope_fixture_key ??
     viewModel.default_fixture_key;
-  const displayScenario = viewModel.scenarios[displayScenarioKey];
+  const displayScenarioByRefs =
+    operatorFlowReturnedEnvelopeFixtureKeys
+      .map((key) => viewModel.scenarios[key])
+      .find(
+        (scenario) =>
+          scenario.source_input_ref.path === draft.selected_source_input_ref &&
+          scenario.prepare_summary_ref.path === draft.selected_prepare_summary_ref,
+      ) ?? null;
+  const displayScenario =
+    displayScenarioByRefs ?? viewModel.scenarios[displayScenarioKey];
   const currentValidation =
     localValidationRun?.validation_result ??
     validationPreview?.validation_result ??
     displayScenario.validation_result;
+  const validIntakeEntries =
+    intakeList?.entries.filter((entry) => entry.valid) ?? [];
+  const selectedIntakeEntry =
+    validIntakeEntries.find((entry) => entry.ref === selectedIntakeRef) ?? null;
   const currentValidationForCandidateDrafts =
     draft.validation_result_source === "real_local_validate_execution" &&
     draft.validation_summary_hash &&
@@ -659,6 +683,130 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
     }
   }
 
+  async function refreshReturnedEnvelopeIntakeList() {
+    setIntakeBusy(true);
+    setIntakeError(null);
+    setIntakeStatus("refreshing returned envelope intake list");
+    try {
+      const response = await fetch(
+        CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_ROUTE,
+        { method: "GET", headers: { accept: "application/json" } },
+      );
+      const result =
+        (await response.json()) as OperatorFlowReturnedEnvelopeIntakeListResponse;
+      setIntakeList(result);
+      setSelectedIntakeRef((current) =>
+        current && result.entries.some((entry) => entry.valid && entry.ref === current)
+          ? current
+          : result.latest_ref ?? "",
+      );
+      setIntakeStatus(
+        result.latest_ref
+          ? `latest returned envelope intake ref loaded: ${result.latest_ref}`
+          : result.blocked_reasons.length > 0
+            ? `intake list blocked: ${result.blocked_reasons.join("; ")}`
+            : "no valid returned envelope intake refs found",
+      );
+    } catch (error) {
+      setIntakeList(null);
+      setSelectedIntakeRef("");
+      setIntakeError(
+        error instanceof Error
+          ? error.message
+          : "Returned envelope intake list request failed",
+      );
+      setIntakeStatus("returned envelope intake list request failed");
+    } finally {
+      setIntakeBusy(false);
+    }
+  }
+
+  async function runReturnedEnvelopeIntakeValidation(returnedEnvelopeRef: string) {
+    const intakeRef = returnedEnvelopeRef.trim();
+    if (!intakeRef) {
+      setIntakeStatus("select a returned envelope intake ref first");
+      return;
+    }
+
+    setValidationBusy(true);
+    setIntakeBusy(true);
+    setValidationError(null);
+    setIntakeError(null);
+    setIntakeStatus(`loading and validating ${intakeRef}`);
+    setDraftStatus("running returned envelope intake validation");
+    try {
+      const response = await fetch(
+        CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_RETURNED_ENVELOPE_INTAKE_VALIDATE_ROUTE,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            returned_envelope_ref: intakeRef,
+            source_input_ref: draft.selected_source_input_ref,
+            prepare_summary_ref: draft.selected_prepare_summary_ref,
+          }),
+        },
+      );
+      const result =
+        (await response.json()) as OperatorFlowReturnedEnvelopeIntakeValidationResponse;
+      const shouldResetCandidateAction =
+        result.validation_source === "blocked_before_execution" ||
+        result.validation_result.result_state === "BLOCKED";
+
+      if (typeof result.returned_envelope_text === "string") {
+        setReturnedEnvelopeText(result.returned_envelope_text);
+      }
+      setSelectedIntakeRef(intakeRef);
+      setLocalValidationRun(result);
+      setValidationPreview(null);
+      updateDraft({
+        selected_returned_envelope_fixture_key: null,
+        returned_envelope_draft_saved_explicitly: false,
+        returned_envelope_text: undefined,
+        active_step: "validate_result",
+        validation_result_state: result.validation_result.result_state,
+        validation_result_source: result.validation_source,
+        ...(result.validation_source === "real_local_validate_execution"
+          ? localValidationHashPatch(result.validation_result)
+          : resetValidationHashPatch()),
+        ...(shouldResetCandidateAction ? resetCandidateActionPatch() : {}),
+      });
+      setIntakeStatus(
+        result.returned_envelope_intake
+          ? `validated returned envelope intake ref: ${result.returned_envelope_intake.ref}`
+          : "returned envelope intake validation completed without intake metadata",
+      );
+      setDraftStatus(
+        `${result.validation_source} completed from returned envelope intake; no product state created`,
+      );
+    } catch (error) {
+      setLocalValidationRun(null);
+      setValidationPreview(null);
+      setValidationError(
+        error instanceof Error
+          ? error.message
+          : "Returned envelope intake validation request failed",
+      );
+      setIntakeError(
+        error instanceof Error
+          ? error.message
+          : "Returned envelope intake validation request failed",
+      );
+      updateDraft({
+        active_step: "validate_result",
+        validation_result_state: "not_validated",
+        validation_result_source: "not_run",
+        ...resetValidationHashPatch(),
+        ...resetCandidateActionPatch(),
+      });
+      setIntakeStatus("returned envelope intake validation request failed");
+      setDraftStatus("returned envelope intake validation request failed");
+    } finally {
+      setValidationBusy(false);
+      setIntakeBusy(false);
+    }
+  }
+
   function selectCandidateAction(action: OperatorFlowCandidateAction) {
     updateDraft({
       active_step: "candidate_action",
@@ -762,6 +910,22 @@ export function CodexFormerLocalAdapterOperatorFlowSurface({
             onClearLocalDraft={clearLocalDraft}
             onLoadFixture={loadEnvelopeFixture}
             onSaveDraftLocally={saveDraftLocally}
+          />
+          <ReturnedEnvelopeIntakePanel
+            intakeList={intakeList}
+            intakeBusy={intakeBusy}
+            intakeStatus={intakeStatus}
+            intakeError={intakeError}
+            selectedIntakeRef={selectedIntakeRef}
+            selectedIntakeEntry={selectedIntakeEntry}
+            onRefresh={refreshReturnedEnvelopeIntakeList}
+            onSelectIntakeRef={setSelectedIntakeRef}
+            onLoadLatest={() =>
+              runReturnedEnvelopeIntakeValidation(intakeList?.latest_ref ?? "")
+            }
+            onLoadSelected={() =>
+              runReturnedEnvelopeIntakeValidation(selectedIntakeRef)
+            }
           />
           <ValidateResultPanel
             validation={currentValidation}
@@ -1001,6 +1165,152 @@ function ReturnedEnvelopePanel({
         Returned envelope text is stored only after Save draft locally. Metadata
         remains bounded to this namespace.
       </p>
+    </section>
+  );
+}
+
+function ReturnedEnvelopeIntakePanel({
+  intakeList,
+  intakeBusy,
+  intakeStatus,
+  intakeError,
+  selectedIntakeRef,
+  selectedIntakeEntry,
+  onRefresh,
+  onSelectIntakeRef,
+  onLoadLatest,
+  onLoadSelected,
+}: {
+  intakeList: OperatorFlowReturnedEnvelopeIntakeListResponse | null;
+  intakeBusy: boolean;
+  intakeStatus: string;
+  intakeError: string | null;
+  selectedIntakeRef: string;
+  selectedIntakeEntry: OperatorFlowReturnedEnvelopeIntakeListResponse["entries"][number] | null;
+  onRefresh: () => void;
+  onSelectIntakeRef: (value: string) => void;
+  onLoadLatest: () => void;
+  onLoadSelected: () => void;
+}) {
+  const validEntries = intakeList?.entries.filter((entry) => entry.valid) ?? [];
+  const invalidEntries =
+    intakeList?.entries.filter((entry) => !entry.valid) ?? [];
+  const latest = intakeList?.latest ?? null;
+  const hasMultipleValidEntries = validEntries.length > 1;
+
+  return (
+    <section
+      className={styles.panel}
+      aria-label="Codex returned envelope intake panel"
+      data-augnes-returned-envelope-intake-panel="true"
+    >
+      <PanelHeader
+        eyebrow="4a. Repo Intake"
+        title="Codex Returned Envelope Intake"
+        detail="load file and validate only"
+      />
+      <p className={styles.boundaryText}>
+        This automation only loads one returned envelope from the repo intake
+        directory into the textarea and runs the same local validation bridge.
+        It does not create candidate drafts, queue perspective-memory review,
+        create write proposals, write checklist records, persist memory, call
+        Core/runtime/provider/Codex/GitHub, or add DB records.
+      </p>
+      <div className={styles.buttonRow}>
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-refresh-intake-list="true"
+          disabled={intakeBusy}
+          onClick={onRefresh}
+        >
+          Refresh intake list
+        </button>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          data-augnes-load-latest-returned-envelope-intake="true"
+          disabled={intakeBusy || !latest}
+          onClick={onLoadLatest}
+        >
+          Load latest Codex return + validate
+        </button>
+      </div>
+      {hasMultipleValidEntries ? (
+        <label className={styles.fieldLabel}>
+          returned_envelope_ref
+          <select
+            className={styles.selectInput}
+            data-augnes-intake-ref-select="true"
+            value={selectedIntakeRef}
+            disabled={intakeBusy}
+            onChange={(event) => onSelectIntakeRef(event.target.value)}
+          >
+            {validEntries.map((entry) => (
+              <option key={entry.ref} value={entry.ref}>
+                {entry.ref}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {hasMultipleValidEntries ? (
+        <button
+          type="button"
+          className={styles.button}
+          data-augnes-load-selected-returned-envelope-intake="true"
+          disabled={intakeBusy || !selectedIntakeRef}
+          onClick={onLoadSelected}
+        >
+          Load selected Codex return + validate
+        </button>
+      ) : null}
+      {intakeError ? (
+        <p className={styles.errorText} data-augnes-intake-error="true">
+          {intakeError}
+        </p>
+      ) : null}
+      <dl className={styles.detailGrid}>
+        <DetailRow
+          label="intake_directory"
+          value={intakeList?.intake_directory_ref ?? "not_loaded"}
+        />
+        <DetailRow
+          label="latest_returned_envelope_ref"
+          value={latest?.ref ?? "none"}
+        />
+        <DetailRow
+          label="latest_hash"
+          value={latest?.content_hash ?? "not_available"}
+        />
+        <DetailRow
+          label="latest_size"
+          value={latest ? `${latest.file_size_bytes} bytes` : "not_available"}
+        />
+        <DetailRow
+          label="latest_modified_at"
+          value={latest?.modified_at ?? "not_available"}
+        />
+        <DetailRow label="selected_ref" value={selectedIntakeRef || "none"} />
+        <DetailRow
+          label="selected_hash"
+          value={selectedIntakeEntry?.content_hash ?? "not_available"}
+        />
+        <DetailRow
+          label="intake_status"
+          value={intakeBusy ? "busy" : intakeStatus}
+        />
+      </dl>
+      <ResultList
+        title="intake_blocked_reasons"
+        values={intakeList?.blocked_reasons ?? []}
+      />
+      <ResultList
+        title="invalid_intake_refs"
+        values={invalidEntries.map(
+          (entry) => `${entry.ref}: ${entry.blocked_reasons.join("; ")}`,
+        )}
+      />
     </section>
   );
 }
