@@ -18,6 +18,9 @@ import {
 import {
   PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE,
 } from "@/lib/perspective-ingest/perspective-memory-item-review-workspace";
+import {
+  PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE,
+} from "@/lib/perspective-ingest/perspective-memory-item-reuse-packet";
 import styles from "./perspective-memory-item-search-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
@@ -183,6 +186,13 @@ export function PerspectiveMemoryItemSearchSurface() {
             data-augnes-memory-items-search-review-workspace-link="true"
           >
             Open review workspace
+          </Link>
+          <Link
+            className={styles.linkButton}
+            href={PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE}
+            data-augnes-memory-items-search-reuse-workspace-link="true"
+          >
+            Build Codex memory reuse packet
           </Link>
           <Link
             className={styles.linkButton}
@@ -472,6 +482,15 @@ function PerspectiveMemoryItemSearchDetail({
         data-augnes-memory-items-search-review-this-item-link="true"
       >
         Review this item
+      </Link>
+      <Link
+        className={styles.linkButton}
+        href={`${PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE}?item_ids=${encodeURIComponent(
+          item.item_id,
+        )}`}
+        data-augnes-memory-items-search-reuse-this-item-link="true"
+      >
+        Reuse this item
       </Link>
       <p className={styles.boundaryText}>
         Selected result id: {item.item_id}. This view is inspectable and

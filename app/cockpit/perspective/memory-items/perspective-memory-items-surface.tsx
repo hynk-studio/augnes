@@ -16,6 +16,9 @@ import {
 import {
   PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE,
 } from "@/lib/perspective-ingest/perspective-memory-item-review-workspace";
+import {
+  PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE,
+} from "@/lib/perspective-ingest/perspective-memory-item-reuse-packet";
 import styles from "./perspective-memory-items-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
@@ -181,6 +184,13 @@ export function PerspectiveMemoryItemsSurface() {
             data-augnes-memory-items-review-workspace-link="true"
           >
             Review selected perspective-memory items
+          </Link>
+          <Link
+            className={styles.linkButton}
+            href={PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE}
+            data-augnes-memory-items-reuse-workspace-link="true"
+          >
+            Build Codex memory reuse packet
           </Link>
           <Link
             className={styles.linkButton}
@@ -370,6 +380,15 @@ function PerspectiveMemoryItemDetail({
         data-augnes-memory-items-review-selected-item-link="true"
       >
         Open selected item in review workspace
+      </Link>
+      <Link
+        className={styles.linkButton}
+        href={`${PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE}?item_ids=${encodeURIComponent(
+          item.item_id,
+        )}`}
+        data-augnes-memory-items-reuse-selected-item-link="true"
+      >
+        Open selected item in reuse workspace
       </Link>
       <p className={styles.boundaryText}>
         Item status controls update only `item_status`. Send to Core, Create Core

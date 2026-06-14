@@ -19,6 +19,9 @@ import {
   perspectiveMemoryItemReviewHasWarnings,
   type PerspectiveMemoryItemReviewPacketV0,
 } from "@/lib/perspective-ingest/perspective-memory-item-review-workspace";
+import {
+  PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE,
+} from "@/lib/perspective-ingest/perspective-memory-item-reuse-packet";
 import styles from "./perspective-memory-item-review-workspace-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
@@ -76,6 +79,7 @@ export function PerspectiveMemoryItemReviewWorkspaceSurface() {
   const selectedItem =
     itemList.items.find((item) => item.item_id === packet.selected_item_ids[0]) ??
     null;
+  const reuseSelectedHref = buildReuseSelectedHref(selectedItemIds);
 
   async function loadItems() {
     setLoadStatus("loading persisted perspective-memory items for review");
@@ -177,6 +181,13 @@ export function PerspectiveMemoryItemReviewWorkspaceSurface() {
           </Link>
           <Link
             className={styles.linkButton}
+            href={PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE}
+            data-augnes-memory-items-review-reuse-workspace-link="true"
+          >
+            Build Codex memory reuse packet
+          </Link>
+          <Link
+            className={styles.linkButton}
             href={BOUNDARY_INBOX_ROUTE}
             data-augnes-memory-items-review-boundary-inbox-link="true"
           >
@@ -248,6 +259,13 @@ export function PerspectiveMemoryItemReviewWorkspaceSurface() {
             >
               Reload items
             </button>
+            <Link
+              className={styles.linkButton}
+              href={reuseSelectedHref}
+              data-augnes-memory-items-review-reuse-selected-link="true"
+            >
+              Reuse selected items
+            </Link>
           </div>
           <div className={styles.filterRow} aria-label="Review item filters">
             {reviewFilters.map((filter) => (
@@ -688,6 +706,13 @@ function parsePreselectedItemIds() {
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values));
+}
+
+function buildReuseSelectedHref(itemIds: string[]) {
+  if (itemIds.length === 0) return PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE;
+  return `${PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE}?item_ids=${encodeURIComponent(
+    itemIds.join(","),
+  )}`;
 }
 
 function CountList({

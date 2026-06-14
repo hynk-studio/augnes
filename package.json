@@ -317,6 +317,7 @@
     "smoke:perspective-memory-items": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items.mjs",
     "smoke:perspective-memory-items-search": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-search.mjs",
     "smoke:perspective-memory-items-review-workspace": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-review-workspace.mjs",
+    "smoke:perspective-memory-items-reuse-packet": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-items-reuse-packet.mjs",
     "browser:perspective-memory-local-review-queue": "node scripts/browser-smoke-perspective-memory-local-review-queue.mjs",
     "browser:perspective-memory-boundary-review-inbox": "node scripts/browser-smoke-perspective-memory-boundary-review-inbox.mjs",
     "browser:perspective-memory-items": "node scripts/browser-smoke-perspective-memory-items.mjs",

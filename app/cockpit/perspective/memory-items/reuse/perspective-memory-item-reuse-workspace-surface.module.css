@@ -1,0 +1,410 @@
+.shell {
+  box-sizing: border-box;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #f6f7f9;
+  color: #1d252c;
+  padding: 24px;
+}
+
+.shell *,
+.shell *::before,
+.shell *::after {
+  box-sizing: border-box;
+}
+
+.surface {
+  width: min(1380px, 100%);
+  margin: 0 auto;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 500px);
+  gap: 20px;
+  align-items: start;
+  padding: 24px 0;
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #4d6472;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  margin: 0;
+  max-width: 920px;
+  font-size: clamp(2rem, 6vw, 4.1rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.header p {
+  max-width: 780px;
+  margin: 16px 0 0;
+  color: #40505a;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.boundaryPills,
+.navRow,
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.boundaryPills {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.boundaryPills span {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border: 1px solid #c9d2d8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #29414f;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 7px 10px;
+}
+
+.navRow {
+  margin-bottom: 14px;
+}
+
+.button,
+.linkButton {
+  min-height: 40px;
+  border: 1px solid #b9c5cd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #20323c;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 9px 12px;
+}
+
+.button:hover,
+.linkButton:hover {
+  border-color: #607783;
+  background: #f5f8fa;
+}
+
+.linkButton {
+  align-items: center;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.statusStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 8px 0 18px;
+}
+
+.statusStrip div,
+.controlPanel,
+.panel,
+.itemListEntry,
+.summaryEntry {
+  min-width: 0;
+  border: 1px solid #d7dee3;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.statusStrip div {
+  padding: 12px;
+}
+
+.statusStrip span,
+.detailRow dt,
+.fieldGroup span {
+  display: block;
+  color: #60727d;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.statusStrip strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+}
+
+.controlPanel {
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.taskGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.input,
+.textArea,
+.outputTextArea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #b9c5cd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2f38;
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+
+.input {
+  min-height: 44px;
+}
+
+.textArea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.outputTextArea {
+  min-height: 420px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  white-space: pre;
+}
+
+.buttonRow {
+  margin-bottom: 12px;
+}
+
+.workbenchGrid {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.8fr) minmax(360px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.panel {
+  padding: 16px;
+  box-shadow: 0 12px 30px rgba(35, 48, 58, 0.08);
+}
+
+.packetPanel {
+  grid-column: 1 / -1;
+}
+
+.panelHeader {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+
+.panelHeader h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0;
+}
+
+.panelHeader span {
+  display: inline-block;
+  margin-top: 4px;
+  color: #566975;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.boundaryText,
+.emptyState {
+  margin: 10px 0 0;
+  color: #40505a;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.emptyState {
+  border: 1px dashed #b9c5cd;
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 12px;
+}
+
+.itemList,
+.annotationList,
+.outputGrid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.itemListEntry,
+.summaryEntry {
+  background: #fbfcfd;
+  padding: 12px;
+}
+
+.selectedItem {
+  border-color: #2f6f5e;
+  background: #f1faf6;
+}
+
+.itemHeader,
+.outputHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.itemHeader strong {
+  min-width: 0;
+  color: #263842;
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.detailGrid {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+}
+
+.detailRow {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.34fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  border-top: 1px solid #edf0f2;
+  padding-top: 9px;
+}
+
+.detailRow:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.detailRow dt,
+.detailRow dd {
+  min-width: 0;
+}
+
+.detailRow dd {
+  margin: 0;
+  color: #1f2f38;
+  font-size: 0.9rem;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.policyBox {
+  min-width: 0;
+  border-top: 1px solid #edf0f2;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.policyBox strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.policyBox p {
+  margin: 0;
+  color: #40505a;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.outputBlock {
+  min-width: 0;
+}
+
+.outputBlock h3 {
+  margin: 0;
+  color: #334956;
+  font-size: 0.95rem;
+  letter-spacing: 0;
+}
+
+@media (max-width: 1100px) {
+  .statusStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .outputGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1101px) {
+  .outputGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .header,
+  .taskGrid,
+  .workbenchGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .boundaryPills {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    padding: 14px;
+  }
+
+  .header {
+    padding: 14px 0;
+  }
+
+  .statusStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .detailRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .button,
+  .linkButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
