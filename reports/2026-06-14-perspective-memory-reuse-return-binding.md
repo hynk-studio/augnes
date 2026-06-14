@@ -98,7 +98,6 @@ Passed locally:
 - `npm run smoke:perspective-memory-items-search`
 - `npm run smoke:perspective-memory-items-review-workspace`
 - `npm run smoke:perspective-memory-items-reuse-packet`
-- `npm run smoke:perspective-memory-reuse-packet-dogfood-report`
 - `npm run smoke:perspective-memory-reuse-return-binding`
 - `npm run smoke:augnes-codex-bootstrap`
 - `npm run smoke:augnes-codex-doctor`

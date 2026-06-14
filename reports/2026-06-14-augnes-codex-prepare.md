@@ -222,8 +222,6 @@ persistence boundary records.
 - `npm run smoke:augnes-codex-bootstrap`
 - `npm run smoke:augnes-codex-doctor`
 - `npm run smoke:augnes-codex-prepare`
-- `npm run smoke:augnes-codex-prepare-dogfood-report`
-- `npm run smoke:augnes-codex-prepare-setup-summary-dogfood-report`
 - `npm run smoke:augnes-operator-plugin-scaffold`
 - `npm run smoke:augnes-operator-plugin-hooks`
 - `npm run typecheck`
