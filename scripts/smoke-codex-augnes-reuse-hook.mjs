@@ -110,6 +110,10 @@ function assertHookSource() {
     "containsReuseBriefMarker",
     "promptLooksLikeDevelopmentTask",
     "appearsToBeAugnesRepo",
+    "resolveGitRepoRoot",
+    "\"rev-parse\"",
+    "\"--show-toplevel\"",
+    "appearsToBeAugnesRepo(current)",
     "MAX_CONTEXT_CHARS",
     "12_000",
     "buildCompactedContext",
@@ -133,6 +137,8 @@ function assertDocsAndReport() {
     "project-local `UserPromptSubmit` hook",
     "`perspective:memory-reuse-intake`",
     "`additionalContext`",
+    "git root detection",
+    "started from a subdirectory",
     "hooks require Codex hook trust review",
     "`/hooks`",
     "no augnes memory",
@@ -156,6 +162,8 @@ function assertDocsAndReport() {
     "## Files changed",
     "## User-facing goal",
     "## Hook behavior",
+    "git root detection",
+    "started from a nested package or subdirectory",
     "## AGENTS.md behavior",
     "## Trust/review note",
     "## Failure behavior",
@@ -180,6 +188,12 @@ function assertHookExecution() {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "augnes-reuse-hook-smoke-"));
   try {
     const missingDbPath = path.join(tempDir, "missing.db");
+    const nestedCwd = path.join(process.cwd(), "apps", "augnes_apps");
+    assert.equal(
+      existsSync(path.join(nestedCwd, "package.json")),
+      true,
+      "nested cwd fixture must include a package.json",
+    );
     const env = {
       ...process.env,
       AUGNES_DB_PATH: missingDbPath,
@@ -208,6 +222,31 @@ function assertHookExecution() {
       "Add a small Augnes reuse intake follow-up",
       "quality_review_preview_summary",
       "Boundary Reminders",
+    ]);
+
+    const nested = runHook(
+      {
+        hook_event_name: "UserPromptSubmit",
+        cwd: nestedCwd,
+        prompt: "Update the Augnes reuse hook nested cwd fixture",
+        session_id: "smoke",
+        turn_id: "smoke-nested",
+        permission_mode: "default",
+        model: "smoke",
+      },
+      env,
+    );
+    assert.equal(nested.status, 0);
+    assert.ok(
+      nested.stdout.trim(),
+      "nested Augnes cwd should still inject context",
+    );
+    const nestedParsed = JSON.parse(nested.stdout);
+    assert.equal(nestedParsed.continue, true);
+    assertIncludesAll(nestedParsed.hookSpecificOutput.additionalContext, [
+      "# Codex Augnes Reuse Context",
+      "Update the Augnes reuse hook nested cwd fixture",
+      "quality_review_preview_summary",
     ]);
 
     const optOut = runHook(

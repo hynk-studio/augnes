@@ -77,13 +77,36 @@ function readInputJson() {
 }
 
 function findRepoRoot(startPath) {
-  let current = path.resolve(startPath);
-  if (!existsSync(current)) current = process.cwd();
+  const startCwd = resolveExistingCwd(startPath);
+  const gitRoot = resolveGitRepoRoot(startCwd);
+  if (gitRoot && appearsToBeAugnesRepo(gitRoot)) return gitRoot;
+
+  let current = startCwd;
   while (true) {
-    if (existsSync(path.join(current, "package.json"))) return current;
+    if (appearsToBeAugnesRepo(current)) return current;
     const parent = path.dirname(current);
     if (parent === current) return null;
     current = parent;
+  }
+}
+
+function resolveExistingCwd(startPath) {
+  const preferred = path.resolve(startPath || process.cwd());
+  if (existsSync(preferred)) return preferred;
+  return process.cwd();
+}
+
+function resolveGitRepoRoot(cwd) {
+  try {
+    const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      encoding: "utf8",
+      timeout: 3_000,
+    });
+    if (result.status !== 0) return "";
+    return result.stdout.trim();
+  } catch {
+    return "";
   }
 }
 
@@ -97,9 +120,9 @@ function appearsToBeAugnesRepo(repoRoot) {
       typeof packageJson.scripts?.["perspective:memory-reuse-intake"] ===
       "string";
     const agentsText = safeRead(path.join(repoRoot, "AGENTS.md"));
-    const hasInstructionMarker = agentsText.includes(
-      "Codex Operating Contract For Augnes",
-    );
+    const hasInstructionMarker =
+      agentsText.includes("Codex Operating Contract For Augnes") ||
+      agentsText.includes("Codex Augnes Reuse Hook v0.1");
     const gitConfig = safeRead(path.join(repoRoot, ".git", "config"));
     const hasRepoMarker =
       gitConfig.includes("hynk-studio/augnes") ||

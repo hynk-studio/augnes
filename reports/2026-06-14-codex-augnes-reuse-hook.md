@@ -26,7 +26,7 @@ npm run perspective:memory-reuse-intake -- --task "..." --brief
 
 ## Hook behavior
 
-The project-local hook reads stdin JSON for `UserPromptSubmit`, takes `input.prompt` as the task string, confirms the current working directory appears to be the Augnes repo, and runs:
+The project-local hook reads stdin JSON for `UserPromptSubmit`, takes `input.prompt` as the task string, resolves the Augnes repo root with git root detection, falls back to Augnes marker-based ancestor scanning, and runs:
 
 ```bash
 npm run --silent perspective:memory-reuse-intake -- --task "<prompt>" --json
@@ -35,6 +35,8 @@ npm run --silent perspective:memory-reuse-intake -- --task "<prompt>" --json
 It injects `Codex Augnes Reuse Context` through `hookSpecificOutput.additionalContext`, including task text, generated Codex Memory Brief, selected memory IDs, `why_selected`, `reuse_boundary`, `quality_review_preview_summary`, warnings, no-match guidance, authority boundary, boundary reminders, and closeout expectations.
 
 Filtering happens inside the script because `UserPromptSubmit` matcher behavior is not used for this hook. The hook skips empty prompts, non-Augnes cwd, missing intake command, casual/non-development prompts, explicit opt-out phrases, and prompts that already contain a reuse brief marker.
+
+The root resolver prefers `git rev-parse --show-toplevel` from the hook input cwd so Codex can be started from a nested package or subdirectory inside Augnes without silently skipping reuse intake.
 
 ## AGENTS.md behavior
 

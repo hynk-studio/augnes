@@ -10,6 +10,8 @@ npm run perspective:memory-reuse-intake -- --task "..." --json
 
 The hook then injects the generated Codex Memory Brief and quality warning summary through `hookSpecificOutput.additionalContext`. The `additionalContext` field is the developer-context payload Codex receives before implementation, without requiring the operator to manually run the intake command every time.
 
+The hook resolves the Augnes repo root with `git rev-parse --show-toplevel` from the hook input cwd first. If git root detection is unavailable, it falls back to scanning ancestors for Augnes root markers. This lets Codex be started from a subdirectory or nested package inside the repo without silently skipping reuse intake.
+
 ## Relationship To Perspective Memory Reuse Intake
 
 The hook is a thin project-local wrapper around the existing `perspective:memory-reuse-intake` CLI. The intake command remains the source of ranking, no-match guidance, selected memory IDs, `why_selected`, `reuse_boundary`, the Codex Memory Brief, and quality review preview summary.
