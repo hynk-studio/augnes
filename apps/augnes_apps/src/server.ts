@@ -385,6 +385,32 @@ const CODEX_HANDOFF_PREVIEW_STOP_CONDITIONS = [
 const CODEX_HANDOFF_JSON_SCHEMA = "augnes.codex_handoff_preview.v0_1" as const;
 const CODEX_HANDOFF_JSON_BEGIN = "BEGIN_AUGNES_CODEX_HANDOFF_JSON" as const;
 const CODEX_HANDOFF_JSON_END = "END_AUGNES_CODEX_HANDOFF_JSON" as const;
+const NO_CONSTELLATION_CONTEXT_TEXT = "No Project Constellation context is attached to this work contract." as const;
+
+const WORK_CONTRACT_CONSTELLATION_CONTEXT_BOUNDARY_TEXT = [
+  "Project Constellation context is read-only operator context.",
+  "Evidence refs remain pointer-only.",
+  "Unresolved tensions remain unresolved.",
+  "Advisory next action context does not execute Codex.",
+  "This context cannot record proof or evidence, mutate Augnes state, create branches or PRs, merge, publish, retry, replay, or deploy.",
+] as const;
+
+type WorkContractConstellationContext = {
+  context_type: "work_contract_constellation_context";
+  status: "attached";
+  thesis: string;
+  selected_candidate_id: string | null;
+  selected_candidate_label: string | null;
+  selection_status: string | null;
+  selection_fallback_reason: string | null;
+  pointer_evidence_ref_count: number;
+  pointer_evidence_refs: string[];
+  unresolved_tension_count: number;
+  unresolved_tensions: string[];
+  advisory_next_action_summary: string | null;
+  source_refs: string[];
+  boundary_text: readonly string[];
+};
 
 type WorkContractCard = {
   card_type: "work_contract_card";
@@ -409,6 +435,7 @@ type WorkContractCard = {
   proof_evidence_expectation_summary: string;
   skipped_check_expectation_summary: string;
   authority_boundary_text: readonly string[];
+  constellation_context: WorkContractConstellationContext | null;
   source: {
     tool: "augnes_get_work_brief";
     structured_content: "brief";
@@ -451,6 +478,7 @@ type CodexHandoffPreview = {
   browser_verification: "required" | "not_required" | "needs_user_core_confirmation";
   forbidden_actions: readonly string[];
   stop_conditions: readonly string[];
+  constellation_context: WorkContractConstellationContext | null;
   copyable_handoff_text: string;
   boundary_text: readonly string[];
 };
@@ -484,6 +512,7 @@ type CodexHandoffJsonBlock = {
   };
   forbidden_actions: readonly string[];
   stop_conditions: readonly string[];
+  constellation_context: WorkContractConstellationContext | null;
   authority_boundaries: readonly string[];
   copy_packet: {
     preview_only: true;
@@ -512,6 +541,25 @@ function firstStringArray(...values: unknown[]): string[] {
     if (items.length > 0) return items;
   }
   return [];
+}
+
+function objectFromUnknown(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function objectArrayFromUnknown(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    .map((item) => item as Record<string, unknown>);
+}
+
+function firstObject(...values: unknown[]): Record<string, unknown> | null {
+  for (const value of values) {
+    const object = objectFromUnknown(value);
+    if (Object.keys(object).length > 0) return object;
+  }
+  return null;
 }
 
 function booleanFromUnknown(...values: unknown[]): boolean | null {
@@ -575,8 +623,153 @@ function listForPacket(items: string[], fallback: string): string {
   return items.length ? items.map((item) => `  - ${item}`).join("\n") : `  - ${fallback}`;
 }
 
+function formatPacketLine(value: string | null, fallback = "missing"): string {
+  return value ?? fallback;
+}
+
+function sourceRefStringsFromUnknown(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return nonEmptyString(item);
+        const object = objectFromUnknown(item);
+        return (
+          nonEmptyString(object.source_ref) ??
+          nonEmptyString(object.target_ref) ??
+          nonEmptyString(object.label) ??
+          nonEmptyString(object.id)
+        );
+      })
+      .filter((item): item is string => Boolean(item));
+  }
+  return stringArrayFromUnknown(value);
+}
+
+function summarizeConstellationEvidenceRef(item: Record<string, unknown>): string | null {
+  const pointerId = nonEmptyString(item.pointer_id) ?? nonEmptyString(item.id);
+  const label = nonEmptyString(item.label);
+  const targetRef = nonEmptyString(item.target_ref);
+  if (!pointerId && !label && !targetRef) return null;
+  return [pointerId, label, targetRef ? `-> ${targetRef}` : null].filter(Boolean).join(": ");
+}
+
+function summarizeConstellationTension(item: Record<string, unknown>): string | null {
+  const tensionId = nonEmptyString(item.tension_id) ?? nonEmptyString(item.id);
+  const label = nonEmptyString(item.label);
+  const summary = nonEmptyString(item.summary);
+  if (!tensionId && !label && !summary) return null;
+  return [tensionId, label, summary].filter(Boolean).join(": ");
+}
+
+function summarizeConstellationAction(item: Record<string, unknown> | null): string | null {
+  if (!item) return null;
+  const candidateId = nonEmptyString(item.candidate_id) ?? nonEmptyString(item.id);
+  const label = nonEmptyString(item.label);
+  const summary = nonEmptyString(item.summary);
+  if (!candidateId && !label && !summary) return null;
+  return [candidateId, label, summary].filter(Boolean).join(": ");
+}
+
 function formatStatus(value: string | null, fallback = "missing"): string {
   return value ?? fallback;
+}
+
+function buildWorkContractConstellationContext(source: unknown): WorkContractConstellationContext | null {
+  const sourceObject = objectFromUnknown(source);
+  if (Object.keys(sourceObject).length === 0) return null;
+
+  const preview = objectFromUnknown(sourceObject.project_constellation_preview ?? sourceObject.constellation_preview);
+  const compact = firstObject(
+    sourceObject.work_contract_constellation_context,
+    sourceObject.constellation_context,
+    preview
+  );
+  if (!compact) return null;
+
+  const project = objectFromUnknown(compact.project_constellation ?? sourceObject.project_constellation);
+  const thesis =
+    nonEmptyString(compact.thesis) ??
+    nonEmptyString(project.thesis) ??
+    nonEmptyString(objectFromUnknown(sourceObject.project_constellation).thesis);
+  if (!thesis) return null;
+
+  const evidencePointers = objectArrayFromUnknown(
+    compact.evidence_pointers ?? sourceObject.evidence_pointers ?? project.evidence_pointers
+  );
+  const unresolvedTensions = objectArrayFromUnknown(
+    compact.unresolved_tensions ?? sourceObject.unresolved_tensions ?? project.unresolved_tensions
+  );
+  const nextActionCandidates = objectArrayFromUnknown(
+    compact.next_action_candidates ?? sourceObject.next_action_candidates ?? project.next_action_candidates
+  );
+  const selectedCandidateId =
+    nonEmptyString(compact.selected_candidate_id) ??
+    nonEmptyString(objectFromUnknown(compact.selection).selected_candidate_id) ??
+    nonEmptyString(objectFromUnknown(compact.copyable_handoff_seed).selected_candidate_id);
+  const selectedCandidate =
+    selectedCandidateId ? nextActionCandidates.find((candidate) => nonEmptyString(candidate.candidate_id) === selectedCandidateId) ?? null : null;
+  const defaultCandidate = selectedCandidate ?? nextActionCandidates[0] ?? null;
+  const pointerRefs = firstStringArray(compact.pointer_evidence_refs, compact.evidence_refs);
+  const summarizedPointerRefs =
+    pointerRefs.length > 0
+      ? pointerRefs
+      : evidencePointers.map(summarizeConstellationEvidenceRef).filter((item): item is string => Boolean(item));
+  const tensionRefs = firstStringArray(compact.unresolved_tensions, compact.tension_refs);
+  const summarizedTensions =
+    tensionRefs.length > 0
+      ? tensionRefs
+      : unresolvedTensions.map(summarizeConstellationTension).filter((item): item is string => Boolean(item));
+
+  return {
+    context_type: "work_contract_constellation_context",
+    status: "attached",
+    thesis,
+    selected_candidate_id: selectedCandidateId,
+    selected_candidate_label:
+      nonEmptyString(compact.selected_candidate_label) ??
+      nonEmptyString(objectFromUnknown(compact.selection).selected_candidate_label) ??
+      nonEmptyString(objectFromUnknown(compact.copyable_handoff_seed).selected_candidate_label) ??
+      nonEmptyString(selectedCandidate?.label),
+    selection_status:
+      nonEmptyString(compact.selection_status) ??
+      nonEmptyString(objectFromUnknown(compact.selection).selection_status) ??
+      nonEmptyString(objectFromUnknown(compact.copyable_handoff_seed).selection_status),
+    selection_fallback_reason:
+      nonEmptyString(compact.selection_fallback_reason) ??
+      nonEmptyString(objectFromUnknown(compact.selection).selection_fallback_reason) ??
+      nonEmptyString(objectFromUnknown(compact.copyable_handoff_seed).selection_fallback_reason),
+    pointer_evidence_ref_count:
+      typeof compact.pointer_evidence_ref_count === "number" && Number.isFinite(compact.pointer_evidence_ref_count)
+        ? compact.pointer_evidence_ref_count
+        : summarizedPointerRefs.length,
+    pointer_evidence_refs: summarizedPointerRefs.slice(0, 5),
+    unresolved_tension_count:
+      typeof compact.unresolved_tension_count === "number" && Number.isFinite(compact.unresolved_tension_count)
+        ? compact.unresolved_tension_count
+        : summarizedTensions.length,
+    unresolved_tensions: summarizedTensions.slice(0, 5),
+    advisory_next_action_summary:
+      nonEmptyString(compact.advisory_next_action_summary) ??
+      nonEmptyString(compact.next_action_summary) ??
+      summarizeConstellationAction(defaultCandidate),
+    source_refs: sourceRefStringsFromUnknown(compact.source_refs ?? sourceObject.source_refs).slice(0, 5),
+    boundary_text: WORK_CONTRACT_CONSTELLATION_CONTEXT_BOUNDARY_TEXT,
+  };
+}
+
+function buildWorkContractConstellationContextFromBrief(brief: WorkBrief): WorkContractConstellationContext | null {
+  const briefRecord = brief as WorkBrief & Record<string, unknown>;
+  const codexHandoff = objectFromUnknown(brief.codex_handoff);
+  return buildWorkContractConstellationContext({
+    work_contract_constellation_context: briefRecord.work_contract_constellation_context,
+    constellation_context: briefRecord.constellation_context ?? codexHandoff.constellation_context,
+    project_constellation_preview: briefRecord.project_constellation_preview ?? codexHandoff.project_constellation_preview,
+    project_constellation: briefRecord.project_constellation,
+    evidence_pointers: briefRecord.evidence_pointers,
+    unresolved_tensions: briefRecord.unresolved_tensions,
+    next_action_candidates: briefRecord.next_action_candidates,
+    source_refs: briefRecord.source_refs,
+  });
 }
 
 function runtimeEndpointNeedsConfirmation(label: string): boolean {
@@ -621,6 +814,7 @@ function buildStructuredHandoffJsonBlock(
     },
     forbidden_actions: preview.forbidden_actions,
     stop_conditions: preview.stop_conditions,
+    constellation_context: preview.constellation_context,
     authority_boundaries: preview.boundary_text,
     copy_packet: {
       preview_only: true,
@@ -639,6 +833,25 @@ function buildCopyableHandoffText(preview: Omit<CodexHandoffPreview, "copyable_h
       ? "<provided-current-runtime>"
       : preview.runtime_endpoint_label;
   const structuredJson = JSON.stringify(buildStructuredHandoffJsonBlock(preview), null, 2);
+  const constellationContext = preview.constellation_context;
+  const constellationContextLines = constellationContext
+    ? [
+        `- Thesis: ${constellationContext.thesis}`,
+        `- Selected candidate ID: ${formatPacketLine(constellationContext.selected_candidate_id)}`,
+        `- Selected candidate label: ${formatPacketLine(constellationContext.selected_candidate_label)}`,
+        `- Selection status: ${formatPacketLine(constellationContext.selection_status)}`,
+        constellationContext.selection_fallback_reason
+          ? `- Selection fallback: ${constellationContext.selection_fallback_reason}`
+          : "- Selection fallback: none",
+        `- Pointer-only evidence refs: ${constellationContext.pointer_evidence_ref_count}`,
+        listForPacket(constellationContext.pointer_evidence_refs, "No pointer-only evidence refs attached."),
+        `- Unresolved tensions: ${constellationContext.unresolved_tension_count}`,
+        listForPacket(constellationContext.unresolved_tensions, "No unresolved tensions attached."),
+        `- Advisory next action: ${formatPacketLine(constellationContext.advisory_next_action_summary, "No advisory next action summary attached.")}`,
+        "- Source refs:",
+        listForPacket(constellationContext.source_refs, "No source refs attached."),
+      ]
+    : [`- ${NO_CONSTELLATION_CONTEXT_TEXT}`];
 
   return [
     "Codex Handoff Preview",
@@ -661,6 +874,9 @@ function buildCopyableHandoffText(preview: Omit<CodexHandoffPreview, "copyable_h
     `- Status: ${formatStatus(preview.work_status, "No work status listed.")}`,
     `- Next action: ${formatStatus(preview.work_next_action, "No next action listed.")}`,
     `- Task profile: ${preview.task_profile}`,
+    "",
+    "Project Constellation context",
+    ...constellationContextLines,
     "",
     "Authorization",
     `- Evidence recording: ${preview.evidence_recording}`,
@@ -694,6 +910,7 @@ function buildCopyableHandoffText(preview: Omit<CodexHandoffPreview, "copyable_h
 function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
   const codexHandoff = brief.codex_handoff as typeof brief.codex_handoff & Record<string, unknown>;
   const workLinks = brief.work.links as Record<string, unknown>;
+  const constellationContext = buildWorkContractConstellationContextFromBrief(brief);
   const expectedFiles = firstStringArray(codexHandoff.expected_files, workLinks.expected_files);
   const expectedChecks = firstStringArray(
     codexHandoff.expected_checks,
@@ -748,6 +965,7 @@ function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
     skipped_check_expectation_summary:
       "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief.",
     authority_boundary_text: WORK_CONTRACT_CARD_BOUNDARY_TEXT,
+    constellation_context: constellationContext,
     source: {
       tool: "augnes_get_work_brief",
       structured_content: "brief",
@@ -838,6 +1056,7 @@ function buildCodexHandoffPreview(brief: WorkBrief, card: WorkContractCard): Cod
     browser_verification: browserVerification,
     forbidden_actions: CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS,
     stop_conditions: CODEX_HANDOFF_PREVIEW_STOP_CONDITIONS,
+    constellation_context: card.constellation_context,
     boundary_text: CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT,
   } satisfies Omit<CodexHandoffPreview, "copyable_handoff_text">;
 
@@ -1877,6 +2096,12 @@ export function createMcpAppServer(
           brief,
           work_contract_card: workContractCard,
           codex_handoff_preview: codexHandoffPreview,
+          ...(workContractCard.constellation_context
+            ? {
+                work_contract_constellation_context: workContractCard.constellation_context,
+                constellation_context: workContractCard.constellation_context,
+              }
+            : {}),
           boundaries: workContractCard.boundaries,
         });
         return {

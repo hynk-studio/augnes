@@ -103,6 +103,24 @@ unavailable preview with empty node/edge/cluster/evidence/tension/action
 families plus fallback text. It does not invent missing Project Constellation
 context.
 
+## Work Contract / Constellation Context Bridge
+
+The Work Contract Card may render an optional `Project Constellation context`
+section when the existing structured content already includes a compact
+`work_contract_constellation_context`, `constellation_context`, or compatible
+`project_constellation_preview` object. This bridge is display-only. It shows
+the selected Constellation thesis, selected advisory candidate, selection
+status, pointer-only evidence refs, unresolved tensions, advisory next action
+summary, and source refs when those fields are attached.
+
+When no Constellation context is attached, the card renders the explicit
+fallback: `No Project Constellation context is attached to this work contract.`
+The Codex Handoff Preview packet carries the same bounded context or fallback
+text so copied packets preserve what the user saw. The bridge does not fetch
+the Constellation route from the work brief tool, does not require
+Constellation context to render the Work Contract Card, and does not invent
+missing selected candidates, evidence refs, tensions, or source refs.
+
 ## Copy Codex Handoff Affordance
 
 The Codex Handoff Preview includes a single `Copy Codex Handoff` control near
@@ -131,9 +149,10 @@ publish, retry, replay, externally post, merge, enable auto-merge, or
 commit/reject Augnes state. Copying the packet does not mutate Augnes state and
 does not turn the preview into a Codex execution surface.
 
-If clipboard copy is unavailable or fails, the widget shows local status text
-and the user can manually copy the still-visible packet text. Raw DB paths
-remain local-dev fallback only and should not be normal user-facing input.
+If clipboard copy is unavailable or fails, the widget tries the local
+`execCommand` copy fallback, then selects the still-visible packet text for
+manual copy when the host blocks clipboard writes. Raw DB paths remain
+local-dev fallback only and should not be normal user-facing input.
 
 The widget may show a local text hint that copied packets can be validated with
 `codex:handoff-preflight` before a separate Codex session starts. The hint is
