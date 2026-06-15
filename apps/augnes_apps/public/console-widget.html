@@ -306,6 +306,11 @@
         font-size: 20px;
       }
 
+      .recommended .item-note,
+      .recommended .meta-line {
+        color: rgba(255, 255, 255, 0.82);
+      }
+
       .status-box {
         padding: 12px;
         border-radius: 14px;
@@ -740,7 +745,8 @@
           unavailable: "Unavailable",
           warn: "Needs attention",
         };
-        return labels[text] || text.replace(/_/g, " ");
+        const fallback = text.replace(/_/g, " ");
+        return labels[text] || `${fallback.charAt(0).toUpperCase()}${fallback.slice(1)}`;
       }
 
       function formatUiSlotLabel(value) {
@@ -799,6 +805,18 @@
             "PR link only if a separate read-only review flow was explicitly used.",
         };
         return labels[text] || text;
+      }
+
+      function isCompletedWorkStatus(status) {
+        return ["completed", "done", "cancelled", "canceled", "archived"].includes(nonEmptyText(status, "").toLowerCase());
+      }
+
+      function numberOrZero(value) {
+        return Number.isFinite(value) ? value : 0;
+      }
+
+      function countArrayLike(value) {
+        return Array.isArray(value) ? value.length : 0;
       }
 
       function createCodeListWithFallback(items, fallback) {
@@ -975,6 +993,100 @@
           "- Source refs:",
           ...(safeArray(context.source_refs).length ? safeArray(context.source_refs).map((item) => `  - ${item}`) : ["  - No source refs attached."]),
         ];
+      }
+
+      function normalizeWorkPickerCandidate(item, recommendedWorkId) {
+        const record = safeRecord(item);
+        const links = safeRecord(record.links);
+        const workId = nonEmptyText(record.work_id || record.workId, "No work ID listed.");
+        const nextStep = nonEmptyText(record.next_step || record.next_action || record.nextAction, "No next step is listed for this work item.");
+        const expectedFilesCount = Number.isFinite(record.expected_files_count)
+          ? record.expected_files_count
+          : countArrayLike(record.expected_files || links.expected_files);
+        const expectedChecksCount = Number.isFinite(record.expected_checks_count)
+          ? record.expected_checks_count
+          : countArrayLike(record.expected_checks || links.expected_checks);
+        const linkedDocsCount = Number.isFinite(record.linked_docs_count)
+          ? record.linked_docs_count
+          : countArrayLike(record.docs || links.docs);
+
+        return {
+          work_id: workId,
+          title: nonEmptyText(record.title || record.work_title, "No work title listed."),
+          status: nonEmptyText(record.status || record.work_status, "unknown"),
+          priority: nonEmptyText(record.priority, "unknown"),
+          summary: nonEmptyText(record.summary, "No summary is listed for this work item."),
+          next_step: nextStep,
+          user_attention_required: record.user_attention_required === true,
+          related_state_keys_count: Number.isFinite(record.related_state_keys_count)
+            ? record.related_state_keys_count
+            : countArrayLike(record.related_state_keys),
+          expected_files_count: expectedFilesCount,
+          expected_checks_count: expectedChecksCount,
+          linked_docs_count: linkedDocsCount,
+          is_recommended: record.is_recommended === true || workId === recommendedWorkId,
+          handoff_instruction: nonEmptyText(
+            record.handoff_instruction,
+            `Open this work with augnes_get_work_brief using workId: ${workId}.`
+          ),
+        };
+      }
+
+      function normalizeWorkPickerCard(data) {
+        const source = safeRecord(data?.work_picker_card || data);
+        const rawCandidates = safeRecordArray(source.work_candidates || data?.work_candidates || data?.workItems);
+        const fallbackRecommended =
+          rawCandidates.find((item) => !isCompletedWorkStatus(nonEmptyText(item.status || item.work_status, ""))) ||
+          rawCandidates[0] ||
+          null;
+        const recommendedWorkId = nonEmptyText(
+          source.recommended_work_id || data?.recommended_work_id || fallbackRecommended?.work_id || fallbackRecommended?.workId,
+          ""
+        );
+        const candidates = rawCandidates.map((item) => normalizeWorkPickerCandidate(item, recommendedWorkId));
+        const recommended = candidates.find((item) => item.work_id === recommendedWorkId) || candidates.find((item) => item.is_recommended) || null;
+        const scope = nonEmptyText(source.scope || data?.scope, "No scope listed.");
+        const hasExactlyOneCandidate = candidates.length === 1;
+        const selectionReason = nonEmptyText(
+          source.selection_reason || data?.selection_reason,
+          recommended
+            ? hasExactlyOneCandidate
+              ? "Only work item found for this scope."
+              : !isCompletedWorkStatus(recommended.status)
+                ? "First active work item for this scope."
+                : "First work item returned for this scope."
+            : "No work items found for this scope."
+        );
+
+        return {
+          card_type: "work_picker_card",
+          title: nonEmptyText(source.title, "Choose a work item"),
+          scope,
+          candidate_count: Number.isFinite(source.candidate_count) ? source.candidate_count : candidates.length,
+          recommended_work_id: recommended?.work_id || "",
+          recommended_work_title: nonEmptyText(source.recommended_work_title, recommended?.title || ""),
+          selection_reason: selectionReason,
+          next_action_hint: nonEmptyText(
+            source.next_action_hint || data?.next_action_hint,
+            recommended
+              ? `Open the recommended work with augnes_get_work_brief using workId: ${recommended.work_id}.`
+              : "No work items found for this scope. Check the scope or select/create a work item elsewhere before opening a handoff card."
+          ),
+          handoff_tool_hint: nonEmptyText(
+            source.handoff_tool_hint || data?.handoff_tool_hint,
+            "When a user asks for a project handoff and no workId is known, list work items first, then call augnes_get_work_brief with the selected or recommended workId."
+          ),
+          empty_state: nonEmptyText(source.empty_state, candidates.length ? "" : "No work items found for this scope. Check the scope or select/create a work item elsewhere."),
+          work_candidates: candidates,
+          boundary_text: safeArray(source.boundary_text).length
+            ? safeArray(source.boundary_text)
+            : [
+                "Work Picker is read-only.",
+                "Work IDs are trace anchors, not committed state authority.",
+                "Selecting a work item means choosing what to inspect next; it does not execute Codex.",
+                "This card cannot create branches or PRs, call GitHub or providers, record proof or evidence, mutate Augnes state, approve, publish, merge, retry, replay, or deploy.",
+              ],
+        };
       }
 
       function normalizeWorkContractCard(data) {
@@ -2867,6 +2979,69 @@
         return root;
       }
 
+      function renderWorkPickerCandidate(candidate) {
+        const item = el("div", { className: candidate.is_recommended ? "item selected-item" : "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.appendChild(el("div", { className: "item-title", text: candidate.title }));
+        titleRow.appendChild(tag(candidate.is_recommended ? "Recommended" : formatUiStatus(candidate.status)));
+        item.appendChild(titleRow);
+        item.appendChild(el("div", { className: "meta-line", text: `Work ID: ${candidate.work_id}` }));
+        item.appendChild(el("div", { className: "item-note", text: candidate.summary }));
+        item.appendChild(createMetricGrid([
+          ["Status", formatUiStatus(candidate.status)],
+          ["Priority", candidate.priority],
+          ["Expected files", String(numberOrZero(candidate.expected_files_count))],
+          ["Expected checks", String(numberOrZero(candidate.expected_checks_count))],
+          ["Related state", String(numberOrZero(candidate.related_state_keys_count))],
+          ["Linked docs", String(numberOrZero(candidate.linked_docs_count))],
+        ]));
+        item.appendChild(createSection("Next step", el("div", { className: "status-box", text: candidate.next_step })));
+        item.appendChild(el("div", { className: "status-box", text: candidate.handoff_instruction }));
+        if (candidate.user_attention_required) {
+          item.appendChild(tag("Needs user attention"));
+        }
+        return item;
+      }
+
+      function renderWorkPickerCard(data) {
+        const card = normalizeWorkPickerCard(data);
+        const root = el("div", { className: "stack" });
+        root.appendChild(el("p", { className: "summary", text: card.title }));
+        root.appendChild(createMetricGrid([
+          ["Scope", card.scope],
+          ["Candidate count", String(numberOrZero(card.candidate_count))],
+          ["Recommended work", card.recommended_work_id || "none"],
+          ["Selection", card.selection_reason],
+        ]));
+
+        if (!card.work_candidates.length) {
+          root.appendChild(el("div", { className: "status-box", text: card.empty_state || "No work items found for this scope." }));
+          root.appendChild(el("div", { className: "status-box", text: card.next_action_hint }));
+        } else {
+          const recommended = card.work_candidates.find((candidate) => candidate.work_id === card.recommended_work_id) || card.work_candidates[0];
+          const recommendedBox = el("div", { className: "recommended" });
+          recommendedBox.appendChild(el("small", { text: "Recommended work" }));
+          recommendedBox.appendChild(el("strong", { text: `${recommended.work_id} · ${recommended.title}` }));
+          recommendedBox.appendChild(el("div", { className: "item-note", text: card.selection_reason }));
+          recommendedBox.appendChild(el("div", { className: "item-note", text: card.next_action_hint }));
+          root.appendChild(recommendedBox);
+
+          const list = el("div", { className: "stack" });
+          for (const candidate of card.work_candidates) {
+            list.appendChild(renderWorkPickerCandidate(candidate));
+          }
+          root.appendChild(createSection("Work candidates", list, { badge: `${card.work_candidates.length}` }));
+        }
+
+        root.appendChild(createSection(
+          "Open handoff",
+          el("div", { className: "status-box", text: card.handoff_tool_hint }),
+          { badge: "next" }
+        ));
+        root.appendChild(createSection("Technical boundary", createTextList(card.boundary_text), { badge: "read-only", open: false }));
+        return root;
+      }
+
       function renderFinalHandoffReadinessSummary(summary) {
         const normalized = normalizeFinalHandoffReadinessSummary(summary, {}, {});
         const root = el("div", { className: "stack" });
@@ -3548,9 +3723,29 @@
         uiState.lastPanel = panel || "text";
         uiState.lastUpdated = new Date();
         uiState.profile = profile;
-        panelChipEl.textContent = uiState.lastPanel;
+        panelChipEl.textContent = formatPanelLabel(uiState.lastPanel);
         profileChipEl.textContent = `profile: ${uiState.profile}`;
         updatedChipEl.textContent = uiState.lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      function formatPanelLabel(value) {
+        const text = nonEmptyText(value, "idle");
+        const labels = {
+          audit: "Governance audit",
+          boundary: "Boundary packet",
+          casefile: "Casefile",
+          continuity: "Continuity report",
+          idle: "Idle",
+          project_constellation_preview: "Constellation preview",
+          repo: "Repo navigation",
+          strategy: "Strategy",
+          structured: "Structured output",
+          text: "Text output",
+          work_contract_card: "Work contract",
+          work_picker_card: "Work picker",
+          working_view: "Working view",
+        };
+        return labels[text] || formatUiStatus(text);
       }
 
       function renderPanel(data) {
@@ -3614,6 +3809,11 @@
             panelTitleEl.textContent = "Governance Audit";
             panelEl.appendChild(renderAudit(data.audit, profile));
             updateShellState("audit", profile);
+            return;
+          case "work_picker_card":
+            panelTitleEl.textContent = "Choose a work item";
+            panelEl.appendChild(renderWorkPickerCard(data));
+            updateShellState("work_picker_card", profile);
             return;
           case "work_contract_card":
             panelTitleEl.textContent = "Work Contract Card";

@@ -9,6 +9,60 @@ Codex worker is expected to honor before implementation and closeout.
 The card is decision support only. It does not create authority, record proof,
 record evidence, mutate runtime state, or dispatch execution.
 
+## Work Picker Entry Surface
+
+The Work Picker Entry Surface is the scope-only first-entry path for a user
+who knows the project scope, such as `project:augnes`, but does not already
+know a `workId`.
+
+The callable entry tool is:
+
+```text
+augnes_list_work_items
+```
+
+For the ChatGPT/App handoff flow, the tool returns a visible
+`work_picker_card` panel plus model-readable fields:
+
+- `work_picker_card`
+- `work_candidates`
+- `recommended_work_id`
+- `selection_reason`
+- `next_action_hint`
+- `handoff_tool_hint`
+
+The card shows practical selection context first: scope, candidate count,
+recommended work, selection reason, each candidate title, status, priority,
+`Work ID`, summary, `Next step`, expected file/check counts, linked docs, and
+the exact follow-up instruction:
+
+```text
+Open this work with augnes_get_work_brief using workId: <workId>.
+```
+
+The normal user path is:
+
+```text
+project scope -> visible work candidates -> recommended work -> augnes_get_work_brief with the selected workId -> Work Contract Card / final handoff packet
+```
+
+`workId` is therefore still required by `augnes_get_work_brief`, but it is no
+longer required as first-entry knowledge. A scope-only user can discover the
+recommended work item through `augnes_list_work_items`, then open the existing
+handoff card with the selected or recommended work ID. The picker does not
+auto-call the brief tool and does not change the brief schema.
+
+If no items are found, the card renders the empty state:
+
+```text
+No work items found for this scope. Check the scope or select/create a work item elsewhere.
+```
+
+The Work Picker is read-only. It does not execute Codex, create branches or
+PRs, call GitHub, make provider/OpenAI calls, record proof, record evidence,
+mutate Augnes state, persist a selection, approve, publish, merge, retry,
+replay, or deploy.
+
 ## Codex Handoff Preview
 
 The Codex Handoff Preview is a read-only section inside the Work Contract Card.
@@ -326,9 +380,15 @@ evidence, or mutate Augnes state.
 
 ## Data Source
 
-The card is rendered from existing `augnes_get_work_brief` structured content.
-The tool still returns the original `structuredContent.brief` payload, and the
-server adds a derived `structuredContent.work_contract_card` object, a derived
+The first-entry Work Picker is rendered from existing `augnes_list_work_items`
+structured content. It adds a derived `structuredContent.work_picker_card`
+object, candidate summaries, a recommended work ID, selection reason, and
+handoff tool guidance.
+
+The Work Contract Card is rendered from existing `augnes_get_work_brief`
+structured content. The brief tool still returns the original
+`structuredContent.brief` payload, and the server adds a derived
+`structuredContent.work_contract_card` object, a derived
 `structuredContent.codex_handoff_preview` object, and widget panel metadata.
 
 No new bridge write tool is added. No new API route, database schema, MCP

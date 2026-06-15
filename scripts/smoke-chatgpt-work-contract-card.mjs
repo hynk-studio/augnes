@@ -27,6 +27,9 @@ for (const text of [server, widget, runbook]) {
 }
 
 assert.match(server, /work_contract_card/, "server must return Work Contract Card structured content");
+assert.match(server, /work_picker_card/, "server must return Work Picker structured content");
+assert.match(server, /recommended_work_id/, "server must return a recommended work ID for the Work Picker");
+assert.match(server, /handoff_tool_hint/, "server must return model-readable handoff tool guidance");
 assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
 assert.match(server, /final_codex_handoff_packet/, "server must return Final Codex Handoff Packet structured content");
 assert.match(server, /codex_final_handoff_packet/, "server must expose a final handoff packet alias for model-readable access");
@@ -50,6 +53,8 @@ assert.match(server, /overall_local_preflight_status/, "server must expose overa
 assert.match(server, /work_contract_constellation_context/, "server must support optional Work Contract / Constellation context");
 assert.match(server, /No Project Constellation context is attached to this work contract\./, "server must keep missing Constellation context explicit");
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
+assert.match(widget, /renderWorkPickerCard/, "widget must implement Work Picker rendering");
+assert.match(widget, /normalizeWorkPickerCard/, "widget must normalize Work Picker structured content");
 assert.match(widget, /renderCodexHandoffPreview/, "widget must implement Codex Handoff Preview rendering");
 assert.match(widget, /renderFinalCodexHandoffPacket/, "widget must render the Final Codex Handoff section");
 assert.match(widget, /renderCodexExecutionRequestPreview/, "widget must render the Codex execution request preview section");
@@ -72,6 +77,10 @@ assert.match(widget, /Clipboard API/, "copy behavior must retain Clipboard API p
 assert.match(widget, /document\.execCommand\?\.\("copy"\)/, "copy behavior must retain execCommand fallback");
 assert.match(widget, /selectElementText\(pre\)/, "copy behavior must retain visible text selection fallback");
 assert.match(runbook, /Data Source/i, "runbook must explain the data source");
+assert.match(runbook, /Work Picker Entry Surface/i, "runbook must explain the Work Picker entry surface");
+assert.match(runbook, /scope-only first-entry/i, "runbook must document the scope-only first-entry path");
+assert.match(runbook, /augnes_list_work_items/i, "runbook must name the list-work-items entry tool");
+assert.match(runbook, /augnes_get_work_brief/i, "runbook must name the handoff card follow-up tool");
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
 assert.match(runbook, /Final Codex Handoff Auto-Compose And Preflight/i, "runbook must explain final handoff auto-compose and preflight");
@@ -154,6 +163,14 @@ assert.deepEqual(
 );
 assert.ok(!writeTools.some((name) => /work_contract|contract_card/i.test(name)), "card must not add a bridge write tool");
 
+const workListBlock = extractToolBlock(server, "augnes_list_work_items");
+assert.match(workListBlock, /annotations:\s*bridgeReadAnnotations/, "augnes_list_work_items must remain read-only annotated");
+assert.match(workListBlock, /_meta:\s*widgetToolMeta/, "augnes_list_work_items must be widget-backed for the Work Picker card");
+assert.match(workListBlock, /work_picker_card/, "augnes_list_work_items must carry Work Picker structured content");
+assert.match(workListBlock, /recommended_work_id/, "augnes_list_work_items must expose recommended_work_id");
+assert.match(workListBlock, /work_candidates/, "augnes_list_work_items must expose work_candidates");
+assert.match(workListBlock, /handoff_tool_hint/, "augnes_list_work_items must expose handoff tool guidance");
+
 const workBriefBlock = extractToolBlock(server, "augnes_get_work_brief");
 assert.match(workBriefBlock, /annotations:\s*bridgeReadAnnotations/, "augnes_get_work_brief must remain read-only annotated");
 assert.match(workBriefBlock, /_meta:\s*widgetToolMeta/, "augnes_get_work_brief must be widget-backed for the card");
@@ -179,6 +196,9 @@ if (server.includes('"augnes_get_work_contract_card"')) {
 }
 
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractCard"), "buildWorkContractCard");
+assertNoNetworkCalls(extractFunction(server, "isCompletedWorkStatus"), "isCompletedWorkStatus");
+assertNoNetworkCalls(extractFunction(server, "countLinkedStrings"), "countLinkedStrings");
+assertNoNetworkCalls(extractFunction(server, "buildWorkPickerCard"), "buildWorkPickerCard");
 assertNoNetworkCalls(extractFunction(server, "buildCodexHandoffPreview"), "buildCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(server, "buildCopyableHandoffText"), "buildCopyableHandoffText");
 assertNoNetworkCalls(extractFunction(server, "memoryReuseAttachmentStatusFromUnknown"), "memoryReuseAttachmentStatusFromUnknown");
@@ -220,9 +240,12 @@ assertNoNetworkCalls(extractFunction(server, "buildCodexExecutionRequestPreview"
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContext"), "buildWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContextFromBrief"), "buildWorkContractConstellationContextFromBrief");
 assertNoNetworkCalls(extractFunction(server, "describeWorkContractCard"), "describeWorkContractCard");
+assertNoNetworkCalls(extractFunction(server, "describeWorkPickerCard"), "describeWorkPickerCard");
 assertNoNetworkCalls(extractFunction(server, "describeCodexHandoffPreview"), "describeCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(server, "describeFinalCodexHandoffPacket"), "describeFinalCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
+assertNoNetworkCalls(extractFunction(widget, "renderWorkPickerCandidate"), "renderWorkPickerCandidate");
+assertNoNetworkCalls(extractFunction(widget, "renderWorkPickerCard"), "renderWorkPickerCard");
 assertNoNetworkCalls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderFinalCodexHandoffPacket"), "renderFinalCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "renderCodexExecutionRequestPreview"), "renderCodexExecutionRequestPreview");
@@ -235,6 +258,11 @@ assertNoNetworkCalls(extractFunction(widget, "renderHandoffAutomationSlots"), "r
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractConstellationContext"), "renderWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(widget, "renderCopyableHandoffPacket"), "renderCopyableHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
+assertNoNetworkCalls(extractFunction(widget, "isCompletedWorkStatus"), "isCompletedWorkStatus");
+assertNoNetworkCalls(extractFunction(widget, "numberOrZero"), "numberOrZero");
+assertNoNetworkCalls(extractFunction(widget, "countArrayLike"), "countArrayLike");
+assertNoNetworkCalls(extractFunction(widget, "normalizeWorkPickerCandidate"), "normalizeWorkPickerCandidate");
+assertNoNetworkCalls(extractFunction(widget, "normalizeWorkPickerCard"), "normalizeWorkPickerCard");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeFinalCodexHandoffPacket"), "normalizeFinalCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffPreflight"), "normalizeFinalHandoffPreflight");
@@ -281,6 +309,9 @@ const renderSource = [
   extractFunction(widget, "formatConfirmationField"),
   extractFunction(widget, "formatPrSectionLabel"),
   extractFunction(widget, "formatResultInputField"),
+  extractFunction(widget, "isCompletedWorkStatus"),
+  extractFunction(widget, "numberOrZero"),
+  extractFunction(widget, "countArrayLike"),
   extractFunction(widget, "createCodeListWithFallback"),
   extractFunction(widget, "safeRecord"),
   extractFunction(widget, "safeRecordArray"),
@@ -291,6 +322,8 @@ const renderSource = [
   extractFunction(widget, "summarizeContextNextAction"),
   extractFunction(widget, "normalizeWorkContractConstellationContext"),
   extractFunction(widget, "constellationContextPacketLines"),
+  extractFunction(widget, "normalizeWorkPickerCandidate"),
+  extractFunction(widget, "normalizeWorkPickerCard"),
   extractFunction(widget, "memoryReuseAttachmentBoundaryText"),
   extractFunction(widget, "fallbackMemoryReuseBrief"),
   extractFunction(widget, "normalizeMemoryReuseSourceContext"),
@@ -329,6 +362,8 @@ const renderSource = [
   extractFunction(widget, "codexExecutionRequestConfirmationFields"),
   extractFunction(widget, "codexExecutionRequestNonAuthorities"),
   extractFunction(widget, "normalizeCodexExecutionRequestPreview"),
+  extractFunction(widget, "renderWorkPickerCandidate"),
+  extractFunction(widget, "renderWorkPickerCard"),
   extractFunction(widget, "normalizeWorkContractCard"),
   extractFunction(widget, "normalizeCodexHandoffPreview"),
   extractFunction(widget, "renderWorkContractConstellationContext"),
@@ -345,6 +380,8 @@ const renderSource = [
 ].join("\n\n");
 
 assertNoForbiddenControls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
+assertNoForbiddenControls(extractFunction(widget, "renderWorkPickerCandidate"), "renderWorkPickerCandidate");
+assertNoForbiddenControls(extractFunction(widget, "renderWorkPickerCard"), "renderWorkPickerCard");
 assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderFinalHandoffReadinessSummary"), "renderFinalHandoffReadinessSummary");
 assertNoForbiddenControls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
@@ -359,6 +396,70 @@ assertNoForbiddenControls(extractFunction(widget, "normalizeFinalHandoffReadines
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexExecutionRequestPreview"), "normalizeCodexExecutionRequestPreview");
 assertSafeCopyAffordanceSource(extractFunction(widget, "renderCopyableHandoffPacket"));
 assertSafeCopyHelperSource(extractFunction(widget, "copyTextToClipboard"));
+
+const renderedWorkPicker = renderWorkPicker(renderSource, workPickerPayload());
+for (const expectedWorkPickerText of [
+  "Choose a work item",
+  "Scope",
+  "project:augnes",
+  "Candidate count",
+  "Recommended work",
+  "AG-006",
+  "First active work item for this scope.",
+  "Coordination event spine schema and storage",
+  "Work ID: AG-006",
+  "Status",
+  "In progress",
+  "Priority",
+  "Expected files",
+  "Expected checks",
+  "Related state",
+  "Linked docs",
+  "Next step",
+  "Implement PR 1.1 and verify the append-only coordination event read path.",
+  "Open this work with augnes_get_work_brief using workId: AG-006.",
+  "Open the recommended work with augnes_get_work_brief using workId: AG-006.",
+  "When a user asks for a project handoff and no workId is known, list work items first",
+]) {
+  assert.match(
+    renderedWorkPicker.visibleText,
+    new RegExp(escapeRegExp(expectedWorkPickerText)),
+    `Work Picker visible render must include: ${expectedWorkPickerText}`,
+  );
+}
+for (const hiddenWorkPickerRawText of [
+  "work_picker_card",
+  "structuredContent",
+  "final_handoff_preflight",
+  "codex_result_review_packet_preview",
+  "non_authorities",
+  "preview_only",
+  "needs_result_input",
+  "provider calls",
+  "proof/evidence writes",
+]) {
+  assert.doesNotMatch(
+    renderedWorkPicker.visibleText,
+    new RegExp(escapeRegExp(hiddenWorkPickerRawText)),
+    `Work Picker primary visible text must not emphasize raw/internal text: ${hiddenWorkPickerRawText}`,
+  );
+}
+const renderedEmptyWorkPicker = renderWorkPicker(renderSource, emptyWorkPickerPayload());
+for (const expectedEmptyPickerText of [
+  "Choose a work item",
+  "Candidate count",
+  "0",
+  "Recommended work",
+  "none",
+  "No work items found for this scope.",
+  "Check the scope or select/create a work item elsewhere",
+]) {
+  assert.match(
+    renderedEmptyWorkPicker.visibleText,
+    new RegExp(escapeRegExp(expectedEmptyPickerText)),
+    `empty Work Picker visible render must include: ${expectedEmptyPickerText}`,
+  );
+}
 
 const renderedFallback = renderFallbackCard(renderSource);
 const renderedFallbackText = renderedFallback.text;
@@ -543,6 +644,12 @@ console.log(
       docs_present: true,
       package_script_present: true,
       boundary_text_present: true,
+      work_picker_card_present: true,
+      work_picker_widget_rendered: true,
+      work_picker_empty_state_checked: true,
+      scope_only_first_entry_documented: true,
+      work_picker_raw_internal_text_hidden: true,
+      work_picker_read_only_widget_card: true,
       handoff_preview_present: true,
       handoff_preview_stop_conditions_present: true,
       handoff_preview_copyable_packet_present: true,
@@ -1197,6 +1304,123 @@ function resultReviewPreviewReadyCardPayload() {
   };
 }
 
+function workPickerPayload() {
+  return {
+    panel: "work_picker_card",
+    scope: "project:augnes",
+    workItems: [
+      {
+        work_id: "AG-006",
+        scope: "project:augnes",
+        title: "Coordination event spine schema and storage",
+        status: "in_progress",
+        priority: "now",
+        summary: "Add the Phase 1 event spine schema, storage helpers, and read-only API without expanding write authority.",
+        next_action: "Implement PR 1.1 and verify the append-only coordination event read path.",
+        updated_at: "2026-05-08T00:00:00.000Z",
+        user_attention_required: false,
+        related_state_keys: ["coordination.event_spine"],
+        links: {
+          docs: ["docs/AUGNES_COORDINATION_SPINE_ROADMAP.md"],
+          expected_files: ["lib/state-runtime/work.ts"],
+          expected_checks: ["npm run smoke:readonly-api-route-constellation-preview"],
+        },
+        created_at: "2026-05-08T00:00:00.000Z",
+      },
+      {
+        work_id: "AG-001",
+        scope: "project:augnes",
+        title: "Work Trace Spine v0 and Work Focus View",
+        status: "completed",
+        priority: "later",
+        summary: "Completed historical work anchor.",
+        next_action: "Use AG-006 for current handoff.",
+        updated_at: "2026-05-07T00:00:00.000Z",
+        user_attention_required: false,
+        related_state_keys: [],
+        links: {},
+        created_at: "2026-05-07T00:00:00.000Z",
+      },
+    ],
+    work_picker_card: {
+      card_type: "work_picker_card",
+      title: "Choose a work item",
+      scope: "project:augnes",
+      candidate_count: 2,
+      recommended_work_id: "AG-006",
+      recommended_work_title: "Coordination event spine schema and storage",
+      selection_reason: "First active work item for this scope.",
+      next_action_hint: "Open the recommended work with augnes_get_work_brief using workId: AG-006.",
+      handoff_tool_hint:
+        "When a user asks for a project handoff and no workId is known, list work items first, then call augnes_get_work_brief with the selected or recommended workId.",
+      empty_state: null,
+      work_candidates: [
+        {
+          work_id: "AG-006",
+          title: "Coordination event spine schema and storage",
+          status: "in_progress",
+          priority: "now",
+          summary: "Add the Phase 1 event spine schema, storage helpers, and read-only API without expanding write authority.",
+          next_step: "Implement PR 1.1 and verify the append-only coordination event read path.",
+          user_attention_required: false,
+          related_state_keys_count: 1,
+          expected_files_count: 1,
+          expected_checks_count: 1,
+          linked_docs_count: 1,
+          is_recommended: true,
+          handoff_instruction: "Open this work with augnes_get_work_brief using workId: AG-006.",
+        },
+        {
+          work_id: "AG-001",
+          title: "Work Trace Spine v0 and Work Focus View",
+          status: "completed",
+          priority: "later",
+          summary: "Completed historical work anchor.",
+          next_step: "Use AG-006 for current handoff.",
+          user_attention_required: false,
+          related_state_keys_count: 0,
+          expected_files_count: 0,
+          expected_checks_count: 0,
+          linked_docs_count: 0,
+          is_recommended: false,
+          handoff_instruction: "Open this work with augnes_get_work_brief using workId: AG-001.",
+        },
+      ],
+      boundary_text: [
+        "Work Picker is read-only.",
+        "Work IDs are trace anchors, not committed state authority.",
+        "Selecting a work item means choosing what to inspect next; it does not execute Codex.",
+      ],
+    },
+  };
+}
+
+function emptyWorkPickerPayload() {
+  return {
+    panel: "work_picker_card",
+    scope: "project:augnes",
+    workItems: [],
+    work_picker_card: {
+      card_type: "work_picker_card",
+      title: "Choose a work item",
+      scope: "project:augnes",
+      candidate_count: 0,
+      recommended_work_id: null,
+      recommended_work_title: null,
+      selection_reason: "No work items found for this scope.",
+      next_action_hint: "No work items found for this scope. Check the scope or select/create a work item elsewhere before opening a handoff card.",
+      handoff_tool_hint:
+        "When a user asks for a project handoff and no workId is known, list work items first, then call augnes_get_work_brief with the selected or recommended workId.",
+      empty_state: "No work items found for this scope. Check the scope or select/create a work item elsewhere.",
+      work_candidates: [],
+      boundary_text: [
+        "Work Picker is read-only.",
+        "Work IDs are trace anchors, not committed state authority.",
+      ],
+    },
+  };
+}
+
 function renderFallbackCard(source, options = {}) {
   return renderCard(source, fallbackCardPayload(), options);
 }
@@ -1214,6 +1438,14 @@ function renderResultReviewPreviewReadyCard(source, options = {}) {
 }
 
 function renderCard(source, payload, options = {}) {
+  return renderWidget(source, payload, "renderWorkContractCard(__payload)", options);
+}
+
+function renderWorkPicker(source, payload, options = {}) {
+  return renderWidget(source, payload, "renderWorkPickerCard(__payload)", options);
+}
+
+function renderWidget(source, payload, renderExpression, options = {}) {
   class FakeNode {
     constructor(tag) {
       this.tag = tag;
@@ -1318,7 +1550,7 @@ function renderCard(source, payload, options = {}) {
   vm.createContext(context);
   context.__payload = payload;
   vm.runInContext(source, context);
-  const output = vm.runInContext("renderWorkContractCard(__payload)", context);
+  const output = vm.runInContext(renderExpression, context);
   return {
     context,
     tree: output,
