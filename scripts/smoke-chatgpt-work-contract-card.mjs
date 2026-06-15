@@ -93,6 +93,9 @@ assert.match(runbook, /no\s+GitHub PR data is fetched/i, "runbook must document 
 assert.match(runbook, /codex_execution_request_preview/, "runbook must document the Codex execution request preview alias");
 assert.match(runbook, /This preview does not execute Codex\. It only prepares the request shape for later explicit user-confirmed execution\./, "runbook must preserve execution request preview boundary wording");
 assert.match(runbook, /awaiting_user_confirmation/, "runbook must document the awaiting user confirmation state");
+assert.match(runbook, /Codex handoff package/, "runbook must document the user-facing final handoff label");
+assert.match(runbook, /Raw enum values[\s\S]*`preview_only`[\s\S]*`needs_result_input`[\s\S]*`awaiting_user_confirmation`/, "runbook must document raw enum display mapping");
+assert.match(runbook, /Long authority and packet details stay available in collapsed technical\s+sections/, "runbook must document collapsed technical detail behavior");
 for (const status of ["proposed", "no_match", "unavailable", "not_configured"]) {
   assert.match(server, new RegExp(escapeRegExp(status)), `server must support Memory Reuse proposal status ${status}`);
   assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Memory Reuse proposal status ${status}`);
@@ -240,6 +243,12 @@ assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffReadinessSumm
 assertNoNetworkCalls(extractFunction(widget, "codexExecutionRequestConfirmationFields"), "codexExecutionRequestConfirmationFields");
 assertNoNetworkCalls(extractFunction(widget, "codexExecutionRequestNonAuthorities"), "codexExecutionRequestNonAuthorities");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCodexExecutionRequestPreview"), "normalizeCodexExecutionRequestPreview");
+assertNoNetworkCalls(extractFunction(widget, "formatUiStatus"), "formatUiStatus");
+assertNoNetworkCalls(extractFunction(widget, "formatUiSlotLabel"), "formatUiSlotLabel");
+assertNoNetworkCalls(extractFunction(widget, "formatSourcePacketRef"), "formatSourcePacketRef");
+assertNoNetworkCalls(extractFunction(widget, "formatConfirmationField"), "formatConfirmationField");
+assertNoNetworkCalls(extractFunction(widget, "formatPrSectionLabel"), "formatPrSectionLabel");
+assertNoNetworkCalls(extractFunction(widget, "formatResultInputField"), "formatResultInputField");
 assertNoNetworkCalls(extractFunction(widget, "normalizeMemoryReuseAttachmentProposal"), "normalizeMemoryReuseAttachmentProposal");
 assertNoNetworkCalls(extractFunction(widget, "normalizePrBodyChecklistPreview"), "normalizePrBodyChecklistPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCloseoutSkeleton"), "normalizeCloseoutSkeleton");
@@ -266,6 +275,12 @@ const renderSource = [
   extractFunction(widget, "nonEmptyText"),
   extractFunction(widget, "safeArray"),
   extractFunction(widget, "safeCount"),
+  extractFunction(widget, "formatUiStatus"),
+  extractFunction(widget, "formatUiSlotLabel"),
+  extractFunction(widget, "formatSourcePacketRef"),
+  extractFunction(widget, "formatConfirmationField"),
+  extractFunction(widget, "formatPrSectionLabel"),
+  extractFunction(widget, "formatResultInputField"),
   extractFunction(widget, "createCodeListWithFallback"),
   extractFunction(widget, "safeRecord"),
   extractFunction(widget, "safeRecordArray"),
@@ -347,6 +362,7 @@ assertSafeCopyHelperSource(extractFunction(widget, "copyTextToClipboard"));
 
 const renderedFallback = renderFallbackCard(renderSource);
 const renderedFallbackText = renderedFallback.text;
+const renderedFallbackVisibleText = renderedFallback.visibleText;
 for (const expectedFallback of [
   "No expected files are listed in the work brief.",
   "No expected checks are listed in the work brief.",
@@ -357,90 +373,89 @@ for (const expectedFallback of [
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedFallback)), `fallback render must include: ${expectedFallback}`);
 }
 assertBoundaryText(renderedFallbackText);
-for (const expectedPreviewText of [
-  "Codex Handoff Preview",
-  "Final Codex Handoff",
-  "Final Codex Handoff Packet",
-  "Readiness summary",
-  "Handoff preparation",
+for (const expectedVisibleText of [
+  "Codex handoff package",
+  "Readiness",
+  "Handoff prep",
   "Result review",
-  "Overall local preflight",
-  "Result source",
+  "Overall check",
+  "Result input",
+  "Needs result input",
+  "Needs user confirmation",
+  "Preview only",
+  "No matching memory",
+  "Not attached",
   "Result review is waiting for a Codex final report or structured result payload. This does not mean the pre-run handoff packet is broken.",
-  "Codex execution request preview",
+  "Codex handoff readiness",
   "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
-  "awaiting_user_confirmation",
-  "What would be handed to Codex",
-  "source final handoff packet",
+  "What will be handed to Codex",
+  "source handoff package: Final handoff package for AG-SMOKE",
   "copyable handoff text unchanged: true",
-  "What user would need to confirm later",
-  "current_runtime_endpoint",
-  "confirmed_work_id",
-  "result_review_packet_return_expected",
-  "What this preview does NOT do",
-  "no shell spawn",
-  "no branch creation",
-  "no PR creation",
-  "no GitHub calls",
-  "no OpenAI calls",
-  "Preview boundary",
-  "Local read-only preflight: warn.",
-  "Preflight checks",
-  "Attachment slots",
-  "Memory Reuse attachment",
-  "no_match",
-  "Memory Reuse proposal is explicit no_match",
+  "What the user confirms later",
+  "Confirm the current runtime endpoint.",
+  "Confirm the work ID.",
+  "Expect a result review packet after the work.",
+  "What this screen does not do",
+  "Readiness check: Needs attention.",
+  "Reference memory",
   "No persisted memory IDs selected.",
   "No persisted perspective-memory items were selected",
-  "PR body checklist",
-  "preview_only",
-  "Codex PR body checklist / closeout skeleton",
-  "Closeout skeleton preview",
+  "PR writing checklist and report outline",
+  "Work report outline",
   "Required PR body sections",
   "Summary",
-  "User-facing path added or changed",
+  "User-facing path",
   "Files changed",
   "Verification",
-  "Skipped checks and caveats",
-  "Memory Reuse attachment status",
-  "Project Constellation context status",
-  "Final handoff preflight status",
-  "Authority boundary statement",
+  "Skipped checks and notes",
+  "Reference memory status",
+  "Related perspective status",
+  "Final readiness check",
+  "Guardrail statement",
   "Remaining caveats",
-  "Next recommended step",
-  "Placeholder:",
-  "Do not claim they passed until they have actually run.",
-  "Codex result review packet",
-  "needs_result_input",
+  "Next step",
+  "Work result review",
   "Result input needed",
   "Codex final report text or structured result payload.",
   "Changed files.",
   "Verification commands and results.",
   "Skipped checks with concrete reasons.",
-  "Authority boundary statement.",
+  "Guardrail statement.",
   "Remaining caveats.",
-  "No Codex result payload is attached",
   "No reported changed files attached.",
-  "No reported verification results attached.",
-  "Review recommendations are advisory only and do not submit or post anything.",
   "Readiness reasons",
-  "Stop conditions",
-  "Copyable handoff packet",
-  "Preparation automation only.",
-  "This is a preview/copy packet, not an execution action.",
+  "Copy packet",
   "Copy Codex Handoff",
   "After copying, validate locally with codex:handoff-preflight.",
+  "Copy action only. The packet is for a separate Codex session; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, merge, or enable auto-merge.",
+  "Related perspective",
+  "No related perspective is attached to this work item.",
+]) {
+  assert.match(renderedFallbackVisibleText, new RegExp(escapeRegExp(expectedVisibleText)), `main visible preview must include: ${expectedVisibleText}`);
+}
+for (const hiddenRawStatus of ["awaiting_user_confirmation", "needs_result_input", "preview_only", "no_match", "explicitly_absent"]) {
+  assert.doesNotMatch(
+    renderedFallbackVisibleText,
+    new RegExp(escapeRegExp(hiddenRawStatus)),
+    `main visible preview must not show raw status ${hiddenRawStatus}`,
+  );
+}
+for (const expectedCopyOrTechnicalText of [
+  "Final Codex Handoff Packet",
+  "Preparation automation only.",
+  "This is a preview/copy packet, not an execution action.",
   "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
   "END_AUGNES_CODEX_HANDOFF_JSON",
-  "Copy action only. The packet is for a separate Codex session; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, merge, or enable auto-merge.",
-  "Project Constellation context",
+  "needs_result_input",
+  "preview_only",
+  "no_match",
   "No Project Constellation context is attached to this work contract.",
 ]) {
-  assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedPreviewText)), `fallback preview must include: ${expectedPreviewText}`);
+  assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedCopyOrTechnicalText)), `structured/copy text must still include: ${expectedCopyOrTechnicalText}`);
 }
 assert.match(
-  renderedFallbackText,
-  /Handoff preparation[\s\S]*ready[\s\S]*Result review[\s\S]*needs_result_input[\s\S]*Overall local preflight[\s\S]*warn[\s\S]*does not mean the pre-run handoff packet is broken/,
+  renderedFallbackVisibleText,
+  /Handoff prep[\s\S]*Ready[\s\S]*Result review[\s\S]*Needs result input[\s\S]*Overall check[\s\S]*Needs attention[\s\S]*does not mean the pre-run handoff packet is broken/,
   "fallback/no-result readiness summary must distinguish pre-run handoff readiness from post-run result review readiness",
 );
 await assertRenderedCopyAffordance(
@@ -505,10 +520,10 @@ for (const expectedResultReviewText of [
   "Reported result includes Project Constellation context status.",
   "Reported result includes final handoff preflight status.",
   "Reported result references the PR body checklist and closeout skeleton.",
-  "Handoff preparation",
-  "ready",
+  "Handoff prep",
+  "Ready",
   "Result review",
-  "ready_for_human_review",
+  "Ready for human review",
   "Post-run result review has input and is ready for human review",
   "Review recommendations are advisory only and do not submit or post anything.",
 ]) {
@@ -553,6 +568,9 @@ console.log(
       codex_execution_request_preview_user_confirmation_checked: true,
       codex_execution_request_preview_non_authorities_checked: true,
       codex_execution_request_preview_copy_unchanged_checked: true,
+      user_facing_labels_checked: true,
+      raw_statuses_hidden_from_main_visible_text: true,
+      collapsed_technical_sections_checked: true,
       final_handoff_preflight_present: true,
       final_handoff_preflight_pass_fixture_checked: true,
       final_handoff_preflight_malformed_fixture_checked: true,
@@ -1305,6 +1323,7 @@ function renderCard(source, payload, options = {}) {
     context,
     tree: output,
     text: collectText(output).replace(/\s+/g, " ").trim(),
+    visibleText: collectVisibleText(output).replace(/\s+/g, " ").trim(),
   };
 }
 
@@ -1428,6 +1447,16 @@ function collectText(node) {
   if (!node || typeof node !== "object") return "";
   const ownText = [node.textContent, node.innerHTML].filter(Boolean).join(" ");
   const childText = Array.isArray(node.children) ? node.children.map(collectText).join(" ") : "";
+  return `${ownText} ${childText}`;
+}
+
+function collectVisibleText(node) {
+  if (!node || typeof node !== "object") return "";
+  const ownText = [node.textContent, node.innerHTML].filter(Boolean).join(" ");
+  if (node.tag === "details" && node.open === false) {
+    return `${ownText} ${collectVisibleText(node.children?.[0])}`;
+  }
+  const childText = Array.isArray(node.children) ? node.children.map(collectVisibleText).join(" ") : "";
   return `${ownText} ${childText}`;
 }
 
