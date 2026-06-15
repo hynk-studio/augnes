@@ -1282,7 +1282,36 @@
         return [
           "Replace placeholders with actual results after implementation.",
           "Expected checks are prompts for later verification, not pass/fail results.",
-          "Codex result review packet remains future/inert in this surface.",
+          "Codex result review packet is preview-only and cannot submit or post review output.",
+        ];
+      }
+
+      function codexResultReviewRequiredInputs() {
+        return [
+          "Codex final report text or structured result payload.",
+          "Changed files.",
+          "Verification commands and results.",
+          "Skipped checks with concrete reasons.",
+          "Authority boundary statement.",
+          "Remaining caveats.",
+          "PR URL/number only if a separate read-only GitHub connector/reviewer flow is explicitly run outside the App/MCP server.",
+        ];
+      }
+
+      function codexResultReviewBoundaryText() {
+        return [
+          "Codex result review packet is preview-only review preparation.",
+          "No GitHub PR data is fetched by the App/MCP server.",
+          "No GitHub comments, review submissions, approvals, change requests, labels, status updates, merges, proof/evidence records, Codex execution, provider calls, or Augnes state writes are performed by this surface.",
+          "Result review uses only already-present structured payload fields and does not invent changed files, verification results, PR URLs, screenshots, proof IDs, evidence IDs, findings, or host observations.",
+        ];
+      }
+
+      function codexResultReviewWarnings() {
+        return [
+          "Attach a Codex final report or structured result payload before treating this packet as ready for human review.",
+          "Run any GitHub PR metadata review through a separate explicitly scoped read-only connector/reviewer flow outside the App/MCP server.",
+          "Review recommendations are advisory only and do not submit or post anything.",
         ];
       }
 
@@ -1445,7 +1474,114 @@
         };
       }
 
-      function fallbackHandoffAutomationSlots(slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton) {
+      function makeAlignment(source, fallbackStatus, fallbackSummary, expected = [], reported = [], missing = []) {
+        const record = safeRecord(source);
+        return {
+          status: nonEmptyText(record.status, fallbackStatus),
+          summary: nonEmptyText(record.summary, fallbackSummary),
+          expected: safeArray(record.expected).length ? safeArray(record.expected) : expected,
+          reported: safeArray(record.reported).length ? safeArray(record.reported) : reported,
+          missing: safeArray(record.missing).length ? safeArray(record.missing) : missing,
+        };
+      }
+
+      function normalizeCodexResultReviewPacket(source, packet) {
+        const record = safeRecord(source);
+        const resultSource = nonEmptyText(record.result_source, "not_provided");
+        const reportedChangedFiles = safeArray(record.reported_changed_files);
+        const reportedVerificationResults = safeArray(record.reported_verification_results);
+        const skippedChecks = safeArray(record.skipped_checks);
+        const status = ["not_provided", "preview_ready", "needs_result_input", "unavailable"].includes(nonEmptyText(record.status, ""))
+          ? nonEmptyText(record.status, "")
+          : resultSource === "not_provided"
+            ? "needs_result_input"
+            : "preview_ready";
+        const expectedFiles = safeArray(record.expected_files).length ? safeArray(record.expected_files) : safeArray(packet?.expected_files);
+        const expectedChecks = safeArray(record.expected_checks).length ? safeArray(record.expected_checks) : safeArray(packet?.expected_checks);
+        const requiredInputs = safeArray(record.required_result_input_fields).length ? safeArray(record.required_result_input_fields) : codexResultReviewRequiredInputs();
+        const missingSections = safeArray(record.missing_required_closeout_sections).length
+          ? safeArray(record.missing_required_closeout_sections)
+          : status === "preview_ready"
+            ? []
+            : prBodyChecklistRequiredSections();
+        const noResultWarning = status === "needs_result_input" || status === "not_provided"
+          ? ["No Codex result payload is attached; no changed files, verification results, PR URLs, proof IDs, evidence IDs, screenshots, findings, or host observations were invented."]
+          : [];
+        return {
+          packet_type: "codex_result_review_packet_preview",
+          status,
+          result_source: resultSource,
+          reviewed_against_packet_id: nonEmptyText(record.reviewed_against_packet_id, packet?.work_id ? `final_codex_handoff_packet:${packet.work_id}` : ""),
+          work_id: nonEmptyText(record.work_id, nonEmptyText(packet?.work_id, "")),
+          expected_files: expectedFiles,
+          reported_changed_files: reportedChangedFiles,
+          expected_checks: expectedChecks,
+          reported_verification_results: reportedVerificationResults,
+          skipped_checks: skippedChecks,
+          missing_required_closeout_sections: missingSections,
+          required_result_input_fields: requiredInputs,
+          authority_boundary_issues: safeArray(record.authority_boundary_issues),
+          memory_reuse_alignment: makeAlignment(record.memory_reuse_alignment, status === "preview_ready" ? "needs_review" : "not_provided", status === "preview_ready" ? "Review Memory Reuse attachment status in the reported result." : "No Memory Reuse result payload was provided.", ["Memory Reuse attachment status"], [], status === "preview_ready" ? [] : ["Memory Reuse attachment status"]),
+          constellation_context_alignment: makeAlignment(record.constellation_context_alignment, status === "preview_ready" ? "needs_review" : "not_provided", status === "preview_ready" ? "Review Project Constellation context status in the reported result." : "No Project Constellation result payload was provided.", ["Project Constellation context status"], [], status === "preview_ready" ? [] : ["Project Constellation context status"]),
+          preflight_alignment: makeAlignment(record.preflight_alignment, status === "preview_ready" ? "needs_review" : "not_provided", status === "preview_ready" ? "Review final handoff preflight status in the reported result." : "No final handoff preflight result payload was provided.", ["Final handoff preflight status"], [], status === "preview_ready" ? [] : ["Final handoff preflight status"]),
+          checklist_alignment: makeAlignment(record.checklist_alignment, status === "preview_ready" ? "needs_review" : "not_provided", status === "preview_ready" ? "Review PR body checklist context in the reported result." : "No PR body checklist result payload was provided.", ["PR body checklist", "closeout skeleton"], [], status === "preview_ready" ? [] : ["PR body checklist", "closeout skeleton"]),
+          file_alignment: makeAlignment(record.file_alignment, reportedChangedFiles.length ? "needs_review" : "not_provided", reportedChangedFiles.length ? "Review reported changed files against expected files." : "No changed files were reported.", expectedFiles, reportedChangedFiles, reportedChangedFiles.length ? [] : expectedFiles),
+          verification_alignment: makeAlignment(record.verification_alignment, reportedVerificationResults.length ? "needs_review" : "not_provided", reportedVerificationResults.length ? "Review reported verification results against expected checks." : "No verification results were reported.", expectedChecks, reportedVerificationResults, reportedVerificationResults.length ? [] : expectedChecks),
+          skipped_check_alignment: makeAlignment(record.skipped_check_alignment, skippedChecks.length ? "needs_review" : "not_provided", skippedChecks.length ? "Review skipped checks for concrete reasons." : "No skipped-check result payload was provided.", ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."], skippedChecks, skippedChecks.length ? [] : ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."]),
+          review_questions: safeArray(record.review_questions).length
+            ? safeArray(record.review_questions)
+            : status === "preview_ready"
+              ? ["Do reported changed files and verification results cover the final handoff expectations?"]
+              : [
+                  "Attach Codex final report text or a structured result payload before review.",
+                  "Include changed files, verification commands and results, skipped checks with concrete reasons, authority boundary statement, and remaining caveats.",
+                ],
+          review_recommendation: nonEmptyText(record.review_recommendation, status === "preview_ready" ? "ready_for_human_review" : "needs_result_input"),
+          warnings: [...noResultWarning, ...(safeArray(record.warnings).length ? safeArray(record.warnings) : codexResultReviewWarnings())],
+          boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : codexResultReviewBoundaryText(),
+        };
+      }
+
+      function codexResultReviewPacketLineItems(packet) {
+        const normalized = normalizeCodexResultReviewPacket(packet, {});
+        return [
+          `- Status: ${normalized.status}`,
+          `- Result source: ${normalized.result_source}`,
+          `- Reviewed against: ${nonEmptyText(normalized.reviewed_against_packet_id, "missing")}`,
+          `- Review recommendation: ${normalized.review_recommendation}`,
+          "- Required result input fields:",
+          ...(safeArray(normalized.required_result_input_fields).length ? safeArray(normalized.required_result_input_fields).map((item) => `  - ${item}`) : ["  - No required result input fields listed."]),
+          "- Expected files:",
+          ...(safeArray(normalized.expected_files).length ? safeArray(normalized.expected_files).map((item) => `  - ${item}`) : ["  - No expected files listed."]),
+          "- Reported changed files:",
+          ...(safeArray(normalized.reported_changed_files).length ? safeArray(normalized.reported_changed_files).map((item) => `  - ${item}`) : ["  - No reported changed files attached."]),
+          "- Expected checks:",
+          ...(safeArray(normalized.expected_checks).length ? safeArray(normalized.expected_checks).map((item) => `  - ${item}`) : ["  - No expected checks listed."]),
+          "- Reported verification results:",
+          ...(safeArray(normalized.reported_verification_results).length ? safeArray(normalized.reported_verification_results).map((item) => `  - ${item}`) : ["  - No reported verification results attached."]),
+          "- Skipped checks:",
+          ...(safeArray(normalized.skipped_checks).length ? safeArray(normalized.skipped_checks).map((item) => `  - ${item}`) : ["  - No skipped checks attached."]),
+          "- Missing required closeout sections:",
+          ...(safeArray(normalized.missing_required_closeout_sections).length ? safeArray(normalized.missing_required_closeout_sections).map((item) => `  - ${item}`) : ["  - No required closeout sections missing."]),
+          "- Authority boundary issues:",
+          ...(safeArray(normalized.authority_boundary_issues).length ? safeArray(normalized.authority_boundary_issues).map((item) => `  - ${item}`) : ["  - No authority boundary issues reported."]),
+          `- File alignment: ${normalized.file_alignment.status}; ${normalized.file_alignment.summary}`,
+          `- Verification alignment: ${normalized.verification_alignment.status}; ${normalized.verification_alignment.summary}`,
+          `- Skipped-check alignment: ${normalized.skipped_check_alignment.status}; ${normalized.skipped_check_alignment.summary}`,
+          `- Memory Reuse alignment: ${normalized.memory_reuse_alignment.status}; ${normalized.memory_reuse_alignment.summary}`,
+          `- Project Constellation alignment: ${normalized.constellation_context_alignment.status}; ${normalized.constellation_context_alignment.summary}`,
+          `- Final preflight alignment: ${normalized.preflight_alignment.status}; ${normalized.preflight_alignment.summary}`,
+          `- Checklist alignment: ${normalized.checklist_alignment.status}; ${normalized.checklist_alignment.summary}`,
+          "- Review questions:",
+          ...(safeArray(normalized.review_questions).length ? safeArray(normalized.review_questions).map((item) => `  - ${item}`) : ["  - No review questions listed."]),
+          "- Warnings:",
+          ...(safeArray(normalized.warnings).length ? safeArray(normalized.warnings).map((item) => `  - ${item}`) : ["  - No result review warnings listed."]),
+          "- Boundary:",
+          ...(safeArray(normalized.boundary_text).length ? safeArray(normalized.boundary_text).map((item) => `  - ${item}`) : ["  - No result review boundary text listed."]),
+        ];
+      }
+
+      function fallbackHandoffAutomationSlots(slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton, codexResultReviewPacket) {
         const source = safeRecord(slots);
         const fallbackBoundary = [
           "Future attachment slot only.",
@@ -1470,6 +1606,7 @@
         const proposal = memoryReuseProposal || normalizeMemoryReuseAttachmentProposal(source.memory_reuse_attachment?.proposal, {}, {});
         const checklist = prBodyChecklist || normalizePrBodyChecklistPreview(source.pr_body_checklist?.checklist);
         const skeleton = closeoutSkeleton || normalizeCloseoutSkeleton(source.pr_body_checklist?.closeout_skeleton, {}, proposal, null);
+        const reviewPacket = codexResultReviewPacket || normalizeCodexResultReviewPacket(source.codex_result_review_packet?.review_packet, {});
         return {
           memory_reuse_attachment: slot(
             source.memory_reuse_attachment,
@@ -1506,8 +1643,16 @@
             source.codex_result_review_packet,
             "codex_result_review_packet",
             "Codex result review packet",
-            "not_generated",
-            "Codex result review packet is not generated here and does not imply execution."
+            reviewPacket.status,
+            reviewPacket.status === "preview_ready"
+              ? `Preview-ready Codex result review packet from ${reviewPacket.result_source}; recommendation ${reviewPacket.review_recommendation}.`
+              : "Codex result review packet needs result input; no result data was attached or invented.",
+            {
+              inert: true,
+              generated: true,
+              boundary_text: reviewPacket.boundary_text,
+              review_packet: reviewPacket,
+            }
           ),
         };
       }
@@ -1520,11 +1665,12 @@
         return constellationContextPacketLines(context);
       }
 
-      function composeFallbackFinalHandoffText(preview, slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton) {
+      function composeFallbackFinalHandoffText(preview, slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton, codexResultReviewPacket) {
         const context = preview.constellation_context;
         const contextStatus = context?.status === "attached" ? "attached" : "explicitly_absent";
         const checklist = prBodyChecklist || normalizePrBodyChecklistPreview();
         const skeleton = closeoutSkeleton || normalizeCloseoutSkeleton(null, preview, memoryReuseProposal, context);
+        const reviewPacket = codexResultReviewPacket || normalizeCodexResultReviewPacket(null, preview);
         const jsonBlock = JSON.stringify(
           {
             schema: "augnes.codex_handoff_preview.v0_1",
@@ -1564,6 +1710,9 @@
             codex_pr_body_checklist: checklist,
             codex_closeout_skeleton: skeleton,
             final_handoff_closeout_skeleton: skeleton,
+            codex_result_review_packet_preview: reviewPacket,
+            final_handoff_codex_result_review_packet: reviewPacket,
+            codex_pr_review_packet_preview: reviewPacket,
             handoff_automation_slots: slots,
             authority_boundaries: preview.boundary_text,
             copy_packet: {
@@ -1629,7 +1778,10 @@
           "Closeout skeleton preview",
           skeleton.copyable_closeout_text,
           "",
-          "Future attachment slots",
+          "Codex result review packet",
+          ...codexResultReviewPacketLineItems(reviewPacket),
+          "",
+          "Attachment slots",
           `- ${slotLine(slots.memory_reuse_attachment)}`,
           `- ${slotLine(slots.pr_body_checklist)}`,
           `- ${slotLine(slots.codex_result_review_packet)}`,
@@ -1671,6 +1823,7 @@
         const sourceSlots = safeRecord(source.handoff_automation_slots || data?.handoff_automation_slots);
         const sourceMemorySlot = safeRecord(sourceSlots.memory_reuse_attachment);
         const sourcePrBodySlot = safeRecord(sourceSlots.pr_body_checklist);
+        const sourceResultReviewSlot = safeRecord(sourceSlots.codex_result_review_packet);
         const memoryReuseProposal = normalizeMemoryReuseAttachmentProposal(
           source.memory_reuse_attachment_proposal ||
             data?.memory_reuse_attachment_proposal ||
@@ -1696,7 +1849,21 @@
           memoryReuseProposal,
           context.status === "attached" ? context : null
         );
-        const slots = fallbackHandoffAutomationSlots(sourceSlots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton);
+        const codexResultReviewPacket = normalizeCodexResultReviewPacket(
+          source.codex_result_review_packet_preview ||
+            source.final_handoff_codex_result_review_packet ||
+            source.codex_pr_review_packet_preview ||
+            data?.codex_result_review_packet_preview ||
+            data?.final_handoff_codex_result_review_packet ||
+            data?.codex_pr_review_packet_preview ||
+            sourceResultReviewSlot.review_packet,
+          {
+            work_id: preview.work_id,
+            expected_files: preview.expected_files,
+            expected_checks: preview.expected_checks,
+          }
+        );
+        const slots = fallbackHandoffAutomationSlots(sourceSlots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton, codexResultReviewPacket);
         const fallbackPacket = {
           packet_type: "final_codex_handoff_packet",
           schema: "augnes.final_codex_handoff_packet.v0_1",
@@ -1732,6 +1899,9 @@
           codex_pr_body_checklist: prBodyChecklist,
           codex_closeout_skeleton: closeoutSkeleton,
           final_handoff_closeout_skeleton: closeoutSkeleton,
+          codex_result_review_packet_preview: codexResultReviewPacket,
+          final_handoff_codex_result_review_packet: codexResultReviewPacket,
+          codex_pr_review_packet_preview: codexResultReviewPacket,
           structured_json_delimiters: {
             begin: "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
             end: "END_AUGNES_CODEX_HANDOFF_JSON",
@@ -1747,13 +1917,16 @@
           codex_pr_body_checklist: prBodyChecklist,
           codex_closeout_skeleton: closeoutSkeleton,
           final_handoff_closeout_skeleton: closeoutSkeleton,
+          codex_result_review_packet_preview: codexResultReviewPacket,
+          final_handoff_codex_result_review_packet: codexResultReviewPacket,
+          codex_pr_review_packet_preview: codexResultReviewPacket,
           constellation_context: source.constellation_context || fallbackPacket.constellation_context,
         };
         return {
           ...packet,
           copyable_handoff_text: nonEmptyText(
             source.copyable_handoff_text,
-            composeFallbackFinalHandoffText({ ...preview, constellation_context: context }, slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton)
+            composeFallbackFinalHandoffText({ ...preview, constellation_context: context }, slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton, codexResultReviewPacket)
           ),
         };
       }
@@ -1795,6 +1968,9 @@
           ["Post", " ", "externally"],
           ["Create", " ", "PR"],
           ["Open", " ", "PR"],
+          ["Submit", " ", "review"],
+          ["Request", " ", "changes"],
+          ["Approve", " ", "PR"],
         ];
         return labels.some((parts) => text.includes(parts.join("")));
       }
@@ -1908,6 +2084,57 @@
         };
       }
 
+      function codexResultReviewPacketPreflightCheck(packet, text) {
+        const reviewPacket = normalizeCodexResultReviewPacket(
+          packet.codex_result_review_packet_preview ||
+            packet.final_handoff_codex_result_review_packet ||
+            packet.codex_pr_review_packet_preview ||
+            packet.handoff_automation_slots?.codex_result_review_packet?.review_packet,
+          packet
+        );
+        const slot = safeRecord(packet.handoff_automation_slots?.codex_result_review_packet);
+        const explicitMissing =
+          (reviewPacket.status === "needs_result_input" || reviewPacket.status === "not_provided") &&
+          reviewPacket.result_source === "not_provided" &&
+          safeArray(reviewPacket.required_result_input_fields).length > 0 &&
+          safeArray(reviewPacket.reported_changed_files).length === 0 &&
+          safeArray(reviewPacket.reported_verification_results).length === 0 &&
+          text.includes("Codex result review packet") &&
+          slot.generated === true &&
+          slot.inert !== false;
+        if (reviewPacket.status === "needs_result_input" || reviewPacket.status === "not_provided") {
+          return {
+            id: "codex_result_review_packet_state",
+            status: explicitMissing ? "warn" : "fail",
+            message: explicitMissing
+              ? "Codex result review packet explicitly needs result input and does not invent reported result data."
+              : "Codex result review packet missing-result state is malformed or ambiguous.",
+          };
+        }
+        if (reviewPacket.status === "preview_ready") {
+          const ready =
+            reviewPacket.result_source !== "not_provided" &&
+            safeArray(reviewPacket.reported_changed_files).length > 0 &&
+            safeArray(reviewPacket.reported_verification_results).length > 0 &&
+            reviewPacket.review_recommendation !== "needs_result_input" &&
+            text.includes("Codex result review packet") &&
+            slot.generated === true &&
+            slot.inert !== false;
+          return {
+            id: "codex_result_review_packet_state",
+            status: ready ? "pass" : "fail",
+            message: ready
+              ? "Codex result review packet has attached result payload for bounded human review."
+              : "Codex result review packet is preview_ready but lacks reported files, verification results, or bounded recommendation.",
+          };
+        }
+        return {
+          id: "codex_result_review_packet_state",
+          status: reviewPacket.status === "unavailable" && safeArray(reviewPacket.boundary_text).length ? "warn" : "fail",
+          message: reviewPacket.status === "unavailable" ? "Codex result review packet is explicitly unavailable." : "Codex result review packet state is malformed or ambiguous.",
+        };
+      }
+
       function localFinalPreflight(packet) {
         const text = nonEmptyText(packet.copyable_handoff_text, "");
         const block = extractStructuredHandoffBlock(text);
@@ -1956,6 +2183,7 @@
           },
           memoryReuseAttachmentPreflightCheck(packet, text),
           prBodyChecklistPreflightCheck(packet, text),
+          codexResultReviewPacketPreflightCheck(packet, text),
           {
             id: "no_forbidden_control_labels",
             status: containsForbiddenFinalHandoffLabel(text) ? "fail" : "pass",
@@ -2399,7 +2627,7 @@
         const root = el("div", { className: "stack" });
         root.appendChild(el("div", {
           className: "status-box",
-          text: "Attachment slots are local preview state only. PR body checklist is preview-only generated; result review packet remains inert and no slot grants execution/write authority.",
+          text: "Attachment slots are local preview state only. PR body checklist and result review packet are preview-only generated; no slot grants execution/write authority.",
         }));
         for (const slot of [
           normalized.memory_reuse_attachment,
@@ -2456,6 +2684,46 @@
         return root;
       }
 
+      function renderCodexResultReviewPacketPreview(reviewPacket) {
+        const normalized = normalizeCodexResultReviewPacket(reviewPacket, {});
+        const root = el("div", { className: "stack" });
+        root.appendChild(el("div", {
+          className: "status-box",
+          text:
+            "Preview-only Codex result review packet. It does not fetch GitHub PR data, post comments, submit reviews, approve, request changes, merge, create branches or PRs, execute Codex, record proof or evidence, mutate Augnes state, publish, retry, replay, deploy, or call providers.",
+        }));
+        root.appendChild(createMetricGrid([
+          ["Status", normalized.status],
+          ["Source", normalized.result_source],
+          ["Recommendation", normalized.review_recommendation],
+          ["Work ID", normalized.work_id || "missing"],
+        ]));
+        if (normalized.status === "needs_result_input" || normalized.status === "not_provided") {
+          root.appendChild(createSection(
+            "Result input needed",
+            createTextList(normalized.required_result_input_fields),
+            { badge: "needed" }
+          ));
+        }
+        root.appendChild(createSection("Reported changed files", createCodeListWithFallback(normalized.reported_changed_files, "No reported changed files attached."), { badge: `${safeArray(normalized.reported_changed_files).length}` }));
+        root.appendChild(createSection("Reported verification results", createTextList(normalized.reported_verification_results), { badge: `${safeArray(normalized.reported_verification_results).length}` }));
+        root.appendChild(createSection("Skipped checks", createTextList(normalized.skipped_checks), { badge: `${safeArray(normalized.skipped_checks).length}` }));
+        root.appendChild(createSection("Missing closeout sections", createTextList(normalized.missing_required_closeout_sections), { badge: `${safeArray(normalized.missing_required_closeout_sections).length}` }));
+        root.appendChild(createSection("Alignment", createTextList([
+          `files: ${normalized.file_alignment.status} - ${normalized.file_alignment.summary}`,
+          `verification: ${normalized.verification_alignment.status} - ${normalized.verification_alignment.summary}`,
+          `skipped checks: ${normalized.skipped_check_alignment.status} - ${normalized.skipped_check_alignment.summary}`,
+          `Memory Reuse: ${normalized.memory_reuse_alignment.status} - ${normalized.memory_reuse_alignment.summary}`,
+          `Project Constellation: ${normalized.constellation_context_alignment.status} - ${normalized.constellation_context_alignment.summary}`,
+          `final preflight: ${normalized.preflight_alignment.status} - ${normalized.preflight_alignment.summary}`,
+          `checklist: ${normalized.checklist_alignment.status} - ${normalized.checklist_alignment.summary}`,
+        ]), { badge: "read-only" }));
+        root.appendChild(createSection("Review questions", createTextList(normalized.review_questions), { badge: `${safeArray(normalized.review_questions).length}` }));
+        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${safeArray(normalized.warnings).length}` }));
+        root.appendChild(createSection("Boundary", createTextList(normalized.boundary_text), { badge: "preview-only" }));
+        return root;
+      }
+
       function renderFinalCodexHandoffPacket(packet, preflight) {
         const root = el("div", { className: "stack" });
         root.appendChild(createMetricGrid([
@@ -2465,6 +2733,7 @@
           ["Constellation", nonEmptyText(packet.constellation_context_status, "explicitly_absent")],
           ["Memory Reuse", nonEmptyText(packet.memory_reuse_attachment_proposal?.status || packet.handoff_automation_slots?.memory_reuse_attachment?.status, "no_match")],
           ["PR checklist", nonEmptyText(packet.handoff_automation_slots?.pr_body_checklist?.status, "not_generated")],
+          ["Result review", nonEmptyText(packet.codex_result_review_packet_preview?.status || packet.handoff_automation_slots?.codex_result_review_packet?.status, "needs_result_input")],
         ]));
         root.appendChild(el("div", {
           className: "status-box",
@@ -2482,7 +2751,12 @@
           renderPrBodyChecklistPreview(packet.pr_body_checklist_preview || packet.codex_pr_body_checklist, packet.codex_closeout_skeleton || packet.final_handoff_closeout_skeleton, preflight),
           { badge: nonEmptyText(packet.handoff_automation_slots?.pr_body_checklist?.status, "preview_only") }
         ));
-        root.appendChild(createSection("Future attachment slots", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "preview" }));
+        root.appendChild(createSection(
+          "Codex result review packet",
+          renderCodexResultReviewPacketPreview(packet.codex_result_review_packet_preview || packet.final_handoff_codex_result_review_packet || packet.codex_pr_review_packet_preview || packet.handoff_automation_slots?.codex_result_review_packet?.review_packet),
+          { badge: nonEmptyText(packet.codex_result_review_packet_preview?.status || packet.handoff_automation_slots?.codex_result_review_packet?.status, "needs_result_input") }
+        ));
+        root.appendChild(createSection("Attachment slots", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "preview" }));
         root.appendChild(createSection(
           "Copyable handoff packet",
           renderCopyableHandoffPacket({ copyable_handoff_text: packet.copyable_handoff_text }),

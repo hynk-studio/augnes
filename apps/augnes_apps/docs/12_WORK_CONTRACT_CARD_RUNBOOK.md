@@ -194,10 +194,24 @@ This does not create or update a GitHub PR, create a branch, execute Codex,
 record proof/evidence, mutate Augnes state, call providers, publish, merge,
 retry, replay, or deploy.
 
-The `codex_result_review_packet` slot remains future/inert and is still not
-generated. It does not implement Codex result review automation, GitHub posting,
-proof/evidence recording, publication, approval, retry, replay, deploy,
-persistence, auth, or provider calls.
+The `codex_result_review_packet` slot is now activated as a preview-only Codex
+result review packet. When no Codex result is attached, the card shows an
+explicit `needs_result_input` / `not_provided` state and lists the exact input
+needed for a later human review: final report text or structured result
+payload, changed files, verification commands and results, skipped checks with
+concrete reasons, authority boundary statement, and remaining caveats. It must
+not invent changed files, verification results, PR URLs, screenshots, proof
+IDs, evidence IDs, review findings, or host observations.
+
+When already-present structured result payload is attached, the packet can
+compare reported files, verification results, skipped checks, Memory Reuse
+status, Project Constellation context status, final preflight status, PR body
+checklist references, and authority boundary text against the final handoff
+expectations. This comparison is bounded review preparation for a human. No
+GitHub PR data is fetched from the App/MCP server, and no GitHub review is
+submitted. The packet does not post comments, approve or request changes,
+record proof/evidence, execute Codex, mutate Augnes state, call providers,
+publish, merge, retry, replay, or deploy.
 
 ## Copy Codex Handoff Affordance
 
