@@ -38,8 +38,13 @@ assert.equal(
 
 const toolBlock = extractToolBlock(server, "augnes_get_project_constellation_preview");
 assert.match(server, /"augnes_get_project_constellation_preview"/, "new Project Constellation tool must exist");
-assert.match(toolBlock, /annotations:\s*bridgeReadAnnotations/, "new Project Constellation tool must be read-only annotated");
+assert.match(toolBlock, /annotations:\s*localRouteReadAnnotations/, "new Project Constellation tool must use local route read annotations");
 assert.doesNotMatch(toolBlock, /annotations:\s*bridgeWriteAnnotations/, "new Project Constellation tool must not be write annotated");
+const localRouteReadAnnotations = extractConstBlockByMarker(server, "const localRouteReadAnnotations");
+assert.match(localRouteReadAnnotations, /readOnlyHint:\s*true/, "local route read annotations must be read-only");
+assert.match(localRouteReadAnnotations, /destructiveHint:\s*false/, "local route read annotations must be non-destructive");
+assert.match(localRouteReadAnnotations, /idempotentHint:\s*true/, "local route read annotations must mark repeated reads idempotent");
+assert.match(localRouteReadAnnotations, /openWorldHint:\s*false/, "local route read annotations must avoid an open-world false affordance");
 assert.match(toolBlock, /_meta:\s*widgetToolMeta/, "new Project Constellation tool must be widget-backed");
 assert.match(toolBlock, /stateRuntimeAdapter\.getConstellationPreview\(resolvedScope\)/, "tool must reuse the state runtime read adapter");
 
@@ -227,6 +232,14 @@ function extractBlockByMarker(source, marker) {
     }
   }
   throw new Error(`${marker} body did not terminate`);
+}
+
+function extractConstBlockByMarker(source, marker) {
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `${marker} must exist`);
+  const end = source.indexOf("} as const;", start);
+  assert.notEqual(end, -1, `${marker} const block must terminate`);
+  return source.slice(start, end + "} as const;".length);
 }
 
 function renderFallbackProjectConstellationPreview() {

@@ -84,6 +84,12 @@ const bridgeReadAnnotations = {
   destructiveHint: false,
   openWorldHint: true,
 } as const;
+const localRouteReadAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
 const bridgeWriteAnnotations = {
   readOnlyHint: false,
   destructiveHint: false,
@@ -1809,7 +1815,7 @@ export function createMcpAppServer(
         description:
           "Use this when the user asks to inspect the Augnes Project Constellation preview from ChatGPT. It reads the existing local read-only route and returns compact thesis, node, edge, cluster, evidence-pointer, tension, next-action, and handoff seed data without writing Augnes state or executing Codex.",
         inputSchema: ProjectConstellationPreviewToolInputSchema.shape,
-        annotations: bridgeReadAnnotations,
+        annotations: localRouteReadAnnotations,
         _meta: widgetToolMeta,
       },
       async ({ scope }) => {
