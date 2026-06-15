@@ -10,8 +10,27 @@ Codex discovery and testing.
 ## Skill And Plugin Roles
 
 The Skill is the workflow authoring unit. It tells Codex how to respond to
-natural-language prompts such as `Codex야 Augnes 설치해줘`,
-`Codex야 Augnes 쓰자`, `Augnes memory 보고 시작해`, and `Augnes reuse 켜줘`.
+natural-language prompts such as `Use Augnes for this task`,
+`Start with Augnes memory`, `Review this PR with Augnes context`,
+`Codex야 Augnes 설치해줘`, `Codex야 Augnes 쓰자`,
+`Augnes memory 보고 시작해`, and `Augnes reuse 켜줘`.
+
+English general-request triggers include:
+
+- `Use Augnes`
+- `Use Augnes for this task`
+- `Set up Augnes`
+- `Set up Augnes in Codex`
+- `Install Augnes`
+- `Enable Augnes reuse`
+- `Start with Augnes memory`
+- `Start from Augnes memories`
+- `Use Augnes memory`
+- `Use Augnes context`
+- `Use Augnes context before editing`
+- `Review this PR with Augnes context`
+- `Work with Augnes memory`
+- `Start this task with Augnes`
 
 The Plugin is the installable/distribution unit. This plugin packages the
 Augnes Codex Skill v0.1 at:
@@ -46,10 +65,41 @@ npm run codex:uninstall-augnes-reuse-hook -- --yes
 
 `/hooks` review/trust remains manual and required for non-managed hooks.
 Installing or enabling the plugin does not automatically prove hook trust or
-real hook loading.
+real hook loading. Plugin install does not prove real hook loading or trust.
 
 Smoke tests verify plugin files, manifest linkage, skill packaging, docs, and
-marketplace metadata only. Smoke tests do not prove real hook loading or trust.
+marketplace metadata only. Smoke tests do not prove real hook loading or trust;
+static smoke cannot prove real hook loading or trust.
+
+## Default Constraints And Unlocks
+
+The plugin guides Codex to disclose Augnes defaults at the start of use.
+User-liftable defaults include dry-run-first installer behavior, explicit
+`--yes` before real install, no real `~/.codex` write unless authorized,
+real ~/.codex write remains blocked unless explicitly authorized,
+read-only/context-only memory brief behavior, no automatic memory item
+creation, no storage/persistence/provider/model/OpenAI config/MCP/Codex
+SDK/GitHub mutation unless explicitly scoped, and no plugin-bundled hook
+implementation by default.
+
+The user can lift these Augnes defaults with explicit user scope. For example,
+the user can authorize real install with:
+
+```bash
+npm run codex:install-augnes-reuse-hook -- --yes
+```
+
+The user can also explicitly allow real `~/.codex` write for hook install or
+scope storage/persistence/provider/model/OpenAI config/MCP/Codex SDK/GitHub
+mutation work into a PR. Automatic memory item creation may use existing
+repo-supported commands if present; otherwise it requires a scoped proposal or
+implementation PR.
+
+Non-liftable Codex/platform constraints remain: `/hooks review/trust remains
+manual`, plugin install does not prove hook trust, plugin install does not
+prove real hook loading, static smoke cannot prove real hook loading or trust,
+and Codex command approvals and safety behavior remain in force. Augnes must
+not use `--dangerously-bypass-hook-trust` as normal UX.
 
 ## Fallback
 

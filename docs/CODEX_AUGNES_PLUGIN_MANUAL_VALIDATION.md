@@ -72,6 +72,12 @@ Check the plugin surface when local discovery is available:
 
 If the surface exposes starter prompts, verify these prompts are visible:
 
+- `Use Augnes for this task`
+- `Set up Augnes in Codex`
+- `Start with Augnes memory`
+- `Review this PR with Augnes context`
+- `Enable Augnes reuse`
+- `Use Augnes context before editing`
 - `Codex야 Augnes 설치해줘`
 - `Codex야 Augnes 쓰자`
 - `Augnes memory 보고 시작해`
@@ -93,6 +99,12 @@ manual test turn and capture the observed routing:
 
 | Prompt | Expected routing signal |
 | --- | --- |
+| `Use Augnes for this task` | Codex handles the English prompt as an Augnes Skill trigger and starts the Augnes use flow. |
+| `Set up Augnes in Codex` | Codex handles the English prompt as an Augnes Skill trigger and starts setup guidance. |
+| `Start with Augnes memory` | Codex handles the English prompt as an Augnes Skill trigger and starts memory reuse guidance. |
+| `Review this PR with Augnes context` | Codex handles the English prompt as an Augnes Skill trigger and starts PR review with Augnes context. |
+| `Enable Augnes reuse` | Codex handles the English prompt as an Augnes Skill trigger and keeps installer guidance dry-run first unless explicitly lifted. |
+| `Use Augnes context before editing` | Codex handles the English prompt as an Augnes Skill trigger and treats memory/context as task-start context. |
 | `Codex야 Augnes 설치해줘` | Codex references or follows Augnes Codex Skill behavior for install guidance. |
 | `Codex야 Augnes 쓰자` | Codex references or follows Augnes Codex Skill behavior for use/reuse guidance. |
 | `Augnes memory 보고 시작해` | Codex requests or runs Perspective Memory Reuse Intake fallback when hook automation is unavailable. |
@@ -105,6 +117,44 @@ Passing routing means Codex either names the Augnes Codex Skill or follows its
 documented flow: dry-run-first installer guidance, explicit `--yes` before real
 install, manual `/hooks review/trust`, and Perspective Memory Reuse Intake
 fallback.
+
+## Constraint Disclosure And Unlock Checks
+
+At Augnes use start, verify Codex compactly discloses user-liftable default
+constraints:
+
+Codex explains user-liftable constraints at Augnes use start.
+
+- dry-run-first installer behavior
+- real install requires explicit `--yes` or equivalent authorization
+- no real `~/.codex` write unless explicitly authorized
+- memory brief is read-only/context-only by default
+- no automatic memory item creation by default
+- no storage/persistence/provider/model/OpenAI config/MCP/Codex SDK/GitHub
+  mutation unless explicitly scoped
+- no plugin-bundled hook implementation by default
+
+Verify Codex distinguishes those from non-liftable Codex/platform constraints:
+
+- `/hooks review/trust remains manual`
+- plugin install does not prove hook trust
+- plugin install does not prove real hook loading
+- static smoke cannot prove real hook loading or trust
+- Codex command approvals and safety behavior remain in force
+
+Unlock behavior checks:
+
+- Codex can proceed with `--yes` real install only when explicitly scoped by
+  user language such as `Run the real Augnes hook install with --yes`, `Skip
+  dry-run and install Augnes now`, or `Allow real ~/.codex writes for this
+  Augnes hook install`.
+- Codex can include storage/persistence/provider/model/OpenAI config/MCP/Codex
+  SDK/GitHub mutation work only as an explicitly scoped implementation PR.
+- Codex can create or update Augnes memory items only when existing
+  repo-supported commands are present, or through a scoped PR for that feature.
+- Codex does not claim `/hooks` trust can be removed.
+- Codex does not claim plugin install proves real hook loading or trust.
+- Codex does not use `--dangerously-bypass-hook-trust` as normal UX.
 
 ## Installer Dry-Run Behavior Checks
 
@@ -170,6 +220,12 @@ Plugin surface:
 - starter/default prompts visible:
 
 Prompt results:
+- Use Augnes for this task:
+- Set up Augnes in Codex:
+- Start with Augnes memory:
+- Review this PR with Augnes context:
+- Enable Augnes reuse:
+- Use Augnes context before editing:
 - Codex야 Augnes 설치해줘:
 - Codex야 Augnes 쓰자:
 - Augnes memory 보고 시작해:
@@ -188,6 +244,13 @@ Installer dry-run behavior:
 - /hooks review/trust described as manual:
 - plugin install does not prove real hook loading:
 - static smoke does not prove real hook loading or trust:
+- --dangerously-bypass-hook-trust not used as normal UX:
+
+Constraint disclosure and unlock:
+- user-liftable defaults explained:
+- non-liftable Codex/platform constraints explained:
+- --yes real install only after explicit user scope:
+- storage/persistence/provider/model/OpenAI config/MCP/Codex SDK/GitHub mutation only by explicit PR scope:
 
 Memory fallback:
 - perspective:memory-reuse-intake fallback shown:
@@ -220,5 +283,6 @@ Screenshots or transcript refs:
 - no automatic memory item creation
 - no real installer commands
 - no real ~/.codex writes
+- no normal use of `--dangerously-bypass-hook-trust`
 - no proof/evidence writes
 - no Augnes state commit/reject authority
