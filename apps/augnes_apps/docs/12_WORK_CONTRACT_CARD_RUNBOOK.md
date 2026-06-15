@@ -121,12 +121,52 @@ the Constellation route from the work brief tool, does not require
 Constellation context to render the Work Contract Card, and does not invent
 missing selected candidates, evidence refs, tensions, or source refs.
 
+## Final Codex Handoff Auto-Compose And Preflight
+
+The Work Contract Card also derives a `final_codex_handoff_packet` from the
+existing Work Contract Card, Codex Handoff Preview, and optional Project
+Constellation context. When no Constellation context is attached, the final
+packet carries the explicit fallback:
+`No Project Constellation context is attached to this work contract.`
+
+The final packet is still read-only preparation text. It includes work scope,
+work ID, title, status, current/next step, expected files, expected checks,
+related state keys, proof/evidence expectations, skipped-check policy, browser
+verification expectation, forbidden actions, stop conditions, authority
+boundaries, final report requirements, and the existing structured JSON block
+delimiters. The existing `Copy Codex Handoff` control copies this final packet
+text with the same local fallback layers: Clipboard API, then `execCommand`,
+then visible packet text selection when the host blocks clipboard writes.
+
+The surface also derives a local `final_handoff_preflight` object. This
+preflight is pure display validation over the generated packet shape and
+authority text. It does not spawn shell commands, run npm, call the runtime,
+call GitHub/OpenAI/providers, record proof/evidence, mutate Augnes state, or
+execute Codex. It checks that packet text exists, work ID or explicit
+missing-work fallback exists, authority boundaries and forbidden-action
+boundaries exist, skipped-check policy and closeout expectations exist,
+Constellation context is attached or explicitly absent, no execution/write
+control labels are present, and the structured JSON block is parseable.
+
+Three inert future slots are visible in the final packet:
+
+- `memory_reuse_attachment`: not attached.
+- `pr_body_checklist`: not generated.
+- `codex_result_review_packet`: not generated.
+
+These slots are placeholders only. They do not implement Perspective Memory
+Reuse Intake, PR body generation, Codex result review automation, branch/PR
+creation, proof/evidence recording, publication, approval, retry, replay,
+deploy, persistence, auth, or provider calls.
+
 ## Copy Codex Handoff Affordance
 
 The Codex Handoff Preview includes a single `Copy Codex Handoff` control near
-the visible packet text. The control copies only the existing generated handoff
-packet text from `preview.copyable_handoff_text` so the user can paste it into
-a separate Codex session.
+the visible packet text. With final handoff auto-compose enabled, the control
+copies the generated final handoff packet from
+`final_codex_handoff_packet.copyable_handoff_text` so the user can paste it
+into a separate Codex session. Older preview payloads may still fall back to
+`preview.copyable_handoff_text`.
 
 The copied packet includes the existing human-readable sections and a delimited
 structured JSON block:
