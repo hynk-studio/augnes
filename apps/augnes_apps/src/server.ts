@@ -335,6 +335,17 @@ function describeWorkItems(scope: string, workItems: WorkItem[]): string {
   return `Found ${workItems.length} work item(s) for ${scope}; ${attentionCount} require user attention. Work IDs are trace anchors, not state authority.`;
 }
 
+function describeWorkPickerCard(card: WorkPickerCard): string {
+  if (!card.work_candidates.length) {
+    return `Choose a work item for ${card.scope}: no work items found. Check the scope or select/create a work item elsewhere before opening a Codex handoff.`;
+  }
+
+  const recommendation = card.recommended_work_id
+    ? ` Recommended work: ${card.recommended_work_id}. ${card.selection_reason}`
+    : "";
+  return `Choose a work item for ${card.scope}: ${card.work_candidates.length} candidate(s).${recommendation} ${card.handoff_tool_hint}`;
+}
+
 function describeWorkBrief(brief: WorkBrief): string {
   return `Work brief for ${brief.work_id}: ${brief.work.title}. Status ${brief.work.status}, priority ${brief.work.priority}, ${brief.recent_events.length} recent event(s), ${brief.related_proof.action_ids.length} linked action record(s). work_id is a trace anchor; committed state remains authoritative.`;
 }
@@ -348,6 +359,13 @@ const WORK_CONTRACT_CARD_BOUNDARY_TEXT = [
   "Proof is not approval.",
   "A PR is not merge authority.",
   "Durable approval remains user/Core gated.",
+] as const;
+
+const WORK_PICKER_CARD_BOUNDARY_TEXT = [
+  "Work Picker is read-only.",
+  "Work IDs are trace anchors, not committed state authority.",
+  "Selecting a work item means choosing what to inspect next; it does not execute Codex.",
+  "This card cannot create branches or PRs, call GitHub or providers, record proof or evidence, mutate Augnes state, approve, publish, merge, retry, replay, or deploy.",
 ] as const;
 
 const CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT = [
@@ -364,6 +382,53 @@ const CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT = [
   "Durable approval remains user/Core gated.",
   "Raw DB paths are local-dev fallback only and should not be normal user-facing input.",
 ] as const;
+
+type WorkPickerCandidate = {
+  work_id: string;
+  title: string;
+  status: string;
+  priority: string;
+  summary: string;
+  next_step: string;
+  user_attention_required: boolean;
+  related_state_keys_count: number;
+  expected_files_count: number;
+  expected_checks_count: number;
+  linked_docs_count: number;
+  is_recommended: boolean;
+  handoff_instruction: string;
+};
+
+type WorkPickerCard = {
+  card_type: "work_picker_card";
+  title: "Choose a work item";
+  scope: string;
+  candidate_count: number;
+  recommended_work_id: string | null;
+  recommended_work_title: string | null;
+  selection_reason: string;
+  next_action_hint: string;
+  handoff_tool_hint: string;
+  empty_state: string | null;
+  work_candidates: WorkPickerCandidate[];
+  source: {
+    tool: "augnes_list_work_items";
+    structured_content: "workItems";
+    next_tool: "augnes_get_work_brief";
+  };
+  boundaries: {
+    read_only: true;
+    state_commit_or_reject: false;
+    codex_execution: false;
+    branch_or_pr_creation: false;
+    proof_recording: false;
+    evidence_recording: false;
+    provider_calls: false;
+    github_calls: false;
+    persistence: false;
+  };
+  boundary_text: readonly string[];
+};
 
 const CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS = [
   "No Codex execution from this card.",
@@ -2763,6 +2828,81 @@ function buildCodexExecutionRequestPreview(packet: FinalCodexHandoffPacket): Cod
   };
 }
 
+function isCompletedWorkStatus(status: string): boolean {
+  return ["completed", "done", "cancelled", "canceled", "archived"].includes(status.trim().toLowerCase());
+}
+
+function countLinkedStrings(record: Record<string, unknown>, key: string): number {
+  return stringArrayFromUnknown(record[key]).length;
+}
+
+function buildWorkPickerCard(scope: string, workItems: WorkItem[]): WorkPickerCard {
+  const recommendedItem = workItems.find((item) => !isCompletedWorkStatus(item.status)) ?? workItems[0] ?? null;
+  const hasExactlyOneCandidate = workItems.length === 1;
+  const selectionReason = recommendedItem
+    ? hasExactlyOneCandidate
+      ? "Only work item found for this scope."
+      : !isCompletedWorkStatus(recommendedItem.status)
+        ? "First active work item for this scope."
+        : "First work item returned for this scope."
+    : "No work items found for this scope.";
+  const handoffToolHint =
+    "When a user asks for a project handoff and no workId is known, list work items first, then call augnes_get_work_brief with the selected or recommended workId.";
+  const nextActionHint = recommendedItem
+    ? `Open the recommended work with augnes_get_work_brief using workId: ${recommendedItem.work_id}.`
+    : "No work items found for this scope. Check the scope or select/create a work item elsewhere before opening a handoff card.";
+
+  return {
+    card_type: "work_picker_card",
+    title: "Choose a work item",
+    scope,
+    candidate_count: workItems.length,
+    recommended_work_id: recommendedItem?.work_id ?? null,
+    recommended_work_title: recommendedItem?.title ?? null,
+    selection_reason: selectionReason,
+    next_action_hint: nextActionHint,
+    handoff_tool_hint: handoffToolHint,
+    empty_state: workItems.length
+      ? null
+      : "No work items found for this scope. Check the scope or select/create a work item elsewhere.",
+    work_candidates: workItems.map((item) => {
+      const links = item.links as Record<string, unknown>;
+      return {
+        work_id: item.work_id,
+        title: item.title,
+        status: item.status,
+        priority: item.priority,
+        summary: item.summary,
+        next_step: item.next_action,
+        user_attention_required: item.user_attention_required === true,
+        related_state_keys_count: item.related_state_keys.length,
+        expected_files_count: countLinkedStrings(links, "expected_files"),
+        expected_checks_count: countLinkedStrings(links, "expected_checks"),
+        linked_docs_count: countLinkedStrings(links, "docs"),
+        is_recommended: item.work_id === recommendedItem?.work_id,
+        handoff_instruction: `Open this work with augnes_get_work_brief using workId: ${item.work_id}.`,
+      };
+    }),
+    source: {
+      tool: "augnes_list_work_items",
+      structured_content: "workItems",
+      next_tool: "augnes_get_work_brief",
+    },
+    boundaries: {
+      read_only: true,
+      state_commit_or_reject: false,
+      codex_execution: false,
+      branch_or_pr_creation: false,
+      proof_recording: false,
+      evidence_recording: false,
+      provider_calls: false,
+      github_calls: false,
+      persistence: false,
+    },
+    boundary_text: WORK_PICKER_CARD_BOUNDARY_TEXT,
+  };
+}
+
 function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
   const codexHandoff = brief.codex_handoff as typeof brief.codex_handoff & Record<string, unknown>;
   const workLinks = brief.work.links as Record<string, unknown>;
@@ -3911,21 +4051,35 @@ export function createMcpAppServer(
     "augnes_list_work_items",
     {
       title: "List Augnes work items",
-      description: "List focused Augnes work trace anchors without treating work_id as durable project state.",
+      description:
+        "Show a read-only Work Picker for a project scope so the user can choose a work item before opening the Codex handoff card.",
       inputSchema: { scope: z.string().min(1).optional() },
       annotations: bridgeReadAnnotations,
-      _meta: modelOnlyToolMeta,
+      _meta: widgetToolMeta,
     },
     async ({ scope }) => {
       const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
 
       try {
         const workItems = await stateRuntimeAdapter.listWorkItems(resolvedScope);
-        const structuredContent = sanitizePayload({ profile: config.appProfile, scope: resolvedScope, workItems });
+        const workPickerCard = buildWorkPickerCard(resolvedScope, workItems);
+        const structuredContent = sanitizePayload({
+          profile: config.appProfile,
+          panel: "work_picker_card",
+          scope: resolvedScope,
+          workItems,
+          work_picker_card: workPickerCard,
+          work_candidates: workPickerCard.work_candidates,
+          recommended_work_id: workPickerCard.recommended_work_id,
+          selection_reason: workPickerCard.selection_reason,
+          next_action_hint: workPickerCard.next_action_hint,
+          handoff_tool_hint: workPickerCard.handoff_tool_hint,
+          boundaries: workPickerCard.boundaries,
+        });
         return {
           structuredContent,
-          content: narrative(describeWorkItems(resolvedScope, workItems)),
-          _meta: sanitizePayload({ profile: config.appProfile }),
+          content: narrative(`${describeWorkItems(resolvedScope, workItems)} ${describeWorkPickerCard(workPickerCard)}`),
+          _meta: structuredContent,
         };
       } catch (error) {
         return buildBridgeToolError("augnes_list_work_items", error);
