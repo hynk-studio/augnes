@@ -38,6 +38,9 @@ assert.match(server, /pr_body_checklist_preview/, "server must return PR body ch
 assert.match(server, /codex_pr_body_checklist/, "server must return a PR body checklist alias");
 assert.match(server, /codex_closeout_skeleton/, "server must return closeout skeleton structured content");
 assert.match(server, /final_handoff_closeout_skeleton/, "server must return a closeout skeleton alias");
+assert.match(server, /codex_result_review_packet_preview/, "server must return Codex result review packet preview structured content");
+assert.match(server, /final_handoff_codex_result_review_packet/, "server must return a final handoff result review packet alias");
+assert.match(server, /codex_pr_review_packet_preview/, "server must return a PR review packet preview alias");
 assert.match(server, /work_contract_constellation_context/, "server must support optional Work Contract / Constellation context");
 assert.match(server, /No Project Constellation context is attached to this work contract\./, "server must keep missing Constellation context explicit");
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
@@ -47,6 +50,7 @@ assert.match(widget, /renderFinalHandoffPreflight/, "widget must render final ha
 assert.match(widget, /renderHandoffAutomationSlots/, "widget must render future attachment slots");
 assert.match(widget, /renderMemoryReuseAttachmentProposal/, "widget must render Memory Reuse attachment proposal state");
 assert.match(widget, /renderPrBodyChecklistPreview/, "widget must render PR body checklist preview state");
+assert.match(widget, /renderCodexResultReviewPacketPreview/, "widget must render Codex result review packet preview state");
 assert.match(widget, /renderWorkContractConstellationContext/, "widget must render Work Contract / Constellation context");
 assert.match(widget, /renderCopyableHandoffPacket/, "widget must implement a bounded copy affordance renderer");
 assert.match(server, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block begin delimiter");
@@ -69,10 +73,17 @@ assert.match(runbook, /pr_body_checklist/, "runbook must document PR body checkl
 assert.match(runbook, /preview-only PR body checklist/i, "runbook must document preview-only PR body checklist behavior");
 assert.match(runbook, /closeout skeleton/i, "runbook must document the closeout skeleton");
 assert.match(runbook, /placeholders/i, "runbook must distinguish placeholders from actual results");
-assert.match(runbook, /codex_result_review_packet/, "runbook must document inert result review packet slot");
+assert.match(runbook, /codex_result_review_packet/, "runbook must document result review packet slot");
+assert.match(runbook, /preview-only Codex\s+result review packet/i, "runbook must document preview-only result review packet behavior");
+assert.match(runbook, /needs_result_input/i, "runbook must document missing result input state");
+assert.match(runbook, /no\s+GitHub PR data is fetched/i, "runbook must document no App/MCP GitHub fetching");
 for (const status of ["proposed", "no_match", "unavailable", "not_configured"]) {
   assert.match(server, new RegExp(escapeRegExp(status)), `server must support Memory Reuse proposal status ${status}`);
   assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Memory Reuse proposal status ${status}`);
+}
+for (const status of ["not_provided", "needs_result_input", "preview_ready", "unavailable"]) {
+  assert.match(server, new RegExp(escapeRegExp(status)), `server must support Codex result review status ${status}`);
+  assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Codex result review status ${status}`);
 }
 
 const uiText = `${server}\n${widget}`;
@@ -96,6 +107,9 @@ const forbiddenUiPhrases = [
   "Post externally",
   "Create PR",
   "Open PR",
+  "Submit review",
+  "Request changes",
+  "Approve PR",
 ];
 const allowedCopyLabels = ["Copy Codex Handoff", "Copy Handoff Preview"];
 for (const phrase of forbiddenUiPhrases) {
@@ -127,6 +141,7 @@ assert.match(workBriefBlock, /handoff_automation_slots/, "augnes_get_work_brief 
 assert.match(workBriefBlock, /memory_reuse_attachment_proposal/, "augnes_get_work_brief must carry Memory Reuse proposal structured content");
 assert.match(workBriefBlock, /pr_body_checklist_preview/, "augnes_get_work_brief must carry PR body checklist preview structured content");
 assert.match(workBriefBlock, /codex_closeout_skeleton/, "augnes_get_work_brief must carry closeout skeleton structured content");
+assert.match(workBriefBlock, /codex_result_review_packet_preview/, "augnes_get_work_brief must carry Codex result review packet preview structured content");
 assert.doesNotMatch(server, /buildPerspectiveMemoryReuseIntakeFromStore\s*\(/, "App/MCP server must not run the store-backed Memory Reuse intake helper");
 assert.doesNotMatch(server, /listPerspectiveMemoryItems\s*\(/, "App/MCP server must not query persisted perspective-memory items for this preview");
 
@@ -154,6 +169,16 @@ assertNoNetworkCalls(extractFunction(server, "summarizeMemoryReuseForCloseout"),
 assertNoNetworkCalls(extractFunction(server, "summarizeConstellationForCloseout"), "summarizeConstellationForCloseout");
 assertNoNetworkCalls(extractFunction(server, "buildCloseoutSkeletonText"), "buildCloseoutSkeletonText");
 assertNoNetworkCalls(extractFunction(server, "buildCloseoutSkeleton"), "buildCloseoutSkeleton");
+assertNoNetworkCalls(extractFunction(server, "includesText"), "includesText");
+assertNoNetworkCalls(extractFunction(server, "stringFromUnknownResult"), "stringFromUnknownResult");
+assertNoNetworkCalls(extractFunction(server, "collectResultText"), "collectResultText");
+assertNoNetworkCalls(extractFunction(server, "stringArrayFromResultObjects"), "stringArrayFromResultObjects");
+assertNoNetworkCalls(extractFunction(server, "resultReviewPayloadFromBrief"), "resultReviewPayloadFromBrief");
+assertNoNetworkCalls(extractFunction(server, "buildListAlignment"), "buildListAlignment");
+assertNoNetworkCalls(extractFunction(server, "buildPresenceAlignment"), "buildPresenceAlignment");
+assertNoNetworkCalls(extractFunction(server, "buildCodexResultReviewPacketPreview"), "buildCodexResultReviewPacketPreview");
+assertNoNetworkCalls(extractFunction(server, "summarizeCodexResultReviewPacket"), "summarizeCodexResultReviewPacket");
+assertNoNetworkCalls(extractFunction(server, "codexResultReviewPacketLines"), "codexResultReviewPacketLines");
 assertNoNetworkCalls(extractFunction(server, "buildHandoffAutomationSlots"), "buildHandoffAutomationSlots");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffJsonBlock"), "buildFinalCodexHandoffJsonBlock");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffText"), "buildFinalCodexHandoffText");
@@ -161,6 +186,7 @@ assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffPacket"), "b
 assertNoNetworkCalls(extractFunction(server, "extractStructuredHandoffJsonBlock"), "extractStructuredHandoffJsonBlock");
 assertNoNetworkCalls(extractFunction(server, "finalHandoffMemoryReusePreflightCheck"), "finalHandoffMemoryReusePreflightCheck");
 assertNoNetworkCalls(extractFunction(server, "finalHandoffPrBodyChecklistPreflightCheck"), "finalHandoffPrBodyChecklistPreflightCheck");
+assertNoNetworkCalls(extractFunction(server, "finalHandoffCodexResultReviewPacketPreflightCheck"), "finalHandoffCodexResultReviewPacketPreflightCheck");
 assertNoNetworkCalls(extractFunction(server, "buildFinalHandoffPreflight"), "buildFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContext"), "buildWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContextFromBrief"), "buildWorkContractConstellationContextFromBrief");
@@ -173,6 +199,7 @@ assertNoNetworkCalls(extractFunction(widget, "renderFinalCodexHandoffPacket"), "
 assertNoNetworkCalls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoNetworkCalls(extractFunction(widget, "renderPrBodyChecklistPreview"), "renderPrBodyChecklistPreview");
+assertNoNetworkCalls(extractFunction(widget, "renderCodexResultReviewPacketPreview"), "renderCodexResultReviewPacketPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractConstellationContext"), "renderWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(widget, "renderCopyableHandoffPacket"), "renderCopyableHandoffPacket");
@@ -183,8 +210,10 @@ assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffPreflight"), 
 assertNoNetworkCalls(extractFunction(widget, "normalizeMemoryReuseAttachmentProposal"), "normalizeMemoryReuseAttachmentProposal");
 assertNoNetworkCalls(extractFunction(widget, "normalizePrBodyChecklistPreview"), "normalizePrBodyChecklistPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCloseoutSkeleton"), "normalizeCloseoutSkeleton");
+assertNoNetworkCalls(extractFunction(widget, "normalizeCodexResultReviewPacket"), "normalizeCodexResultReviewPacket");
 assertNoNetworkCalls(extractFunction(widget, "memoryReuseAttachmentPreflightCheck"), "memoryReuseAttachmentPreflightCheck");
 assertNoNetworkCalls(extractFunction(widget, "prBodyChecklistPreflightCheck"), "prBodyChecklistPreflightCheck");
+assertNoNetworkCalls(extractFunction(widget, "codexResultReviewPacketPreflightCheck"), "codexResultReviewPacketPreflightCheck");
 assertNoNetworkCalls(extractFunction(widget, "localFinalPreflight"), "localFinalPreflight");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractConstellationContext"), "normalizeWorkContractConstellationContext");
 assertNoNetworkCalls(widget, "console-widget");
@@ -224,11 +253,17 @@ const renderSource = [
   extractFunction(widget, "prBodyChecklistBoundaryText"),
   extractFunction(widget, "prBodyChecklistForbiddenClaims"),
   extractFunction(widget, "prBodyChecklistWarnings"),
+  extractFunction(widget, "codexResultReviewRequiredInputs"),
+  extractFunction(widget, "codexResultReviewBoundaryText"),
+  extractFunction(widget, "codexResultReviewWarnings"),
   extractFunction(widget, "normalizePrBodyChecklistPreview"),
   extractFunction(widget, "summarizeMemoryReuseForCloseout"),
   extractFunction(widget, "summarizeConstellationForCloseout"),
   extractFunction(widget, "closeoutSkeletonTextFromSections"),
   extractFunction(widget, "normalizeCloseoutSkeleton"),
+  extractFunction(widget, "makeAlignment"),
+  extractFunction(widget, "normalizeCodexResultReviewPacket"),
+  extractFunction(widget, "codexResultReviewPacketLineItems"),
   extractFunction(widget, "fallbackHandoffAutomationSlots"),
   extractFunction(widget, "slotLine"),
   extractFunction(widget, "finalConstellationPacketLines"),
@@ -238,6 +273,7 @@ const renderSource = [
   extractFunction(widget, "containsForbiddenFinalHandoffLabel"),
   extractFunction(widget, "memoryReuseAttachmentPreflightCheck"),
   extractFunction(widget, "prBodyChecklistPreflightCheck"),
+  extractFunction(widget, "codexResultReviewPacketPreflightCheck"),
   extractFunction(widget, "localFinalPreflight"),
   extractFunction(widget, "normalizeFinalHandoffPreflight"),
   extractFunction(widget, "normalizeWorkContractCard"),
@@ -246,6 +282,7 @@ const renderSource = [
   extractFunction(widget, "renderFinalHandoffPreflight"),
   extractFunction(widget, "renderMemoryReuseAttachmentProposal"),
   extractFunction(widget, "renderPrBodyChecklistPreview"),
+  extractFunction(widget, "renderCodexResultReviewPacketPreview"),
   extractFunction(widget, "renderHandoffAutomationSlots"),
   extractFunction(widget, "renderFinalCodexHandoffPacket"),
   extractFunction(widget, "renderCodexHandoffPreview"),
@@ -257,6 +294,7 @@ assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffPreview"), 
 assertNoForbiddenControls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
 assertNoForbiddenControls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoForbiddenControls(extractFunction(widget, "renderPrBodyChecklistPreview"), "renderPrBodyChecklistPreview");
+assertNoForbiddenControls(extractFunction(widget, "renderCodexResultReviewPacketPreview"), "renderCodexResultReviewPacketPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
@@ -279,9 +317,9 @@ for (const expectedPreviewText of [
   "Codex Handoff Preview",
   "Final Codex Handoff",
   "Final Codex Handoff Packet",
-  "Local read-only preflight: pass.",
+  "Local read-only preflight: warn.",
   "Preflight checks",
-  "Future attachment slots",
+  "Attachment slots",
   "Memory Reuse attachment",
   "no_match",
   "Memory Reuse proposal is explicit no_match",
@@ -306,6 +344,18 @@ for (const expectedPreviewText of [
   "Placeholder:",
   "Do not claim they passed until they have actually run.",
   "Codex result review packet",
+  "needs_result_input",
+  "Result input needed",
+  "Codex final report text or structured result payload.",
+  "Changed files.",
+  "Verification commands and results.",
+  "Skipped checks with concrete reasons.",
+  "Authority boundary statement.",
+  "Remaining caveats.",
+  "No Codex result payload is attached",
+  "No reported changed files attached.",
+  "No reported verification results attached.",
+  "Review recommendations are advisory only and do not submit or post anything.",
   "Readiness reasons",
   "Stop conditions",
   "Copyable handoff packet",
@@ -324,7 +374,7 @@ for (const expectedPreviewText of [
 await assertRenderedCopyAffordance(
   renderedFallback,
   "clipboard",
-  /No Project Constellation context is attached to this work contract\.[\s\S]*Memory Reuse attachment[\s\S]*No persisted memory IDs selected\./,
+  /No Project Constellation context is attached to this work contract\.[\s\S]*Memory Reuse attachment[\s\S]*No persisted memory IDs selected\.[\s\S]*Codex result review packet[\s\S]*needs_result_input/,
 );
 const renderedExecFallback = renderFallbackCard(renderSource, { clipboardWriteThrows: true });
 await assertRenderedCopyAffordance(renderedExecFallback, "execCommand");
@@ -370,6 +420,29 @@ await assertRenderedCopyAffordance(
   /Memory Reuse attachment[\s\S]*perspective-memory-item:intake-accepted[\s\S]*Reuse only as bounded prior context/,
 );
 
+const renderedWithResultReview = renderResultReviewPreviewReadyCard(renderSource);
+for (const expectedResultReviewText of [
+  "preview_ready",
+  "structured_payload",
+  "ready_for_human_review",
+  "apps/augnes_apps/src/server.ts",
+  "npm run smoke:chatgpt-work-contract-card passed",
+  "Reported changed files cover the expected file list.",
+  "Reported verification results cover the expected checks.",
+  "Reported result includes Memory Reuse attachment status.",
+  "Reported result includes Project Constellation context status.",
+  "Reported result includes final handoff preflight status.",
+  "Reported result references the PR body checklist and closeout skeleton.",
+  "Review recommendations are advisory only and do not submit or post anything.",
+]) {
+  assert.match(renderedWithResultReview.text, new RegExp(escapeRegExp(expectedResultReviewText)), `result review render must include: ${expectedResultReviewText}`);
+}
+await assertRenderedCopyAffordance(
+  renderedWithResultReview,
+  "clipboard",
+  /Codex result review packet[\s\S]*preview_ready[\s\S]*apps\/augnes_apps\/src\/server\.ts[\s\S]*npm run smoke:chatgpt-work-contract-card passed/,
+);
+
 console.log(
   JSON.stringify(
     {
@@ -394,13 +467,18 @@ console.log(
       closeout_skeleton_present: true,
       closeout_skeleton_placeholders_checked: true,
       closeout_skeleton_copy_packet_checked: true,
+      codex_result_review_packet_present: true,
+      codex_result_review_needs_input_checked: true,
+      codex_result_review_preview_ready_fixture_checked: true,
+      codex_result_review_copy_packet_checked: true,
       final_handoff_preflight_present: true,
       final_handoff_preflight_pass_fixture_checked: true,
       final_handoff_preflight_malformed_fixture_checked: true,
       final_handoff_preflight_memory_reuse_state_checked: true,
       final_handoff_preflight_pr_body_checklist_state_checked: true,
+      final_handoff_preflight_codex_result_review_state_checked: true,
       handoff_automation_slots_present: true,
-      pr_body_slot_preview_only_and_review_slot_inert: true,
+      pr_body_and_result_review_slots_preview_only: true,
       work_contract_constellation_context_optional: true,
       work_contract_constellation_context_rendered: true,
       missing_constellation_context_fallback_checked: true,
@@ -612,6 +690,74 @@ function assertFinalPreflightFixtures(source) {
     warnings: ["Replace placeholders with actual results after implementation."],
     boundary_text: ["PR body checklist is preview-only closeout preparation."],
   };
+  const codexResultReviewPacket = {
+    packet_type: "codex_result_review_packet_preview",
+    status: "preview_ready",
+    result_source: "structured_payload",
+    reviewed_against_packet_id: "final_codex_handoff_packet:AG-SMOKE",
+    work_id: "AG-SMOKE",
+    expected_files: ["apps/augnes_apps/src/server.ts"],
+    reported_changed_files: ["apps/augnes_apps/src/server.ts"],
+    expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
+    reported_verification_results: ["npm run smoke:chatgpt-work-contract-card passed"],
+    skipped_checks: ["Optional live validation skipped because no cheap session was available."],
+    missing_required_closeout_sections: [],
+    required_result_input_fields: ["Codex final report text or structured result payload."],
+    authority_boundary_issues: [],
+    memory_reuse_alignment: {
+      status: "aligned",
+      summary: "Reported result includes Memory Reuse attachment status.",
+      expected: ["Memory Reuse attachment status", "no_match"],
+      reported: ["Memory Reuse attachment status: no_match"],
+      missing: [],
+    },
+    constellation_context_alignment: {
+      status: "aligned",
+      summary: "Reported result includes Project Constellation context status.",
+      expected: ["Project Constellation context status", "explicitly_absent"],
+      reported: ["Project Constellation context status: explicitly_absent"],
+      missing: [],
+    },
+    preflight_alignment: {
+      status: "aligned",
+      summary: "Reported result includes final handoff preflight status.",
+      expected: ["Final handoff preflight status"],
+      reported: ["Final handoff preflight status: pass"],
+      missing: [],
+    },
+    checklist_alignment: {
+      status: "aligned",
+      summary: "Reported result references the PR body checklist and closeout skeleton.",
+      expected: ["PR body checklist", "closeout skeleton"],
+      reported: ["PR body checklist / closeout skeleton included"],
+      missing: [],
+    },
+    file_alignment: {
+      status: "aligned",
+      summary: "Reported changed files cover the expected file list.",
+      expected: ["apps/augnes_apps/src/server.ts"],
+      reported: ["apps/augnes_apps/src/server.ts"],
+      missing: [],
+    },
+    verification_alignment: {
+      status: "aligned",
+      summary: "Reported verification results cover the expected checks.",
+      expected: ["npm run smoke:chatgpt-work-contract-card"],
+      reported: ["npm run smoke:chatgpt-work-contract-card passed"],
+      missing: [],
+    },
+    skipped_check_alignment: {
+      status: "aligned",
+      summary: "Skipped checks were reported; verify each skipped check has a concrete reason.",
+      expected: ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."],
+      reported: ["Optional live validation skipped because no cheap session was available."],
+      missing: [],
+    },
+    review_questions: ["Ready for human review after checking the reported result payload."],
+    review_recommendation: "ready_for_human_review",
+    warnings: ["Review recommendations are advisory only and do not submit or post anything."],
+    boundary_text: ["Codex result review packet is preview-only review preparation."],
+  };
   context.__passingPacket = {
     packet_type: "final_codex_handoff_packet",
     work_id: "AG-SMOKE",
@@ -639,6 +785,9 @@ function assertFinalPreflightFixtures(source) {
     codex_pr_body_checklist: prBodyChecklistPreview,
     codex_closeout_skeleton: closeoutSkeleton,
     final_handoff_closeout_skeleton: closeoutSkeleton,
+    codex_result_review_packet_preview: codexResultReviewPacket,
+    final_handoff_codex_result_review_packet: codexResultReviewPacket,
+    codex_pr_review_packet_preview: codexResultReviewPacket,
     handoff_automation_slots: {
       memory_reuse_attachment: {
         status: "no_match",
@@ -661,9 +810,10 @@ function assertFinalPreflightFixtures(source) {
         closeout_skeleton: closeoutSkeleton,
       },
       codex_result_review_packet: {
-        status: "not_generated",
-        generated: false,
+        status: "preview_ready",
+        generated: true,
         inert: true,
+        review_packet: codexResultReviewPacket,
       },
     },
     copyable_handoff_text: [
@@ -678,6 +828,13 @@ function assertFinalPreflightFixtures(source) {
       "- Checklist status: preview_only",
       "Closeout skeleton preview",
       closeoutSkeletonText,
+      "Codex result review packet",
+      "- Status: preview_ready",
+      "- Result source: structured_payload",
+      "- Reported changed files:",
+      "  - apps/augnes_apps/src/server.ts",
+      "- Reported verification results:",
+      "  - npm run smoke:chatgpt-work-contract-card passed",
       "Skipped checks must be reported with concrete reasons; do not claim skipped checks passed.",
       "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
       JSON.stringify({
@@ -686,9 +843,15 @@ function assertFinalPreflightFixtures(source) {
         final_packet_schema: "augnes.final_codex_handoff_packet.v0_1",
         pr_body_checklist_preview: prBodyChecklistPreview,
         codex_closeout_skeleton: closeoutSkeleton,
+        codex_result_review_packet_preview: codexResultReviewPacket,
         handoff_automation_slots: {
           pr_body_checklist: {
             status: "preview_only",
+            generated: true,
+            inert: true,
+          },
+          codex_result_review_packet: {
+            status: "preview_ready",
             generated: true,
             inert: true,
           },
@@ -713,6 +876,7 @@ function assertFinalPreflightFixtures(source) {
   assert.ok(pass.checks.some((check) => check.id === "constellation_context_state" && check.status === "pass"), "preflight must check attached/missing Constellation state");
   assert.ok(pass.checks.some((check) => check.id === "memory_reuse_attachment_state" && check.status === "pass"), "preflight must check Memory Reuse attachment state");
   assert.ok(pass.checks.some((check) => check.id === "pr_body_checklist_state" && check.status === "pass"), "preflight must check PR body checklist state");
+  assert.ok(pass.checks.some((check) => check.id === "codex_result_review_packet_state" && check.status === "pass"), "preflight must check Codex result review packet state");
 
   context.__badPacket = {
     packet_type: "final_codex_handoff_packet",
@@ -848,6 +1012,91 @@ function memoryReuseProposedCardPayload() {
   };
 }
 
+function resultReviewPreviewReadyCardPayload() {
+  return {
+    ...memoryReuseProposedCardPayload(),
+    codex_result_review_packet_preview: {
+      packet_type: "codex_result_review_packet_preview",
+      status: "preview_ready",
+      result_source: "structured_payload",
+      reviewed_against_packet_id: "final_codex_handoff_packet:AG-SMOKE",
+      work_id: "AG-SMOKE",
+      expected_files: ["apps/augnes_apps/src/server.ts"],
+      reported_changed_files: ["apps/augnes_apps/src/server.ts"],
+      expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
+      reported_verification_results: ["npm run smoke:chatgpt-work-contract-card passed"],
+      skipped_checks: ["Optional live validation skipped because no cheap session was available."],
+      missing_required_closeout_sections: [],
+      required_result_input_fields: [
+        "Codex final report text or structured result payload.",
+        "Changed files.",
+        "Verification commands and results.",
+      ],
+      authority_boundary_issues: [],
+      memory_reuse_alignment: {
+        status: "aligned",
+        summary: "Reported result includes Memory Reuse attachment status.",
+        expected: ["Memory Reuse attachment status", "proposed"],
+        reported: ["Memory Reuse attachment status: proposed"],
+        missing: [],
+      },
+      constellation_context_alignment: {
+        status: "aligned",
+        summary: "Reported result includes Project Constellation context status.",
+        expected: ["Project Constellation context status", "attached"],
+        reported: ["Project Constellation context status: attached"],
+        missing: [],
+      },
+      preflight_alignment: {
+        status: "aligned",
+        summary: "Reported result includes final handoff preflight status.",
+        expected: ["Final handoff preflight status"],
+        reported: ["Final handoff preflight status: pass"],
+        missing: [],
+      },
+      checklist_alignment: {
+        status: "aligned",
+        summary: "Reported result references the PR body checklist and closeout skeleton.",
+        expected: ["PR body checklist", "closeout skeleton"],
+        reported: ["PR body checklist / closeout skeleton included"],
+        missing: [],
+      },
+      file_alignment: {
+        status: "aligned",
+        summary: "Reported changed files cover the expected file list.",
+        expected: ["apps/augnes_apps/src/server.ts"],
+        reported: ["apps/augnes_apps/src/server.ts"],
+        missing: [],
+      },
+      verification_alignment: {
+        status: "aligned",
+        summary: "Reported verification results cover the expected checks.",
+        expected: ["npm run smoke:chatgpt-work-contract-card"],
+        reported: ["npm run smoke:chatgpt-work-contract-card passed"],
+        missing: [],
+      },
+      skipped_check_alignment: {
+        status: "aligned",
+        summary: "Skipped checks were reported; verify each skipped check has a concrete reason.",
+        expected: ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."],
+        reported: ["Optional live validation skipped because no cheap session was available."],
+        missing: [],
+      },
+      review_questions: [
+        "Ready for human review after checking the reported result payload.",
+      ],
+      review_recommendation: "ready_for_human_review",
+      warnings: [
+        "Review recommendations are advisory only and do not submit or post anything.",
+      ],
+      boundary_text: [
+        "Codex result review packet is preview-only review preparation.",
+        "No GitHub PR data is fetched by the App/MCP server.",
+      ],
+    },
+  };
+}
+
 function renderFallbackCard(source, options = {}) {
   return renderCard(source, fallbackCardPayload(), options);
 }
@@ -858,6 +1107,10 @@ function renderConstellationContextCard(source, options = {}) {
 
 function renderMemoryReuseProposedCard(source, options = {}) {
   return renderCard(source, memoryReuseProposedCardPayload(), options);
+}
+
+function renderResultReviewPreviewReadyCard(source, options = {}) {
+  return renderCard(source, resultReviewPreviewReadyCardPayload(), options);
 }
 
 function renderCard(source, payload, options = {}) {
@@ -1049,7 +1302,28 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
   assert.equal(jsonBlock.handoff_automation_slots?.pr_body_checklist?.status, "preview_only", "PR body checklist slot must be preview_only");
   assert.equal(jsonBlock.handoff_automation_slots?.pr_body_checklist?.generated, true, "PR body checklist slot must be generated");
   assert.equal(jsonBlock.handoff_automation_slots?.pr_body_checklist?.inert, true, "PR body checklist slot must stay inert/no-write");
-  assert.equal(jsonBlock.handoff_automation_slots?.codex_result_review_packet?.status, "not_generated", "Codex result review packet slot must remain inert");
+  assert.ok(jsonBlock.codex_result_review_packet_preview, "embedded JSON must include Codex result review packet preview");
+  assert.ok(
+    ["not_provided", "needs_result_input", "preview_ready", "unavailable"].includes(jsonBlock.codex_result_review_packet_preview?.status),
+    "Codex result review packet must use a bounded status",
+  );
+  if (jsonBlock.codex_result_review_packet_preview?.status === "needs_result_input") {
+    assert.equal(jsonBlock.codex_result_review_packet_preview?.result_source, "not_provided", "missing result review packet must mark result_source not_provided");
+    assert.deepEqual(jsonBlock.codex_result_review_packet_preview?.reported_changed_files, [], "missing result review packet must not invent changed files");
+    assert.deepEqual(jsonBlock.codex_result_review_packet_preview?.reported_verification_results, [], "missing result review packet must not invent verification results");
+    assert.match(
+      (jsonBlock.codex_result_review_packet_preview?.warnings || []).join("\n"),
+      /no changed files, verification results, PR URLs, proof IDs, evidence IDs, screenshots, findings, or host observations were invented/i,
+      "missing result review packet must explicitly state no result data was invented",
+    );
+  }
+  assert.equal(
+    jsonBlock.handoff_automation_slots?.codex_result_review_packet?.status,
+    jsonBlock.codex_result_review_packet_preview?.status,
+    "Codex result review packet slot must mirror packet status",
+  );
+  assert.equal(jsonBlock.handoff_automation_slots?.codex_result_review_packet?.generated, true, "Codex result review packet slot must be generated");
+  assert.equal(jsonBlock.handoff_automation_slots?.codex_result_review_packet?.inert, true, "Codex result review packet slot must stay inert/no-write");
 }
 
 function extractEmbeddedHandoffJson(text) {
