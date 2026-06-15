@@ -30,6 +30,8 @@ assert.match(server, /work_contract_card/, "server must return Work Contract Car
 assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
 assert.match(server, /final_codex_handoff_packet/, "server must return Final Codex Handoff Packet structured content");
 assert.match(server, /codex_final_handoff_packet/, "server must expose a final handoff packet alias for model-readable access");
+assert.match(server, /execution_request_preview/, "server must return execution request preview structured content");
+assert.match(server, /codex_execution_request_preview/, "server must expose a Codex execution request preview alias");
 assert.match(server, /final_handoff_preflight/, "server must return Final Handoff Preflight structured content");
 assert.match(server, /handoff_automation_slots/, "server must return handoff automation slots");
 assert.match(server, /memory_reuse_attachment_proposal/, "server must return Memory Reuse attachment proposal structured content");
@@ -50,6 +52,8 @@ assert.match(server, /No Project Constellation context is attached to this work 
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
 assert.match(widget, /renderCodexHandoffPreview/, "widget must implement Codex Handoff Preview rendering");
 assert.match(widget, /renderFinalCodexHandoffPacket/, "widget must render the Final Codex Handoff section");
+assert.match(widget, /renderCodexExecutionRequestPreview/, "widget must render the Codex execution request preview section");
+assert.match(widget, /normalizeCodexExecutionRequestPreview/, "widget must normalize the Codex execution request preview state");
 assert.match(widget, /renderFinalHandoffPreflight/, "widget must render final handoff preflight status");
 assert.match(widget, /renderHandoffAutomationSlots/, "widget must render future attachment slots");
 assert.match(widget, /renderMemoryReuseAttachmentProposal/, "widget must render Memory Reuse attachment proposal state");
@@ -86,6 +90,9 @@ assert.match(runbook, /pre-run handoff readiness/i, "runbook must distinguish pr
 assert.match(runbook, /post-run result review readiness/i, "runbook must distinguish post-run result review readiness");
 assert.match(runbook, /does not mean the pre-run handoff packet is broken/i, "runbook must explain needs_result_input warning meaning");
 assert.match(runbook, /no\s+GitHub PR data is fetched/i, "runbook must document no App/MCP GitHub fetching");
+assert.match(runbook, /codex_execution_request_preview/, "runbook must document the Codex execution request preview alias");
+assert.match(runbook, /This preview does not execute Codex\. It only prepares the request shape for later explicit user-confirmed execution\./, "runbook must preserve execution request preview boundary wording");
+assert.match(runbook, /awaiting_user_confirmation/, "runbook must document the awaiting user confirmation state");
 for (const status of ["proposed", "no_match", "unavailable", "not_configured"]) {
   assert.match(server, new RegExp(escapeRegExp(status)), `server must support Memory Reuse proposal status ${status}`);
   assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Memory Reuse proposal status ${status}`);
@@ -94,12 +101,17 @@ for (const status of ["not_provided", "needs_result_input", "preview_ready", "un
   assert.match(server, new RegExp(escapeRegExp(status)), `server must support Codex result review status ${status}`);
   assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Codex result review status ${status}`);
 }
+for (const status of ["preview_only", "awaiting_user_confirmation", "unavailable"]) {
+  assert.match(server, new RegExp(escapeRegExp(status)), `server must support Codex execution request preview status ${status}`);
+  assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Codex execution request preview status ${status}`);
+}
 
 const uiText = `${server}\n${widget}`;
 assertNoForbiddenServerOrWidgetCalls(uiText);
 const forbiddenUiPhrases = [
   "Run Codex",
   "Start Codex",
+  "Execute",
   "Execute Codex",
   "Launch Codex",
   "Send to Codex",
@@ -145,6 +157,8 @@ assert.match(workBriefBlock, /_meta:\s*widgetToolMeta/, "augnes_get_work_brief m
 assert.match(workBriefBlock, /work_contract_card/, "augnes_get_work_brief must carry card structured content");
 assert.match(workBriefBlock, /codex_handoff_preview/, "augnes_get_work_brief must carry handoff preview structured content");
 assert.match(workBriefBlock, /final_codex_handoff_packet/, "augnes_get_work_brief must carry final handoff packet structured content");
+assert.match(workBriefBlock, /execution_request_preview/, "augnes_get_work_brief must carry execution request preview structured content");
+assert.match(workBriefBlock, /codex_execution_request_preview/, "augnes_get_work_brief must carry Codex execution request preview alias structured content");
 assert.match(workBriefBlock, /final_handoff_preflight/, "augnes_get_work_brief must carry final handoff preflight structured content");
 assert.match(workBriefBlock, /handoff_automation_slots/, "augnes_get_work_brief must carry automation slots");
 assert.match(workBriefBlock, /memory_reuse_attachment_proposal/, "augnes_get_work_brief must carry Memory Reuse proposal structured content");
@@ -199,6 +213,7 @@ assertNoNetworkCalls(extractFunction(server, "finalHandoffPrBodyChecklistPreflig
 assertNoNetworkCalls(extractFunction(server, "finalHandoffCodexResultReviewPacketPreflightCheck"), "finalHandoffCodexResultReviewPacketPreflightCheck");
 assertNoNetworkCalls(extractFunction(server, "buildFinalHandoffPreflight"), "buildFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(server, "buildFinalHandoffReadinessSummary"), "buildFinalHandoffReadinessSummary");
+assertNoNetworkCalls(extractFunction(server, "buildCodexExecutionRequestPreview"), "buildCodexExecutionRequestPreview");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContext"), "buildWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContextFromBrief"), "buildWorkContractConstellationContextFromBrief");
 assertNoNetworkCalls(extractFunction(server, "describeWorkContractCard"), "describeWorkContractCard");
@@ -207,6 +222,7 @@ assertNoNetworkCalls(extractFunction(server, "describeFinalCodexHandoffPacket"),
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
 assertNoNetworkCalls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderFinalCodexHandoffPacket"), "renderFinalCodexHandoffPacket");
+assertNoNetworkCalls(extractFunction(widget, "renderCodexExecutionRequestPreview"), "renderCodexExecutionRequestPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderFinalHandoffReadinessSummary"), "renderFinalHandoffReadinessSummary");
 assertNoNetworkCalls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
@@ -221,6 +237,9 @@ assertNoNetworkCalls(extractFunction(widget, "normalizeFinalCodexHandoffPacket")
 assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffPreflight"), "normalizeFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(widget, "derivePostRunResultReviewReadiness"), "derivePostRunResultReviewReadiness");
 assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffReadinessSummary"), "normalizeFinalHandoffReadinessSummary");
+assertNoNetworkCalls(extractFunction(widget, "codexExecutionRequestConfirmationFields"), "codexExecutionRequestConfirmationFields");
+assertNoNetworkCalls(extractFunction(widget, "codexExecutionRequestNonAuthorities"), "codexExecutionRequestNonAuthorities");
+assertNoNetworkCalls(extractFunction(widget, "normalizeCodexExecutionRequestPreview"), "normalizeCodexExecutionRequestPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeMemoryReuseAttachmentProposal"), "normalizeMemoryReuseAttachmentProposal");
 assertNoNetworkCalls(extractFunction(widget, "normalizePrBodyChecklistPreview"), "normalizePrBodyChecklistPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCloseoutSkeleton"), "normalizeCloseoutSkeleton");
@@ -292,11 +311,15 @@ const renderSource = [
   extractFunction(widget, "normalizeFinalHandoffPreflight"),
   extractFunction(widget, "derivePostRunResultReviewReadiness"),
   extractFunction(widget, "normalizeFinalHandoffReadinessSummary"),
+  extractFunction(widget, "codexExecutionRequestConfirmationFields"),
+  extractFunction(widget, "codexExecutionRequestNonAuthorities"),
+  extractFunction(widget, "normalizeCodexExecutionRequestPreview"),
   extractFunction(widget, "normalizeWorkContractCard"),
   extractFunction(widget, "normalizeCodexHandoffPreview"),
   extractFunction(widget, "renderWorkContractConstellationContext"),
   extractFunction(widget, "renderFinalHandoffReadinessSummary"),
   extractFunction(widget, "renderFinalHandoffPreflight"),
+  extractFunction(widget, "renderCodexExecutionRequestPreview"),
   extractFunction(widget, "renderMemoryReuseAttachmentProposal"),
   extractFunction(widget, "renderPrBodyChecklistPreview"),
   extractFunction(widget, "renderCodexResultReviewPacketPreview"),
@@ -310,6 +333,7 @@ assertNoForbiddenControls(extractFunction(widget, "renderWorkContractCard"), "re
 assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderFinalHandoffReadinessSummary"), "renderFinalHandoffReadinessSummary");
 assertNoForbiddenControls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
+assertNoForbiddenControls(extractFunction(widget, "renderCodexExecutionRequestPreview"), "renderCodexExecutionRequestPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoForbiddenControls(extractFunction(widget, "renderPrBodyChecklistPreview"), "renderPrBodyChecklistPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderCodexResultReviewPacketPreview"), "renderCodexResultReviewPacketPreview");
@@ -317,6 +341,7 @@ assertNoForbiddenControls(extractFunction(widget, "renderHandoffAutomationSlots"
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "normalizeFinalHandoffReadinessSummary"), "normalizeFinalHandoffReadinessSummary");
+assertNoForbiddenControls(extractFunction(widget, "normalizeCodexExecutionRequestPreview"), "normalizeCodexExecutionRequestPreview");
 assertSafeCopyAffordanceSource(extractFunction(widget, "renderCopyableHandoffPacket"));
 assertSafeCopyHelperSource(extractFunction(widget, "copyTextToClipboard"));
 
@@ -342,6 +367,23 @@ for (const expectedPreviewText of [
   "Overall local preflight",
   "Result source",
   "Result review is waiting for a Codex final report or structured result payload. This does not mean the pre-run handoff packet is broken.",
+  "Codex execution request preview",
+  "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
+  "awaiting_user_confirmation",
+  "What would be handed to Codex",
+  "source final handoff packet",
+  "copyable handoff text unchanged: true",
+  "What user would need to confirm later",
+  "current_runtime_endpoint",
+  "confirmed_work_id",
+  "result_review_packet_return_expected",
+  "What this preview does NOT do",
+  "no shell spawn",
+  "no branch creation",
+  "no PR creation",
+  "no GitHub calls",
+  "no OpenAI calls",
+  "Preview boundary",
   "Local read-only preflight: warn.",
   "Preflight checks",
   "Attachment slots",
@@ -506,6 +548,11 @@ console.log(
       codex_result_review_needs_input_checked: true,
       codex_result_review_preview_ready_fixture_checked: true,
       codex_result_review_copy_packet_checked: true,
+      codex_execution_request_preview_present: true,
+      codex_execution_request_preview_status_checked: true,
+      codex_execution_request_preview_user_confirmation_checked: true,
+      codex_execution_request_preview_non_authorities_checked: true,
+      codex_execution_request_preview_copy_unchanged_checked: true,
       final_handoff_preflight_present: true,
       final_handoff_preflight_pass_fixture_checked: true,
       final_handoff_preflight_malformed_fixture_checked: true,
@@ -1285,6 +1332,11 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
   assert.match(copiedText, expectedTextPattern, "copy button must copy the expected visible handoff packet text");
   assert.match(copiedText, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON begin delimiter");
   assert.match(copiedText, /END_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON end delimiter");
+  assert.doesNotMatch(
+    copiedText,
+    /Codex execution request preview|codex_execution_request_preview|execution_request_preview/,
+    "copy button must keep copying only the final handoff packet text, not the execution request preview metadata",
+  );
   if (expectedPath === "selection") {
     assert.equal(
       statusNodes[0].textContent,

@@ -483,11 +483,50 @@ const FINAL_HANDOFF_READINESS_SUMMARY_BOUNDARY_TEXT = [
   "It does not change local preflight semantics or grant execution, write, GitHub, provider, proof, evidence, state, publish, retry, replay, deploy, or merge authority.",
 ] as const;
 
+const CODEX_EXECUTION_REQUEST_PREVIEW_REQUIRED_CONFIRMATION_FIELDS = [
+  "current_runtime_endpoint",
+  "confirmed_scope",
+  "confirmed_work_id",
+  "explicit_user_request_for_separate_codex_session",
+  "expected_files_reviewed",
+  "expected_checks_reviewed",
+  "project_constellation_context_reviewed",
+  "memory_reuse_status_reviewed",
+  "authority_boundary_reviewed",
+  "branch_and_pr_authority_confirmed_separately",
+  "proof_and_evidence_recording_authority_confirmed_separately",
+  "result_review_packet_return_expected",
+] as const;
+
+const CODEX_EXECUTION_REQUEST_PREVIEW_NON_AUTHORITIES = [
+  "no Codex execution",
+  "no shell spawn",
+  "no Node process spawning",
+  "no branch creation",
+  "no PR creation",
+  "no GitHub calls",
+  "no proof writes",
+  "no evidence writes",
+  "no Augnes state mutation",
+  "no DB writes",
+  "no provider calls",
+  "no OpenAI calls",
+  "no persistence",
+  "no approval, merge, publish, retry, replay, or deploy authority",
+] as const;
+
+const CODEX_EXECUTION_REQUEST_PREVIEW_BOUNDARY_TEXT = [
+  "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
+  "It is not an execution button, branch creator, PR creator, proof recorder, evidence recorder, state mutation, provider call, or GitHub call.",
+  "Any later Codex work still requires an explicit user-started Codex session and separate confirmation of write or recording authority.",
+] as const;
+
 const FINAL_HANDOFF_FORBIDDEN_CONTROL_LABEL_PARTS = [
   ["Run", " ", "Codex"],
   ["Start", " ", "Codex"],
   ["Launch", " ", "Codex"],
   ["Send", " ", "to", " ", "Codex"],
+  ["Ex", "ecute"],
   ["Commit", " ", "state"],
   ["Record", " ", "proof"],
   ["Record", " ", "evidence"],
@@ -822,6 +861,34 @@ type FinalHandoffReadinessSummary = {
   explanation: string;
   pre_run_check_ids: string[];
   post_run_check_id: "codex_result_review_packet_state";
+  boundary_text: readonly string[];
+};
+
+type CodexExecutionRequestPreviewStatus = "preview_only" | "awaiting_user_confirmation" | "unavailable";
+
+type CodexExecutionRequestPreview = {
+  preview_type: "codex_execution_request_preview";
+  status: CodexExecutionRequestPreviewStatus;
+  confirmation_status: CodexExecutionRequestPreviewStatus;
+  source_final_handoff_packet: {
+    packet_type: FinalCodexHandoffPacket["packet_type"];
+    schema: typeof FINAL_CODEX_HANDOFF_PACKET_SCHEMA;
+    packet_ref: string;
+    composition_status: FinalCodexHandoffPacket["composition_status"];
+    copyable_handoff_text_unchanged: true;
+  };
+  work_id: string | null;
+  scope: string | null;
+  selected_constellation_context_status: FinalCodexHandoffPacket["constellation_context_status"];
+  memory_reuse_status: MemoryReuseAttachmentProposalStatus;
+  expected_files: string[];
+  expected_checks: string[];
+  pr_body_checklist_present: boolean;
+  closeout_skeleton_present: boolean;
+  result_review_packet_expected_after_run: true;
+  result_review_packet_status_before_run: CodexResultReviewPacketStatus;
+  required_user_confirmation_fields: readonly string[];
+  non_authorities: readonly string[];
   boundary_text: readonly string[];
 };
 
@@ -2658,6 +2725,44 @@ function buildFinalHandoffReadinessSummary(
   };
 }
 
+function buildCodexExecutionRequestPreview(packet: FinalCodexHandoffPacket): CodexExecutionRequestPreview {
+  const prBodyChecklistPresent =
+    packet.pr_body_checklist_preview.status === "preview_only" &&
+    packet.codex_pr_body_checklist.status === "preview_only" &&
+    packet.handoff_automation_slots.pr_body_checklist.generated === true &&
+    packet.handoff_automation_slots.pr_body_checklist.inert === true;
+  const closeoutSkeletonPresent =
+    packet.codex_closeout_skeleton.status === "preview_only" &&
+    packet.codex_closeout_skeleton.generated === true &&
+    packet.final_handoff_closeout_skeleton.status === "preview_only";
+
+  return {
+    preview_type: "codex_execution_request_preview",
+    status: "preview_only",
+    confirmation_status: "awaiting_user_confirmation",
+    source_final_handoff_packet: {
+      packet_type: packet.packet_type,
+      schema: packet.schema,
+      packet_ref: packet.work_id ? `final_codex_handoff_packet:${packet.work_id}` : "final_codex_handoff_packet:missing_work_id",
+      composition_status: packet.composition_status,
+      copyable_handoff_text_unchanged: true,
+    },
+    work_id: packet.work_id,
+    scope: packet.work_scope,
+    selected_constellation_context_status: packet.constellation_context_status,
+    memory_reuse_status: packet.memory_reuse_attachment_proposal.status,
+    expected_files: packet.expected_files,
+    expected_checks: packet.expected_checks,
+    pr_body_checklist_present: prBodyChecklistPresent,
+    closeout_skeleton_present: closeoutSkeletonPresent,
+    result_review_packet_expected_after_run: true,
+    result_review_packet_status_before_run: packet.codex_result_review_packet_preview.status,
+    required_user_confirmation_fields: CODEX_EXECUTION_REQUEST_PREVIEW_REQUIRED_CONFIRMATION_FIELDS,
+    non_authorities: CODEX_EXECUTION_REQUEST_PREVIEW_NON_AUTHORITIES,
+    boundary_text: CODEX_EXECUTION_REQUEST_PREVIEW_BOUNDARY_TEXT,
+  };
+}
+
 function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
   const codexHandoff = brief.codex_handoff as typeof brief.codex_handoff & Record<string, unknown>;
   const workLinks = brief.work.links as Record<string, unknown>;
@@ -3864,6 +3969,7 @@ export function createMcpAppServer(
           finalCodexHandoffPacket,
           finalHandoffPreflight
         );
+        const codexExecutionRequestPreview = buildCodexExecutionRequestPreview(finalCodexHandoffPacket);
         const structuredContent = sanitizePayload({
           profile: config.appProfile,
           panel: "work_contract_card",
@@ -3872,6 +3978,9 @@ export function createMcpAppServer(
           codex_handoff_preview: codexHandoffPreview,
           final_codex_handoff_packet: finalCodexHandoffPacket,
           codex_final_handoff_packet: finalCodexHandoffPacket,
+          execution_request_preview: codexExecutionRequestPreview,
+          codex_execution_request_preview: codexExecutionRequestPreview,
+          final_handoff_codex_execution_request_preview: codexExecutionRequestPreview,
           memory_reuse_attachment_proposal: memoryReuseAttachmentProposal,
           final_handoff_memory_reuse_attachment: memoryReuseAttachmentProposal,
           pr_body_checklist_preview: finalCodexHandoffPacket.pr_body_checklist_preview,
@@ -3898,7 +4007,7 @@ export function createMcpAppServer(
         return {
           structuredContent,
           content: narrative(
-            `${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)} ${describeCodexHandoffPreview(codexHandoffPreview)} ${describeFinalCodexHandoffPacket(finalCodexHandoffPacket, finalHandoffPreflight)}`
+            `${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)} ${describeCodexHandoffPreview(codexHandoffPreview)} ${describeFinalCodexHandoffPacket(finalCodexHandoffPacket, finalHandoffPreflight)} ${codexExecutionRequestPreview.boundary_text.join(" ")}`
           ),
           _meta: structuredContent,
         };

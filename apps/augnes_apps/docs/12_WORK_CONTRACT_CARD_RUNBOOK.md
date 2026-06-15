@@ -170,6 +170,30 @@ semantics, run commands, call GitHub/OpenAI/providers, create branches or PRs,
 submit reviews, record proof/evidence, mutate Augnes state, execute Codex,
 publish, merge, retry, replay, deploy, or add any write authority.
 
+The surface also derives an `execution_request_preview` /
+`codex_execution_request_preview` object from the final handoff packet. This is
+not a launch control. It is a compact request-shape preview for a possible
+later user-confirmed Codex run. It shows the source final handoff packet,
+work ID, scope, selected Project Constellation context status, Memory Reuse
+status, expected files, expected checks, PR body checklist presence, closeout
+skeleton presence, and that a result review packet is expected after any later
+run. It also lists the explicit confirmation fields a user would need to
+provide later.
+
+The widget renders this as `Codex execution request preview` with three compact
+sections: what would be handed to Codex, what the user would need to confirm
+later, and what the preview does not do. The required boundary wording is:
+`This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.`
+
+The preview status is `preview_only`, with `confirmation_status:
+awaiting_user_confirmation`; `unavailable` is reserved for malformed or missing
+payloads. The object is preview-only metadata and does not alter the existing
+`Copy Codex Handoff` behavior or copied packet text. It does not execute
+Codex, spawn shell commands, use Node process spawning, create branches or PRs,
+call GitHub/OpenAI/providers, write proof/evidence, write DB rows, persist
+anything, mutate Augnes state, submit reviews, approve, publish, merge, retry,
+replay, or deploy.
+
 The `memory_reuse_attachment` slot is now activated as a read-only Memory
 Reuse attachment proposal preview when final handoff text is composed. The
 proposal can report:

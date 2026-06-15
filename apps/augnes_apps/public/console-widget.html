@@ -1096,12 +1096,22 @@
           finalPacket,
           finalPreflight
         );
+        const codexExecutionRequestPreview = normalizeCodexExecutionRequestPreview(
+          data?.codex_execution_request_preview ||
+            data?.execution_request_preview ||
+            data?.final_handoff_codex_execution_request_preview ||
+            finalPacket.codex_execution_request_preview ||
+            finalPacket.execution_request_preview,
+          finalPacket
+        );
 
         return {
           ...normalizedPreview,
           final_codex_handoff_packet: finalPacket,
           final_handoff_preflight: finalPreflight,
           final_handoff_readiness_summary: finalReadinessSummary,
+          codex_execution_request_preview: codexExecutionRequestPreview,
+          execution_request_preview: codexExecutionRequestPreview,
           handoff_automation_slots: finalPacket.handoff_automation_slots,
         };
       }
@@ -1928,8 +1938,18 @@
           codex_pr_review_packet_preview: codexResultReviewPacket,
           constellation_context: source.constellation_context || fallbackPacket.constellation_context,
         };
+        const codexExecutionRequestPreview = normalizeCodexExecutionRequestPreview(
+          source.codex_execution_request_preview ||
+            source.execution_request_preview ||
+            data?.codex_execution_request_preview ||
+            data?.execution_request_preview ||
+            data?.final_handoff_codex_execution_request_preview,
+          packet
+        );
         return {
           ...packet,
+          codex_execution_request_preview: codexExecutionRequestPreview,
+          execution_request_preview: codexExecutionRequestPreview,
           copyable_handoff_text: nonEmptyText(
             source.copyable_handoff_text,
             composeFallbackFinalHandoffText({ ...preview, constellation_context: context }, slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton, codexResultReviewPacket)
@@ -2319,6 +2339,116 @@
         };
       }
 
+      function codexExecutionRequestConfirmationFields() {
+        return [
+          "current_runtime_endpoint",
+          "confirmed_scope",
+          "confirmed_work_id",
+          "explicit_user_request_for_separate_codex_session",
+          "expected_files_reviewed",
+          "expected_checks_reviewed",
+          "project_constellation_context_reviewed",
+          "memory_reuse_status_reviewed",
+          "authority_boundary_reviewed",
+          "branch_and_pr_authority_confirmed_separately",
+          "proof_and_evidence_recording_authority_confirmed_separately",
+          "result_review_packet_return_expected",
+        ];
+      }
+
+      function codexExecutionRequestNonAuthorities() {
+        return [
+          "no Codex execution",
+          "no shell spawn",
+          "no Node process spawning",
+          "no branch creation",
+          "no PR creation",
+          "no GitHub calls",
+          "no proof writes",
+          "no evidence writes",
+          "no Augnes state mutation",
+          "no DB writes",
+          "no provider calls",
+          "no OpenAI calls",
+          "no persistence",
+          "no approval, merge, publish, retry, replay, or deploy authority",
+        ];
+      }
+
+      function normalizeCodexExecutionRequestPreview(source, packet) {
+        const record = safeRecord(source);
+        const allowedStatuses = ["preview_only", "awaiting_user_confirmation", "unavailable"];
+        const sourcePacket = safeRecord(record.source_final_handoff_packet);
+        const packetRef = nonEmptyText(
+          sourcePacket.packet_ref,
+          packet?.work_id ? `final_codex_handoff_packet:${packet.work_id}` : "final_codex_handoff_packet:missing_work_id"
+        );
+        const sourceStatus = nonEmptyText(record.status, "");
+        const confirmationStatus = nonEmptyText(record.confirmation_status, "");
+        const status = allowedStatuses.includes(sourceStatus) ? sourceStatus : packet ? "preview_only" : "unavailable";
+        const nextConfirmationStatus = allowedStatuses.includes(confirmationStatus)
+          ? confirmationStatus
+          : status === "unavailable"
+            ? "unavailable"
+            : "awaiting_user_confirmation";
+        const expectedFiles = safeArray(record.expected_files).length ? safeArray(record.expected_files) : safeArray(packet?.expected_files);
+        const expectedChecks = safeArray(record.expected_checks).length ? safeArray(record.expected_checks) : safeArray(packet?.expected_checks);
+        const resultReviewPacket = normalizeCodexResultReviewPacket(
+          packet?.codex_result_review_packet_preview ||
+            packet?.final_handoff_codex_result_review_packet ||
+            packet?.codex_pr_review_packet_preview ||
+            packet?.handoff_automation_slots?.codex_result_review_packet?.review_packet,
+          packet || {}
+        );
+        return {
+          preview_type: nonEmptyText(record.preview_type, "codex_execution_request_preview"),
+          status,
+          confirmation_status: nextConfirmationStatus,
+          source_final_handoff_packet: {
+            packet_type: nonEmptyText(sourcePacket.packet_type, "final_codex_handoff_packet"),
+            schema: nonEmptyText(sourcePacket.schema, "augnes.final_codex_handoff_packet.v0_1"),
+            packet_ref: packetRef,
+            composition_status: nonEmptyText(sourcePacket.composition_status, nonEmptyText(packet?.composition_status, "composed")),
+            copyable_handoff_text_unchanged: sourcePacket.copyable_handoff_text_unchanged !== false,
+          },
+          work_id: nonEmptyText(record.work_id, nonEmptyText(packet?.work_id, "")),
+          scope: nonEmptyText(record.scope, nonEmptyText(packet?.work_scope, "")),
+          selected_constellation_context_status: nonEmptyText(
+            record.selected_constellation_context_status,
+            nonEmptyText(packet?.constellation_context_status, "explicitly_absent")
+          ),
+          memory_reuse_status: nonEmptyText(
+            record.memory_reuse_status,
+            nonEmptyText(packet?.memory_reuse_attachment_proposal?.status || packet?.handoff_automation_slots?.memory_reuse_attachment?.status, "no_match")
+          ),
+          expected_files: expectedFiles,
+          expected_checks: expectedChecks,
+          pr_body_checklist_present:
+            record.pr_body_checklist_present === false
+              ? false
+              : Boolean(packet?.pr_body_checklist_preview || packet?.codex_pr_body_checklist || packet?.handoff_automation_slots?.pr_body_checklist?.checklist),
+          closeout_skeleton_present:
+            record.closeout_skeleton_present === false
+              ? false
+              : Boolean(packet?.codex_closeout_skeleton || packet?.final_handoff_closeout_skeleton || packet?.handoff_automation_slots?.pr_body_checklist?.closeout_skeleton),
+          result_review_packet_expected_after_run: record.result_review_packet_expected_after_run !== false,
+          result_review_packet_status_before_run: nonEmptyText(record.result_review_packet_status_before_run, resultReviewPacket.status),
+          required_user_confirmation_fields: safeArray(record.required_user_confirmation_fields).length
+            ? safeArray(record.required_user_confirmation_fields)
+            : codexExecutionRequestConfirmationFields(),
+          non_authorities: safeArray(record.non_authorities).length
+            ? safeArray(record.non_authorities)
+            : codexExecutionRequestNonAuthorities(),
+          boundary_text: safeArray(record.boundary_text).length
+            ? safeArray(record.boundary_text)
+            : [
+                "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
+                "It is not an execution button, branch creator, PR creator, proof recorder, evidence recorder, state mutation, provider call, or GitHub call.",
+                "Any later Codex work still requires an explicit user-started Codex session and separate confirmation of write or recording authority.",
+              ],
+        };
+      }
+
       function safeObject(value) {
         return value && typeof value === "object" && !Array.isArray(value) ? value : {};
       }
@@ -2684,6 +2814,67 @@
         return root;
       }
 
+      function renderCodexExecutionRequestPreview(preview, packet) {
+        const normalized = normalizeCodexExecutionRequestPreview(preview, packet || {});
+        const root = el("div", { className: "stack" });
+        root.appendChild(el("div", {
+          className: "status-box",
+          text: "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
+        }));
+        root.appendChild(createMetricGrid([
+          ["Status", normalized.status],
+          ["User confirmation", normalized.confirmation_status],
+          ["Source packet", normalized.source_final_handoff_packet.packet_ref],
+          ["Work ID", normalized.work_id || "missing"],
+          ["Scope", normalized.scope || "missing"],
+          ["Constellation", normalized.selected_constellation_context_status],
+          ["Memory Reuse", normalized.memory_reuse_status],
+          ["Result review after run", normalized.result_review_packet_expected_after_run ? "expected" : "not expected"],
+        ]));
+        root.appendChild(createSection(
+          "What would be handed to Codex",
+          createTextList([
+            `source final handoff packet: ${normalized.source_final_handoff_packet.packet_ref}`,
+            `work_id: ${normalized.work_id || "missing"}`,
+            `scope: ${normalized.scope || "missing"}`,
+            `selected Constellation context status: ${normalized.selected_constellation_context_status}`,
+            `Memory Reuse status: ${normalized.memory_reuse_status}`,
+            `PR body checklist present: ${normalized.pr_body_checklist_present ? "true" : "false"}`,
+            `closeout skeleton present: ${normalized.closeout_skeleton_present ? "true" : "false"}`,
+            `result review packet expected after run: ${normalized.result_review_packet_expected_after_run ? "true" : "false"}`,
+            `result review packet status before run: ${normalized.result_review_packet_status_before_run}`,
+            `copyable handoff text unchanged: ${normalized.source_final_handoff_packet.copyable_handoff_text_unchanged ? "true" : "false"}`,
+          ]),
+          { badge: normalized.status }
+        ));
+        root.appendChild(createSection(
+          "Expected files",
+          createCodeListWithFallback(normalized.expected_files, "No expected files are listed in the request preview."),
+          { badge: `${safeArray(normalized.expected_files).length}` }
+        ));
+        root.appendChild(createSection(
+          "Expected checks",
+          createTextList(normalized.expected_checks),
+          { badge: `${safeArray(normalized.expected_checks).length}` }
+        ));
+        root.appendChild(createSection(
+          "What user would need to confirm later",
+          createCodeListWithFallback(normalized.required_user_confirmation_fields, "No required confirmation fields are listed."),
+          { badge: normalized.confirmation_status }
+        ));
+        root.appendChild(createSection(
+          "What this preview does NOT do",
+          createTextList(normalized.non_authorities),
+          { badge: "non-authority" }
+        ));
+        root.appendChild(createSection(
+          "Preview boundary",
+          createTextList(normalized.boundary_text),
+          { badge: "preview-only" }
+        ));
+        return root;
+      }
+
       function renderMemoryReuseAttachmentProposal(proposal) {
         const normalized = normalizeMemoryReuseAttachmentProposal(proposal, {}, {});
         const root = el("div", { className: "stack" });
@@ -2819,7 +3010,7 @@
         return root;
       }
 
-      function renderFinalCodexHandoffPacket(packet, preflight, readinessSummary) {
+      function renderFinalCodexHandoffPacket(packet, preflight, readinessSummary, executionRequestPreview) {
         const root = el("div", { className: "stack" });
         root.appendChild(createMetricGrid([
           ["Packet", nonEmptyText(packet.title, "Final Codex Handoff Packet")],
@@ -2839,6 +3030,21 @@
           "Readiness summary",
           renderFinalHandoffReadinessSummary(readinessSummary || normalizeFinalHandoffReadinessSummary(null, packet, preflight)),
           { badge: nonEmptyText(readinessSummary?.overall_local_preflight_status, nonEmptyText(preflight.status, "unavailable")) }
+        ));
+        root.appendChild(createSection(
+          "Codex execution request preview",
+          renderCodexExecutionRequestPreview(
+            executionRequestPreview || packet.codex_execution_request_preview || packet.execution_request_preview,
+            packet
+          ),
+          {
+            badge: nonEmptyText(
+              executionRequestPreview?.confirmation_status ||
+                packet.codex_execution_request_preview?.confirmation_status ||
+                packet.execution_request_preview?.confirmation_status,
+              "awaiting_user_confirmation"
+            ),
+          }
         ));
         root.appendChild(renderFinalHandoffPreflight(preflight));
         root.appendChild(createSection(
@@ -2903,7 +3109,8 @@
           renderFinalCodexHandoffPacket(
             preview.final_codex_handoff_packet,
             preview.final_handoff_preflight,
-            preview.final_handoff_readiness_summary
+            preview.final_handoff_readiness_summary,
+            preview.codex_execution_request_preview || preview.execution_request_preview
           ),
           { badge: preview.final_handoff_preflight.status }
         ));
