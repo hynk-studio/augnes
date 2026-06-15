@@ -77,6 +77,10 @@ assert.match(widget, /renderProjectConstellationPreview/, "widget must implement
 assert.match(widget, /normalizeProjectConstellationPreview/, "widget must normalize Project Constellation preview data");
 assert.match(widget, /renderCopyableConstellationHandoff/, "widget must implement bounded local handoff copy rendering");
 assert.match(widget, /Copy Handoff Preview/, "widget must expose a local copy affordance for preview text");
+assert.match(widget, /function copyTextToClipboard/, "widget must centralize local clipboard copy behavior");
+assert.match(widget, /document\.execCommand\?\.\("copy"\)/, "widget must provide a local execCommand copy fallback for Developer Mode hosts");
+assert.match(widget, /function selectElementText/, "widget must select visible handoff text when the host blocks clipboard writes");
+assert.match(widget, /Preview text selected; press Command\+C to copy/, "widget must label host-blocked clipboard fallback precisely");
 assert.match(widget, /does not invent missing context/, "widget fallback must avoid invented context");
 assert.match(runbook, /Project Constellation Preview Card/, "runbook must document the new Project Constellation preview card");
 assert.match(runbook, /augnes_get_project_constellation_preview/, "runbook must name the callable read-only tool");
@@ -152,6 +156,14 @@ assert.match(
   /Copy Handoff Preview/,
   "fallback render must keep preview text copyable",
 );
+await assertConstellationCopyAffordance(renderedFallback, "clipboard");
+const renderedExecFallback = renderFallbackProjectConstellationPreview({ clipboardWriteThrows: true });
+await assertConstellationCopyAffordance(renderedExecFallback, "execCommand");
+const renderedSelectionFallback = renderFallbackProjectConstellationPreview({
+  clipboardWriteThrows: true,
+  execCommandReturnsFalse: true,
+});
+await assertConstellationCopyAffordance(renderedSelectionFallback, "selection");
 
 console.log(
   JSON.stringify(
@@ -170,6 +182,8 @@ console.log(
       forbidden_execution_write_control_labels_absent: true,
       github_openai_provider_calls_absent: true,
       fallback_render_checked: true,
+      clipboard_exec_fallback_checked: true,
+      clipboard_blocked_visible_selection_checked: true,
     },
     null,
     2,
@@ -242,7 +256,7 @@ function extractConstBlockByMarker(source, marker) {
   return source.slice(start, end + "} as const;".length);
 }
 
-function renderFallbackProjectConstellationPreview() {
+function renderFallbackProjectConstellationPreview(options = {}) {
   const renderSource = [
     extractBlockByMarker(widget, "function el"),
     extractBlockByMarker(widget, "function tag"),
@@ -251,6 +265,8 @@ function renderFallbackProjectConstellationPreview() {
     extractBlockByMarker(widget, "function createList"),
     extractBlockByMarker(widget, "function createTextList"),
     extractBlockByMarker(widget, "function createPreBlock"),
+    extractBlockByMarker(widget, "async function copyTextToClipboard"),
+    extractBlockByMarker(widget, "function selectElementText"),
     extractBlockByMarker(widget, "function nonEmptyText"),
     extractBlockByMarker(widget, "function safeArray"),
     extractBlockByMarker(widget, "function safeCount"),
@@ -276,8 +292,13 @@ function renderFallbackProjectConstellationPreview() {
       this.innerHTML = "";
       this.open = false;
       this.type = "";
+      this.value = "";
+      this.style = {};
       this.attributes = {};
       this.listeners = {};
+      this.focused = false;
+      this.selected = false;
+      this.selectionRange = undefined;
     }
 
     append(...children) {
@@ -297,12 +318,43 @@ function renderFallbackProjectConstellationPreview() {
       this.listeners[name] ??= [];
       this.listeners[name].push(handler);
     }
+
+    focus() {
+      this.focused = true;
+    }
+
+    select() {
+      this.selected = true;
+    }
+
+    setSelectionRange(start, end) {
+      this.selectionRange = [start, end];
+    }
+
+    remove() {
+      this.removed = true;
+    }
   }
 
+  const body = new FakeNode("body");
   const context = {
     document: {
+      body,
       createElement(tag) {
         return new FakeNode(tag);
+      },
+      createRange() {
+        return {
+          selectNodeContents(node) {
+            context.__selectedText = node?.textContent ?? "";
+          },
+        };
+      },
+      execCommand(command) {
+        context.__execCommand = command;
+        const lastChild = body.children[body.children.length - 1];
+        context.__execCommandText = lastChild?.value ?? "";
+        return options.execCommandReturnsFalse ? false : command === "copy";
       },
     },
     Number,
@@ -312,7 +364,23 @@ function renderFallbackProjectConstellationPreview() {
     Promise,
     navigator: {
       clipboard: {
-        async writeText() {},
+        async writeText(text) {
+          context.__clipboardWriteCount = (context.__clipboardWriteCount ?? 0) + 1;
+          if (options.clipboardWriteThrows) throw new Error("blocked");
+          context.__copiedText = text;
+        },
+      },
+    },
+    window: {
+      getSelection() {
+        return {
+          removeAllRanges() {
+            context.__selectionCleared = true;
+          },
+          addRange() {
+            context.__rangeAdded = true;
+          },
+        };
       },
     },
   };
@@ -329,9 +397,53 @@ function renderFallbackProjectConstellationPreview() {
   );
 
   return {
+    context,
     tree: output,
     text: collectText(output).replace(/\s+/g, " ").trim(),
   };
+}
+
+async function assertConstellationCopyAffordance(renderedFallback, expectedPath) {
+  const buttons = collectNodes(renderedFallback.tree, (node) => node.tag === "button" && node.textContent === "Copy Handoff Preview");
+  assert.equal(buttons.length, 1, "fallback render must include exactly one Project Constellation copy button");
+  const statusNodes = collectNodes(
+    renderedFallback.tree,
+    (node) => node.attributes?.["aria-live"] === "polite" && node.textContent.includes("Copy action only."),
+  );
+  assert.equal(statusNodes.length, 1, "Project Constellation copy affordance must expose one aria-live local status node");
+  const preBlocks = collectNodes(renderedFallback.tree, (node) => node.tag === "pre");
+  assert.ok(preBlocks.some((node) => node.textContent.includes("Augnes Project Constellation handoff seed")), "handoff seed text must remain visible");
+
+  await buttons[0].listeners.click[0]();
+  const copiedText = expectedPath === "execCommand"
+    ? renderedFallback.context.__execCommandText
+    : expectedPath === "selection"
+      ? renderedFallback.context.__selectedText
+      : renderedFallback.context.__copiedText;
+  assert.match(copiedText, /Augnes Project Constellation handoff seed/, "copy affordance must target the handoff seed text");
+  if (expectedPath === "selection") {
+    assert.equal(
+      statusNodes[0].textContent,
+      "Clipboard blocked by this host. Preview text selected; press Command+C to copy.",
+      "host-blocked clipboard fallback must select visible text and label manual copy",
+    );
+    assert.equal(renderedFallback.context.__selectionCleared, true, "selection fallback must clear previous selection");
+    assert.equal(renderedFallback.context.__rangeAdded, true, "selection fallback must select the visible seed text");
+  } else {
+    assert.equal(statusNodes[0].textContent, "Handoff preview copied.", "copy success must update local status only");
+  }
+  if (expectedPath === "execCommand") {
+    assert.equal(renderedFallback.context.__execCommand, "copy", "copy fallback must use document.execCommand copy");
+  } else {
+    assert.equal(renderedFallback.context.__clipboardWriteCount, 1, "copy button must try navigator.clipboard once");
+  }
+}
+
+function collectNodes(node, predicate) {
+  if (!node || typeof node !== "object") return [];
+  const own = predicate(node) ? [node] : [];
+  const childNodes = Array.isArray(node.children) ? node.children.flatMap((child) => collectNodes(child, predicate)) : [];
+  return own.concat(childNodes);
 }
 
 function collectText(node) {

@@ -579,6 +579,52 @@
         return pre;
       }
 
+      async function copyTextToClipboard(text) {
+        if (navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch {
+            // Developer Mode iframes may block Clipboard API while preserving user activation.
+          }
+        }
+
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        textarea.style.opacity = "0";
+        document.body?.appendChild(textarea);
+
+        try {
+          textarea.focus?.();
+          textarea.select?.();
+          textarea.setSelectionRange?.(0, textarea.value.length);
+          return document.execCommand?.("copy") === true;
+        } catch {
+          return false;
+        } finally {
+          textarea.remove?.();
+        }
+      }
+
+      function selectElementText(element) {
+        try {
+          if (!element || !document.createRange || !window.getSelection) return false;
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const selection = window.getSelection();
+          if (!selection) return false;
+          selection.removeAllRanges();
+          selection.addRange(range);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
       function renderCopyableHandoffPacket(preview) {
         const root = el("div", { className: "stack" });
         const packetText = preview.copyable_handoff_text;
@@ -1204,19 +1250,18 @@
         copyButton.type = "button";
         copyButton.className = "copy-button";
         copyButton.textContent = "Copy Handoff Preview";
+        const pre = createPreBlock(seed.preview_text);
         copyButton.addEventListener("click", async () => {
-          try {
-            if (!navigator.clipboard?.writeText) {
-              throw new Error("Clipboard unavailable.");
-            }
-            await navigator.clipboard.writeText(seed.preview_text);
+          if (await copyTextToClipboard(seed.preview_text)) {
             status.textContent = "Handoff preview copied.";
-          } catch {
+          } else if (selectElementText(pre)) {
+            status.textContent = "Clipboard blocked by this host. Preview text selected; press Command+C to copy.";
+          } else {
             status.textContent = "Copy unavailable. Select and copy the preview text manually.";
           }
         });
         copyRow.appendChild(copyButton);
-        root.append(status, copyRow, createPreBlock(seed.preview_text));
+        root.append(status, copyRow, pre);
         return root;
       }
 
