@@ -368,6 +368,18 @@ const WORK_PICKER_CARD_BOUNDARY_TEXT = [
   "This card cannot create branches or PRs, call GitHub or providers, record proof or evidence, mutate Augnes state, approve, publish, merge, retry, replay, or deploy.",
 ] as const;
 
+const CORE_HANDOFF_AUTHORITY_BOUNDARIES = [
+  "Core Handoff is read-only preview/copy packet text.",
+  "Core Handoff does not execute Codex.",
+  "Core Handoff cannot commit or reject Augnes state.",
+  "Core Handoff cannot approve, publish, retry, replay, or externally post.",
+  "Core Handoff cannot merge or enable auto-merge.",
+  "Evidence is not approval.",
+  "Proof is not approval.",
+  "A PR is not merge authority.",
+  "Durable approval remains user/Core gated.",
+] as const;
+
 const CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT = [
   "This preview is read-only.",
   "This preview cannot execute Codex.",
@@ -451,6 +463,7 @@ const CODEX_HANDOFF_JSON_SCHEMA = "augnes.codex_handoff_preview.v0_1" as const;
 const CODEX_HANDOFF_JSON_BEGIN = "BEGIN_AUGNES_CODEX_HANDOFF_JSON" as const;
 const CODEX_HANDOFF_JSON_END = "END_AUGNES_CODEX_HANDOFF_JSON" as const;
 const FINAL_CODEX_HANDOFF_PACKET_SCHEMA = "augnes.final_codex_handoff_packet.v0_1" as const;
+const CORE_CODEX_HANDOFF_PACKET_SCHEMA = "augnes.core_codex_handoff_packet.v0_1" as const;
 const NO_CONSTELLATION_CONTEXT_TEXT = "No Project Constellation context is attached to this work contract." as const;
 
 const FINAL_HANDOFF_SKIPPED_CHECK_POLICY =
@@ -834,6 +847,50 @@ type HandoffAutomationSlots = {
   memory_reuse_attachment: FinalHandoffAutomationSlot;
   pr_body_checklist: FinalHandoffAutomationSlot;
   codex_result_review_packet: FinalHandoffAutomationSlot;
+};
+
+type CoreCodexHandoffPacket = {
+  packet_type: "core_codex_handoff_packet";
+  schema: typeof CORE_CODEX_HANDOFF_PACKET_SCHEMA;
+  title: "Core Codex Handoff Packet";
+  source_packet_type: "final_codex_handoff_packet";
+  source_packet_schema: typeof FINAL_CODEX_HANDOFF_PACKET_SCHEMA;
+  copy_intent: "shorter_packet_for_starting_codex_work";
+  work_scope: string | null;
+  work_id: string | null;
+  work_title: string | null;
+  user_facing_goal: string;
+  work_status: string | null;
+  current_or_next_step: string | null;
+  expected_files: string[];
+  expected_checks: string[];
+  related_state_keys: string[];
+  constellation_context_summary: string[];
+  memory_reuse_summary: string[];
+  pr_checklist_summary: string[];
+  closeout_report_expectations: string[];
+  skipped_check_policy: typeof FINAL_HANDOFF_SKIPPED_CHECK_POLICY;
+  stop_conditions: readonly string[];
+  authority_boundaries: readonly string[];
+  final_report_requirements: readonly string[];
+  structured_json_delimiters: {
+    begin: typeof CODEX_HANDOFF_JSON_BEGIN;
+    end: typeof CODEX_HANDOFF_JSON_END;
+  };
+  copyable_handoff_text: string;
+  copyable_core_handoff_text: string;
+  boundaries: {
+    read_only: true;
+    short_copy_only: true;
+    codex_execution: false;
+    branch_or_pr_creation: false;
+    proof_recording: false;
+    evidence_recording: false;
+    provider_calls: false;
+    github_calls: false;
+    openai_calls: false;
+    persistence: false;
+  };
 };
 
 type FinalCodexHandoffPacket = {
@@ -2223,6 +2280,218 @@ function buildFinalCodexHandoffJsonBlock(
 
 function slotLines(slots: HandoffAutomationSlots): string[] {
   return Object.values(slots).map((slot) => `- ${slot.label}: ${slot.status}; ${slot.summary}`);
+}
+
+function constellationSummaryLines(packet: Omit<FinalCodexHandoffPacket, "copyable_handoff_text">): string[] {
+  const context = packet.constellation_context;
+  if (!context) return [NO_CONSTELLATION_CONTEXT_TEXT];
+  return [
+    `Thesis: ${context.thesis}`,
+    `Selected candidate: ${formatPacketLine(context.selected_candidate_label || context.selected_candidate_id, "No selected candidate attached.")}`,
+    `Selection status: ${formatPacketLine(context.selection_status)}`,
+    `Advisory next action: ${formatPacketLine(context.advisory_next_action_summary, "No advisory next action summary attached.")}`,
+    `Pointer-only evidence refs available in full packet: ${context.pointer_evidence_ref_count}`,
+    `Unresolved tensions available in full packet: ${context.unresolved_tension_count}`,
+  ];
+}
+
+function memoryReuseSummaryLines(proposal: FinalHandoffMemoryReuseAttachmentProposal): string[] {
+  return [
+    `Status: ${proposal.status}`,
+    `Selected memory IDs: ${proposal.selected_memory_ids.length ? proposal.selected_memory_ids.join(", ") : "none"}`,
+    `Fallback brief: ${proposal.fallback_brief}`,
+    proposal.why_selected.length
+      ? `Why selected: ${proposal.why_selected.join(" | ")}`
+      : "Why selected: none",
+    proposal.reuse_boundary.length
+      ? `Reuse boundary: ${proposal.reuse_boundary.join(" | ")}`
+      : "Reuse boundary: no persisted memory reuse boundary attached.",
+  ];
+}
+
+function prChecklistSummaryLines(checklist: FinalHandoffPrBodyChecklistPreview): string[] {
+  return [
+    `Status: ${checklist.status}`,
+    `Required sections: ${checklist.required_sections.join(", ")}`,
+    "Use the full packet for the full PR checklist, closeout skeleton, and warnings.",
+  ];
+}
+
+function buildCoreCodexHandoffJsonBlock(
+  packet: Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text">
+): Record<string, unknown> {
+  return {
+    schema: CODEX_HANDOFF_JSON_SCHEMA,
+    packet_kind: "core_codex_handoff_packet",
+    core_packet_schema: packet.schema,
+    source_packet_type: packet.source_packet_type,
+    source_packet_schema: packet.source_packet_schema,
+    copy_intent: packet.copy_intent,
+    runtime: {
+      endpoint_label: "provided by current Augnes runtime",
+      requires_user_core_confirmation: true,
+    },
+    work: {
+      scope: packet.work_scope,
+      work_id: packet.work_id,
+      title: packet.work_title,
+      status: packet.work_status,
+      next_action: packet.current_or_next_step,
+      user_facing_goal: packet.user_facing_goal,
+      related_state_keys: packet.related_state_keys,
+    },
+    authorization: {
+      evidence_recording: "needs_user_core_confirmation",
+      proof_only_closeout: "needs_user_core_confirmation",
+      browser_verification: "needs_user_core_confirmation",
+    },
+    expected_scope: {
+      files: packet.expected_files,
+      checks: packet.expected_checks,
+    },
+    constellation_context_summary: packet.constellation_context_summary,
+    memory_reuse_summary: packet.memory_reuse_summary,
+    pr_checklist_summary: packet.pr_checklist_summary,
+    closeout_report_expectations: packet.closeout_report_expectations,
+    skipped_check_policy: packet.skipped_check_policy,
+    final_report_requirements: packet.final_report_requirements,
+    forbidden_actions: [
+      "No Codex execution from this card.",
+      "No commit/reject state.",
+      "No approve/publish/retry/replay/external posting.",
+      "No merge/auto-merge.",
+      "No proof/evidence recording controls.",
+    ],
+    stop_conditions: packet.stop_conditions,
+    authority_boundaries: packet.authority_boundaries,
+    copy_packet: {
+      preview_only: true,
+      core_packet: true,
+      full_context_available_separately: true,
+      does_not_execute_codex: true,
+      does_not_record_evidence: true,
+      does_not_record_proof: true,
+      does_not_mutate_state: true,
+      does_not_create_branch_or_pr: true,
+      does_not_merge: true,
+      does_not_publish: true,
+    },
+  };
+}
+
+function buildCoreCodexHandoffText(
+  packet: Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text">
+): string {
+  const structuredJson = JSON.stringify(buildCoreCodexHandoffJsonBlock(packet), null, 2);
+  return [
+    "Core Codex Handoff Packet",
+    "Shorter packet for starting Codex work. Use Copy Full Context when full appendices are needed.",
+    "This is a preview/copy packet, not an execution action.",
+    "",
+    "Immediate task context",
+    `- Scope: ${formatStatus(packet.work_scope)}`,
+    `- Work ID: ${formatStatus(packet.work_id, "No work ID listed.")}`,
+    `- Title: ${formatStatus(packet.work_title, "No work title listed.")}`,
+    `- User-facing goal: ${packet.user_facing_goal}`,
+    `- Current status: ${formatStatus(packet.work_status, "No work status listed.")}`,
+    `- Current / next step: ${formatStatus(packet.current_or_next_step, "No current or next step is listed in the work brief.")}`,
+    "",
+    "Codex read-brief start preview",
+    `AUGNES_API_BASE_URL=<provided-current-runtime> CODEX_SCOPE=${formatStatus(packet.work_scope, "<provided-scope>")} CODEX_WORK_ID=${formatStatus(packet.work_id, "<provided-work-id>")} npm run codex:read-brief`,
+    "",
+    "Expected scope",
+    "- Expected files:",
+    listForPacket(packet.expected_files, "No expected files are listed in the work brief."),
+    "- Expected checks:",
+    listForPacket(packet.expected_checks, "No expected checks are listed in the work brief."),
+    "- Related state keys:",
+    listForPacket(packet.related_state_keys, "No related state keys are listed in the work brief."),
+    "",
+    "Project Constellation summary",
+    listForPacket(packet.constellation_context_summary, NO_CONSTELLATION_CONTEXT_TEXT),
+    "",
+    "Memory Reuse summary",
+    listForPacket(packet.memory_reuse_summary, "No Memory Reuse summary attached."),
+    "",
+    "PR checklist summary",
+    listForPacket(packet.pr_checklist_summary, "No PR checklist summary attached."),
+    "",
+    "Closeout and report expectations",
+    listForPacket(packet.closeout_report_expectations, "No closeout expectations listed."),
+    "",
+    "Skipped check policy",
+    `- ${packet.skipped_check_policy}`,
+    "",
+    "Final report requirements",
+    listForPacket([...packet.final_report_requirements], "No final report requirements listed."),
+    "",
+    "Stop conditions",
+    listForPacket([...packet.stop_conditions], "No stop conditions listed."),
+    "",
+    "Concise authority boundary",
+    listForPacket([...packet.authority_boundaries], "No boundary text listed."),
+    "",
+    "Structured JSON",
+    CODEX_HANDOFF_JSON_BEGIN,
+    structuredJson,
+    CODEX_HANDOFF_JSON_END,
+  ].join("\n");
+}
+
+function buildCoreCodexHandoffPacket(finalPacket: FinalCodexHandoffPacket): CoreCodexHandoffPacket {
+  const packetWithoutText = {
+    packet_type: "core_codex_handoff_packet",
+    schema: CORE_CODEX_HANDOFF_PACKET_SCHEMA,
+    title: "Core Codex Handoff Packet",
+    source_packet_type: "final_codex_handoff_packet",
+    source_packet_schema: finalPacket.schema,
+    copy_intent: "shorter_packet_for_starting_codex_work",
+    work_scope: finalPacket.work_scope,
+    work_id: finalPacket.work_id,
+    work_title: finalPacket.work_title,
+    user_facing_goal:
+      finalPacket.current_or_next_step ||
+      finalPacket.work_title ||
+      "Use the Work Contract context to complete the requested Augnes task.",
+    work_status: finalPacket.work_status,
+    current_or_next_step: finalPacket.current_or_next_step,
+    expected_files: finalPacket.expected_files,
+    expected_checks: finalPacket.expected_checks,
+    related_state_keys: finalPacket.related_state_keys,
+    constellation_context_summary: constellationSummaryLines(finalPacket),
+    memory_reuse_summary: memoryReuseSummaryLines(finalPacket.memory_reuse_attachment_proposal),
+    pr_checklist_summary: prChecklistSummaryLines(finalPacket.pr_body_checklist_preview),
+    closeout_report_expectations: [
+      "Report changed files.",
+      "Report verification commands and results.",
+      "Report skipped checks with concrete reasons.",
+      "Include authority boundary statement.",
+      "Name remaining friction or next recommended step.",
+    ],
+    skipped_check_policy: finalPacket.skipped_check_policy,
+    stop_conditions: finalPacket.stop_conditions,
+    authority_boundaries: CORE_HANDOFF_AUTHORITY_BOUNDARIES,
+    final_report_requirements: finalPacket.final_report_requirements,
+    structured_json_delimiters: finalPacket.structured_json_delimiters,
+    boundaries: {
+      read_only: true,
+      short_copy_only: true,
+      codex_execution: false,
+      branch_or_pr_creation: false,
+      proof_recording: false,
+      evidence_recording: false,
+      provider_calls: false,
+      github_calls: false,
+      openai_calls: false,
+      persistence: false,
+    },
+  } satisfies Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text">;
+  const copyableHandoffText = buildCoreCodexHandoffText(packetWithoutText);
+  return {
+    ...packetWithoutText,
+    copyable_handoff_text: copyableHandoffText,
+    copyable_core_handoff_text: copyableHandoffText,
+  };
 }
 
 function buildFinalCodexHandoffText(
@@ -4118,6 +4387,7 @@ export function createMcpAppServer(
           codexHandoffPreview,
           memoryReuseAttachmentProposal
         );
+        const coreCodexHandoffPacket = buildCoreCodexHandoffPacket(finalCodexHandoffPacket);
         const finalHandoffPreflight = buildFinalHandoffPreflight(finalCodexHandoffPacket);
         const finalHandoffReadinessSummary = buildFinalHandoffReadinessSummary(
           finalCodexHandoffPacket,
@@ -4130,8 +4400,13 @@ export function createMcpAppServer(
           brief,
           work_contract_card: workContractCard,
           codex_handoff_preview: codexHandoffPreview,
+          core_codex_handoff_packet: coreCodexHandoffPacket,
+          codex_core_handoff_packet: coreCodexHandoffPacket,
+          copyable_core_handoff_text: coreCodexHandoffPacket.copyable_handoff_text,
           final_codex_handoff_packet: finalCodexHandoffPacket,
           codex_final_handoff_packet: finalCodexHandoffPacket,
+          full_codex_handoff_packet: finalCodexHandoffPacket,
+          copyable_full_handoff_text: finalCodexHandoffPacket.copyable_handoff_text,
           execution_request_preview: codexExecutionRequestPreview,
           codex_execution_request_preview: codexExecutionRequestPreview,
           final_handoff_codex_execution_request_preview: codexExecutionRequestPreview,

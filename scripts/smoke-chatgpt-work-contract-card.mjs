@@ -31,6 +31,10 @@ assert.match(server, /work_picker_card/, "server must return Work Picker structu
 assert.match(server, /recommended_work_id/, "server must return a recommended work ID for the Work Picker");
 assert.match(server, /handoff_tool_hint/, "server must return model-readable handoff tool guidance");
 assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
+assert.match(server, /core_codex_handoff_packet/, "server must return Core Codex Handoff Packet structured content");
+assert.match(server, /copyable_core_handoff_text/, "server must expose copyable Core handoff text");
+assert.match(server, /full_codex_handoff_packet/, "server must expose a full handoff packet alias");
+assert.match(server, /copyable_full_handoff_text/, "server must expose copyable full handoff text");
 assert.match(server, /final_codex_handoff_packet/, "server must return Final Codex Handoff Packet structured content");
 assert.match(server, /codex_final_handoff_packet/, "server must expose a final handoff packet alias for model-readable access");
 assert.match(server, /execution_request_preview/, "server must return execution request preview structured content");
@@ -68,6 +72,7 @@ assert.match(widget, /renderFinalHandoffReadinessSummary/, "widget must render f
 assert.match(widget, /normalizeFinalHandoffReadinessSummary/, "widget must normalize final handoff readiness summary state");
 assert.match(widget, /renderWorkContractConstellationContext/, "widget must render Work Contract / Constellation context");
 assert.match(widget, /renderCopyableHandoffPacket/, "widget must implement a bounded copy affordance renderer");
+assert.match(widget, /Copy Full Context/, "widget must expose a secondary full-context copy action");
 assert.match(server, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block begin delimiter");
 assert.match(server, /END_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block end delimiter");
 assert.match(widget, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet must include JSON block begin delimiter");
@@ -75,6 +80,7 @@ assert.match(widget, /END_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet mu
 assert.match(widget, /After copying, validate locally with codex:handoff-preflight\./, "widget must include local preflight hint text");
 assert.match(widget, /Clipboard API/, "copy behavior must retain Clipboard API path text or implementation");
 assert.match(widget, /document\.execCommand\?\.\("copy"\)/, "copy behavior must retain execCommand fallback");
+assert.match(widget, /clipboardData\.setData\("text\/plain", text\)/, "copy behavior must verify execCommand copy data through the copy event");
 assert.match(widget, /selectElementText\(pre\)/, "copy behavior must retain visible text selection fallback");
 assert.match(runbook, /Data Source/i, "runbook must explain the data source");
 assert.match(runbook, /Work Picker Entry Surface/i, "runbook must explain the Work Picker entry surface");
@@ -83,6 +89,10 @@ assert.match(runbook, /augnes_list_work_items/i, "runbook must name the list-wor
 assert.match(runbook, /augnes_get_work_brief/i, "runbook must name the handoff card follow-up tool");
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
+assert.match(runbook, /Core Handoff/i, "runbook must document the Core Handoff packet");
+assert.match(runbook, /Copy Full Context/i, "runbook must document the full-context copy action");
+assert.match(runbook, /copyable_core_handoff_text/, "runbook must name the Core copy text field");
+assert.match(runbook, /copyable_full_handoff_text/, "runbook must name the Full copy text field");
 assert.match(runbook, /Final Codex Handoff Auto-Compose And Preflight/i, "runbook must explain final handoff auto-compose and preflight");
 assert.match(runbook, /final_codex_handoff_packet/, "runbook must name the final handoff packet field");
 assert.match(runbook, /final_handoff_preflight/, "runbook must name the final handoff preflight field");
@@ -144,7 +154,7 @@ const forbiddenUiPhrases = [
   "Request changes",
   "Approve PR",
 ];
-const allowedCopyLabels = ["Copy Codex Handoff", "Copy Handoff Preview"];
+const allowedCopyLabels = ["Copy Codex Handoff", "Copy Full Context", "Copy Handoff Preview"];
 for (const phrase of forbiddenUiPhrases) {
   assert.doesNotMatch(uiText, new RegExp(escapeRegExp(phrase), "g"), `UI text must not include ${phrase}`);
 }
@@ -176,7 +186,11 @@ assert.match(workBriefBlock, /annotations:\s*bridgeReadAnnotations/, "augnes_get
 assert.match(workBriefBlock, /_meta:\s*widgetToolMeta/, "augnes_get_work_brief must be widget-backed for the card");
 assert.match(workBriefBlock, /work_contract_card/, "augnes_get_work_brief must carry card structured content");
 assert.match(workBriefBlock, /codex_handoff_preview/, "augnes_get_work_brief must carry handoff preview structured content");
+assert.match(workBriefBlock, /core_codex_handoff_packet/, "augnes_get_work_brief must carry Core Handoff structured content");
+assert.match(workBriefBlock, /copyable_core_handoff_text/, "augnes_get_work_brief must expose Core Handoff copy text");
 assert.match(workBriefBlock, /final_codex_handoff_packet/, "augnes_get_work_brief must carry final handoff packet structured content");
+assert.match(workBriefBlock, /full_codex_handoff_packet/, "augnes_get_work_brief must expose a full handoff packet alias");
+assert.match(workBriefBlock, /copyable_full_handoff_text/, "augnes_get_work_brief must expose full handoff copy text");
 assert.match(workBriefBlock, /execution_request_preview/, "augnes_get_work_brief must carry execution request preview structured content");
 assert.match(workBriefBlock, /codex_execution_request_preview/, "augnes_get_work_brief must carry Codex execution request preview alias structured content");
 assert.match(workBriefBlock, /final_handoff_preflight/, "augnes_get_work_brief must carry final handoff preflight structured content");
@@ -227,6 +241,12 @@ assertNoNetworkCalls(extractFunction(server, "buildCodexResultReviewPacketPrevie
 assertNoNetworkCalls(extractFunction(server, "summarizeCodexResultReviewPacket"), "summarizeCodexResultReviewPacket");
 assertNoNetworkCalls(extractFunction(server, "codexResultReviewPacketLines"), "codexResultReviewPacketLines");
 assertNoNetworkCalls(extractFunction(server, "buildHandoffAutomationSlots"), "buildHandoffAutomationSlots");
+assertNoNetworkCalls(extractFunction(server, "constellationSummaryLines"), "constellationSummaryLines");
+assertNoNetworkCalls(extractFunction(server, "memoryReuseSummaryLines"), "memoryReuseSummaryLines");
+assertNoNetworkCalls(extractFunction(server, "prChecklistSummaryLines"), "prChecklistSummaryLines");
+assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffJsonBlock"), "buildCoreCodexHandoffJsonBlock");
+assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffText"), "buildCoreCodexHandoffText");
+assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffPacket"), "buildCoreCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffJsonBlock"), "buildFinalCodexHandoffJsonBlock");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffText"), "buildFinalCodexHandoffText");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffPacket"), "buildFinalCodexHandoffPacket");
@@ -271,6 +291,9 @@ assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffReadinessSumm
 assertNoNetworkCalls(extractFunction(widget, "codexExecutionRequestConfirmationFields"), "codexExecutionRequestConfirmationFields");
 assertNoNetworkCalls(extractFunction(widget, "codexExecutionRequestNonAuthorities"), "codexExecutionRequestNonAuthorities");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCodexExecutionRequestPreview"), "normalizeCodexExecutionRequestPreview");
+assertNoNetworkCalls(extractFunction(widget, "coreAuthorityBoundaryText"), "coreAuthorityBoundaryText");
+assertNoNetworkCalls(extractFunction(widget, "composeFallbackCoreHandoffText"), "composeFallbackCoreHandoffText");
+assertNoNetworkCalls(extractFunction(widget, "normalizeCoreCodexHandoffPacket"), "normalizeCoreCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "formatUiStatus"), "formatUiStatus");
 assertNoNetworkCalls(extractFunction(widget, "formatUiSlotLabel"), "formatUiSlotLabel");
 assertNoNetworkCalls(extractFunction(widget, "formatSourcePacketRef"), "formatSourcePacketRef");
@@ -362,6 +385,9 @@ const renderSource = [
   extractFunction(widget, "codexExecutionRequestConfirmationFields"),
   extractFunction(widget, "codexExecutionRequestNonAuthorities"),
   extractFunction(widget, "normalizeCodexExecutionRequestPreview"),
+  extractFunction(widget, "coreAuthorityBoundaryText"),
+  extractFunction(widget, "composeFallbackCoreHandoffText"),
+  extractFunction(widget, "normalizeCoreCodexHandoffPacket"),
   extractFunction(widget, "renderWorkPickerCandidate"),
   extractFunction(widget, "renderWorkPickerCard"),
   extractFunction(widget, "normalizeWorkContractCard"),
@@ -562,10 +588,26 @@ assert.match(
 await assertRenderedCopyAffordance(
   renderedFallback,
   "clipboard",
+  /No Project Constellation context is attached to this work contract\.[\s\S]*Memory Reuse summary[\s\S]*No persisted perspective-memory items were selected/,
+);
+await assertRenderedCopyAffordance(
+  renderedFallback,
+  "clipboard",
   /No Project Constellation context is attached to this work contract\.[\s\S]*Memory Reuse attachment[\s\S]*No persisted memory IDs selected\.[\s\S]*Codex result review packet[\s\S]*needs_result_input/,
+  "full",
 );
 const renderedExecFallback = renderFallbackCard(renderSource, { clipboardWriteThrows: true });
 await assertRenderedCopyAffordance(renderedExecFallback, "execCommand");
+const renderedStaleExecFallback = renderFallbackCard(renderSource, {
+  clipboardWriteThrows: true,
+  clipboardReadText: "stale clipboard text",
+});
+await assertRenderedCopyAffordance(renderedStaleExecFallback, "selection");
+const renderedUnverifiedExecFallback = renderFallbackCard(renderSource, {
+  clipboardWriteThrows: true,
+  execCommandSkipsCopyEvent: true,
+});
+await assertRenderedCopyAffordance(renderedUnverifiedExecFallback, "selection");
 const renderedSelectionFallback = renderFallbackCard(renderSource, {
   clipboardWriteThrows: true,
   execCommandReturnsFalse: true,
@@ -605,7 +647,7 @@ assert.doesNotMatch(renderedFallback.text, /Reuse only as bounded prior context/
 await assertRenderedCopyAffordance(
   renderedWithMemoryReuse,
   "clipboard",
-  /Memory Reuse attachment[\s\S]*perspective-memory-item:intake-accepted[\s\S]*Reuse only as bounded prior context/,
+  /Memory Reuse summary[\s\S]*perspective-memory-item:intake-accepted[\s\S]*Reuse only as bounded prior context/,
 );
 
 const renderedWithResultReview = renderResultReviewPreviewReadyCard(renderSource);
@@ -633,7 +675,13 @@ for (const expectedResultReviewText of [
 await assertRenderedCopyAffordance(
   renderedWithResultReview,
   "clipboard",
+  /Core Codex Handoff Packet/,
+);
+await assertRenderedCopyAffordance(
+  renderedWithResultReview,
+  "clipboard",
   /Codex result review packet[\s\S]*preview_ready[\s\S]*apps\/augnes_apps\/src\/server\.ts[\s\S]*npm run smoke:chatgpt-work-contract-card passed/,
+  "full",
 );
 
 console.log(
@@ -653,6 +701,11 @@ console.log(
       handoff_preview_present: true,
       handoff_preview_stop_conditions_present: true,
       handoff_preview_copyable_packet_present: true,
+      core_codex_handoff_packet_present: true,
+      core_copy_primary_checked: true,
+      full_context_copy_secondary_checked: true,
+      core_copy_excludes_execution_request_metadata: true,
+      core_copy_excludes_full_appendices: true,
       final_codex_handoff_packet_present: true,
       final_packet_work_contract_fields_checked: true,
       final_packet_missing_constellation_fallback_checked: true,
@@ -821,14 +874,14 @@ function assertNoForbiddenServerOrWidgetCalls(source) {
 function assertSafeCopyAffordanceSource(source) {
   assert.match(source, /document\.createElement\("button"\)/, "copy affordance must use a normal button element");
   assert.match(source, /copyButton\.type\s*=\s*"button"/, "copy affordance button must not submit a form");
-  assert.match(
-    source,
-    /copyButton\.textContent\s*=\s*"Copy Codex Handoff"|copyButton\.textContent\s*=\s*"Copy Handoff Preview"/,
-    "copy affordance label must be allowed",
-  );
+  assert.match(source, /label:\s*"Copy Codex Handoff"/, "copy affordance must keep the primary Core Handoff label");
+  assert.match(source, /label:\s*"Copy Full Context"/, "copy affordance must expose the secondary Full Context label");
+  assert.match(source, /Core: Shorter packet for starting Codex work\./, "copy affordance must explain Core copy behavior");
+  assert.match(source, /Full: Full context and appendices\./, "copy affordance must explain Full copy behavior");
   assert.match(source, /copyTextToClipboard\(packetText\)/, "copy affordance must use the shared layered copy helper");
   assert.match(source, /selectElementText\(pre\)/, "copy affordance must fall back to visible packet text selection");
-  assert.match(source, /status\.textContent\s*=\s*"Handoff copied\."/ , "copy success status must be local UI text");
+  assert.match(source, /successText:\s*"Core handoff copied\."/ , "copy success status must name Core copy");
+  assert.match(source, /successText:\s*"Full handoff copied\."/ , "copy success status must name Full copy");
   assert.match(
     source,
     /status\.textContent\s*=\s*"Clipboard blocked by this host\. Packet text selected; press Command\+C to copy\."/,
@@ -1103,6 +1156,9 @@ function assertFinalPreflightFixtures(source) {
 function assertSafeCopyHelperSource(source) {
   assert.match(source, /navigator\.clipboard\?\.writeText/, "copy helper must try navigator.clipboard.writeText first");
   assert.match(source, /document\.execCommand\?\.\("copy"\)/, "copy helper must provide an execCommand copy fallback");
+  assert.match(source, /document\.addEventListener\?\.\("copy"/, "execCommand copy fallback must install a copy-event handler");
+  assert.match(source, /clipboardData\.setData\("text\/plain", text\)/, "execCommand fallback must provide text through clipboardData");
+  assert.match(source, /navigator\.clipboard\?\.readText/, "execCommand fallback must verify copied text before reporting success");
   assert.doesNotMatch(source, /\bfetch\s*\(/, "copy helper must not call fetch");
   assert.doesNotMatch(source, /\bXMLHttpRequest\b/, "copy helper must not use XMLHttpRequest");
   assert.doesNotMatch(source, /\bWebSocket\b/, "copy helper must not use WebSocket");
@@ -1500,11 +1556,24 @@ function renderWidget(source, payload, renderExpression, options = {}) {
   }
 
   const body = new FakeNode("body");
+  const documentListeners = new Map();
   const context = {
     document: {
       body,
       createElement(tag) {
         return new FakeNode(tag);
+      },
+      addEventListener(type, listener) {
+        const listeners = documentListeners.get(type) ?? [];
+        listeners.push(listener);
+        documentListeners.set(type, listeners);
+      },
+      removeEventListener(type, listener) {
+        const listeners = documentListeners.get(type) ?? [];
+        documentListeners.set(
+          type,
+          listeners.filter((candidate) => candidate !== listener),
+        );
       },
       createRange() {
         return {
@@ -1517,7 +1586,23 @@ function renderWidget(source, payload, renderExpression, options = {}) {
         context.__execCommand = command;
         const lastChild = body.children[body.children.length - 1];
         context.__execCommandText = lastChild?.value ?? "";
-        return options.execCommandReturnsFalse ? false : command === "copy";
+        const ok = !options.execCommandReturnsFalse && command === "copy";
+        if (ok && !options.execCommandSkipsCopyEvent) {
+          for (const listener of documentListeners.get("copy") ?? []) {
+            listener({
+              clipboardData: {
+                setData(format, value) {
+                  context.__execCommandClipboardFormat = format;
+                  context.__execCommandClipboardText = value;
+                },
+              },
+              preventDefault() {
+                context.__copyEventPrevented = true;
+              },
+            });
+          }
+        }
+        return ok;
       },
     },
     Number,
@@ -1532,6 +1617,12 @@ function renderWidget(source, payload, renderExpression, options = {}) {
         context.__clipboardWriteCount = (context.__clipboardWriteCount ?? 0) + 1;
         if (options.clipboardWriteThrows) throw new Error("blocked");
         context.__copiedText = text;
+      },
+      async readText() {
+        context.__clipboardReadCount = (context.__clipboardReadCount ?? 0) + 1;
+        if (options.clipboardReadThrows) throw new Error("blocked");
+        if (typeof options.clipboardReadText === "string") return options.clipboardReadText;
+        return context.__copiedText ?? context.__execCommandClipboardText ?? "";
       },
     },
   };
@@ -1559,34 +1650,57 @@ function renderWidget(source, payload, renderExpression, options = {}) {
   };
 }
 
-async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "clipboard", expectedTextPattern = /Final Codex Handoff Packet/) {
+async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "clipboard", expectedTextPattern = /Core Codex Handoff Packet/, copyMode = "core") {
   const buttons = collectNodes(renderedFallback.tree, (node) => node.tag === "button");
-  assert.equal(buttons.length, 1, "fallback render must include exactly one safe copy button");
-  assert.ok(allowedCopyLabels.includes(buttons[0].textContent), "copy button label must be allowed");
-  assert.equal(buttons[0].type, "button", "copy button must be type=button");
-  assert.ok(buttons[0].listeners.click?.length === 1, "copy button must have one local click handler");
+  assert.equal(buttons.length, 2, "fallback render must include Core and Full safe copy buttons");
+  assert.deepEqual(
+    buttons.map((button) => button.textContent).sort(),
+    ["Copy Codex Handoff", "Copy Full Context"],
+    "copy buttons must expose primary Core and secondary Full labels",
+  );
+  for (const candidate of buttons) {
+    assert.ok(allowedCopyLabels.includes(candidate.textContent), "copy button label must be allowed");
+    assert.equal(candidate.type, "button", "copy button must be type=button");
+    assert.ok(candidate.listeners.click?.length === 1, "copy button must have one local click handler");
+  }
+  const button = buttons.find((candidate) =>
+    copyMode === "full" ? candidate.textContent === "Copy Full Context" : candidate.textContent === "Copy Codex Handoff"
+  );
+  assert.ok(button, `${copyMode} copy button must exist`);
   const statusNodes = collectNodes(
     renderedFallback.tree,
-    (node) => node.attributes?.["aria-live"] === "polite" && node.textContent.includes("Copy action only."),
+    (node) => node.attributes?.["aria-live"] === "polite",
   );
   assert.equal(statusNodes.length, 1, "copy affordance must expose one aria-live local status node");
   const preBlocks = collectNodes(renderedFallback.tree, (node) => node.tag === "pre");
+  assert.ok(preBlocks.some((node) => node.textContent.includes("Core Codex Handoff Packet")), "core packet preformatted text must remain visible");
   assert.ok(preBlocks.some((node) => node.textContent.includes("Final Codex Handoff Packet")), "final packet preformatted text must remain visible");
+  assert.match(renderedFallback.visibleText, /Core: Shorter packet for starting Codex work\./, "visible copy helper must explain Core packet");
+  assert.match(renderedFallback.visibleText, /Full: Full context and appendices\./, "visible copy helper must explain Full packet");
 
-  await buttons[0].listeners.click[0]();
+  await button.listeners.click[0]();
   const copiedText = expectedPath === "execCommand"
-    ? renderedFallback.context.__execCommandText
+    ? renderedFallback.context.__execCommandClipboardText
     : expectedPath === "selection"
       ? renderedFallback.context.__selectedText
       : renderedFallback.context.__copiedText;
-  assert.match(copiedText, /Final Codex Handoff Packet/, "copy button must copy the final handoff packet");
+  if (copyMode === "full") {
+    assert.match(copiedText, /Final Codex Handoff Packet/, "full copy button must copy the final handoff packet");
+    assert.match(copiedText, /Closeout skeleton preview/, "full copy must preserve closeout skeleton appendix");
+    assert.match(copiedText, /Codex result review packet/, "full copy must preserve result review appendix");
+  } else {
+    assert.match(copiedText, /Core Codex Handoff Packet/, "primary copy button must copy the Core handoff packet");
+    assert.match(copiedText, /Shorter packet for starting Codex work/, "Core copy must explain it is the shorter start packet");
+    assert.doesNotMatch(copiedText, /Closeout skeleton preview/, "Core copy must not include the full closeout skeleton appendix");
+    assert.doesNotMatch(copiedText, /Codex result review packet/, "Core copy must not include result review packet details");
+  }
   assert.match(copiedText, expectedTextPattern, "copy button must copy the expected visible handoff packet text");
   assert.match(copiedText, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON begin delimiter");
   assert.match(copiedText, /END_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON end delimiter");
   assert.doesNotMatch(
     copiedText,
     /Codex execution request preview|codex_execution_request_preview|execution_request_preview/,
-    "copy button must keep copying only the final handoff packet text, not the execution request preview metadata",
+    "copy button must not include execution request preview metadata",
   );
   if (expectedPath === "selection") {
     assert.equal(
@@ -1597,24 +1711,44 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
     assert.equal(renderedFallback.context.__selectionCleared, true, "selection fallback must clear previous selection");
     assert.equal(renderedFallback.context.__rangeAdded, true, "selection fallback must select the visible packet text");
   } else {
-    assert.equal(statusNodes[0].textContent, "Handoff copied.", "copy success must update local status only");
+    assert.equal(
+      statusNodes[0].textContent,
+      copyMode === "full" ? "Full handoff copied." : "Core handoff copied.",
+      "copy success must update local status only",
+    );
   }
   if (expectedPath === "execCommand") {
     assert.equal(renderedFallback.context.__execCommand, "copy", "copy fallback must use document.execCommand copy");
+    assert.equal(renderedFallback.context.__execCommandClipboardFormat, "text/plain", "execCommand fallback must write text/plain data");
+    assert.equal(renderedFallback.context.__copyEventPrevented, true, "execCommand fallback must prevent the default copy event after setting data");
+    assert.ok(renderedFallback.context.__clipboardReadCount >= 1, "execCommand fallback must read back the copied text before reporting success");
   } else {
-    assert.equal(renderedFallback.context.__clipboardWriteCount, 1, "copy button must try navigator.clipboard once");
+    assert.ok(renderedFallback.context.__clipboardWriteCount >= 1, "copy button must try navigator.clipboard");
   }
 
   const jsonBlock = extractEmbeddedHandoffJson(copiedText);
   assert.equal(jsonBlock.schema, "augnes.codex_handoff_preview.v0_1", "embedded handoff JSON schema must match v0.1");
-  assert.equal(jsonBlock.packet_kind, "final_codex_handoff_packet", "embedded handoff JSON kind must identify the final packet");
-  assert.equal(jsonBlock.final_packet_schema, "augnes.final_codex_handoff_packet.v0_1", "embedded JSON must identify the final packet schema");
   assert.equal(jsonBlock.copy_packet.preview_only, true, "embedded JSON must mark packet preview-only");
   assert.equal(jsonBlock.copy_packet.does_not_execute_codex, true, "embedded JSON must mark no Codex execution");
   assert.equal(jsonBlock.copy_packet.does_not_record_proof, true, "embedded JSON must mark no proof recording");
   assert.equal(jsonBlock.copy_packet.does_not_record_evidence, true, "embedded JSON must mark no evidence recording");
   assert.equal(jsonBlock.copy_packet.does_not_mutate_state, true, "embedded JSON must mark no state mutation");
   assert.equal(jsonBlock.copy_packet.does_not_merge, true, "embedded JSON must mark no merge authority");
+  if (copyMode !== "full") {
+    assert.equal(jsonBlock.packet_kind, "core_codex_handoff_packet", "embedded handoff JSON kind must identify the Core packet");
+    assert.equal(jsonBlock.core_packet_schema, "augnes.core_codex_handoff_packet.v0_1", "Core JSON must identify the Core packet schema");
+    assert.equal(jsonBlock.copy_packet.core_packet, true, "Core JSON must mark the packet as the Core copy");
+    assert.equal(jsonBlock.copy_packet.full_context_available_separately, true, "Core JSON must point to separate full context availability");
+    assert.ok(jsonBlock.work?.title, "Core JSON must include task title");
+    assert.ok(jsonBlock.work?.work_id, "Core JSON must include work ID");
+    assert.ok(jsonBlock.expected_scope, "Core JSON must include expected scope");
+    assert.ok(jsonBlock.final_report_requirements, "Core JSON must include final report requirements");
+    assert.equal(jsonBlock.codex_result_review_packet_preview, undefined, "Core JSON must not include result review packet details");
+    assert.equal(jsonBlock.codex_closeout_skeleton, undefined, "Core JSON must not include full closeout skeleton details");
+    return;
+  }
+  assert.equal(jsonBlock.packet_kind, "final_codex_handoff_packet", "embedded handoff JSON kind must identify the final packet");
+  assert.equal(jsonBlock.final_packet_schema, "augnes.final_codex_handoff_packet.v0_1", "embedded JSON must identify the final packet schema");
   assert.ok(jsonBlock.memory_reuse_attachment_proposal, "embedded JSON must include Memory Reuse attachment proposal");
   assert.ok(
     ["proposed", "no_match", "unavailable", "not_configured"].includes(jsonBlock.memory_reuse_attachment_proposal.status),

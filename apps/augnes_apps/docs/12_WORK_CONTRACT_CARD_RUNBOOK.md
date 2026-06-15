@@ -329,15 +329,48 @@ publish, merge, retry, replay, or deploy.
 
 ## Copy Codex Handoff Affordance
 
-The Codex Handoff Preview includes a single `Copy Codex Handoff` control near
-the visible packet text. With final handoff auto-compose enabled, the control
-copies the generated final handoff packet from
-`final_codex_handoff_packet.copyable_handoff_text` so the user can paste it
-into a separate Codex session. Older preview payloads may still fall back to
-`preview.copyable_handoff_text`.
+The Codex Handoff Preview now separates the default Core Handoff copy from the
+full appendices.
 
-The copied packet includes the existing human-readable sections and a delimited
-structured JSON block:
+The primary visible control is:
+
+```text
+Copy Codex Handoff
+```
+
+It copies the Core Handoff packet from `core_codex_handoff_packet` /
+`copyable_core_handoff_text`. This is the shorter packet for starting Codex
+work. It keeps the immediate task context near the top: work ID, scope, title,
+user-facing goal, status, next step, expected files/checks, relevant
+Constellation summary, Memory Reuse summary, PR checklist summary,
+closeout/report expectations, skipped-check policy, stop conditions, concise
+authority boundary, final report requirements, and a compact structured JSON
+block.
+
+The secondary visible control is:
+
+```text
+Copy Full Context
+```
+
+It copies the Full Handoff packet from `full_codex_handoff_packet` /
+`copyable_full_handoff_text`, which aliases the existing
+`final_codex_handoff_packet.copyable_handoff_text`. Use it when a worker needs
+full context and appendices.
+
+Core Handoff intentionally does not include the execution request preview
+metadata, full technical appendix, raw internal alias dumps, full Constellation
+evidence/tension dumps, full PR body checklist text, full closeout skeleton,
+result review packet details, or repeated fallback/status prose by default.
+Full Handoff preserves those richer details and the existing fallback
+semantics.
+
+Older preview payloads may still fall back to `preview.copyable_handoff_text`.
+In those cases the widget composes a Core fallback locally from the full packet
+and keeps the full packet available as a secondary copy.
+
+Both copied packets include human-readable sections and a delimited structured
+JSON block:
 
 ```text
 BEGIN_AUGNES_CODEX_HANDOFF_JSON
