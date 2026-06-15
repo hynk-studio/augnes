@@ -421,6 +421,39 @@ const MEMORY_REUSE_ATTACHMENT_UNAVAILABLE_FALLBACK_BRIEF =
 const MEMORY_REUSE_ATTACHMENT_NOT_CONFIGURED_FALLBACK_BRIEF =
   "Memory Reuse attachment proposal is not configured for this payload; no memory intake was run by this surface." as const;
 
+const PR_BODY_CHECKLIST_REQUIRED_SECTIONS = [
+  "Summary",
+  "User-facing path added or changed",
+  "Files changed",
+  "Verification",
+  "Skipped checks and caveats",
+  "Memory Reuse attachment status",
+  "Project Constellation context status",
+  "Final handoff preflight status",
+  "Authority boundary statement",
+  "Remaining caveats",
+  "Next recommended step",
+] as const;
+
+const PR_BODY_CHECKLIST_BOUNDARY_TEXT = [
+  "PR body checklist is preview-only closeout preparation.",
+  "The closeout skeleton uses placeholders until a Codex worker replaces them with actual implementation results.",
+  "No GitHub PR is created, updated, posted, or merged by this surface.",
+  "No execution, writes, provider calls, branch creation, PR creation, proof/evidence recording, publication, merge, retry, replay, or deploy authority.",
+] as const;
+
+const PR_BODY_CHECKLIST_FORBIDDEN_CLAIMS = [
+  "Do not claim verification passed without actual command results.",
+  "Do not claim proof/evidence rows, screenshots, host observations, GitHub PR creation, branch creation, merge, publish, retry, replay, deploy, Codex execution, provider calls, or Augnes state mutation unless they actually happened under explicit authority.",
+  "Do not write N/A for skipped checks; give concrete skipped reasons.",
+] as const;
+
+const PR_BODY_CHECKLIST_WARNINGS = [
+  "Replace placeholders with actual results after implementation.",
+  "Expected checks are prompts for later verification, not pass/fail results.",
+  "Codex result review packet remains future/inert in this surface.",
+] as const;
+
 const FINAL_HANDOFF_FORBIDDEN_CONTROL_LABEL_PARTS = [
   ["Run", " ", "Codex"],
   ["Start", " ", "Codex"],
@@ -437,6 +470,8 @@ const FINAL_HANDOFF_FORBIDDEN_CONTROL_LABEL_PARTS = [
   ["Re", "play"],
   ["De", "ploy"],
   ["Post", " ", "externally"],
+  ["Create", " ", "PR"],
+  ["Open", " ", "PR"],
 ] as const;
 
 const WORK_CONTRACT_CONSTELLATION_CONTEXT_BOUNDARY_TEXT = [
@@ -555,6 +590,47 @@ type FinalHandoffMemoryReuseAttachmentProposal = {
   boundary_text: readonly string[];
 };
 
+type FinalHandoffPrBodyChecklistPreview = {
+  checklist_type: "pr_body_checklist_preview";
+  status: "preview_only";
+  generated: true;
+  work_summary_required: true;
+  user_facing_path_required: true;
+  files_changed_required: true;
+  verification_required: true;
+  skipped_checks_required: true;
+  authority_boundary_required: true;
+  remaining_caveats_required: true;
+  next_recommended_step_required: true;
+  memory_reuse_summary_required: true;
+  constellation_context_summary_required: true;
+  final_handoff_preflight_summary_required: true;
+  forbidden_claims: readonly string[];
+  required_sections: readonly string[];
+  warnings: readonly string[];
+  boundary_text: readonly string[];
+};
+
+type FinalHandoffCloseoutSkeleton = {
+  skeleton_type: "codex_closeout_skeleton";
+  status: "preview_only";
+  generated: true;
+  copyable_closeout_text: string;
+  sections: Array<{
+    heading: string;
+    placeholder: string;
+    source_hint: string;
+  }>;
+  required_sections: readonly string[];
+  verification_command_placeholders: string[];
+  skipped_check_policy: typeof FINAL_HANDOFF_SKIPPED_CHECK_POLICY;
+  memory_reuse_attachment_status: MemoryReuseAttachmentProposalStatus;
+  project_constellation_context_status: "attached" | "explicitly_absent";
+  final_handoff_preflight_status: "pending_preflight" | "pass" | "warn" | "fail" | "unavailable";
+  warnings: readonly string[];
+  boundary_text: readonly string[];
+};
+
 type FinalHandoffAutomationSlot = {
   slot_id: "memory_reuse_attachment" | "pr_body_checklist" | "codex_result_review_packet";
   label: string;
@@ -569,6 +645,8 @@ type FinalHandoffAutomationSlot = {
   summary: string;
   boundary_text: readonly string[];
   proposal?: FinalHandoffMemoryReuseAttachmentProposal;
+  checklist?: FinalHandoffPrBodyChecklistPreview;
+  closeout_skeleton?: FinalHandoffCloseoutSkeleton;
 };
 
 type HandoffAutomationSlots = {
@@ -602,6 +680,10 @@ type FinalCodexHandoffPacket = {
   constellation_context_status: "attached" | "explicitly_absent";
   no_constellation_context_fallback: typeof NO_CONSTELLATION_CONTEXT_TEXT;
   memory_reuse_attachment_proposal: FinalHandoffMemoryReuseAttachmentProposal;
+  pr_body_checklist_preview: FinalHandoffPrBodyChecklistPreview;
+  codex_pr_body_checklist: FinalHandoffPrBodyChecklistPreview;
+  codex_closeout_skeleton: FinalHandoffCloseoutSkeleton;
+  final_handoff_closeout_skeleton: FinalHandoffCloseoutSkeleton;
   structured_json_delimiters: {
     begin: typeof CODEX_HANDOFF_JSON_BEGIN;
     end: typeof CODEX_HANDOFF_JSON_END;
@@ -1286,8 +1368,163 @@ function memoryReuseProposalLines(proposal: FinalHandoffMemoryReuseAttachmentPro
   return lines;
 }
 
-function buildHandoffAutomationSlots(
+function buildPrBodyChecklistPreview(): FinalHandoffPrBodyChecklistPreview {
+  return {
+    checklist_type: "pr_body_checklist_preview",
+    status: "preview_only",
+    generated: true,
+    work_summary_required: true,
+    user_facing_path_required: true,
+    files_changed_required: true,
+    verification_required: true,
+    skipped_checks_required: true,
+    authority_boundary_required: true,
+    remaining_caveats_required: true,
+    next_recommended_step_required: true,
+    memory_reuse_summary_required: true,
+    constellation_context_summary_required: true,
+    final_handoff_preflight_summary_required: true,
+    forbidden_claims: PR_BODY_CHECKLIST_FORBIDDEN_CLAIMS,
+    required_sections: PR_BODY_CHECKLIST_REQUIRED_SECTIONS,
+    warnings: PR_BODY_CHECKLIST_WARNINGS,
+    boundary_text: PR_BODY_CHECKLIST_BOUNDARY_TEXT,
+  };
+}
+
+function summarizeMemoryReuseForCloseout(proposal: FinalHandoffMemoryReuseAttachmentProposal): string {
+  if (proposal.status === "proposed") {
+    return [
+      `Status: proposed.`,
+      `Selected memory IDs: ${proposal.selected_memory_ids.join(", ") || "none listed"}.`,
+      "Placeholder: summarize how the listed persisted memory context was used, preserving reuse boundaries.",
+    ].join(" ");
+  }
+  if (proposal.status === "no_match") {
+    return "Status: no_match. No persisted memory IDs were selected. Placeholder: state that no automatic memory creation or persistence occurred.";
+  }
+  return `Status: ${proposal.status}. Placeholder: include the explicit fallback reason and state that no selected memory IDs were invented.`;
+}
+
+function summarizeConstellationForCloseout(context: WorkContractConstellationContext | null): string {
+  if (!context) {
+    return `${NO_CONSTELLATION_CONTEXT_TEXT} Placeholder: state that no selected Constellation candidate was attached.`;
+  }
+  return [
+    "Status: attached.",
+    `Selected candidate: ${formatPacketLine(context.selected_candidate_label)} (${formatPacketLine(context.selected_candidate_id)}).`,
+    `Selection status: ${formatPacketLine(context.selection_status)}.`,
+    "Placeholder: summarize how the selected advisory next action informed the work.",
+  ].join(" ");
+}
+
+function buildCloseoutSkeletonText(sections: FinalHandoffCloseoutSkeleton["sections"]): string {
+  return sections
+    .map((section) => [`## ${section.heading}`, section.placeholder, `Source hint: ${section.source_hint}`].join("\n"))
+    .join("\n\n");
+}
+
+function buildCloseoutSkeleton(
+  packet: Omit<
+    FinalCodexHandoffPacket,
+    | "copyable_handoff_text"
+    | "pr_body_checklist_preview"
+    | "codex_pr_body_checklist"
+    | "codex_closeout_skeleton"
+    | "final_handoff_closeout_skeleton"
+    | "handoff_automation_slots"
+  >,
   memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal
+): FinalHandoffCloseoutSkeleton {
+  const verificationCommands = packet.expected_checks.length > 0 ? packet.expected_checks : ["No expected checks are listed in the work brief."];
+  const expectedFiles = packet.expected_files.length > 0 ? packet.expected_files.join(", ") : "No expected files are listed in the work brief.";
+  const sections: FinalHandoffCloseoutSkeleton["sections"] = [
+    {
+      heading: "Summary",
+      placeholder: `Placeholder: summarize the completed implementation for ${formatPacketLine(packet.work_title, "this work contract")}.`,
+      source_hint: "Work Contract title, final packet summary, and actual implementation diff.",
+    },
+    {
+      heading: "User-facing path added or changed",
+      placeholder: "Placeholder: describe the operator-visible path after implementation. Do not invent host observations.",
+      source_hint: "Final handoff packet plus verified widget/tool behavior after implementation.",
+    },
+    {
+      heading: "Files changed",
+      placeholder: `Placeholder: list actual changed files from git diff. Expected files from handoff: ${expectedFiles}.`,
+      source_hint: "git diff --name-only after implementation.",
+    },
+    {
+      heading: "Verification",
+      placeholder: [
+        "Placeholder: replace with actual commands run and observed results.",
+        "Expected checks from handoff:",
+        listForPacket(verificationCommands, "No expected checks are listed in the work brief."),
+        "Do not claim they passed until they have actually run.",
+      ].join("\n"),
+      source_hint: "Commands executed by the Codex worker after implementation.",
+    },
+    {
+      heading: "Skipped checks and caveats",
+      placeholder: `Placeholder: list skipped checks with concrete reasons. ${packet.skipped_check_policy}`,
+      source_hint: "Actual validation run and explicit skipped reasons.",
+    },
+    {
+      heading: "Memory Reuse attachment status",
+      placeholder: summarizeMemoryReuseForCloseout(memoryReuseAttachmentProposal),
+      source_hint: "memory_reuse_attachment_proposal.",
+    },
+    {
+      heading: "Project Constellation context status",
+      placeholder: summarizeConstellationForCloseout(packet.constellation_context),
+      source_hint: "work_contract_constellation_context or explicit absent fallback.",
+    },
+    {
+      heading: "Final handoff preflight status",
+      placeholder: "Status: pending_preflight. Placeholder: replace with final_handoff_preflight status and check summary after the packet is generated.",
+      source_hint: "structuredContent.final_handoff_preflight.",
+    },
+    {
+      heading: "Authority boundary statement",
+      placeholder: [
+        "Placeholder: include the scoped PR authority boundary statement.",
+        "Boundary source:",
+        listForPacket([...packet.authority_boundaries], "No authority boundary text listed."),
+      ].join("\n"),
+      source_hint: "Final packet authority boundaries and task prompt.",
+    },
+    {
+      heading: "Remaining caveats",
+      placeholder: "Placeholder: name remaining friction, limitations, or host/live checks that were skipped with reasons.",
+      source_hint: "Implementation findings and skipped validation.",
+    },
+    {
+      heading: "Next recommended step",
+      placeholder: "Placeholder: state one bounded next step after review, without implying merge, publication, execution, or provider authority.",
+      source_hint: "Task closeout and reviewer handoff.",
+    },
+  ];
+
+  return {
+    skeleton_type: "codex_closeout_skeleton",
+    status: "preview_only",
+    generated: true,
+    copyable_closeout_text: buildCloseoutSkeletonText(sections),
+    sections,
+    required_sections: PR_BODY_CHECKLIST_REQUIRED_SECTIONS,
+    verification_command_placeholders: verificationCommands,
+    skipped_check_policy: FINAL_HANDOFF_SKIPPED_CHECK_POLICY,
+    memory_reuse_attachment_status: memoryReuseAttachmentProposal.status,
+    project_constellation_context_status: packet.constellation_context_status,
+    final_handoff_preflight_status: "pending_preflight",
+    warnings: PR_BODY_CHECKLIST_WARNINGS,
+    boundary_text: PR_BODY_CHECKLIST_BOUNDARY_TEXT,
+  };
+}
+
+function buildHandoffAutomationSlots(
+  memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal,
+  prBodyChecklistPreview: FinalHandoffPrBodyChecklistPreview,
+  closeoutSkeleton: FinalHandoffCloseoutSkeleton
 ): HandoffAutomationSlots {
   return {
     memory_reuse_attachment: {
@@ -1303,11 +1540,13 @@ function buildHandoffAutomationSlots(
     pr_body_checklist: {
       slot_id: "pr_body_checklist",
       label: "PR body checklist",
-      status: "not_generated",
+      status: "preview_only",
       inert: true,
-      generated: false,
-      summary: "PR body checklist is not generated here; this is a preview-only future slot.",
-      boundary_text: FINAL_HANDOFF_FUTURE_SLOT_BOUNDARY_TEXT,
+      generated: true,
+      summary: "Preview-only PR body checklist and closeout skeleton are prepared for later manual PR body drafting; no GitHub PR or branch is created.",
+      boundary_text: prBodyChecklistPreview.boundary_text,
+      checklist: prBodyChecklistPreview,
+      closeout_skeleton: closeoutSkeleton,
     },
     codex_result_review_packet: {
       slot_id: "codex_result_review_packet",
@@ -1359,6 +1598,10 @@ function buildFinalCodexHandoffJsonBlock(
     constellation_context_status: packet.constellation_context_status,
     no_constellation_context_fallback: packet.no_constellation_context_fallback,
     memory_reuse_attachment_proposal: packet.memory_reuse_attachment_proposal,
+    pr_body_checklist_preview: packet.pr_body_checklist_preview,
+    codex_pr_body_checklist: packet.codex_pr_body_checklist,
+    codex_closeout_skeleton: packet.codex_closeout_skeleton,
+    final_handoff_closeout_skeleton: packet.final_handoff_closeout_skeleton,
     handoff_automation_slots: packet.handoff_automation_slots,
     authority_boundaries: packet.authority_boundaries,
     copy_packet: {
@@ -1436,6 +1679,21 @@ function buildFinalCodexHandoffText(
     "Memory Reuse attachment",
     ...memoryReuseProposalLines(packet.memory_reuse_attachment_proposal),
     "",
+    "Codex PR body checklist / closeout skeleton",
+    `- Checklist status: ${packet.pr_body_checklist_preview.status}`,
+    `- Generated: ${packet.pr_body_checklist_preview.generated}`,
+    "- Required sections:",
+    listForPacket([...packet.pr_body_checklist_preview.required_sections], "No required PR body sections listed."),
+    "- Forbidden claims:",
+    listForPacket([...packet.pr_body_checklist_preview.forbidden_claims], "No forbidden claims listed."),
+    "- Warnings:",
+    listForPacket([...packet.pr_body_checklist_preview.warnings], "No PR body checklist warnings listed."),
+    "- Boundary:",
+    listForPacket([...packet.pr_body_checklist_preview.boundary_text], "No PR body checklist boundary text listed."),
+    "",
+    "Closeout skeleton preview",
+    packet.codex_closeout_skeleton.copyable_closeout_text,
+    "",
     "Future attachment slots",
     ...slotLines(packet.handoff_automation_slots),
     "",
@@ -1463,7 +1721,7 @@ function buildFinalCodexHandoffPacket(
   preview: CodexHandoffPreview,
   memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal
 ): FinalCodexHandoffPacket {
-  const packetWithoutText = {
+  const basePacketWithoutTextAndSlots = {
     packet_type: "final_codex_handoff_packet",
     schema: FINAL_CODEX_HANDOFF_PACKET_SCHEMA,
     title: "Final Codex Handoff Packet",
@@ -1492,7 +1750,6 @@ function buildFinalCodexHandoffPacket(
       begin: CODEX_HANDOFF_JSON_BEGIN,
       end: CODEX_HANDOFF_JSON_END,
     },
-    handoff_automation_slots: buildHandoffAutomationSlots(memoryReuseAttachmentProposal),
     boundaries: {
       read_only: true,
       local_preflight_only: true,
@@ -1506,6 +1763,29 @@ function buildFinalCodexHandoffPacket(
       openai_calls: false,
       persistence: false,
     },
+  } satisfies Omit<
+    FinalCodexHandoffPacket,
+    | "copyable_handoff_text"
+    | "pr_body_checklist_preview"
+    | "codex_pr_body_checklist"
+    | "codex_closeout_skeleton"
+    | "final_handoff_closeout_skeleton"
+    | "handoff_automation_slots"
+  >;
+
+  const prBodyChecklistPreview = buildPrBodyChecklistPreview();
+  const closeoutSkeleton = buildCloseoutSkeleton(basePacketWithoutTextAndSlots, memoryReuseAttachmentProposal);
+  const packetWithoutText = {
+    ...basePacketWithoutTextAndSlots,
+    pr_body_checklist_preview: prBodyChecklistPreview,
+    codex_pr_body_checklist: prBodyChecklistPreview,
+    codex_closeout_skeleton: closeoutSkeleton,
+    final_handoff_closeout_skeleton: closeoutSkeleton,
+    handoff_automation_slots: buildHandoffAutomationSlots(
+      memoryReuseAttachmentProposal,
+      prBodyChecklistPreview,
+      closeoutSkeleton
+    ),
   } satisfies Omit<FinalCodexHandoffPacket, "copyable_handoff_text">;
 
   return {
@@ -1615,6 +1895,47 @@ function finalHandoffMemoryReusePreflightCheck(packet: FinalCodexHandoffPacket):
   };
 }
 
+function finalHandoffPrBodyChecklistPreflightCheck(packet: FinalCodexHandoffPacket): FinalHandoffPreflightCheck {
+  const checklist = packet.pr_body_checklist_preview;
+  const skeleton = packet.codex_closeout_skeleton;
+  const slot = packet.handoff_automation_slots.pr_body_checklist;
+  const skeletonText = skeleton.copyable_closeout_text;
+
+  if (slot.status === "not_generated" && slot.inert) {
+    return {
+      id: "pr_body_checklist_state",
+      status: "warn",
+      message: "PR body checklist slot is explicitly inert and not generated.",
+    };
+  }
+
+  const requiredSectionsPresent = PR_BODY_CHECKLIST_REQUIRED_SECTIONS.every(
+    (section) => checklist.required_sections.includes(section) && skeletonText.includes(`## ${section}`)
+  );
+  const placeholdersPresent = skeletonText.includes("Placeholder:");
+  const packetMentionsChecklist = packet.copyable_handoff_text.includes("Codex PR body checklist / closeout skeleton");
+  const slotValid = slot.status === "preview_only" && slot.generated === true && slot.inert === true;
+  const noPassedClaims = !/all passed\.|verification passed|all checks passed/i.test(skeletonText);
+  const valid =
+    checklist.status === "preview_only" &&
+    checklist.generated === true &&
+    skeleton.status === "preview_only" &&
+    skeleton.generated === true &&
+    requiredSectionsPresent &&
+    placeholdersPresent &&
+    packetMentionsChecklist &&
+    slotValid &&
+    noPassedClaims;
+
+  return {
+    id: "pr_body_checklist_state",
+    status: valid ? "pass" : "fail",
+    message: valid
+      ? "Preview-only PR body checklist and closeout skeleton are present with placeholders and no pass claims."
+      : "PR body checklist or closeout skeleton is missing, ambiguous, or claims results prematurely.",
+  };
+}
+
 function buildFinalHandoffPreflight(packet: FinalCodexHandoffPacket): FinalHandoffPreflight {
   const packetText = nonEmptyString(packet.copyable_handoff_text);
   if (!packetText) {
@@ -1687,6 +2008,7 @@ function buildFinalHandoffPreflight(packet: FinalCodexHandoffPacket): FinalHando
       "Project Constellation context is neither attached nor explicitly absent."
     ),
     finalHandoffMemoryReusePreflightCheck(packet),
+    finalHandoffPrBodyChecklistPreflightCheck(packet),
     finalPreflightCheck(
       "no_forbidden_control_labels",
       !hasForbiddenControlLabel(packetText),
@@ -2949,6 +3271,10 @@ export function createMcpAppServer(
           codex_final_handoff_packet: finalCodexHandoffPacket,
           memory_reuse_attachment_proposal: memoryReuseAttachmentProposal,
           final_handoff_memory_reuse_attachment: memoryReuseAttachmentProposal,
+          pr_body_checklist_preview: finalCodexHandoffPacket.pr_body_checklist_preview,
+          codex_pr_body_checklist: finalCodexHandoffPacket.codex_pr_body_checklist,
+          codex_closeout_skeleton: finalCodexHandoffPacket.codex_closeout_skeleton,
+          final_handoff_closeout_skeleton: finalCodexHandoffPacket.final_handoff_closeout_skeleton,
           final_handoff_preflight: finalHandoffPreflight,
           handoff_automation_slots: finalCodexHandoffPacket.handoff_automation_slots,
           ...(workContractCard.constellation_context

@@ -174,15 +174,30 @@ memory items, persist memory, record proof/evidence, mutate Augnes state,
 execute Codex, create branches or PRs, call providers, or publish/merge
 anything.
 
-Two inert future slots remain visible in the final packet:
+The `pr_body_checklist` slot is now activated as a preview-only PR body
+checklist and closeout skeleton. It is generated from the Work Contract, final
+handoff packet, local preflight state, optional Constellation context, Memory
+Reuse attachment status, authority boundaries, verification expectations, and
+skipped-check policy. The skeleton contains placeholders for the eventual PR
+body and closeout. Expected checks may be listed as commands to run later, but
+the skeleton must not claim that any check passed unless a Codex worker actually
+ran it and reports the result. Skipped checks must have concrete reasons; do
+not write `N/A` or treat skipped checks as passing.
 
-- `pr_body_checklist`: not generated.
-- `codex_result_review_packet`: not generated.
+The closeout skeleton includes sections for Summary, User-facing path added or
+changed, Files changed, Verification, Skipped checks and caveats, Memory Reuse
+attachment status, Project Constellation context status, Final handoff
+preflight status, Authority boundary statement, Remaining caveats, and Next
+recommended step. The existing `Copy Codex Handoff` control copies the final
+packet text including the preview-only PR body checklist and closeout skeleton.
+This does not create or update a GitHub PR, create a branch, execute Codex,
+record proof/evidence, mutate Augnes state, call providers, publish, merge,
+retry, replay, or deploy.
 
-These slots are placeholders only. They do not implement PR body generation,
-Codex result review automation, branch/PR creation, proof/evidence recording,
-publication, approval, retry, replay, deploy, persistence, auth, or provider
-calls.
+The `codex_result_review_packet` slot remains future/inert and is still not
+generated. It does not implement Codex result review automation, GitHub posting,
+proof/evidence recording, publication, approval, retry, replay, deploy,
+persistence, auth, or provider calls.
 
 ## Copy Codex Handoff Affordance
 
