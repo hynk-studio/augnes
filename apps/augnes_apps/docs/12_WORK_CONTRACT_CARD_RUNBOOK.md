@@ -148,16 +148,41 @@ boundaries exist, skipped-check policy and closeout expectations exist,
 Constellation context is attached or explicitly absent, no execution/write
 control labels are present, and the structured JSON block is parseable.
 
-Three inert future slots are visible in the final packet:
+The `memory_reuse_attachment` slot is now activated as a read-only Memory
+Reuse attachment proposal preview when final handoff text is composed. The
+proposal can report:
 
-- `memory_reuse_attachment`: not attached.
+- `proposed`: selected persisted memory IDs were attached by existing
+  structured context.
+- `no_match`: no persisted memory items were selected. This is a valid state,
+  not a failure.
+- `unavailable`: proposal data is not available in the current payload.
+- `not_configured`: proposal data is not configured for the current payload.
+
+In the normal no-match case, the card shows a fallback brief explaining that no
+persisted perspective-memory items were selected and no memory IDs,
+`why_selected`, or `reuse_boundary` entries were invented. When selected memory
+items are attached, the proposal shows the selected memory IDs, why they were
+selected, reuse boundaries, selection guidance, warnings, and boundary text.
+The final handoff packet includes the same `Memory Reuse attachment` section,
+and the local preflight checks whether that state is explicit and bounded.
+Treat `no_match` as a valid state: it means no persisted memory item was
+selected, not that the Work Contract Card failed.
+
+This proposal preview does not run Perspective Memory Reuse Intake, create
+memory items, persist memory, record proof/evidence, mutate Augnes state,
+execute Codex, create branches or PRs, call providers, or publish/merge
+anything.
+
+Two inert future slots remain visible in the final packet:
+
 - `pr_body_checklist`: not generated.
 - `codex_result_review_packet`: not generated.
 
-These slots are placeholders only. They do not implement Perspective Memory
-Reuse Intake, PR body generation, Codex result review automation, branch/PR
-creation, proof/evidence recording, publication, approval, retry, replay,
-deploy, persistence, auth, or provider calls.
+These slots are placeholders only. They do not implement PR body generation,
+Codex result review automation, branch/PR creation, proof/evidence recording,
+publication, approval, retry, replay, deploy, persistence, auth, or provider
+calls.
 
 ## Copy Codex Handoff Affordance
 
