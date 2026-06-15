@@ -1091,11 +1091,17 @@
         };
         const finalPacket = normalizeFinalCodexHandoffPacket(data, normalizedPreview, card);
         const finalPreflight = normalizeFinalHandoffPreflight(data, finalPacket);
+        const finalReadinessSummary = normalizeFinalHandoffReadinessSummary(
+          data?.final_handoff_readiness_summary || finalPacket.final_handoff_readiness_summary,
+          finalPacket,
+          finalPreflight
+        );
 
         return {
           ...normalizedPreview,
           final_codex_handoff_packet: finalPacket,
           final_handoff_preflight: finalPreflight,
+          final_handoff_readiness_summary: finalReadinessSummary,
           handoff_automation_slots: finalPacket.handoff_automation_slots,
         };
       }
@@ -2245,6 +2251,74 @@
         return localFinalPreflight(packet);
       }
 
+      function derivePostRunResultReviewReadiness(reviewPacket) {
+        if (reviewPacket.status === "preview_ready") {
+          return nonEmptyText(reviewPacket.review_recommendation, "ready_for_human_review");
+        }
+        if (reviewPacket.status === "needs_result_input" || reviewPacket.status === "not_provided") {
+          return "needs_result_input";
+        }
+        return "unavailable";
+      }
+
+      function normalizeFinalHandoffReadinessSummary(source, packet, preflight) {
+        const record = safeRecord(source);
+        const reviewPacket = normalizeCodexResultReviewPacket(
+          packet?.codex_result_review_packet_preview ||
+            packet?.final_handoff_codex_result_review_packet ||
+            packet?.codex_pr_review_packet_preview ||
+            packet?.handoff_automation_slots?.codex_result_review_packet?.review_packet,
+          packet
+        );
+        const preflightChecks = safeRecordArray(preflight?.checks);
+        const preRunChecks = preflightChecks.filter((check) => nonEmptyText(check.id, "") !== "codex_result_review_packet_state");
+        const hasPreRunFail = preRunChecks.some((check) => {
+          const status = nonEmptyText(check.status, "unavailable");
+          return status === "fail" || status === "unavailable";
+        });
+        const hasPreRunWarn = preRunChecks.some((check) => nonEmptyText(check.status, "") === "warn");
+        const fallbackPreRunReadiness =
+          nonEmptyText(preflight?.status, "unavailable") === "unavailable"
+            ? "unavailable"
+            : hasPreRunFail
+              ? "blocked"
+              : hasPreRunWarn
+                ? "needs_attention"
+                : "ready";
+        const fallbackPostRunReadiness = derivePostRunResultReviewReadiness(reviewPacket);
+        const fallbackExplanation =
+          fallbackPreRunReadiness === "ready" && fallbackPostRunReadiness === "needs_result_input"
+            ? "Result review is waiting for a Codex final report or structured result payload. This does not mean the pre-run handoff packet is broken."
+            : fallbackPostRunReadiness === "ready_for_human_review"
+              ? "Post-run result review has input and is ready for human review; keep the overall local preflight status visible for any remaining warnings."
+              : fallbackPreRunReadiness === "blocked"
+                ? "Pre-run handoff preparation has a blocking local preflight finding; fix that before using the packet."
+                : fallbackPreRunReadiness === "needs_attention"
+                  ? "Pre-run handoff preparation has local preflight warnings that should be reviewed before using the packet."
+                  : "Readiness summary separates handoff preparation from post-run result review input while preserving the overall local preflight status.";
+
+        return {
+          summary_type: "final_handoff_readiness_summary",
+          pre_run_handoff_readiness: nonEmptyText(record.pre_run_handoff_readiness, fallbackPreRunReadiness),
+          post_run_result_review_readiness: nonEmptyText(record.post_run_result_review_readiness, fallbackPostRunReadiness),
+          overall_local_preflight_status: nonEmptyText(record.overall_local_preflight_status, nonEmptyText(preflight?.status, "unavailable")),
+          result_review_status: nonEmptyText(record.result_review_status, reviewPacket.status),
+          result_review_source: nonEmptyText(record.result_review_source, reviewPacket.result_source),
+          explanation: nonEmptyText(record.explanation, fallbackExplanation),
+          pre_run_check_ids: safeArray(record.pre_run_check_ids).length
+            ? safeArray(record.pre_run_check_ids)
+            : preRunChecks.map((check) => nonEmptyText(check.id, "check")),
+          post_run_check_id: nonEmptyText(record.post_run_check_id, "codex_result_review_packet_state"),
+          boundary_text: safeArray(record.boundary_text).length
+            ? safeArray(record.boundary_text)
+            : [
+                "Final handoff readiness summary is display-only status clarification.",
+                "It separates pre-run handoff preparation from post-run result review input.",
+                "It does not change local preflight semantics or grant execution, write, GitHub, provider, proof, evidence, state, publish, retry, replay, deploy, or merge authority.",
+              ],
+        };
+      }
+
       function safeObject(value) {
         return value && typeof value === "object" && !Array.isArray(value) ? value : {};
       }
@@ -2564,6 +2638,27 @@
         return root;
       }
 
+      function renderFinalHandoffReadinessSummary(summary) {
+        const normalized = normalizeFinalHandoffReadinessSummary(summary, {}, {});
+        const root = el("div", { className: "stack" });
+        root.appendChild(createMetricGrid([
+          ["Handoff preparation", normalized.pre_run_handoff_readiness],
+          ["Result review", normalized.post_run_result_review_readiness],
+          ["Overall local preflight", normalized.overall_local_preflight_status],
+          ["Result source", normalized.result_review_source],
+        ]));
+        root.appendChild(el("div", {
+          className: "status-box",
+          text: normalized.explanation,
+        }));
+        root.appendChild(createSection(
+          "Readiness boundary",
+          createTextList(normalized.boundary_text),
+          { badge: "display-only" }
+        ));
+        return root;
+      }
+
       function renderFinalHandoffPreflight(preflight) {
         const root = el("div", { className: "stack" });
         root.appendChild(el("div", {
@@ -2724,7 +2819,7 @@
         return root;
       }
 
-      function renderFinalCodexHandoffPacket(packet, preflight) {
+      function renderFinalCodexHandoffPacket(packet, preflight, readinessSummary) {
         const root = el("div", { className: "stack" });
         root.appendChild(createMetricGrid([
           ["Packet", nonEmptyText(packet.title, "Final Codex Handoff Packet")],
@@ -2740,6 +2835,11 @@
           text:
             "Final handoff is prepared local text only. It does not execute Codex, create branches or PRs, record proof or evidence, mutate Augnes state, publish, merge, retry, replay, deploy, or call providers.",
         }));
+        root.appendChild(createSection(
+          "Readiness summary",
+          renderFinalHandoffReadinessSummary(readinessSummary || normalizeFinalHandoffReadinessSummary(null, packet, preflight)),
+          { badge: nonEmptyText(readinessSummary?.overall_local_preflight_status, nonEmptyText(preflight.status, "unavailable")) }
+        ));
         root.appendChild(renderFinalHandoffPreflight(preflight));
         root.appendChild(createSection(
           "Memory Reuse attachment",
@@ -2800,7 +2900,11 @@
         root.appendChild(createSection("Stop conditions", createTextList(preview.stop_conditions), { badge: "stop" }));
         root.appendChild(createSection(
           "Final Codex Handoff",
-          renderFinalCodexHandoffPacket(preview.final_codex_handoff_packet, preview.final_handoff_preflight),
+          renderFinalCodexHandoffPacket(
+            preview.final_codex_handoff_packet,
+            preview.final_handoff_preflight,
+            preview.final_handoff_readiness_summary
+          ),
           { badge: preview.final_handoff_preflight.status }
         ));
         root.appendChild(createSection("Preview boundary", createTextList(preview.boundary_text), { badge: "read-only" }));
