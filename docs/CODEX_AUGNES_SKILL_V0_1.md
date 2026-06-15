@@ -159,9 +159,9 @@ installer behavior. Smoke tests do not prove real Codex hook loading or
 For prompts such as `Use Augnes for this task`, `Start with Augnes memory`,
 `Start from Augnes memories`, `Use Augnes context`,
 `Review this PR with Augnes context`, `Codex야 Augnes 쓰자`,
-`Augnes memory 보고 시작해`, or `Augnes context 붙여서 작업해줘`, Codex should
-diagnose whether hook automation appears available and warn that `/hooks` trust
-may still be required.
+`Augnes memory 보고 시작해`, `Augnes context 붙여서 작업해줘`, or
+`아그네스 쓰자`, Codex should diagnose whether hook automation appears
+available and warn that `/hooks` trust may still be required.
 
 If hook automation is unavailable, missing, disabled, or not trusted, Codex
 should run Perspective Memory Reuse Intake manually:
