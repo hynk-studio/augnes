@@ -1150,11 +1150,25 @@ type ConstellationTension = ConstellationPreviewResult["unresolved_tensions"][nu
 type ConstellationNextAction = ConstellationPreviewResult["next_action_candidates"][number];
 type ConstellationSourceRef = ConstellationPreviewResult["source_refs"][number];
 
+type ProjectConstellationSelectionStatus = "selected" | "defaulted" | "requested_not_found" | "unavailable";
+
+type ProjectConstellationHandoffSelection = {
+  requested_candidate_id: string | null;
+  selected_candidate_id: string | null;
+  selected_candidate_label: string | null;
+  selection_status: ProjectConstellationSelectionStatus;
+  selection_fallback_reason: string | null;
+};
+
 type ProjectConstellationHandoffSeed = {
   seed_type: "project_constellation_codex_handoff_seed";
   status: "available" | "unavailable";
+  requested_candidate_id: string | null;
   selected_candidate_id: string | null;
   selected_candidate_label: string | null;
+  selection_status: ProjectConstellationSelectionStatus;
+  selection_fallback_reason: string | null;
+  selection: ProjectConstellationHandoffSelection;
   preview_text: string;
   source_refs: string[];
   required_checks: readonly string[];
@@ -1173,6 +1187,12 @@ type ProjectConstellationPreviewSurface = {
   evidence_pointers: ConstellationEvidencePointer[];
   unresolved_tensions: ConstellationTension[];
   next_action_candidates: ConstellationNextAction[];
+  requested_candidate_id: string | null;
+  selected_candidate_id: string | null;
+  selected_candidate_label: string | null;
+  selection_status: ProjectConstellationSelectionStatus;
+  selection_fallback_reason: string | null;
+  selection: ProjectConstellationHandoffSelection;
   copyable_handoff_seed: ProjectConstellationHandoffSeed;
   source_refs: ConstellationSourceRef[];
   missing_data_fallbacks: string[];
@@ -1228,6 +1248,63 @@ function summarizeNextAction(action: ConstellationNextAction): string {
   return `${action.candidate_id}: ${action.summary}`;
 }
 
+function normalizeRequestedCandidateId(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function resolveProjectConstellationHandoffSelection(input: {
+  nextActionCandidates: ConstellationNextAction[];
+  requestedCandidateId?: string | null;
+  fallbackText: string | null;
+}): ProjectConstellationHandoffSelection {
+  const requestedCandidateId = normalizeRequestedCandidateId(input.requestedCandidateId);
+
+  if (input.fallbackText || !input.nextActionCandidates.length) {
+    return {
+      requested_candidate_id: requestedCandidateId,
+      selected_candidate_id: null,
+      selected_candidate_label: null,
+      selection_status: "unavailable",
+      selection_fallback_reason: requestedCandidateId
+        ? `Requested candidate ${requestedCandidateId} could not be selected because the Project Constellation preview is unavailable. No missing context was invented.`
+        : "No advisory next action candidate was returned. No missing context was invented.",
+    };
+  }
+
+  const requestedCandidate = requestedCandidateId
+    ? input.nextActionCandidates.find((candidate) => candidate.candidate_id === requestedCandidateId)
+    : null;
+  if (requestedCandidate) {
+    return {
+      requested_candidate_id: requestedCandidateId,
+      selected_candidate_id: requestedCandidate.candidate_id,
+      selected_candidate_label: requestedCandidate.label,
+      selection_status: "selected",
+      selection_fallback_reason: null,
+    };
+  }
+
+  const defaultCandidate = input.nextActionCandidates[0];
+  if (requestedCandidateId) {
+    return {
+      requested_candidate_id: requestedCandidateId,
+      selected_candidate_id: defaultCandidate.candidate_id,
+      selected_candidate_label: defaultCandidate.label,
+      selection_status: "requested_not_found",
+      selection_fallback_reason: `Requested candidate ${requestedCandidateId} was not returned; using default candidate ${defaultCandidate.candidate_id}. No missing context was invented.`,
+    };
+  }
+
+  return {
+    requested_candidate_id: null,
+    selected_candidate_id: defaultCandidate.candidate_id,
+    selected_candidate_label: defaultCandidate.label,
+    selection_status: "defaulted",
+    selection_fallback_reason: null,
+  };
+}
+
 function buildProjectConstellationHandoffSeed(input: {
   scope: string;
   projectConstellation: ConstellationProject;
@@ -1235,9 +1312,17 @@ function buildProjectConstellationHandoffSeed(input: {
   unresolvedTensions: ConstellationTension[];
   nextActionCandidates: ConstellationNextAction[];
   sourceRefs: ConstellationSourceRef[];
+  requestedCandidateId?: string | null;
   fallbackText: string | null;
 }): ProjectConstellationHandoffSeed {
-  const selectedCandidate = input.nextActionCandidates[0] ?? null;
+  const selection = resolveProjectConstellationHandoffSelection({
+    nextActionCandidates: input.nextActionCandidates,
+    requestedCandidateId: input.requestedCandidateId,
+    fallbackText: input.fallbackText,
+  });
+  const selectedCandidate = selection.selected_candidate_id
+    ? input.nextActionCandidates.find((candidate) => candidate.candidate_id === selection.selected_candidate_id) ?? null
+    : null;
   const status = input.fallbackText ? "unavailable" : "available";
   const sourceRefs = input.sourceRefs.map((sourceRef) => sourceRef.source_ref);
   const previewText = input.fallbackText
@@ -1247,6 +1332,12 @@ function buildProjectConstellationHandoffSeed(input: {
         "",
         `Scope: ${input.scope}`,
         `Fallback: ${input.fallbackText}`,
+        "",
+        "Selection status",
+        `- Status: ${selection.selection_status}`,
+        `- Requested candidate: ${selection.requested_candidate_id ?? "none"}`,
+        `- Selected candidate: ${selection.selected_candidate_id ?? "none"}`,
+        selection.selection_fallback_reason ? `- Fallback: ${selection.selection_fallback_reason}` : "- Fallback: none",
         "",
         "Next step",
         "- Check that the local Augnes runtime is available, then rerun the read-only App/MCP preview tool.",
@@ -1268,6 +1359,12 @@ function buildProjectConstellationHandoffSeed(input: {
         "",
         "Selected/default advisory next action",
         selectedCandidate ? `- ${summarizeNextAction(selectedCandidate)}` : "- No advisory next action candidate was returned.",
+        "",
+        "Selection status",
+        `- Status: ${selection.selection_status}`,
+        `- Requested candidate: ${selection.requested_candidate_id ?? "none"}`,
+        `- Selected candidate: ${selection.selected_candidate_id ?? "none"}`,
+        selection.selection_fallback_reason ? `- Fallback: ${selection.selection_fallback_reason}` : "- Fallback: none",
         "",
         "Bounded node summaries",
         listForHandoff(
@@ -1312,8 +1409,12 @@ function buildProjectConstellationHandoffSeed(input: {
   return {
     seed_type: "project_constellation_codex_handoff_seed",
     status,
+    requested_candidate_id: selection.requested_candidate_id,
     selected_candidate_id: selectedCandidate?.candidate_id ?? null,
     selected_candidate_label: selectedCandidate?.label ?? null,
+    selection_status: selection.selection_status,
+    selection_fallback_reason: selection.selection_fallback_reason,
+    selection,
     preview_text: previewText,
     source_refs: sourceRefs,
     required_checks: PROJECT_CONSTELLATION_REQUIRED_CHECKS,
@@ -1326,10 +1427,12 @@ function buildProjectConstellationHandoffSeed(input: {
 function buildProjectConstellationPreviewSurface({
   scope,
   routePreview,
+  requestedCandidateId = null,
   fallbackText = null,
 }: {
   scope: string;
   routePreview?: ConstellationPreviewResult;
+  requestedCandidateId?: string | null;
   fallbackText?: string | null;
 }): ProjectConstellationPreviewSurface {
   const projectConstellation = routePreview?.project_constellation ?? fallbackProjectConstellation(fallbackText ?? "missing route payload");
@@ -1353,8 +1456,10 @@ function buildProjectConstellationPreviewSurface({
     unresolvedTensions,
     nextActionCandidates,
     sourceRefs,
+    requestedCandidateId,
     fallbackText,
   });
+  const selection = copyableHandoffSeed.selection;
 
   return {
     preview_type: "project_constellation_preview_surface",
@@ -1366,6 +1471,12 @@ function buildProjectConstellationPreviewSurface({
     evidence_pointers: evidencePointers,
     unresolved_tensions: unresolvedTensions,
     next_action_candidates: nextActionCandidates,
+    requested_candidate_id: selection.requested_candidate_id,
+    selected_candidate_id: selection.selected_candidate_id,
+    selected_candidate_label: selection.selected_candidate_label,
+    selection_status: selection.selection_status,
+    selection_fallback_reason: selection.selection_fallback_reason,
+    selection,
     copyable_handoff_seed: copyableHandoffSeed,
     source_refs: sourceRefs,
     missing_data_fallbacks: missingDataFallbacks,
@@ -1405,9 +1516,11 @@ function describeProjectConstellationPreviewSurface(surface: ProjectConstellatio
   return [
     `Project Constellation preview for ${surface.scope}: ${surface.project_constellation.nodes.length} node(s), ${surface.project_constellation.edges.length} edge(s), ${surface.project_constellation.clusters.length} cluster(s), ${surface.evidence_pointers.length} pointer-only evidence ref(s), ${surface.unresolved_tensions.length} unresolved tension(s), and ${surface.next_action_candidates.length} advisory next action candidate(s).`,
     `Thesis: ${surface.project_constellation.thesis}`,
-    surface.copyable_handoff_seed.selected_candidate_label
-      ? `Default handoff seed uses ${surface.copyable_handoff_seed.selected_candidate_label}.`
-      : "No default handoff seed action candidate was available.",
+    surface.selection_status === "requested_not_found" && surface.selection_fallback_reason
+      ? surface.selection_fallback_reason
+      : surface.copyable_handoff_seed.selected_candidate_label
+        ? `Handoff seed ${surface.selection_status === "defaulted" ? "defaults to" : "uses"} ${surface.copyable_handoff_seed.selected_candidate_label}.`
+        : "No handoff seed action candidate was available.",
     PROJECT_CONSTELLATION_HANDOFF_BOUNDARY_TEXT.join(" "),
   ].join(" ");
 }
@@ -1818,19 +1931,27 @@ export function createMcpAppServer(
         annotations: localRouteReadAnnotations,
         _meta: widgetToolMeta,
       },
-      async ({ scope }) => {
+      async ({ scope, selected_candidate_id }) => {
         const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+        const requestedCandidateId = selected_candidate_id ?? null;
 
         try {
           const routePreview = await stateRuntimeAdapter.getConstellationPreview(resolvedScope);
           const projectConstellationPreview = buildProjectConstellationPreviewSurface({
             scope: resolvedScope,
             routePreview,
+            requestedCandidateId,
           });
           const structuredContent = sanitizePayload({
             profile: config.appProfile,
             panel: "project_constellation_preview",
             project_constellation_preview: projectConstellationPreview,
+            requested_candidate_id: projectConstellationPreview.requested_candidate_id,
+            selected_candidate_id: projectConstellationPreview.selected_candidate_id,
+            selected_candidate_label: projectConstellationPreview.selected_candidate_label,
+            selection_status: projectConstellationPreview.selection_status,
+            selection_fallback_reason: projectConstellationPreview.selection_fallback_reason,
+            selection: projectConstellationPreview.selection,
             project_constellation: projectConstellationPreview.project_constellation,
             evidence_pointers: projectConstellationPreview.evidence_pointers,
             unresolved_tensions: projectConstellationPreview.unresolved_tensions,
@@ -1849,12 +1970,19 @@ export function createMcpAppServer(
           const message = error instanceof Error ? error.message : "Augnes Project Constellation preview route is unavailable.";
           const projectConstellationPreview = buildProjectConstellationPreviewSurface({
             scope: resolvedScope,
+            requestedCandidateId,
             fallbackText: message,
           });
           const structuredContent = sanitizePayload({
             profile: config.appProfile,
             panel: "project_constellation_preview",
             project_constellation_preview: projectConstellationPreview,
+            requested_candidate_id: projectConstellationPreview.requested_candidate_id,
+            selected_candidate_id: projectConstellationPreview.selected_candidate_id,
+            selected_candidate_label: projectConstellationPreview.selected_candidate_label,
+            selection_status: projectConstellationPreview.selection_status,
+            selection_fallback_reason: projectConstellationPreview.selection_fallback_reason,
+            selection: projectConstellationPreview.selection,
             project_constellation: projectConstellationPreview.project_constellation,
             evidence_pointers: projectConstellationPreview.evidence_pointers,
             unresolved_tensions: projectConstellationPreview.unresolved_tensions,

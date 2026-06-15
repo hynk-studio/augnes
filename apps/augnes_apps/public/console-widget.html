@@ -218,6 +218,36 @@
         background: rgba(255, 255, 255, 0.36);
       }
 
+      .item.selected-item {
+        border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+        background: color-mix(in srgb, var(--accent-soft) 70%, canvas 30%);
+      }
+
+      .handoff-use-button {
+        appearance: none;
+        border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.44);
+        color: canvastext;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        min-height: 32px;
+        padding: 6px 10px;
+      }
+
+      .handoff-use-button[aria-pressed="true"] {
+        background: color-mix(in srgb, var(--accent) 88%, canvastext 12%);
+        border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+        color: white;
+      }
+
+      .handoff-use-button:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--accent) 70%, canvastext);
+        outline-offset: 2px;
+      }
+
       .item-title {
         font-weight: 600;
         line-height: 1.35;
@@ -894,6 +924,7 @@
         const preview = safeObject(data?.project_constellation_preview);
         const project = safeObject(preview.project_constellation || data?.project_constellation);
         const copySeed = safeObject(preview.copyable_handoff_seed || data?.copyable_handoff_seed);
+        const selection = safeObject(preview.selection || data?.selection || copySeed.selection);
         const fallbackText = nonEmptyText(preview.fallback_text, "");
         const evidencePointers = safeObjectArray(preview.evidence_pointers || data?.evidence_pointers || project.evidence_pointers);
         const unresolvedTensions = safeObjectArray(preview.unresolved_tensions || data?.unresolved_tensions || project.unresolved_tensions);
@@ -902,6 +933,40 @@
         const edges = safeObjectArray(project.edges);
         const clusters = safeObjectArray(project.clusters);
         const missingDataFallbacks = safeArray(preview.missing_data_fallbacks || data?.missing_data_fallbacks);
+        const requestedCandidateId = nonEmptyText(
+          selection.requested_candidate_id || preview.requested_candidate_id || data?.requested_candidate_id || copySeed.requested_candidate_id,
+          ""
+        );
+        const selectedCandidateId = nonEmptyText(
+          selection.selected_candidate_id || preview.selected_candidate_id || data?.selected_candidate_id || copySeed.selected_candidate_id,
+          ""
+        );
+        const selectedCandidateLabel = nonEmptyText(
+          selection.selected_candidate_label || preview.selected_candidate_label || data?.selected_candidate_label || copySeed.selected_candidate_label,
+          selectedCandidateId ? "Selected advisory next action" : ""
+        );
+        const selectionStatus = nonEmptyText(
+          selection.selection_status || preview.selection_status || data?.selection_status || copySeed.selection_status,
+          fallbackText || !nextActionCandidates.length ? "unavailable" : "defaulted"
+        );
+        const selectionFallbackReason = nonEmptyText(
+          selection.selection_fallback_reason || preview.selection_fallback_reason || data?.selection_fallback_reason || copySeed.selection_fallback_reason,
+          ""
+        );
+        const boundaryText = safeArray(copySeed.boundary_text).length
+          ? safeArray(copySeed.boundary_text)
+          : [
+              "This preview is read-only.",
+              "This preview cannot execute Codex.",
+              "This preview cannot record proof or evidence.",
+              "This preview cannot commit or reject Augnes state.",
+              "This preview cannot create branches or PRs.",
+              "This preview cannot approve, publish, retry, replay, externally post, merge, deploy, or enable auto-merge.",
+              "Evidence pointers are pointer-only.",
+              "Next action candidates are advisory.",
+              "A copied handoff seed is manual preview text only.",
+              "Durable approval remains user/Core gated.",
+            ];
 
         return {
           title: nonEmptyText(preview.title, "Project Constellation Preview"),
@@ -919,10 +984,33 @@
           evidence_pointers: evidencePointers,
           unresolved_tensions: unresolvedTensions,
           next_action_candidates: nextActionCandidates,
+          source_refs: safeObjectArray(preview.source_refs || data?.source_refs),
+          requested_candidate_id: requestedCandidateId,
+          selected_candidate_id: selectedCandidateId,
+          selected_candidate_label: selectedCandidateLabel,
+          selection_status: selectionStatus,
+          selection_fallback_reason: selectionFallbackReason,
+          selection: {
+            requested_candidate_id: requestedCandidateId,
+            selected_candidate_id: selectedCandidateId,
+            selected_candidate_label: selectedCandidateLabel,
+            selection_status: selectionStatus,
+            selection_fallback_reason: selectionFallbackReason,
+          },
           copyable_handoff_seed: {
             status: nonEmptyText(copySeed.status, fallbackText ? "unavailable" : "available"),
-            selected_candidate_id: nonEmptyText(copySeed.selected_candidate_id, "No advisory next action candidate selected."),
-            selected_candidate_label: nonEmptyText(copySeed.selected_candidate_label, "No selected candidate label."),
+            requested_candidate_id: requestedCandidateId,
+            selected_candidate_id: selectedCandidateId,
+            selected_candidate_label: selectedCandidateLabel,
+            selection_status: selectionStatus,
+            selection_fallback_reason: selectionFallbackReason,
+            selection: {
+              requested_candidate_id: requestedCandidateId,
+              selected_candidate_id: selectedCandidateId,
+              selected_candidate_label: selectedCandidateLabel,
+              selection_status: selectionStatus,
+              selection_fallback_reason: selectionFallbackReason,
+            },
             preview_text: nonEmptyText(
               copySeed.preview_text,
               [
@@ -934,20 +1022,7 @@
             required_checks: safeArray(copySeed.required_checks),
             skipped_check_policy: nonEmptyText(copySeed.skipped_check_policy, "Report every skipped check with a concrete reason."),
             final_report_requirements: safeArray(copySeed.final_report_requirements),
-            boundary_text: safeArray(copySeed.boundary_text).length
-              ? safeArray(copySeed.boundary_text)
-              : [
-                  "This preview is read-only.",
-                  "This preview cannot execute Codex.",
-                  "This preview cannot record proof or evidence.",
-                  "This preview cannot commit or reject Augnes state.",
-                  "This preview cannot create branches or PRs.",
-                  "This preview cannot approve, publish, retry, replay, externally post, merge, deploy, or enable auto-merge.",
-                  "Evidence pointers are pointer-only.",
-                  "Next action candidates are advisory.",
-                  "A copied handoff seed is manual preview text only.",
-                  "Durable approval remains user/Core gated.",
-                ],
+            boundary_text: boundaryText,
           },
           missing_data_fallbacks: missingDataFallbacks,
         };
@@ -1229,11 +1304,154 @@
         return card;
       }
 
-      function createConstellationNextActionCard(item) {
-        const card = el("div", { className: "item" });
-        card.appendChild(el("div", { className: "item-title", text: nonEmptyText(item.label, nonEmptyText(item.candidate_id, "Advisory next action")) }));
+      function listForConstellationHandoff(items, fallback) {
+        const values = Array.isArray(items) ? items.filter((item) => typeof item === "string" && item.trim()) : [];
+        return values.length ? values.map((item) => `- ${item}`).join("\n") : `- ${fallback}`;
+      }
+
+      function summarizeConstellationEvidencePointer(pointer) {
+        return `${nonEmptyText(pointer.pointer_id, "unknown")}: ${nonEmptyText(pointer.label, "Evidence pointer")} -> ${nonEmptyText(pointer.target_ref, "No target ref returned.")}`;
+      }
+
+      function summarizeConstellationTension(tension) {
+        return `${nonEmptyText(tension.tension_id, "unknown")}: ${nonEmptyText(tension.summary, "No tension summary returned.")}`;
+      }
+
+      function summarizeConstellationNextAction(action) {
+        return `${nonEmptyText(action.candidate_id, "unknown")}: ${nonEmptyText(action.summary, "No advisory next action summary returned.")}`;
+      }
+
+      function sourceRefLabel(sourceRef) {
+        if (typeof sourceRef === "string") return sourceRef;
+        if (!sourceRef || typeof sourceRef !== "object") return "";
+        return nonEmptyText(sourceRef.source_ref || sourceRef.target_ref || sourceRef.label || sourceRef.id, "");
+      }
+
+      function buildConstellationHandoffSeedText(preview, candidate, selection) {
+        const project = preview.project_constellation;
+        const seed = preview.copyable_handoff_seed;
+        if (preview.fallback_text || !candidate) {
+          return nonEmptyText(seed.preview_text, [
+            "Augnes Project Constellation handoff seed",
+            "No Project Constellation route payload was returned. This fallback does not invent missing context and does not execute Codex.",
+          ].join("\n"));
+        }
+
+        const sourceRefs = safeArray(seed.source_refs).length
+          ? safeArray(seed.source_refs)
+          : safeObjectArray(preview.source_refs).map(sourceRefLabel).filter(Boolean);
+        const fallbackReason = nonEmptyText(selection.selection_fallback_reason, "");
+
+        return [
+          "Augnes Project Constellation handoff seed",
+          "This is manual preview text for a separate user-started Codex task. It does not execute Codex.",
+          "",
+          "Repository",
+          "- hynk-studio/augnes",
+          "- Base: main",
+          `- Scope: ${preview.scope}`,
+          "",
+          "Project thesis",
+          project.thesis,
+          "",
+          "Selected/default advisory next action",
+          `- ${summarizeConstellationNextAction(candidate)}`,
+          "",
+          "Selection status",
+          `- Status: ${selection.selection_status}`,
+          `- Requested candidate: ${selection.requested_candidate_id || "none"}`,
+          `- Selected candidate: ${selection.selected_candidate_id || "none"}`,
+          fallbackReason ? `- Fallback: ${fallbackReason}` : "- Fallback: none",
+          "",
+          "Bounded node summaries",
+          listForConstellationHandoff(
+            project.nodes.map((node) => `${nonEmptyText(node.id, "unknown")}: ${nonEmptyText(node.label, "Node")} - ${nonEmptyText(node.summary, "No node summary returned.")}`),
+            "No node summaries were returned."
+          ),
+          "",
+          "Bounded edge summaries",
+          listForConstellationHandoff(
+            project.edges.map((edge) => `${nonEmptyText(edge.id, "unknown")}: ${nonEmptyText(edge.source, "unknown")} -> ${nonEmptyText(edge.target, "unknown")} - ${nonEmptyText(edge.summary, "No edge summary returned.")}`),
+            "No edge summaries were returned."
+          ),
+          "",
+          "Bounded cluster summaries",
+          listForConstellationHandoff(
+            project.clusters.map((cluster) => `${nonEmptyText(cluster.id, "unknown")}: ${nonEmptyText(cluster.label, "Cluster")} - ${nonEmptyText(cluster.cluster_thesis, "No cluster thesis returned.")}`),
+            "No cluster summaries were returned."
+          ),
+          "",
+          "Pointer-only evidence refs",
+          listForConstellationHandoff(preview.evidence_pointers.map(summarizeConstellationEvidencePointer), "No evidence pointers were returned."),
+          "",
+          "Unresolved tensions",
+          listForConstellationHandoff(preview.unresolved_tensions.map(summarizeConstellationTension), "No unresolved tensions were returned."),
+          "",
+          "Required checks",
+          listForConstellationHandoff(seed.required_checks, "No required checks listed."),
+          "",
+          "Skipped check policy",
+          `- ${seed.skipped_check_policy}`,
+          "",
+          "Final report requirements",
+          listForConstellationHandoff(seed.final_report_requirements, "No final report requirements listed."),
+          "",
+          "Authority boundaries",
+          listForConstellationHandoff(seed.boundary_text, "No boundary text listed."),
+          "",
+          "Source refs",
+          listForConstellationHandoff(sourceRefs, "No source refs were returned."),
+        ].join("\n");
+      }
+
+      function buildConstellationHandoffSeedForCandidate(preview, candidate, selectionStatus = "selected") {
+        const candidateId = nonEmptyText(candidate?.candidate_id, "");
+        const candidateLabel = nonEmptyText(candidate?.label, "");
+        const selection = {
+          requested_candidate_id: candidateId,
+          selected_candidate_id: candidateId,
+          selected_candidate_label: candidateLabel,
+          selection_status: selectionStatus,
+          selection_fallback_reason: "",
+        };
+        return {
+          ...preview.copyable_handoff_seed,
+          status: preview.fallback_text ? "unavailable" : "available",
+          requested_candidate_id: selection.requested_candidate_id,
+          selected_candidate_id: selection.selected_candidate_id,
+          selected_candidate_label: selection.selected_candidate_label,
+          selection_status: selection.selection_status,
+          selection_fallback_reason: selection.selection_fallback_reason,
+          selection,
+          preview_text: buildConstellationHandoffSeedText(preview, candidate, selection),
+        };
+      }
+
+      function createConstellationNextActionCard(item, selectionController) {
+        const isSelected = selectionController?.isSelected(item) === true;
+        const card = el("div", { className: isSelected ? "item selected-item" : "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.appendChild(el("div", { className: "item-title", text: nonEmptyText(item.label, nonEmptyText(item.candidate_id, "Advisory next action")) }));
+        const stateTag = tag(isSelected ? "selected" : "advisory");
+        titleRow.appendChild(stateTag);
+        card.appendChild(titleRow);
         card.appendChild(el("div", { className: "meta-line", text: `ID: ${nonEmptyText(item.candidate_id, "unknown")}` }));
         card.appendChild(el("div", { className: "item-note", text: nonEmptyText(item.summary, "No advisory next action summary returned.") }));
+        if (selectionController) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "handoff-use-button";
+          button.textContent = "Use for handoff";
+          button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+          button.addEventListener("click", () => selectionController.select(item));
+          card.appendChild(button);
+          selectionController.register({
+            candidate_id: nonEmptyText(item.candidate_id, ""),
+            card,
+            button,
+            stateTag,
+          });
+        }
         return card;
       }
 
@@ -1269,6 +1487,41 @@
         const preview = normalizeProjectConstellationPreview(data);
         const project = preview.project_constellation;
         const root = el("div", { className: "stack" });
+        const defaultCandidate = preview.next_action_candidates.find(
+          (candidate) => nonEmptyText(candidate.candidate_id, "") === preview.copyable_handoff_seed.selected_candidate_id
+        ) || preview.next_action_candidates[0] || null;
+        let selectedCandidateId = preview.copyable_handoff_seed.selected_candidate_id || nonEmptyText(defaultCandidate?.candidate_id, "");
+        let currentHandoffSeed = preview.copyable_handoff_seed;
+        const seedHost = el("div", { className: "stack" });
+        const actionCardRefs = [];
+        const renderSeed = () => {
+          seedHost.replaceChildren(renderCopyableConstellationHandoff(currentHandoffSeed));
+        };
+        const updateActionCardStates = () => {
+          actionCardRefs.forEach((ref) => {
+            const isSelected = ref.candidate_id === selectedCandidateId;
+            ref.card.className = isSelected ? "item selected-item" : "item";
+            ref.button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+            ref.stateTag.textContent = isSelected ? "selected" : "advisory";
+          });
+        };
+        const selectionController = {
+          isSelected(candidate) {
+            return nonEmptyText(candidate.candidate_id, "") === selectedCandidateId;
+          },
+          select(candidate) {
+            const candidateId = nonEmptyText(candidate.candidate_id, "");
+            if (!candidateId) return;
+            selectedCandidateId = candidateId;
+            currentHandoffSeed = buildConstellationHandoffSeedForCandidate(preview, candidate, "selected");
+            renderSeed();
+            updateActionCardStates();
+          },
+          register(ref) {
+            actionCardRefs.push(ref);
+          },
+        };
+        renderSeed();
 
         root.appendChild(createMetricGrid([
           ["Scope", preview.scope],
@@ -1289,8 +1542,8 @@
         root.appendChild(createSection("Clusters", createList(project.clusters, createConstellationClusterCard), { badge: `${project.clusters.length}` }));
         root.appendChild(createSection("Pointer-only evidence refs", createList(preview.evidence_pointers, createConstellationEvidenceCard), { badge: `${preview.evidence_pointers.length}` }));
         root.appendChild(createSection("Unresolved tensions", createList(preview.unresolved_tensions, createConstellationTensionCard), { badge: `${preview.unresolved_tensions.length}` }));
-        root.appendChild(createSection("Advisory next action candidates", createList(preview.next_action_candidates, createConstellationNextActionCard), { badge: `${preview.next_action_candidates.length}` }));
-        root.appendChild(createSection("Copyable handoff seed", renderCopyableConstellationHandoff(preview.copyable_handoff_seed), { badge: preview.copyable_handoff_seed.status }));
+        root.appendChild(createSection("Advisory next action candidates", createList(preview.next_action_candidates, (candidate) => createConstellationNextActionCard(candidate, selectionController)), { badge: `${preview.next_action_candidates.length}` }));
+        root.appendChild(createSection("Copyable handoff seed", seedHost, { badge: preview.copyable_handoff_seed.status }));
         root.appendChild(createSection("Missing data fallbacks", createTextList(preview.missing_data_fallbacks), { badge: `${preview.missing_data_fallbacks.length}`, open: preview.missing_data_fallbacks.length > 0 }));
         root.appendChild(createSection("Preview boundary", createTextList(preview.copyable_handoff_seed.boundary_text), { badge: "read-only" }));
         return root;
