@@ -502,11 +502,24 @@ function renderProjectConstellationPreviewPayload(payload, options = {}) {
   }
 
   const body = new FakeNode("body");
+  const documentListeners = new Map();
   const context = {
     document: {
       body,
       createElement(tag) {
         return new FakeNode(tag);
+      },
+      addEventListener(type, listener) {
+        const listeners = documentListeners.get(type) ?? [];
+        listeners.push(listener);
+        documentListeners.set(type, listeners);
+      },
+      removeEventListener(type, listener) {
+        const listeners = documentListeners.get(type) ?? [];
+        documentListeners.set(
+          type,
+          listeners.filter((candidate) => candidate !== listener),
+        );
       },
       createRange() {
         return {
@@ -519,7 +532,23 @@ function renderProjectConstellationPreviewPayload(payload, options = {}) {
         context.__execCommand = command;
         const lastChild = body.children[body.children.length - 1];
         context.__execCommandText = lastChild?.value ?? "";
-        return options.execCommandReturnsFalse ? false : command === "copy";
+        const ok = !options.execCommandReturnsFalse && command === "copy";
+        if (ok) {
+          for (const listener of documentListeners.get("copy") ?? []) {
+            listener({
+              clipboardData: {
+                setData(format, value) {
+                  context.__execCommandClipboardFormat = format;
+                  context.__execCommandClipboardText = value;
+                },
+              },
+              preventDefault() {
+                context.__copyEventPrevented = true;
+              },
+            });
+          }
+        }
+        return ok;
       },
     },
     Number,
@@ -533,6 +562,11 @@ function renderProjectConstellationPreviewPayload(payload, options = {}) {
           context.__clipboardWriteCount = (context.__clipboardWriteCount ?? 0) + 1;
           if (options.clipboardWriteThrows) throw new Error("blocked");
           context.__copiedText = text;
+        },
+        async readText() {
+          context.__clipboardReadCount = (context.__clipboardReadCount ?? 0) + 1;
+          if (options.clipboardReadThrows) throw new Error("blocked");
+          return context.__copiedText ?? context.__execCommandClipboardText ?? "";
         },
       },
     },
@@ -591,7 +625,7 @@ async function assertConstellationCopyAffordance(renderedFallback, expectedPath,
 
   await buttons[0].listeners.click[0]();
   const copiedText = expectedPath === "execCommand"
-    ? renderedFallback.context.__execCommandText
+    ? renderedFallback.context.__execCommandClipboardText
     : expectedPath === "selection"
       ? renderedFallback.context.__selectedText
       : renderedFallback.context.__copiedText;
@@ -610,6 +644,9 @@ async function assertConstellationCopyAffordance(renderedFallback, expectedPath,
   }
   if (expectedPath === "execCommand") {
     assert.equal(renderedFallback.context.__execCommand, "copy", "copy fallback must use document.execCommand copy");
+    assert.equal(renderedFallback.context.__execCommandClipboardFormat, "text/plain", "execCommand fallback must write text/plain data");
+    assert.equal(renderedFallback.context.__copyEventPrevented, true, "execCommand fallback must prevent default copy after setting data");
+    assert.ok(renderedFallback.context.__clipboardReadCount >= 1, "execCommand fallback must verify copied text before reporting success");
   } else {
     assert.equal(renderedFallback.context.__clipboardWriteCount, 1, "copy button must try navigator.clipboard once");
   }

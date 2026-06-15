@@ -618,7 +618,8 @@
         if (navigator.clipboard?.writeText) {
           try {
             await navigator.clipboard.writeText(text);
-            return true;
+            if (!navigator.clipboard?.readText) return false;
+            return (await navigator.clipboard.readText()) === text;
           } catch {
             // Developer Mode iframes may block Clipboard API while preserving user activation.
           }
@@ -633,14 +634,33 @@
         textarea.style.opacity = "0";
         document.body?.appendChild(textarea);
 
+        let copiedViaEvent = false;
+        const handleCopy = (event) => {
+          if (!event.clipboardData?.setData) return;
+          event.clipboardData.setData("text/plain", text);
+          event.preventDefault?.();
+          copiedViaEvent = true;
+        };
+        document.addEventListener?.("copy", handleCopy);
         try {
           textarea.focus?.();
           textarea.select?.();
           textarea.setSelectionRange?.(0, textarea.value.length);
-          return document.execCommand?.("copy") === true;
+          if (document.execCommand?.("copy") !== true || !copiedViaEvent) {
+            return false;
+          }
+          if (navigator.clipboard?.readText) {
+            try {
+              return (await navigator.clipboard.readText()) === text;
+            } catch {
+              return false;
+            }
+          }
+          return false;
         } catch {
           return false;
         } finally {
+          document.removeEventListener?.("copy", handleCopy);
           textarea.remove?.();
         }
       }
@@ -662,7 +682,17 @@
 
       function renderCopyableHandoffPacket(preview) {
         const root = el("div", { className: "stack" });
-        const packetText = preview.copyable_handoff_text;
+        const corePacket = safeRecord(preview.core_codex_handoff_packet || preview.codex_core_handoff_packet);
+        const fullPacket = safeRecord(preview.full_codex_handoff_packet || preview.final_codex_handoff_packet || preview.codex_final_handoff_packet);
+        const fallbackPacketText = nonEmptyText(preview.copyable_handoff_text, "");
+        const corePacketText = nonEmptyText(
+          preview.copyable_core_handoff_text || corePacket.copyable_core_handoff_text || corePacket.copyable_handoff_text,
+          fallbackPacketText
+        );
+        const fullPacketText = nonEmptyText(
+          preview.copyable_full_handoff_text || fullPacket.copyable_full_handoff_text || fullPacket.copyable_handoff_text,
+          fallbackPacketText
+        );
         const status = el("div", {
           className: "status-box",
           text:
@@ -675,29 +705,58 @@
             "After copying, validate locally with codex:handoff-preflight. Copy this packet into a file or stdin before using it in a separate Codex session. Default mode checks copied packets; strict mode requires concrete current-runtime confirmation.",
         });
         const copyRow = el("div", { className: "copy-row" });
-        const copyButton = document.createElement("button");
-        copyButton.type = "button";
-        copyButton.className = "copy-button";
-        copyButton.textContent = "Copy Codex Handoff";
-        const pre = createPreBlock(packetText);
-        const packetTextSection = createSection("Packet text", pre, { badge: "for Codex", open: false });
-        copyButton.addEventListener("click", async () => {
-          if (await copyTextToClipboard(packetText)) {
-            status.textContent = "Handoff copied.";
-          } else {
-            packetTextSection.open = true;
-          }
-          if (status.textContent === "Handoff copied.") {
-            return;
-          }
-          if (selectElementText(pre)) {
-            status.textContent = "Clipboard blocked by this host. Packet text selected; press Command+C to copy.";
-          } else {
-            status.textContent = "Copy unavailable. Select and copy the packet text manually.";
-          }
+        const corePre = createPreBlock(corePacketText);
+        const fullPre = createPreBlock(fullPacketText);
+        const corePacketTextSection = createSection("Core packet text", corePre, { badge: "short", open: false });
+        const fullPacketTextSection = createSection("Full packet text", fullPre, { badge: "full context", open: false });
+
+        function createCopyButton({ label, packetText, packetSection, pre, successText }) {
+          const copyButton = document.createElement("button");
+          copyButton.type = "button";
+          copyButton.className = "copy-button";
+          copyButton.textContent = label;
+          copyButton.addEventListener("click", async () => {
+            if (await copyTextToClipboard(packetText)) {
+              status.textContent = successText;
+            } else {
+              packetSection.open = true;
+            }
+            if (status.textContent === successText) {
+              return;
+            }
+            if (selectElementText(pre)) {
+              status.textContent = "Clipboard blocked by this host. Packet text selected; press Command+C to copy.";
+            } else {
+              status.textContent = "Copy unavailable. Select and copy the packet text manually.";
+            }
+          });
+          return copyButton;
+        }
+
+        const coreCopyButton = createCopyButton({
+          label: "Copy Codex Handoff",
+          packetText: corePacketText,
+          packetSection: corePacketTextSection,
+          pre: corePre,
+          successText: "Core handoff copied.",
         });
-        copyRow.appendChild(copyButton);
-        root.append(status, preflightHint, copyRow, packetTextSection);
+        const fullCopyButton = createCopyButton({
+          label: "Copy Full Context",
+          packetText: fullPacketText,
+          packetSection: fullPacketTextSection,
+          pre: fullPre,
+          successText: "Full handoff copied.",
+        });
+        copyRow.append(coreCopyButton, fullCopyButton);
+        root.append(
+          status,
+          el("div", { className: "status-box", text: "Core: Shorter packet for starting Codex work." }),
+          el("div", { className: "status-box", text: "Full: Full context and appendices." }),
+          preflightHint,
+          copyRow,
+          corePacketTextSection,
+          fullPacketTextSection
+        );
         return root;
       }
 
@@ -2036,6 +2095,186 @@
         ].join("\n");
       }
 
+      function coreAuthorityBoundaryText() {
+        return [
+          "Core Handoff is read-only preview/copy packet text.",
+          "Core Handoff does not execute Codex.",
+          "Core Handoff cannot commit or reject Augnes state.",
+          "Core Handoff cannot approve, publish, retry, replay, or externally post.",
+          "Core Handoff cannot merge or enable auto-merge.",
+          "Evidence is not approval.",
+          "Proof is not approval.",
+          "A PR is not merge authority.",
+          "Durable approval remains user/Core gated.",
+        ];
+      }
+
+      function composeFallbackCoreHandoffText(packet) {
+        const authorityBoundaries = coreAuthorityBoundaryText();
+        const memoryReuseStatus = nonEmptyText(packet.memory_reuse_attachment_proposal?.status, "no_match");
+        const memoryReuseFallback = nonEmptyText(
+          packet.memory_reuse_attachment_proposal?.fallback_brief,
+          "No persisted perspective-memory items were selected."
+        );
+        const memoryReuseBoundary = safeArray(packet.memory_reuse_attachment_proposal?.reuse_boundary);
+        const constellationSummary = packet.constellation_context_status === "attached" && packet.constellation_context
+          ? [
+              `Thesis: ${packet.constellation_context.thesis}`,
+              `Selected candidate: ${nonEmptyText(packet.constellation_context.selected_candidate_label || packet.constellation_context.selected_candidate_id, "No selected candidate attached.")}`,
+              `Advisory next action: ${nonEmptyText(packet.constellation_context.advisory_next_action_summary, "No advisory next action summary attached.")}`,
+            ]
+          : ["No Project Constellation context is attached to this work contract."];
+        const jsonBlock = JSON.stringify(
+          {
+            schema: "augnes.codex_handoff_preview.v0_1",
+            packet_kind: "core_codex_handoff_packet",
+            core_packet_schema: "augnes.core_codex_handoff_packet.v0_1",
+            source_packet_type: "final_codex_handoff_packet",
+            source_packet_schema: nonEmptyText(packet.schema, "augnes.final_codex_handoff_packet.v0_1"),
+            copy_intent: "shorter_packet_for_starting_codex_work",
+            runtime: {
+              endpoint_label: "provided by current Augnes runtime",
+              requires_user_core_confirmation: true,
+            },
+            work: {
+              scope: packet.work_scope,
+              work_id: packet.work_id,
+              title: packet.work_title,
+              status: packet.work_status,
+              next_action: packet.current_or_next_step,
+              user_facing_goal: packet.current_or_next_step || packet.work_title,
+              related_state_keys: packet.related_state_keys,
+            },
+            authorization: {
+              evidence_recording: "needs_user_core_confirmation",
+              proof_only_closeout: "needs_user_core_confirmation",
+              browser_verification: "needs_user_core_confirmation",
+            },
+            expected_scope: {
+              files: packet.expected_files,
+              checks: packet.expected_checks,
+            },
+            constellation_context_summary: constellationSummary,
+            memory_reuse_summary: [
+              `Status: ${memoryReuseStatus}`,
+              `Selected memory IDs: ${safeArray(packet.memory_reuse_attachment_proposal?.selected_memory_ids).join(", ") || "none"}`,
+              `Fallback brief: ${memoryReuseFallback}`,
+              `Reuse boundary: ${memoryReuseBoundary.join(" | ") || "no persisted memory reuse boundary attached."}`,
+            ],
+            pr_checklist_summary: [
+              `Status: ${nonEmptyText(packet.pr_body_checklist_preview?.status, "preview_only")}`,
+              `Required sections: ${safeArray(packet.pr_body_checklist_preview?.required_sections).join(", ") || "not listed"}`,
+            ],
+            skipped_check_policy: packet.skipped_check_policy,
+            final_report_requirements: packet.final_report_requirements,
+            forbidden_actions: packet.forbidden_actions,
+            stop_conditions: packet.stop_conditions,
+            authority_boundaries: authorityBoundaries,
+            copy_packet: {
+              preview_only: true,
+              core_packet: true,
+              full_context_available_separately: true,
+              does_not_execute_codex: true,
+              does_not_record_evidence: true,
+              does_not_record_proof: true,
+              does_not_mutate_state: true,
+              does_not_create_branch_or_pr: true,
+              does_not_merge: true,
+              does_not_publish: true,
+            },
+          },
+          null,
+          2
+        );
+        return [
+          "Core Codex Handoff Packet",
+          "Shorter packet for starting Codex work. Use Copy Full Context when full appendices are needed.",
+          "This is a preview/copy packet, not an execution action.",
+          "",
+          "Immediate task context",
+          `- Scope: ${packet.work_scope}`,
+          `- Work ID: ${packet.work_id}`,
+          `- Title: ${packet.work_title}`,
+          `- User-facing goal: ${packet.current_or_next_step || packet.work_title}`,
+          `- Current status: ${packet.work_status}`,
+          `- Current / next step: ${packet.current_or_next_step}`,
+          "",
+          "Codex read-brief start preview",
+          `AUGNES_API_BASE_URL=<provided-current-runtime> CODEX_SCOPE=${packet.work_scope} CODEX_WORK_ID=${packet.work_id} npm run codex:read-brief`,
+          "",
+          "Expected scope",
+          "- Expected files:",
+          ...(safeArray(packet.expected_files).length ? safeArray(packet.expected_files).map((item) => `  - ${item}`) : ["  - No expected files are listed in the work brief."]),
+          "- Expected checks:",
+          ...(safeArray(packet.expected_checks).length ? safeArray(packet.expected_checks).map((item) => `  - ${item}`) : ["  - No expected checks are listed in the work brief."]),
+          "- Related state keys:",
+          ...(safeArray(packet.related_state_keys).length ? safeArray(packet.related_state_keys).map((item) => `  - ${item}`) : ["  - No related state keys are listed in the work brief."]),
+          "",
+          "Project Constellation summary",
+          ...constellationSummary.map((item) => `- ${item}`),
+          "",
+          "Memory Reuse summary",
+          `- Status: ${memoryReuseStatus}`,
+          `- Selected memory IDs: ${safeArray(packet.memory_reuse_attachment_proposal?.selected_memory_ids).join(", ") || "none"}`,
+          `- Fallback brief: ${memoryReuseFallback}`,
+          `- Reuse boundary: ${memoryReuseBoundary.join(" | ") || "no persisted memory reuse boundary attached."}`,
+          "",
+          "PR checklist summary",
+          `- Status: ${nonEmptyText(packet.pr_body_checklist_preview?.status, "preview_only")}`,
+          `- Required sections: ${safeArray(packet.pr_body_checklist_preview?.required_sections).join(", ") || "not listed"}`,
+          "",
+          "Closeout and report expectations",
+          "  - Report changed files.",
+          "  - Report verification commands and results.",
+          "  - Report skipped checks with concrete reasons.",
+          "  - Include authority boundary statement.",
+          "  - Name remaining friction or next recommended step.",
+          "",
+          "Skipped check policy",
+          `- ${packet.skipped_check_policy}`,
+          "",
+          "Final report requirements",
+          ...(safeArray(packet.final_report_requirements).length ? safeArray(packet.final_report_requirements).map((item) => `  - ${item}`) : ["  - No final report requirements listed."]),
+          "",
+          "Stop conditions",
+          ...(safeArray(packet.stop_conditions).length ? safeArray(packet.stop_conditions).map((item) => `  - ${item}`) : ["  - No stop conditions listed."]),
+          "",
+          "Concise authority boundary",
+          ...authorityBoundaries.map((item) => `  - ${item}`),
+          "",
+          "Structured JSON",
+          "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
+          jsonBlock,
+          "END_AUGNES_CODEX_HANDOFF_JSON",
+        ].join("\n");
+      }
+
+      function normalizeCoreCodexHandoffPacket(data, packet) {
+        const source = safeRecord(data?.core_codex_handoff_packet || data?.codex_core_handoff_packet || packet.core_codex_handoff_packet);
+        const fallbackText = composeFallbackCoreHandoffText(packet);
+        const copyableText = nonEmptyText(
+          source.copyable_handoff_text || source.copyable_core_handoff_text || data?.copyable_core_handoff_text || packet.copyable_core_handoff_text,
+          fallbackText
+        );
+        return {
+          packet_type: "core_codex_handoff_packet",
+          schema: nonEmptyText(source.schema, "augnes.core_codex_handoff_packet.v0_1"),
+          title: nonEmptyText(source.title, "Core Codex Handoff Packet"),
+          copy_intent: nonEmptyText(source.copy_intent, "shorter_packet_for_starting_codex_work"),
+          work_scope: nonEmptyText(source.work_scope, packet.work_scope),
+          work_id: nonEmptyText(source.work_id, packet.work_id),
+          work_title: nonEmptyText(source.work_title, packet.work_title),
+          user_facing_goal: nonEmptyText(source.user_facing_goal, packet.current_or_next_step || packet.work_title),
+          work_status: nonEmptyText(source.work_status, packet.work_status),
+          current_or_next_step: nonEmptyText(source.current_or_next_step, packet.current_or_next_step),
+          expected_files: safeArray(source.expected_files).length ? safeArray(source.expected_files) : safeArray(packet.expected_files),
+          expected_checks: safeArray(source.expected_checks).length ? safeArray(source.expected_checks) : safeArray(packet.expected_checks),
+          related_state_keys: safeArray(source.related_state_keys).length ? safeArray(source.related_state_keys) : safeArray(packet.related_state_keys),
+          copyable_handoff_text: copyableText,
+          copyable_core_handoff_text: copyableText,
+        };
+      }
+
       function normalizeFinalCodexHandoffPacket(data, preview, card) {
         const source = safeRecord(data?.final_codex_handoff_packet || data?.codex_final_handoff_packet);
         const context =
@@ -2157,7 +2396,7 @@
             data?.final_handoff_codex_execution_request_preview,
           packet
         );
-        return {
+        const packetWithText = {
           ...packet,
           codex_execution_request_preview: codexExecutionRequestPreview,
           execution_request_preview: codexExecutionRequestPreview,
@@ -2165,6 +2404,22 @@
             source.copyable_handoff_text,
             composeFallbackFinalHandoffText({ ...preview, constellation_context: context }, slots, memoryReuseProposal, prBodyChecklist, closeoutSkeleton, codexResultReviewPacket)
           ),
+        };
+        const corePacket = normalizeCoreCodexHandoffPacket(data, packetWithText);
+        return {
+          ...packetWithText,
+          codex_execution_request_preview: codexExecutionRequestPreview,
+          execution_request_preview: codexExecutionRequestPreview,
+          core_codex_handoff_packet: corePacket,
+          codex_core_handoff_packet: corePacket,
+          full_codex_handoff_packet: {
+            packet_type: packetWithText.packet_type,
+            schema: packetWithText.schema,
+            title: packetWithText.title,
+            copyable_handoff_text: packetWithText.copyable_handoff_text,
+          },
+          copyable_core_handoff_text: corePacket.copyable_handoff_text,
+          copyable_full_handoff_text: packetWithText.copyable_handoff_text,
         };
       }
 
@@ -3339,7 +3594,7 @@
         root.appendChild(createSection("Prepared pieces", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "Preview", open: false }));
         root.appendChild(createSection(
           "Copy packet",
-          renderCopyableHandoffPacket({ copyable_handoff_text: packet.copyable_handoff_text }),
+          renderCopyableHandoffPacket(packet),
           { badge: "For Codex" }
         ));
         return root;
