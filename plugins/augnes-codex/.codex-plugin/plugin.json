@@ -1,0 +1,22 @@
+{
+  "name": "augnes-codex",
+  "version": "0.1.0",
+  "description": "Packages the Augnes Codex Skill for installing, enabling, diagnosing, and using Augnes memory/reuse/context in Codex.",
+  "author": {
+    "name": "hynk-studio"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Augnes Codex",
+    "shortDescription": "Use Augnes memory and reuse setup prompts in Codex.",
+    "longDescription": "Packages the Augnes Codex Skill v0.1 for natural-language Augnes install/use onboarding. The plugin documents the existing dry-run-first user-level hook installer, manual /hooks trust requirement, and Perspective Memory Reuse Intake fallback without adding hooks, MCP servers, provider calls, storage, persistence, Codex SDK usage, GitHub mutation behavior, or automatic memory item creation.",
+    "developerName": "hynk-studio",
+    "category": "Productivity",
+    "capabilities": [
+      "workflow-guidance",
+      "skill-packaging",
+      "memory-reuse-onboarding"
+    ],
+    "defaultPrompt": "Codex야 Augnes 쓰자"
+  }
+}
