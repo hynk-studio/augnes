@@ -163,6 +163,7 @@ Use this flow for requests such as:
 - `Codex야 Augnes 쓰자`
 - `Augnes memory 보고 시작해`
 - `Augnes context 붙여서 작업해줘`
+- `아그네스 쓰자`
 
 Procedure:
 
