@@ -703,16 +703,67 @@ function isPlaceholder(value) {
 }
 
 function findWriteCommands(text) {
-  const patterns = [
+  const nonCurlPatterns = [
     /\bnpm\s+run\s+codex:record-(?:completion|completion-proof|evidence)\b/,
     /\bnpm\s+run\s+codex:(?:authority-grant|actuation|github-comment|record-action)\b/,
     /\bnpm\s+run\s+db:(?:reset|migrate|init)\b/,
     /\bgh\s+pr\s+(?:merge|ready|edit)\b/,
     /\bgit\s+(?:push|merge|reset|checkout\s+--)\b/,
-    /\bcurl\b.*\/api\/(?:actions|evidence|observe|plan|work|state|publication|delivery)\b/,
     /\bPOST\b.*\/api\/(?:actions|evidence|observe|plan|work|state|publication|delivery)\b/i,
   ];
-  return patterns.flatMap((pattern) => [...text.matchAll(new RegExp(pattern, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`))].map((match) => match[0]));
+  const nonCurlFindings = nonCurlPatterns.flatMap((pattern) =>
+    [...text.matchAll(new RegExp(pattern, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`))].map((match) => match[0])
+  );
+  return [...new Set([...nonCurlFindings, ...findUnsafeCurlCommands(text)])];
+}
+
+function findUnsafeCurlCommands(text) {
+  return text
+    .split(/\r?\n/)
+    .map(extractCurlCommand)
+    .filter((command) => command && !isAllowedReadOnlyLocalCurlCheck(command));
+}
+
+function extractCurlCommand(line) {
+  if (!/\bcurl\b/.test(line)) return null;
+  const normalized = line
+    .replace(/\\"/g, '"')
+    .replace(/\\\//g, "/")
+    .replace(/^[\s>*-]+/, "")
+    .replace(/[",\s]+$/, "")
+    .trim();
+  const curlIndex = normalized.search(/\bcurl\b/);
+  if (curlIndex === -1) return null;
+  return normalized.slice(curlIndex);
+}
+
+function isAllowedReadOnlyLocalCurlCheck(command) {
+  if (hasCurlWriteOrMutationFlags(command)) return false;
+  if (hasShellWriteOrUnsafePipe(command)) return false;
+  if (!/\bhttps?:\/\/(?:localhost|127\.0\.0\.1|\[::1\]|::1)(?::\d+)?\/[^\s"'\\,)]+/i.test(command)) return false;
+
+  const requestMatch = command.match(/(?:^|\s)(?:-X|--request)\s+([A-Z]+)\b/i);
+  if (requestMatch && requestMatch[1].toUpperCase() !== "GET") return false;
+
+  return true;
+}
+
+function hasCurlWriteOrMutationFlags(command) {
+  return (
+    /(?:^|\s)(?:-X|--request)\s+(?:POST|PUT|PATCH|DELETE)\b/i.test(command) ||
+    /(?:^|\s)(?:--data(?:-[^\s]+)?|-d|-F|--form)\b/i.test(command) ||
+    /(?:^|\s)(?:-T|--upload-file|-o|--output|-O|--remote-name)\b/i.test(command)
+  );
+}
+
+function hasShellWriteOrUnsafePipe(command) {
+  if (/(^|[^&])(?:>>?|2>|&>)\s*\S/.test(command)) return true;
+  if (/(^|\s)tee(?:\s|$)/.test(command)) return true;
+
+  const pipeParts = command.split("|").map((part) => part.trim()).filter(Boolean);
+  if (pipeParts.length <= 1) return false;
+  if (pipeParts.length !== 2) return true;
+  return !/^jq(?:\s+[-A-Za-z0-9_.'"\[\]{}():,| ]+)?$/.test(pipeParts[1].replace(/[",\s]+$/, ""));
 }
 
 function findSecretLikeValues(text) {

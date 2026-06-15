@@ -179,6 +179,31 @@ assertCheck(completeJsonDefault.json, "copy_packet_no_proof", "pass");
 assertCheck(completeJsonDefault.json, "copy_packet_no_mutate", "pass");
 assertCheck(completeJsonDefault.json, "copy_packet_no_merge", "pass");
 
+const readOnlyLocalCurlJson = cloneJson(completeJson);
+readOnlyLocalCurlJson.expected_scope.checks = [
+  'curl -sS "http://localhost:3000/api/work/AG-006?scope=project%3Aaugnes" | jq .',
+  'curl "http://127.0.0.1:3000/api/work/AG-006/brief?scope=project%3Aaugnes" | jq .work_id',
+];
+const readOnlyLocalCurlDefault = runHelper({ packet: packetWithJson(readOnlyLocalCurlJson) });
+assert.equal(readOnlyLocalCurlDefault.status, 0, readOnlyLocalCurlDefault.stderr);
+assertCheck(readOnlyLocalCurlDefault.json, "write_shell_commands", "pass");
+
+for (const unsafeCurlCheck of [
+  'curl -sS -X POST "http://localhost:3000/api/work/AG-006" | jq .',
+  'curl --request PATCH "http://localhost:3000/api/work/AG-006"',
+  'curl -sS --data \'{"ok":true}\' "http://localhost:3000/api/work/AG-006"',
+  'curl -sS -d status=ok "http://localhost:3000/api/work/AG-006"',
+  'curl -sS -F file=@packet.txt "http://localhost:3000/api/work/AG-006"',
+  'curl -sS "http://localhost:3000/api/work/AG-006" > packet.json',
+  'curl -sS "http://localhost:3000/api/work/AG-006" | tee packet.json',
+]) {
+  const unsafeCurlJson = cloneJson(completeJson);
+  unsafeCurlJson.expected_scope.checks = [unsafeCurlCheck];
+  const unsafeCurlDefault = runHelper({ packet: packetWithJson(unsafeCurlJson) });
+  assert.notEqual(unsafeCurlDefault.status, 0, unsafeCurlCheck);
+  assertCheck(unsafeCurlDefault.json, "write_shell_commands", "fail");
+}
+
 const completeJsonStrict = runHelper({ packet: completeJsonPacket, args: ["--strict"] });
 assert.equal(completeJsonStrict.status, 0, completeJsonStrict.stderr);
 assert.equal(completeJsonStrict.json.ok, true);
@@ -443,6 +468,8 @@ console.log(
       cases: [
         "complete copied handoff packet with JSON block passes default mode",
         "complete copied handoff packet with JSON block passes strict mode",
+        "read-only localhost curl GET checks piped to jq are allowed",
+        "mutating curl and shell write forms are blocked",
         "JSON block with placeholder runtime warns by default and fails strict",
         "malformed JSON block fails",
         "duplicate JSON blocks fail",

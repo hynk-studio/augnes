@@ -2111,6 +2111,19 @@
 
       function composeFallbackCoreHandoffText(packet) {
         const authorityBoundaries = coreAuthorityBoundaryText();
+        const implementationAnchors = safeArray(packet.implementation_anchors).length
+          ? safeArray(packet.implementation_anchors)
+          : safeArray(packet.expected_files);
+        const coreHandoffUsage = nonEmptyText(
+          packet.core_handoff_usage,
+          implementationAnchors.length ? "implementation_ready" : "implementation_requires_full_context"
+        );
+        const implementationAnchorSummary = nonEmptyText(
+          packet.implementation_anchor_summary,
+          implementationAnchors.length
+            ? "Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing."
+            : "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation."
+        );
         const memoryReuseStatus = nonEmptyText(packet.memory_reuse_attachment_proposal?.status, "no_match");
         const memoryReuseFallback = nonEmptyText(
           packet.memory_reuse_attachment_proposal?.fallback_brief,
@@ -2132,6 +2145,10 @@
             source_packet_type: "final_codex_handoff_packet",
             source_packet_schema: nonEmptyText(packet.schema, "augnes.final_codex_handoff_packet.v0_1"),
             copy_intent: "shorter_packet_for_starting_codex_work",
+            core_handoff_usage: coreHandoffUsage,
+            implementation_anchors: implementationAnchors,
+            implementation_anchor_summary: implementationAnchorSummary,
+            full_context_required_before_implementation: implementationAnchors.length === 0,
             runtime: {
               endpoint_label: "provided by current Augnes runtime",
               requires_user_core_confirmation: true,
@@ -2202,10 +2219,17 @@
           "Codex read-brief start preview",
           `AUGNES_API_BASE_URL=<provided-current-runtime> CODEX_SCOPE=${packet.work_scope} CODEX_WORK_ID=${packet.work_id} npm run codex:read-brief`,
           "",
+          "Core usage",
+          `- Usage state: ${coreHandoffUsage}`,
+          `- ${implementationAnchorSummary}`,
+          "",
+          "Implementation anchors",
+          ...(implementationAnchors.length ? implementationAnchors.map((item) => `  - ${item}`) : ["  - No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation."]),
+          "",
           "Expected scope",
           "- Expected files:",
           ...(safeArray(packet.expected_files).length ? safeArray(packet.expected_files).map((item) => `  - ${item}`) : ["  - No expected files are listed in the work brief."]),
-          "- Expected checks:",
+          "- Expected read-only checks:",
           ...(safeArray(packet.expected_checks).length ? safeArray(packet.expected_checks).map((item) => `  - ${item}`) : ["  - No expected checks are listed in the work brief."]),
           "- Related state keys:",
           ...(safeArray(packet.related_state_keys).length ? safeArray(packet.related_state_keys).map((item) => `  - ${item}`) : ["  - No related state keys are listed in the work brief."]),
@@ -2256,11 +2280,27 @@
           source.copyable_handoff_text || source.copyable_core_handoff_text || data?.copyable_core_handoff_text || packet.copyable_core_handoff_text,
           fallbackText
         );
+        const implementationAnchors = safeArray(source.implementation_anchors).length
+          ? safeArray(source.implementation_anchors)
+          : safeArray(packet.expected_files);
+        const coreHandoffUsage = nonEmptyText(
+          source.core_handoff_usage,
+          implementationAnchors.length ? "implementation_ready" : "implementation_requires_full_context"
+        );
         return {
           packet_type: "core_codex_handoff_packet",
           schema: nonEmptyText(source.schema, "augnes.core_codex_handoff_packet.v0_1"),
           title: nonEmptyText(source.title, "Core Codex Handoff Packet"),
           copy_intent: nonEmptyText(source.copy_intent, "shorter_packet_for_starting_codex_work"),
+          core_handoff_usage: coreHandoffUsage,
+          implementation_anchors: implementationAnchors,
+          implementation_anchor_summary: nonEmptyText(
+            source.implementation_anchor_summary,
+            implementationAnchors.length
+              ? "Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing."
+              : "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation."
+          ),
+          full_context_required_before_implementation: source.full_context_required_before_implementation === true || implementationAnchors.length === 0,
           work_scope: nonEmptyText(source.work_scope, packet.work_scope),
           work_id: nonEmptyText(source.work_id, packet.work_id),
           work_title: nonEmptyText(source.work_title, packet.work_title),
