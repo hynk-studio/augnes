@@ -675,17 +675,24 @@
         copyButton.className = "copy-button";
         copyButton.textContent = "Copy Codex Handoff";
         const pre = createPreBlock(packetText);
+        const packetTextSection = createSection("Packet text", pre, { badge: "for Codex", open: false });
         copyButton.addEventListener("click", async () => {
           if (await copyTextToClipboard(packetText)) {
             status.textContent = "Handoff copied.";
-          } else if (selectElementText(pre)) {
+          } else {
+            packetTextSection.open = true;
+          }
+          if (status.textContent === "Handoff copied.") {
+            return;
+          }
+          if (selectElementText(pre)) {
             status.textContent = "Clipboard blocked by this host. Packet text selected; press Command+C to copy.";
           } else {
             status.textContent = "Copy unavailable. Select and copy the packet text manually.";
           }
         });
         copyRow.appendChild(copyButton);
-        root.append(status, preflightHint, copyRow, pre);
+        root.append(status, preflightHint, copyRow, packetTextSection);
         return root;
       }
 
@@ -700,6 +707,98 @@
 
       function safeCount(value) {
         return Number.isFinite(value) ? String(value) : "0";
+      }
+
+      function formatUiStatus(value) {
+        const text = nonEmptyText(value, "unknown");
+        const labels = {
+          attached: "Attached",
+          awaiting_user_confirmation: "Needs user confirmation",
+          blocked: "Blocked",
+          explicit_absent: "Not attached",
+          explicitly_absent: "Not attached",
+          fail: "Needs fixes",
+          missing: "Missing",
+          needs_attention: "Needs attention",
+          needs_result_input: "Needs result input",
+          needs_revision: "Needs revision",
+          needs_review: "Needs review",
+          needs_user_core_confirmation: "Needs user confirmation",
+          needs_user_core_input: "Needs user confirmation",
+          no_match: "No matching memory",
+          not_configured: "Not configured",
+          not_generated: "Not ready",
+          not_provided: "Not provided",
+          pass: "Ready",
+          pending_preflight: "Pending check",
+          preview_only: "Preview only",
+          preview_ready: "Ready to review",
+          proposed: "Reference memory attached",
+          ready: "Ready",
+          ready_for_human_review: "Ready for human review",
+          structured_payload: "Structured result",
+          unavailable: "Unavailable",
+          warn: "Needs attention",
+        };
+        return labels[text] || text.replace(/_/g, " ");
+      }
+
+      function formatUiSlotLabel(value) {
+        const text = nonEmptyText(value, "Item");
+        const labels = {
+          "Codex result review packet": "Work result review",
+          "Memory Reuse attachment": "Reference memory",
+          "PR body checklist": "PR writing checklist",
+        };
+        return labels[text] || text;
+      }
+
+      function formatSourcePacketRef(packetRef, workId) {
+        const id = nonEmptyText(workId, "");
+        return id ? `Final handoff package for ${id}` : formatUiStatus(packetRef);
+      }
+
+      function formatConfirmationField(value) {
+        const text = nonEmptyText(value, "confirmation item");
+        const labels = {
+          authority_boundary_reviewed: "Review the guardrails.",
+          branch_and_pr_authority_confirmed_separately: "Confirm branch or PR authority separately if needed.",
+          confirmed_scope: "Confirm the work scope.",
+          confirmed_work_id: "Confirm the work ID.",
+          current_runtime_endpoint: "Confirm the current runtime endpoint.",
+          expected_checks_reviewed: "Review expected checks.",
+          expected_files_reviewed: "Review expected files.",
+          explicit_user_request_for_separate_codex_session: "Ask for a separate Codex session explicitly.",
+          memory_reuse_status_reviewed: "Review reference memory status.",
+          proof_and_evidence_recording_authority_confirmed_separately: "Confirm proof or evidence recording separately if needed.",
+          project_constellation_context_reviewed: "Review related perspective context.",
+          result_review_packet_return_expected: "Expect a result review packet after the work.",
+        };
+        return labels[text] || text.replace(/_/g, " ");
+      }
+
+      function formatPrSectionLabel(value) {
+        const text = nonEmptyText(value, "Section");
+        const labels = {
+          "Authority boundary statement": "Guardrail statement",
+          "Final handoff preflight status": "Final readiness check",
+          "Memory Reuse attachment status": "Reference memory status",
+          "Next recommended step": "Next step",
+          "Project Constellation context status": "Related perspective status",
+          "Skipped checks and caveats": "Skipped checks and notes",
+          "User-facing path added or changed": "User-facing path",
+        };
+        return labels[text] || text;
+      }
+
+      function formatResultInputField(value) {
+        const text = nonEmptyText(value, "Result input");
+        const labels = {
+          "Authority boundary statement.": "Guardrail statement.",
+          "PR URL/number only if a separate read-only GitHub connector/reviewer flow is explicitly run outside the App/MCP server.":
+            "PR link only if a separate read-only review flow was explicitly used.",
+        };
+        return labels[text] || text;
       }
 
       function createCodeListWithFallback(items, fallback) {
@@ -2731,25 +2830,25 @@
         if (!context || context.status !== "attached") {
           root.appendChild(el("div", {
             className: "status-box",
-            text: "No Project Constellation context is attached to this work contract.",
+            text: "No related perspective is attached to this work item.",
           }));
-          root.appendChild(createTextList(context?.boundary_text || [
-            "Project Constellation context is optional read-only operator context.",
+          root.appendChild(createSection("Technical boundary", createTextList(context?.boundary_text || [
+            "Related perspective context is optional read-only operator context.",
             "Missing context is not reconstructed or invented.",
-          ]));
+          ]), { badge: "read-only", open: false }));
           return root;
         }
 
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Read-only Project Constellation context. Evidence refs are pointer-only, unresolved tensions remain unresolved, and advisory next action context does not execute Codex or mutate Augnes state.",
+            "Read-only related perspective. Evidence refs are pointer-only, unresolved tensions remain unresolved, and suggested next action context does not execute Codex or mutate Augnes state.",
         }));
         root.appendChild(el("p", { className: "summary", text: context.thesis }));
         root.appendChild(createMetricGrid([
-          ["Selected candidate ID", context.selected_candidate_id || "missing"],
-          ["Selected candidate label", context.selected_candidate_label || "missing"],
-          ["Selection status", context.selection_status || "missing"],
+          ["Selected item ID", context.selected_candidate_id || "missing"],
+          ["Selected item", context.selected_candidate_label || "missing"],
+          ["Selection", formatUiStatus(context.selection_status || "missing")],
           ["Evidence refs", safeCount(context.pointer_evidence_ref_count)],
           ["Unresolved tensions", safeCount(context.unresolved_tension_count)],
         ]));
@@ -2757,14 +2856,14 @@
           root.appendChild(el("div", { className: "status-box", text: context.selection_fallback_reason }));
         }
         root.appendChild(createSection(
-          "Advisory next action summary",
+          "Suggested next action",
           el("div", { className: "status-box", text: context.advisory_next_action_summary || "No advisory next action summary attached." }),
           { badge: "advisory" }
         ));
         root.appendChild(createSection("Pointer-only evidence refs", createTextList(context.pointer_evidence_refs), { badge: `${safeArray(context.pointer_evidence_refs).length}` }));
         root.appendChild(createSection("Unresolved tensions", createTextList(context.unresolved_tensions), { badge: `${safeArray(context.unresolved_tensions).length}` }));
         root.appendChild(createSection("Source refs", createTextList(context.source_refs), { badge: `${safeArray(context.source_refs).length}` }));
-        root.appendChild(createSection("Context boundary", createTextList(context.boundary_text), { badge: "read-only" }));
+        root.appendChild(createSection("Technical boundary", createTextList(context.boundary_text), { badge: "read-only", open: false }));
         return root;
       }
 
@@ -2772,19 +2871,19 @@
         const normalized = normalizeFinalHandoffReadinessSummary(summary, {}, {});
         const root = el("div", { className: "stack" });
         root.appendChild(createMetricGrid([
-          ["Handoff preparation", normalized.pre_run_handoff_readiness],
-          ["Result review", normalized.post_run_result_review_readiness],
-          ["Overall local preflight", normalized.overall_local_preflight_status],
-          ["Result source", normalized.result_review_source],
+          ["Handoff prep", formatUiStatus(normalized.pre_run_handoff_readiness)],
+          ["Result review", formatUiStatus(normalized.post_run_result_review_readiness)],
+          ["Overall check", formatUiStatus(normalized.overall_local_preflight_status)],
+          ["Result input", formatUiStatus(normalized.result_review_source)],
         ]));
         root.appendChild(el("div", {
           className: "status-box",
           text: normalized.explanation,
         }));
         root.appendChild(createSection(
-          "Readiness boundary",
+          "Technical boundary",
           createTextList(normalized.boundary_text),
-          { badge: "display-only" }
+          { badge: "display only", open: false }
         ));
         return root;
       }
@@ -2793,17 +2892,17 @@
         const root = el("div", { className: "stack" });
         root.appendChild(el("div", {
           className: "status-box",
-          text: `Local read-only preflight: ${nonEmptyText(preflight.status, "unavailable")}. ${nonEmptyText(preflight.summary, "No preflight summary returned.")}`,
+          text: `Readiness check: ${formatUiStatus(nonEmptyText(preflight.status, "unavailable"))}. ${nonEmptyText(preflight.summary, "No preflight summary returned.")}`,
         }));
         root.appendChild(createSection(
-          "Preflight checks",
+          "Technical checks",
           createTextList(safeRecordArray(preflight.checks).map((check) => {
-            const status = nonEmptyText(check.status, "unavailable");
+            const status = formatUiStatus(nonEmptyText(check.status, "unavailable"));
             const id = nonEmptyText(check.id, "check");
             const message = nonEmptyText(check.message, "No check message returned.");
             return `${status}: ${id} - ${message}`;
           })),
-          { badge: nonEmptyText(preflight.status, "unavailable") }
+          { badge: formatUiStatus(nonEmptyText(preflight.status, "unavailable")), open: false }
         ));
         root.appendChild(createTextList([
           "Preflight is local and pure.",
@@ -2822,30 +2921,30 @@
           text: "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
         }));
         root.appendChild(createMetricGrid([
-          ["Status", normalized.status],
-          ["User confirmation", normalized.confirmation_status],
-          ["Source packet", normalized.source_final_handoff_packet.packet_ref],
+          ["Status", formatUiStatus(normalized.status)],
+          ["User confirmation", formatUiStatus(normalized.confirmation_status)],
+          ["Source package", formatSourcePacketRef(normalized.source_final_handoff_packet.packet_ref, normalized.work_id)],
           ["Work ID", normalized.work_id || "missing"],
           ["Scope", normalized.scope || "missing"],
-          ["Constellation", normalized.selected_constellation_context_status],
-          ["Memory Reuse", normalized.memory_reuse_status],
+          ["Related perspective", formatUiStatus(normalized.selected_constellation_context_status)],
+          ["Reference memory", formatUiStatus(normalized.memory_reuse_status)],
           ["Result review after run", normalized.result_review_packet_expected_after_run ? "expected" : "not expected"],
         ]));
         root.appendChild(createSection(
-          "What would be handed to Codex",
+          "What will be handed to Codex",
           createTextList([
-            `source final handoff packet: ${normalized.source_final_handoff_packet.packet_ref}`,
-            `work_id: ${normalized.work_id || "missing"}`,
+            `source handoff package: ${formatSourcePacketRef(normalized.source_final_handoff_packet.packet_ref, normalized.work_id)}`,
+            `work ID: ${normalized.work_id || "missing"}`,
             `scope: ${normalized.scope || "missing"}`,
-            `selected Constellation context status: ${normalized.selected_constellation_context_status}`,
-            `Memory Reuse status: ${normalized.memory_reuse_status}`,
+            `related perspective: ${formatUiStatus(normalized.selected_constellation_context_status)}`,
+            `reference memory: ${formatUiStatus(normalized.memory_reuse_status)}`,
             `PR body checklist present: ${normalized.pr_body_checklist_present ? "true" : "false"}`,
-            `closeout skeleton present: ${normalized.closeout_skeleton_present ? "true" : "false"}`,
+            `work report outline present: ${normalized.closeout_skeleton_present ? "true" : "false"}`,
             `result review packet expected after run: ${normalized.result_review_packet_expected_after_run ? "true" : "false"}`,
-            `result review packet status before run: ${normalized.result_review_packet_status_before_run}`,
+            `result review before run: ${formatUiStatus(normalized.result_review_packet_status_before_run)}`,
             `copyable handoff text unchanged: ${normalized.source_final_handoff_packet.copyable_handoff_text_unchanged ? "true" : "false"}`,
           ]),
-          { badge: normalized.status }
+          { badge: formatUiStatus(normalized.status) }
         ));
         root.appendChild(createSection(
           "Expected files",
@@ -2858,19 +2957,19 @@
           { badge: `${safeArray(normalized.expected_checks).length}` }
         ));
         root.appendChild(createSection(
-          "What user would need to confirm later",
-          createCodeListWithFallback(normalized.required_user_confirmation_fields, "No required confirmation fields are listed."),
-          { badge: normalized.confirmation_status }
+          "What the user confirms later",
+          createTextList(normalized.required_user_confirmation_fields.map(formatConfirmationField)),
+          { badge: formatUiStatus(normalized.confirmation_status) }
         ));
         root.appendChild(createSection(
-          "What this preview does NOT do",
+          "What this screen does not do",
           createTextList(normalized.non_authorities),
-          { badge: "non-authority" }
+          { badge: "guardrails", open: false }
         ));
         root.appendChild(createSection(
-          "Preview boundary",
+          "Technical boundary",
           createTextList(normalized.boundary_text),
-          { badge: "preview-only" }
+          { badge: "preview only", open: false }
         ));
         return root;
       }
@@ -2881,11 +2980,11 @@
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Read-only Memory Reuse attachment proposal. It does not create memory items, persist memory, record proof or evidence, mutate Augnes state, execute Codex, or call providers.",
+            "Read-only reference memory proposal. It does not create memory items, persist memory, record proof or evidence, mutate Augnes state, execute Codex, or call providers.",
         }));
         root.appendChild(createMetricGrid([
-          ["Status", normalized.status],
-          ["Source context", normalized.source_context],
+          ["Status", formatUiStatus(normalized.status)],
+          ["Source", formatUiStatus(normalized.source_context)],
           ["Selected count", String(normalized.selected_memory_count)],
           ["Task ref", normalized.task_ref || "missing"],
         ]));
@@ -2898,13 +2997,13 @@
         root.appendChild(createSection(
           "Fallback brief",
           el("div", { className: "status-box", text: normalized.fallback_brief }),
-          { badge: normalized.status }
+          { badge: formatUiStatus(normalized.status) }
         ));
         root.appendChild(createSection("Selection guidance", createTextList(normalized.selection_guidance), { badge: "guidance" }));
         root.appendChild(createSection("Why selected", createTextList(normalized.why_selected), { badge: `${normalized.why_selected.length}` }));
-        root.appendChild(createSection("Reuse boundaries", createTextList(normalized.reuse_boundary), { badge: `${normalized.reuse_boundary.length}` }));
-        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${normalized.warnings.length}` }));
-        root.appendChild(createSection("Boundary", createTextList(normalized.boundary_text), { badge: "read-only" }));
+        root.appendChild(createSection("Use limits", createTextList(normalized.reuse_boundary), { badge: `${normalized.reuse_boundary.length}`, open: false }));
+        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${normalized.warnings.length}`, open: false }));
+        root.appendChild(createSection("Technical boundary", createTextList(normalized.boundary_text), { badge: "read-only", open: false }));
         return root;
       }
 
@@ -2922,8 +3021,8 @@
         ]) {
           const item = el("div", { className: "item" });
           const row = el("div", { className: "stat-row" });
-          row.appendChild(el("div", { className: "item-title", text: slot.label }));
-          row.appendChild(tag(slot.status));
+          row.appendChild(el("div", { className: "item-title", text: formatUiSlotLabel(slot.label) }));
+          row.appendChild(tag(formatUiStatus(slot.status)));
           item.appendChild(row);
           item.appendChild(el("div", { className: "item-note", text: slot.summary }));
           item.appendChild(el("div", {
@@ -2942,17 +3041,17 @@
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Preview-only Codex PR body checklist and closeout skeleton. It does not create a GitHub PR, create a branch, execute Codex, record proof or evidence, mutate Augnes state, publish, merge, retry, replay, deploy, or call providers.",
+            "Preview-only PR writing checklist and work report outline. It does not create a GitHub PR, create a branch, execute Codex, record proof or evidence, mutate Augnes state, publish, merge, retry, replay, deploy, or call providers.",
         }));
         root.appendChild(createMetricGrid([
-          ["Checklist", normalizedChecklist.status],
+          ["Checklist", formatUiStatus(normalizedChecklist.status)],
           ["Generated", normalizedChecklist.generated ? "true" : "false"],
-          ["Skeleton", normalizedSkeleton.status],
-          ["Preflight", nonEmptyText(preflight?.status, normalizedSkeleton.final_handoff_preflight_status)],
+          ["Report outline", formatUiStatus(normalizedSkeleton.status)],
+          ["Readiness check", formatUiStatus(nonEmptyText(preflight?.status, normalizedSkeleton.final_handoff_preflight_status))],
         ]));
         root.appendChild(createSection(
           "Required PR body sections",
-          createTextList(normalizedChecklist.required_sections),
+          createTextList(normalizedChecklist.required_sections.map(formatPrSectionLabel)),
           { badge: `${safeArray(normalizedChecklist.required_sections).length}` }
         ));
         root.appendChild(createSection(
@@ -2960,12 +3059,12 @@
           createTextList(normalizedChecklist.forbidden_claims),
           { badge: `${safeArray(normalizedChecklist.forbidden_claims).length}` }
         ));
-        root.appendChild(createSection("Warnings", createTextList(normalizedChecklist.warnings), { badge: `${safeArray(normalizedChecklist.warnings).length}` }));
-        root.appendChild(createSection("Boundary", createTextList(normalizedChecklist.boundary_text), { badge: "preview-only" }));
+        root.appendChild(createSection("Warnings", createTextList(normalizedChecklist.warnings), { badge: `${safeArray(normalizedChecklist.warnings).length}`, open: false }));
+        root.appendChild(createSection("Technical boundary", createTextList(normalizedChecklist.boundary_text), { badge: "preview only", open: false }));
         root.appendChild(createSection(
-          "Closeout skeleton preview",
+          "Work report outline",
           el("pre", { className: "packet-preview", text: normalizedSkeleton.copyable_closeout_text }),
-          { badge: normalizedSkeleton.status }
+          { badge: formatUiStatus(normalizedSkeleton.status), open: false }
         ));
         return root;
       }
@@ -2976,18 +3075,18 @@
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Preview-only Codex result review packet. It does not fetch GitHub PR data, post comments, submit reviews, approve, request changes, merge, create branches or PRs, execute Codex, record proof or evidence, mutate Augnes state, publish, retry, replay, deploy, or call providers.",
+            "Preview-only work result review. It does not fetch GitHub PR data, post comments, submit reviews, approve, request changes, merge, create branches or PRs, execute Codex, record proof or evidence, mutate Augnes state, publish, retry, replay, deploy, or call providers.",
         }));
         root.appendChild(createMetricGrid([
-          ["Status", normalized.status],
-          ["Source", normalized.result_source],
-          ["Recommendation", normalized.review_recommendation],
+          ["Status", formatUiStatus(normalized.status)],
+          ["Result input", formatUiStatus(normalized.result_source)],
+          ["Recommendation", formatUiStatus(normalized.review_recommendation)],
           ["Work ID", normalized.work_id || "missing"],
         ]));
         if (normalized.status === "needs_result_input" || normalized.status === "not_provided") {
           root.appendChild(createSection(
             "Result input needed",
-            createTextList(normalized.required_result_input_fields),
+            createTextList(normalized.required_result_input_fields.map(formatResultInputField)),
             { badge: "needed" }
           ));
         }
@@ -2996,30 +3095,30 @@
         root.appendChild(createSection("Skipped checks", createTextList(normalized.skipped_checks), { badge: `${safeArray(normalized.skipped_checks).length}` }));
         root.appendChild(createSection("Missing closeout sections", createTextList(normalized.missing_required_closeout_sections), { badge: `${safeArray(normalized.missing_required_closeout_sections).length}` }));
         root.appendChild(createSection("Alignment", createTextList([
-          `files: ${normalized.file_alignment.status} - ${normalized.file_alignment.summary}`,
-          `verification: ${normalized.verification_alignment.status} - ${normalized.verification_alignment.summary}`,
-          `skipped checks: ${normalized.skipped_check_alignment.status} - ${normalized.skipped_check_alignment.summary}`,
-          `Memory Reuse: ${normalized.memory_reuse_alignment.status} - ${normalized.memory_reuse_alignment.summary}`,
-          `Project Constellation: ${normalized.constellation_context_alignment.status} - ${normalized.constellation_context_alignment.summary}`,
-          `final preflight: ${normalized.preflight_alignment.status} - ${normalized.preflight_alignment.summary}`,
-          `checklist: ${normalized.checklist_alignment.status} - ${normalized.checklist_alignment.summary}`,
-        ]), { badge: "read-only" }));
+          `files: ${formatUiStatus(normalized.file_alignment.status)} - ${normalized.file_alignment.summary}`,
+          `verification: ${formatUiStatus(normalized.verification_alignment.status)} - ${normalized.verification_alignment.summary}`,
+          `skipped checks: ${formatUiStatus(normalized.skipped_check_alignment.status)} - ${normalized.skipped_check_alignment.summary}`,
+          `reference memory: ${formatUiStatus(normalized.memory_reuse_alignment.status)} - ${normalized.memory_reuse_alignment.summary}`,
+          `related perspective: ${formatUiStatus(normalized.constellation_context_alignment.status)} - ${normalized.constellation_context_alignment.summary}`,
+          `final check: ${formatUiStatus(normalized.preflight_alignment.status)} - ${normalized.preflight_alignment.summary}`,
+          `checklist: ${formatUiStatus(normalized.checklist_alignment.status)} - ${normalized.checklist_alignment.summary}`,
+        ]), { badge: "read-only", open: false }));
         root.appendChild(createSection("Review questions", createTextList(normalized.review_questions), { badge: `${safeArray(normalized.review_questions).length}` }));
-        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${safeArray(normalized.warnings).length}` }));
-        root.appendChild(createSection("Boundary", createTextList(normalized.boundary_text), { badge: "preview-only" }));
+        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${safeArray(normalized.warnings).length}`, open: false }));
+        root.appendChild(createSection("Technical boundary", createTextList(normalized.boundary_text), { badge: "preview only", open: false }));
         return root;
       }
 
       function renderFinalCodexHandoffPacket(packet, preflight, readinessSummary, executionRequestPreview) {
         const root = el("div", { className: "stack" });
         root.appendChild(createMetricGrid([
-          ["Packet", nonEmptyText(packet.title, "Final Codex Handoff Packet")],
-          ["Preflight", nonEmptyText(preflight.status, "unavailable")],
-          ["Composition", nonEmptyText(packet.composition_status, "composed")],
-          ["Constellation", nonEmptyText(packet.constellation_context_status, "explicitly_absent")],
-          ["Memory Reuse", nonEmptyText(packet.memory_reuse_attachment_proposal?.status || packet.handoff_automation_slots?.memory_reuse_attachment?.status, "no_match")],
-          ["PR checklist", nonEmptyText(packet.handoff_automation_slots?.pr_body_checklist?.status, "not_generated")],
-          ["Result review", nonEmptyText(packet.codex_result_review_packet_preview?.status || packet.handoff_automation_slots?.codex_result_review_packet?.status, "needs_result_input")],
+          ["Package", "Codex handoff package"],
+          ["Readiness check", formatUiStatus(nonEmptyText(preflight.status, "unavailable"))],
+          ["Composition", formatUiStatus(nonEmptyText(packet.composition_status, "composed"))],
+          ["Related perspective", formatUiStatus(nonEmptyText(packet.constellation_context_status, "explicitly_absent"))],
+          ["Reference memory", formatUiStatus(nonEmptyText(packet.memory_reuse_attachment_proposal?.status || packet.handoff_automation_slots?.memory_reuse_attachment?.status, "no_match"))],
+          ["PR checklist", formatUiStatus(nonEmptyText(packet.handoff_automation_slots?.pr_body_checklist?.status, "not_generated"))],
+          ["Result review", formatUiStatus(nonEmptyText(packet.codex_result_review_packet_preview?.status || packet.handoff_automation_slots?.codex_result_review_packet?.status, "needs_result_input"))],
         ]));
         root.appendChild(el("div", {
           className: "status-box",
@@ -3027,46 +3126,46 @@
             "Final handoff is prepared local text only. It does not execute Codex, create branches or PRs, record proof or evidence, mutate Augnes state, publish, merge, retry, replay, deploy, or call providers.",
         }));
         root.appendChild(createSection(
-          "Readiness summary",
+          "Readiness",
           renderFinalHandoffReadinessSummary(readinessSummary || normalizeFinalHandoffReadinessSummary(null, packet, preflight)),
-          { badge: nonEmptyText(readinessSummary?.overall_local_preflight_status, nonEmptyText(preflight.status, "unavailable")) }
+          { badge: formatUiStatus(nonEmptyText(readinessSummary?.overall_local_preflight_status, nonEmptyText(preflight.status, "unavailable"))) }
         ));
         root.appendChild(createSection(
-          "Codex execution request preview",
+          "Codex handoff readiness",
           renderCodexExecutionRequestPreview(
             executionRequestPreview || packet.codex_execution_request_preview || packet.execution_request_preview,
             packet
           ),
           {
-            badge: nonEmptyText(
+            badge: formatUiStatus(nonEmptyText(
               executionRequestPreview?.confirmation_status ||
                 packet.codex_execution_request_preview?.confirmation_status ||
                 packet.execution_request_preview?.confirmation_status,
               "awaiting_user_confirmation"
-            ),
+            )),
           }
         ));
         root.appendChild(renderFinalHandoffPreflight(preflight));
         root.appendChild(createSection(
-          "Memory Reuse attachment",
+          "Reference memory",
           renderMemoryReuseAttachmentProposal(packet.memory_reuse_attachment_proposal || packet.handoff_automation_slots?.memory_reuse_attachment?.proposal),
-          { badge: nonEmptyText(packet.memory_reuse_attachment_proposal?.status, "no_match") }
+          { badge: formatUiStatus(nonEmptyText(packet.memory_reuse_attachment_proposal?.status, "no_match")) }
         ));
         root.appendChild(createSection(
-          "Codex PR body checklist / closeout skeleton",
+          "PR writing checklist and report outline",
           renderPrBodyChecklistPreview(packet.pr_body_checklist_preview || packet.codex_pr_body_checklist, packet.codex_closeout_skeleton || packet.final_handoff_closeout_skeleton, preflight),
-          { badge: nonEmptyText(packet.handoff_automation_slots?.pr_body_checklist?.status, "preview_only") }
+          { badge: formatUiStatus(nonEmptyText(packet.handoff_automation_slots?.pr_body_checklist?.status, "preview_only")) }
         ));
         root.appendChild(createSection(
-          "Codex result review packet",
+          "Work result review",
           renderCodexResultReviewPacketPreview(packet.codex_result_review_packet_preview || packet.final_handoff_codex_result_review_packet || packet.codex_pr_review_packet_preview || packet.handoff_automation_slots?.codex_result_review_packet?.review_packet),
-          { badge: nonEmptyText(packet.codex_result_review_packet_preview?.status || packet.handoff_automation_slots?.codex_result_review_packet?.status, "needs_result_input") }
+          { badge: formatUiStatus(nonEmptyText(packet.codex_result_review_packet_preview?.status || packet.handoff_automation_slots?.codex_result_review_packet?.status, "needs_result_input")) }
         ));
-        root.appendChild(createSection("Attachment slots", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "preview" }));
+        root.appendChild(createSection("Prepared pieces", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "Preview", open: false }));
         root.appendChild(createSection(
-          "Copyable handoff packet",
+          "Copy packet",
           renderCopyableHandoffPacket({ copyable_handoff_text: packet.copyable_handoff_text }),
-          { badge: "final packet" }
+          { badge: "For Codex" }
         ));
         return root;
       }
@@ -3076,14 +3175,14 @@
         const root = el("div", { className: "stack" });
 
         root.appendChild(createMetricGrid([
-          ["Readiness", preview.readiness_status],
+          ["Readiness", formatUiStatus(preview.readiness_status)],
           ["Task profile", preview.task_profile],
           ["Current runtime", preview.runtime_endpoint_label],
-          ["Evidence recording", preview.evidence_recording],
-          ["Proof-only closeout", preview.proof_only_closeout],
-          ["Browser verification", preview.browser_verification],
+          ["Evidence recording", formatUiStatus(preview.evidence_recording)],
+          ["Proof-only closeout", formatUiStatus(preview.proof_only_closeout)],
+          ["Browser verification", formatUiStatus(preview.browser_verification)],
         ]));
-        root.appendChild(createSection("Readiness reasons", createTextList(preview.readiness_reasons), { badge: preview.readiness_status }));
+        root.appendChild(createSection("Readiness reasons", createTextList(preview.readiness_reasons), { badge: formatUiStatus(preview.readiness_status) }));
         root.appendChild(createSection("Work item", createMetricGrid([
           ["Scope", preview.scope],
           ["Work ID", preview.work_id],
@@ -3098,23 +3197,23 @@
           "Expected checks:",
           ...safeArray(preview.expected_checks).map((item) => `- ${item}`),
           safeArray(preview.expected_checks).length ? "" : "No expected checks are listed in the work brief.",
-          "Related state keys:",
+          "Related state:",
           ...safeArray(preview.related_state_keys).map((item) => `- ${item}`),
           safeArray(preview.related_state_keys).length ? "" : "No related state keys are listed in the work brief.",
         ].filter(Boolean)), { badge: "scope" }));
-        root.appendChild(createSection("Forbidden actions", createTextList(preview.forbidden_actions), { badge: "no writes" }));
-        root.appendChild(createSection("Stop conditions", createTextList(preview.stop_conditions), { badge: "stop" }));
+        root.appendChild(createSection("Guardrails", createTextList(preview.forbidden_actions), { badge: "no writes", open: false }));
+        root.appendChild(createSection("Stop if", createTextList(preview.stop_conditions), { badge: "stop", open: false }));
         root.appendChild(createSection(
-          "Final Codex Handoff",
+          "Codex handoff package",
           renderFinalCodexHandoffPacket(
             preview.final_codex_handoff_packet,
             preview.final_handoff_preflight,
             preview.final_handoff_readiness_summary,
             preview.codex_execution_request_preview || preview.execution_request_preview
           ),
-          { badge: preview.final_handoff_preflight.status }
+          { badge: formatUiStatus(preview.final_handoff_preflight.status) }
         ));
-        root.appendChild(createSection("Preview boundary", createTextList(preview.boundary_text), { badge: "read-only" }));
+        root.appendChild(createSection("Technical boundary", createTextList(preview.boundary_text), { badge: "read-only", open: false }));
         return root;
       }
 
@@ -3125,7 +3224,7 @@
         root.appendChild(createMetricGrid([
           ["Scope", card.scope],
           ["Work ID", card.work_id],
-          ["Status", card.work_status],
+          ["Status", formatUiStatus(card.work_status)],
           ["Priority", card.priority],
           ["Recent events", safeCount(card.recent_events_count)],
           ["Linked action IDs", safeCount(card.linked_proof_action_ids_count)],
@@ -3136,19 +3235,19 @@
         root.appendChild(createSection("Current / next step", el("div", { className: "status-box", text: card.current_or_next_step })));
         root.appendChild(createSection("Expected files", createCodeListWithFallback(card.expected_files, card.expected_files_summary), { badge: `${safeArray(card.expected_files).length}` }));
         root.appendChild(createSection("Expected checks", createCodeListWithFallback(card.expected_checks, card.expected_checks_summary), { badge: `${safeArray(card.expected_checks).length}` }));
-        root.appendChild(createSection("Related state keys", createCodeListWithFallback(card.related_state_keys, card.related_state_keys_summary), { badge: `${safeArray(card.related_state_keys).length}` }));
+        root.appendChild(createSection("Related state", createCodeListWithFallback(card.related_state_keys, card.related_state_keys_summary), { badge: `${safeArray(card.related_state_keys).length}`, open: false }));
         root.appendChild(createSection("Proof and evidence expectations", createTextList([
           card.linked_proof_summary,
           card.proof_evidence_expectation_summary,
           card.skipped_check_expectation_summary,
-        ]), { badge: "read-only" }));
+        ]), { badge: "read-only", open: false }));
         root.appendChild(createSection(
-          "Project Constellation context",
+          "Related perspective",
           renderWorkContractConstellationContext(card.constellation_context),
-          { badge: card.constellation_context?.status === "attached" ? "read-only" : "not attached" }
+          { badge: card.constellation_context?.status === "attached" ? "Attached" : "Not attached" }
         ));
-        root.appendChild(createSection("Authority boundary", createTextList(card.authority_boundary_text), { badge: "no writes" }));
-        root.appendChild(createSection("Codex Handoff Preview", renderCodexHandoffPreview(data, card), { badge: "copy packet" }));
+        root.appendChild(createSection("Technical boundary", createTextList(card.authority_boundary_text), { badge: "no writes", open: false }));
+        root.appendChild(createSection("Codex handoff package", renderCodexHandoffPreview(data, card), { badge: "Copy packet" }));
         return root;
       }
 

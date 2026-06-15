@@ -194,6 +194,20 @@ call GitHub/OpenAI/providers, write proof/evidence, write DB rows, persist
 anything, mutate Augnes state, submit reviews, approve, publish, merge, retry,
 replay, or deploy.
 
+The widget intentionally maps internal status and packet labels to shorter
+operator-facing language in the main visible card. For example, the visible UI
+uses labels such as `Codex handoff package`, `Handoff prep`, `Result review`,
+`Overall check`, `Reference memory`, `Related perspective`, `PR writing
+checklist`, `Work report outline`, `What will be handed to Codex`, `What the
+user confirms later`, and `What this screen does not do`. Raw enum values such
+as `preview_only`, `needs_result_input`, `awaiting_user_confirmation`,
+`no_match`, and `explicitly_absent` remain available in structuredContent and
+copied packet text where model/tool contracts need them, but the main visible
+surface renders them as plain labels such as `Preview only`, `Needs result
+input`, `Needs user confirmation`, `No matching memory`, and `Not attached`.
+Long authority and packet details stay available in collapsed technical
+sections so the first screen is not dominated by internal control terminology.
+
 The `memory_reuse_attachment` slot is now activated as a read-only Memory
 Reuse attachment proposal preview when final handoff text is composed. The
 proposal can report:
