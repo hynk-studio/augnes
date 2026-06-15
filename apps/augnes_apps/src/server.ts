@@ -477,6 +477,12 @@ const CODEX_RESULT_REVIEW_PACKET_WARNINGS = [
   "Review recommendations are advisory only and do not submit or post anything.",
 ] as const;
 
+const FINAL_HANDOFF_READINESS_SUMMARY_BOUNDARY_TEXT = [
+  "Final handoff readiness summary is display-only status clarification.",
+  "It separates pre-run handoff preparation from post-run result review input.",
+  "It does not change local preflight semantics or grant execution, write, GitHub, provider, proof, evidence, state, publish, retry, replay, deploy, or merge authority.",
+] as const;
+
 const FINAL_HANDOFF_FORBIDDEN_CONTROL_LABEL_PARTS = [
   ["Run", " ", "Codex"],
   ["Start", " ", "Codex"],
@@ -799,6 +805,24 @@ type FinalHandoffPreflight = {
   did_not_call_github_openai_or_provider: true;
   did_not_record_proof_or_evidence: true;
   did_not_execute_codex: true;
+};
+
+type FinalHandoffReadinessSummary = {
+  summary_type: "final_handoff_readiness_summary";
+  pre_run_handoff_readiness: "ready" | "needs_attention" | "blocked" | "unavailable";
+  post_run_result_review_readiness:
+    | "needs_result_input"
+    | "ready_for_human_review"
+    | "needs_revision"
+    | "blocked_by_missing_evidence"
+    | "unavailable";
+  overall_local_preflight_status: FinalHandoffPreflight["status"];
+  result_review_status: CodexResultReviewPacketStatus;
+  result_review_source: CodexResultReviewSource;
+  explanation: string;
+  pre_run_check_ids: string[];
+  post_run_check_id: "codex_result_review_packet_state";
+  boundary_text: readonly string[];
 };
 
 type CodexHandoffJsonBlock = {
@@ -2585,6 +2609,55 @@ function buildFinalHandoffPreflight(packet: FinalCodexHandoffPacket): FinalHando
   };
 }
 
+function buildFinalHandoffReadinessSummary(
+  packet: FinalCodexHandoffPacket,
+  preflight: FinalHandoffPreflight
+): FinalHandoffReadinessSummary {
+  const preRunChecks = preflight.checks.filter((check) => check.id !== "codex_result_review_packet_state");
+  const hasPreRunFail = preRunChecks.some((check) => check.status === "fail" || check.status === "unavailable");
+  const hasPreRunWarn = preRunChecks.some((check) => check.status === "warn");
+  const preRunReadiness: FinalHandoffReadinessSummary["pre_run_handoff_readiness"] =
+    preflight.status === "unavailable"
+      ? "unavailable"
+      : hasPreRunFail
+        ? "blocked"
+        : hasPreRunWarn
+          ? "needs_attention"
+          : "ready";
+
+  const reviewPacket = packet.codex_result_review_packet_preview;
+  const postRunReadiness: FinalHandoffReadinessSummary["post_run_result_review_readiness"] =
+    reviewPacket.status === "preview_ready"
+      ? reviewPacket.review_recommendation
+      : reviewPacket.status === "needs_result_input" || reviewPacket.status === "not_provided"
+        ? "needs_result_input"
+        : "unavailable";
+
+  const explanation =
+    preRunReadiness === "ready" && postRunReadiness === "needs_result_input"
+      ? "Result review is waiting for a Codex final report or structured result payload. This does not mean the pre-run handoff packet is broken."
+      : postRunReadiness === "ready_for_human_review"
+        ? "Post-run result review has input and is ready for human review; keep the overall local preflight status visible for any remaining warnings."
+        : preRunReadiness === "blocked"
+          ? "Pre-run handoff preparation has a blocking local preflight finding; fix that before using the packet."
+          : preRunReadiness === "needs_attention"
+            ? "Pre-run handoff preparation has local preflight warnings that should be reviewed before using the packet."
+            : "Readiness summary separates handoff preparation from post-run result review input while preserving the overall local preflight status.";
+
+  return {
+    summary_type: "final_handoff_readiness_summary",
+    pre_run_handoff_readiness: preRunReadiness,
+    post_run_result_review_readiness: postRunReadiness,
+    overall_local_preflight_status: preflight.status,
+    result_review_status: reviewPacket.status,
+    result_review_source: reviewPacket.result_source,
+    explanation,
+    pre_run_check_ids: preRunChecks.map((check) => check.id),
+    post_run_check_id: "codex_result_review_packet_state",
+    boundary_text: FINAL_HANDOFF_READINESS_SUMMARY_BOUNDARY_TEXT,
+  };
+}
+
 function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
   const codexHandoff = brief.codex_handoff as typeof brief.codex_handoff & Record<string, unknown>;
   const workLinks = brief.work.links as Record<string, unknown>;
@@ -3787,6 +3860,10 @@ export function createMcpAppServer(
           memoryReuseAttachmentProposal
         );
         const finalHandoffPreflight = buildFinalHandoffPreflight(finalCodexHandoffPacket);
+        const finalHandoffReadinessSummary = buildFinalHandoffReadinessSummary(
+          finalCodexHandoffPacket,
+          finalHandoffPreflight
+        );
         const structuredContent = sanitizePayload({
           profile: config.appProfile,
           panel: "work_contract_card",
@@ -3805,6 +3882,10 @@ export function createMcpAppServer(
           final_handoff_codex_result_review_packet: finalCodexHandoffPacket.final_handoff_codex_result_review_packet,
           codex_pr_review_packet_preview: finalCodexHandoffPacket.codex_pr_review_packet_preview,
           final_handoff_preflight: finalHandoffPreflight,
+          final_handoff_readiness_summary: finalHandoffReadinessSummary,
+          pre_run_handoff_readiness: finalHandoffReadinessSummary.pre_run_handoff_readiness,
+          post_run_result_review_readiness: finalHandoffReadinessSummary.post_run_result_review_readiness,
+          overall_local_preflight_status: finalHandoffReadinessSummary.overall_local_preflight_status,
           handoff_automation_slots: finalCodexHandoffPacket.handoff_automation_slots,
           ...(workContractCard.constellation_context
             ? {

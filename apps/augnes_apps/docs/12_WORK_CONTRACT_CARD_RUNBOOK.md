@@ -148,6 +148,28 @@ boundaries exist, skipped-check policy and closeout expectations exist,
 Constellation context is attached or explicitly absent, no execution/write
 control labels are present, and the structured JSON block is parseable.
 
+The card also shows a compact `final_handoff_readiness_summary` so the
+operator can read three statuses separately:
+
+- pre-run handoff readiness: whether the final handoff packet itself is ready
+  for a separate user-started Codex session.
+- post-run result review readiness: whether a Codex final report or structured
+  result payload is attached for later human review.
+- overall local preflight status: the unchanged local preflight result,
+  including any warning caused by missing post-run result input.
+
+When the result review packet is `needs_result_input` / `not_provided`, the
+overall preflight can warn even though pre-run handoff readiness is ready. That
+expected no-result state means result review is waiting for Codex output; it
+does not mean the pre-run handoff packet is broken. When result input is
+attached and the packet is `preview_ready`, post-run result review readiness
+shows that the review packet is ready for human review.
+
+This readiness summary is display-only. It does not change local preflight
+semantics, run commands, call GitHub/OpenAI/providers, create branches or PRs,
+submit reviews, record proof/evidence, mutate Augnes state, execute Codex,
+publish, merge, retry, replay, deploy, or add any write authority.
+
 The `memory_reuse_attachment` slot is now activated as a read-only Memory
 Reuse attachment proposal preview when final handoff text is composed. The
 proposal can report:
