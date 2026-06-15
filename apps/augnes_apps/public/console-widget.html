@@ -674,19 +674,18 @@
         copyButton.type = "button";
         copyButton.className = "copy-button";
         copyButton.textContent = "Copy Codex Handoff";
+        const pre = createPreBlock(packetText);
         copyButton.addEventListener("click", async () => {
-          try {
-            if (!navigator.clipboard?.writeText) {
-              throw new Error("Clipboard unavailable.");
-            }
-            await navigator.clipboard.writeText(packetText);
+          if (await copyTextToClipboard(packetText)) {
             status.textContent = "Handoff copied.";
-          } catch {
+          } else if (selectElementText(pre)) {
+            status.textContent = "Clipboard blocked by this host. Packet text selected; press Command+C to copy.";
+          } else {
             status.textContent = "Copy unavailable. Select and copy the packet text manually.";
           }
         });
         copyRow.appendChild(copyButton);
-        root.append(status, preflightHint, copyRow, createPreBlock(packetText));
+        root.append(status, preflightHint, copyRow, pre);
         return root;
       }
 
@@ -709,6 +708,174 @@
           return el("div", { className: "status-box", text: fallback });
         }
         return createCodeList(list);
+      }
+
+      function safeRecord(value) {
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      }
+
+      function safeRecordArray(value) {
+        return Array.isArray(value) ? value.filter((item) => item && typeof item === "object" && !Array.isArray(item)) : [];
+      }
+
+      function firstRecord(...values) {
+        for (const value of values) {
+          const record = safeRecord(value);
+          if (Object.keys(record).length) return record;
+        }
+        return {};
+      }
+
+      function sourceRefText(sourceRef) {
+        if (typeof sourceRef === "string") return sourceRef;
+        const record = safeRecord(sourceRef);
+        return nonEmptyText(record.source_ref || record.target_ref || record.label || record.id, "");
+      }
+
+      function summarizeContextEvidenceRef(item) {
+        const record = safeRecord(item);
+        const pointerId = nonEmptyText(record.pointer_id || record.id, "");
+        const label = nonEmptyText(record.label, "");
+        const targetRef = nonEmptyText(record.target_ref, "");
+        return [pointerId, label, targetRef ? `-> ${targetRef}` : ""].filter(Boolean).join(": ");
+      }
+
+      function summarizeContextTension(item) {
+        const record = safeRecord(item);
+        const tensionId = nonEmptyText(record.tension_id || record.id, "");
+        const label = nonEmptyText(record.label, "");
+        const summary = nonEmptyText(record.summary, "");
+        return [tensionId, label, summary].filter(Boolean).join(": ");
+      }
+
+      function summarizeContextNextAction(item) {
+        const record = safeRecord(item);
+        const candidateId = nonEmptyText(record.candidate_id || record.id, "");
+        const label = nonEmptyText(record.label, "");
+        const summary = nonEmptyText(record.summary, "");
+        return [candidateId, label, summary].filter(Boolean).join(": ");
+      }
+
+      function normalizeWorkContractConstellationContext(data) {
+        const card = safeRecord(data?.work_contract_card);
+        const preview = safeRecord(data?.project_constellation_preview);
+        const compact = firstRecord(
+          data?.work_contract_constellation_context,
+          data?.constellation_context,
+          card.constellation_context,
+          safeRecord(data?.codex_handoff_preview).constellation_context,
+          preview
+        );
+        const project = safeRecord(compact.project_constellation || data?.project_constellation);
+        const thesis = nonEmptyText(compact.thesis || project.thesis, "");
+
+        if (!Object.keys(compact).length || !thesis) {
+          return {
+            status: "missing",
+            fallback_text: "No Project Constellation context is attached to this work contract.",
+            thesis: "",
+            selected_candidate_id: "",
+            selected_candidate_label: "",
+            selection_status: "",
+            selection_fallback_reason: "",
+            pointer_evidence_ref_count: 0,
+            pointer_evidence_refs: [],
+            unresolved_tension_count: 0,
+            unresolved_tensions: [],
+            advisory_next_action_summary: "",
+            source_refs: [],
+            boundary_text: [
+              "Project Constellation context is optional read-only operator context.",
+              "Missing context is not reconstructed or invented.",
+            ],
+          };
+        }
+
+        const selection = safeRecord(compact.selection);
+        const copySeed = safeRecord(compact.copyable_handoff_seed);
+        const evidencePointers = safeRecordArray(compact.evidence_pointers || data?.evidence_pointers || project.evidence_pointers);
+        const unresolvedTensions = safeRecordArray(compact.unresolved_tensions || data?.unresolved_tensions || project.unresolved_tensions);
+        const nextActionCandidates = safeRecordArray(compact.next_action_candidates || data?.next_action_candidates || project.next_action_candidates);
+        const selectedCandidateId = nonEmptyText(
+          compact.selected_candidate_id || selection.selected_candidate_id || copySeed.selected_candidate_id,
+          ""
+        );
+        const selectedCandidate =
+          selectedCandidateId
+            ? nextActionCandidates.find((candidate) => nonEmptyText(candidate.candidate_id, "") === selectedCandidateId)
+            : nextActionCandidates[0];
+        const pointerRefs = safeArray(compact.pointer_evidence_refs || compact.evidence_refs);
+        const summarizedPointerRefs = pointerRefs.length
+          ? pointerRefs
+          : evidencePointers.map(summarizeContextEvidenceRef).filter(Boolean);
+        const tensionRefs = safeArray(compact.unresolved_tensions || compact.tension_refs);
+        const summarizedTensions = tensionRefs.length
+          ? tensionRefs
+          : unresolvedTensions.map(summarizeContextTension).filter(Boolean);
+        const compactSourceRefs = safeArray(compact.source_refs).length
+          ? safeArray(compact.source_refs)
+          : safeRecordArray(compact.source_refs).map(sourceRefText).filter(Boolean);
+        const dataSourceRefs = safeArray(data?.source_refs).length
+          ? safeArray(data?.source_refs)
+          : safeRecordArray(data?.source_refs).map(sourceRefText).filter(Boolean);
+
+        return {
+          status: "attached",
+          fallback_text: "",
+          thesis,
+          selected_candidate_id: selectedCandidateId,
+          selected_candidate_label: nonEmptyText(
+            compact.selected_candidate_label || selection.selected_candidate_label || copySeed.selected_candidate_label || selectedCandidate?.label,
+            ""
+          ),
+          selection_status: nonEmptyText(compact.selection_status || selection.selection_status || copySeed.selection_status, ""),
+          selection_fallback_reason: nonEmptyText(
+            compact.selection_fallback_reason || selection.selection_fallback_reason || copySeed.selection_fallback_reason,
+            ""
+          ),
+          pointer_evidence_ref_count: Number.isFinite(compact.pointer_evidence_ref_count)
+            ? compact.pointer_evidence_ref_count
+            : summarizedPointerRefs.length,
+          pointer_evidence_refs: summarizedPointerRefs.slice(0, 5),
+          unresolved_tension_count: Number.isFinite(compact.unresolved_tension_count)
+            ? compact.unresolved_tension_count
+            : summarizedTensions.length,
+          unresolved_tensions: summarizedTensions.slice(0, 5),
+          advisory_next_action_summary: nonEmptyText(
+            compact.advisory_next_action_summary || compact.next_action_summary || summarizeContextNextAction(selectedCandidate),
+            ""
+          ),
+          source_refs: (compactSourceRefs.length ? compactSourceRefs : dataSourceRefs).slice(0, 5),
+          boundary_text: safeArray(compact.boundary_text).length
+            ? safeArray(compact.boundary_text)
+            : [
+                "Project Constellation context is read-only operator context.",
+                "Evidence refs remain pointer-only.",
+                "Unresolved tensions remain unresolved.",
+                "Advisory next action context does not execute Codex.",
+                "This context cannot record proof or evidence, mutate Augnes state, create branches or PRs, merge, publish, retry, replay, or deploy.",
+              ],
+        };
+      }
+
+      function constellationContextPacketLines(context) {
+        if (!context || context.status !== "attached") {
+          return ["- No Project Constellation context is attached to this work contract."];
+        }
+        return [
+          `- Thesis: ${context.thesis}`,
+          `- Selected candidate ID: ${context.selected_candidate_id || "missing"}`,
+          `- Selected candidate label: ${context.selected_candidate_label || "missing"}`,
+          `- Selection status: ${context.selection_status || "missing"}`,
+          context.selection_fallback_reason ? `- Selection fallback: ${context.selection_fallback_reason}` : "- Selection fallback: none",
+          `- Pointer-only evidence refs: ${safeCount(context.pointer_evidence_ref_count)}`,
+          ...safeArray(context.pointer_evidence_refs).map((item) => `  - ${item}`),
+          `- Unresolved tensions: ${safeCount(context.unresolved_tension_count)}`,
+          ...safeArray(context.unresolved_tensions).map((item) => `  - ${item}`),
+          `- Advisory next action: ${context.advisory_next_action_summary || "missing"}`,
+          "- Source refs:",
+          ...(safeArray(context.source_refs).length ? safeArray(context.source_refs).map((item) => `  - ${item}`) : ["  - No source refs attached."]),
+        ];
       }
 
       function normalizeWorkContractCard(data) {
@@ -768,12 +935,20 @@
             card.skipped_check_expectation_summary,
             "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief."
           ),
+          constellation_context: normalizeWorkContractConstellationContext(data),
           authority_boundary_text: boundaries,
         };
       }
 
       function normalizeCodexHandoffPreview(data, card) {
         const preview = data?.codex_handoff_preview || {};
+        const constellationContext = normalizeWorkContractConstellationContext({
+          ...data,
+          work_contract_card: {
+            ...(data?.work_contract_card || {}),
+            constellation_context: data?.work_contract_card?.constellation_context || card.constellation_context,
+          },
+        });
         const boundaryText = safeArray(preview.boundary_text).length
           ? safeArray(preview.boundary_text)
           : [
@@ -858,6 +1033,7 @@
             },
             forbidden_actions: forbiddenActions,
             stop_conditions: stopConditions,
+            constellation_context: constellationContext.status === "attached" ? constellationContext : null,
             authority_boundaries: boundaryText,
             copy_packet: {
               preview_only: true,
@@ -878,6 +1054,9 @@
             "This is a preview/copy packet, not an execution action.",
             "",
             `AUGNES_API_BASE_URL=${fallbackRuntimeForCommand} CODEX_SCOPE=${fallbackScope} CODEX_WORK_ID=${fallbackWorkId} npm run codex:read-brief`,
+            "",
+            "Project Constellation context",
+            ...constellationContextPacketLines(constellationContext),
             "",
             "Authority boundaries",
             ...boundaryText.map((item) => `- ${item}`),
@@ -907,6 +1086,7 @@
           browser_verification: fallbackBrowserVerification,
           forbidden_actions: forbiddenActions,
           stop_conditions: stopConditions,
+          constellation_context: constellationContext,
           copyable_handoff_text: packetText,
           boundary_text: boundaryText,
         };
@@ -1189,6 +1369,48 @@
         return root;
       }
 
+      function renderWorkContractConstellationContext(context) {
+        const root = el("div", { className: "stack" });
+        if (!context || context.status !== "attached") {
+          root.appendChild(el("div", {
+            className: "status-box",
+            text: "No Project Constellation context is attached to this work contract.",
+          }));
+          root.appendChild(createTextList(context?.boundary_text || [
+            "Project Constellation context is optional read-only operator context.",
+            "Missing context is not reconstructed or invented.",
+          ]));
+          return root;
+        }
+
+        root.appendChild(el("div", {
+          className: "status-box",
+          text:
+            "Read-only Project Constellation context. Evidence refs are pointer-only, unresolved tensions remain unresolved, and advisory next action context does not execute Codex or mutate Augnes state.",
+        }));
+        root.appendChild(el("p", { className: "summary", text: context.thesis }));
+        root.appendChild(createMetricGrid([
+          ["Selected candidate ID", context.selected_candidate_id || "missing"],
+          ["Selected candidate label", context.selected_candidate_label || "missing"],
+          ["Selection status", context.selection_status || "missing"],
+          ["Evidence refs", safeCount(context.pointer_evidence_ref_count)],
+          ["Unresolved tensions", safeCount(context.unresolved_tension_count)],
+        ]));
+        if (context.selection_fallback_reason) {
+          root.appendChild(el("div", { className: "status-box", text: context.selection_fallback_reason }));
+        }
+        root.appendChild(createSection(
+          "Advisory next action summary",
+          el("div", { className: "status-box", text: context.advisory_next_action_summary || "No advisory next action summary attached." }),
+          { badge: "advisory" }
+        ));
+        root.appendChild(createSection("Pointer-only evidence refs", createTextList(context.pointer_evidence_refs), { badge: `${safeArray(context.pointer_evidence_refs).length}` }));
+        root.appendChild(createSection("Unresolved tensions", createTextList(context.unresolved_tensions), { badge: `${safeArray(context.unresolved_tensions).length}` }));
+        root.appendChild(createSection("Source refs", createTextList(context.source_refs), { badge: `${safeArray(context.source_refs).length}` }));
+        root.appendChild(createSection("Context boundary", createTextList(context.boundary_text), { badge: "read-only" }));
+        return root;
+      }
+
       function renderCodexHandoffPreview(data, card) {
         const preview = normalizeCodexHandoffPreview(data, card);
         const root = el("div", { className: "stack" });
@@ -1251,6 +1473,11 @@
           card.proof_evidence_expectation_summary,
           card.skipped_check_expectation_summary,
         ]), { badge: "read-only" }));
+        root.appendChild(createSection(
+          "Project Constellation context",
+          renderWorkContractConstellationContext(card.constellation_context),
+          { badge: card.constellation_context?.status === "attached" ? "read-only" : "not attached" }
+        ));
         root.appendChild(createSection("Authority boundary", createTextList(card.authority_boundary_text), { badge: "no writes" }));
         root.appendChild(createSection("Codex Handoff Preview", renderCodexHandoffPreview(data, card), { badge: "copy packet" }));
         return root;

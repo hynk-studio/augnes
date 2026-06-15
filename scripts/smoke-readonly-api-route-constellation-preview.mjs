@@ -112,6 +112,7 @@ const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
 const constellationPreviewSurfaceSmokeFile =
   "scripts/smoke-chatgpt-constellation-preview-surface.mjs";
+const workContractCardSmokeFile = "scripts/smoke-chatgpt-work-contract-card.mjs";
 const chatgptAppServerFile = "apps/augnes_apps/src/server.ts";
 const chatgptAppWidgetFile = "apps/augnes_apps/public/console-widget.html";
 const chatgptAppStateRuntimeTypesFile =
@@ -225,6 +226,7 @@ const allowedChangedFiles = new Set([
   responseShapeTypeFile,
   surfaceSmokeFile,
   constellationPreviewSurfaceSmokeFile,
+  workContractCardSmokeFile,
   chatgptAppServerFile,
   chatgptAppWidgetFile,
   chatgptAppStateRuntimeTypesFile,
