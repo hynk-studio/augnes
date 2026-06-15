@@ -1,6 +1,6 @@
 ---
 name: augnes-codex
-description: Augnes install, Augnes setup, Augnes use, Augnes memory, Augnes reuse, Augnes context, Augnes 설치, Augnes 쓰자, Augnes 기억, Augnes 컨텍스트, Augnes 보고 시작, 아그네스 설치, 아그네스 쓰자 - use when the user asks to install, enable, use, diagnose, or start work with Augnes memory, reuse, or context in Codex.
+description: Augnes install, Augnes setup, Augnes use, Augnes memory, Augnes reuse, Augnes context, Use Augnes, Set up Augnes, Install Augnes, Enable Augnes reuse, Start with Augnes memory, Start from Augnes memories, Use Augnes memory, Use Augnes context, Review this PR with Augnes context, Work with Augnes memory, Start this task with Augnes, Augnes 설치, Augnes 쓰자, Augnes 기억, Augnes 컨텍스트, Augnes 보고 시작, 아그네스 설치, 아그네스 쓰자 - use when the user asks to install, enable, use, diagnose, or start work with Augnes memory, reuse, or context in Codex.
 ---
 
 # Augnes Codex Skill v0.1
@@ -12,6 +12,20 @@ start work with Augnes memory, reuse, or context.
 
 Common trigger phrases include:
 
+- `Use Augnes`
+- `Use Augnes for this task`
+- `Set up Augnes`
+- `Set up Augnes in Codex`
+- `Install Augnes`
+- `Enable Augnes reuse`
+- `Start with Augnes memory`
+- `Start from Augnes memories`
+- `Use Augnes memory`
+- `Use Augnes context`
+- `Use Augnes context before editing`
+- `Review this PR with Augnes context`
+- `Work with Augnes memory`
+- `Start this task with Augnes`
 - `Codex야 Augnes 설치해줘`
 - `Codex야 Augnes 쓰자`
 - `Augnes memory 보고 시작해`
@@ -29,10 +43,71 @@ This skill is a user-facing onboarding layer over the existing Augnes Codex
 hook installer and Perspective Memory Reuse Intake. It does not replace the
 existing hook, installer, or intake command.
 
+## Default Constraints And User-Liftable Limits
+
+At the start of Augnes use, briefly disclose which limits are Augnes defaults
+that the user can lift by explicit user scope, and which limits are
+non-liftable Codex/platform constraints.
+
+Default constraints that are intentionally kept but user-liftable:
+
+- dry-run-first installer behavior
+- real install requires explicit `--yes` or equivalent explicit user
+  authorization
+- no real `~/.codex` write unless explicitly authorized
+- real ~/.codex write remains blocked unless explicitly authorized
+- memory brief is read-only/context-only by default
+- no automatic memory item creation by default
+- no storage/persistence/provider/model/OpenAI config/MCP/Codex SDK/GitHub
+  mutation unless explicitly scoped
+- no plugin-bundled hook implementation by default
+
+Non-liftable Codex/platform constraints:
+
+- `/hooks review/trust remains manual`
+- plugin install does not prove hook trust
+- plugin install does not prove real hook loading
+- static smoke cannot prove real hook loading or trust
+- Codex command approvals and safety behavior remain in force
+
+Unlock protocol:
+
+- If the user explicitly asks to lift a user-liftable default, Codex may
+  proceed within that explicit user scope.
+- For real hook install, Codex may use:
+
+```bash
+npm run codex:install-augnes-reuse-hook -- --yes
+```
+
+  only when the user explicitly asks for real install, asks to skip dry-run, or
+  allows real `~/.codex` writes.
+- If the user asks for storage/persistence/provider/model/OpenAI config/MCP/
+  Codex SDK/GitHub mutation work, Codex may include it only as an explicitly
+  scoped implementation PR, not as hidden setup.
+- If the user asks for automatic memory item creation, Codex may only use
+  existing repo-supported commands if present; otherwise propose or implement a
+  scoped PR for that feature.
+- Codex must not represent lifted defaults as Codex policy bypasses.
+- Codex must not claim it can remove `/hooks` trust.
+- Codex must not use `--dangerously-bypass-hook-trust` as normal UX; phrase
+  this as `not use --dangerously-bypass-hook-trust as normal UX`.
+- Codex must not use --dangerously-bypass-hook-trust as normal UX.
+
+User-facing wording guidance:
+
+- First disclose defaults in a compact way.
+- Then say which user-liftable defaults can be lifted by explicit scope.
+- Then proceed according to the user's chosen scope.
+- Do not repeatedly nag once the mode is established unless a new risky action
+  is requested.
+
 ## Install Request Flow
 
 Use this flow for requests such as:
 
+- `Set up Augnes`
+- `Install Augnes`
 - `Codex야 Augnes 설치해줘`
 - `Augnes reuse 켜줘`
 - `아그네스 설치해줘`
@@ -42,23 +117,26 @@ Procedure:
 1. Confirm the current repository is Augnes or contains the Augnes installer
    scripts.
 2. Check `package.json` for `codex:install-augnes-reuse-hook`.
-3. Prefer dry-run first:
+3. Disclose the default constraints and non-liftable constraints once in
+   compact form.
+4. Prefer dry-run first unless the user has explicitly lifted that default:
 
 ```bash
 npm run codex:install-augnes-reuse-hook -- --dry-run
 ```
 
-4. Summarize what the dry-run would change, including target files and whether
+5. Summarize what the dry-run would change, including target files and whether
    unrelated hooks would be preserved.
-5. Run the real install only after explicit user approval:
+6. Run the real install only after explicit user approval, explicit skip-dry-run
+   scope, or explicit authorization for real `~/.codex` writes:
 
 ```bash
 npm run codex:install-augnes-reuse-hook -- --yes
 ```
 
-6. Explain that `/hooks` review/trust is still required before a non-managed
+7. Explain that `/hooks` review/trust is still required before a non-managed
    hook can actually run.
-7. State clearly that smoke tests can verify files, docs, scripts, and
+8. State clearly that smoke tests can verify files, docs, scripts, and
    temp-home installer behavior, but smoke does not prove real Codex hook
    loading or `/hooks` trust.
 
@@ -72,6 +150,16 @@ npm run codex:uninstall-augnes-reuse-hook -- --yes
 
 Use this flow for requests such as:
 
+- `Use Augnes`
+- `Use Augnes for this task`
+- `Start with Augnes memory`
+- `Start from Augnes memories`
+- `Use Augnes memory`
+- `Use Augnes context`
+- `Use Augnes context before editing`
+- `Review this PR with Augnes context`
+- `Work with Augnes memory`
+- `Start this task with Augnes`
 - `Codex야 Augnes 쓰자`
 - `Augnes memory 보고 시작해`
 - `Augnes context 붙여서 작업해줘`
@@ -81,22 +169,30 @@ Procedure:
 1. Diagnose whether the user-level hook installer appears to be present, for
    example by checking `package.json` for `codex:install-augnes-reuse-hook` and
    `codex:uninstall-augnes-reuse-hook`.
-2. Warn that `/hooks` review/trust may still be required before hook automation
-   can run.
-3. If hook automation is unavailable, missing, disabled, or not trusted, fall
+2. Disclose the default constraints and non-liftable constraints once in
+   compact form.
+3. Warn that `/hooks review/trust remains manual` and may still be required
+   before hook automation can run.
+4. If hook automation is unavailable, missing, disabled, or not trusted, fall
    back to manual Perspective Memory Reuse Intake.
-4. Use the repository's equivalent script when it differs; otherwise run:
+5. Use the repository's equivalent script when it differs; otherwise run:
 
 ```bash
 npm run perspective:memory-reuse-intake -- --task "<task>" --brief
 ```
 
-5. Treat the resulting Codex Memory Brief as task-start context.
+6. Treat the resulting Codex Memory Brief as task-start context.
 
 ## Work-Start Memory Flow
 
 Use this flow for requests such as:
 
+- `Start with Augnes memory`
+- `Start from Augnes memories`
+- `Use Augnes memory`
+- `Review this PR with Augnes context`
+- `Work with Augnes memory`
+- `Start this task with Augnes`
 - `Augnes memory 보고 이 PR 리뷰해줘`
 - `Augnes reuse context로 이 작업 시작해`
 
@@ -120,10 +216,9 @@ npm run perspective:memory-reuse-intake -- --task "<task>" --brief
 
 Do not add or mutate the following unless the user explicitly scopes the work:
 
-- storage
-- persistence
+- storage/persistence
 - provider/model calls
-- OpenAI provider configuration
+- OpenAI config
 - MCP
 - Codex SDK
 - GitHub mutation

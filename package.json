@@ -323,6 +323,7 @@
     "smoke:codex-augnes-skill-v0-1": "node scripts/smoke-codex-augnes-skill-v0-1.mjs",
     "smoke:codex-augnes-plugin-v0-1": "node scripts/smoke-codex-augnes-plugin-v0-1.mjs",
     "smoke:codex-augnes-plugin-manual-validation": "node scripts/smoke-codex-augnes-plugin-manual-validation.mjs",
+    "smoke:codex-augnes-english-triggers-liftable-constraints": "node scripts/smoke-codex-augnes-english-triggers-liftable-constraints.mjs",
     "smoke:perspective-memory-reuse-intake": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-reuse-intake.mjs",
     "smoke:perspective-memory-reuse-intake-dogfood-report": "node scripts/smoke-perspective-memory-reuse-intake-dogfood-report.mjs",
     "smoke:perspective-memory-reuse-quality-review": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-memory-reuse-quality-review.mjs",

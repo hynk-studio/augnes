@@ -8,8 +8,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Augnes Codex",
-    "shortDescription": "Guide Augnes setup, /hooks trust, and memory reuse fallback in Codex.",
-    "longDescription": "Packages the Augnes Codex Skill v0.1 for guided setup and reuse onboarding. Guides Codex through installer dry-run, explicit --yes install, /hooks trust review, and memory-reuse fallback. Hook trust remains manual; installing this plugin does not mutate ~/.codex, bundle hooks, or add MCP, provider/model, storage, persistence, Codex SDK, GitHub mutation, or automatic memory item creation behavior.",
+    "shortDescription": "Guide Augnes setup, English/Korean triggers, /hooks trust, and memory reuse fallback in Codex.",
+    "longDescription": "Packages the Augnes Codex Skill v0.1 for guided setup and reuse onboarding. Guides Codex through English and Korean Augnes install/use triggers, installer dry-run, explicit --yes install, user-liftable default constraints, non-liftable /hooks trust review, and memory-reuse fallback. Hook trust remains manual; installing this plugin does not write to ~/.codex, bundle hooks, or add MCP, provider/model, storage, persistence, Codex SDK, GitHub mutation, or automatic memory item creation behavior.",
     "developerName": "hynk-studio",
     "category": "Productivity",
     "capabilities": [
@@ -20,6 +20,12 @@
       "manual-hook-trust-guidance"
     ],
     "defaultPrompt": [
+      "Use Augnes for this task",
+      "Set up Augnes in Codex",
+      "Start with Augnes memory",
+      "Review this PR with Augnes context",
+      "Enable Augnes reuse",
+      "Use Augnes context before editing",
       "Codex야 Augnes 설치해줘",
       "Codex야 Augnes 쓰자",
       "Augnes memory 보고 시작해",
