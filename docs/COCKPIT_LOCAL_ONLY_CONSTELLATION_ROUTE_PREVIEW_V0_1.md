@@ -11,9 +11,9 @@ Status:
 - route-only read preview
 - copyable Codex handoff prompt
 - no execution/write authority
-- no App/MCP consumer
-- no ChatGPT App component
-- no MCP/App tool
+- this Cockpit slice added no App/MCP consumer
+- this Cockpit slice added no ChatGPT App component
+- this Cockpit slice added no MCP/App tool
 - no plugin tool
 - no route behavior change
 - no route file change
@@ -46,7 +46,12 @@ This implementation adds a Cockpit-local diagnostic/read-only preview for:
 GET /api/augnes/read/constellation-preview?scope=project:augnes
 ```
 
-It connects no App/MCP/ChatGPT App/plugin tool.
+This Cockpit slice connects no App/MCP/ChatGPT App/plugin tool.
+
+A later separately scoped App/MCP read-only contact surface now exists through
+`augnes_get_project_constellation_preview`. That later surface reads the same
+local route without changing this Cockpit slice's local-only, read-only,
+non-authoritative behavior.
 
 `docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records
 this implementation as part of the closed local-only milestone. The closeout

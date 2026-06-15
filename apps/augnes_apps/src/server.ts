@@ -16,10 +16,12 @@ import { withPresentation } from "./lib/profile.js";
 import { sanitizeValue } from "./lib/sanitize.js";
 import {
   EvidencePackToolInputSchema,
+  ProjectConstellationPreviewToolInputSchema,
   SessionTraceToolInputSchema,
   StateRuntimeActionResultKindSchema,
   StateRuntimeActionResultStatusSchema,
   VerificationEvidenceRecordsToolInputSchema,
+  type ConstellationPreviewResult,
   type ControlPacket,
   type PublicationSummaryResult,
   type SessionTraceResult,
@@ -49,6 +51,7 @@ export const LEGACY_PUBLIC_TOOL_NAMES = [
 ] as const;
 export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_get_state_brief",
+  "augnes_get_project_constellation_preview",
   "augnes_get_evidence_pack",
   "augnes_get_session_trace",
   "augnes_get_verification_evidence_records",
@@ -1106,6 +1109,303 @@ function describePublicationDecisionCard(card: PublicationDecisionCard): string 
   ].join(" ");
 }
 
+const PROJECT_CONSTELLATION_HANDOFF_BOUNDARY_TEXT = [
+  "This preview is read-only.",
+  "This preview cannot execute Codex.",
+  "This preview cannot record proof or evidence.",
+  "This preview cannot commit or reject Augnes state.",
+  "This preview cannot create branches or PRs.",
+  "This preview cannot approve, publish, retry, replay, externally post, merge, deploy, or enable auto-merge.",
+  "Evidence pointers are pointer-only.",
+  "Next action candidates are advisory.",
+  "A copied handoff seed is manual preview text only.",
+  "Durable approval remains user/Core gated.",
+] as const;
+
+const PROJECT_CONSTELLATION_REQUIRED_CHECKS = [
+  "npm run typecheck",
+  "npm --prefix apps/augnes_apps run typecheck",
+  "npm run smoke:chatgpt-constellation-preview-surface",
+  "npm run smoke:chatgpt-work-contract-card",
+  "npm run smoke:readonly-api-route-constellation-preview",
+  "git diff --check",
+] as const;
+
+const PROJECT_CONSTELLATION_FINAL_REPORT_REQUIREMENTS = [
+  "Changed files",
+  "Verification results",
+  "Skipped checks with concrete reasons",
+  "Remaining caveats",
+] as const;
+
+type ConstellationProject = ConstellationPreviewResult["project_constellation"];
+type ConstellationEvidencePointer = ConstellationPreviewResult["evidence_pointers"][number];
+type ConstellationTension = ConstellationPreviewResult["unresolved_tensions"][number];
+type ConstellationNextAction = ConstellationPreviewResult["next_action_candidates"][number];
+type ConstellationSourceRef = ConstellationPreviewResult["source_refs"][number];
+
+type ProjectConstellationHandoffSeed = {
+  seed_type: "project_constellation_codex_handoff_seed";
+  status: "available" | "unavailable";
+  selected_candidate_id: string | null;
+  selected_candidate_label: string | null;
+  preview_text: string;
+  source_refs: string[];
+  required_checks: readonly string[];
+  skipped_check_policy: string;
+  final_report_requirements: readonly string[];
+  boundary_text: readonly string[];
+};
+
+type ProjectConstellationPreviewSurface = {
+  preview_type: "project_constellation_preview_surface";
+  title: "Project Constellation Preview";
+  scope: string;
+  status: "available" | "unavailable";
+  fallback_text: string | null;
+  project_constellation: ConstellationProject;
+  evidence_pointers: ConstellationEvidencePointer[];
+  unresolved_tensions: ConstellationTension[];
+  next_action_candidates: ConstellationNextAction[];
+  copyable_handoff_seed: ProjectConstellationHandoffSeed;
+  source_refs: ConstellationSourceRef[];
+  missing_data_fallbacks: string[];
+  boundaries: {
+    read_only: true;
+    local_route_read: true;
+    state_commit_or_reject: false;
+    codex_execution: false;
+    proof_recording: false;
+    evidence_recording: false;
+    branch_or_pr_creation: false;
+    approval_authority: false;
+    publish_authority: false;
+    retry_authority: false;
+    replay_authority: false;
+    deploy_authority: false;
+    merge_authority: false;
+    github_calls: false;
+    openai_calls: false;
+    provider_calls: false;
+    persistence: false;
+    source_of_truth: false;
+  };
+};
+
+function fallbackProjectConstellation(reason: string): ConstellationProject {
+  return {
+    constellation_id: "project_constellation.unavailable",
+    boundary_class: "read_only_local_static_preview",
+    thesis: `Project Constellation preview unavailable: ${reason}`,
+    nodes: [],
+    edges: [],
+    clusters: [],
+    evidence_pointers: [],
+    unresolved_tensions: [],
+    next_action_candidates: [],
+  };
+}
+
+function listForHandoff(items: string[], fallback: string): string {
+  return items.length ? items.map((item) => `- ${item}`).join("\n") : `- ${fallback}`;
+}
+
+function summarizeEvidencePointer(pointer: ConstellationEvidencePointer): string {
+  return `${pointer.pointer_id}: ${pointer.label} -> ${pointer.target_ref}`;
+}
+
+function summarizeTension(tension: ConstellationTension): string {
+  return `${tension.tension_id}: ${tension.summary}`;
+}
+
+function summarizeNextAction(action: ConstellationNextAction): string {
+  return `${action.candidate_id}: ${action.summary}`;
+}
+
+function buildProjectConstellationHandoffSeed(input: {
+  scope: string;
+  projectConstellation: ConstellationProject;
+  evidencePointers: ConstellationEvidencePointer[];
+  unresolvedTensions: ConstellationTension[];
+  nextActionCandidates: ConstellationNextAction[];
+  sourceRefs: ConstellationSourceRef[];
+  fallbackText: string | null;
+}): ProjectConstellationHandoffSeed {
+  const selectedCandidate = input.nextActionCandidates[0] ?? null;
+  const status = input.fallbackText ? "unavailable" : "available";
+  const sourceRefs = input.sourceRefs.map((sourceRef) => sourceRef.source_ref);
+  const previewText = input.fallbackText
+    ? [
+        "Augnes Project Constellation handoff seed",
+        "This is fallback preview text only. It does not invent missing context and does not execute Codex.",
+        "",
+        `Scope: ${input.scope}`,
+        `Fallback: ${input.fallbackText}`,
+        "",
+        "Next step",
+        "- Check that the local Augnes runtime is available, then rerun the read-only App/MCP preview tool.",
+        "",
+        "Authority boundaries",
+        listForHandoff([...PROJECT_CONSTELLATION_HANDOFF_BOUNDARY_TEXT], "No boundary text listed."),
+      ].join("\n")
+    : [
+        "Augnes Project Constellation handoff seed",
+        "This is manual preview text for a separate user-started Codex task. It does not execute Codex.",
+        "",
+        "Repository",
+        "- hynk-studio/augnes",
+        "- Base: main",
+        `- Scope: ${input.scope}`,
+        "",
+        "Project thesis",
+        input.projectConstellation.thesis,
+        "",
+        "Selected/default advisory next action",
+        selectedCandidate ? `- ${summarizeNextAction(selectedCandidate)}` : "- No advisory next action candidate was returned.",
+        "",
+        "Bounded node summaries",
+        listForHandoff(
+          input.projectConstellation.nodes.map((node) => `${node.id}: ${node.label} - ${node.summary}`),
+          "No node summaries were returned."
+        ),
+        "",
+        "Bounded edge summaries",
+        listForHandoff(
+          input.projectConstellation.edges.map((edge) => `${edge.id}: ${edge.source} -> ${edge.target} - ${edge.summary}`),
+          "No edge summaries were returned."
+        ),
+        "",
+        "Bounded cluster summaries",
+        listForHandoff(
+          input.projectConstellation.clusters.map((cluster) => `${cluster.id}: ${cluster.label} - ${cluster.cluster_thesis}`),
+          "No cluster summaries were returned."
+        ),
+        "",
+        "Pointer-only evidence refs",
+        listForHandoff(input.evidencePointers.map(summarizeEvidencePointer), "No evidence pointers were returned."),
+        "",
+        "Unresolved tensions",
+        listForHandoff(input.unresolvedTensions.map(summarizeTension), "No unresolved tensions were returned."),
+        "",
+        "Required checks",
+        listForHandoff([...PROJECT_CONSTELLATION_REQUIRED_CHECKS], "No required checks listed."),
+        "",
+        "Skipped check policy",
+        "- Report every skipped check with a concrete reason.",
+        "",
+        "Final report requirements",
+        listForHandoff([...PROJECT_CONSTELLATION_FINAL_REPORT_REQUIREMENTS], "No final report requirements listed."),
+        "",
+        "Authority boundaries",
+        listForHandoff([...PROJECT_CONSTELLATION_HANDOFF_BOUNDARY_TEXT], "No boundary text listed."),
+        "",
+        "Source refs",
+        listForHandoff(sourceRefs, "No source refs were returned."),
+      ].join("\n");
+
+  return {
+    seed_type: "project_constellation_codex_handoff_seed",
+    status,
+    selected_candidate_id: selectedCandidate?.candidate_id ?? null,
+    selected_candidate_label: selectedCandidate?.label ?? null,
+    preview_text: previewText,
+    source_refs: sourceRefs,
+    required_checks: PROJECT_CONSTELLATION_REQUIRED_CHECKS,
+    skipped_check_policy: "Report every skipped check with a concrete reason.",
+    final_report_requirements: PROJECT_CONSTELLATION_FINAL_REPORT_REQUIREMENTS,
+    boundary_text: PROJECT_CONSTELLATION_HANDOFF_BOUNDARY_TEXT,
+  };
+}
+
+function buildProjectConstellationPreviewSurface({
+  scope,
+  routePreview,
+  fallbackText = null,
+}: {
+  scope: string;
+  routePreview?: ConstellationPreviewResult;
+  fallbackText?: string | null;
+}): ProjectConstellationPreviewSurface {
+  const projectConstellation = routePreview?.project_constellation ?? fallbackProjectConstellation(fallbackText ?? "missing route payload");
+  const evidencePointers = routePreview?.evidence_pointers ?? projectConstellation.evidence_pointers;
+  const unresolvedTensions = routePreview?.unresolved_tensions ?? projectConstellation.unresolved_tensions;
+  const nextActionCandidates = routePreview?.next_action_candidates ?? projectConstellation.next_action_candidates;
+  const sourceRefs = routePreview?.source_refs ?? [];
+  const missingDataFallbacks = [
+    ...(projectConstellation.nodes.length ? [] : ["No node summaries were returned."]),
+    ...(projectConstellation.edges.length ? [] : ["No edge summaries were returned."]),
+    ...(projectConstellation.clusters.length ? [] : ["No cluster summaries were returned."]),
+    ...(evidencePointers.length ? [] : ["No evidence pointers were returned."]),
+    ...(unresolvedTensions.length ? [] : ["No unresolved tensions were returned."]),
+    ...(nextActionCandidates.length ? [] : ["No advisory next action candidates were returned."]),
+    ...(fallbackText ? [fallbackText, "Fallback text is explicit; no missing Project Constellation context was invented."] : []),
+  ];
+  const copyableHandoffSeed = buildProjectConstellationHandoffSeed({
+    scope,
+    projectConstellation,
+    evidencePointers,
+    unresolvedTensions,
+    nextActionCandidates,
+    sourceRefs,
+    fallbackText,
+  });
+
+  return {
+    preview_type: "project_constellation_preview_surface",
+    title: "Project Constellation Preview",
+    scope,
+    status: fallbackText ? "unavailable" : "available",
+    fallback_text: fallbackText,
+    project_constellation: projectConstellation,
+    evidence_pointers: evidencePointers,
+    unresolved_tensions: unresolvedTensions,
+    next_action_candidates: nextActionCandidates,
+    copyable_handoff_seed: copyableHandoffSeed,
+    source_refs: sourceRefs,
+    missing_data_fallbacks: missingDataFallbacks,
+    boundaries: {
+      read_only: true,
+      local_route_read: true,
+      state_commit_or_reject: false,
+      codex_execution: false,
+      proof_recording: false,
+      evidence_recording: false,
+      branch_or_pr_creation: false,
+      approval_authority: false,
+      publish_authority: false,
+      retry_authority: false,
+      replay_authority: false,
+      deploy_authority: false,
+      merge_authority: false,
+      github_calls: false,
+      openai_calls: false,
+      provider_calls: false,
+      persistence: false,
+      source_of_truth: false,
+    },
+  };
+}
+
+function describeProjectConstellationPreviewSurface(surface: ProjectConstellationPreviewSurface): string {
+  if (surface.status === "unavailable") {
+    return [
+      `Project Constellation preview for ${surface.scope} is unavailable.`,
+      surface.fallback_text ?? "No route payload was returned.",
+      "No missing context was invented.",
+      PROJECT_CONSTELLATION_HANDOFF_BOUNDARY_TEXT.join(" "),
+    ].join(" ");
+  }
+
+  return [
+    `Project Constellation preview for ${surface.scope}: ${surface.project_constellation.nodes.length} node(s), ${surface.project_constellation.edges.length} edge(s), ${surface.project_constellation.clusters.length} cluster(s), ${surface.evidence_pointers.length} pointer-only evidence ref(s), ${surface.unresolved_tensions.length} unresolved tension(s), and ${surface.next_action_candidates.length} advisory next action candidate(s).`,
+    `Thesis: ${surface.project_constellation.thesis}`,
+    surface.copyable_handoff_seed.selected_candidate_label
+      ? `Default handoff seed uses ${surface.copyable_handoff_seed.selected_candidate_label}.`
+      : "No default handoff seed action candidate was available.",
+    PROJECT_CONSTELLATION_HANDOFF_BOUNDARY_TEXT.join(" "),
+  ].join(" ");
+}
+
 export type McpAppServerOptions = {
   enableAgentBridge?: boolean;
 };
@@ -1497,6 +1797,72 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_get_state_brief", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_project_constellation_preview",
+      {
+        title: "Get Project Constellation preview",
+        description:
+          "Use this when the user asks to inspect the Augnes Project Constellation preview from ChatGPT. It reads the existing local read-only route and returns compact thesis, node, edge, cluster, evidence-pointer, tension, next-action, and handoff seed data without writing Augnes state or executing Codex.",
+        inputSchema: ProjectConstellationPreviewToolInputSchema.shape,
+        annotations: bridgeReadAnnotations,
+        _meta: widgetToolMeta,
+      },
+      async ({ scope }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const routePreview = await stateRuntimeAdapter.getConstellationPreview(resolvedScope);
+          const projectConstellationPreview = buildProjectConstellationPreviewSurface({
+            scope: resolvedScope,
+            routePreview,
+          });
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            panel: "project_constellation_preview",
+            project_constellation_preview: projectConstellationPreview,
+            project_constellation: projectConstellationPreview.project_constellation,
+            evidence_pointers: projectConstellationPreview.evidence_pointers,
+            unresolved_tensions: projectConstellationPreview.unresolved_tensions,
+            next_action_candidates: projectConstellationPreview.next_action_candidates,
+            copyable_handoff_seed: projectConstellationPreview.copyable_handoff_seed,
+            missing_data_fallbacks: projectConstellationPreview.missing_data_fallbacks,
+            boundaries: projectConstellationPreview.boundaries,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeProjectConstellationPreviewSurface(projectConstellationPreview)),
+            _meta: structuredContent,
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Augnes Project Constellation preview route is unavailable.";
+          const projectConstellationPreview = buildProjectConstellationPreviewSurface({
+            scope: resolvedScope,
+            fallbackText: message,
+          });
+          const structuredContent = sanitizePayload({
+            profile: config.appProfile,
+            panel: "project_constellation_preview",
+            project_constellation_preview: projectConstellationPreview,
+            project_constellation: projectConstellationPreview.project_constellation,
+            evidence_pointers: projectConstellationPreview.evidence_pointers,
+            unresolved_tensions: projectConstellationPreview.unresolved_tensions,
+            next_action_candidates: projectConstellationPreview.next_action_candidates,
+            copyable_handoff_seed: projectConstellationPreview.copyable_handoff_seed,
+            missing_data_fallbacks: projectConstellationPreview.missing_data_fallbacks,
+            boundaries: projectConstellationPreview.boundaries,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeProjectConstellationPreviewSurface(projectConstellationPreview)),
+            _meta: structuredContent,
+          };
         }
       }
     );

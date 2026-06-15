@@ -836,6 +836,77 @@
         };
       }
 
+      function safeObject(value) {
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      }
+
+      function safeObjectArray(value) {
+        return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
+      }
+
+      function normalizeProjectConstellationPreview(data) {
+        const preview = safeObject(data?.project_constellation_preview);
+        const project = safeObject(preview.project_constellation || data?.project_constellation);
+        const copySeed = safeObject(preview.copyable_handoff_seed || data?.copyable_handoff_seed);
+        const fallbackText = nonEmptyText(preview.fallback_text, "");
+        const evidencePointers = safeObjectArray(preview.evidence_pointers || data?.evidence_pointers || project.evidence_pointers);
+        const unresolvedTensions = safeObjectArray(preview.unresolved_tensions || data?.unresolved_tensions || project.unresolved_tensions);
+        const nextActionCandidates = safeObjectArray(preview.next_action_candidates || data?.next_action_candidates || project.next_action_candidates);
+        const nodes = safeObjectArray(project.nodes);
+        const edges = safeObjectArray(project.edges);
+        const clusters = safeObjectArray(project.clusters);
+        const missingDataFallbacks = safeArray(preview.missing_data_fallbacks || data?.missing_data_fallbacks);
+
+        return {
+          title: nonEmptyText(preview.title, "Project Constellation Preview"),
+          scope: nonEmptyText(preview.scope, "project:augnes"),
+          status: nonEmptyText(preview.status, fallbackText ? "unavailable" : "available"),
+          fallback_text: fallbackText,
+          project_constellation: {
+            constellation_id: nonEmptyText(project.constellation_id, "No constellation ID returned."),
+            boundary_class: nonEmptyText(project.boundary_class, "read_only_local_static_preview"),
+            thesis: nonEmptyText(project.thesis, fallbackText || "No Project Constellation thesis was returned."),
+            nodes,
+            edges,
+            clusters,
+          },
+          evidence_pointers: evidencePointers,
+          unresolved_tensions: unresolvedTensions,
+          next_action_candidates: nextActionCandidates,
+          copyable_handoff_seed: {
+            status: nonEmptyText(copySeed.status, fallbackText ? "unavailable" : "available"),
+            selected_candidate_id: nonEmptyText(copySeed.selected_candidate_id, "No advisory next action candidate selected."),
+            selected_candidate_label: nonEmptyText(copySeed.selected_candidate_label, "No selected candidate label."),
+            preview_text: nonEmptyText(
+              copySeed.preview_text,
+              [
+                "Augnes Project Constellation handoff seed",
+                "No Project Constellation route payload was returned. This fallback does not invent missing context and does not execute Codex.",
+              ].join("\n")
+            ),
+            source_refs: safeArray(copySeed.source_refs),
+            required_checks: safeArray(copySeed.required_checks),
+            skipped_check_policy: nonEmptyText(copySeed.skipped_check_policy, "Report every skipped check with a concrete reason."),
+            final_report_requirements: safeArray(copySeed.final_report_requirements),
+            boundary_text: safeArray(copySeed.boundary_text).length
+              ? safeArray(copySeed.boundary_text)
+              : [
+                  "This preview is read-only.",
+                  "This preview cannot execute Codex.",
+                  "This preview cannot record proof or evidence.",
+                  "This preview cannot commit or reject Augnes state.",
+                  "This preview cannot create branches or PRs.",
+                  "This preview cannot approve, publish, retry, replay, externally post, merge, deploy, or enable auto-merge.",
+                  "Evidence pointers are pointer-only.",
+                  "Next action candidates are advisory.",
+                  "A copied handoff seed is manual preview text only.",
+                  "Durable approval remains user/Core gated.",
+                ],
+          },
+          missing_data_fallbacks: missingDataFallbacks,
+        };
+      }
+
       function renderError(error) {
         const box = el("div", { className: "status-box error-box" });
         box.textContent = error?.message || "Tool execution failed.";
@@ -1064,6 +1135,122 @@
         return root;
       }
 
+      function createConstellationNodeCard(item) {
+        const card = el("div", { className: "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.append(el("div", { className: "item-title", text: nonEmptyText(item.label, nonEmptyText(item.id, "Unnamed node")) }));
+        titleRow.appendChild(tag(nonEmptyText(item.type, "node")));
+        card.appendChild(titleRow);
+        card.appendChild(el("div", { className: "meta-line", text: `ID: ${nonEmptyText(item.id, "unknown")}` }));
+        card.appendChild(el("div", { className: "item-note", text: nonEmptyText(item.summary, "No node summary returned.") }));
+        const pointers = safeObjectArray(item.evidence_pointers).map((pointer) => nonEmptyText(pointer.pointer_id, ""));
+        if (pointers.length) {
+          card.appendChild(el("div", { className: "item-note", text: `Evidence refs: ${pointers.join(", ")}` }));
+        }
+        return card;
+      }
+
+      function createConstellationEdgeCard(item) {
+        const card = el("div", { className: "item" });
+        card.appendChild(el("div", { className: "item-title", text: nonEmptyText(item.id, "Unnamed edge") }));
+        card.appendChild(el("div", { className: "meta-line", text: `${nonEmptyText(item.source, "unknown")} -> ${nonEmptyText(item.target, "unknown")}` }));
+        card.appendChild(el("div", { className: "item-note", text: nonEmptyText(item.summary, "No edge summary returned.") }));
+        return card;
+      }
+
+      function createConstellationClusterCard(item) {
+        const card = el("div", { className: "item" });
+        card.appendChild(el("div", { className: "item-title", text: nonEmptyText(item.label, nonEmptyText(item.id, "Unnamed cluster")) }));
+        card.appendChild(el("div", { className: "meta-line", text: `Nodes: ${safeArray(item.node_ids).join(", ") || "none"}` }));
+        card.appendChild(el("div", { className: "item-note", text: nonEmptyText(item.cluster_thesis, "No cluster thesis returned.") }));
+        return card;
+      }
+
+      function createConstellationEvidenceCard(item) {
+        const card = el("div", { className: "item" });
+        card.appendChild(el("div", { className: "item-title", text: nonEmptyText(item.label, nonEmptyText(item.pointer_id, "Unnamed evidence pointer")) }));
+        card.appendChild(el("div", { className: "meta-line", text: `Pointer: ${nonEmptyText(item.pointer_id, "unknown")}` }));
+        card.appendChild(el("div", { className: "meta-line", text: `Target: ${nonEmptyText(item.target_ref, "No target ref returned.")}` }));
+        card.appendChild(el("div", { className: "item-note", text: nonEmptyText(item.bounded_summary, "Pointer-only evidence ref; no proof or evidence record is created.") }));
+        return card;
+      }
+
+      function createConstellationTensionCard(item) {
+        const card = el("div", { className: "item" });
+        card.appendChild(el("div", { className: "item-title", text: nonEmptyText(item.label, nonEmptyText(item.tension_id, "Unresolved tension")) }));
+        card.appendChild(el("div", { className: "meta-line", text: `ID: ${nonEmptyText(item.tension_id, "unknown")}` }));
+        card.appendChild(el("div", { className: "item-note", text: nonEmptyText(item.summary, "No tension summary returned.") }));
+        return card;
+      }
+
+      function createConstellationNextActionCard(item) {
+        const card = el("div", { className: "item" });
+        card.appendChild(el("div", { className: "item-title", text: nonEmptyText(item.label, nonEmptyText(item.candidate_id, "Advisory next action")) }));
+        card.appendChild(el("div", { className: "meta-line", text: `ID: ${nonEmptyText(item.candidate_id, "unknown")}` }));
+        card.appendChild(el("div", { className: "item-note", text: nonEmptyText(item.summary, "No advisory next action summary returned.") }));
+        return card;
+      }
+
+      function renderCopyableConstellationHandoff(seed) {
+        const root = el("div", { className: "stack" });
+        const status = el("div", {
+          className: "status-box",
+          text:
+            "Copy action only. The handoff seed is manual preview text; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, create branches or PRs, merge, or publish.",
+        });
+        status.setAttribute("aria-live", "polite");
+        const copyRow = el("div", { className: "copy-row" });
+        const copyButton = document.createElement("button");
+        copyButton.type = "button";
+        copyButton.className = "copy-button";
+        copyButton.textContent = "Copy Handoff Preview";
+        copyButton.addEventListener("click", async () => {
+          try {
+            if (!navigator.clipboard?.writeText) {
+              throw new Error("Clipboard unavailable.");
+            }
+            await navigator.clipboard.writeText(seed.preview_text);
+            status.textContent = "Handoff preview copied.";
+          } catch {
+            status.textContent = "Copy unavailable. Select and copy the preview text manually.";
+          }
+        });
+        copyRow.appendChild(copyButton);
+        root.append(status, copyRow, createPreBlock(seed.preview_text));
+        return root;
+      }
+
+      function renderProjectConstellationPreview(data) {
+        const preview = normalizeProjectConstellationPreview(data);
+        const project = preview.project_constellation;
+        const root = el("div", { className: "stack" });
+
+        root.appendChild(createMetricGrid([
+          ["Scope", preview.scope],
+          ["Status", preview.status],
+          ["Boundary", project.boundary_class],
+          ["Nodes", safeCount(project.nodes.length)],
+          ["Edges", safeCount(project.edges.length)],
+          ["Clusters", safeCount(project.clusters.length)],
+          ["Evidence refs", safeCount(preview.evidence_pointers.length)],
+          ["Next actions", safeCount(preview.next_action_candidates.length)],
+        ]));
+        root.appendChild(el("p", { className: "summary", text: project.thesis }));
+        if (preview.fallback_text) {
+          root.appendChild(el("div", { className: "status-box error-box", text: preview.fallback_text }));
+        }
+        root.appendChild(createSection("Nodes", createList(project.nodes, createConstellationNodeCard), { badge: `${project.nodes.length}` }));
+        root.appendChild(createSection("Edges", createList(project.edges, createConstellationEdgeCard), { badge: `${project.edges.length}` }));
+        root.appendChild(createSection("Clusters", createList(project.clusters, createConstellationClusterCard), { badge: `${project.clusters.length}` }));
+        root.appendChild(createSection("Pointer-only evidence refs", createList(preview.evidence_pointers, createConstellationEvidenceCard), { badge: `${preview.evidence_pointers.length}` }));
+        root.appendChild(createSection("Unresolved tensions", createList(preview.unresolved_tensions, createConstellationTensionCard), { badge: `${preview.unresolved_tensions.length}` }));
+        root.appendChild(createSection("Advisory next action candidates", createList(preview.next_action_candidates, createConstellationNextActionCard), { badge: `${preview.next_action_candidates.length}` }));
+        root.appendChild(createSection("Copyable handoff seed", renderCopyableConstellationHandoff(preview.copyable_handoff_seed), { badge: preview.copyable_handoff_seed.status }));
+        root.appendChild(createSection("Missing data fallbacks", createTextList(preview.missing_data_fallbacks), { badge: `${preview.missing_data_fallbacks.length}`, open: preview.missing_data_fallbacks.length > 0 }));
+        root.appendChild(createSection("Preview boundary", createTextList(preview.copyable_handoff_seed.boundary_text), { badge: "read-only" }));
+        return root;
+      }
+
       function updateShellState(panel, profile = uiState.profile) {
         uiState.lastPanel = panel || "text";
         uiState.lastUpdated = new Date();
@@ -1139,6 +1326,11 @@
             panelTitleEl.textContent = "Work Contract Card";
             panelEl.appendChild(renderWorkContractCard(data));
             updateShellState("work_contract_card", profile);
+            return;
+          case "project_constellation_preview":
+            panelTitleEl.textContent = "Project Constellation Preview";
+            panelEl.appendChild(renderProjectConstellationPreview(data));
+            updateShellState("project_constellation_preview", profile);
             return;
           default:
             panelTitleEl.textContent = "Structured Output";

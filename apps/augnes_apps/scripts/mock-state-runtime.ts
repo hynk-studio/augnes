@@ -1,6 +1,7 @@
 import type {
   ActionRecordResult,
   CodexResultReviewDraft,
+  ConstellationPreviewResult,
   ControlPacket,
   EvidencePackResult,
   GeneratedHandoffDraft,
@@ -134,6 +135,106 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
           },
         ],
       },
+    };
+  }
+
+  async getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult> {
+    const evidencePointer = {
+      pointer_id: "pointer.smoke.constellation",
+      label: "smoke constellation pointer",
+      target_ref: "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
+      pointer_kind: "evidence_pointer",
+      pointer_semantics: "pointer_only",
+      bounded_summary: "Mock pointer-only evidence for the Project Constellation preview surface.",
+      proof_evidence_write_authority: false,
+      readiness_write_authority: false,
+    } as const;
+    const nextAction = {
+      candidate_id: "project_constellation.smoke.next_action.1",
+      label: "Advisory next action 1",
+      summary: "Use the preview to draft a bounded read-only Codex handoff seed.",
+      source_refs: ["fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json"],
+      boundary_class: "read_only_local_static_preview",
+    };
+    const tension = {
+      tension_id: "project_constellation.smoke.tension.1",
+      label: "Unresolved tension 1",
+      summary: "The preview must remain read-only while still being useful for handoff review.",
+      source_refs: ["fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json"],
+      evidence_pointers: [evidencePointer],
+    };
+
+    return {
+      response_version: "readonly_api_route_response.v0.1",
+      boundary_class: "read_only_local_static_preview",
+      meta: {
+        generated_at: "2026-05-09T00:00:00.000Z",
+        route_family: "project_constellation",
+        workspace_scope: scope,
+        project_scope: scope,
+        request_scope_ref: scope,
+        boundary_class: "read_only_local_static_preview",
+        response_shape_boundary: "type_only",
+        runtime_schema: false,
+        api_route_implementation: false,
+        auth_implementation: false,
+        external_calls: false,
+        source_of_truth: false,
+      },
+      source_refs: [
+        {
+          source_ref: "fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json",
+          source_kind: "static_fixture",
+          source_label: "Project Constellation public-safe sample fixture",
+          source_scope: scope,
+          provenance_note: "Mock fixture pointer for MCP/App preview smoke.",
+        },
+      ],
+      project_constellation: {
+        constellation_id: "project_constellation.mock.smoke",
+        boundary_class: "read_only_local_static_preview",
+        thesis: "Mock Project Constellation preview for ChatGPT/App smoke validation.",
+        nodes: [
+          {
+            id: "node.smoke.chatgpt_contact_surface",
+            type: "surface",
+            label: "ChatGPT contact surface",
+            summary: "A read-only App/MCP preview helps the operator inspect Constellation context.",
+            source_refs: ["fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json"],
+            evidence_pointers: [evidencePointer],
+            unresolved_tensions: [tension],
+            next_action_candidates: [nextAction],
+          },
+        ],
+        edges: [
+          {
+            id: "edge.smoke.preview_to_handoff",
+            type: "supports",
+            source: "node.smoke.chatgpt_contact_surface",
+            target: "node.smoke.codex_handoff_seed",
+            summary: "The preview can feed copyable handoff seed text without executing Codex.",
+            source_refs: ["fixtures/project-constellation.sample.sidecar-strategy-c-v0.1.json"],
+            evidence_pointers: [evidencePointer],
+          },
+        ],
+        clusters: [
+          {
+            id: "cluster.smoke.operator_review",
+            label: "Operator review",
+            node_ids: ["node.smoke.chatgpt_contact_surface"],
+            edge_ids: ["edge.smoke.preview_to_handoff"],
+            cluster_thesis: "Keep the ChatGPT contact surface compact, read-only, and copy-friendly.",
+            unresolved_tensions: [tension],
+            next_action_candidates: [nextAction],
+          },
+        ],
+        evidence_pointers: [evidencePointer],
+        unresolved_tensions: [tension],
+        next_action_candidates: [nextAction],
+      },
+      evidence_pointers: [evidencePointer],
+      unresolved_tensions: [tension],
+      next_action_candidates: [nextAction],
     };
   }
 

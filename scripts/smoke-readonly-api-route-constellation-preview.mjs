@@ -110,6 +110,20 @@ const responseShapeSmokeFile =
   "scripts/smoke-readonly-api-route-response-shape-boundary.mjs";
 const surfaceSmokeFile =
   "scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs";
+const constellationPreviewSurfaceSmokeFile =
+  "scripts/smoke-chatgpt-constellation-preview-surface.mjs";
+const chatgptAppServerFile = "apps/augnes_apps/src/server.ts";
+const chatgptAppWidgetFile = "apps/augnes_apps/public/console-widget.html";
+const chatgptAppStateRuntimeTypesFile =
+  "apps/augnes_apps/src/lib/state-runtime-types.ts";
+const chatgptAppStateRuntimeAdapterFile =
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts";
+const chatgptAppMockStateRuntimeFile =
+  "apps/augnes_apps/scripts/mock-state-runtime.ts";
+const chatgptAppRunbookFile =
+  "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md";
+const chatgptAppInvariantsFile = "apps/augnes_apps/scripts/invariants.ts";
+const chatgptAppSmokeFile = "apps/augnes_apps/scripts/smoke.ts";
 const realAuthGatePlanSmokeFile =
   "scripts/smoke-readonly-api-route-real-auth-gate-plan.mjs";
 const consumerScopeDecisionSmokeFile =
@@ -210,6 +224,15 @@ const allowedChangedFiles = new Set([
   responseShapeSmokeFile,
   responseShapeTypeFile,
   surfaceSmokeFile,
+  constellationPreviewSurfaceSmokeFile,
+  chatgptAppServerFile,
+  chatgptAppWidgetFile,
+  chatgptAppStateRuntimeTypesFile,
+  chatgptAppStateRuntimeAdapterFile,
+  chatgptAppMockStateRuntimeFile,
+  chatgptAppRunbookFile,
+  chatgptAppInvariantsFile,
+  chatgptAppSmokeFile,
   realAuthGatePlanSmokeFile,
   consumerScopeDecisionSmokeFile,
   globalsCssFile,
@@ -263,13 +286,15 @@ const requiredRouteDocPhrases = [
   "Candidate D strict debug mode remains available",
   "scoped to `project:augnes`",
   "static public-safe fixture backed",
-  "route handler itself connects no consumer surface",
+  "route handler itself does not directly connect consumer surfaces",
   "no public unauthenticated endpoint",
   "no DB query",
   "no persistence",
   "no graph DB",
   "Cockpit local-only consumer now exists",
-  "no MCP/App tool",
+  "ChatGPT App/MCP read-only consumer now exists",
+  "augnes_get_project_constellation_preview",
+  "no route behavior change for the App/MCP consumer",
   "no proof/evidence/readiness writes",
   "no Codex SDK execution/provider behavior",
   "no merge/publish/approval/retry/replay/deploy authority",
@@ -406,11 +431,11 @@ console.log(
       untracked_files_skip_reason: changedFilesBoundary.untracked_skip_reason,
       untracked_files_observed: changedFilesBoundary.untracked_files,
       smoke_type: "route-only-local-read-validation",
-      ui_behavior_changed: false,
-      consumer_surface_connected: false,
+      route_owned_ui_behavior_changed: false,
+      separate_app_mcp_consumer_surface_connected: true,
       db_query_implemented: false,
       db_schema_migration_changed: false,
-      mcp_app_tool_changes_added: false,
+      route_owned_mcp_app_tool_changes_added: false,
       proof_evidence_readiness_writes_added: false,
       ag_resume_behavior_added: false,
       codex_sdk_execution_added: false,
