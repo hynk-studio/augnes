@@ -28,10 +28,17 @@ for (const text of [server, widget, runbook]) {
 
 assert.match(server, /work_contract_card/, "server must return Work Contract Card structured content");
 assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
+assert.match(server, /final_codex_handoff_packet/, "server must return Final Codex Handoff Packet structured content");
+assert.match(server, /codex_final_handoff_packet/, "server must expose a final handoff packet alias for model-readable access");
+assert.match(server, /final_handoff_preflight/, "server must return Final Handoff Preflight structured content");
+assert.match(server, /handoff_automation_slots/, "server must return inert handoff automation slots");
 assert.match(server, /work_contract_constellation_context/, "server must support optional Work Contract / Constellation context");
 assert.match(server, /No Project Constellation context is attached to this work contract\./, "server must keep missing Constellation context explicit");
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
 assert.match(widget, /renderCodexHandoffPreview/, "widget must implement Codex Handoff Preview rendering");
+assert.match(widget, /renderFinalCodexHandoffPacket/, "widget must render the Final Codex Handoff section");
+assert.match(widget, /renderFinalHandoffPreflight/, "widget must render final handoff preflight status");
+assert.match(widget, /renderHandoffAutomationSlots/, "widget must render inert future attachment slots");
 assert.match(widget, /renderWorkContractConstellationContext/, "widget must render Work Contract / Constellation context");
 assert.match(widget, /renderCopyableHandoffPacket/, "widget must implement a bounded copy affordance renderer");
 assert.match(server, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block begin delimiter");
@@ -39,11 +46,21 @@ assert.match(server, /END_AUGNES_CODEX_HANDOFF_JSON/, "server packet must includ
 assert.match(widget, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet must include JSON block begin delimiter");
 assert.match(widget, /END_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet must include JSON block end delimiter");
 assert.match(widget, /After copying, validate locally with codex:handoff-preflight\./, "widget must include local preflight hint text");
+assert.match(widget, /Clipboard API/, "copy behavior must retain Clipboard API path text or implementation");
+assert.match(widget, /document\.execCommand\?\.\("copy"\)/, "copy behavior must retain execCommand fallback");
+assert.match(widget, /selectElementText\(pre\)/, "copy behavior must retain visible text selection fallback");
 assert.match(runbook, /Data Source/i, "runbook must explain the data source");
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
+assert.match(runbook, /Final Codex Handoff Auto-Compose And Preflight/i, "runbook must explain final handoff auto-compose and preflight");
+assert.match(runbook, /final_codex_handoff_packet/, "runbook must name the final handoff packet field");
+assert.match(runbook, /final_handoff_preflight/, "runbook must name the final handoff preflight field");
+assert.match(runbook, /memory_reuse_attachment/, "runbook must document inert Memory Reuse attachment slot");
+assert.match(runbook, /pr_body_checklist/, "runbook must document inert PR body checklist slot");
+assert.match(runbook, /codex_result_review_packet/, "runbook must document inert result review packet slot");
 
 const uiText = `${server}\n${widget}`;
+assertNoForbiddenServerOrWidgetCalls(uiText);
 const forbiddenUiPhrases = [
   "Run Codex",
   "Start Codex",
@@ -86,6 +103,9 @@ assert.match(workBriefBlock, /annotations:\s*bridgeReadAnnotations/, "augnes_get
 assert.match(workBriefBlock, /_meta:\s*widgetToolMeta/, "augnes_get_work_brief must be widget-backed for the card");
 assert.match(workBriefBlock, /work_contract_card/, "augnes_get_work_brief must carry card structured content");
 assert.match(workBriefBlock, /codex_handoff_preview/, "augnes_get_work_brief must carry handoff preview structured content");
+assert.match(workBriefBlock, /final_codex_handoff_packet/, "augnes_get_work_brief must carry final handoff packet structured content");
+assert.match(workBriefBlock, /final_handoff_preflight/, "augnes_get_work_brief must carry final handoff preflight structured content");
+assert.match(workBriefBlock, /handoff_automation_slots/, "augnes_get_work_brief must carry inert automation slots");
 
 if (server.includes('"augnes_get_work_contract_card"')) {
   const cardToolBlock = extractToolBlock(server, "augnes_get_work_contract_card");
@@ -96,16 +116,29 @@ if (server.includes('"augnes_get_work_contract_card"')) {
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractCard"), "buildWorkContractCard");
 assertNoNetworkCalls(extractFunction(server, "buildCodexHandoffPreview"), "buildCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(server, "buildCopyableHandoffText"), "buildCopyableHandoffText");
+assertNoNetworkCalls(extractFunction(server, "buildHandoffAutomationSlots"), "buildHandoffAutomationSlots");
+assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffJsonBlock"), "buildFinalCodexHandoffJsonBlock");
+assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffText"), "buildFinalCodexHandoffText");
+assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffPacket"), "buildFinalCodexHandoffPacket");
+assertNoNetworkCalls(extractFunction(server, "extractStructuredHandoffJsonBlock"), "extractStructuredHandoffJsonBlock");
+assertNoNetworkCalls(extractFunction(server, "buildFinalHandoffPreflight"), "buildFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContext"), "buildWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContextFromBrief"), "buildWorkContractConstellationContextFromBrief");
 assertNoNetworkCalls(extractFunction(server, "describeWorkContractCard"), "describeWorkContractCard");
 assertNoNetworkCalls(extractFunction(server, "describeCodexHandoffPreview"), "describeCodexHandoffPreview");
+assertNoNetworkCalls(extractFunction(server, "describeFinalCodexHandoffPacket"), "describeFinalCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
 assertNoNetworkCalls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
+assertNoNetworkCalls(extractFunction(widget, "renderFinalCodexHandoffPacket"), "renderFinalCodexHandoffPacket");
+assertNoNetworkCalls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
+assertNoNetworkCalls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractConstellationContext"), "renderWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(widget, "renderCopyableHandoffPacket"), "renderCopyableHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
+assertNoNetworkCalls(extractFunction(widget, "normalizeFinalCodexHandoffPacket"), "normalizeFinalCodexHandoffPacket");
+assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffPreflight"), "normalizeFinalHandoffPreflight");
+assertNoNetworkCalls(extractFunction(widget, "localFinalPreflight"), "localFinalPreflight");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractConstellationContext"), "normalizeWorkContractConstellationContext");
 assertNoNetworkCalls(widget, "console-widget");
 
@@ -134,15 +167,29 @@ const renderSource = [
   extractFunction(widget, "summarizeContextNextAction"),
   extractFunction(widget, "normalizeWorkContractConstellationContext"),
   extractFunction(widget, "constellationContextPacketLines"),
+  extractFunction(widget, "fallbackHandoffAutomationSlots"),
+  extractFunction(widget, "slotLine"),
+  extractFunction(widget, "finalConstellationPacketLines"),
+  extractFunction(widget, "composeFallbackFinalHandoffText"),
+  extractFunction(widget, "normalizeFinalCodexHandoffPacket"),
+  extractFunction(widget, "extractStructuredHandoffBlock"),
+  extractFunction(widget, "containsForbiddenFinalHandoffLabel"),
+  extractFunction(widget, "localFinalPreflight"),
+  extractFunction(widget, "normalizeFinalHandoffPreflight"),
   extractFunction(widget, "normalizeWorkContractCard"),
   extractFunction(widget, "normalizeCodexHandoffPreview"),
   extractFunction(widget, "renderWorkContractConstellationContext"),
+  extractFunction(widget, "renderFinalHandoffPreflight"),
+  extractFunction(widget, "renderHandoffAutomationSlots"),
+  extractFunction(widget, "renderFinalCodexHandoffPacket"),
   extractFunction(widget, "renderCodexHandoffPreview"),
   extractFunction(widget, "renderWorkContractCard"),
 ].join("\n\n");
 
 assertNoForbiddenControls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
+assertNoForbiddenControls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
+assertNoForbiddenControls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertSafeCopyAffordanceSource(extractFunction(widget, "renderCopyableHandoffPacket"));
@@ -162,9 +209,20 @@ for (const expectedFallback of [
 assertBoundaryText(renderedFallbackText);
 for (const expectedPreviewText of [
   "Codex Handoff Preview",
+  "Final Codex Handoff",
+  "Final Codex Handoff Packet",
+  "Local read-only preflight: pass.",
+  "Preflight checks",
+  "Future attachment slots",
+  "Memory Reuse attachment",
+  "not_attached",
+  "PR body checklist",
+  "not_generated",
+  "Codex result review packet",
   "Readiness reasons",
   "Stop conditions",
   "Copyable handoff packet",
+  "Preparation automation only.",
   "This is a preview/copy packet, not an execution action.",
   "Copy Codex Handoff",
   "After copying, validate locally with codex:handoff-preflight.",
@@ -176,7 +234,7 @@ for (const expectedPreviewText of [
 ]) {
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedPreviewText)), `fallback preview must include: ${expectedPreviewText}`);
 }
-await assertRenderedCopyAffordance(renderedFallback, "clipboard", /No Project Constellation context is attached to this work contract\./);
+await assertRenderedCopyAffordance(renderedFallback, "clipboard", /Final Codex Handoff Packet[\s\S]*No Project Constellation context is attached to this work contract\./);
 const renderedExecFallback = renderFallbackCard(renderSource, { clipboardWriteThrows: true });
 await assertRenderedCopyAffordance(renderedExecFallback, "execCommand");
 const renderedSelectionFallback = renderFallbackCard(renderSource, {
@@ -184,6 +242,7 @@ const renderedSelectionFallback = renderFallbackCard(renderSource, {
   execCommandReturnsFalse: true,
 });
 await assertRenderedCopyAffordance(renderedSelectionFallback, "selection");
+assertFinalPreflightFixtures(renderSource);
 
 const renderedWithConstellation = renderConstellationContextCard(renderSource);
 for (const expectedContextText of [
@@ -211,6 +270,14 @@ console.log(
       handoff_preview_present: true,
       handoff_preview_stop_conditions_present: true,
       handoff_preview_copyable_packet_present: true,
+      final_codex_handoff_packet_present: true,
+      final_packet_work_contract_fields_checked: true,
+      final_packet_missing_constellation_fallback_checked: true,
+      final_packet_attached_constellation_context_checked: true,
+      final_handoff_preflight_present: true,
+      final_handoff_preflight_pass_fixture_checked: true,
+      final_handoff_preflight_malformed_fixture_checked: true,
+      inert_handoff_automation_slots_present: true,
       work_contract_constellation_context_optional: true,
       work_contract_constellation_context_rendered: true,
       missing_constellation_context_fallback_checked: true,
@@ -227,6 +294,7 @@ console.log(
       work_brief_read_only_widget_card: true,
       fallback_render_without_throwing: true,
       direct_network_calls_absent: true,
+      shell_npm_child_process_calls_absent: true,
       forbidden_controls_absent: true,
     },
     null,
@@ -325,6 +393,23 @@ function assertNoNetworkCalls(source, label) {
   }
 }
 
+function assertNoForbiddenServerOrWidgetCalls(source) {
+  const forbiddenPatterns = [
+    /\bchild_process\b/,
+    /\bspawn\s*\(/,
+    /\bexecFile\s*\(/,
+    /\bexec\s*\(/,
+    /\bnpm\s+run\b.*(?:server|widget|App\/MCP)/,
+    /\bapi\.github\.com\b/,
+    /\bapi\.openai\.com\b/,
+    /\bopenai\b.{0,20}\(/i,
+    /\bgithub\b.{0,20}\(/i,
+  ];
+  for (const pattern of forbiddenPatterns) {
+    assert.doesNotMatch(source, pattern, `App/MCP server and widget must not add shell, npm spawn, GitHub/OpenAI, or provider calls: ${pattern}`);
+  }
+}
+
 function assertSafeCopyAffordanceSource(source) {
   assert.match(source, /document\.createElement\("button"\)/, "copy affordance must use a normal button element");
   assert.match(source, /copyButton\.type\s*=\s*"button"/, "copy affordance button must not submit a form");
@@ -354,6 +439,62 @@ function assertSafeCopyAffordanceSource(source) {
   assert.doesNotMatch(source, /\bdispatchEvent\b|\bCustomEvent\b/, "copy affordance must not dispatch execution events");
   assert.doesNotMatch(source, /\bwindow\.open\b|\blocation\./, "copy affordance must not navigate");
   assert.doesNotMatch(source, /\bsubmit\s*\(/, "copy affordance must not submit forms");
+}
+
+function assertFinalPreflightFixtures(source) {
+  const context = { console, JSON, Number, Array, String, Error };
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  context.__passingPacket = {
+    packet_type: "final_codex_handoff_packet",
+    work_id: "AG-SMOKE",
+    work_scope: "project:augnes",
+    authority_boundaries: ["This preview is read-only.", "This preview cannot execute Codex.", "This preview cannot record evidence."],
+    forbidden_actions: ["No Codex execution from this card."],
+    skipped_check_policy: "Skipped checks must be reported with concrete reasons; do not claim skipped checks passed.",
+    final_report_requirements: ["Changed files."],
+    constellation_context_status: "explicitly_absent",
+    copyable_handoff_text: [
+      "Final Codex Handoff Packet",
+      "No Project Constellation context is attached to this work contract.",
+      "Skipped checks must be reported with concrete reasons; do not claim skipped checks passed.",
+      "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
+      JSON.stringify({
+        schema: "augnes.codex_handoff_preview.v0_1",
+        packet_kind: "final_codex_handoff_packet",
+        final_packet_schema: "augnes.final_codex_handoff_packet.v0_1",
+        copy_packet: {
+          preview_only: true,
+          does_not_execute_codex: true,
+          does_not_record_evidence: true,
+          does_not_record_proof: true,
+          does_not_mutate_state: true,
+          does_not_merge: true,
+        },
+      }),
+      "END_AUGNES_CODEX_HANDOFF_JSON",
+    ].join("\n"),
+  };
+  const pass = vm.runInContext("localFinalPreflight(__passingPacket)", context);
+  assert.equal(pass.status, "pass", "normal final handoff fixture must pass local preflight");
+  assert.ok(pass.checks.some((check) => check.id === "authority_boundary" && check.status === "pass"), "preflight must check authority boundary");
+  assert.ok(pass.checks.some((check) => check.id === "skipped_check_policy" && check.status === "pass"), "preflight must check skipped check policy");
+  assert.ok(pass.checks.some((check) => check.id === "forbidden_actions" && check.status === "pass"), "preflight must check forbidden actions");
+  assert.ok(pass.checks.some((check) => check.id === "constellation_context_state" && check.status === "pass"), "preflight must check attached/missing Constellation state");
+
+  context.__badPacket = {
+    packet_type: "final_codex_handoff_packet",
+    work_id: "",
+    authority_boundaries: [],
+    forbidden_actions: [],
+    skipped_check_policy: "",
+    final_report_requirements: [],
+    constellation_context_status: "unknown",
+    copyable_handoff_text: "Final Codex Handoff Packet\nmissing structured block",
+  };
+  const bad = vm.runInContext("localFinalPreflight(__badPacket)", context);
+  assert.equal(bad.status, "fail", "malformed/minimal final handoff fixture must fail local preflight");
+  assert.ok(bad.checks.some((check) => check.status === "fail"), "malformed/minimal preflight must contain failures");
 }
 
 function assertSafeCopyHelperSource(source) {
@@ -561,7 +702,7 @@ function renderCard(source, payload, options = {}) {
   };
 }
 
-async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "clipboard", expectedTextPattern = /Codex Handoff Preview/) {
+async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "clipboard", expectedTextPattern = /Final Codex Handoff Packet/) {
   const buttons = collectNodes(renderedFallback.tree, (node) => node.tag === "button");
   assert.equal(buttons.length, 1, "fallback render must include exactly one safe copy button");
   assert.ok(allowedCopyLabels.includes(buttons[0].textContent), "copy button label must be allowed");
@@ -573,7 +714,7 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
   );
   assert.equal(statusNodes.length, 1, "copy affordance must expose one aria-live local status node");
   const preBlocks = collectNodes(renderedFallback.tree, (node) => node.tag === "pre");
-  assert.ok(preBlocks.some((node) => node.textContent.includes("Codex Handoff Preview")), "packet preformatted text must remain visible");
+  assert.ok(preBlocks.some((node) => node.textContent.includes("Final Codex Handoff Packet")), "final packet preformatted text must remain visible");
 
   await buttons[0].listeners.click[0]();
   const copiedText = expectedPath === "execCommand"
@@ -581,7 +722,7 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
     : expectedPath === "selection"
       ? renderedFallback.context.__selectedText
       : renderedFallback.context.__copiedText;
-  assert.match(copiedText, /Codex Handoff Preview/, "copy button must copy the handoff packet");
+  assert.match(copiedText, /Final Codex Handoff Packet/, "copy button must copy the final handoff packet");
   assert.match(copiedText, expectedTextPattern, "copy button must copy the expected visible handoff packet text");
   assert.match(copiedText, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON begin delimiter");
   assert.match(copiedText, /END_AUGNES_CODEX_HANDOFF_JSON/, "copied packet must include JSON end delimiter");
@@ -604,7 +745,8 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
 
   const jsonBlock = extractEmbeddedHandoffJson(copiedText);
   assert.equal(jsonBlock.schema, "augnes.codex_handoff_preview.v0_1", "embedded handoff JSON schema must match v0.1");
-  assert.equal(jsonBlock.packet_kind, "codex_handoff_preview", "embedded handoff JSON kind must identify the packet");
+  assert.equal(jsonBlock.packet_kind, "final_codex_handoff_packet", "embedded handoff JSON kind must identify the final packet");
+  assert.equal(jsonBlock.final_packet_schema, "augnes.final_codex_handoff_packet.v0_1", "embedded JSON must identify the final packet schema");
   assert.equal(jsonBlock.copy_packet.preview_only, true, "embedded JSON must mark packet preview-only");
   assert.equal(jsonBlock.copy_packet.does_not_execute_codex, true, "embedded JSON must mark no Codex execution");
   assert.equal(jsonBlock.copy_packet.does_not_record_proof, true, "embedded JSON must mark no proof recording");
