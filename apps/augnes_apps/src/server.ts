@@ -856,6 +856,10 @@ type CoreCodexHandoffPacket = {
   source_packet_type: "final_codex_handoff_packet";
   source_packet_schema: typeof FINAL_CODEX_HANDOFF_PACKET_SCHEMA;
   copy_intent: "shorter_packet_for_starting_codex_work";
+  core_handoff_usage: CoreHandoffUsage;
+  implementation_anchors: string[];
+  implementation_anchor_summary: string;
+  full_context_required_before_implementation: boolean;
   work_scope: string | null;
   work_id: string | null;
   work_title: string | null;
@@ -892,6 +896,8 @@ type CoreCodexHandoffPacket = {
     persistence: false;
   };
 };
+
+type CoreHandoffUsage = "planning_only" | "implementation_ready" | "implementation_requires_full_context";
 
 type FinalCodexHandoffPacket = {
   packet_type: "final_codex_handoff_packet";
@@ -1152,6 +1158,31 @@ function browserVerificationForProfile(
 
 function listForPacket(items: string[], fallback: string): string {
   return items.length ? items.map((item) => `  - ${item}`).join("\n") : `  - ${fallback}`;
+}
+
+function uniqueNonEmptyStrings(items: readonly (string | null | undefined)[]): string[] {
+  return Array.from(new Set(items.map((item) => nonEmptyString(item)).filter((item): item is string => Boolean(item))));
+}
+
+function buildCoreImplementationAnchors(finalPacket: FinalCodexHandoffPacket): string[] {
+  return uniqueNonEmptyStrings(finalPacket.expected_files);
+}
+
+function coreHandoffUsageForAnchors(implementationAnchors: readonly string[]): CoreHandoffUsage {
+  return implementationAnchors.length > 0 ? "implementation_ready" : "implementation_requires_full_context";
+}
+
+function coreImplementationAnchorSummary(
+  coreHandoffUsage: CoreHandoffUsage,
+  implementationAnchors: readonly string[]
+): string {
+  if (implementationAnchors.length > 0) {
+    return "Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing.";
+  }
+  if (coreHandoffUsage === "implementation_requires_full_context") {
+    return "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation.";
+  }
+  return "Core is planning-only until implementation anchors are confirmed.";
 }
 
 function formatPacketLine(value: string | null, fallback = "missing"): string {
@@ -2327,6 +2358,10 @@ function buildCoreCodexHandoffJsonBlock(
     source_packet_type: packet.source_packet_type,
     source_packet_schema: packet.source_packet_schema,
     copy_intent: packet.copy_intent,
+    core_handoff_usage: packet.core_handoff_usage,
+    implementation_anchors: packet.implementation_anchors,
+    implementation_anchor_summary: packet.implementation_anchor_summary,
+    full_context_required_before_implementation: packet.full_context_required_before_implementation,
     runtime: {
       endpoint_label: "provided by current Augnes runtime",
       requires_user_core_confirmation: true,
@@ -2399,10 +2434,17 @@ function buildCoreCodexHandoffText(
     "Codex read-brief start preview",
     `AUGNES_API_BASE_URL=<provided-current-runtime> CODEX_SCOPE=${formatStatus(packet.work_scope, "<provided-scope>")} CODEX_WORK_ID=${formatStatus(packet.work_id, "<provided-work-id>")} npm run codex:read-brief`,
     "",
+    "Core usage",
+    `- Usage state: ${packet.core_handoff_usage}`,
+    `- ${packet.implementation_anchor_summary}`,
+    "",
+    "Implementation anchors",
+    listForPacket(packet.implementation_anchors, "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation."),
+    "",
     "Expected scope",
     "- Expected files:",
     listForPacket(packet.expected_files, "No expected files are listed in the work brief."),
-    "- Expected checks:",
+    "- Expected read-only checks:",
     listForPacket(packet.expected_checks, "No expected checks are listed in the work brief."),
     "- Related state keys:",
     listForPacket(packet.related_state_keys, "No related state keys are listed in the work brief."),
@@ -2439,6 +2481,8 @@ function buildCoreCodexHandoffText(
 }
 
 function buildCoreCodexHandoffPacket(finalPacket: FinalCodexHandoffPacket): CoreCodexHandoffPacket {
+  const implementationAnchors = buildCoreImplementationAnchors(finalPacket);
+  const coreHandoffUsage = coreHandoffUsageForAnchors(implementationAnchors);
   const packetWithoutText = {
     packet_type: "core_codex_handoff_packet",
     schema: CORE_CODEX_HANDOFF_PACKET_SCHEMA,
@@ -2446,6 +2490,10 @@ function buildCoreCodexHandoffPacket(finalPacket: FinalCodexHandoffPacket): Core
     source_packet_type: "final_codex_handoff_packet",
     source_packet_schema: finalPacket.schema,
     copy_intent: "shorter_packet_for_starting_codex_work",
+    core_handoff_usage: coreHandoffUsage,
+    implementation_anchors: implementationAnchors,
+    implementation_anchor_summary: coreImplementationAnchorSummary(coreHandoffUsage, implementationAnchors),
+    full_context_required_before_implementation: implementationAnchors.length === 0,
     work_scope: finalPacket.work_scope,
     work_id: finalPacket.work_id,
     work_title: finalPacket.work_title,

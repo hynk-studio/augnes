@@ -341,11 +341,35 @@ Copy Codex Handoff
 It copies the Core Handoff packet from `core_codex_handoff_packet` /
 `copyable_core_handoff_text`. This is the shorter packet for starting Codex
 work. It keeps the immediate task context near the top: work ID, scope, title,
-user-facing goal, status, next step, expected files/checks, relevant
-Constellation summary, Memory Reuse summary, PR checklist summary,
-closeout/report expectations, skipped-check policy, stop conditions, concise
-authority boundary, final report requirements, and a compact structured JSON
-block.
+user-facing goal, status, next step, Core usage state, implementation anchors
+when available, expected files/checks, relevant Constellation summary, Memory
+Reuse summary, PR checklist summary, closeout/report expectations,
+skipped-check policy, stop conditions, concise authority boundary, final report
+requirements, and a compact structured JSON block.
+
+The Core packet exposes `core_handoff_usage` so a separate Codex session can
+distinguish planning from implementation:
+
+- `implementation_ready`: Core includes concise implementation anchors, such
+  as expected file or schema paths, and can be used with `codex:read-brief`
+  before implementation.
+- `implementation_requires_full_context`: Core is useful for orientation and
+  planning, but no implementation file/schema anchors are attached. The packet
+  must explicitly say: `No implementation file/schema anchors are attached in
+  Core. Use Core for planning only, or open Full Context before implementation.`
+- `planning_only`: reserved for future handoff sources that intentionally mark
+  Core as planning-only even when some implementation context exists.
+
+Core must not invent implementation anchors. When the work brief or source
+packet lists expected files, target files, schema paths, storage module refs,
+or equivalent implementation anchors, Core carries those concise anchors in an
+`Implementation anchors` section. When no anchors are attached, Core keeps the
+immediate task context near the top but requires Full Context before
+implementation.
+
+Read-only verification commands should be labeled as expected read-only checks
+when they are non-mutating checks such as local GET/curl commands piped into
+`jq`. Skipped-check policy remains unchanged.
 
 The secondary visible control is:
 

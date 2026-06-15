@@ -33,6 +33,9 @@ assert.match(server, /handoff_tool_hint/, "server must return model-readable han
 assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
 assert.match(server, /core_codex_handoff_packet/, "server must return Core Codex Handoff Packet structured content");
 assert.match(server, /copyable_core_handoff_text/, "server must expose copyable Core handoff text");
+assert.match(server, /core_handoff_usage/, "server must expose Core handoff usage state");
+assert.match(server, /implementation_anchors/, "server must expose Core implementation anchors");
+assert.match(server, /full_context_required_before_implementation/, "server must expose Full Context requirement state");
 assert.match(server, /full_codex_handoff_packet/, "server must expose a full handoff packet alias");
 assert.match(server, /copyable_full_handoff_text/, "server must expose copyable full handoff text");
 assert.match(server, /final_codex_handoff_packet/, "server must return Final Codex Handoff Packet structured content");
@@ -78,6 +81,9 @@ assert.match(server, /END_AUGNES_CODEX_HANDOFF_JSON/, "server packet must includ
 assert.match(widget, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet must include JSON block begin delimiter");
 assert.match(widget, /END_AUGNES_CODEX_HANDOFF_JSON/, "widget fallback packet must include JSON block end delimiter");
 assert.match(widget, /After copying, validate locally with codex:handoff-preflight\./, "widget must include local preflight hint text");
+assert.match(widget, /core_handoff_usage/, "widget fallback must preserve Core handoff usage state");
+assert.match(widget, /implementation_anchors/, "widget fallback must preserve Core implementation anchors");
+assert.match(widget, /Expected read-only checks/, "widget fallback must label read-only checks clearly");
 assert.match(widget, /Clipboard API/, "copy behavior must retain Clipboard API path text or implementation");
 assert.match(widget, /document\.execCommand\?\.\("copy"\)/, "copy behavior must retain execCommand fallback");
 assert.match(widget, /clipboardData\.setData\("text\/plain", text\)/, "copy behavior must verify execCommand copy data through the copy event");
@@ -90,6 +96,13 @@ assert.match(runbook, /augnes_get_work_brief/i, "runbook must name the handoff c
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
 assert.match(runbook, /Core Handoff/i, "runbook must document the Core Handoff packet");
+assert.match(runbook, /core_handoff_usage/, "runbook must document Core handoff usage state");
+assert.match(runbook, /Implementation anchors/, "runbook must document Core implementation anchors");
+assert.match(
+  runbook,
+  /No implementation file\/schema anchors are attached in\s+Core[\s\S]*Use Core for planning only, or open Full Context before implementation\./,
+  "runbook must document missing-anchor Full Context requirement",
+);
 assert.match(runbook, /Copy Full Context/i, "runbook must document the full-context copy action");
 assert.match(runbook, /copyable_core_handoff_text/, "runbook must name the Core copy text field");
 assert.match(runbook, /copyable_full_handoff_text/, "runbook must name the Full copy text field");
@@ -702,6 +715,10 @@ console.log(
       handoff_preview_stop_conditions_present: true,
       handoff_preview_copyable_packet_present: true,
       core_codex_handoff_packet_present: true,
+      core_handoff_usage_present: true,
+      implementation_anchors_present: true,
+      missing_anchors_require_full_context: true,
+      anchored_core_packet_checked: true,
       core_copy_primary_checked: true,
       full_context_copy_secondary_checked: true,
       core_copy_excludes_execution_request_metadata: true,
@@ -1675,6 +1692,7 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
   const preBlocks = collectNodes(renderedFallback.tree, (node) => node.tag === "pre");
   assert.ok(preBlocks.some((node) => node.textContent.includes("Core Codex Handoff Packet")), "core packet preformatted text must remain visible");
   assert.ok(preBlocks.some((node) => node.textContent.includes("Final Codex Handoff Packet")), "final packet preformatted text must remain visible");
+  const fullPacketText = preBlocks.find((node) => node.textContent.includes("Final Codex Handoff Packet"))?.textContent || "";
   assert.match(renderedFallback.visibleText, /Core: Shorter packet for starting Codex work\./, "visible copy helper must explain Core packet");
   assert.match(renderedFallback.visibleText, /Full: Full context and appendices\./, "visible copy helper must explain Full packet");
 
@@ -1691,6 +1709,10 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
   } else {
     assert.match(copiedText, /Core Codex Handoff Packet/, "primary copy button must copy the Core handoff packet");
     assert.match(copiedText, /Shorter packet for starting Codex work/, "Core copy must explain it is the shorter start packet");
+    assert.match(copiedText, /Core usage/, "Core copy must include usage state section");
+    assert.match(copiedText, /Implementation anchors/, "Core copy must include implementation anchors section");
+    assert.match(copiedText, /Expected read-only checks/, "Core copy must label read-only checks clearly");
+    assert.ok(copiedText.length < fullPacketText.length * 0.8, "Core copy must remain much shorter than Full Context");
     assert.doesNotMatch(copiedText, /Closeout skeleton preview/, "Core copy must not include the full closeout skeleton appendix");
     assert.doesNotMatch(copiedText, /Codex result review packet/, "Core copy must not include result review packet details");
   }
@@ -1742,6 +1764,38 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
     assert.ok(jsonBlock.work?.title, "Core JSON must include task title");
     assert.ok(jsonBlock.work?.work_id, "Core JSON must include work ID");
     assert.ok(jsonBlock.expected_scope, "Core JSON must include expected scope");
+    assert.ok(
+      ["planning_only", "implementation_ready", "implementation_requires_full_context"].includes(jsonBlock.core_handoff_usage),
+      "Core JSON must include bounded usage state",
+    );
+    assert.ok(Array.isArray(jsonBlock.implementation_anchors), "Core JSON must include implementation anchors array");
+    if (jsonBlock.implementation_anchors.length === 0) {
+      assert.equal(
+        jsonBlock.core_handoff_usage,
+        "implementation_requires_full_context",
+        "Core JSON without implementation anchors must require Full Context before implementation",
+      );
+      assert.equal(
+        jsonBlock.full_context_required_before_implementation,
+        true,
+        "Core JSON without implementation anchors must mark Full Context required",
+      );
+      assert.match(
+        copiedText,
+        /No implementation file\/schema anchors are attached in Core\. Use Core for planning only, or open Full Context before implementation\./,
+        "Core copy without anchors must not invent targets and must require Full Context",
+      );
+    } else {
+      assert.equal(jsonBlock.core_handoff_usage, "implementation_ready", "Core JSON with anchors must mark implementation_ready");
+      assert.equal(
+        jsonBlock.full_context_required_before_implementation,
+        false,
+        "Core JSON with anchors must not require Full Context before implementation",
+      );
+      for (const anchor of jsonBlock.implementation_anchors) {
+        assert.match(copiedText, new RegExp(escapeRegExp(anchor)), `Core copy must include implementation anchor: ${anchor}`);
+      }
+    }
     assert.ok(jsonBlock.final_report_requirements, "Core JSON must include final report requirements");
     assert.equal(jsonBlock.codex_result_review_packet_preview, undefined, "Core JSON must not include result review packet details");
     assert.equal(jsonBlock.codex_closeout_skeleton, undefined, "Core JSON must not include full closeout skeleton details");

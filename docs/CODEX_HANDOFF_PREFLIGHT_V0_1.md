@@ -170,6 +170,14 @@ Both modes fail obvious unsafe content such as execution labels, merge/approval
 labels, write shell commands, demo DB refs used as current runtime refs, raw DB
 paths not labeled as local-dev fallback, or secret-like token values.
 
+Read-only verification checks are allowed only through a narrow classifier.
+The helper does not execute them; it only classifies copied packet text. Local
+GET/default `curl` checks to `localhost`, `127.0.0.1`, or `::1` may appear in
+expected checks, with an optional pipe to `jq`. Mutating or file-writing forms
+remain failures, including `curl -X POST`, `PUT`, `PATCH`, `DELETE`,
+`--data`, `-d`, `-F`, upload/output flags, shell redirection, `tee`, non-`jq`
+pipes, `git push`, `npm publish`, and other destructive shell commands.
+
 ## Examples
 
 Environment variable input:
