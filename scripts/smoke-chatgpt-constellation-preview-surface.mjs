@@ -70,12 +70,35 @@ assert.match(adapter, /\/api\/augnes\/read\/constellation-preview/, "adapter mus
 assert.match(adapter, /x-augnes-local-readonly/, "adapter must send the local read-only marker header");
 assert.match(adapter, /constellation-preview-v0\.1/, "adapter must send the local read-only marker value");
 assert.match(types, /ProjectConstellationPreviewToolInputSchema/, "tool input schema must be defined");
+assert.match(
+  types,
+  /selected_candidate_id:\s*z\.string\(\)\.min\(1\)\.optional\(\)/,
+  "tool input schema must accept optional selected_candidate_id",
+);
 assert.match(types, /ConstellationPreviewResultSchema/, "constellation preview route response schema must be defined");
 assert.match(mockAdapter, /getConstellationPreview\(scope: StateRuntimeScope\)/, "mock bridge adapter must implement the new read method");
+assert.match(toolBlock, /selected_candidate_id/, "tool handler must accept selected_candidate_id");
+assert.match(toolBlock, /requested_candidate_id/, "structuredContent must expose requested_candidate_id");
+assert.match(toolBlock, /selected_candidate_id/, "structuredContent must expose selected_candidate_id");
+assert.match(toolBlock, /selected_candidate_label/, "structuredContent must expose selected_candidate_label");
+assert.match(toolBlock, /selection_status/, "structuredContent must expose selection_status");
+assert.match(toolBlock, /selection_fallback_reason/, "structuredContent must expose selection fallback metadata");
+assert.match(server, /type ProjectConstellationSelectionStatus = "selected" \| "defaulted" \| "requested_not_found" \| "unavailable"/, "server must define bounded selection statuses");
+assert.match(server, /function resolveProjectConstellationHandoffSelection/, "server must resolve selected/default/fallback candidate state");
+assert.match(server, /selection_status:\s*"defaulted"/, "server must preserve default first-candidate selection behavior");
+assert.match(server, /selection_status:\s*"selected"/, "server must support a matching requested candidate");
+assert.match(server, /selection_status:\s*"requested_not_found"/, "server must expose requested-not-found fallback state");
+assert.match(server, /Requested candidate/, "handoff seed must represent requested candidate selection");
+assert.match(server, /Selected candidate/, "handoff seed must represent selected candidate selection");
+assert.match(server, /Requested candidate \$\{requestedCandidateId\} was not returned; using default candidate/, "server fallback must name the missing requested candidate and default candidate");
 
 assert.match(widget, /renderProjectConstellationPreview/, "widget must implement Project Constellation preview rendering");
 assert.match(widget, /normalizeProjectConstellationPreview/, "widget must normalize Project Constellation preview data");
 assert.match(widget, /renderCopyableConstellationHandoff/, "widget must implement bounded local handoff copy rendering");
+assert.match(widget, /Use for handoff/, "widget must expose local Use for handoff controls");
+assert.match(widget, /aria-pressed/, "widget must expose pressed state for selected handoff candidate controls");
+assert.match(widget, /selected-item/, "widget must visually mark the selected/default candidate");
+assert.match(widget, /buildConstellationHandoffSeedForCandidate/, "widget must rebuild the visible seed when a candidate is selected");
 assert.match(widget, /Copy Handoff Preview/, "widget must expose a local copy affordance for preview text");
 assert.match(widget, /function copyTextToClipboard/, "widget must centralize local clipboard copy behavior");
 assert.match(widget, /document\.execCommand\?\.\("copy"\)/, "widget must provide a local execCommand copy fallback for Developer Mode hosts");
@@ -101,11 +124,13 @@ assert.ok(!writeTools.includes("augnes_get_project_constellation_preview"), "new
 
 const newSurfaceSource = [
   toolBlock,
+  extractBlockByMarker(server, "function resolveProjectConstellationHandoffSelection"),
   extractBlockByMarker(server, "function buildProjectConstellationPreviewSurface"),
   extractBlockByMarker(server, "function buildProjectConstellationHandoffSeed"),
   extractBlockByMarker(server, "function describeProjectConstellationPreviewSurface"),
   extractBlockByMarker(adapter, "async getConstellationPreview"),
   extractBlockByMarker(widget, "function normalizeProjectConstellationPreview"),
+  extractBlockByMarker(widget, "function buildConstellationHandoffSeedForCandidate"),
   extractBlockByMarker(widget, "function renderCopyableConstellationHandoff"),
   extractBlockByMarker(widget, "function renderProjectConstellationPreview"),
 ].join("\n\n");
@@ -124,6 +149,8 @@ for (const forbidden of [
   "Enable auto-merge",
   "Retry",
   "Replay",
+  "Deploy",
+  "Post externally",
 ]) {
   assert.doesNotMatch(newSurfaceSource, new RegExp(escapeRegExp(forbidden), "g"), `new surface must not expose forbidden label: ${forbidden}`);
 }
@@ -164,6 +191,9 @@ const renderedSelectionFallback = renderFallbackProjectConstellationPreview({
   execCommandReturnsFalse: true,
 });
 await assertConstellationCopyAffordance(renderedSelectionFallback, "selection");
+const renderedSelectable = renderSelectableProjectConstellationPreview();
+assertSelectableNextActionHandoff(renderedSelectable);
+await assertConstellationCopyAffordance(renderedSelectable, "clipboard", /candidate:operator-review/);
 
 console.log(
   JSON.stringify(
@@ -174,9 +204,18 @@ console.log(
       tool_read_only_annotated: true,
       tool_not_write_annotated: true,
       structured_content_field_families_present: true,
+      selected_candidate_id_input_present: true,
+      selection_metadata_present: true,
+      default_selection_checked: true,
+      requested_candidate_selection_checked: true,
+      requested_not_found_fallback_checked: true,
       local_route_reuse_present: true,
       local_read_marker_present: true,
       widget_panel_present: true,
+      selectable_next_action_controls_present: true,
+      selected_candidate_visual_state_checked: true,
+      selected_candidate_seed_refresh_checked: true,
+      copy_uses_selected_candidate_seed_text_checked: true,
       copyable_handoff_seed_present: true,
       work_contract_write_tools_unchanged: true,
       forbidden_execution_write_control_labels_absent: true,
@@ -257,6 +296,120 @@ function extractConstBlockByMarker(source, marker) {
 }
 
 function renderFallbackProjectConstellationPreview(options = {}) {
+  return renderProjectConstellationPreviewPayload(
+    {
+      project_constellation_preview: {
+        fallback_text: "No Project Constellation route payload was returned. This fallback does not invent missing context.",
+        missing_data_fallbacks: ["No Project Constellation route payload was returned."],
+      },
+    },
+    options,
+  );
+}
+
+function renderSelectableProjectConstellationPreview(options = {}) {
+  return renderProjectConstellationPreviewPayload(
+    {
+      project_constellation_preview: {
+        title: "Project Constellation Preview",
+        scope: "project:augnes",
+        status: "available",
+        requested_candidate_id: null,
+        selected_candidate_id: "candidate:default",
+        selected_candidate_label: "Default advisory candidate",
+        selection_status: "defaulted",
+        selection_fallback_reason: null,
+        selection: {
+          requested_candidate_id: null,
+          selected_candidate_id: "candidate:default",
+          selected_candidate_label: "Default advisory candidate",
+          selection_status: "defaulted",
+          selection_fallback_reason: null,
+        },
+        project_constellation: {
+          constellation_id: "project_constellation.sample",
+          boundary_class: "read_only_local_static_preview",
+          thesis: "Selectable handoff seed test thesis.",
+          nodes: [
+            {
+              id: "node:one",
+              type: "decision",
+              label: "First node",
+              summary: "First bounded node summary.",
+              evidence_pointers: [{ pointer_id: "evidence:one" }],
+            },
+          ],
+          edges: [
+            {
+              id: "edge:one",
+              source: "node:one",
+              target: "node:two",
+              summary: "First bounded edge summary.",
+            },
+          ],
+          clusters: [
+            {
+              id: "cluster:one",
+              label: "Primary cluster",
+              cluster_thesis: "Primary bounded cluster summary.",
+            },
+          ],
+        },
+        evidence_pointers: [
+          {
+            pointer_id: "evidence:one",
+            label: "Pointer one",
+            target_ref: "fixtures/project-constellation.sample.json",
+            bounded_summary: "Pointer-only evidence summary.",
+          },
+        ],
+        unresolved_tensions: [
+          {
+            tension_id: "tension:one",
+            label: "Tension one",
+            summary: "Unresolved tension summary.",
+          },
+        ],
+        next_action_candidates: [
+          {
+            candidate_id: "candidate:default",
+            label: "Default advisory candidate",
+            summary: "Default candidate summary.",
+          },
+          {
+            candidate_id: "candidate:operator-review",
+            label: "Operator review candidate",
+            summary: "Operator review candidate summary.",
+          },
+        ],
+        copyable_handoff_seed: {
+          status: "available",
+          requested_candidate_id: null,
+          selected_candidate_id: "candidate:default",
+          selected_candidate_label: "Default advisory candidate",
+          selection_status: "defaulted",
+          selection_fallback_reason: null,
+          preview_text:
+            "Augnes Project Constellation handoff seed\nSelected/default advisory next action\n- candidate:default: Default candidate summary.",
+          source_refs: ["fixtures/project-constellation.sample.json"],
+          required_checks: ["npm run typecheck"],
+          skipped_check_policy: "Report every skipped check with a concrete reason.",
+          final_report_requirements: ["Changed files", "Verification results"],
+          boundary_text: [
+            "This preview is read-only.",
+            "This preview cannot execute Codex.",
+            "A copied handoff seed is manual preview text only.",
+          ],
+        },
+        source_refs: [{ source_ref: "fixtures/project-constellation.sample.json" }],
+        missing_data_fallbacks: [],
+      },
+    },
+    options,
+  );
+}
+
+function renderProjectConstellationPreviewPayload(payload, options = {}) {
   const renderSource = [
     extractBlockByMarker(widget, "function el"),
     extractBlockByMarker(widget, "function tag"),
@@ -278,6 +431,13 @@ function renderFallbackProjectConstellationPreview(options = {}) {
     extractBlockByMarker(widget, "function createConstellationClusterCard"),
     extractBlockByMarker(widget, "function createConstellationEvidenceCard"),
     extractBlockByMarker(widget, "function createConstellationTensionCard"),
+    extractBlockByMarker(widget, "function listForConstellationHandoff"),
+    extractBlockByMarker(widget, "function summarizeConstellationEvidencePointer"),
+    extractBlockByMarker(widget, "function summarizeConstellationTension"),
+    extractBlockByMarker(widget, "function summarizeConstellationNextAction"),
+    extractBlockByMarker(widget, "function sourceRefLabel"),
+    extractBlockByMarker(widget, "function buildConstellationHandoffSeedText"),
+    extractBlockByMarker(widget, "function buildConstellationHandoffSeedForCandidate"),
     extractBlockByMarker(widget, "function createConstellationNextActionCard"),
     extractBlockByMarker(widget, "function renderCopyableConstellationHandoff"),
     extractBlockByMarker(widget, "function renderProjectConstellationPreview"),
@@ -308,6 +468,11 @@ function renderFallbackProjectConstellationPreview(options = {}) {
     appendChild(child) {
       this.children.push(child);
       return child;
+    }
+
+    replaceChildren(...children) {
+      this.children = [];
+      this.append(...children);
     }
 
     setAttribute(name, value) {
@@ -385,16 +550,9 @@ function renderFallbackProjectConstellationPreview(options = {}) {
     },
   };
   vm.createContext(context);
+  context.__payload = payload;
   vm.runInContext(renderSource, context);
-  const output = vm.runInContext(
-    `renderProjectConstellationPreview({
-      project_constellation_preview: {
-        fallback_text: "No Project Constellation route payload was returned. This fallback does not invent missing context.",
-        missing_data_fallbacks: ["No Project Constellation route payload was returned."]
-      }
-    })`,
-    context,
-  );
+  const output = vm.runInContext("renderProjectConstellationPreview(__payload)", context);
 
   return {
     context,
@@ -403,7 +561,24 @@ function renderFallbackProjectConstellationPreview(options = {}) {
   };
 }
 
-async function assertConstellationCopyAffordance(renderedFallback, expectedPath) {
+function assertSelectableNextActionHandoff(renderedPreview) {
+  const useButtons = collectNodes(renderedPreview.tree, (node) => node.tag === "button" && node.textContent === "Use for handoff");
+  assert.equal(useButtons.length, 2, "widget must render Use for handoff controls for next action candidates");
+  assert.equal(useButtons[0].attributes["aria-pressed"], "true", "default candidate control must start selected");
+  assert.equal(useButtons[1].attributes["aria-pressed"], "false", "non-default candidate control must start unselected");
+  assert.match(renderedPreview.text, /Default candidate summary/, "default handoff seed must be visible before selection");
+
+  useButtons[1].listeners.click[0]();
+  const updatedText = collectText(renderedPreview.tree).replace(/\s+/g, " ").trim();
+  assert.equal(useButtons[0].attributes["aria-pressed"], "false", "previous default candidate must become unpressed after selection");
+  assert.equal(useButtons[1].attributes["aria-pressed"], "true", "selected non-default candidate must expose aria-pressed");
+  const selectedCards = collectNodes(renderedPreview.tree, (node) => typeof node.className === "string" && node.className.includes("selected-item"));
+  assert.equal(selectedCards.length, 1, "exactly one advisory next action card must be visually selected");
+  assert.match(updatedText, /candidate:operator-review/, "updated visible handoff seed must reference the selected candidate id");
+  assert.match(updatedText, /Operator review candidate summary/, "updated visible handoff seed must reference the selected candidate summary");
+}
+
+async function assertConstellationCopyAffordance(renderedFallback, expectedPath, expectedTextPattern = /Augnes Project Constellation handoff seed/) {
   const buttons = collectNodes(renderedFallback.tree, (node) => node.tag === "button" && node.textContent === "Copy Handoff Preview");
   assert.equal(buttons.length, 1, "fallback render must include exactly one Project Constellation copy button");
   const statusNodes = collectNodes(
@@ -421,6 +596,7 @@ async function assertConstellationCopyAffordance(renderedFallback, expectedPath)
       ? renderedFallback.context.__selectedText
       : renderedFallback.context.__copiedText;
   assert.match(copiedText, /Augnes Project Constellation handoff seed/, "copy affordance must target the handoff seed text");
+  assert.match(copiedText, expectedTextPattern, "copy affordance must target the currently visible handoff seed text");
   if (expectedPath === "selection") {
     assert.equal(
       statusNodes[0].textContent,

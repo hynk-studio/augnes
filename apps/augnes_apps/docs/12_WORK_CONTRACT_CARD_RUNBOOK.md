@@ -90,6 +90,14 @@ runtime write routes, execute Codex, record proof or evidence, approve,
 publish, retry, replay, externally post, create branches or PRs, merge, enable
 auto-merge, or commit/reject Augnes state.
 
+The tool accepts optional `selected_candidate_id`. When omitted, the first
+advisory next action remains the default handoff seed candidate. When provided,
+a matching advisory candidate is selected for the returned handoff seed; a
+missing requested candidate falls back to the default candidate with explicit
+selection fallback metadata. In the widget, each advisory candidate has a local
+`Use for handoff` control. Choosing one only updates the visible selected
+candidate marker and copyable handoff seed text in the card.
+
 If the local route or runtime is unavailable, the tool returns an explicit
 unavailable preview with empty node/edge/cluster/evidence/tension/action
 families plus fallback text. It does not invent missing Project Constellation

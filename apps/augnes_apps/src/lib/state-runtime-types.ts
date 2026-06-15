@@ -390,6 +390,7 @@ export const VerificationEvidenceRecordsResultSchema = z.union([
 export const ProjectConstellationPreviewToolInputSchema = z
   .object({
     scope: z.string().min(1).optional(),
+    selected_candidate_id: z.string().min(1).optional(),
   })
   .strip();
 
