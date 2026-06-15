@@ -387,6 +387,120 @@ export const VerificationEvidenceRecordsResultSchema = z.union([
   VerificationEvidenceRecordsEnvelopeSchema,
 ]);
 
+export const ProjectConstellationPreviewToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+  })
+  .strip();
+
+export const ConstellationPreviewEvidencePointerSchema = z
+  .object({
+    pointer_id: z.string(),
+    label: z.string(),
+    target_ref: z.string(),
+    pointer_kind: z.string(),
+    pointer_semantics: z.literal("pointer_only"),
+    bounded_summary: z.string().optional(),
+    proof_evidence_write_authority: z.literal(false),
+    readiness_write_authority: z.literal(false),
+  })
+  .passthrough();
+
+export const ConstellationPreviewUnresolvedTensionSchema = z
+  .object({
+    tension_id: z.string(),
+    label: z.string(),
+    summary: z.string(),
+    source_refs: z.array(z.string()),
+    evidence_pointers: z.array(ConstellationPreviewEvidencePointerSchema),
+  })
+  .passthrough();
+
+export const ConstellationPreviewNextActionCandidateSchema = z
+  .object({
+    candidate_id: z.string(),
+    label: z.string(),
+    summary: z.string(),
+    source_refs: z.array(z.string()),
+    blocked_by: z.array(z.string()).optional(),
+    boundary_class: z.string().optional(),
+  })
+  .passthrough();
+
+export const ConstellationPreviewNodeSchema = z
+  .object({
+    id: z.string(),
+    type: z.string(),
+    label: z.string(),
+    summary: z.string(),
+    source_refs: z.array(z.string()),
+    evidence_pointers: z.array(ConstellationPreviewEvidencePointerSchema),
+    unresolved_tensions: z.array(ConstellationPreviewUnresolvedTensionSchema),
+    next_action_candidates: z.array(ConstellationPreviewNextActionCandidateSchema),
+  })
+  .passthrough();
+
+export const ConstellationPreviewEdgeSchema = z
+  .object({
+    id: z.string(),
+    type: z.string(),
+    source: z.string(),
+    target: z.string(),
+    summary: z.string(),
+    source_refs: z.array(z.string()),
+    evidence_pointers: z.array(ConstellationPreviewEvidencePointerSchema),
+  })
+  .passthrough();
+
+export const ConstellationPreviewClusterSchema = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    node_ids: z.array(z.string()),
+    edge_ids: z.array(z.string()),
+    cluster_thesis: z.string(),
+    unresolved_tensions: z.array(ConstellationPreviewUnresolvedTensionSchema),
+    next_action_candidates: z.array(ConstellationPreviewNextActionCandidateSchema),
+  })
+  .passthrough();
+
+export const ConstellationPreviewProjectSchema = z
+  .object({
+    constellation_id: z.string(),
+    boundary_class: z.string(),
+    thesis: z.string(),
+    nodes: z.array(ConstellationPreviewNodeSchema),
+    edges: z.array(ConstellationPreviewEdgeSchema),
+    clusters: z.array(ConstellationPreviewClusterSchema),
+    evidence_pointers: z.array(ConstellationPreviewEvidencePointerSchema),
+    unresolved_tensions: z.array(ConstellationPreviewUnresolvedTensionSchema),
+    next_action_candidates: z.array(ConstellationPreviewNextActionCandidateSchema),
+  })
+  .passthrough();
+
+export const ConstellationPreviewSourceRefSchema = z
+  .object({
+    source_ref: z.string(),
+    source_kind: z.string(),
+    source_label: z.string(),
+    source_scope: z.string(),
+    provenance_note: z.string(),
+  })
+  .passthrough();
+
+export const ConstellationPreviewResultSchema = z
+  .object({
+    response_version: z.string(),
+    boundary_class: z.string(),
+    meta: z.record(z.unknown()),
+    source_refs: z.array(ConstellationPreviewSourceRefSchema),
+    project_constellation: ConstellationPreviewProjectSchema,
+    evidence_pointers: z.array(ConstellationPreviewEvidencePointerSchema),
+    unresolved_tensions: z.array(ConstellationPreviewUnresolvedTensionSchema),
+    next_action_candidates: z.array(ConstellationPreviewNextActionCandidateSchema),
+  })
+  .passthrough();
+
 export const WorkEventResultSchema = z
   .object({
     scope: z.string(),
@@ -717,6 +831,7 @@ export type SessionTraceSession = z.infer<typeof SessionTraceSessionSchema>;
 export type SessionTraceResult = z.infer<typeof SessionTraceResultSchema>;
 export type VerificationEvidenceRecord = z.infer<typeof VerificationEvidenceRecordSchema>;
 export type VerificationEvidenceRecordsResult = z.infer<typeof VerificationEvidenceRecordsResultSchema>;
+export type ConstellationPreviewResult = z.infer<typeof ConstellationPreviewResultSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
@@ -803,6 +918,7 @@ export interface ReviewCodexResultDraftInput {
 
 export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
+  getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;
   getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult>;
   getVerificationEvidenceRecords(

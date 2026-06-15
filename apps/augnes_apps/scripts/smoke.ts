@@ -129,6 +129,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
         const server = createMcpAppServer(new MockAugnesCoreAdapter(), new MockStateRuntimeBridgeAdapter(), { enableAgentBridge: true });
         const args = {
           augnes_get_state_brief: {},
+          augnes_get_project_constellation_preview: {},
           augnes_get_evidence_pack: {},
           augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
           augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
@@ -177,6 +178,8 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             metaProfile: result._meta?.profile,
             text: result.content?.[0]?.text,
             agentHandoff: result.structuredContent?.brief?.agent_handoff,
+            projectConstellationPreview: result.structuredContent?.project_constellation_preview,
+            copyableHandoffSeed: result.structuredContent?.copyable_handoff_seed,
             actionRecord: result.structuredContent?.actionRecord,
             eventResult: result.structuredContent?.eventResult,
             handoff: result.structuredContent?.handoff,
@@ -428,6 +431,16 @@ async function main() {
     assert.equal(bridgeSnapshot.profiles[toolName].structuredProfile, "public", `${toolName} should include structuredContent.profile`);
     assert.equal(bridgeSnapshot.profiles[toolName].metaProfile, "public", `${toolName} should include _meta.profile`);
   }
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_project_constellation_preview.projectConstellationPreview.project_constellation.nodes.length,
+    1,
+    "augnes_get_project_constellation_preview should return bounded Project Constellation nodes"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_project_constellation_preview.copyableHandoffSeed.preview_text,
+    /Augnes Project Constellation handoff seed/,
+    "augnes_get_project_constellation_preview should return copyable handoff seed text"
+  );
   assert.equal(
     bridgeSnapshot.profiles.augnes_record_action_result.actionRecord.action_name,
     "smoke_legacy_check",

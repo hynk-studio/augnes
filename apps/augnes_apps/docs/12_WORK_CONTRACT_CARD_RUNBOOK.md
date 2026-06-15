@@ -50,6 +50,51 @@ replay, externally post, merge, or enable auto-merge. Evidence is not approval.
 Proof is not approval. A PR is not merge authority. Durable approval remains
 user/Core gated.
 
+## Project Constellation Preview Card
+
+The Project Constellation Preview Card is the first read-only ChatGPT App/MCP
+contact surface for the existing local Project Constellation preview. The
+callable tool is:
+
+```text
+augnes_get_project_constellation_preview
+```
+
+The tool reads the existing local route:
+
+```text
+GET /api/augnes/read/constellation-preview?scope=project:augnes
+```
+
+through the bridge adapter with the same local read marker used by the route:
+
+```text
+x-augnes-local-readonly: constellation-preview-v0.1
+```
+
+The card returns model-useful `structuredContent` with:
+
+- `project_constellation_preview`
+- `project_constellation`
+- `evidence_pointers`
+- `unresolved_tensions`
+- `next_action_candidates`
+- `copyable_handoff_seed`
+- `missing_data_fallbacks`
+
+The widget renders the compact thesis, bounded node/edge/cluster summaries,
+pointer-only evidence refs, unresolved tensions, advisory next action
+candidates, and the copyable handoff seed. The copy control is local
+browser/DOM convenience only. It copies visible preview text; it does not call
+runtime write routes, execute Codex, record proof or evidence, approve,
+publish, retry, replay, externally post, create branches or PRs, merge, enable
+auto-merge, or commit/reject Augnes state.
+
+If the local route or runtime is unavailable, the tool returns an explicit
+unavailable preview with empty node/edge/cluster/evidence/tension/action
+families plus fallback text. It does not invent missing Project Constellation
+context.
+
 ## Copy Codex Handoff Affordance
 
 The Codex Handoff Preview includes a single `Copy Codex Handoff` control near

@@ -13,10 +13,11 @@ Status:
 - Candidate D strict debug mode remains available
 - scoped to `project:augnes`
 - static public-safe fixture backed
-- route handler itself connects no consumer surface
+- route handler itself does not directly connect consumer surfaces
 - Cockpit local-only consumer now exists
-- no ChatGPT App component
-- no MCP/App tool implementation
+- ChatGPT App/MCP read-only consumer now exists through
+  `augnes_get_project_constellation_preview`
+- no route behavior change for the App/MCP consumer
 - no DB query
 - no DB schema/migrations
 - no graph DB
@@ -121,13 +122,16 @@ consumers remain unconnected and require separate scope.
 Cockpit local-only route preview plan that preceded implementation.
 
 `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` records that a
-Cockpit local-only consumer now exists. No App/MCP consumer exists, and the
-route remains local-only and not production auth.
+Cockpit local-only consumer now exists. A later App/MCP read-only consumer,
+`augnes_get_project_constellation_preview`, reads the same local route through
+the bridge adapter. The route remains local-only and not production auth.
 
 `docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records the
 closed local-only consumer milestone and preserves the route local-only status.
 
-For this route line, no App/MCP consumer exists.
+For this route line, the route contract remains unchanged. The App/MCP
+consumer is a separate read-only contact surface and does not add route write
+authority.
 
 ## 4. Request shape
 
@@ -405,10 +409,10 @@ writes.
 
 ## 18. Non-goals
 
-- no UI code
+- no route-owned UI code
 - no Cockpit integration
-- no ChatGPT App component
-- no MCP/App tool implementation
+- no route-owned ChatGPT App component
+- no route-owned MCP/App tool implementation
 - no plugin hook/config/mapping
 - no DB query
 - no DB schema/migration

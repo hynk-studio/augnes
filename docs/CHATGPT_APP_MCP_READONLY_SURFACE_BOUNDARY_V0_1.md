@@ -2,28 +2,36 @@
 
 ## Status and scope
 
-Status: planning note for a future read-only ChatGPT App/MCP Augnes surface.
+Status: boundary note plus first implemented read-only ChatGPT App/MCP contact
+surface.
 
-Scope is docs/smoke/package-pointer only:
+Scope for the first implemented contact surface is:
 
 - `docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md`
-- `docs/00_INDEX_LATEST.md`
-- `scripts/smoke-chatgpt-app-mcp-readonly-surface-boundary.mjs`
+- `apps/augnes_apps/src/server.ts`
+- `apps/augnes_apps/src/adapters/state-runtime-http.ts`
+- `apps/augnes_apps/src/lib/state-runtime-types.ts`
+- `apps/augnes_apps/public/console-widget.html`
+- `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
+- `scripts/smoke-chatgpt-constellation-preview-surface.mjs`
 - `package.json`
 
-This note is repo-local, non-SSOT, read-only, non-authoritative, and planning
-only. It does not add ChatGPT App tools, MCP tools, runtime behavior, UI code,
-API routes, DB schema/migrations, graph DB, persistence, proof/evidence writes,
-AG Resume behavior, Codex SDK execution/provider behavior, GitHub/OpenAI/Augnes
-runtime calls, network calls, branch creation authority, PR creation authority
-by itself, or merge/publish/approval/retry/replay/deploy authority.
+This note is repo-local, non-SSOT, read-only, and non-authoritative. The first
+implementation adds exactly one read-only MCP/App tool,
+`augnes_get_project_constellation_preview`, plus a widget panel that renders
+the existing local Project Constellation preview. It does not add write tools,
+new API routes, DB schema/migrations, graph DB, persistence, proof/evidence
+writes, AG Resume behavior, Codex SDK execution/provider behavior,
+GitHub/OpenAI/provider calls, branch or PR creation controls, or
+merge/publish/approval/retry/replay/deploy authority.
 
 ## Purpose
 
-The purpose is to describe how a future ChatGPT App/MCP surface could expose
-Augnes Project Constellation, Perspective Capsule, evidence pointers, unresolved
-tensions, boundary / next review, and copyable handoff material as read-only
-user-facing decision support.
+The purpose is to expose the smallest useful ChatGPT App/MCP surface for
+Augnes Project Constellation while preserving read-only decision support.
+The v0.1 surface exposes Project Constellation, evidence pointers, unresolved
+tensions, advisory next action candidates, and copyable handoff seed material.
+Perspective Capsule and broader boundary / next review remain future work.
 
 The surface is not an execution surface. It is a way for a human to inspect
 bounded Augnes context inside ChatGPT without allowing ChatGPT, MCP, or Augnes
@@ -129,62 +137,74 @@ add copy buttons, clipboard API calls, execute buttons, launch Codex buttons,
 create/open PR controls, proof/evidence recording controls, or publish/merge
 controls.
 
-## MCP/App tool non-goals
+## MCP/App tool scope and non-goals
 
-This planning note does not implement:
+The implemented v0.1 tool is read-only and widget-backed:
 
-- ChatGPT App tool implementation
-- MCP tool implementation
-- MCP read-only tool
+```text
+augnes_get_project_constellation_preview
+```
+
+It reads the existing local route through the bridge adapter:
+
+```text
+GET /api/augnes/read/constellation-preview?scope=project:augnes
+x-augnes-local-readonly: constellation-preview-v0.1
+```
+
+This v0.1 contact surface does not implement:
+
 - MCP write tool
-- app component
-- widget component
-- runtime route
-- API route
-- write tool
 - mutation tool
-- external call
-- GitHub/OpenAI/Augnes runtime call
-- network call
+- new runtime route
+- new API route
+- DB query or schema
+- graph DB
+- persistence
+- proof/evidence/readiness records
+- Codex execution
+- GitHub/OpenAI/provider calls
+- branch or PR creation controls
+- merge/publish/approval/retry/replay/deploy controls
 
-Future MCP/App tools need separate approved scope, implementation review,
-auth/security review, browser/computer-use validation, and authority matrix
-updates before any tool surface exists.
+Future additional MCP/App tools need separate approved scope,
+implementation review, auth/security review, browser/computer-use validation,
+and authority matrix updates before any broader surface exists.
 
 `docs/READONLY_API_ROUTE_LOCAL_ONLY_CONSUMER_SCOPE_DECISION_V0_1.md` records
 the read-only constellation preview route local-only consumer scope decision.
-ChatGPT App/MCP consumers remain deferred unless separately scoped; this
-boundary does not connect ChatGPT App or MCP to that route.
+ChatGPT App/MCP consumers were deferred by that decision until separately
+scoped. This v0.1 surface is the separately scoped read-only App/MCP contact
+surface for the existing route.
 
 `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_PLAN_V0_1.md` records a
-Cockpit local-only route preview planning packet. ChatGPT App/MCP remain
-deferred while the Cockpit local-only preview is only planning.
+Cockpit local-only route preview planning packet. The Cockpit planning packet
+itself did not connect ChatGPT App/MCP.
 
 `docs/COCKPIT_LOCAL_ONLY_CONSTELLATION_ROUTE_PREVIEW_V0_1.md` records the
-Cockpit local-only route preview implementation. ChatGPT App/MCP remain
-deferred and are not connected by the Cockpit preview.
+Cockpit local-only route preview implementation. The Cockpit preview remains
+local-only; this App/MCP contact surface is a separate read-only consumer path.
 
 `docs/READONLY_CONSTELLATION_LOCAL_ONLY_CONSUMER_CLOSEOUT_V0_1.md` records the
-local Cockpit closeout. ChatGPT App/MCP remain deferred after local Cockpit
-closeout.
+local Cockpit closeout. The closeout did not add App/MCP authority; the v0.1
+tool here adds only a read-only consumer path.
 
 ## Authority boundaries
 
 Authority boundaries:
 
-- no ChatGPT App tool implementation
-- no MCP tool implementation
-- no runtime behavior
-- no UI code
-- no API route
+- one read-only ChatGPT App/MCP tool only
+- one widget panel only
+- no write tool
+- no new API route
 - no DB schema or migration
 - no graph DB
 - no persistence
 - no proof/evidence write
 - no AG Resume behavior
 - no Codex SDK execution/provider behavior
-- no GitHub/OpenAI/Augnes runtime calls
-- no network calls
+- no GitHub/OpenAI/provider calls
+- no runtime write calls
 - no branch creation authority
 - no PR creation authority by itself
 - no merge/publish/approval/retry/replay/deploy authority
@@ -194,19 +214,18 @@ Authority boundaries:
 
 ## Future implementation gates
 
-Any future implementation requires separate gates for:
+Any future broader implementation requires separate gates for:
 
-- read-only API route
-- ChatGPT App component
-- MCP read-only tool
+- additional read-only API routes
+- additional ChatGPT App components
+- additional MCP tools
 - auth/security review
 - browser/computer-use validation
 - authority matrix update
 
 future read-only API route planning is defined in
-`docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md`. No route, tool,
-component, or runtime endpoint is implemented by that planning note or this
-surface boundary.
+`docs/READONLY_API_ROUTE_PLANNING_BOUNDARY_V0_1.md`. That planning note does
+not grant any broader route, tool, component, or runtime endpoint authority.
 
 Additional gates may be required for data provenance, privacy, prompt-injection
 handling, workspace authorization, rate limits, logging, and rollback of any
@@ -214,42 +233,41 @@ incorrect surface assumptions. This planning note does not satisfy those gates.
 
 ## Validation and smoke plan
 
-Required validation for this planning note:
+Required validation for this contact surface:
 
 - `npm run typecheck`
-- `npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
-- `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:chatgpt-app-mcp-readonly-surface-boundary`
-- `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:project-constellation-ia-boundaries`
-- `AUGNES_BOUNDARY_SMOKE_MODE=content-only npm run smoke:perspective-capsule-contract`
+- `npm --prefix apps/augnes_apps run typecheck`
+- `npm run smoke:chatgpt-constellation-preview-surface`
+- `npm run smoke:chatgpt-work-contract-card`
+- `npm run smoke:readonly-api-route-constellation-preview`
 - `git diff --check`
-- `git diff --cached --check`
 
-`npm run smoke:chatgpt-app-mcp-readonly-surface-boundary` is a deterministic
-static read smoke. It checks this planning note, the index pointer, the package
-script pointer, required read-only surface terms, non-goals, authority boundary
-phrases, and the changed-file boundary.
+`npm run smoke:chatgpt-constellation-preview-surface` is a deterministic
+static read smoke. It checks the new package script pointer, callable tool,
+read-only annotations, structured content field families, widget panel,
+copyable handoff seed, existing Work Contract Card write-tool boundaries,
+absence of GitHub/OpenAI/provider calls, and explicit fallback rendering.
 
-Browser/computer-use may be skipped because this PR is
-docs/smoke/package-pointer only and touches no UI/browser-facing files.
+Browser/computer-use or ChatGPT Developer Mode may be skipped when no local
+MCP inspector, browser runtime, tunnel, or Developer Mode session is available.
 Proof-only closeout may be
-skipped when no runtime/work ID context exists and this PR performs no
+skipped when no runtime/work ID context exists and this surface performs no
 proof/evidence writes.
 
 ## Non-goals
 
-- no ChatGPT App tool implementation
-- no MCP tool implementation
-- no runtime behavior
-- no UI code
-- no API routes
+- no additional ChatGPT App tool implementation beyond
+  `augnes_get_project_constellation_preview`
+- no MCP write tool implementation
+- no new API routes
 - no DB schema/migrations
 - no graph DB
 - no persistence
 - no proof/evidence writes
 - no AG Resume behavior
 - no Codex SDK execution/provider behavior
-- no GitHub/OpenAI/Augnes runtime calls
-- no network calls
+- no GitHub/OpenAI/provider calls
+- no runtime write calls
 - no write tools
 - no proof/evidence/readiness records
 - no branch creation authority

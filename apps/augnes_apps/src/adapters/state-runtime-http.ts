@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 import {
   ActionRecordResultSchema,
   CodexResultReviewDraftSchema,
+  ConstellationPreviewResultSchema,
   ControlPacketSchema,
   EvidencePackResultSchema,
   GeneratedHandoffDraftSchema,
@@ -20,6 +21,7 @@ import {
   WorkListResultSchema,
   type ActionRecordResult,
   type CodexResultReviewDraft,
+  type ConstellationPreviewResult,
   type ControlPacket,
   type EvidencePackResult,
   type GeneratedHandoffDraft,
@@ -48,9 +50,12 @@ import {
 } from "../lib/state-runtime-types.js";
 
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
+const CONSTELLATION_PREVIEW_LOCAL_READ_HEADER = "x-augnes-local-readonly";
+const CONSTELLATION_PREVIEW_LOCAL_READ_MARKER = "constellation-preview-v0.1";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
+  constellationPreview: { method: "GET", path: "/api/augnes/read/constellation-preview" },
   evidencePack: { method: "GET", path: "/api/evidence-pack" },
   sessionTrace: { method: "GET", path: "/api/sessions/trace" },
   sessionTraceById: { method: "GET", path: "/api/sessions" },
@@ -174,6 +179,21 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
       "state brief",
       {
         query: { scope: parseScope(scope) },
+      }
+    );
+  }
+
+  async getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult> {
+    return this.requestJson(
+      endpointContract.constellationPreview.method,
+      endpointContract.constellationPreview.path,
+      ConstellationPreviewResultSchema,
+      "constellation preview",
+      {
+        query: { scope: parseScope(scope) },
+        headers: {
+          [CONSTELLATION_PREVIEW_LOCAL_READ_HEADER]: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+        },
       }
     );
   }
@@ -471,15 +491,20 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
     options?: {
       body?: Record<string, unknown>;
       query?: Record<string, string | undefined>;
+      headers?: Record<string, string>;
     }
   ): Promise<T> {
     const url = buildUrl(this.apiBaseUrl, path, options?.query);
+    const headers = {
+      ...(options?.body ? { "content-type": "application/json" } : {}),
+      ...(options?.headers ?? {}),
+    };
 
     let response: Response;
     try {
       response = await fetch(url, {
         method,
-        headers: options?.body ? { "content-type": "application/json" } : undefined,
+        headers: Object.keys(headers).length ? headers : undefined,
         body: options?.body ? JSON.stringify(options.body) : undefined,
       });
     } catch {

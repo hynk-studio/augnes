@@ -172,6 +172,14 @@ retry/replay/deploy authority, no branch/PR creation authority, no Codex
 execution authority, no DB schema/migration authority, no graph DB authority,
 no persistence authority, and no consumer authority.
 
+The ChatGPT App/MCP v0.1 contact surface
+`augnes_get_project_constellation_preview` is a separate read-only consumer of
+that existing local route. It adds no route write authority, no new route
+behavior, no production auth, no DB query, no proof/evidence/readiness writes,
+no Codex execution, no GitHub/OpenAI/provider calls, no branch/PR controls, no
+merge/publish/approval/retry/replay/deploy controls, no graph DB, and no
+persistence.
+
 Read-only response sections use compact capability classes as the normal
 product-facing boundary model. Current response-shape classes are
 `read_only_local_static_preview`, `whole_perspective_summary`,
