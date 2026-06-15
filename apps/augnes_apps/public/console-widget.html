@@ -1100,32 +1100,189 @@
         };
       }
 
-      function fallbackHandoffAutomationSlots(slots) {
+      function memoryReuseAttachmentBoundaryText() {
+        return [
+          "Memory Reuse attachment is a read-only proposal preview.",
+          "No memory items are created, persisted, or mutated by this surface.",
+          "No Perspective Memory Reuse Intake command is run by the App/MCP server.",
+          "No execution, writes, provider calls, branch creation, PR creation, proof/evidence recording, publication, merge, retry, replay, or deploy authority.",
+        ];
+      }
+
+      function fallbackMemoryReuseBrief(status) {
+        if (status === "not_configured") {
+          return "Memory Reuse attachment proposal is not configured for this payload; no memory intake was run by this surface.";
+        }
+        if (status === "unavailable") {
+          return "Memory Reuse attachment proposal is unavailable in this payload; no selected memory IDs were attached or invented.";
+        }
+        if (status === "proposed") {
+          return "Selected persisted memory items are attached as read-only prior context; preserve the listed reuse boundaries.";
+        }
+        return "No persisted perspective-memory items were selected for this Work Contract context; continue without reuse or run Perspective Memory Reuse Intake separately before starting Codex.";
+      }
+
+      function normalizeMemoryReuseSourceContext(value, fallback) {
+        const sourceContext = nonEmptyText(value, "");
+        return ["work_contract", "constellation_context", "final_handoff_packet"].includes(sourceContext)
+          ? sourceContext
+          : fallback;
+      }
+
+      function selectedMemoryIdsFromProposal(source) {
+        const direct = safeArray(source?.selected_memory_ids);
+        const fromItems = safeRecordArray(source?.selected_memory_items)
+          .map((item) => nonEmptyText(item.memory_item_id || item.item_id || item.id, ""))
+          .filter(Boolean);
+        return [...new Set([...direct, ...fromItems])];
+      }
+
+      function normalizeMemoryReuseAttachmentProposal(source, preview, card) {
+        const record = safeRecord(source);
+        const selectedIds = selectedMemoryIdsFromProposal(record);
+        const statusSource = nonEmptyText(record.status, "");
+        const validStatus = ["proposed", "no_match", "unavailable", "not_configured"].includes(statusSource)
+          ? statusSource
+          : "";
+        const warnings = safeArray(record.warnings);
+        let status = validStatus || (selectedIds.length ? "proposed" : "no_match");
+        if (status === "proposed" && selectedIds.length === 0) {
+          status = "no_match";
+          warnings.push("Attached Memory Reuse proposal had proposed status without selected memory IDs; no memory IDs were invented.");
+        }
+        if (selectedIds.length > 0 && status !== "proposed") {
+          status = "proposed";
+          warnings.push("Attached Memory Reuse proposal included selected memory IDs; status is surfaced as proposed.");
+        }
+        if (
+          selectedIds.length === 0 &&
+          (safeArray(record.why_selected).length || safeArray(record.reuse_boundary).length)
+        ) {
+          warnings.push("Attached Memory Reuse rationale was ignored because no selected memory IDs were attached.");
+        }
+        const selectionGuidance = safeArray(record.selection_guidance);
+        const taskSummary = nonEmptyText(
+          record.task_summary || record.task_ref || preview?.work_next_action || card?.current_or_next_step || preview?.work_title || card?.work_title,
+          "Work Contract task context."
+        );
+        const defaultSourceContext = preview?.constellation_context?.status === "attached" || card?.constellation_context?.status === "attached"
+          ? "constellation_context"
+          : "work_contract";
+        const boundary = [...memoryReuseAttachmentBoundaryText(), ...safeArray(record.boundary_text)];
+        return {
+          proposal_type: "memory_reuse_attachment_proposal",
+          status,
+          task_summary: taskSummary,
+          task_ref: nonEmptyText(record.task_ref || card?.work_id || preview?.work_id, ""),
+          source_context: normalizeMemoryReuseSourceContext(record.source_context, defaultSourceContext),
+          selected_memory_ids: selectedIds,
+          selected_memory_count: selectedIds.length,
+          why_selected: selectedIds.length ? safeArray(record.why_selected) : [],
+          reuse_boundary: selectedIds.length ? safeArray(record.reuse_boundary) : [],
+          selection_guidance: selectionGuidance.length
+            ? selectionGuidance
+            : status === "proposed"
+              ? [
+                  "Review selected persisted memory IDs and reuse boundaries before starting a separate Codex session.",
+                  "Treat the attachment as prior context only, not runtime authority.",
+                ]
+              : status === "no_match"
+                ? [
+                    "No persisted perspective-memory items were selected from the attached Work Contract context.",
+                    "Continue without reuse or run Perspective Memory Reuse Intake separately before starting Codex if memory context is required.",
+                  ]
+                : [
+                    `Memory Reuse proposal data is ${status} in this Work Contract payload.`,
+                    "No selected memory IDs were attached or invented.",
+                  ],
+          fallback_brief: nonEmptyText(record.fallback_brief, fallbackMemoryReuseBrief(status)),
+          warnings,
+          boundary_text: boundary,
+        };
+      }
+
+      function memoryReuseProposalLineItems(proposal) {
+        const selectedIds = safeArray(proposal?.selected_memory_ids);
+        const whySelected = safeArray(proposal?.why_selected);
+        const reuseBoundary = safeArray(proposal?.reuse_boundary);
+        const lines = [
+          `- Status: ${nonEmptyText(proposal?.status, "no_match")}`,
+          `- Task summary: ${nonEmptyText(proposal?.task_summary, "Work Contract task context.")}`,
+          `- Task ref: ${nonEmptyText(proposal?.task_ref, "missing")}`,
+          `- Source context: ${nonEmptyText(proposal?.source_context, "work_contract")}`,
+          `- Selected memory count: ${safeCount(proposal?.selected_memory_count)}`,
+          "- Selected memory IDs:",
+          ...(selectedIds.length ? selectedIds.map((item) => `  - ${item}`) : ["  - No persisted memory IDs selected."]),
+        ];
+        if (whySelected.length) {
+          lines.push("- Why selected:", ...whySelected.map((item) => `  - ${item}`));
+        } else {
+          lines.push("- Why selected: not attached because no persisted memory items were selected.");
+        }
+        if (reuseBoundary.length) {
+          lines.push("- Reuse boundaries:", ...reuseBoundary.map((item) => `  - ${item}`));
+        } else {
+          lines.push("- Reuse boundaries: not attached because no persisted memory items were selected.");
+        }
+        lines.push(
+          `- Fallback brief: ${nonEmptyText(proposal?.fallback_brief, fallbackMemoryReuseBrief("no_match"))}`,
+          "- Selection guidance:",
+          ...(safeArray(proposal?.selection_guidance).length
+            ? safeArray(proposal.selection_guidance).map((item) => `  - ${item}`)
+            : ["  - No Memory Reuse selection guidance attached."]),
+        );
+        if (safeArray(proposal?.warnings).length) {
+          lines.push("- Warnings:", ...safeArray(proposal.warnings).map((item) => `  - ${item}`));
+        } else {
+          lines.push("- Warnings: none");
+        }
+        lines.push(
+          "- Boundary:",
+          ...(safeArray(proposal?.boundary_text).length
+            ? safeArray(proposal.boundary_text).map((item) => `  - ${item}`)
+            : memoryReuseAttachmentBoundaryText().map((item) => `  - ${item}`)),
+        );
+        return lines;
+      }
+
+      function fallbackHandoffAutomationSlots(slots, memoryReuseProposal) {
         const source = safeRecord(slots);
         const fallbackBoundary = [
           "Future attachment slot only.",
           "Not generated by this surface.",
           "No execution, writes, provider calls, branch creation, PR creation, proof/evidence recording, publication, merge, retry, replay, or deploy authority.",
         ];
-        function slot(sourceSlot, slotId, label, status, summary) {
+        function slot(sourceSlot, slotId, label, status, summary, options = {}) {
           const record = safeRecord(sourceSlot);
           return {
             slot_id: nonEmptyText(record.slot_id, slotId),
             label: nonEmptyText(record.label, label),
             status: nonEmptyText(record.status, status),
-            inert: record.inert !== false,
-            generated: false,
+            inert: options.inert ?? (record.inert !== false),
+            generated: options.generated ?? Boolean(record.generated),
             summary: nonEmptyText(record.summary, summary),
-            boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : fallbackBoundary,
+            boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : options.boundary_text || fallbackBoundary,
+            ...(options.proposal ? { proposal: options.proposal } : {}),
           };
         }
+        const proposal = memoryReuseProposal || normalizeMemoryReuseAttachmentProposal(source.memory_reuse_attachment?.proposal, {}, {});
         return {
           memory_reuse_attachment: slot(
             source.memory_reuse_attachment,
             "memory_reuse_attachment",
             "Memory Reuse attachment",
-            "not_attached",
-            "Memory Reuse attachment is not attached in this Work Contract surface."
+            proposal.status,
+            proposal.status === "proposed"
+              ? `Read-only Memory Reuse proposal attached with ${proposal.selected_memory_count} selected persisted memory item(s).`
+              : proposal.status === "no_match"
+                ? "Memory Reuse proposal is explicit no_match; no persisted memory items were selected or invented."
+                : `Memory Reuse proposal is explicitly ${proposal.status}.`,
+            {
+              inert: proposal.status === "not_configured" || proposal.status === "unavailable",
+              generated: proposal.status === "proposed" || proposal.status === "no_match",
+              boundary_text: proposal.boundary_text,
+              proposal,
+            }
           ),
           pr_body_checklist: slot(
             source.pr_body_checklist,
@@ -1152,7 +1309,7 @@
         return constellationContextPacketLines(context);
       }
 
-      function composeFallbackFinalHandoffText(preview, slots) {
+      function composeFallbackFinalHandoffText(preview, slots, memoryReuseProposal) {
         const context = preview.constellation_context;
         const contextStatus = context?.status === "attached" ? "attached" : "explicitly_absent";
         const jsonBlock = JSON.stringify(
@@ -1189,6 +1346,7 @@
             stop_conditions: preview.stop_conditions,
             constellation_context: contextStatus === "attached" ? context : null,
             constellation_context_status: contextStatus,
+            memory_reuse_attachment_proposal: memoryReuseProposal,
             handoff_automation_slots: slots,
             authority_boundaries: preview.boundary_text,
             copy_packet: {
@@ -1236,6 +1394,9 @@
           "Project Constellation context",
           ...finalConstellationPacketLines(context),
           "",
+          "Memory Reuse attachment",
+          ...memoryReuseProposalLineItems(memoryReuseProposal),
+          "",
           "Future attachment slots",
           `- ${slotLine(slots.memory_reuse_attachment)}`,
           `- ${slotLine(slots.pr_body_checklist)}`,
@@ -1266,7 +1427,6 @@
 
       function normalizeFinalCodexHandoffPacket(data, preview, card) {
         const source = safeRecord(data?.final_codex_handoff_packet || data?.codex_final_handoff_packet);
-        const slots = fallbackHandoffAutomationSlots(source.handoff_automation_slots || data?.handoff_automation_slots);
         const context =
           normalizeWorkContractConstellationContext({
             ...data,
@@ -1276,6 +1436,17 @@
             },
             constellation_context: source.constellation_context || data?.constellation_context,
           });
+        const sourceSlots = safeRecord(source.handoff_automation_slots || data?.handoff_automation_slots);
+        const sourceMemorySlot = safeRecord(sourceSlots.memory_reuse_attachment);
+        const memoryReuseProposal = normalizeMemoryReuseAttachmentProposal(
+          source.memory_reuse_attachment_proposal ||
+            data?.memory_reuse_attachment_proposal ||
+            data?.final_handoff_memory_reuse_attachment ||
+            sourceMemorySlot.proposal,
+          { ...preview, constellation_context: context.status === "attached" ? context : null },
+          card
+        );
+        const slots = fallbackHandoffAutomationSlots(sourceSlots, memoryReuseProposal);
         const fallbackPacket = {
           packet_type: "final_codex_handoff_packet",
           schema: "augnes.final_codex_handoff_packet.v0_1",
@@ -1306,6 +1477,7 @@
           constellation_context: context.status === "attached" ? context : null,
           constellation_context_status: context.status === "attached" ? "attached" : "explicitly_absent",
           no_constellation_context_fallback: "No Project Constellation context is attached to this work contract.",
+          memory_reuse_attachment_proposal: memoryReuseProposal,
           structured_json_delimiters: {
             begin: "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
             end: "END_AUGNES_CODEX_HANDOFF_JSON",
@@ -1316,13 +1488,14 @@
           ...fallbackPacket,
           ...source,
           handoff_automation_slots: slots,
+          memory_reuse_attachment_proposal: memoryReuseProposal,
           constellation_context: source.constellation_context || fallbackPacket.constellation_context,
         };
         return {
           ...packet,
           copyable_handoff_text: nonEmptyText(
             source.copyable_handoff_text,
-            composeFallbackFinalHandoffText({ ...preview, constellation_context: context }, slots)
+            composeFallbackFinalHandoffText({ ...preview, constellation_context: context }, slots, memoryReuseProposal)
           ),
         };
       }
@@ -1364,6 +1537,63 @@
           ["Post", " ", "externally"],
         ];
         return labels.some((parts) => text.includes(parts.join("")));
+      }
+
+      function memoryReuseAttachmentPreflightCheck(packet, text) {
+        const proposal = normalizeMemoryReuseAttachmentProposal(
+          packet.memory_reuse_attachment_proposal || packet.handoff_automation_slots?.memory_reuse_attachment?.proposal,
+          { work_next_action: packet.current_or_next_step, work_title: packet.work_title, work_id: packet.work_id },
+          { work_id: packet.work_id, work_title: packet.work_title, current_or_next_step: packet.current_or_next_step }
+        );
+        const selectedIds = safeArray(proposal.selected_memory_ids);
+        const fallbackBriefPresent = Boolean(nonEmptyText(proposal.fallback_brief, ""));
+        const packetMentionsAttachment = text.includes("Memory Reuse attachment");
+        if (proposal.status === "proposed") {
+          const proposedValid =
+            selectedIds.length > 0 &&
+            selectedIds.length === Number(proposal.selected_memory_count || 0) &&
+            safeArray(proposal.why_selected).length > 0 &&
+            safeArray(proposal.reuse_boundary).length > 0 &&
+            packetMentionsAttachment;
+          return {
+            id: "memory_reuse_attachment_state",
+            status: proposedValid ? "pass" : "fail",
+            message: proposedValid
+              ? "Memory Reuse attachment proposal includes selected memory IDs with reuse rationale and boundaries."
+              : "Memory Reuse attachment proposal is marked proposed but selected IDs, rationale, boundaries, or packet text are incomplete.",
+          };
+        }
+        if (proposal.status === "no_match") {
+          const noMatchValid =
+            selectedIds.length === 0 &&
+            Number(proposal.selected_memory_count || 0) === 0 &&
+            safeArray(proposal.why_selected).length === 0 &&
+            safeArray(proposal.reuse_boundary).length === 0 &&
+            fallbackBriefPresent &&
+            packetMentionsAttachment;
+          return {
+            id: "memory_reuse_attachment_state",
+            status: noMatchValid ? "pass" : "fail",
+            message: noMatchValid
+              ? "Memory Reuse attachment is explicit no_match with no invented selected memory data."
+              : "Memory Reuse attachment no_match state is missing fallback text or includes invented selected memory data.",
+          };
+        }
+        if (proposal.status === "not_configured" || proposal.status === "unavailable") {
+          return {
+            id: "memory_reuse_attachment_state",
+            status: fallbackBriefPresent && packetMentionsAttachment ? "warn" : "fail",
+            message:
+              fallbackBriefPresent && packetMentionsAttachment
+                ? `Memory Reuse attachment is explicitly ${proposal.status}.`
+                : "Memory Reuse attachment unavailable/not_configured state is missing explicit fallback text.",
+          };
+        }
+        return {
+          id: "memory_reuse_attachment_state",
+          status: "fail",
+          message: "Memory Reuse attachment state is malformed or ambiguous.",
+        };
       }
 
       function localFinalPreflight(packet) {
@@ -1412,6 +1642,7 @@
                 ? "Project Constellation context is attached."
                 : "Missing Project Constellation context fallback is explicit.",
           },
+          memoryReuseAttachmentPreflightCheck(packet, text),
           {
             id: "no_forbidden_control_labels",
             status: containsForbiddenFinalHandoffLabel(text) ? "fail" : "pass",
@@ -1426,10 +1657,17 @@
           },
         ];
         const hasFail = checks.some((check) => check.status === "fail");
+        const hasWarn = checks.some((check) => check.status === "warn");
+        const status = hasFail ? "fail" : hasWarn ? "warn" : "pass";
         return {
           preflight_type: "final_handoff_preflight",
-          status: hasFail ? "fail" : "pass",
-          summary: hasFail ? "Final handoff packet failed local preflight." : "Final handoff packet passes local read-only preflight.",
+          status,
+          summary:
+            status === "pass"
+              ? "Final handoff packet passes local read-only preflight."
+              : status === "warn"
+                ? "Final handoff packet has local preflight warnings."
+                : "Final handoff packet failed local preflight.",
           checks,
           checked_packet_type: "final_codex_handoff_packet",
           checker: "app_local_final_handoff_preview_checker",
@@ -1810,12 +2048,45 @@
         return root;
       }
 
+      function renderMemoryReuseAttachmentProposal(proposal) {
+        const normalized = normalizeMemoryReuseAttachmentProposal(proposal, {}, {});
+        const root = el("div", { className: "stack" });
+        root.appendChild(el("div", {
+          className: "status-box",
+          text:
+            "Read-only Memory Reuse attachment proposal. It does not create memory items, persist memory, record proof or evidence, mutate Augnes state, execute Codex, or call providers.",
+        }));
+        root.appendChild(createMetricGrid([
+          ["Status", normalized.status],
+          ["Source context", normalized.source_context],
+          ["Selected count", String(normalized.selected_memory_count)],
+          ["Task ref", normalized.task_ref || "missing"],
+        ]));
+        root.appendChild(el("p", { className: "summary", text: normalized.task_summary }));
+        root.appendChild(createSection(
+          "Selected memory IDs",
+          createCodeListWithFallback(normalized.selected_memory_ids, "No persisted memory IDs selected."),
+          { badge: `${normalized.selected_memory_count}` }
+        ));
+        root.appendChild(createSection(
+          "Fallback brief",
+          el("div", { className: "status-box", text: normalized.fallback_brief }),
+          { badge: normalized.status }
+        ));
+        root.appendChild(createSection("Selection guidance", createTextList(normalized.selection_guidance), { badge: "guidance" }));
+        root.appendChild(createSection("Why selected", createTextList(normalized.why_selected), { badge: `${normalized.why_selected.length}` }));
+        root.appendChild(createSection("Reuse boundaries", createTextList(normalized.reuse_boundary), { badge: `${normalized.reuse_boundary.length}` }));
+        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${normalized.warnings.length}` }));
+        root.appendChild(createSection("Boundary", createTextList(normalized.boundary_text), { badge: "read-only" }));
+        return root;
+      }
+
       function renderHandoffAutomationSlots(slots) {
         const normalized = fallbackHandoffAutomationSlots(slots);
         const root = el("div", { className: "stack" });
         root.appendChild(el("div", {
           className: "status-box",
-          text: "Inert future attachment slots only. These slots are visible planning placeholders and do not generate artifacts or grant execution/write authority.",
+          text: "Attachment slots are local preview state only. PR body checklist and result review packet remain inert placeholders and no slot grants execution/write authority.",
         }));
         for (const slot of [
           normalized.memory_reuse_attachment,
@@ -1828,7 +2099,10 @@
           row.appendChild(tag(slot.status));
           item.appendChild(row);
           item.appendChild(el("div", { className: "item-note", text: slot.summary }));
-          item.appendChild(el("div", { className: "meta-line", text: "Inert preview slot; no generated attachment." }));
+          item.appendChild(el("div", {
+            className: "meta-line",
+            text: slot.generated ? "Read-only proposal preview; no persistence or write authority." : "Inert preview slot; no generated attachment.",
+          }));
           root.appendChild(item);
         }
         return root;
@@ -1841,7 +2115,7 @@
           ["Preflight", nonEmptyText(preflight.status, "unavailable")],
           ["Composition", nonEmptyText(packet.composition_status, "composed")],
           ["Constellation", nonEmptyText(packet.constellation_context_status, "explicitly_absent")],
-          ["Memory Reuse", nonEmptyText(packet.handoff_automation_slots?.memory_reuse_attachment?.status, "not_attached")],
+          ["Memory Reuse", nonEmptyText(packet.memory_reuse_attachment_proposal?.status || packet.handoff_automation_slots?.memory_reuse_attachment?.status, "no_match")],
           ["PR checklist", nonEmptyText(packet.handoff_automation_slots?.pr_body_checklist?.status, "not_generated")],
         ]));
         root.appendChild(el("div", {
@@ -1850,7 +2124,12 @@
             "Final handoff is prepared local text only. It does not execute Codex, create branches or PRs, record proof or evidence, mutate Augnes state, publish, merge, retry, replay, deploy, or call providers.",
         }));
         root.appendChild(renderFinalHandoffPreflight(preflight));
-        root.appendChild(createSection("Future attachment slots", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "inert" }));
+        root.appendChild(createSection(
+          "Memory Reuse attachment",
+          renderMemoryReuseAttachmentProposal(packet.memory_reuse_attachment_proposal || packet.handoff_automation_slots?.memory_reuse_attachment?.proposal),
+          { badge: nonEmptyText(packet.memory_reuse_attachment_proposal?.status, "no_match") }
+        ));
+        root.appendChild(createSection("Future attachment slots", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "preview" }));
         root.appendChild(createSection(
           "Copyable handoff packet",
           renderCopyableHandoffPacket({ copyable_handoff_text: packet.copyable_handoff_text }),

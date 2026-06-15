@@ -31,14 +31,17 @@ assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff 
 assert.match(server, /final_codex_handoff_packet/, "server must return Final Codex Handoff Packet structured content");
 assert.match(server, /codex_final_handoff_packet/, "server must expose a final handoff packet alias for model-readable access");
 assert.match(server, /final_handoff_preflight/, "server must return Final Handoff Preflight structured content");
-assert.match(server, /handoff_automation_slots/, "server must return inert handoff automation slots");
+assert.match(server, /handoff_automation_slots/, "server must return handoff automation slots");
+assert.match(server, /memory_reuse_attachment_proposal/, "server must return Memory Reuse attachment proposal structured content");
+assert.match(server, /final_handoff_memory_reuse_attachment/, "server must return a Memory Reuse attachment proposal alias");
 assert.match(server, /work_contract_constellation_context/, "server must support optional Work Contract / Constellation context");
 assert.match(server, /No Project Constellation context is attached to this work contract\./, "server must keep missing Constellation context explicit");
 assert.match(widget, /renderWorkContractCard/, "widget must implement Work Contract Card rendering");
 assert.match(widget, /renderCodexHandoffPreview/, "widget must implement Codex Handoff Preview rendering");
 assert.match(widget, /renderFinalCodexHandoffPacket/, "widget must render the Final Codex Handoff section");
 assert.match(widget, /renderFinalHandoffPreflight/, "widget must render final handoff preflight status");
-assert.match(widget, /renderHandoffAutomationSlots/, "widget must render inert future attachment slots");
+assert.match(widget, /renderHandoffAutomationSlots/, "widget must render future attachment slots");
+assert.match(widget, /renderMemoryReuseAttachmentProposal/, "widget must render Memory Reuse attachment proposal state");
 assert.match(widget, /renderWorkContractConstellationContext/, "widget must render Work Contract / Constellation context");
 assert.match(widget, /renderCopyableHandoffPacket/, "widget must implement a bounded copy affordance renderer");
 assert.match(server, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block begin delimiter");
@@ -55,9 +58,14 @@ assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex 
 assert.match(runbook, /Final Codex Handoff Auto-Compose And Preflight/i, "runbook must explain final handoff auto-compose and preflight");
 assert.match(runbook, /final_codex_handoff_packet/, "runbook must name the final handoff packet field");
 assert.match(runbook, /final_handoff_preflight/, "runbook must name the final handoff preflight field");
-assert.match(runbook, /memory_reuse_attachment/, "runbook must document inert Memory Reuse attachment slot");
+assert.match(runbook, /memory_reuse_attachment/, "runbook must document Memory Reuse attachment proposal slot");
+assert.match(runbook, /no_match.*valid state/i, "runbook must document no_match as valid");
 assert.match(runbook, /pr_body_checklist/, "runbook must document inert PR body checklist slot");
 assert.match(runbook, /codex_result_review_packet/, "runbook must document inert result review packet slot");
+for (const status of ["proposed", "no_match", "unavailable", "not_configured"]) {
+  assert.match(server, new RegExp(escapeRegExp(status)), `server must support Memory Reuse proposal status ${status}`);
+  assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Memory Reuse proposal status ${status}`);
+}
 
 const uiText = `${server}\n${widget}`;
 assertNoForbiddenServerOrWidgetCalls(uiText);
@@ -105,7 +113,10 @@ assert.match(workBriefBlock, /work_contract_card/, "augnes_get_work_brief must c
 assert.match(workBriefBlock, /codex_handoff_preview/, "augnes_get_work_brief must carry handoff preview structured content");
 assert.match(workBriefBlock, /final_codex_handoff_packet/, "augnes_get_work_brief must carry final handoff packet structured content");
 assert.match(workBriefBlock, /final_handoff_preflight/, "augnes_get_work_brief must carry final handoff preflight structured content");
-assert.match(workBriefBlock, /handoff_automation_slots/, "augnes_get_work_brief must carry inert automation slots");
+assert.match(workBriefBlock, /handoff_automation_slots/, "augnes_get_work_brief must carry automation slots");
+assert.match(workBriefBlock, /memory_reuse_attachment_proposal/, "augnes_get_work_brief must carry Memory Reuse proposal structured content");
+assert.doesNotMatch(server, /buildPerspectiveMemoryReuseIntakeFromStore\s*\(/, "App/MCP server must not run the store-backed Memory Reuse intake helper");
+assert.doesNotMatch(server, /listPerspectiveMemoryItems\s*\(/, "App/MCP server must not query persisted perspective-memory items for this preview");
 
 if (server.includes('"augnes_get_work_contract_card"')) {
   const cardToolBlock = extractToolBlock(server, "augnes_get_work_contract_card");
@@ -116,11 +127,22 @@ if (server.includes('"augnes_get_work_contract_card"')) {
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractCard"), "buildWorkContractCard");
 assertNoNetworkCalls(extractFunction(server, "buildCodexHandoffPreview"), "buildCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(server, "buildCopyableHandoffText"), "buildCopyableHandoffText");
+assertNoNetworkCalls(extractFunction(server, "memoryReuseAttachmentStatusFromUnknown"), "memoryReuseAttachmentStatusFromUnknown");
+assertNoNetworkCalls(extractFunction(server, "memoryReuseSourceContextFromUnknown"), "memoryReuseSourceContextFromUnknown");
+assertNoNetworkCalls(extractFunction(server, "buildMemoryReuseTaskSummary"), "buildMemoryReuseTaskSummary");
+assertNoNetworkCalls(extractFunction(server, "buildDefaultMemoryReuseSelectionGuidance"), "buildDefaultMemoryReuseSelectionGuidance");
+assertNoNetworkCalls(extractFunction(server, "fallbackBriefForMemoryReuseStatus"), "fallbackBriefForMemoryReuseStatus");
+assertNoNetworkCalls(extractFunction(server, "memoryReuseProposalSourceFromBrief"), "memoryReuseProposalSourceFromBrief");
+assertNoNetworkCalls(extractFunction(server, "memoryReuseSelectedIdsFromSource"), "memoryReuseSelectedIdsFromSource");
+assertNoNetworkCalls(extractFunction(server, "buildMemoryReuseAttachmentProposal"), "buildMemoryReuseAttachmentProposal");
+assertNoNetworkCalls(extractFunction(server, "summarizeMemoryReuseAttachmentProposal"), "summarizeMemoryReuseAttachmentProposal");
+assertNoNetworkCalls(extractFunction(server, "memoryReuseProposalLines"), "memoryReuseProposalLines");
 assertNoNetworkCalls(extractFunction(server, "buildHandoffAutomationSlots"), "buildHandoffAutomationSlots");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffJsonBlock"), "buildFinalCodexHandoffJsonBlock");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffText"), "buildFinalCodexHandoffText");
 assertNoNetworkCalls(extractFunction(server, "buildFinalCodexHandoffPacket"), "buildFinalCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(server, "extractStructuredHandoffJsonBlock"), "extractStructuredHandoffJsonBlock");
+assertNoNetworkCalls(extractFunction(server, "finalHandoffMemoryReusePreflightCheck"), "finalHandoffMemoryReusePreflightCheck");
 assertNoNetworkCalls(extractFunction(server, "buildFinalHandoffPreflight"), "buildFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContext"), "buildWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContextFromBrief"), "buildWorkContractConstellationContextFromBrief");
@@ -131,6 +153,7 @@ assertNoNetworkCalls(extractFunction(widget, "renderWorkContractCard"), "renderW
 assertNoNetworkCalls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderFinalCodexHandoffPacket"), "renderFinalCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
+assertNoNetworkCalls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoNetworkCalls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractConstellationContext"), "renderWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(widget, "renderCopyableHandoffPacket"), "renderCopyableHandoffPacket");
@@ -138,6 +161,8 @@ assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractCard"), "norm
 assertNoNetworkCalls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeFinalCodexHandoffPacket"), "normalizeFinalCodexHandoffPacket");
 assertNoNetworkCalls(extractFunction(widget, "normalizeFinalHandoffPreflight"), "normalizeFinalHandoffPreflight");
+assertNoNetworkCalls(extractFunction(widget, "normalizeMemoryReuseAttachmentProposal"), "normalizeMemoryReuseAttachmentProposal");
+assertNoNetworkCalls(extractFunction(widget, "memoryReuseAttachmentPreflightCheck"), "memoryReuseAttachmentPreflightCheck");
 assertNoNetworkCalls(extractFunction(widget, "localFinalPreflight"), "localFinalPreflight");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractConstellationContext"), "normalizeWorkContractConstellationContext");
 assertNoNetworkCalls(widget, "console-widget");
@@ -167,6 +192,12 @@ const renderSource = [
   extractFunction(widget, "summarizeContextNextAction"),
   extractFunction(widget, "normalizeWorkContractConstellationContext"),
   extractFunction(widget, "constellationContextPacketLines"),
+  extractFunction(widget, "memoryReuseAttachmentBoundaryText"),
+  extractFunction(widget, "fallbackMemoryReuseBrief"),
+  extractFunction(widget, "normalizeMemoryReuseSourceContext"),
+  extractFunction(widget, "selectedMemoryIdsFromProposal"),
+  extractFunction(widget, "normalizeMemoryReuseAttachmentProposal"),
+  extractFunction(widget, "memoryReuseProposalLineItems"),
   extractFunction(widget, "fallbackHandoffAutomationSlots"),
   extractFunction(widget, "slotLine"),
   extractFunction(widget, "finalConstellationPacketLines"),
@@ -174,12 +205,14 @@ const renderSource = [
   extractFunction(widget, "normalizeFinalCodexHandoffPacket"),
   extractFunction(widget, "extractStructuredHandoffBlock"),
   extractFunction(widget, "containsForbiddenFinalHandoffLabel"),
+  extractFunction(widget, "memoryReuseAttachmentPreflightCheck"),
   extractFunction(widget, "localFinalPreflight"),
   extractFunction(widget, "normalizeFinalHandoffPreflight"),
   extractFunction(widget, "normalizeWorkContractCard"),
   extractFunction(widget, "normalizeCodexHandoffPreview"),
   extractFunction(widget, "renderWorkContractConstellationContext"),
   extractFunction(widget, "renderFinalHandoffPreflight"),
+  extractFunction(widget, "renderMemoryReuseAttachmentProposal"),
   extractFunction(widget, "renderHandoffAutomationSlots"),
   extractFunction(widget, "renderFinalCodexHandoffPacket"),
   extractFunction(widget, "renderCodexHandoffPreview"),
@@ -189,6 +222,7 @@ const renderSource = [
 assertNoForbiddenControls(extractFunction(widget, "renderWorkContractCard"), "renderWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffPreview"), "renderCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderFinalHandoffPreflight"), "renderFinalHandoffPreflight");
+assertNoForbiddenControls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoForbiddenControls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
@@ -215,7 +249,10 @@ for (const expectedPreviewText of [
   "Preflight checks",
   "Future attachment slots",
   "Memory Reuse attachment",
-  "not_attached",
+  "no_match",
+  "Memory Reuse proposal is explicit no_match",
+  "No persisted memory IDs selected.",
+  "No persisted perspective-memory items were selected",
   "PR body checklist",
   "not_generated",
   "Codex result review packet",
@@ -234,7 +271,11 @@ for (const expectedPreviewText of [
 ]) {
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedPreviewText)), `fallback preview must include: ${expectedPreviewText}`);
 }
-await assertRenderedCopyAffordance(renderedFallback, "clipboard", /Final Codex Handoff Packet[\s\S]*No Project Constellation context is attached to this work contract\./);
+await assertRenderedCopyAffordance(
+  renderedFallback,
+  "clipboard",
+  /No Project Constellation context is attached to this work contract\.[\s\S]*Memory Reuse attachment[\s\S]*No persisted memory IDs selected\./,
+);
 const renderedExecFallback = renderFallbackCard(renderSource, { clipboardWriteThrows: true });
 await assertRenderedCopyAffordance(renderedExecFallback, "execCommand");
 const renderedSelectionFallback = renderFallbackCard(renderSource, {
@@ -259,6 +300,26 @@ for (const expectedContextText of [
 }
 await assertRenderedCopyAffordance(renderedWithConstellation, "clipboard", /candidate:operator-review/);
 
+const renderedWithMemoryReuse = renderMemoryReuseProposedCard(renderSource);
+for (const expectedMemoryReuseText of [
+  "proposed",
+  "perspective-memory-item:intake-accepted",
+  "Matched Work Contract and selected Constellation context",
+  "Reuse only as bounded prior context",
+  "Selected persisted memory item is attached as read-only prior context.",
+  "Memory Reuse attachment is a read-only proposal preview.",
+]) {
+  assert.match(renderedWithMemoryReuse.text, new RegExp(escapeRegExp(expectedMemoryReuseText)), `Memory Reuse proposal render must include: ${expectedMemoryReuseText}`);
+}
+assert.doesNotMatch(renderedFallback.text, /perspective-memory-item:intake-accepted/, "no_match fallback must not invent selected memory IDs");
+assert.doesNotMatch(renderedFallback.text, /Matched Work Contract and selected Constellation context/, "no_match fallback must not invent why_selected");
+assert.doesNotMatch(renderedFallback.text, /Reuse only as bounded prior context/, "no_match fallback must not invent reuse_boundary");
+await assertRenderedCopyAffordance(
+  renderedWithMemoryReuse,
+  "clipboard",
+  /Memory Reuse attachment[\s\S]*perspective-memory-item:intake-accepted[\s\S]*Reuse only as bounded prior context/,
+);
+
 console.log(
   JSON.stringify(
     {
@@ -274,10 +335,16 @@ console.log(
       final_packet_work_contract_fields_checked: true,
       final_packet_missing_constellation_fallback_checked: true,
       final_packet_attached_constellation_context_checked: true,
+      memory_reuse_attachment_proposal_present: true,
+      memory_reuse_attachment_no_match_checked: true,
+      memory_reuse_attachment_selected_fixture_checked: true,
+      memory_reuse_attachment_copy_packet_checked: true,
       final_handoff_preflight_present: true,
       final_handoff_preflight_pass_fixture_checked: true,
       final_handoff_preflight_malformed_fixture_checked: true,
-      inert_handoff_automation_slots_present: true,
+      final_handoff_preflight_memory_reuse_state_checked: true,
+      handoff_automation_slots_present: true,
+      pr_body_and_review_slots_remain_inert: true,
       work_contract_constellation_context_optional: true,
       work_contract_constellation_context_rendered: true,
       missing_constellation_context_fallback_checked: true,
@@ -454,9 +521,28 @@ function assertFinalPreflightFixtures(source) {
     skipped_check_policy: "Skipped checks must be reported with concrete reasons; do not claim skipped checks passed.",
     final_report_requirements: ["Changed files."],
     constellation_context_status: "explicitly_absent",
+    memory_reuse_attachment_proposal: {
+      status: "no_match",
+      task_summary: "Fallback smoke card",
+      task_ref: "AG-SMOKE",
+      source_context: "work_contract",
+      selected_memory_ids: [],
+      selected_memory_count: 0,
+      why_selected: [],
+      reuse_boundary: [],
+      selection_guidance: ["No persisted perspective-memory items were selected from the attached Work Contract context."],
+      fallback_brief: "No persisted perspective-memory items were selected for this Work Contract context.",
+      warnings: [],
+      boundary_text: ["Memory Reuse attachment is a read-only proposal preview."],
+    },
     copyable_handoff_text: [
       "Final Codex Handoff Packet",
       "No Project Constellation context is attached to this work contract.",
+      "Memory Reuse attachment",
+      "- Status: no_match",
+      "- Selected memory IDs:",
+      "  - No persisted memory IDs selected.",
+      "- Fallback brief: No persisted perspective-memory items were selected for this Work Contract context.",
       "Skipped checks must be reported with concrete reasons; do not claim skipped checks passed.",
       "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
       JSON.stringify({
@@ -481,6 +567,7 @@ function assertFinalPreflightFixtures(source) {
   assert.ok(pass.checks.some((check) => check.id === "skipped_check_policy" && check.status === "pass"), "preflight must check skipped check policy");
   assert.ok(pass.checks.some((check) => check.id === "forbidden_actions" && check.status === "pass"), "preflight must check forbidden actions");
   assert.ok(pass.checks.some((check) => check.id === "constellation_context_state" && check.status === "pass"), "preflight must check attached/missing Constellation state");
+  assert.ok(pass.checks.some((check) => check.id === "memory_reuse_attachment_state" && check.status === "pass"), "preflight must check Memory Reuse attachment state");
 
   context.__badPacket = {
     packet_type: "final_codex_handoff_packet",
@@ -581,12 +668,51 @@ function constellationContextCardPayload() {
   };
 }
 
+function memoryReuseProposedCardPayload() {
+  return {
+    ...constellationContextCardPayload(),
+    memory_reuse_attachment_proposal: {
+      proposal_type: "memory_reuse_attachment_proposal",
+      status: "proposed",
+      task_summary: "Build the selected-memory proposal fixture.",
+      task_ref: "AG-SMOKE",
+      source_context: "constellation_context",
+      selected_memory_ids: [
+        "perspective-memory-item:intake-accepted",
+      ],
+      selected_memory_count: 1,
+      why_selected: [
+        "Matched Work Contract and selected Constellation context for Memory Reuse attachment proposal smoke.",
+      ],
+      reuse_boundary: [
+        "Reuse only as bounded prior context; do not treat memory as runtime authority or a write permission.",
+      ],
+      selection_guidance: [
+        "Preserve selected memory IDs.",
+        "Preserve why_selected and reuse_boundary.",
+      ],
+      fallback_brief: "Selected persisted memory item is attached as read-only prior context.",
+      warnings: [
+        "Operator should review memory reuse before starting a separate Codex session.",
+      ],
+      boundary_text: [
+        "Memory Reuse attachment is a read-only proposal preview.",
+        "No memory items are created, persisted, or mutated by this surface.",
+      ],
+    },
+  };
+}
+
 function renderFallbackCard(source, options = {}) {
   return renderCard(source, fallbackCardPayload(), options);
 }
 
 function renderConstellationContextCard(source, options = {}) {
   return renderCard(source, constellationContextCardPayload(), options);
+}
+
+function renderMemoryReuseProposedCard(source, options = {}) {
+  return renderCard(source, memoryReuseProposedCardPayload(), options);
 }
 
 function renderCard(source, payload, options = {}) {
@@ -753,6 +879,14 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
   assert.equal(jsonBlock.copy_packet.does_not_record_evidence, true, "embedded JSON must mark no evidence recording");
   assert.equal(jsonBlock.copy_packet.does_not_mutate_state, true, "embedded JSON must mark no state mutation");
   assert.equal(jsonBlock.copy_packet.does_not_merge, true, "embedded JSON must mark no merge authority");
+  assert.ok(jsonBlock.memory_reuse_attachment_proposal, "embedded JSON must include Memory Reuse attachment proposal");
+  assert.ok(
+    ["proposed", "no_match", "unavailable", "not_configured"].includes(jsonBlock.memory_reuse_attachment_proposal.status),
+    "embedded JSON Memory Reuse proposal must use a bounded status",
+  );
+  assert.ok(jsonBlock.handoff_automation_slots?.memory_reuse_attachment, "embedded JSON must include the Memory Reuse automation slot");
+  assert.equal(jsonBlock.handoff_automation_slots?.pr_body_checklist?.status, "not_generated", "PR body checklist slot must remain inert");
+  assert.equal(jsonBlock.handoff_automation_slots?.codex_result_review_packet?.status, "not_generated", "Codex result review packet slot must remain inert");
 }
 
 function extractEmbeddedHandoffJson(text) {
