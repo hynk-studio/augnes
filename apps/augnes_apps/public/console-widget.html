@@ -2169,6 +2169,7 @@
           structured_fields_preserved: safeArray(record.structured_fields_preserved),
           conflict_warnings: safeArray(record.conflict_warnings),
           extraction_warnings: safeArray(record.extraction_warnings),
+          ambiguous_combined_section_lines: safeArray(record.ambiguous_combined_section_lines),
           candidate,
           boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : codexResultPasteNormalizerBoundaryText(),
         };
@@ -2220,12 +2221,20 @@
           createTextList([
             ...safeArray(normalized.conflict_warnings),
             ...safeArray(normalized.extraction_warnings),
-            ...(safeArray(normalized.conflict_warnings).length || safeArray(normalized.extraction_warnings).length
+            ...safeArray(normalized.ambiguous_combined_section_lines).map((item) => `ambiguous combined line: ${item}`),
+            ...(safeArray(normalized.conflict_warnings).length || safeArray(normalized.extraction_warnings).length || safeArray(normalized.ambiguous_combined_section_lines).length
               ? []
               : ["Review the candidate before using it as closeout evidence or deciding work status outside this preview surface."]),
           ]),
-          { badge: `${safeArray(normalized.conflict_warnings).length + safeArray(normalized.extraction_warnings).length}` }
+          { badge: `${safeArray(normalized.conflict_warnings).length + safeArray(normalized.extraction_warnings).length + safeArray(normalized.ambiguous_combined_section_lines).length}` }
         ));
+        if (safeArray(normalized.ambiguous_combined_section_lines).length) {
+          root.appendChild(createSection(
+            "Ambiguous combined lines",
+            createTextList(normalized.ambiguous_combined_section_lines),
+            { badge: `${safeArray(normalized.ambiguous_combined_section_lines).length}` }
+          ));
+        }
         root.appendChild(createSection(
           "What this helper does not do",
           createTextList(normalized.boundary_text),

@@ -63,6 +63,21 @@ overwrite structured input.
 Partial extraction remains partial. Missing fields stay visible as warnings or
 review questions, not invented pass results.
 
+Combined skipped-check/caveat sections are split conservatively. Supported
+combined headings include `Skipped checks and caveats`, `Skipped validation and
+caveats`, `Skipped checks / remaining caveats`, `Caveats and skipped checks`,
+and `Limitations / skipped checks`.
+
+Lines that clearly describe skipped or unavailable validation become
+`skipped_checks`. Lines that clearly describe residual limitations, future
+work, manual review, or candidate-only behavior become `remaining_caveats`.
+Ambiguous combined-section lines are not duplicated into both result fields;
+they remain human-review warnings and are exposed as
+`ambiguous_combined_section_lines`.
+
+Explicit none-skipped and none-remaining signals are preserved, including
+combined-section text such as `Skipped checks: none; Remaining caveats: none`.
+
 ## Boundary
 
 This helper does not fetch GitHub, write proof or evidence, close work, mutate

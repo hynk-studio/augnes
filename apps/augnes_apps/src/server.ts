@@ -964,6 +964,13 @@ type CodexResultPasteNormalizerSource =
   | "top_level_paste"
   | "structured_input_raw_text"
   | "structured_input_and_paste";
+type CodexResultCombinedSectionLineClassification =
+  | "skipped_check"
+  | "remaining_caveat"
+  | "explicit_none_skipped"
+  | "explicit_none_remaining"
+  | "ambiguous"
+  | "ignored_empty";
 type CodexResultReviewNextActionCategory =
   | "close_done"
   | "follow_up_fix_needed"
@@ -1005,6 +1012,7 @@ type CodexResultPasteNormalizerPreview = {
   structured_fields_preserved: string[];
   conflict_warnings: string[];
   extraction_warnings: string[];
+  ambiguous_combined_section_lines: string[];
   candidate: NormalizedCodexResultCandidate;
   boundary_text: readonly string[];
 };
@@ -2506,7 +2514,7 @@ function codexResultPasteSectionKey(rawLine: string): { key: string; remainder: 
   if (/^(remaining caveats|caveats|limitations)$/.test(normalized)) {
     return { key: "remaining_caveats", remainder };
   }
-  if (/^(skipped checks and caveats|skipped validation and caveats)$/.test(normalized)) {
+  if (/^(skipped checks and caveats|skipped validation and caveats|skipped checks \/ remaining caveats|caveats and skipped checks|limitations \/ skipped checks)$/.test(normalized)) {
     return { key: "skipped_checks_and_caveats", remainder };
   }
   if (/^(authority boundary statement|authority boundary|boundary statement)$/.test(normalized)) {
@@ -2522,6 +2530,10 @@ function parseCodexResultPasteSections(rawText: string): Map<string, string[]> {
   const sections = new Map<string, string[]>();
   let currentKey: string | null = null;
   for (const rawLine of rawText.split(/\r?\n/)) {
+    if (currentKey && /^\s*[-*+]\s+/.test(rawLine)) {
+      sections.get(currentKey)?.push(rawLine);
+      continue;
+    }
     const heading = codexResultPasteSectionKey(rawLine);
     if (heading) {
       if (heading.key === "__ignored") {
@@ -2608,6 +2620,106 @@ function extractCodexResultPasteAuthorityStatement(sections: Map<string, string[
   return statement || undefined;
 }
 
+function hasExplicitNoneSkippedText(text: string): boolean {
+  return /\b(no skipped checks|none skipped|nothing skipped|skipped checks:\s*none|skipped validation:\s*none)\b/i.test(text);
+}
+
+function hasExplicitNoneRemainingText(text: string): boolean {
+  return /\b(no remaining caveats|no caveats remain|remaining caveats?:\s*none|none remaining|caveats?:\s*none|limitations?:\s*none)\b/i.test(text);
+}
+
+function combinedSectionLineClassificationReason(
+  line: string,
+  classification: CodexResultCombinedSectionLineClassification
+): string {
+  if (classification === "ignored_empty") return "Line is empty after normalization.";
+  if (classification === "explicit_none_skipped") return "Line explicitly reports no skipped checks.";
+  if (classification === "explicit_none_remaining") return "Line explicitly reports no remaining caveats.";
+  if (classification === "skipped_check") return "Line strongly describes skipped or unavailable validation.";
+  if (classification === "remaining_caveat") return "Line strongly describes residual caveat, limitation, or future work.";
+  return `Combined skipped/caveat line needs human classification: ${line}`;
+}
+
+function classifyCodexResultCombinedSectionLine(line: string): CodexResultCombinedSectionLineClassification {
+  const normalizedLine = normalizeCodexResultPasteLine(line);
+  if (!normalizedLine) return "ignored_empty";
+  if (hasExplicitNoneSkippedText(normalizedLine)) return "explicit_none_skipped";
+  if (hasExplicitNoneRemainingText(normalizedLine)) return "explicit_none_remaining";
+
+  const lower = normalizedLine.toLowerCase();
+  const caveatClue =
+    /\b(remaining friction|candidate only|needs human review|human review|manual|heuristic|limitation|caveat|future work|follow-?up needed|follow-?up remains|not production ready|known limitation|partial extraction|ambiguous lines?|stale connector|still manual|remains manual|residual|needs review)\b/.test(lower);
+  const skippedSubjectClue =
+    /\b(validation|check|test|browser|host|runtime|command|developer mode|mcp inspector|mobile|clipboard|read-back|proof closeout|codex_read_brief_runtime_unavailable|codex_work_id|tunnel|session)\b/.test(lower);
+  const skippedActionClue =
+    /\b(skipped|not run|was not run|unavailable|blocked|omitted|not verified|not rechecked|not observed|no tunnel|no trusted host|no live developer mode|no mcp inspector|no runtime available|missing codex_work_id|missing code.?work_id|code.?read_brief_runtime_unavailable)\b/.test(lower);
+
+  if (skippedSubjectClue && skippedActionClue) return "skipped_check";
+  if (caveatClue && !skippedActionClue) return "remaining_caveat";
+  if (caveatClue && !skippedSubjectClue) return "remaining_caveat";
+  return "ambiguous";
+}
+
+function splitCodexResultCombinedSectionEntries(entries: string[]): {
+  skippedEntries: string[];
+  caveatEntries: string[];
+  ambiguousEntries: string[];
+  hasExplicitNoneSkipped: boolean;
+  hasExplicitNoneRemaining: boolean;
+  warnings: string[];
+} {
+  const skippedEntries: string[] = [];
+  const caveatEntries: string[] = [];
+  const ambiguousEntries: string[] = [];
+  let hasExplicitNoneSkipped = false;
+  let hasExplicitNoneRemaining = false;
+  const warnings: string[] = [];
+
+  for (const rawEntry of entries) {
+    const entry = normalizeCodexResultPasteLine(rawEntry);
+    if (!entry) continue;
+
+    const entryHasNoneSkipped = hasExplicitNoneSkippedText(entry) || /^(none|no skipped checks|none skipped)$/i.test(entry);
+    const entryHasNoneRemaining = hasExplicitNoneRemainingText(entry) || /^(none remaining|no remaining caveats|no caveats remain)$/i.test(entry);
+    if (entryHasNoneSkipped) hasExplicitNoneSkipped = true;
+    if (entryHasNoneRemaining) hasExplicitNoneRemaining = true;
+    if (entryHasNoneSkipped || entryHasNoneRemaining) continue;
+
+    const classification = classifyCodexResultCombinedSectionLine(entry);
+    if (classification === "skipped_check") {
+      skippedEntries.push(entry);
+    } else if (classification === "remaining_caveat") {
+      caveatEntries.push(entry);
+    } else if (classification === "ambiguous") {
+      ambiguousEntries.push(entry);
+      warnings.push(combinedSectionLineClassificationReason(entry, classification));
+    }
+  }
+
+  return {
+    skippedEntries: uniqueNonEmptyStrings(skippedEntries),
+    caveatEntries: uniqueNonEmptyStrings(caveatEntries),
+    ambiguousEntries: uniqueNonEmptyStrings(ambiguousEntries),
+    hasExplicitNoneSkipped,
+    hasExplicitNoneRemaining,
+    warnings: uniqueNonEmptyStrings(warnings),
+  };
+}
+
+function extractCodexResultCombinedSectionAmbiguity(rawText: string): {
+  ambiguousEntries: string[];
+  warnings: string[];
+} {
+  const sections = parseCodexResultPasteSections(rawText);
+  const combinedSectionSplit = splitCodexResultCombinedSectionEntries(
+    sectionEntryLines(sectionLines(sections, ["skipped_checks_and_caveats"]))
+  );
+  return {
+    ambiguousEntries: combinedSectionSplit.ambiguousEntries,
+    warnings: combinedSectionSplit.warnings,
+  };
+}
+
 function extractCodexResultPasteCandidate(rawText: string): NormalizedCodexResultCandidate {
   const trimmedText = rawText.trim();
   const sections = parseCodexResultPasteSections(trimmedText);
@@ -2627,15 +2739,26 @@ function extractCodexResultPasteCandidate(rawText: string): NormalizedCodexResul
       .map(resultLikeLine)
       .filter((item): item is string => Boolean(item))
   );
-  const skippedSectionEntries = sectionEntryLines(sectionLines(sections, ["skipped_checks", "skipped_checks_and_caveats"]));
-  const caveatSectionEntries = sectionEntryLines(sectionLines(sections, ["remaining_caveats", "skipped_checks_and_caveats"]));
+  const combinedSectionSplit = splitCodexResultCombinedSectionEntries(
+    sectionEntryLines(sectionLines(sections, ["skipped_checks_and_caveats"]))
+  );
+  const skippedSectionEntries = [
+    ...sectionEntryLines(sectionLines(sections, ["skipped_checks"])),
+    ...combinedSectionSplit.skippedEntries,
+  ];
+  const caveatSectionEntries = [
+    ...sectionEntryLines(sectionLines(sections, ["remaining_caveats"])),
+    ...combinedSectionSplit.caveatEntries,
+  ];
   const skippedSectionText = skippedSectionEntries.join("\n");
   const caveatSectionText = caveatSectionEntries.join("\n");
-  const skippedChecks = skippedSectionEntries.some((line) => /^(none|no skipped checks|none skipped)$/i.test(line)) ||
+  const skippedChecks = combinedSectionSplit.hasExplicitNoneSkipped ||
+    skippedSectionEntries.some((line) => /^(none|no skipped checks|none skipped)$/i.test(line)) ||
     hasExplicitNone(skippedSectionText || trimmedText, "skipped")
     ? ["No skipped checks."]
     : skippedSectionEntries;
-  const remainingCaveats = caveatSectionEntries.some((line) => /^(none|no remaining caveats|none remaining)$/i.test(line)) ||
+  const remainingCaveats = combinedSectionSplit.hasExplicitNoneRemaining ||
+    caveatSectionEntries.some((line) => /^(none|no remaining caveats|none remaining)$/i.test(line)) ||
     hasExplicitNone(caveatSectionText || trimmedText, "caveats")
     ? ["No remaining caveats."]
     : caveatSectionEntries;
@@ -2790,12 +2913,14 @@ export function buildCodexResultPasteNormalizerPreview(input: {
       structured_fields_preserved: mergeResult.structuredFieldsPreserved,
       conflict_warnings: [...normalizedInput.conflictWarnings, ...mergeResult.conflictWarnings],
       extraction_warnings: ["No raw Codex result paste text was provided."],
+      ambiguous_combined_section_lines: [],
       candidate: {},
       boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
     };
   }
 
   const candidate = extractCodexResultPasteCandidate(normalizedInput.rawText);
+  const combinedSectionAmbiguity = extractCodexResultCombinedSectionAmbiguity(normalizedInput.rawText);
   const detectedFields = detectedCodexResultCandidateFields(candidate);
   const mergeResult = mergeCodexResultInputWithPasteCandidate(input.structuredInput, candidate);
   const candidateHasCoreReviewFields = Boolean(
@@ -2819,7 +2944,7 @@ export function buildCodexResultPasteNormalizerPreview(input: {
   ];
   const allConflictWarnings = uniqueNonEmptyStrings([...normalizedInput.conflictWarnings, ...mergeResult.conflictWarnings]);
   const status: CodexResultPasteNormalizerStatus =
-    normalizedInput.conflictWarnings.length > 0
+    normalizedInput.conflictWarnings.length > 0 || combinedSectionAmbiguity.ambiguousEntries.length > 0
       ? "ambiguous"
       : candidateHasCoreReviewFields
         ? "candidate_ready"
@@ -2834,7 +2959,8 @@ export function buildCodexResultPasteNormalizerPreview(input: {
     filled_fields: mergeResult.filledFields,
     structured_fields_preserved: mergeResult.structuredFieldsPreserved,
     conflict_warnings: allConflictWarnings,
-    extraction_warnings: uniqueNonEmptyStrings(missingWarnings),
+    extraction_warnings: uniqueNonEmptyStrings([...missingWarnings, ...combinedSectionAmbiguity.warnings]),
+    ambiguous_combined_section_lines: combinedSectionAmbiguity.ambiguousEntries,
     candidate,
     boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
   };
