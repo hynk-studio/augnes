@@ -12,6 +12,15 @@ record evidence, mutate runtime state, or dispatch execution.
 For the integrated post-PR #596 dogfood closeout snapshot, see
 `docs/AUGNES_CHATGPT_CODEX_WORK_LOOP_V0_1_SNAPSHOT.md`.
 
+For the repo-backed research accumulation dogfood scenario that exercises this
+loop through a selectable Work Picker item and pasted Codex final report, see
+`docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md`. That scenario is
+preview-only and operator-led. It adds no new App/MCP tool surface, no Codex or
+shell execution from App/MCP, no provider/OpenAI calls, no automatic GitHub
+fetch, no proof/evidence write, no event creation/mutation, no work
+close/status mutation, no state commit/reject, and no
+merge/publish/retry/replay/deploy controls.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
