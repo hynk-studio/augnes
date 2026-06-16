@@ -575,6 +575,7 @@ const CODEX_RESULT_IMPORT_INPUT_SHAPE = {
   work_id: "Work ID for the Augnes work item being reviewed.",
   scope: "Augnes scope for the work item.",
   final_report_text: "Codex final report text or a structured result summary.",
+  raw_result_text: "Optional raw pasted Codex final report, PR body, or closeout text for preview-only deterministic normalization.",
   pr_url_or_number: "Optional user-provided PR URL or PR number; this surface does not fetch it.",
   changed_files: "Optional list of files Codex reports changing.",
   verification_commands: "Optional list of verification commands Codex reports running.",
@@ -590,6 +591,33 @@ const CODEX_RESULT_REVIEW_PACKET_BOUNDARY_TEXT = [
   "No GitHub PR data is fetched by the App/MCP server.",
   "No GitHub comments, review submissions, approvals, change requests, labels, status updates, merges, proof/evidence records, Codex execution, provider calls, or Augnes state writes are performed by this surface.",
   "Result review uses only already-present structured payload fields and does not invent changed files, verification results, PR URLs, screenshots, proof IDs, evidence IDs, findings, or host observations.",
+] as const;
+
+const CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT = [
+  "Codex result paste normalizer is preview-only.",
+  "No GitHub PR data is fetched.",
+  "No proof or evidence is written.",
+  "No work status is changed.",
+  "No event is created or mutated.",
+  "No Codex execution, shell execution, provider call, OpenAI call, branch/PR creation, PR review submission, merge, publish, retry, replay, or deploy is performed.",
+] as const;
+
+const CODEX_RESULT_TOP_LEVEL_PASTE_ALIASES = [
+  "codexResultText",
+  "codex_result_text",
+  "codexResultPaste",
+  "codex_result_paste",
+] as const;
+
+const CODEX_RESULT_STRUCTURED_RAW_TEXT_ALIASES = [
+  "raw_result_text",
+  "rawResultText",
+  "pasted_result_text",
+  "pastedResultText",
+  "pr_body_text",
+  "prBodyText",
+  "closeout_text",
+  "closeoutText",
 ] as const;
 
 const RESULT_REVIEW_CLOSURE_PREVIEW_BOUNDARY_TEXT = [
@@ -625,6 +653,14 @@ const CodexResultImportInputSchema = z
     codex_final_report_text: z.string().min(1).optional(),
     final_report_summary: z.string().min(1).optional(),
     summary: z.string().min(1).optional(),
+    raw_result_text: z.string().min(1).optional(),
+    rawResultText: z.string().min(1).optional(),
+    pasted_result_text: z.string().min(1).optional(),
+    pastedResultText: z.string().min(1).optional(),
+    pr_body_text: z.string().min(1).optional(),
+    prBodyText: z.string().min(1).optional(),
+    closeout_text: z.string().min(1).optional(),
+    closeoutText: z.string().min(1).optional(),
     pr_url: z.string().min(1).optional(),
     prUrl: z.string().min(1).optional(),
     pr_number: z.union([z.string().min(1), z.number().int().positive()]).optional(),
@@ -922,6 +958,12 @@ type CodexResultReviewSuggestedResultStatus =
   | "failed"
   | "needs_human_review"
   | "not_provided";
+type CodexResultPasteNormalizerStatus = "not_provided" | "candidate_ready" | "partial_candidate" | "ambiguous";
+type CodexResultPasteNormalizerSource =
+  | "not_provided"
+  | "top_level_paste"
+  | "structured_input_raw_text"
+  | "structured_input_and_paste";
 type CodexResultReviewNextActionCategory =
   | "close_done"
   | "follow_up_fix_needed"
@@ -936,6 +978,42 @@ type CodexResultReviewAlignment = {
   expected: string[];
   reported: string[];
   missing: string[];
+};
+
+type NormalizedCodexResultCandidate = {
+  work_id?: string;
+  scope?: string;
+  final_report_text?: string;
+  pr_url?: string;
+  pr_number?: string;
+  changed_files?: string[];
+  verification_commands?: string[];
+  verification_results?: string[];
+  skipped_checks?: string[];
+  remaining_caveats?: string[];
+  authority_boundary_statement?: string;
+  result_status?: string;
+};
+
+type CodexResultPasteNormalizerPreview = {
+  normalizer_type: "codex_result_paste_normalizer_preview";
+  status: CodexResultPasteNormalizerStatus;
+  source: CodexResultPasteNormalizerSource;
+  raw_text_length: number;
+  detected_fields: string[];
+  filled_fields: string[];
+  structured_fields_preserved: string[];
+  conflict_warnings: string[];
+  extraction_warnings: string[];
+  candidate: NormalizedCodexResultCandidate;
+  boundary_text: readonly string[];
+};
+
+type CodexResultPasteMergeResult = {
+  mergedInput: CodexResultImportInput | null;
+  filledFields: string[];
+  structuredFieldsPreserved: string[];
+  conflictWarnings: string[];
 };
 
 type CodexResultReviewPacketPreview = {
@@ -1143,6 +1221,9 @@ type FinalCodexHandoffPacket = {
   codex_result_review_packet_preview: CodexResultReviewPacketPreview;
   final_handoff_codex_result_review_packet: CodexResultReviewPacketPreview;
   codex_pr_review_packet_preview: CodexResultReviewPacketPreview;
+  codex_result_paste_normalizer_preview: CodexResultPasteNormalizerPreview;
+  codex_result_normalizer_preview: CodexResultPasteNormalizerPreview;
+  normalized_codex_result_candidate: NormalizedCodexResultCandidate;
   structured_json_delimiters: {
     begin: typeof CODEX_HANDOFF_JSON_BEGIN;
     end: typeof CODEX_HANDOFF_JSON_END;
@@ -2175,6 +2256,9 @@ function buildCloseoutSkeleton(
     | "codex_result_review_packet_preview"
     | "final_handoff_codex_result_review_packet"
     | "codex_pr_review_packet_preview"
+    | "codex_result_paste_normalizer_preview"
+    | "codex_result_normalizer_preview"
+    | "normalized_codex_result_candidate"
     | "handoff_automation_slots"
   >,
   memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal
@@ -2381,6 +2465,381 @@ function hasExplicitNone(text: string, kind: "skipped" | "caveats"): boolean {
   return /\b(no remaining caveats|no caveats remain|remaining caveats:\s*none|none remaining)\b/i.test(text);
 }
 
+function firstNonEmptyResultText(...values: unknown[]): string | null {
+  for (const value of values) {
+    const text = stringFromUnknownResult(value);
+    if (text) return text;
+  }
+  return null;
+}
+
+function normalizeCodexResultPasteLine(line: string): string {
+  let text = line.trim();
+  text = text.replace(/^```[a-zA-Z0-9_-]*\s*/, "").replace(/```$/, "").trim();
+  text = text.replace(/^\s*(?:[-*+]|\d+\.)\s+/, "").trim();
+  text = text.replace(/^\[[ xX]\]\s+/, "").trim();
+  const codeSpan = text.match(/^`([^`]+)`$/);
+  if (codeSpan) text = codeSpan[1].trim();
+  text = text.replace(/^`|`$/g, "").trim();
+  return text.replace(/[;,.\s]+$/g, "").trim();
+}
+
+function codexResultPasteSectionKey(rawLine: string): { key: string; remainder: string | null } | null {
+  const trimmed = rawLine.trim();
+  if (!trimmed) return null;
+  const markdownHeading = trimmed.match(/^#{1,6}\s+(.+?)\s*$/);
+  const boldHeading = trimmed.match(/^\*\*(.+?)\*\*:?\s*$/);
+  const colonHeading = trimmed.match(/^(?:[-*+]\s*)?(?:\*\*)?([A-Za-z][A-Za-z0-9 _/-]{1,80}?)(?:\*\*)?\s*:\s*(.*)$/);
+  const plainHeading = /^[A-Za-z][A-Za-z0-9 _/-]{1,80}$/.test(trimmed) ? trimmed : "";
+  const rawHeading = markdownHeading?.[1] ?? boldHeading?.[1] ?? colonHeading?.[1] ?? plainHeading;
+  const normalized = rawHeading.trim().replace(/\s+/g, " ").toLowerCase();
+  const remainder = colonHeading ? colonHeading[2].trim() || null : null;
+  if (/^(files changed|changed files|files|implementation anchors changed)$/.test(normalized)) {
+    return { key: "changed_files", remainder };
+  }
+  if (/^(verification|verification commands|checks|command results|commands and results|verification commands and results)$/.test(normalized)) {
+    return { key: "verification", remainder };
+  }
+  if (/^(skipped checks|skipped validation)$/.test(normalized)) {
+    return { key: "skipped_checks", remainder };
+  }
+  if (/^(remaining caveats|caveats|limitations)$/.test(normalized)) {
+    return { key: "remaining_caveats", remainder };
+  }
+  if (/^(skipped checks and caveats|skipped validation and caveats)$/.test(normalized)) {
+    return { key: "skipped_checks_and_caveats", remainder };
+  }
+  if (/^(authority boundary statement|authority boundary|boundary statement)$/.test(normalized)) {
+    return { key: "authority_boundary_statement", remainder };
+  }
+  if (/^(summary|user-facing path added or changed|memory reuse attachment status|project constellation context status|final handoff preflight status|next recommended step)$/.test(normalized)) {
+    return { key: "__ignored", remainder };
+  }
+  return null;
+}
+
+function parseCodexResultPasteSections(rawText: string): Map<string, string[]> {
+  const sections = new Map<string, string[]>();
+  let currentKey: string | null = null;
+  for (const rawLine of rawText.split(/\r?\n/)) {
+    const heading = codexResultPasteSectionKey(rawLine);
+    if (heading) {
+      if (heading.key === "__ignored") {
+        currentKey = null;
+        continue;
+      }
+      currentKey = heading.key;
+      if (!sections.has(currentKey)) sections.set(currentKey, []);
+      if (heading.remainder) sections.get(currentKey)?.push(heading.remainder);
+      continue;
+    }
+    if (currentKey) sections.get(currentKey)?.push(rawLine);
+  }
+  return sections;
+}
+
+function sectionLines(sections: Map<string, string[]>, keys: string[]): string[] {
+  return keys.flatMap((key) => sections.get(key) ?? []);
+}
+
+function firstExplicitLineValue(rawText: string, labels: string[]): string | null {
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = rawText.match(new RegExp(`^\\s*(?:[-*+]\\s*)?(?:\\*\\*)?${escaped}(?:\\*\\*)?\\s*(?::|=)\\s*(.+?)\\s*$`, "im"));
+    if (match?.[1]) return normalizeCodexResultPasteLine(match[1]);
+  }
+  return null;
+}
+
+function extractCodexResultPastePrReference(rawText: string): { prUrl?: string; prNumber?: string } {
+  const urlMatch = rawText.match(/https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/([0-9]+)/);
+  const prUrl = urlMatch?.[0]?.replace(/[).,\]]+$/g, "");
+  const numberFromUrl = urlMatch?.[1];
+  const explicitNumber = rawText.match(/\b(?:PR|Pull request)\s*#?([0-9]+)\b/i)?.[1];
+  return {
+    ...(prUrl ? { prUrl } : {}),
+    ...(numberFromUrl || explicitNumber ? { prNumber: numberFromUrl ?? explicitNumber } : {}),
+  };
+}
+
+function fileLookingLine(line: string): string | null {
+  let text = normalizeCodexResultPasteLine(line);
+  if (!text) return null;
+  const markdownLink = text.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+  if (markdownLink) text = markdownLink[2].trim();
+  text = text.replace(/^(?:M|A|D|R|AM|MM)\s+/, "").trim();
+  const beforeExplanation = text.split(/\s+-\s+/)[0]?.trim() ?? text;
+  const token = beforeExplanation.split(/\s+/)[0]?.trim() ?? "";
+  const candidate = token.replace(/^`|`$/g, "").replace(/[;,.)\]]+$/g, "");
+  const hasPathSeparator = candidate.includes("/");
+  const hasKnownFileExtension = /\.[A-Za-z0-9]{1,8}$/.test(candidate);
+  const noSpaces = candidate.length > 0 && !/\s/.test(candidate);
+  if (!noSpaces) return null;
+  if (hasPathSeparator && /^[A-Za-z0-9_@./+-]+$/.test(candidate)) return candidate;
+  if (hasKnownFileExtension && /^[A-Za-z0-9_.@+-]+$/.test(candidate)) return candidate;
+  return null;
+}
+
+function shellLikeCommandLine(line: string): string | null {
+  const text = normalizeCodexResultPasteLine(line).replace(/^(?:\$|>)\s*/, "").trim();
+  if (!text) return null;
+  const commandPattern =
+    /^(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S+)\s+)*(?:npm|node|git|pnpm|yarn|npx|tsx|tsc|curl|env|bash|sh|\.\/)\b/;
+  return commandPattern.test(text) ? text : null;
+}
+
+function resultLikeLine(line: string): string | null {
+  const text = normalizeCodexResultPasteLine(line);
+  if (!text) return null;
+  return /\b(PASS|FAIL|WARN|SKIPPED|passed|failed|warning|warn|skipped|succeeded|exit code 0|exit code 1)\b/.test(text)
+    ? text
+    : null;
+}
+
+function sectionEntryLines(lines: string[]): string[] {
+  return lines
+    .map(normalizeCodexResultPasteLine)
+    .filter((line) => line.length > 0 && !codexResultPasteSectionKey(line));
+}
+
+function extractCodexResultPasteAuthorityStatement(sections: Map<string, string[]>): string | undefined {
+  const lines = sectionEntryLines(sectionLines(sections, ["authority_boundary_statement"]));
+  const statement = lines.join(" ").trim();
+  return statement || undefined;
+}
+
+function extractCodexResultPasteCandidate(rawText: string): NormalizedCodexResultCandidate {
+  const trimmedText = rawText.trim();
+  const sections = parseCodexResultPasteSections(trimmedText);
+  const changedFiles = uniqueNonEmptyStrings(
+    sectionLines(sections, ["changed_files"])
+      .map(fileLookingLine)
+      .filter((item): item is string => Boolean(item))
+  );
+  const verificationLines = sectionLines(sections, ["verification"]);
+  const verificationCommands = uniqueNonEmptyStrings(
+    verificationLines
+      .map(shellLikeCommandLine)
+      .filter((item): item is string => Boolean(item))
+  );
+  const verificationResults = uniqueNonEmptyStrings(
+    verificationLines
+      .map(resultLikeLine)
+      .filter((item): item is string => Boolean(item))
+  );
+  const skippedSectionEntries = sectionEntryLines(sectionLines(sections, ["skipped_checks", "skipped_checks_and_caveats"]));
+  const caveatSectionEntries = sectionEntryLines(sectionLines(sections, ["remaining_caveats", "skipped_checks_and_caveats"]));
+  const skippedSectionText = skippedSectionEntries.join("\n");
+  const caveatSectionText = caveatSectionEntries.join("\n");
+  const skippedChecks = skippedSectionEntries.some((line) => /^(none|no skipped checks|none skipped)$/i.test(line)) ||
+    hasExplicitNone(skippedSectionText || trimmedText, "skipped")
+    ? ["No skipped checks."]
+    : skippedSectionEntries;
+  const remainingCaveats = caveatSectionEntries.some((line) => /^(none|no remaining caveats|none remaining)$/i.test(line)) ||
+    hasExplicitNone(caveatSectionText || trimmedText, "caveats")
+    ? ["No remaining caveats."]
+    : caveatSectionEntries;
+  const prReference = extractCodexResultPastePrReference(trimmedText);
+  const explicitStatus = firstExplicitLineValue(trimmedText, ["result_status", "Result status", "Status"]);
+  const normalizedStatus = normalizeResultStatus(explicitStatus) ?? inferResultStatusFromText(trimmedText) ?? undefined;
+  const authorityBoundaryStatement = extractCodexResultPasteAuthorityStatement(sections);
+  const candidate: NormalizedCodexResultCandidate = {
+    final_report_text: trimmedText,
+  };
+  const workId = firstExplicitLineValue(trimmedText, ["Work ID", "work_id", "CODEX_WORK_ID"]);
+  const scope = firstExplicitLineValue(trimmedText, ["Scope", "scope", "CODEX_SCOPE"]);
+  if (workId) candidate.work_id = workId;
+  if (scope) candidate.scope = scope;
+  if (prReference.prUrl) candidate.pr_url = prReference.prUrl;
+  if (prReference.prNumber) candidate.pr_number = prReference.prNumber;
+  if (changedFiles.length) candidate.changed_files = changedFiles;
+  if (verificationCommands.length) candidate.verification_commands = verificationCommands;
+  if (verificationResults.length) candidate.verification_results = verificationResults;
+  if (skippedChecks.length) candidate.skipped_checks = skippedChecks;
+  if (remainingCaveats.length) candidate.remaining_caveats = remainingCaveats;
+  if (authorityBoundaryStatement) candidate.authority_boundary_statement = authorityBoundaryStatement;
+  if (normalizedStatus) candidate.result_status = normalizedStatus;
+  return candidate;
+}
+
+function detectedCodexResultCandidateFields(candidate: NormalizedCodexResultCandidate): string[] {
+  return uniqueNonEmptyStrings(
+    Object.entries(candidate)
+      .filter(([, value]) => Array.isArray(value) ? value.length > 0 : Boolean(value))
+      .map(([field]) => field)
+  );
+}
+
+function normalizeCodexResultCandidateValue(value: unknown): string {
+  if (Array.isArray(value)) return JSON.stringify(uniqueNonEmptyStrings(value.map(stringFromUnknownResult)).sort());
+  return stringFromUnknownResult(value).toLowerCase();
+}
+
+function structuredCodexResultFieldValue(record: Record<string, unknown>, aliases: string[]): unknown {
+  for (const alias of aliases) {
+    const value = record[alias];
+    if (Array.isArray(value) && value.length > 0) return value;
+    if (nonEmptyString(value)) return value;
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return undefined;
+}
+
+export function mergeCodexResultInputWithPasteCandidate(
+  structuredInput: Record<string, unknown> | null | undefined,
+  candidate: NormalizedCodexResultCandidate
+): CodexResultPasteMergeResult {
+  const structuredRecord = objectFromUnknown(structuredInput);
+  const hasStructuredInput = Object.keys(structuredRecord).length > 0;
+  const mergedRecord: Record<string, unknown> = hasStructuredInput ? { ...structuredRecord } : {};
+  const filledFields: string[] = [];
+  const structuredFieldsPreserved: string[] = [];
+  const conflictWarnings: string[] = [];
+  const fieldAliases: Array<{ canonical: keyof NormalizedCodexResultCandidate; aliases: string[] }> = [
+    { canonical: "work_id", aliases: ["work_id", "workId"] },
+    { canonical: "scope", aliases: ["scope"] },
+    {
+      canonical: "final_report_text",
+      aliases: [
+        "final_report_text",
+        "finalReportText",
+        "codex_final_report_text",
+        "final_report_summary",
+        "summary",
+        ...CODEX_RESULT_STRUCTURED_RAW_TEXT_ALIASES,
+      ],
+    },
+    { canonical: "pr_url", aliases: ["pr_url", "prUrl"] },
+    { canonical: "pr_number", aliases: ["pr_number", "prNumber"] },
+    { canonical: "changed_files", aliases: ["changed_files", "changedFiles"] },
+    { canonical: "verification_commands", aliases: ["verification_commands", "verificationCommands"] },
+    { canonical: "verification_results", aliases: ["verification_results", "verificationResults"] },
+    { canonical: "skipped_checks", aliases: ["skipped_checks", "skippedChecks"] },
+    { canonical: "remaining_caveats", aliases: ["remaining_caveats", "remainingCaveats"] },
+    { canonical: "authority_boundary_statement", aliases: ["authority_boundary_statement", "authorityBoundaryStatement"] },
+    { canonical: "result_status", aliases: ["result_status", "resultStatus"] },
+  ];
+
+  for (const { canonical, aliases } of fieldAliases) {
+    const candidateValue = candidate[canonical];
+    if (Array.isArray(candidateValue) ? candidateValue.length === 0 : !candidateValue) continue;
+    const structuredValue = structuredCodexResultFieldValue(structuredRecord, aliases);
+    if (structuredValue === undefined) {
+      mergedRecord[canonical] = candidateValue;
+      filledFields.push(canonical);
+      continue;
+    }
+    structuredFieldsPreserved.push(canonical);
+    if (normalizeCodexResultCandidateValue(structuredValue) !== normalizeCodexResultCandidateValue(candidateValue)) {
+      conflictWarnings.push(`Structured ${canonical} was preserved; pasted text suggested a different value.`);
+    }
+  }
+
+  const hasMergedInput = Object.keys(mergedRecord).length > 0;
+  return {
+    mergedInput: hasMergedInput ? (mergedRecord as CodexResultImportInput) : null,
+    filledFields: uniqueNonEmptyStrings(filledFields),
+    structuredFieldsPreserved: uniqueNonEmptyStrings(structuredFieldsPreserved),
+    conflictWarnings: uniqueNonEmptyStrings(conflictWarnings),
+  };
+}
+
+export function normalizeCodexResultPasteInput(input: {
+  structuredInput?: Record<string, unknown> | null;
+  topLevelPasteText?: unknown;
+}): {
+  rawText: string;
+  source: CodexResultPasteNormalizerSource;
+  conflictWarnings: string[];
+} {
+  const structuredRecord = objectFromUnknown(input.structuredInput);
+  const structuredRawText = firstNonEmptyResultText(
+    ...CODEX_RESULT_STRUCTURED_RAW_TEXT_ALIASES.map((field) => structuredRecord[field])
+  );
+  const topLevelPasteText = firstNonEmptyResultText(input.topLevelPasteText);
+  const conflictWarnings =
+    topLevelPasteText && structuredRawText && topLevelPasteText !== structuredRawText
+      ? ["Top-level paste text and structured-input raw text differ; top-level paste text was used for extraction."]
+      : [];
+  const rawText = topLevelPasteText ?? structuredRawText ?? "";
+  const source: CodexResultPasteNormalizerSource =
+    topLevelPasteText && structuredRawText
+      ? "structured_input_and_paste"
+      : topLevelPasteText
+        ? "top_level_paste"
+        : structuredRawText
+          ? "structured_input_raw_text"
+          : "not_provided";
+  return { rawText: rawText.trim(), source, conflictWarnings };
+}
+
+export function buildCodexResultPasteNormalizerPreview(input: {
+  structuredInput?: Record<string, unknown> | null;
+  topLevelPasteText?: unknown;
+}): CodexResultPasteNormalizerPreview {
+  const normalizedInput = normalizeCodexResultPasteInput(input);
+  if (!normalizedInput.rawText) {
+    const mergeResult = mergeCodexResultInputWithPasteCandidate(input.structuredInput, {});
+    return {
+      normalizer_type: "codex_result_paste_normalizer_preview",
+      status: "not_provided",
+      source: "not_provided",
+      raw_text_length: 0,
+      detected_fields: [],
+      filled_fields: mergeResult.filledFields,
+      structured_fields_preserved: mergeResult.structuredFieldsPreserved,
+      conflict_warnings: [...normalizedInput.conflictWarnings, ...mergeResult.conflictWarnings],
+      extraction_warnings: ["No raw Codex result paste text was provided."],
+      candidate: {},
+      boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
+    };
+  }
+
+  const candidate = extractCodexResultPasteCandidate(normalizedInput.rawText);
+  const detectedFields = detectedCodexResultCandidateFields(candidate);
+  const mergeResult = mergeCodexResultInputWithPasteCandidate(input.structuredInput, candidate);
+  const candidateHasCoreReviewFields = Boolean(
+    candidate.final_report_text &&
+      candidate.changed_files?.length &&
+      (candidate.verification_commands?.length || candidate.verification_results?.length) &&
+      candidate.skipped_checks?.length &&
+      candidate.remaining_caveats?.length &&
+      candidate.authority_boundary_statement
+  );
+  const missingWarnings = [
+    ...(candidate.work_id ? [] : ["No explicit Work ID was extracted from the paste."]),
+    ...(candidate.scope ? [] : ["No explicit scope was extracted from the paste."]),
+    ...(candidate.changed_files?.length ? [] : ["No explicit changed-files list was extracted from a supported heading."]),
+    ...(candidate.verification_commands?.length || candidate.verification_results?.length
+      ? []
+      : ["No explicit verification command/result lines were extracted from a supported heading."]),
+    ...(candidate.skipped_checks?.length ? [] : ["No skipped-check lines or explicit none-skipped statement were extracted."]),
+    ...(candidate.remaining_caveats?.length ? [] : ["No caveat lines or explicit none-remaining statement were extracted."]),
+    ...(candidate.authority_boundary_statement ? [] : ["No explicit authority boundary statement section was extracted."]),
+  ];
+  const allConflictWarnings = uniqueNonEmptyStrings([...normalizedInput.conflictWarnings, ...mergeResult.conflictWarnings]);
+  const status: CodexResultPasteNormalizerStatus =
+    normalizedInput.conflictWarnings.length > 0
+      ? "ambiguous"
+      : candidateHasCoreReviewFields
+        ? "candidate_ready"
+        : "partial_candidate";
+
+  return {
+    normalizer_type: "codex_result_paste_normalizer_preview",
+    status,
+    source: normalizedInput.source,
+    raw_text_length: normalizedInput.rawText.length,
+    detected_fields: detectedFields,
+    filled_fields: mergeResult.filledFields,
+    structured_fields_preserved: mergeResult.structuredFieldsPreserved,
+    conflict_warnings: allConflictWarnings,
+    extraction_warnings: uniqueNonEmptyStrings(missingWarnings),
+    candidate,
+    boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
+  };
+}
+
 function resultReviewPayloadFromBrief(brief: WorkBrief, resultInput?: CodexResultImportInput | null): {
   source: Record<string, unknown>;
   finalReportText: string;
@@ -2433,6 +2892,7 @@ function resultReviewPayloadFromBrief(brief: WorkBrief, resultInput?: CodexResul
       "codex_final_report_text",
       "final_report_summary",
       "summary",
+      ...CODEX_RESULT_STRUCTURED_RAW_TEXT_ALIASES,
     ]),
     source.codex_result_summary,
     source.codex_result_report
@@ -2620,6 +3080,9 @@ function buildCodexResultReviewPacketPreview(
     | "codex_result_review_packet_preview"
     | "final_handoff_codex_result_review_packet"
     | "codex_pr_review_packet_preview"
+    | "codex_result_paste_normalizer_preview"
+    | "codex_result_normalizer_preview"
+    | "normalized_codex_result_candidate"
     | "handoff_automation_slots"
   >,
   resultInput?: CodexResultImportInput | null
@@ -3669,7 +4132,8 @@ function buildFinalCodexHandoffPacket(
   card: WorkContractCard,
   preview: CodexHandoffPreview,
   memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal,
-  resultInput?: CodexResultImportInput | null
+  resultInput?: CodexResultImportInput | null,
+  codexResultPasteNormalizerPreview: CodexResultPasteNormalizerPreview = buildCodexResultPasteNormalizerPreview({})
 ): FinalCodexHandoffPacket {
   const implementationAnchors = buildFullContextImplementationAnchors(brief, card);
   const basePacketWithoutTextAndSlots = {
@@ -3726,6 +4190,9 @@ function buildFinalCodexHandoffPacket(
     | "codex_result_review_packet_preview"
     | "final_handoff_codex_result_review_packet"
     | "codex_pr_review_packet_preview"
+    | "codex_result_paste_normalizer_preview"
+    | "codex_result_normalizer_preview"
+    | "normalized_codex_result_candidate"
     | "handoff_automation_slots"
   >;
 
@@ -3747,6 +4214,9 @@ function buildFinalCodexHandoffPacket(
     codex_result_review_packet_preview: codexResultReviewPacket,
     final_handoff_codex_result_review_packet: codexResultReviewPacket,
     codex_pr_review_packet_preview: codexResultReviewPacket,
+    codex_result_paste_normalizer_preview: codexResultPasteNormalizerPreview,
+    codex_result_normalizer_preview: codexResultPasteNormalizerPreview,
+    normalized_codex_result_candidate: codexResultPasteNormalizerPreview.candidate,
     handoff_automation_slots: buildHandoffAutomationSlots(
       memoryReuseAttachmentProposal,
       prBodyChecklistPreview,
@@ -5460,13 +5930,41 @@ export function createMcpAppServer(
         codexResult: CodexResultImportInputSchema.optional(),
         codexResultInput: CodexResultImportInputSchema.optional(),
         codex_result: CodexResultImportInputSchema.optional(),
+        codexResultText: z.string().min(1).optional(),
+        codex_result_text: z.string().min(1).optional(),
+        codexResultPaste: z.string().min(1).optional(),
+        codex_result_paste: z.string().min(1).optional(),
       },
       annotations: bridgeReadAnnotations,
       _meta: widgetToolMeta,
     },
-    async ({ scope, workId, codexResult, codexResultInput, codex_result }) => {
+    async ({
+      scope,
+      workId,
+      codexResult,
+      codexResultInput,
+      codex_result,
+      codexResultText,
+      codex_result_text,
+      codexResultPaste,
+      codex_result_paste,
+    }) => {
       const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
-      const resultInput = codexResult ?? codexResultInput ?? codex_result ?? null;
+      const structuredResultInput = codexResult ?? codexResultInput ?? codex_result ?? null;
+      const topLevelPasteText = firstNonEmptyResultText(
+        codexResultText,
+        codex_result_text,
+        codexResultPaste,
+        codex_result_paste
+      );
+      const codexResultPasteNormalizerPreview = buildCodexResultPasteNormalizerPreview({
+        structuredInput: structuredResultInput,
+        topLevelPasteText,
+      });
+      const resultInput = mergeCodexResultInputWithPasteCandidate(
+        structuredResultInput,
+        codexResultPasteNormalizerPreview.candidate
+      ).mergedInput;
 
       try {
         const brief = await stateRuntimeAdapter.getWorkBrief(resolvedScope, workId);
@@ -5482,7 +5980,8 @@ export function createMcpAppServer(
           workContractCard,
           codexHandoffPreview,
           memoryReuseAttachmentProposal,
-          resultInput
+          resultInput,
+          codexResultPasteNormalizerPreview
         );
         const coreCodexHandoffPacket = buildCoreCodexHandoffPacket(finalCodexHandoffPacket);
         const codexHandoffDecision = buildCodexHandoffDecision(coreCodexHandoffPacket);
@@ -5530,6 +6029,9 @@ export function createMcpAppServer(
           codex_result_review_packet_preview: finalCodexHandoffPacket.codex_result_review_packet_preview,
           final_handoff_codex_result_review_packet: finalCodexHandoffPacket.final_handoff_codex_result_review_packet,
           codex_pr_review_packet_preview: finalCodexHandoffPacket.codex_pr_review_packet_preview,
+          codex_result_paste_normalizer_preview: finalCodexHandoffPacket.codex_result_paste_normalizer_preview,
+          codex_result_normalizer_preview: finalCodexHandoffPacket.codex_result_normalizer_preview,
+          normalized_codex_result_candidate: finalCodexHandoffPacket.normalized_codex_result_candidate,
           codex_result_import_input_shape: CODEX_RESULT_IMPORT_INPUT_SHAPE,
           codex_result_import_review_surface: finalCodexHandoffPacket.codex_result_review_packet_preview,
           result_review_closure_preview: resultReviewClosurePreview,

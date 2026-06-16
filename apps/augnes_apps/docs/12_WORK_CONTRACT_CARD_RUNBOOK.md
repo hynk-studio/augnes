@@ -424,6 +424,57 @@ That import object is user-provided only. Its supported shape is:
 - `authority_boundary_statement`
 - `result_status`
 
+The same tool also accepts a preview-only raw paste helper for Codex final
+report text, PR body text, or closeout text. The top-level paste aliases are:
+
+- `codexResultText`
+- `codex_result_text`
+- `codexResultPaste`
+- `codex_result_paste`
+
+The structured `codexResult` / `codexResultInput` / `codex_result` object may
+also carry raw text aliases:
+
+- `raw_result_text`
+- `rawResultText`
+- `pasted_result_text`
+- `pastedResultText`
+- `pr_body_text`
+- `prBodyText`
+- `closeout_text`
+- `closeoutText`
+
+The paste helper is deterministic and local. It looks for explicit labels such
+as `Work ID`, `work_id`, `CODEX_WORK_ID`, `Scope`, `CODEX_SCOPE`, and
+`result_status`; obvious GitHub pull-request URLs or `PR #...` references; and
+headed sections such as `Files changed`, `Verification`, `Skipped checks`,
+`Remaining caveats`, and `Authority boundary statement`. Parser output is a
+candidate only. It fills missing structured fields conservatively and leaves
+missing fields as warnings or review questions.
+
+Explicit structured fields override parsed fields. If structured input and
+paste extraction disagree, the structured value is preserved and the
+`codex_result_paste_normalizer_preview` exposes conflict warnings. The raw
+pasted text is preserved as `final_report_text` for review input when no
+explicit structured final report field is already present. Partial extraction
+remains partial and must surface missing fields instead of inventing pass
+results, changed files, verification output, skipped-check reasons, caveats, or
+authority statements.
+
+The tool exposes the paste helper through model-readable aliases:
+
+- `codex_result_paste_normalizer_preview`
+- `codex_result_normalizer_preview`
+- `normalized_codex_result_candidate`
+
+The widget renders the helper in the result-review area with labels including
+`Codex result paste helper`, `Normalized result candidate`, `Detected fields`,
+`Needs human review`, and `What this helper does not do`. The helper does not
+fetch GitHub, write proof/evidence, close work, mutate state, execute Codex,
+spawn shell commands, create events, create branches or PRs, submit PR
+reviews, create or merge PRs, call providers/OpenAI, publish, retry, replay, or
+deploy.
+
 When no Codex result is attached, the card shows an explicit
 `needs_result_input` / `not_provided` state and lists the exact input needed for
 a later human review: final report text or structured result payload, changed

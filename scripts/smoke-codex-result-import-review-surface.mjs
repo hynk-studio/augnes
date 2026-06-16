@@ -18,12 +18,22 @@ assert.match(workBriefBlock, /annotations:\s*bridgeReadAnnotations/, "result imp
 assert.match(workBriefBlock, /codexResult:\s*CodexResultImportInputSchema\.optional\(\)/, "work brief tool must accept codexResult");
 assert.match(workBriefBlock, /codexResultInput:\s*CodexResultImportInputSchema\.optional\(\)/, "work brief tool must accept codexResultInput");
 assert.match(workBriefBlock, /codex_result:\s*CodexResultImportInputSchema\.optional\(\)/, "work brief tool must accept codex_result");
+assert.match(workBriefBlock, /codexResultText:\s*z\.string\(\)\.min\(1\)\.optional\(\)/, "work brief tool must accept codexResultText paste input");
+assert.match(workBriefBlock, /codex_result_text:\s*z\.string\(\)\.min\(1\)\.optional\(\)/, "work brief tool must accept codex_result_text paste input");
+assert.match(workBriefBlock, /codexResultPaste:\s*z\.string\(\)\.min\(1\)\.optional\(\)/, "work brief tool must accept codexResultPaste input");
+assert.match(workBriefBlock, /codex_result_paste:\s*z\.string\(\)\.min\(1\)\.optional\(\)/, "work brief tool must accept codex_result_paste input");
 assert.match(workBriefBlock, /codex_result_import_input_shape/, "structured content must expose result import input shape");
 assert.match(workBriefBlock, /codex_result_import_review_surface/, "structured content must expose result import review surface");
+assert.match(workBriefBlock, /codex_result_paste_normalizer_preview/, "structured content must expose the paste normalizer preview");
+assert.match(workBriefBlock, /normalized_codex_result_candidate/, "structured content must expose the normalized candidate");
 assert.doesNotMatch(workBriefBlock, /annotations:\s*bridgeWriteAnnotations/, "result import must not be write annotated");
 
 for (const expected of [
   "CODEX_RESULT_IMPORT_INPUT_SHAPE",
+  "CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT",
+  "normalizeCodexResultPasteInput",
+  "buildCodexResultPasteNormalizerPreview",
+  "mergeCodexResultInputWithPasteCandidate",
   "normalizeSkippedCheckResultObjects",
   "provided_result_input_fields",
   "missing_result_input_fields",
@@ -79,11 +89,19 @@ for (const expected of [
   "Remaining caveats",
   "Suggested next action",
   "What this screen does not do",
+  "Codex result paste helper",
+  "Normalized result candidate",
+  "Detected fields",
+  "Needs human review",
+  "What this helper does not do",
 ]) {
   assert.match(widget, new RegExp(escapeRegExp(expected)), `widget must render ${expected}`);
 }
 
 assert.match(runbook, /codexResult/, "runbook must document codexResult input");
+assert.match(runbook, /codexResultText/, "runbook must document top-level raw paste input");
+assert.match(runbook, /raw_result_text/, "runbook must document structured raw paste input");
+assert.match(runbook, /Explicit structured fields override parsed fields/, "runbook must document structured precedence");
 assert.match(runbook, /user-provided only/i, "runbook must document user-provided result input");
 assert.match(runbook, /Partial result input is reviewable but remains partial/i, "runbook must document partial input behavior");
 assert.match(runbook, /Structured `skipped_checks` objects preserve concrete reasons/, "runbook must document structured skipped-check reason preservation");
@@ -91,9 +109,14 @@ assert.match(runbook, /`suggested_result_status` is Augnes's review-derived stat
 assert.match(runbook, /No GitHub PR data\s+is\s+fetched from the App\/MCP server/i, "runbook must preserve no-fetch boundary");
 
 const featureSource = [
+  extractFunction(server, "normalizeCodexResultPasteInput"),
+  extractFunction(server, "buildCodexResultPasteNormalizerPreview"),
+  extractFunction(server, "mergeCodexResultInputWithPasteCandidate"),
   extractFunction(server, "resultReviewPayloadFromBrief"),
   extractFunction(server, "buildCodexResultReviewPacketPreview"),
   extractFunction(server, "finalHandoffCodexResultReviewPacketPreflightCheck"),
+  extractFunction(widget, "normalizeCodexResultPasteNormalizerPreview"),
+  extractFunction(widget, "renderCodexResultPasteNormalizerPreview"),
   extractFunction(widget, "normalizeCodexResultReviewPacket"),
   extractFunction(widget, "renderCodexResultReviewPacketPreview"),
   extractFunction(widget, "codexResultReviewPacketPreflightCheck"),
@@ -109,6 +132,8 @@ console.log(
       read_only_tool_input_present: true,
       no_result_state_explicit: true,
       structured_result_preview_supported: true,
+      paste_normalizer_preview_supported: true,
+      paste_normalizer_stays_on_read_only_work_brief: true,
       partial_result_warnings_present: true,
       skipped_check_reason_required: true,
       structured_skipped_check_reason_preserved: true,
