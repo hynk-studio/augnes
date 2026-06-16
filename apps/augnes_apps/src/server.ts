@@ -931,6 +931,8 @@ type FinalCodexHandoffPacket = {
   current_or_next_step: string | null;
   expected_files: string[];
   expected_checks: string[];
+  implementation_anchors: string[];
+  implementation_anchor_summary: string;
   related_state_keys: string[];
   proof_evidence_expectation_summary: string;
   skipped_check_policy: typeof FINAL_HANDOFF_SKIPPED_CHECK_POLICY;
@@ -1185,6 +1187,58 @@ function uniqueNonEmptyStrings(items: readonly (string | null | undefined)[]): s
 
 function buildCoreImplementationAnchors(finalPacket: FinalCodexHandoffPacket): string[] {
   return uniqueNonEmptyStrings(finalPacket.expected_files);
+}
+
+const FULL_CONTEXT_IMPLEMENTATION_ANCHOR_LINK_KEYS = [
+  "implementation_anchors",
+  "target_files",
+  "schema_paths",
+  "schema_modules",
+  "storage_modules",
+  "api_routes",
+  "route_handlers",
+  "test_files",
+  "smoke_scripts",
+] as const;
+
+const FULL_CONTEXT_ANCHORS_BY_STATE_KEY: Record<string, readonly string[]> = {
+  "coordination.event_spine": [
+    "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
+    "lib/db/schema.sql#coordination_events",
+    "lib/coordination-events.ts",
+    "app/api/events/route.ts",
+    "app/api/events/[event_id]/route.ts",
+    "lib/work.ts#appendCoordinationEvent",
+    "app/api/work/[work_id]/route.ts",
+    "app/api/work/[work_id]/brief/route.ts",
+    "scripts/demo-seed.mjs#AG-006",
+    "scripts/smoke-authority-invariants.mjs#coordination_events",
+  ],
+};
+
+function buildFullContextImplementationAnchors(brief: WorkBrief, card: WorkContractCard): string[] {
+  const codexHandoff = brief.codex_handoff as typeof brief.codex_handoff & Record<string, unknown>;
+  const workLinks = brief.work.links as Record<string, unknown>;
+  const anchors: string[] = [];
+
+  for (const key of FULL_CONTEXT_IMPLEMENTATION_ANCHOR_LINK_KEYS) {
+    anchors.push(...stringArrayFromUnknown(codexHandoff[key]));
+    anchors.push(...stringArrayFromUnknown(workLinks[key]));
+  }
+
+  for (const stateKey of card.related_state_keys) {
+    anchors.push(...(FULL_CONTEXT_ANCHORS_BY_STATE_KEY[stateKey] ?? []));
+  }
+
+  return uniqueNonEmptyStrings(anchors);
+}
+
+function fullContextImplementationAnchorSummary(implementationAnchors: readonly string[]): string {
+  if (implementationAnchors.length > 0) {
+    return "Concrete implementation anchors are available in Full Context. Core may still be planning-only; use Full Context or verify these anchors before editing.";
+  }
+
+  return "Implementation anchors could not be derived from current work metadata. Run codex:read-brief/repo inspection before implementation.";
 }
 
 function coreHandoffUsageForAnchors(implementationAnchors: readonly string[]): CoreHandoffUsage {
@@ -2351,6 +2405,8 @@ function buildFinalCodexHandoffJsonBlock(
       files: packet.expected_files,
       checks: packet.expected_checks,
     },
+    implementation_anchors: packet.implementation_anchors,
+    implementation_anchor_summary: packet.implementation_anchor_summary,
     proof_evidence_expectation_summary: packet.proof_evidence_expectation_summary,
     skipped_check_policy: packet.skipped_check_policy,
     final_report_requirements: packet.final_report_requirements,
@@ -2657,10 +2713,14 @@ function buildFinalCodexHandoffText(
     "Expected scope",
     "- Expected files:",
     listForPacket(packet.expected_files, "No expected files are listed in the work brief."),
-    "- Expected checks:",
+    "- Expected read-only checks:",
     listForPacket(packet.expected_checks, "No expected checks are listed in the work brief."),
     "- Related state keys:",
     listForPacket(packet.related_state_keys, "No related state keys are listed in the work brief."),
+    "",
+    "Implementation anchors",
+    `- ${packet.implementation_anchor_summary}`,
+    listForPacket(packet.implementation_anchors, "Implementation anchors could not be derived from current work metadata. Run codex:read-brief/repo inspection before implementation."),
     "",
     "Proof, evidence, skipped checks, and browser verification",
     `- Proof/evidence expectation: ${packet.proof_evidence_expectation_summary}`,
@@ -2719,6 +2779,7 @@ function buildFinalCodexHandoffPacket(
   preview: CodexHandoffPreview,
   memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal
 ): FinalCodexHandoffPacket {
+  const implementationAnchors = buildFullContextImplementationAnchors(brief, card);
   const basePacketWithoutTextAndSlots = {
     packet_type: "final_codex_handoff_packet",
     schema: FINAL_CODEX_HANDOFF_PACKET_SCHEMA,
@@ -2732,6 +2793,8 @@ function buildFinalCodexHandoffPacket(
     current_or_next_step: preview.work_next_action,
     expected_files: preview.expected_files,
     expected_checks: preview.expected_checks,
+    implementation_anchors: implementationAnchors,
+    implementation_anchor_summary: fullContextImplementationAnchorSummary(implementationAnchors),
     related_state_keys: preview.related_state_keys,
     proof_evidence_expectation_summary: card.proof_evidence_expectation_summary,
     skipped_check_policy: FINAL_HANDOFF_SKIPPED_CHECK_POLICY,

@@ -628,6 +628,18 @@ function seedWorkTraceSpine() {
       relatedStateKeys: encodeValue(["coordination.event_spine"]),
       links: encodeValue({
         docs: ["docs/AUGNES_COORDINATION_SPINE_ROADMAP.md"],
+        implementation_anchors: [
+          "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
+          "lib/db/schema.sql#coordination_events",
+          "lib/coordination-events.ts",
+          "app/api/events/route.ts",
+          "app/api/events/[event_id]/route.ts",
+          "lib/work.ts#appendCoordinationEvent",
+          "app/api/work/[work_id]/route.ts",
+          "app/api/work/[work_id]/brief/route.ts",
+          "scripts/demo-seed.mjs#AG-006",
+          "scripts/smoke-authority-invariants.mjs#coordination_events",
+        ],
       }),
       createdAt: "2026-05-08T00:00:00.000Z",
       updatedAt: "2026-05-08T00:00:00.000Z",

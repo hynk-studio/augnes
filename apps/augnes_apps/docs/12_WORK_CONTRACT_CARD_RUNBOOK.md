@@ -417,6 +417,22 @@ It copies the Full Handoff packet from `full_codex_handoff_packet` /
 `final_codex_handoff_packet.copyable_handoff_text`. Use it when a worker needs
 full context and appendices.
 
+Full Context also carries an `Implementation anchors` section when concrete
+anchors can be derived from already-present work metadata, linked docs,
+related state keys, or existing source-contract mappings. These anchors may
+include source docs, schema/table refs, storage modules, read route handlers,
+and relevant smoke scripts. For example, AG-006 can identify the coordination
+event spine roadmap, `coordination_events` schema, coordination-event storage
+module, read routes, work brief routes, seed source, and authority smoke refs.
+Core may still say `implementation_requires_full_context` when those anchors
+are not concise expected files in Core; implementation should then use Full
+Context and verify the listed anchors before editing.
+
+If Full Context cannot derive anchors, it must say:
+`Implementation anchors could not be derived from current work metadata. Run
+codex:read-brief/repo inspection before implementation.` It must not invent
+target files, schemas, storage modules, API handlers, or tests.
+
 Core Handoff intentionally does not include the execution request preview
 metadata, full technical appendix, raw internal alias dumps, full Constellation
 evidence/tension dumps, full PR body checklist text, full closeout skeleton,
