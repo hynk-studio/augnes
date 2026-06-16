@@ -702,6 +702,62 @@ function seedWorkTraceSpine() {
       updatedAt: "2026-05-14T00:00:00.000Z",
     },
     {
+      workId: "AG-DOGFOOD-RESEARCH-001",
+      title: "Research accumulation scenario pack for ChatGPT-Augnes-Codex dogfood",
+      status: "in_progress",
+      priority: "normal",
+      summary:
+        "Operator-led dogfood work item for preparing a bounded, preview-only Research / Paper / Knowledge Accumulation scenario pack that exercises the existing ChatGPT-Augnes-Codex handoff loop.",
+      nextAction:
+        "Use Core Codex Handoff to prepare the preview-only research accumulation scenario pack docs/smoke slice, then paste the Codex final report back through codexResultText or codexResultPaste for conservative result review.",
+      userAttentionRequired: 0,
+      relatedStateKeys: encodeValue([
+        "research.accumulation.preview",
+        "research.paper_knowledge_surface",
+        "integration.chatgpt_app",
+      ]),
+      links: encodeValue({
+        docs: ["docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md"],
+        expected_files: [
+          "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
+          "scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
+          "package.json",
+          "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md",
+        ],
+        expected_checks: [
+          "node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
+          "git diff --check",
+        ],
+        implementation_anchors: [
+          "docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md#codex-task-payload",
+          "docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md#sample-codex-final-report-text",
+          "docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md#expected-normalizer-outcome",
+        ],
+        authority_boundary_expectations: [
+          "preview-only dogfood scenario",
+          "no automatic research ingestion",
+          "no automatic GitHub fetch",
+          "no proof/evidence writes",
+          "no event creation/mutation",
+          "no work close/status mutation",
+          "no state commit/reject",
+          "no Codex execution from App/MCP",
+          "no shell execution from App/MCP",
+          "no provider/OpenAI calls from App/MCP",
+          "no branch/PR creation from App/MCP code",
+          "no PR review submission",
+          "no merge/publish/retry/replay/deploy controls",
+        ],
+        skipped_check_policy_expectations: [
+          "Skipped checks must include concrete unavailable surface and reason.",
+          "Combined skipped-check/caveat lines stay conservative and ambiguous lines remain human-review warnings.",
+          "Do not claim proof/evidence rows, live Work Contract Card observation, or codex:read-brief output unless actually run.",
+        ],
+      }),
+      createdAt: "2026-06-17T00:00:00.000Z",
+      updatedAt: "2026-06-17T00:00:00.000Z",
+    },
+    {
       workId: "AG-001",
       title: "Work Trace Spine v0 and Work Focus View",
       status: "completed",
