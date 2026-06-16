@@ -26,6 +26,7 @@ import { MockStateRuntimeBridgeAdapter } from "./mock-state-runtime.js";
 function spawnConfigProfile(env: Record<string, string | undefined>) {
   const childEnv = { ...process.env };
   delete childEnv.AUGNES_APP_PROFILE;
+  delete childEnv.AUGNES_APP_TOOL_SURFACE;
   delete childEnv.AUGNES_ENABLE_AGENT_BRIDGE;
 
   for (const [key, value] of Object.entries(env)) {
@@ -53,6 +54,7 @@ function spawnConfigProfile(env: Record<string, string | undefined>) {
 function spawnToolProfileSnapshot(env: Record<string, string | undefined>) {
   const childEnv = { ...process.env };
   delete childEnv.AUGNES_APP_PROFILE;
+  delete childEnv.AUGNES_APP_TOOL_SURFACE;
   delete childEnv.AUGNES_ENABLE_AGENT_BRIDGE;
 
   for (const [key, value] of Object.entries(env)) {
@@ -108,6 +110,7 @@ function spawnToolProfileSnapshot(env: Record<string, string | undefined>) {
 function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>) {
   const childEnv = { ...process.env };
   delete childEnv.AUGNES_APP_PROFILE;
+  delete childEnv.AUGNES_APP_TOOL_SURFACE;
   delete childEnv.AUGNES_ENABLE_AGENT_BRIDGE;
 
   for (const [key, value] of Object.entries(env)) {

@@ -2,6 +2,7 @@ import "dotenv/config";
 
 export type AugnesCoreMode = "mock" | "http" | "file";
 export type AugnesAppProfile = "public" | "chrono_lab";
+export type AugnesAppToolSurface = "public" | "work_loop_readonly";
 
 function requiredEnv(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -33,8 +34,20 @@ function resolveAppProfile(): AugnesAppProfile {
   throw new Error(`Invalid AUGNES_APP_PROFILE: ${rawProfile}`);
 }
 
+function resolveAppToolSurface(): AugnesAppToolSurface {
+  const rawSurface = process.env.AUGNES_APP_TOOL_SURFACE;
+  if (!rawSurface) return "public";
+
+  if (rawSurface === "public" || rawSurface === "work_loop_readonly") {
+    return rawSurface;
+  }
+
+  throw new Error(`Invalid AUGNES_APP_TOOL_SURFACE: ${rawSurface}`);
+}
+
 const coreMode = resolveCoreMode();
 const appProfile = resolveAppProfile();
+const appToolSurface = resolveAppToolSurface();
 
 export const config = {
   port: Number(process.env.PORT ?? 8787),
@@ -54,5 +67,6 @@ export const config = {
   enableAgentBridge: process.env.AUGNES_ENABLE_AGENT_BRIDGE === "true",
   coreMode,
   appProfile,
+  appToolSurface,
   useMock: coreMode === "mock",
 };
