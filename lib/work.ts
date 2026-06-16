@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { appendCoordinationEvent } from "@/lib/coordination-events";
+import {
+  appendCoordinationEvent,
+  listCoordinationEvents,
+  type CoordinationEvent,
+} from "@/lib/coordination-events";
 import { listActionRecords, openDatabase, type ActionRecord } from "@/lib/db";
 
 const DEFAULT_SCOPE = "project:augnes";
@@ -118,6 +122,7 @@ export type WorkBrief = {
   next_action: string;
   user_attention_required: boolean;
   recent_events: WorkEvent[];
+  coordination_events: CoordinationEvent[];
   related_state_keys: string[];
   related_proof: {
     action_ids: string[];
@@ -376,6 +381,11 @@ export function buildWorkBrief(workId: string, scope = DEFAULT_SCOPE): WorkBrief
   }
 
   const recentEvents = listWorkEvents({ workId: work.work_id, scope, limit: 12 });
+  const coordinationEvents = listCoordinationEvents({
+    workId: work.work_id,
+    scope,
+    limit: 12,
+  });
   const relatedStateKeys = uniqueStrings([
     ...work.related_state_keys,
     ...recentEvents.flatMap((event) => event.related_state_keys),
@@ -418,6 +428,7 @@ export function buildWorkBrief(workId: string, scope = DEFAULT_SCOPE): WorkBrief
     next_action: work.next_action,
     user_attention_required: work.user_attention_required,
     recent_events: recentEvents,
+    coordination_events: coordinationEvents,
     related_state_keys: relatedStateKeys,
     related_proof: {
       action_ids: actionIds,

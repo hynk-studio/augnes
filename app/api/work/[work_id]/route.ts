@@ -1,3 +1,4 @@
+import { listCoordinationEvents } from "@/lib/coordination-events";
 import { getWorkItem, normalizeScope, normalizeWorkId } from "@/lib/work";
 import { NextResponse } from "next/server";
 
@@ -21,5 +22,13 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ scope, work });
+  return NextResponse.json({
+    scope,
+    work,
+    coordination_events: listCoordinationEvents({
+      scope,
+      workId,
+      limit: 12,
+    }),
+  });
 }

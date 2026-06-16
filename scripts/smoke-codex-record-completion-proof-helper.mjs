@@ -156,6 +156,33 @@ try {
   assert.equal(workBriefProof.state_key, null, "Work Brief should expose proof action state_key: null");
   assert.equal(workBriefProof.proof_marker_type, "proof_only");
   assert.deepEqual(workBriefProof.linked_work_event_ids, [proofWorkEvent.id]);
+  assert.equal(
+    workBrief.coordination_events.some(
+      (event) =>
+        event.event_type === "work_event_recorded" &&
+        event.work_id === workId &&
+        event.payload_ref === proofWorkEvent.id,
+    ),
+    true,
+    "Work Brief should expose work-scoped coordination events",
+  );
+
+  const workRead = await readJson(
+    await workItemRoute.GET(
+      new Request(`http://localhost/api/work/${encodeURIComponent(workId)}?scope=${encodeURIComponent(scope)}`),
+      { params: Promise.resolve({ work_id: workId }) },
+    ),
+  );
+  assert.equal(
+    workRead.coordination_events.some(
+      (event) =>
+        event.event_type === "work_event_recorded" &&
+        event.work_id === workId &&
+        event.payload_ref === proofWorkEvent.id,
+    ),
+    true,
+    "Work item route should expose work-scoped coordination events",
+  );
 
   const evidencePack = await readJson(
     await evidencePackRoute.GET(
