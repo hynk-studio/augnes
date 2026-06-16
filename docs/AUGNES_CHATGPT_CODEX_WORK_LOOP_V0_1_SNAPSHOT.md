@@ -10,6 +10,9 @@ operator a read-only path from project work selection through Work Contract
 review, Core / Full Codex handoff packet selection, user-provided Codex result
 import, event timeline inspection, and closure / follow-up recommendation.
 
+Follow-up host observation is recorded in
+`docs/AUGNES_CHATGPT_CODEX_WORK_LOOP_V0_1_HOST_OBSERVATION.md`.
+
 ## Baseline
 
 - Repository: `hynk-studio/augnes`
