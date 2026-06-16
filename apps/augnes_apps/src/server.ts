@@ -2124,6 +2124,28 @@ function stringArrayFromRecordFields(record: Record<string, unknown>, fields: st
   return firstStringArray(...fields.map((field) => record[field]));
 }
 
+function normalizeSkippedCheckResultObjects(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      const record = objectFromUnknown(item);
+      if (Object.keys(record).length === 0) return "";
+      const label = stringValueFromRecord(record, ["check", "name", "command", "title"]);
+      const detail = uniqueNonEmptyStrings([
+        stringValueFromRecord(record, ["reason"]),
+        stringValueFromRecord(record, ["summary"]),
+        stringValueFromRecord(record, ["details", "detail"]),
+      ]).filter((itemDetail) => itemDetail.toLowerCase() !== label?.toLowerCase());
+
+      if (label && detail.length > 0) return `${label}: ${detail.join(" ")}`;
+      if (label) return label;
+      if (detail.length > 0) return detail.join(" ");
+      return stringFromUnknownResult(item);
+    })
+    .filter(Boolean);
+}
+
 function normalizeResultStatus(value: string | null): CodexResultReviewSuggestedResultStatus | null {
   const text = value?.trim().toLowerCase().replace(/\s+/g, "_");
   if (!text) return null;
@@ -2231,9 +2253,9 @@ function resultReviewPayloadFromBrief(brief: WorkBrief, resultInput?: CodexResul
     ...stringArrayFromResultObjects(source.codex_verification_results, ["command", "check", "name", "summary", "result", "status"]),
   ];
   const skippedChecks = [
-    ...firstStringArray(inputSkippedValue, source.codex_skipped_checks, prMetadata.skipped_checks),
-    ...stringArrayFromResultObjects(inputSkippedValue, ["check", "summary", "reason"]),
-    ...stringArrayFromResultObjects(source.codex_skipped_checks, ["check", "summary", "reason"]),
+    ...normalizeSkippedCheckResultObjects(inputSkippedValue),
+    ...normalizeSkippedCheckResultObjects(source.codex_skipped_checks),
+    ...normalizeSkippedCheckResultObjects(prMetadata.skipped_checks),
   ];
   const remainingCaveats = firstStringArray(
     stringArrayFromRecordFields(inputRecord, ["remaining_caveats", "remainingCaveats"]),
@@ -2543,13 +2565,21 @@ function buildCodexResultReviewPacketPreview(
       : needsRevision
         ? "needs_revision"
         : "ready_for_human_review";
-  const suggestedResultStatus: CodexResultReviewSuggestedResultStatus =
-    resultPayload.suggestedResultStatus ??
-    (!resultProvided
-      ? "not_provided"
-      : blockingMissingEvidence || needsRevision
-        ? "partial"
-        : "completed");
+  const reportedOrInferredResultStatus = resultPayload.suggestedResultStatus;
+  const hasReviewGaps = blockingMissingEvidence || needsRevision;
+  const suggestedResultStatus: CodexResultReviewSuggestedResultStatus = !resultProvided
+    ? "not_provided"
+    : reportedOrInferredResultStatus === "failed"
+      ? "failed"
+      : reportedOrInferredResultStatus === "blocked"
+        ? "blocked"
+        : hasReviewGaps
+          ? "partial"
+          : reportedOrInferredResultStatus === "partial"
+            ? "partial"
+            : reportedOrInferredResultStatus === "completed" && reviewRecommendation === "ready_for_human_review"
+              ? "completed"
+              : "needs_human_review";
   const suggestedNextAction: CodexResultReviewNextActionCategory = !resultProvided
     ? "result_incomplete_blocked"
     : contextWarnings.length > 0

@@ -24,6 +24,7 @@ assert.doesNotMatch(workBriefBlock, /annotations:\s*bridgeWriteAnnotations/, "re
 
 for (const expected of [
   "CODEX_RESULT_IMPORT_INPUT_SHAPE",
+  "normalizeSkippedCheckResultObjects",
   "provided_result_input_fields",
   "missing_result_input_fields",
   "reported_verification_commands",
@@ -37,6 +38,27 @@ for (const expected of [
 ]) {
   assert.match(server, new RegExp(escapeRegExp(expected)), `server must include ${expected}`);
 }
+
+assert.match(
+  server,
+  /return `\$\{label\}: \$\{detail\.join\(" "\)\}`/,
+  "structured skipped-check objects must preserve both skipped-check name and reason",
+);
+assert.doesNotMatch(
+  server,
+  /stringArrayFromResultObjects\(inputSkippedValue,\s*\["check",\s*"summary",\s*"reason"\]\)/,
+  "structured skipped-check normalization must not keep first-field-only behavior",
+);
+assert.match(
+  server,
+  /reportedOrInferredResultStatus === "completed" && reviewRecommendation === "ready_for_human_review"/,
+  "suggested_result_status must only become completed after Augnes review readiness is satisfied",
+);
+assert.doesNotMatch(
+  server,
+  /const suggestedResultStatus[\s\S]{0,120}resultPayload\.suggestedResultStatus \?\?/,
+  "suggested_result_status must not blindly prefer Codex-reported status before review gaps",
+);
 
 for (const expected of [
   "No Codex result payload is attached; no changed files, verification results, PR URLs, proof IDs, evidence IDs, screenshots, findings, or host observations were invented.",
@@ -64,6 +86,8 @@ for (const expected of [
 assert.match(runbook, /codexResult/, "runbook must document codexResult input");
 assert.match(runbook, /user-provided only/i, "runbook must document user-provided result input");
 assert.match(runbook, /Partial result input is reviewable but remains partial/i, "runbook must document partial input behavior");
+assert.match(runbook, /Structured `skipped_checks` objects preserve concrete reasons/, "runbook must document structured skipped-check reason preservation");
+assert.match(runbook, /`suggested_result_status` is Augnes's review-derived status/, "runbook must document review-derived status behavior");
 assert.match(runbook, /No GitHub PR data\s+is\s+fetched from the App\/MCP server/i, "runbook must preserve no-fetch boundary");
 
 const featureSource = [
@@ -87,6 +111,8 @@ console.log(
       structured_result_preview_supported: true,
       partial_result_warnings_present: true,
       skipped_check_reason_required: true,
+      structured_skipped_check_reason_preserved: true,
+      suggested_result_status_review_derived: true,
       suggested_next_action_present: true,
       widget_result_import_section_present: true,
       forbidden_feature_authority_absent: true,

@@ -61,6 +61,7 @@ assert.match(server, /codex_result_review_packet_preview/, "server must return C
 assert.match(server, /final_handoff_codex_result_review_packet/, "server must return a final handoff result review packet alias");
 assert.match(server, /codex_pr_review_packet_preview/, "server must return a PR review packet preview alias");
 assert.match(server, /CodexResultImportInputSchema/, "server must define a bounded Codex result import input schema");
+assert.match(server, /normalizeSkippedCheckResultObjects/, "server must preserve structured skipped-check reason objects");
 assert.match(server, /codexResult:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codexResult input");
 assert.match(server, /codexResultInput:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codexResultInput input");
 assert.match(server, /codex_result:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codex_result input");
@@ -166,6 +167,8 @@ assert.match(runbook, /pre-run handoff readiness/i, "runbook must distinguish pr
 assert.match(runbook, /post-run result review readiness/i, "runbook must distinguish post-run result review readiness");
 assert.match(runbook, /does not mean the pre-run handoff packet is broken/i, "runbook must explain needs_result_input warning meaning");
 assert.match(runbook, /no\s+GitHub PR data\s+is\s+fetched/i, "runbook must document no App/MCP GitHub fetching");
+assert.match(runbook, /Structured `skipped_checks` objects preserve concrete reasons/, "runbook must document structured skipped-check reason preservation");
+assert.match(runbook, /`suggested_result_status` is Augnes's review-derived status/, "runbook must document review-derived suggested result status");
 assert.match(runbook, /codex_execution_request_preview/, "runbook must document the Codex execution request preview alias");
 assert.match(runbook, /This preview does not execute Codex\. It only prepares the request shape for later explicit user-confirmed execution\./, "runbook must preserve execution request preview boundary wording");
 assert.match(runbook, /awaiting_user_confirmation/, "runbook must document the awaiting user confirmation state");
@@ -294,6 +297,7 @@ assertNoNetworkCalls(extractFunction(server, "stringArrayFromResultObjects"), "s
 assertNoNetworkCalls(extractFunction(server, "firstRecordValue"), "firstRecordValue");
 assertNoNetworkCalls(extractFunction(server, "stringValueFromRecord"), "stringValueFromRecord");
 assertNoNetworkCalls(extractFunction(server, "stringArrayFromRecordFields"), "stringArrayFromRecordFields");
+assertNoNetworkCalls(extractFunction(server, "normalizeSkippedCheckResultObjects"), "normalizeSkippedCheckResultObjects");
 assertNoNetworkCalls(extractFunction(server, "normalizeResultStatus"), "normalizeResultStatus");
 assertNoNetworkCalls(extractFunction(server, "inferResultStatusFromText"), "inferResultStatusFromText");
 assertNoNetworkCalls(extractFunction(server, "skippedCheckHasConcreteReason"), "skippedCheckHasConcreteReason");
@@ -823,6 +827,7 @@ for (const expectedResultReviewText of [
   "apps/augnes_apps/src/server.ts",
   "npm run smoke:chatgpt-work-contract-card",
   "npm run smoke:chatgpt-work-contract-card passed",
+  "Live Developer Mode validation: No Developer Mode host session was available.",
   "No live Developer Mode observation was made.",
   "Reported changed files cover the expected file list.",
   "Reported verification results cover the expected checks.",
@@ -860,6 +865,15 @@ for (const expectedPartialReviewText of [
 ]) {
   assert.match(renderedPartialResultReview.text, new RegExp(escapeRegExp(expectedPartialReviewText)), `partial result review render must include: ${expectedPartialReviewText}`);
 }
+const partialResultPacket = resultReviewPartialCardPayload().codex_result_review_packet_preview;
+assert.equal(partialResultPacket.reported_result_status, "completed", "partial fixture must preserve Codex-reported completed status");
+assert.equal(partialResultPacket.suggested_result_status, "partial", "partial fixture must derive suggested_result_status from review gaps");
+assert.notEqual(partialResultPacket.suggested_result_status, "completed", "partial fixture must not blindly accept Codex-reported completed status");
+assert.equal(partialResultPacket.suggested_next_action, "additional_verification_needed", "missing expected verification must suggest additional verification");
+const blockedResultPacket = resultReviewBlockedCardPayload().codex_result_review_packet_preview;
+assert.equal(blockedResultPacket.reported_result_status, "blocked", "blocked fixture must preserve Codex-reported blocked status");
+assert.equal(blockedResultPacket.suggested_result_status, "blocked", "blocked fixture must keep blocked suggested status");
+assert.equal(blockedResultPacket.suggested_next_action, "result_incomplete_blocked", "blocked fixture must suggest result incomplete / blocked");
 assert.doesNotMatch(
   renderedPartialResultReview.text,
   /Reported changed files cover the expected file list\./,
@@ -931,6 +945,9 @@ console.log(
       codex_result_review_missing_changed_files_warned: true,
       codex_result_review_missing_verification_warned: true,
       codex_result_review_skipped_reason_required: true,
+      codex_result_review_structured_skipped_reason_preserved: true,
+      codex_result_review_completed_with_gaps_not_suggested_completed: true,
+      codex_result_review_blocked_status_checked: true,
       codex_result_review_suggested_next_action_present: true,
       codex_result_review_copy_packet_checked: true,
       codex_execution_request_preview_present: true,
@@ -1196,7 +1213,7 @@ function assertFinalPreflightFixtures(source) {
     expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
     reported_verification_commands: ["npm run smoke:chatgpt-work-contract-card"],
     reported_verification_results: ["npm run smoke:chatgpt-work-contract-card passed"],
-    skipped_checks: ["Optional live validation skipped because no cheap session was available."],
+    skipped_checks: ["Live Developer Mode validation: No Developer Mode host session was available."],
     remaining_caveats: ["No live Developer Mode observation was made."],
     missing_required_closeout_sections: [],
     required_result_input_fields: ["Codex final report text or structured result payload."],
@@ -1245,9 +1262,9 @@ function assertFinalPreflightFixtures(source) {
     },
     skipped_check_alignment: {
       status: "aligned",
-      summary: "Skipped checks were reported; verify each skipped check has a concrete reason.",
+      summary: "Skipped checks were reported with concrete reasons.",
       expected: ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."],
-      reported: ["Optional live validation skipped because no cheap session was available."],
+      reported: ["Live Developer Mode validation: No Developer Mode host session was available."],
       missing: [],
     },
     review_questions: ["Ready for human review after checking the reported result payload."],
@@ -1553,7 +1570,7 @@ function resultReviewPreviewReadyCardPayload() {
       expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
       reported_verification_commands: ["npm run smoke:chatgpt-work-contract-card"],
       reported_verification_results: ["npm run smoke:chatgpt-work-contract-card passed"],
-      skipped_checks: ["Optional live validation skipped because no cheap session was available."],
+      skipped_checks: ["Live Developer Mode validation: No Developer Mode host session was available."],
       remaining_caveats: ["No live Developer Mode observation was made."],
       missing_required_closeout_sections: [],
       required_result_input_fields: [
@@ -1606,9 +1623,9 @@ function resultReviewPreviewReadyCardPayload() {
       },
       skipped_check_alignment: {
         status: "aligned",
-        summary: "Skipped checks were reported; verify each skipped check has a concrete reason.",
+        summary: "Skipped checks were reported with concrete reasons.",
         expected: ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."],
-        reported: ["Optional live validation skipped because no cheap session was available."],
+        reported: ["Live Developer Mode validation: No Developer Mode host session was available."],
         missing: [],
       },
       review_questions: [
@@ -1659,7 +1676,7 @@ function resultReviewPartialCardPayload() {
         source: "not_provided",
         fetched: false,
       },
-      reported_result_status: "partial",
+      reported_result_status: "completed",
       suggested_result_status: "partial",
       reported_authority_boundary_statement: "",
       expected_files: ["apps/augnes_apps/src/server.ts"],
@@ -1743,6 +1760,20 @@ function resultReviewPartialCardPayload() {
         "Codex result review packet is preview-only review preparation.",
         "No GitHub PR data is fetched by the App/MCP server.",
       ],
+    },
+  };
+}
+
+function resultReviewBlockedCardPayload() {
+  const payload = resultReviewPartialCardPayload();
+  return {
+    ...payload,
+    codex_result_review_packet_preview: {
+      ...payload.codex_result_review_packet_preview,
+      reported_result_status: "blocked",
+      suggested_result_status: "blocked",
+      suggested_next_action: "result_incomplete_blocked",
+      review_recommendation: "blocked_by_missing_evidence",
     },
   };
 }

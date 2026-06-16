@@ -347,6 +347,11 @@ The widget renders compact sections labeled `Codex result import`,
 Partial result input is reviewable but remains partial: missing changed files,
 missing verification results, missing caveats, or skipped checks without
 concrete reasons are warnings and review questions, not invented pass results.
+Structured `skipped_checks` objects preserve concrete reasons, so
+`{ check, reason }` is rendered as readable review text instead of dropping the
+reason. `suggested_result_status` is Augnes's review-derived status and does
+not blindly accept a Codex-reported `completed` status when verification or
+review gaps remain.
 The packet may suggest a bounded result status and next-action category such as
 close / done, follow-up fix needed, additional verification needed, new handoff
 needed, result incomplete / blocked, or human decision needed. These categories
