@@ -15,6 +15,11 @@ the host UI did not expose a usable create/update path for retargeting a draft
 connector to the new narrow tunnel, so no new Developer Mode tool invocation,
 iframe, or clipboard result is claimed.
 
+A follow-up retry after PR #600 created a fresh narrowed connector and observed
+real ChatGPT Developer Mode Work Picker, Work Brief, iframe, and Core copy
+behavior in
+`docs/AUGNES_CHATGPT_CODEX_WORK_LOOP_V0_1_DEVELOPER_MODE_READONLY_RETRY.md`.
+
 ## Baseline
 
 - Repository: `hynk-studio/augnes`
