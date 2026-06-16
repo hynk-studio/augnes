@@ -309,23 +309,59 @@ record proof/evidence, mutate Augnes state, call providers, publish, merge,
 retry, replay, or deploy.
 
 The `codex_result_review_packet` slot is now activated as a preview-only Codex
-result review packet. When no Codex result is attached, the card shows an
-explicit `needs_result_input` / `not_provided` state and lists the exact input
-needed for a later human review: final report text or structured result
-payload, changed files, verification commands and results, skipped checks with
-concrete reasons, authority boundary statement, and remaining caveats. It must
-not invent changed files, verification results, PR URLs, screenshots, proof
-IDs, evidence IDs, review findings, or host observations.
+result review packet and the existing `augnes_get_work_brief` call accepts an
+optional read-only `codexResult` / `codexResultInput` / `codex_result` object.
+That import object is user-provided only. Its supported shape is:
 
-When already-present structured result payload is attached, the packet can
-compare reported files, verification results, skipped checks, Memory Reuse
-status, Project Constellation context status, final preflight status, PR body
-checklist references, and authority boundary text against the final handoff
-expectations. This comparison is bounded review preparation for a human. No
-GitHub PR data is fetched from the App/MCP server, and no GitHub review is
-submitted. The packet does not post comments, approve or request changes,
-record proof/evidence, execute Codex, mutate Augnes state, call providers,
-publish, merge, retry, replay, or deploy.
+- `work_id`
+- `scope`
+- `final_report_text`
+- `pr_url` or `pr_number` (optional, not fetched)
+- `changed_files`
+- `verification_commands`
+- `verification_results`
+- `skipped_checks`
+- `remaining_caveats`
+- `authority_boundary_statement`
+- `result_status`
+
+When no Codex result is attached, the card shows an explicit
+`needs_result_input` / `not_provided` state and lists the exact input needed for
+a later human review: final report text or structured result payload, changed
+files, verification commands and results, skipped checks with concrete reasons
+or an explicit none-skipped statement, authority boundary statement, and
+remaining caveats or an explicit none-remaining statement. It must not invent
+changed files, verification results, PR URLs, screenshots, proof IDs, evidence
+IDs, review findings, or host observations.
+
+When user-provided or already-present structured result payload is attached, the
+packet can compare reported files, verification commands/results, skipped
+checks, remaining caveats, optional PR reference, Memory Reuse status, Project
+Constellation context status, final preflight status, PR body checklist
+references, and authority boundary text against the final handoff expectations.
+The widget renders compact sections labeled `Codex result import`,
+`What was provided`, `Missing result input`, `Expected vs actual`,
+`Verification review`, `Skipped checks`, `Remaining caveats`,
+`Suggested next action`, and `What this screen does not do`.
+
+Partial result input is reviewable but remains partial: missing changed files,
+missing verification results, missing caveats, or skipped checks without
+concrete reasons are warnings and review questions, not invented pass results.
+Structured `skipped_checks` objects preserve concrete reasons, so
+`{ check, reason }` is rendered as readable review text instead of dropping the
+reason. `suggested_result_status` is Augnes's review-derived status and does
+not blindly accept a Codex-reported `completed` status when verification or
+review gaps remain.
+The packet may suggest a bounded result status and next-action category such as
+close / done, follow-up fix needed, additional verification needed, new handoff
+needed, result incomplete / blocked, or human decision needed. These categories
+are advisory only.
+
+This comparison is bounded review preparation for a human. No GitHub PR data is
+fetched from the App/MCP server, and no GitHub review is submitted. The packet
+does not post comments, approve or request changes, record proof/evidence,
+execute Codex, mutate Augnes state, call providers, publish, merge, retry,
+replay, or deploy.
 
 ## Copy Codex Handoff Affordance
 
