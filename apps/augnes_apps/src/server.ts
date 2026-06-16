@@ -899,6 +899,25 @@ type CoreCodexHandoffPacket = {
 
 type CoreHandoffUsage = "planning_only" | "implementation_ready" | "implementation_requires_full_context";
 
+type CodexHandoffRecommendationTarget =
+  | "core_handoff"
+  | "full_context"
+  | "full_context_or_implementation_anchors"
+  | "unavailable";
+
+type CodexHandoffDecision = {
+  decision_type: "codex_handoff_recommendation";
+  status: "ready" | "unavailable";
+  core_handoff_usage: CoreHandoffUsage | "unavailable";
+  implementation_anchor_count: number;
+  recommended_for_planning: CodexHandoffRecommendationTarget;
+  recommended_for_implementation: CodexHandoffRecommendationTarget;
+  recommendation_reason: string;
+  user_confirmation_items: readonly string[];
+  blocking_reason: string | null;
+  boundary_text: readonly string[];
+};
+
 type FinalCodexHandoffPacket = {
   packet_type: "final_codex_handoff_packet";
   schema: typeof FINAL_CODEX_HANDOFF_PACKET_SCHEMA;
@@ -1183,6 +1202,60 @@ function coreImplementationAnchorSummary(
     return "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation.";
   }
   return "Core is planning-only until implementation anchors are confirmed.";
+}
+
+const CODEX_HANDOFF_DECISION_USER_CONFIRMATION_ITEMS = [
+  "I know whether I'm asking Codex for planning or implementation.",
+  "I checked whether Full Context is required.",
+  "I checked expected checks.",
+  "I will paste the selected packet into a separate Codex session.",
+] as const;
+
+const CODEX_HANDOFF_DECISION_BOUNDARY_TEXT = [
+  "Codex handoff recommendation is read-only guidance for choosing copied packet text.",
+  "The recommendation panel does not run Codex.",
+  "The recommendation panel does not create branches or PRs.",
+  "The recommendation panel does not record proof or evidence.",
+  "The recommendation panel does not mutate Augnes state.",
+] as const;
+
+function buildCodexHandoffDecision(corePacket: CoreCodexHandoffPacket): CodexHandoffDecision {
+  const implementationAnchorCount = corePacket.implementation_anchors.length;
+  const base = {
+    decision_type: "codex_handoff_recommendation" as const,
+    status: "ready" as const,
+    core_handoff_usage: corePacket.core_handoff_usage,
+    implementation_anchor_count: implementationAnchorCount,
+    recommended_for_planning: "core_handoff" as const,
+    user_confirmation_items: CODEX_HANDOFF_DECISION_USER_CONFIRMATION_ITEMS,
+    boundary_text: CODEX_HANDOFF_DECISION_BOUNDARY_TEXT,
+  };
+
+  if (corePacket.core_handoff_usage === "implementation_ready") {
+    return {
+      ...base,
+      recommended_for_implementation: "core_handoff",
+      recommendation_reason: "Core includes implementation anchors. Confirm anchors before editing.",
+      blocking_reason: null,
+    };
+  }
+
+  if (corePacket.core_handoff_usage === "planning_only") {
+    return {
+      ...base,
+      recommended_for_implementation: "full_context_or_implementation_anchors",
+      recommendation_reason: "Core is enough for planning. For implementation, use Full Context or provide implementation anchors.",
+      blocking_reason: "Core is marked planning-only for implementation work.",
+    };
+  }
+
+  return {
+    ...base,
+    recommended_for_implementation: "full_context",
+    recommendation_reason:
+      "Core is enough for planning. Full Context is required before implementation because implementation file/schema anchors are missing.",
+    blocking_reason: "Implementation file/schema anchors are missing from Core.",
+  };
 }
 
 function formatPacketLine(value: string | null, fallback = "missing"): string {
@@ -4436,6 +4509,7 @@ export function createMcpAppServer(
           memoryReuseAttachmentProposal
         );
         const coreCodexHandoffPacket = buildCoreCodexHandoffPacket(finalCodexHandoffPacket);
+        const codexHandoffDecision = buildCodexHandoffDecision(coreCodexHandoffPacket);
         const finalHandoffPreflight = buildFinalHandoffPreflight(finalCodexHandoffPacket);
         const finalHandoffReadinessSummary = buildFinalHandoffReadinessSummary(
           finalCodexHandoffPacket,
@@ -4450,6 +4524,8 @@ export function createMcpAppServer(
           codex_handoff_preview: codexHandoffPreview,
           core_codex_handoff_packet: coreCodexHandoffPacket,
           codex_core_handoff_packet: coreCodexHandoffPacket,
+          codex_handoff_decision: codexHandoffDecision,
+          codex_handoff_recommendation: codexHandoffDecision,
           copyable_core_handoff_text: coreCodexHandoffPacket.copyable_handoff_text,
           final_codex_handoff_packet: finalCodexHandoffPacket,
           codex_final_handoff_packet: finalCodexHandoffPacket,

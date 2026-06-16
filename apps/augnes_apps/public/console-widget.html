@@ -680,10 +680,148 @@
         }
       }
 
+      function isKnownCoreHandoffUsage(value) {
+        return value === "planning_only" || value === "implementation_ready" || value === "implementation_requires_full_context";
+      }
+
+      function defaultHandoffDecisionForUsage(coreHandoffUsage, implementationAnchorCount) {
+        const base = {
+          decision_type: "codex_handoff_recommendation",
+          status: "ready",
+          core_handoff_usage: coreHandoffUsage,
+          implementation_anchor_count: implementationAnchorCount,
+          recommended_for_planning: "core_handoff",
+          user_confirmation_items: [
+            "I know whether I'm asking Codex for planning or implementation.",
+            "I checked whether Full Context is required.",
+            "I checked expected checks.",
+            "I will paste the selected packet into a separate Codex session.",
+          ],
+          boundary_text: [
+            "Codex handoff recommendation is read-only guidance for choosing copied packet text.",
+            "The recommendation panel does not run Codex.",
+            "The recommendation panel does not create branches or PRs.",
+            "The recommendation panel does not record proof or evidence.",
+            "The recommendation panel does not mutate Augnes state.",
+          ],
+        };
+        if (coreHandoffUsage === "implementation_ready") {
+          return {
+            ...base,
+            recommended_for_implementation: "core_handoff",
+            recommendation_reason: "Core includes implementation anchors. Confirm anchors before editing.",
+            blocking_reason: "",
+          };
+        }
+        if (coreHandoffUsage === "planning_only") {
+          return {
+            ...base,
+            recommended_for_implementation: "full_context_or_implementation_anchors",
+            recommendation_reason: "Core is enough for planning. For implementation, use Full Context or provide implementation anchors.",
+            blocking_reason: "Core is marked planning-only for implementation work.",
+          };
+        }
+        return {
+          ...base,
+          recommended_for_implementation: "full_context",
+          recommendation_reason: "Core is enough for planning. Full Context is required before implementation because implementation file/schema anchors are missing.",
+          blocking_reason: "Implementation file/schema anchors are missing from Core.",
+        };
+      }
+
+      function normalizeCodexHandoffDecision(source, corePacket) {
+        const record = safeRecord(source);
+        const core = safeRecord(corePacket);
+        const implementationAnchors = safeArray(core.implementation_anchors);
+        const sourceAnchorCount = Number(record.implementation_anchor_count);
+        const implementationAnchorCount = Number.isFinite(sourceAnchorCount)
+          ? sourceAnchorCount
+          : implementationAnchors.length;
+        const fallbackUsage = implementationAnchors.length
+          ? "implementation_ready"
+          : core.full_context_required_before_implementation === true
+            ? "implementation_requires_full_context"
+            : "";
+        const coreHandoffUsage = nonEmptyText(record.core_handoff_usage, nonEmptyText(core.core_handoff_usage, fallbackUsage));
+        if (record.status === "unavailable" || !isKnownCoreHandoffUsage(coreHandoffUsage)) {
+          return {
+            decision_type: "codex_handoff_recommendation",
+            status: "unavailable",
+            core_handoff_usage: "unavailable",
+            implementation_anchor_count: implementationAnchorCount,
+            recommended_for_planning: "unavailable",
+            recommended_for_implementation: "unavailable",
+            recommendation_reason: nonEmptyText(
+              record.recommendation_reason,
+              "Codex handoff recommendation is unavailable. Review Core and Full Context details before choosing what to copy."
+            ),
+            user_confirmation_items: safeArray(record.user_confirmation_items),
+            blocking_reason: nonEmptyText(record.blocking_reason, "Core Handoff usage is unavailable."),
+            boundary_text: safeArray(record.boundary_text),
+          };
+        }
+        const fallback = defaultHandoffDecisionForUsage(coreHandoffUsage, implementationAnchorCount);
+        return {
+          ...fallback,
+          ...record,
+          status: record.status === "unavailable" ? "unavailable" : "ready",
+          core_handoff_usage: coreHandoffUsage,
+          implementation_anchor_count: implementationAnchorCount,
+          recommended_for_planning: nonEmptyText(record.recommended_for_planning, fallback.recommended_for_planning),
+          recommended_for_implementation: nonEmptyText(record.recommended_for_implementation, fallback.recommended_for_implementation),
+          recommendation_reason: nonEmptyText(record.recommendation_reason, fallback.recommendation_reason),
+          user_confirmation_items: safeArray(record.user_confirmation_items).length ? safeArray(record.user_confirmation_items) : fallback.user_confirmation_items,
+          blocking_reason: nonEmptyText(record.blocking_reason, fallback.blocking_reason),
+          boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : fallback.boundary_text,
+        };
+      }
+
+      function handoffRecommendationLabel(value) {
+        if (value === "core_handoff") return "Core Handoff";
+        if (value === "full_context") return "Full Context";
+        if (value === "full_context_or_implementation_anchors") return "Full Context or implementation anchors";
+        return "Recommendation unavailable";
+      }
+
+      function handoffRecommendationAction(value) {
+        if (value === "core_handoff") return "Copy Codex Handoff";
+        if (value === "full_context") return "Copy Full Context";
+        if (value === "full_context_or_implementation_anchors") return "Copy Full Context or provide implementation anchors";
+        return "Review packet details";
+      }
+
+      function renderCodexHandoffDecisionPanel(decision) {
+        const normalized = normalizeCodexHandoffDecision(decision, {});
+        const root = el("div", { className: "item selected-item" });
+        root.appendChild(el("div", { className: "item-title", text: "Codex handoff recommendation" }));
+        if (normalized.status === "unavailable") {
+          root.appendChild(el("div", { className: "item-note", text: normalized.recommendation_reason }));
+          root.appendChild(el("div", { className: "item-note", text: "No copy recommendation is inferred from unavailable Core data." }));
+          return root;
+        }
+        root.appendChild(el("div", { className: "item-title", text: "What to copy" }));
+        root.appendChild(createMetricGrid([
+          ["For planning", `${handoffRecommendationLabel(normalized.recommended_for_planning)} - ${handoffRecommendationAction(normalized.recommended_for_planning)}`],
+          ["For implementation", `${handoffRecommendationLabel(normalized.recommended_for_implementation)} - ${handoffRecommendationAction(normalized.recommended_for_implementation)}`],
+        ]));
+        root.appendChild(el("div", { className: "item-title", text: "Why this recommendation" }));
+        root.appendChild(el("div", { className: "item-note", text: normalized.recommendation_reason }));
+        if (normalized.recommended_for_implementation === "core_handoff") {
+          root.appendChild(el("div", { className: "item-note", text: "Core can be used for implementation planning. Confirm anchors before editing." }));
+        }
+        root.appendChild(el("div", { className: "item-title", text: "What the user confirms" }));
+        root.appendChild(createTextList(normalized.user_confirmation_items));
+        return root;
+      }
+
       function renderCopyableHandoffPacket(preview) {
         const root = el("div", { className: "stack" });
         const corePacket = safeRecord(preview.core_codex_handoff_packet || preview.codex_core_handoff_packet);
         const fullPacket = safeRecord(preview.full_codex_handoff_packet || preview.final_codex_handoff_packet || preview.codex_final_handoff_packet);
+        const handoffDecision = normalizeCodexHandoffDecision(
+          preview.codex_handoff_decision || preview.codex_handoff_recommendation || preview.external_codex_handoff_gate_preview,
+          corePacket
+        );
         const fallbackPacketText = nonEmptyText(preview.copyable_handoff_text, "");
         const corePacketText = nonEmptyText(
           preview.copyable_core_handoff_text || corePacket.copyable_core_handoff_text || corePacket.copyable_handoff_text,
@@ -749,6 +887,7 @@
         });
         copyRow.append(coreCopyButton, fullCopyButton);
         root.append(
+          renderCodexHandoffDecisionPanel(handoffDecision),
           status,
           el("div", { className: "status-box", text: "Core: Shorter packet for starting Codex work." }),
           el("div", { className: "status-box", text: "Full: Full context and appendices." }),
@@ -2446,12 +2585,22 @@
           ),
         };
         const corePacket = normalizeCoreCodexHandoffPacket(data, packetWithText);
+        const codexHandoffDecision = normalizeCodexHandoffDecision(
+          data?.codex_handoff_decision ||
+            data?.codex_handoff_recommendation ||
+            data?.external_codex_handoff_gate_preview ||
+            source.codex_handoff_decision ||
+            source.codex_handoff_recommendation,
+          corePacket
+        );
         return {
           ...packetWithText,
           codex_execution_request_preview: codexExecutionRequestPreview,
           execution_request_preview: codexExecutionRequestPreview,
           core_codex_handoff_packet: corePacket,
           codex_core_handoff_packet: corePacket,
+          codex_handoff_decision: codexHandoffDecision,
+          codex_handoff_recommendation: codexHandoffDecision,
           full_codex_handoff_packet: {
             packet_type: packetWithText.packet_type,
             schema: packetWithText.schema,

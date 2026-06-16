@@ -371,6 +371,41 @@ Read-only verification commands should be labeled as expected read-only checks
 when they are non-mutating checks such as local GET/curl commands piped into
 `jq`. Skipped-check policy remains unchanged.
 
+The visible copy area includes a compact `Codex handoff recommendation` panel
+near the Core and Full copy controls. The panel is user decision guidance, not
+a permission gate. Its primary labels are:
+
+- `What to copy`
+- `For planning`
+- `For implementation`
+- `Core Handoff`
+- `Full Context`
+- `Why this recommendation`
+- `What the user confirms`
+
+The recommendation is derived from the Core Handoff contract:
+
+- When Core has `core_handoff_usage: implementation_requires_full_context`,
+  the panel recommends `Copy Codex Handoff` for planning and `Copy Full
+  Context` for implementation. The visible reason is: `Core is enough for
+  planning. Full Context is required before implementation because
+  implementation file/schema anchors are missing.`
+- When Core has `core_handoff_usage: implementation_ready`, the panel
+  recommends `Copy Codex Handoff` for planning and implementation planning,
+  with the reminder: `Core includes implementation anchors. Confirm anchors
+  before editing.`
+- When Core is `planning_only`, the panel recommends Core for planning and
+  Full Context or supplied implementation anchors before implementation.
+- When recommendation data is unavailable, the panel shows an unavailable state
+  and does not infer implementation readiness.
+
+The model-readable structured content exposes the same guidance as
+`codex_handoff_decision` / `codex_handoff_recommendation`, including the Core
+usage state, implementation anchor count, planning and implementation
+recommendations, recommendation reason, practical user confirmation items, and
+read-only boundary text. The primary visible UI should keep raw enum labels and
+technical aliases out of the main decision panel.
+
 The secondary visible control is:
 
 ```text

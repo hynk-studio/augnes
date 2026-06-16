@@ -36,6 +36,8 @@ assert.match(server, /copyable_core_handoff_text/, "server must expose copyable 
 assert.match(server, /core_handoff_usage/, "server must expose Core handoff usage state");
 assert.match(server, /implementation_anchors/, "server must expose Core implementation anchors");
 assert.match(server, /full_context_required_before_implementation/, "server must expose Full Context requirement state");
+assert.match(server, /codex_handoff_decision/, "server must expose Codex handoff decision guidance");
+assert.match(server, /codex_handoff_recommendation/, "server must expose Codex handoff recommendation alias");
 assert.match(server, /full_codex_handoff_packet/, "server must expose a full handoff packet alias");
 assert.match(server, /copyable_full_handoff_text/, "server must expose copyable full handoff text");
 assert.match(server, /final_codex_handoff_packet/, "server must return Final Codex Handoff Packet structured content");
@@ -75,6 +77,8 @@ assert.match(widget, /renderFinalHandoffReadinessSummary/, "widget must render f
 assert.match(widget, /normalizeFinalHandoffReadinessSummary/, "widget must normalize final handoff readiness summary state");
 assert.match(widget, /renderWorkContractConstellationContext/, "widget must render Work Contract / Constellation context");
 assert.match(widget, /renderCopyableHandoffPacket/, "widget must implement a bounded copy affordance renderer");
+assert.match(widget, /normalizeCodexHandoffDecision/, "widget must normalize Codex handoff decision guidance");
+assert.match(widget, /renderCodexHandoffDecisionPanel/, "widget must render Codex handoff decision guidance");
 assert.match(widget, /Copy Full Context/, "widget must expose a secondary full-context copy action");
 assert.match(server, /BEGIN_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block begin delimiter");
 assert.match(server, /END_AUGNES_CODEX_HANDOFF_JSON/, "server packet must include JSON block end delimiter");
@@ -96,6 +100,8 @@ assert.match(runbook, /augnes_get_work_brief/i, "runbook must name the handoff c
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
 assert.match(runbook, /Core Handoff/i, "runbook must document the Core Handoff packet");
+assert.match(runbook, /Codex handoff recommendation/i, "runbook must document the handoff recommendation panel");
+assert.match(runbook, /What to copy/i, "runbook must document the user-facing copy decision");
 assert.match(runbook, /core_handoff_usage/, "runbook must document Core handoff usage state");
 assert.match(runbook, /Implementation anchors/, "runbook must document Core implementation anchors");
 assert.match(
@@ -257,6 +263,7 @@ assertNoNetworkCalls(extractFunction(server, "buildHandoffAutomationSlots"), "bu
 assertNoNetworkCalls(extractFunction(server, "constellationSummaryLines"), "constellationSummaryLines");
 assertNoNetworkCalls(extractFunction(server, "memoryReuseSummaryLines"), "memoryReuseSummaryLines");
 assertNoNetworkCalls(extractFunction(server, "prChecklistSummaryLines"), "prChecklistSummaryLines");
+assertNoNetworkCalls(extractFunction(server, "buildCodexHandoffDecision"), "buildCodexHandoffDecision");
 assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffJsonBlock"), "buildCoreCodexHandoffJsonBlock");
 assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffText"), "buildCoreCodexHandoffText");
 assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffPacket"), "buildCoreCodexHandoffPacket");
@@ -290,6 +297,12 @@ assertNoNetworkCalls(extractFunction(widget, "renderCodexResultReviewPacketPrevi
 assertNoNetworkCalls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractConstellationContext"), "renderWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(widget, "renderCopyableHandoffPacket"), "renderCopyableHandoffPacket");
+assertNoNetworkCalls(extractFunction(widget, "isKnownCoreHandoffUsage"), "isKnownCoreHandoffUsage");
+assertNoNetworkCalls(extractFunction(widget, "defaultHandoffDecisionForUsage"), "defaultHandoffDecisionForUsage");
+assertNoNetworkCalls(extractFunction(widget, "normalizeCodexHandoffDecision"), "normalizeCodexHandoffDecision");
+assertNoNetworkCalls(extractFunction(widget, "handoffRecommendationLabel"), "handoffRecommendationLabel");
+assertNoNetworkCalls(extractFunction(widget, "handoffRecommendationAction"), "handoffRecommendationAction");
+assertNoNetworkCalls(extractFunction(widget, "renderCodexHandoffDecisionPanel"), "renderCodexHandoffDecisionPanel");
 assertNoNetworkCalls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoNetworkCalls(extractFunction(widget, "isCompletedWorkStatus"), "isCompletedWorkStatus");
 assertNoNetworkCalls(extractFunction(widget, "numberOrZero"), "numberOrZero");
@@ -398,6 +411,12 @@ const renderSource = [
   extractFunction(widget, "codexExecutionRequestConfirmationFields"),
   extractFunction(widget, "codexExecutionRequestNonAuthorities"),
   extractFunction(widget, "normalizeCodexExecutionRequestPreview"),
+  extractFunction(widget, "isKnownCoreHandoffUsage"),
+  extractFunction(widget, "defaultHandoffDecisionForUsage"),
+  extractFunction(widget, "normalizeCodexHandoffDecision"),
+  extractFunction(widget, "handoffRecommendationLabel"),
+  extractFunction(widget, "handoffRecommendationAction"),
+  extractFunction(widget, "renderCodexHandoffDecisionPanel"),
   extractFunction(widget, "coreAuthorityBoundaryText"),
   extractFunction(widget, "composeFallbackCoreHandoffText"),
   extractFunction(widget, "normalizeCoreCodexHandoffPacket"),
@@ -433,6 +452,7 @@ assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), 
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "normalizeFinalHandoffReadinessSummary"), "normalizeFinalHandoffReadinessSummary");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexExecutionRequestPreview"), "normalizeCodexExecutionRequestPreview");
+assertNoForbiddenControls(extractFunction(widget, "renderCodexHandoffDecisionPanel"), "renderCodexHandoffDecisionPanel");
 assertSafeCopyAffordanceSource(extractFunction(widget, "renderCopyableHandoffPacket"));
 assertSafeCopyHelperSource(extractFunction(widget, "copyTextToClipboard"));
 
@@ -565,6 +585,19 @@ for (const expectedVisibleText of [
   "No reported changed files attached.",
   "Readiness reasons",
   "Copy packet",
+  "Codex handoff recommendation",
+  "What to copy",
+  "For planning",
+  "Core Handoff - Copy Codex Handoff",
+  "For implementation",
+  "Full Context - Copy Full Context",
+  "Why this recommendation",
+  "Core is enough for planning. Full Context is required before implementation because implementation file/schema anchors are missing.",
+  "What the user confirms",
+  "I know whether I'm asking Codex for planning or implementation.",
+  "I checked whether Full Context is required.",
+  "I checked expected checks.",
+  "I will paste the selected packet into a separate Codex session.",
   "Copy Codex Handoff",
   "After copying, validate locally with codex:handoff-preflight.",
   "Copy action only. The packet is for a separate Codex session; copying does not execute Codex, approve anything, record proof or evidence, mutate Augnes state, merge, or enable auto-merge.",
@@ -573,7 +606,7 @@ for (const expectedVisibleText of [
 ]) {
   assert.match(renderedFallbackVisibleText, new RegExp(escapeRegExp(expectedVisibleText)), `main visible preview must include: ${expectedVisibleText}`);
 }
-for (const hiddenRawStatus of ["awaiting_user_confirmation", "needs_result_input", "preview_only", "no_match", "explicitly_absent"]) {
+for (const hiddenRawStatus of ["awaiting_user_confirmation", "needs_result_input", "preview_only", "no_match", "explicitly_absent", "implementation_requires_full_context", "implementation_ready", "planning_only"]) {
   assert.doesNotMatch(
     renderedFallbackVisibleText,
     new RegExp(escapeRegExp(hiddenRawStatus)),
@@ -627,6 +660,59 @@ const renderedSelectionFallback = renderFallbackCard(renderSource, {
 });
 await assertRenderedCopyAffordance(renderedSelectionFallback, "selection");
 assertFinalPreflightFixtures(renderSource);
+
+const renderedImplementationReady = renderImplementationReadyCard(renderSource);
+for (const expectedImplementationReadyText of [
+  "Codex handoff recommendation",
+  "For implementation",
+  "Core Handoff - Copy Codex Handoff",
+  "Core includes implementation anchors. Confirm anchors before editing.",
+  "Core can be used for implementation planning. Confirm anchors before editing.",
+]) {
+  assert.match(
+    renderedImplementationReady.visibleText,
+    new RegExp(escapeRegExp(expectedImplementationReadyText)),
+    `implementation-ready visible decision must include: ${expectedImplementationReadyText}`,
+  );
+}
+assert.doesNotMatch(
+  renderedImplementationReady.visibleText,
+  /Full Context is required before implementation because implementation file\/schema anchors are missing/,
+  "implementation-ready visible decision must not require Full Context as mandatory",
+);
+assert.doesNotMatch(
+  renderedImplementationReady.visibleText,
+  /implementation_ready/,
+  "implementation-ready visible decision must not show raw usage enum",
+);
+
+const renderedPlanningOnly = renderPlanningOnlyDecisionCard(renderSource);
+for (const expectedPlanningOnlyText of [
+  "Core is enough for planning. For implementation, use Full Context or provide implementation anchors.",
+  "Full Context or implementation anchors - Copy Full Context or provide implementation anchors",
+]) {
+  assert.match(
+    renderedPlanningOnly.visibleText,
+    new RegExp(escapeRegExp(expectedPlanningOnlyText)),
+    `planning-only visible decision must include: ${expectedPlanningOnlyText}`,
+  );
+}
+assert.doesNotMatch(renderedPlanningOnly.visibleText, /Core can be used for implementation planning/, "planning-only decision must not invent implementation readiness");
+assert.doesNotMatch(renderedPlanningOnly.visibleText, /planning_only/, "planning-only visible decision must not show raw usage enum");
+
+const renderedUnavailableDecision = renderUnavailableDecisionCard(renderSource);
+for (const expectedUnavailableText of [
+  "Codex handoff recommendation is unavailable. Review Core and Full Context details before choosing what to copy.",
+  "No copy recommendation is inferred from unavailable Core data.",
+]) {
+  assert.match(
+    renderedUnavailableDecision.visibleText,
+    new RegExp(escapeRegExp(expectedUnavailableText)),
+    `unavailable visible decision must include: ${expectedUnavailableText}`,
+  );
+}
+assert.doesNotMatch(renderedUnavailableDecision.visibleText, /Core can be used for implementation planning/, "unavailable decision must not invent implementation readiness");
+assert.doesNotMatch(renderedUnavailableDecision.visibleText, /Full Context is required before implementation because implementation file\/schema anchors are missing/, "unavailable decision must not invent a missing-anchor recommendation");
 
 const renderedWithConstellation = renderConstellationContextCard(renderSource);
 for (const expectedContextText of [
@@ -719,6 +805,11 @@ console.log(
       implementation_anchors_present: true,
       missing_anchors_require_full_context: true,
       anchored_core_packet_checked: true,
+      codex_handoff_decision_present: true,
+      missing_anchor_decision_guidance_checked: true,
+      implementation_ready_decision_guidance_checked: true,
+      planning_only_decision_guidance_checked: true,
+      unavailable_decision_guidance_checked: true,
       core_copy_primary_checked: true,
       full_context_copy_secondary_checked: true,
       core_copy_excludes_execution_request_metadata: true,
@@ -1377,6 +1468,43 @@ function resultReviewPreviewReadyCardPayload() {
   };
 }
 
+function implementationReadyCardPayload() {
+  const payload = fallbackCardPayload();
+  return {
+    ...payload,
+    work_contract_card: {
+      ...payload.work_contract_card,
+      expected_files: ["apps/augnes_apps/src/server.ts"],
+      expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
+      related_state_keys: ["coordination.event_spine"],
+    },
+  };
+}
+
+function planningOnlyDecisionCardPayload() {
+  return {
+    ...fallbackCardPayload(),
+    codex_handoff_decision: {
+      decision_type: "codex_handoff_recommendation",
+      status: "ready",
+      core_handoff_usage: "planning_only",
+      implementation_anchor_count: 0,
+    },
+  };
+}
+
+function unavailableDecisionCardPayload() {
+  return {
+    ...fallbackCardPayload(),
+    codex_handoff_decision: {
+      decision_type: "codex_handoff_recommendation",
+      status: "unavailable",
+      recommendation_reason: "Codex handoff recommendation is unavailable. Review Core and Full Context details before choosing what to copy.",
+      blocking_reason: "Core Handoff usage is unavailable.",
+    },
+  };
+}
+
 function workPickerPayload() {
   return {
     panel: "work_picker_card",
@@ -1508,6 +1636,18 @@ function renderMemoryReuseProposedCard(source, options = {}) {
 
 function renderResultReviewPreviewReadyCard(source, options = {}) {
   return renderCard(source, resultReviewPreviewReadyCardPayload(), options);
+}
+
+function renderImplementationReadyCard(source, options = {}) {
+  return renderCard(source, implementationReadyCardPayload(), options);
+}
+
+function renderPlanningOnlyDecisionCard(source, options = {}) {
+  return renderCard(source, planningOnlyDecisionCardPayload(), options);
+}
+
+function renderUnavailableDecisionCard(source, options = {}) {
+  return renderCard(source, unavailableDecisionCardPayload(), options);
 }
 
 function renderCard(source, payload, options = {}) {
