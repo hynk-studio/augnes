@@ -522,6 +522,7 @@ type WorkBriefResponse = {
   next_action: string;
   user_attention_required: boolean;
   recent_events: WorkEvent[];
+  coordination_events?: CoordinationEvent[];
   related_state_keys: string[];
   related_proof: {
     action_ids: string[];
