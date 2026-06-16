@@ -175,6 +175,50 @@ the Constellation route from the work brief tool, does not require
 Constellation context to render the Work Contract Card, and does not invent
 missing selected candidates, evidence refs, tensions, or source refs.
 
+## Work Event Spine Timeline / Inspector
+
+The Work Event Spine Timeline / Inspector is a compact read-only section inside
+the Work Contract Card. It gives the operator temporal context for the opened
+work item by rendering already-attached coordination events from the work brief.
+
+Data Source:
+
+```text
+structuredContent.brief.coordination_events
+```
+
+The `augnes_get_work_brief` response also exposes the derived model-readable
+objects:
+
+- `work_event_spine_timeline`
+- `coordination_event_timeline`
+- `event_spine_timeline`
+- `event_spine_inspector`
+
+The timeline sorts attached events by `created_at_ascending` and makes the sort
+order visible as `Created at ascending`. Each event summary and inspector keeps
+bounded fields from the attached coordination event record: event ID, event
+type, scope, work ID, actor, target, source surface, authority level, state
+keys, causal parent, payload ref, result status, created at, and payload
+summary when one is already attached and safe to show.
+
+If no `coordination_events` are attached, the card renders:
+
+```text
+No coordination events are attached to this work item yet.
+```
+
+That empty state must not invent event IDs, actors, payload refs, result
+statuses, state keys, proof IDs, evidence IDs, host observations, or GitHub
+review findings. Missing fields on attached events remain explicit missing
+fields in the inspector instead of being backfilled.
+
+The section is visibility only. It is not broader event instrumentation, not a
+result import/write path, not proof/evidence recording, and not state
+commit/reject. It does not fetch `/api/events`, call GitHub, call
+OpenAI/providers, execute Codex, create or mutate events, write database rows,
+persist selections, publish, merge, retry, replay, or deploy.
+
 ## Final Codex Handoff Auto-Compose And Preflight
 
 The Work Contract Card also derives a `final_codex_handoff_packet` from the

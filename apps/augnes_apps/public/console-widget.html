@@ -1362,6 +1362,116 @@
         };
       }
 
+      function eventStringArray(value) {
+        const direct = safeArray(value);
+        if (direct.length) return direct;
+        const single = nonEmptyText(value, "");
+        return single ? [single] : [];
+      }
+
+      function sortEventTimestamp(value) {
+        const text = nonEmptyText(value, "");
+        if (!text) return Number.POSITIVE_INFINITY;
+        const parsed = Date.parse(text);
+        return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+      }
+
+      function normalizeCoordinationTimelineEvent(source, data) {
+        const event = safeRecord(source);
+        const brief = safeRecord(data?.brief);
+        const payload = safeRecord(event.payload);
+        const scope = nonEmptyText(event.scope, nonEmptyText(brief.scope, ""));
+        const workId = nonEmptyText(event.work_id, nonEmptyText(brief.work_id, ""));
+        const payloadSummary = nonEmptyText(
+          event.payload_summary || event.payloadSummary || event.summary || payload.summary,
+          ""
+        );
+        const stateKeys = eventStringArray(event.state_keys);
+        const normalized = {
+          event_id: nonEmptyText(event.event_id, ""),
+          event_type: nonEmptyText(event.event_type, ""),
+          scope,
+          work_id: workId,
+          actor: nonEmptyText(event.actor, ""),
+          target: nonEmptyText(event.target, ""),
+          source_surface: nonEmptyText(event.source_surface, ""),
+          authority_level: nonEmptyText(event.authority_level, ""),
+          state_keys: stateKeys,
+          causal_parent_id: nonEmptyText(event.causal_parent_id, ""),
+          payload_ref: nonEmptyText(event.payload_ref, ""),
+          result_status: nonEmptyText(event.result_status, ""),
+          created_at: nonEmptyText(event.created_at, ""),
+          payload_summary: payloadSummary,
+          summary: payloadSummary || "No payload summary is attached to this coordination event.",
+          missing_fields: safeArray(event.missing_fields),
+        };
+        const inferredMissingFields = [
+          ["event_id", normalized.event_id],
+          ["event_type", normalized.event_type],
+          ["scope", normalized.scope],
+          ["work_id", normalized.work_id],
+          ["actor", normalized.actor],
+          ["source_surface", normalized.source_surface],
+          ["authority_level", normalized.authority_level],
+          ["created_at", normalized.created_at],
+        ]
+          .filter(([, value]) => !value)
+          .map(([field]) => field);
+        if (!normalized.state_keys.length) inferredMissingFields.push("state_keys");
+        normalized.missing_fields = normalized.missing_fields.length ? normalized.missing_fields : inferredMissingFields;
+        return normalized;
+      }
+
+      function normalizeWorkEventSpineTimeline(source, data) {
+        const direct = firstRecord(
+          source,
+          data?.work_event_spine_timeline,
+          data?.coordination_event_timeline,
+          data?.event_spine_timeline
+        );
+        const brief = safeRecord(data?.brief);
+        const rawEvents = safeRecordArray(direct.events).length
+          ? safeRecordArray(direct.events)
+          : safeRecordArray(brief.coordination_events);
+        const events = rawEvents
+          .map((event) => normalizeCoordinationTimelineEvent(event, data))
+          .sort((left, right) => {
+            const timeDelta = sortEventTimestamp(left.created_at) - sortEventTimestamp(right.created_at);
+            if (timeDelta !== 0) return timeDelta;
+            return left.event_id.localeCompare(right.event_id);
+          });
+        const emptyState = nonEmptyText(
+          direct.empty_state,
+          "No coordination events are attached to this work item yet."
+        );
+        return {
+          timeline_type: "work_event_spine_timeline",
+          status: nonEmptyText(direct.status, events.length ? "attached" : "empty"),
+          scope: nonEmptyText(direct.scope, nonEmptyText(brief.scope, "")),
+          work_id: nonEmptyText(direct.work_id, nonEmptyText(brief.work_id, "")),
+          event_count: Number.isFinite(direct.event_count) ? direct.event_count : events.length,
+          sort_order: nonEmptyText(direct.sort_order, "created_at_ascending"),
+          events,
+          selected_event: events[0] || null,
+          first_event_summary: nonEmptyText(direct.first_event_summary, events[0]?.summary || ""),
+          empty_state: emptyState,
+          warnings: safeArray(direct.warnings).length ? safeArray(direct.warnings) : events.length ? [] : [emptyState],
+          boundary_text: safeArray(direct.boundary_text).length
+            ? safeArray(direct.boundary_text)
+            : [
+                "Work event spine timeline is read-only and derived from attached work brief coordination_events.",
+                "No event creation.",
+                "No event mutation.",
+                "No proof/evidence write.",
+                "No state commit/reject.",
+                "No Codex execution.",
+                "No GitHub calls.",
+                "No provider/OpenAI calls.",
+                "No publish/merge/retry/replay/deploy authority.",
+              ],
+        };
+      }
+
       function normalizeCodexHandoffPreview(data, card) {
         const preview = data?.codex_handoff_preview || {};
         const constellationContext = normalizeWorkContractConstellationContext({
@@ -3846,6 +3956,106 @@
         return root;
       }
 
+      function formatTimelineSortOrder(value) {
+        const text = nonEmptyText(value, "created_at_ascending");
+        if (text === "created_at_ascending") return "Created at ascending";
+        if (text === "created_at_descending") return "Created at descending";
+        return text.replace(/_/g, " ");
+      }
+
+      function renderWorkEventTimelineItem(event) {
+        const item = el("div", { className: "item" });
+        const titleRow = el("div", { className: "stat-row" });
+        titleRow.appendChild(el("div", {
+          className: "item-title",
+          text: nonEmptyText(event.event_type, "Unknown event type"),
+        }));
+        titleRow.appendChild(tag(nonEmptyText(event.created_at, "Missing created_at")));
+        item.appendChild(titleRow);
+        item.appendChild(el("div", {
+          className: "meta-line",
+          text: `Event ID: ${nonEmptyText(event.event_id, "missing")}`,
+        }));
+        item.appendChild(el("div", {
+          className: "item-note",
+          text: nonEmptyText(event.summary, "No payload summary is attached to this coordination event."),
+        }));
+        item.appendChild(createMetricGrid([
+          ["Created at", nonEmptyText(event.created_at, "missing")],
+          ["Actor", nonEmptyText(event.actor, "missing")],
+          ["Authority level", nonEmptyText(event.authority_level, "missing")],
+          ["Payload ref", nonEmptyText(event.payload_ref, "missing")],
+        ]));
+        return item;
+      }
+
+      function renderWorkEventSpineTimeline(timeline, data) {
+        const normalized = normalizeWorkEventSpineTimeline(timeline, data);
+        const root = el("div", { className: "stack" });
+        root.appendChild(el("div", {
+          className: "status-box",
+          text:
+            "Read-only timeline derived from attached work brief coordination_events. It does not create or mutate events, record proof/evidence, mutate state, execute Codex, call GitHub, call providers, publish, merge, retry, replay, or deploy.",
+        }));
+        root.appendChild(createMetricGrid([
+          ["Status", formatUiStatus(normalized.status)],
+          ["Events", String(normalized.event_count)],
+          ["Sort order", formatTimelineSortOrder(normalized.sort_order)],
+          ["Work ID", nonEmptyText(normalized.work_id, "missing")],
+        ]));
+
+        if (!normalized.events.length) {
+          root.appendChild(createSection(
+            "No coordination events yet",
+            el("div", { className: "status-box", text: normalized.empty_state }),
+            { badge: "empty" }
+          ));
+        } else {
+          const timelineList = el("div", { className: "stack" });
+          normalized.events.forEach((event) => timelineList.appendChild(renderWorkEventTimelineItem(event)));
+          root.appendChild(createSection(
+            "Event timeline",
+            timelineList,
+            { badge: `${normalized.events.length}` }
+          ));
+          const selected = normalized.selected_event || normalized.events[0];
+          const inspectorList = el("div", { className: "stack" });
+          const inspectorCard = el("div", { className: "item selected-item" });
+          inspectorCard.appendChild(createMetricGrid([
+            ["Event type", nonEmptyText(selected.event_type, "missing")],
+            ["Created at", nonEmptyText(selected.created_at, "missing")],
+            ["Actor", nonEmptyText(selected.actor, "missing")],
+            ["Authority level", nonEmptyText(selected.authority_level, "missing")],
+            ["Work ID", nonEmptyText(selected.work_id, "missing")],
+            ["Payload ref", nonEmptyText(selected.payload_ref, "missing")],
+            ["Result status", nonEmptyText(selected.result_status, "missing")],
+            ["Causal parent", nonEmptyText(selected.causal_parent_id, "missing")],
+            ["Source surface", nonEmptyText(selected.source_surface, "missing")],
+            ["Target", nonEmptyText(selected.target, "missing")],
+          ]));
+          inspectorCard.appendChild(createSection(
+            "State keys",
+            createCodeListWithFallback(selected.state_keys, "No state keys are attached to this coordination event."),
+            { badge: `${safeArray(selected.state_keys).length}`, open: false }
+          ));
+          inspectorCard.appendChild(createSection(
+            "Missing fields",
+            createTextList(selected.missing_fields),
+            { badge: `${safeArray(selected.missing_fields).length}`, open: false }
+          ));
+          inspectorList.appendChild(inspectorCard);
+          root.appendChild(createSection(
+            "Event inspector",
+            inspectorList,
+            { badge: nonEmptyText(selected.event_id, "selected") }
+          ));
+        }
+
+        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${safeArray(normalized.warnings).length}`, open: false }));
+        root.appendChild(createSection("Technical boundary", createTextList(normalized.boundary_text), { badge: "read-only", open: false }));
+        return root;
+      }
+
       function renderFinalCodexHandoffPacket(packet, preflight, readinessSummary, executionRequestPreview) {
         const root = el("div", { className: "stack" });
         root.appendChild(createMetricGrid([
@@ -3978,6 +4188,14 @@
           card.proof_evidence_expectation_summary,
           card.skipped_check_expectation_summary,
         ]), { badge: "read-only", open: false }));
+        root.appendChild(createSection(
+          "Work event spine",
+          renderWorkEventSpineTimeline(
+            data?.work_event_spine_timeline || data?.coordination_event_timeline || data?.event_spine_timeline,
+            data
+          ),
+          { badge: "read-only" }
+        ));
         root.appendChild(createSection(
           "Related perspective",
           renderWorkContractConstellationContext(card.constellation_context),

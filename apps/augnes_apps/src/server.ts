@@ -368,6 +368,19 @@ const WORK_PICKER_CARD_BOUNDARY_TEXT = [
   "This card cannot create branches or PRs, call GitHub or providers, record proof or evidence, mutate Augnes state, approve, publish, merge, retry, replay, or deploy.",
 ] as const;
 
+const WORK_EVENT_SPINE_TIMELINE_EMPTY_STATE = "No coordination events are attached to this work item yet.";
+const WORK_EVENT_SPINE_TIMELINE_BOUNDARY_TEXT = [
+  "Work event spine timeline is read-only and derived from attached work brief coordination_events.",
+  "No event creation.",
+  "No event mutation.",
+  "No proof/evidence write.",
+  "No state commit/reject.",
+  "No Codex execution.",
+  "No GitHub calls.",
+  "No provider/OpenAI calls.",
+  "No publish/merge/retry/replay/deploy authority.",
+] as const;
+
 const CORE_HANDOFF_AUTHORITY_BOUNDARIES = [
   "Core Handoff is read-only preview/copy packet text.",
   "Core Handoff does not execute Codex.",
@@ -755,6 +768,42 @@ type WorkContractCard = {
     evidence_recording: false;
     durable_approval: "user/Core gated";
   };
+};
+
+type WorkEventSpineTimelineStatus = "attached" | "empty";
+
+type WorkEventSpineTimelineEvent = {
+  event_id: string | null;
+  event_type: string | null;
+  scope: string | null;
+  work_id: string | null;
+  actor: string | null;
+  target: string | null;
+  source_surface: string | null;
+  authority_level: string | null;
+  state_keys: string[];
+  causal_parent_id: string | null;
+  payload_ref: string | null;
+  result_status: string | null;
+  created_at: string | null;
+  payload_summary: string | null;
+  summary: string;
+  missing_fields: string[];
+};
+
+type WorkEventSpineTimeline = {
+  timeline_type: "work_event_spine_timeline";
+  status: WorkEventSpineTimelineStatus;
+  scope: string;
+  work_id: string;
+  event_count: number;
+  sort_order: "created_at_ascending";
+  events: WorkEventSpineTimelineEvent[];
+  selected_event: WorkEventSpineTimelineEvent | null;
+  first_event_summary: string | null;
+  empty_state: string;
+  warnings: string[];
+  boundary_text: readonly string[];
 };
 
 type CodexHandoffPreview = {
@@ -1214,6 +1263,13 @@ function firstObject(...values: unknown[]): Record<string, unknown> | null {
   return null;
 }
 
+function stateKeysFromUnknown(value: unknown): string[] {
+  const direct = stringArrayFromUnknown(value);
+  if (direct.length > 0) return direct;
+  const single = nonEmptyString(value);
+  return single ? [single] : [];
+}
+
 function booleanFromUnknown(...values: unknown[]): boolean | null {
   for (const value of values) {
     if (typeof value === "boolean") return value;
@@ -1350,6 +1406,104 @@ function coreImplementationAnchorSummary(
     return "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation.";
   }
   return "Core is planning-only until implementation anchors are confirmed.";
+}
+
+function payloadSummaryFromEventRecord(record: Record<string, unknown>): string | null {
+  const payload = objectFromUnknown(record.payload);
+  return (
+    nonEmptyString(record.payload_summary) ??
+    nonEmptyString(record.payloadSummary) ??
+    nonEmptyString(record.summary) ??
+    nonEmptyString(payload.summary)
+  );
+}
+
+function sortTimestamp(value: string | null): number {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
+function buildWorkEventSpineTimelineEvent(record: Record<string, unknown>, brief: WorkBrief): WorkEventSpineTimelineEvent {
+  const eventId = nonEmptyString(record.event_id);
+  const eventType = nonEmptyString(record.event_type);
+  const scope = nonEmptyString(record.scope) ?? nonEmptyString(brief.scope);
+  const workId = nonEmptyString(record.work_id) ?? nonEmptyString(brief.work_id);
+  const actor = nonEmptyString(record.actor);
+  const target = nonEmptyString(record.target);
+  const sourceSurface = nonEmptyString(record.source_surface);
+  const authorityLevel = nonEmptyString(record.authority_level);
+  const stateKeys = stateKeysFromUnknown(record.state_keys);
+  const causalParentId = nonEmptyString(record.causal_parent_id);
+  const payloadRef = nonEmptyString(record.payload_ref);
+  const resultStatus = nonEmptyString(record.result_status);
+  const createdAt = nonEmptyString(record.created_at);
+  const payloadSummary = payloadSummaryFromEventRecord(record);
+  const missingFields = ([
+    ["event_id", eventId],
+    ["event_type", eventType],
+    ["scope", scope],
+    ["work_id", workId],
+    ["actor", actor],
+    ["source_surface", sourceSurface],
+    ["authority_level", authorityLevel],
+    ["created_at", createdAt],
+  ] satisfies Array<[string, string | null]>)
+    .filter(([, value]) => !value)
+    .map(([field]) => field);
+
+  if (stateKeys.length === 0) missingFields.push("state_keys");
+
+  return {
+    event_id: eventId,
+    event_type: eventType,
+    scope,
+    work_id: workId,
+    actor,
+    target,
+    source_surface: sourceSurface,
+    authority_level: authorityLevel,
+    state_keys: stateKeys,
+    causal_parent_id: causalParentId,
+    payload_ref: payloadRef,
+    result_status: resultStatus,
+    created_at: createdAt,
+    payload_summary: payloadSummary,
+    summary: payloadSummary ?? "No payload summary is attached to this coordination event.",
+    missing_fields: missingFields,
+  };
+}
+
+function buildWorkEventSpineTimeline(brief: WorkBrief): WorkEventSpineTimeline {
+  const briefRecord = brief as WorkBrief & Record<string, unknown>;
+  const coordinationEvents = objectArrayFromUnknown(briefRecord.coordination_events);
+  const events = coordinationEvents
+    .map((event) => buildWorkEventSpineTimelineEvent(event, brief))
+    .sort((left, right) => {
+      const timeDelta = sortTimestamp(left.created_at) - sortTimestamp(right.created_at);
+      if (timeDelta !== 0) return timeDelta;
+      return (left.event_id ?? "").localeCompare(right.event_id ?? "");
+    });
+  const warnings = events.length
+    ? events
+        .filter((event) => event.missing_fields.length > 0)
+        .map((event) => `Coordination event ${event.event_id ?? event.event_type ?? "unknown"} is missing: ${event.missing_fields.join(", ")}.`)
+    : [WORK_EVENT_SPINE_TIMELINE_EMPTY_STATE];
+
+  return {
+    timeline_type: "work_event_spine_timeline",
+    status: events.length > 0 ? "attached" : "empty",
+    scope: brief.scope,
+    work_id: brief.work_id,
+    event_count: events.length,
+    sort_order: "created_at_ascending",
+    events,
+    selected_event: events[0] ?? null,
+    first_event_summary: events[0]?.summary ?? null,
+    empty_state: WORK_EVENT_SPINE_TIMELINE_EMPTY_STATE,
+    warnings,
+    boundary_text: WORK_EVENT_SPINE_TIMELINE_BOUNDARY_TEXT,
+  };
 }
 
 const CODEX_HANDOFF_DECISION_USER_CONFIRMATION_ITEMS = [
@@ -3915,6 +4069,14 @@ function describeWorkContractCard(card: WorkContractCard): string {
   ].join(" ");
 }
 
+function describeWorkEventSpineTimeline(timeline: WorkEventSpineTimeline): string {
+  if (timeline.event_count === 0) {
+    return `${WORK_EVENT_SPINE_TIMELINE_EMPTY_STATE} Work event spine timeline is read-only.`;
+  }
+
+  return `Work event spine timeline for ${timeline.work_id} has ${timeline.event_count} coordination event(s), sorted ${timeline.sort_order}. Event inspector details are read-only.`;
+}
+
 function describeCodexHandoffPreview(preview: CodexHandoffPreview): string {
   return [
     `Codex Handoff Preview for ${preview.work_id ?? "unknown work"} is ${preview.readiness_status}. Task profile ${preview.task_profile}; browser verification ${preview.browser_verification}.`,
@@ -4977,11 +5139,16 @@ export function createMcpAppServer(
           finalHandoffPreflight
         );
         const codexExecutionRequestPreview = buildCodexExecutionRequestPreview(finalCodexHandoffPacket);
+        const workEventSpineTimeline = buildWorkEventSpineTimeline(brief);
         const structuredContent = sanitizePayload({
           profile: config.appProfile,
           panel: "work_contract_card",
           brief,
           work_contract_card: workContractCard,
+          work_event_spine_timeline: workEventSpineTimeline,
+          coordination_event_timeline: workEventSpineTimeline,
+          event_spine_timeline: workEventSpineTimeline,
+          event_spine_inspector: workEventSpineTimeline.selected_event,
           codex_handoff_preview: codexHandoffPreview,
           core_codex_handoff_packet: coreCodexHandoffPacket,
           codex_core_handoff_packet: coreCodexHandoffPacket,
@@ -5023,7 +5190,7 @@ export function createMcpAppServer(
         return {
           structuredContent,
           content: narrative(
-            `${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)} ${describeCodexHandoffPreview(codexHandoffPreview)} ${describeFinalCodexHandoffPacket(finalCodexHandoffPacket, finalHandoffPreflight)} ${codexExecutionRequestPreview.boundary_text.join(" ")}`
+            `${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)} ${describeWorkEventSpineTimeline(workEventSpineTimeline)} ${describeCodexHandoffPreview(codexHandoffPreview)} ${describeFinalCodexHandoffPacket(finalCodexHandoffPacket, finalHandoffPreflight)} ${codexExecutionRequestPreview.boundary_text.join(" ")}`
           ),
           _meta: structuredContent,
         };
