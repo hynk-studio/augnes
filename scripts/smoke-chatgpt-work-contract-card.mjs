@@ -67,6 +67,14 @@ assert.match(server, /codexResultInput:\s*CodexResultImportInputSchema\.optional
 assert.match(server, /codex_result:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codex_result input");
 assert.match(server, /codex_result_import_input_shape/, "server must expose the result import input shape");
 assert.match(server, /codex_result_import_review_surface/, "server must expose the result import review surface alias");
+assert.match(server, /buildWorkEventSpineTimeline/, "server must build a Work Event Spine timeline from attached coordination events");
+assert.match(server, /work_event_spine_timeline/, "server must expose Work Event Spine timeline structured content");
+assert.match(server, /coordination_event_timeline/, "server must expose a coordination event timeline alias");
+assert.match(server, /event_spine_timeline/, "server must expose an event spine timeline alias");
+assert.match(server, /event_spine_inspector/, "server must expose a selected event inspector alias");
+assert.match(server, /briefRecord\.coordination_events/, "server timeline must derive from attached work brief coordination_events");
+assert.match(server, /created_at_ascending/, "server timeline must expose explicit sort order");
+assert.match(server, /No coordination events are attached to this work item yet\./, "server timeline must expose explicit no-events state");
 assert.match(server, /final_handoff_readiness_summary/, "server must return final handoff readiness summary structured content");
 assert.match(server, /pre_run_handoff_readiness/, "server must expose pre-run handoff readiness");
 assert.match(server, /post_run_result_review_readiness/, "server must expose post-run result review readiness");
@@ -85,6 +93,15 @@ assert.match(widget, /renderHandoffAutomationSlots/, "widget must render future 
 assert.match(widget, /renderMemoryReuseAttachmentProposal/, "widget must render Memory Reuse attachment proposal state");
 assert.match(widget, /renderPrBodyChecklistPreview/, "widget must render PR body checklist preview state");
 assert.match(widget, /renderCodexResultReviewPacketPreview/, "widget must render Codex result review packet preview state");
+assert.match(widget, /normalizeWorkEventSpineTimeline/, "widget must normalize Work Event Spine timeline state");
+assert.match(widget, /renderWorkEventSpineTimeline/, "widget must render Work Event Spine timeline state");
+assert.match(widget, /Work event spine/, "widget must render the Work event spine section");
+assert.match(widget, /Event timeline/, "widget must render an event timeline");
+assert.match(widget, /Event inspector/, "widget must render an event inspector");
+assert.match(widget, /Event type/, "widget must render event type details");
+assert.match(widget, /Authority level/, "widget must render authority level details");
+assert.match(widget, /Payload ref/, "widget must render payload refs");
+assert.match(widget, /No coordination events yet/, "widget must render explicit no-events label");
 assert.match(widget, /Codex result import/, "widget must render the Codex result import section");
 assert.match(widget, /What was provided/, "widget must render provided result input");
 assert.match(widget, /Missing result input/, "widget must render missing result input");
@@ -169,6 +186,14 @@ assert.match(runbook, /does not mean the pre-run handoff packet is broken/i, "ru
 assert.match(runbook, /no\s+GitHub PR data\s+is\s+fetched/i, "runbook must document no App/MCP GitHub fetching");
 assert.match(runbook, /Structured `skipped_checks` objects preserve concrete reasons/, "runbook must document structured skipped-check reason preservation");
 assert.match(runbook, /`suggested_result_status` is Augnes's review-derived status/, "runbook must document review-derived suggested result status");
+assert.match(runbook, /Work Event Spine Timeline \/ Inspector/, "runbook must document Work Event Spine Timeline / Inspector");
+assert.match(runbook, /structuredContent\.brief\.coordination_events/, "runbook must document the attached coordination_events data source");
+assert.match(runbook, /work_event_spine_timeline/, "runbook must name the Work Event Spine timeline field");
+assert.match(runbook, /event_spine_inspector/, "runbook must name the Event Spine inspector alias");
+assert.match(runbook, /created_at_ascending/, "runbook must document explicit event sort order");
+assert.match(runbook, /No coordination events are attached to this work item yet\./, "runbook must document the no-events empty state");
+assert.match(runbook, /does not fetch `\/api\/events`/, "runbook must document no event fetching");
+assert.match(runbook, /not broader event instrumentation/, "runbook must document no new event instrumentation");
 assert.match(runbook, /codex_execution_request_preview/, "runbook must document the Codex execution request preview alias");
 assert.match(runbook, /This preview does not execute Codex\. It only prepares the request shape for later explicit user-confirmed execution\./, "runbook must preserve execution request preview boundary wording");
 assert.match(runbook, /awaiting_user_confirmation/, "runbook must document the awaiting user confirmation state");
@@ -476,6 +501,10 @@ const renderSource = [
   extractFunction(widget, "renderWorkPickerCandidate"),
   extractFunction(widget, "renderWorkPickerCard"),
   extractFunction(widget, "normalizeWorkContractCard"),
+  extractFunction(widget, "eventStringArray"),
+  extractFunction(widget, "sortEventTimestamp"),
+  extractFunction(widget, "normalizeCoordinationTimelineEvent"),
+  extractFunction(widget, "normalizeWorkEventSpineTimeline"),
   extractFunction(widget, "normalizeCodexHandoffPreview"),
   extractFunction(widget, "renderWorkContractConstellationContext"),
   extractFunction(widget, "renderFinalHandoffReadinessSummary"),
@@ -484,6 +513,9 @@ const renderSource = [
   extractFunction(widget, "renderMemoryReuseAttachmentProposal"),
   extractFunction(widget, "renderPrBodyChecklistPreview"),
   extractFunction(widget, "renderCodexResultReviewPacketPreview"),
+  extractFunction(widget, "formatTimelineSortOrder"),
+  extractFunction(widget, "renderWorkEventTimelineItem"),
+  extractFunction(widget, "renderWorkEventSpineTimeline"),
   extractFunction(widget, "renderHandoffAutomationSlots"),
   extractFunction(widget, "renderFinalCodexHandoffPacket"),
   extractFunction(widget, "renderCodexHandoffPreview"),
@@ -502,6 +534,8 @@ assertNoForbiddenControls(extractFunction(widget, "renderPrBodyChecklistPreview"
 assertNoForbiddenControls(extractFunction(widget, "renderCodexResultReviewPacketPreview"), "renderCodexResultReviewPacketPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
+assertNoForbiddenControls(extractFunction(widget, "normalizeWorkEventSpineTimeline"), "normalizeWorkEventSpineTimeline");
+assertNoForbiddenControls(extractFunction(widget, "renderWorkEventSpineTimeline"), "renderWorkEventSpineTimeline");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "normalizeFinalHandoffReadinessSummary"), "normalizeFinalHandoffReadinessSummary");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexExecutionRequestPreview"), "normalizeCodexExecutionRequestPreview");
@@ -643,6 +677,11 @@ for (const expectedVisibleText of [
   "Verification review",
   "Suggested next action",
   "What this screen does not do",
+  "Work event spine",
+  "Sort order",
+  "Created at ascending",
+  "No coordination events yet",
+  "No coordination events are attached to this work item yet.",
   "Readiness reasons",
   "Copy packet",
   "Codex handoff recommendation",
@@ -720,6 +759,43 @@ const renderedSelectionFallback = renderFallbackCard(renderSource, {
 });
 await assertRenderedCopyAffordance(renderedSelectionFallback, "selection");
 assertFinalPreflightFixtures(renderSource);
+
+const renderedWithEventSpine = renderEventSpineCard(renderSource);
+for (const expectedEventSpineText of [
+  "Work event spine",
+  "Read-only timeline derived from attached work brief coordination_events.",
+  "Event timeline",
+  "Event inspector",
+  "Event type",
+  "Created at",
+  "Actor",
+  "Authority level",
+  "Work ID",
+  "Payload ref",
+  "Result status",
+  "State keys",
+  "Causal parent",
+  "Source surface",
+  "Target",
+  "event:ag-smoke-handoff-created",
+  "handoff_created",
+  "2026-05-08T00:01:00.000Z",
+  "handoff_guidance",
+  "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-b",
+  "coordination.event_spine",
+  "integration.chatgpt_app",
+  "Work event spine anchor was created.",
+  "No event creation.",
+  "No event mutation.",
+]) {
+  assert.match(renderedWithEventSpine.text, new RegExp(escapeRegExp(expectedEventSpineText)), `event spine render must include: ${expectedEventSpineText}`);
+}
+assert.ok(
+  renderedWithEventSpine.text.indexOf("event:ag-smoke-handoff-created") <
+    renderedWithEventSpine.text.indexOf("event:ag-smoke-handoff-ready"),
+  "event spine render must sort coordination events by created_at ascending",
+);
+assert.doesNotMatch(renderedWithEventSpine.text, /No coordination events are attached to this work item yet\./, "event spine render with events must not show empty state as the main event list");
 
 const renderedImplementationReady = renderImplementationReadyCard(renderSource);
 for (const expectedImplementationReadyText of [
@@ -950,6 +1026,12 @@ console.log(
       codex_result_review_blocked_status_checked: true,
       codex_result_review_suggested_next_action_present: true,
       codex_result_review_copy_packet_checked: true,
+      work_event_spine_timeline_present: true,
+      work_event_spine_empty_state_checked: true,
+      work_event_spine_rendered: true,
+      work_event_spine_sort_order_checked: true,
+      work_event_spine_inspector_checked: true,
+      work_event_spine_read_only_boundary_checked: true,
       codex_execution_request_preview_present: true,
       codex_execution_request_preview_status_checked: true,
       codex_execution_request_preview_user_confirmation_checked: true,
@@ -1530,6 +1612,80 @@ function memoryReuseProposedCardPayload() {
   };
 }
 
+function eventSpineCardPayload() {
+  const payload = fallbackCardPayload();
+  const coordinationEvents = [
+    {
+      event_id: "event:ag-smoke-handoff-ready",
+      event_type: "handoff_ready",
+      scope: "project:augnes",
+      work_id: "AG-SMOKE",
+      actor: "user",
+      target: "codex",
+      source_surface: "local_runtime",
+      authority_level: "handoff_guidance",
+      state_keys: ["coordination.event_spine"],
+      causal_parent_id: "event:ag-smoke-handoff-created",
+      payload_ref: "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-b",
+      result_status: "",
+      created_at: "2026-05-08T00:05:00.000Z",
+      payload_summary: "Handoff packet was prepared for external Codex work.",
+      summary: "Handoff packet was prepared for external Codex work.",
+      missing_fields: [],
+    },
+    {
+      event_id: "event:ag-smoke-handoff-created",
+      event_type: "handoff_created",
+      scope: "project:augnes",
+      work_id: "AG-SMOKE",
+      actor: "user",
+      target: "codex",
+      source_surface: "local_runtime",
+      authority_level: "handoff_guidance",
+      state_keys: ["coordination.event_spine", "integration.chatgpt_app"],
+      causal_parent_id: "",
+      payload_ref: "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-b",
+      result_status: "completed",
+      created_at: "2026-05-08T00:01:00.000Z",
+      payload_summary: "Work event spine anchor was created.",
+      summary: "Work event spine anchor was created.",
+      missing_fields: [],
+    },
+  ];
+
+  return {
+    ...payload,
+    brief: {
+      ...payload.brief,
+      coordination_events: coordinationEvents,
+    },
+    work_event_spine_timeline: {
+      timeline_type: "work_event_spine_timeline",
+      status: "attached",
+      scope: "project:augnes",
+      work_id: "AG-SMOKE",
+      event_count: 2,
+      sort_order: "created_at_ascending",
+      events: coordinationEvents,
+      selected_event: coordinationEvents[1],
+      first_event_summary: "Work event spine anchor was created.",
+      empty_state: "No coordination events are attached to this work item yet.",
+      warnings: [],
+      boundary_text: [
+        "Work event spine timeline is read-only and derived from attached work brief coordination_events.",
+        "No event creation.",
+        "No event mutation.",
+        "No proof/evidence write.",
+        "No state commit/reject.",
+        "No Codex execution.",
+        "No GitHub calls.",
+        "No provider/OpenAI calls.",
+        "No publish/merge/retry/replay/deploy authority.",
+      ],
+    },
+  };
+}
+
 function resultReviewPreviewReadyCardPayload() {
   return {
     ...memoryReuseProposedCardPayload(),
@@ -1942,6 +2098,10 @@ function renderConstellationContextCard(source, options = {}) {
 
 function renderMemoryReuseProposedCard(source, options = {}) {
   return renderCard(source, memoryReuseProposedCardPayload(), options);
+}
+
+function renderEventSpineCard(source, options = {}) {
+  return renderCard(source, eventSpineCardPayload(), options);
 }
 
 function renderResultReviewPreviewReadyCard(source, options = {}) {
