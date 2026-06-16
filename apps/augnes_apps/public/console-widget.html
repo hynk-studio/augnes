@@ -2145,6 +2145,95 @@
         };
       }
 
+      function codexResultPasteNormalizerBoundaryText() {
+        return [
+          "Codex result paste normalizer is preview-only.",
+          "No GitHub PR data is fetched.",
+          "No proof or evidence is written.",
+          "No work status is changed.",
+          "No event is created or mutated.",
+          "No Codex execution, shell execution, provider call, OpenAI call, branch/PR creation, PR review submission, merge, publish, retry, replay, or deploy is performed.",
+        ];
+      }
+
+      function normalizeCodexResultPasteNormalizerPreview(source) {
+        const record = safeRecord(source);
+        const candidate = safeRecord(record.candidate);
+        return {
+          normalizer_type: nonEmptyText(record.normalizer_type, "codex_result_paste_normalizer_preview"),
+          status: nonEmptyText(record.status, "not_provided"),
+          source: nonEmptyText(record.source, "not_provided"),
+          raw_text_length: Number.isFinite(record.raw_text_length) ? record.raw_text_length : 0,
+          detected_fields: safeArray(record.detected_fields),
+          filled_fields: safeArray(record.filled_fields),
+          structured_fields_preserved: safeArray(record.structured_fields_preserved),
+          conflict_warnings: safeArray(record.conflict_warnings),
+          extraction_warnings: safeArray(record.extraction_warnings),
+          candidate,
+          boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : codexResultPasteNormalizerBoundaryText(),
+        };
+      }
+
+      function renderCodexResultPasteNormalizerPreview(preview) {
+        const normalized = normalizeCodexResultPasteNormalizerPreview(preview);
+        const root = el("div", { className: "stack" });
+        const candidate = safeRecord(normalized.candidate);
+        const candidateLines = [
+          candidate.work_id ? `work_id: ${candidate.work_id}` : "",
+          candidate.scope ? `scope: ${candidate.scope}` : "",
+          candidate.pr_url ? `pr_url: ${candidate.pr_url}` : "",
+          candidate.pr_number ? `pr_number: ${candidate.pr_number}` : "",
+          candidate.result_status ? `result_status: ${candidate.result_status}` : "",
+          candidate.authority_boundary_statement ? `authority boundary: ${candidate.authority_boundary_statement}` : "",
+          ...safeArray(candidate.changed_files).map((item) => `changed file: ${item}`),
+          ...safeArray(candidate.verification_commands).map((item) => `verification command: ${item}`),
+          ...safeArray(candidate.verification_results).map((item) => `verification result: ${item}`),
+          ...safeArray(candidate.skipped_checks).map((item) => `skipped check: ${item}`),
+          ...safeArray(candidate.remaining_caveats).map((item) => `remaining caveat: ${item}`),
+        ].filter(Boolean);
+        root.appendChild(createMetricGrid([
+          ["Helper", "Codex result paste helper"],
+          ["Status", formatUiStatus(normalized.status)],
+          ["Source", formatUiStatus(normalized.source)],
+          ["Raw text", `${normalized.raw_text_length} chars`],
+        ]));
+        root.appendChild(createSection(
+          "Normalized result candidate",
+          createTextList(candidateLines.length ? candidateLines : ["No normalized result candidate fields were extracted."]),
+          { badge: `${candidateLines.length}` }
+        ));
+        root.appendChild(createSection(
+          "Detected fields",
+          createTextList(normalized.detected_fields),
+          { badge: `${safeArray(normalized.detected_fields).length}` }
+        ));
+        root.appendChild(createSection(
+          "Merged preview fields",
+          createTextList([
+            ...safeArray(normalized.filled_fields).map((item) => `filled from paste: ${item}`),
+            ...safeArray(normalized.structured_fields_preserved).map((item) => `preserved structured input: ${item}`),
+          ]),
+          { badge: `${safeArray(normalized.filled_fields).length}` }
+        ));
+        root.appendChild(createSection(
+          "Needs human review",
+          createTextList([
+            ...safeArray(normalized.conflict_warnings),
+            ...safeArray(normalized.extraction_warnings),
+            ...(safeArray(normalized.conflict_warnings).length || safeArray(normalized.extraction_warnings).length
+              ? []
+              : ["Review the candidate before using it as closeout evidence or deciding work status outside this preview surface."]),
+          ]),
+          { badge: `${safeArray(normalized.conflict_warnings).length + safeArray(normalized.extraction_warnings).length}` }
+        ));
+        root.appendChild(createSection(
+          "What this helper does not do",
+          createTextList(normalized.boundary_text),
+          { badge: "preview only", open: false }
+        ));
+        return root;
+      }
+
       function resultReviewClosureBoundaryText() {
         return [
           "Result closure is read-only preview guidance.",
@@ -4132,8 +4221,9 @@
         return root;
       }
 
-      function renderCodexResultReviewPacketPreview(reviewPacket) {
+      function renderCodexResultReviewPacketPreview(reviewPacket, normalizerPreview) {
         const normalized = normalizeCodexResultReviewPacket(reviewPacket, {});
+        const normalizer = normalizeCodexResultPasteNormalizerPreview(normalizerPreview);
         const root = el("div", { className: "stack" });
         root.appendChild(el("div", {
           className: "status-box",
@@ -4156,6 +4246,13 @@
           ]),
           { badge: formatUiStatus(normalized.result_source) }
         ));
+        if (normalizer.status !== "not_provided") {
+          root.appendChild(createSection(
+            "Codex result paste helper",
+            renderCodexResultPasteNormalizerPreview(normalizer),
+            { badge: formatUiStatus(normalizer.status) }
+          ));
+        }
         root.appendChild(createSection(
           "What was provided",
           createTextList(normalized.provided_result_input_fields),
@@ -4407,7 +4504,10 @@
         ));
         root.appendChild(createSection(
           "Work result review",
-          renderCodexResultReviewPacketPreview(packet.codex_result_review_packet_preview || packet.final_handoff_codex_result_review_packet || packet.codex_pr_review_packet_preview || packet.handoff_automation_slots?.codex_result_review_packet?.review_packet),
+          renderCodexResultReviewPacketPreview(
+            packet.codex_result_review_packet_preview || packet.final_handoff_codex_result_review_packet || packet.codex_pr_review_packet_preview || packet.handoff_automation_slots?.codex_result_review_packet?.review_packet,
+            packet.codex_result_paste_normalizer_preview || packet.codex_result_normalizer_preview
+          ),
           { badge: formatUiStatus(nonEmptyText(packet.codex_result_review_packet_preview?.status || packet.handoff_automation_slots?.codex_result_review_packet?.status, "needs_result_input")) }
         ));
         root.appendChild(createSection("Prepared pieces", renderHandoffAutomationSlots(packet.handoff_automation_slots), { badge: "Preview", open: false }));

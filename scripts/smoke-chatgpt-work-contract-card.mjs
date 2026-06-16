@@ -492,6 +492,9 @@ const renderSource = [
   extractFunction(widget, "normalizeCloseoutSkeleton"),
   extractFunction(widget, "makeAlignment"),
   extractFunction(widget, "normalizeCodexResultReviewPacket"),
+  extractFunction(widget, "codexResultPasteNormalizerBoundaryText"),
+  extractFunction(widget, "normalizeCodexResultPasteNormalizerPreview"),
+  extractFunction(widget, "renderCodexResultPasteNormalizerPreview"),
   extractFunction(widget, "resultReviewClosureBoundaryText"),
   extractFunction(widget, "uniqueTextArray"),
   extractFunction(widget, "alignmentNeedsAttention"),
@@ -566,6 +569,7 @@ assertNoForbiddenControls(extractFunction(widget, "renderCodexExecutionRequestPr
 assertNoForbiddenControls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoForbiddenControls(extractFunction(widget, "renderPrBodyChecklistPreview"), "renderPrBodyChecklistPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderCodexResultReviewPacketPreview"), "renderCodexResultReviewPacketPreview");
+assertNoForbiddenControls(extractFunction(widget, "renderCodexResultPasteNormalizerPreview"), "renderCodexResultPasteNormalizerPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderResultReviewClosurePreview"), "renderResultReviewClosurePreview");
 assertNoForbiddenControls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
