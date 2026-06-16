@@ -919,6 +919,7 @@
           awaiting_user_confirmation: "Needs user confirmation",
           blocked: "Blocked",
           close_done: "Close / done",
+          close_ready: "Close-ready",
           completed: "Completed",
           explicit_absent: "Not attached",
           explicitly_absent: "Not attached",
@@ -949,6 +950,7 @@
           ready: "Ready",
           ready_for_human_review: "Ready for human review",
           result_incomplete_blocked: "Result incomplete / blocked",
+          result_incomplete_or_blocked: "Result incomplete / blocked",
           structured_payload: "Structured result",
           unavailable: "Unavailable",
           user_provided_input: "User-provided result",
@@ -2140,6 +2142,255 @@
           suggested_next_action: nonEmptyText(record.suggested_next_action, status === "preview_ready" ? "human_decision_needed" : "result_incomplete_blocked"),
           warnings: [...noResultWarning, ...(safeArray(record.warnings).length ? safeArray(record.warnings) : codexResultReviewWarnings())],
           boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : codexResultReviewBoundaryText(),
+        };
+      }
+
+      function resultReviewClosureBoundaryText() {
+        return [
+          "Result closure is read-only preview guidance.",
+          "No work close.",
+          "No work status update.",
+          "No event creation.",
+          "No event mutation.",
+          "No proof/evidence write.",
+          "No state commit/reject.",
+          "No Codex execution.",
+          "No GitHub calls.",
+          "No PR review submission.",
+          "No branch/PR creation.",
+          "No provider/OpenAI calls.",
+          "No publish/merge/retry/replay/deploy authority.",
+        ];
+      }
+
+      function uniqueTextArray(items) {
+        const seen = new Set();
+        const output = [];
+        items.forEach((item) => {
+          const text = nonEmptyText(item, "");
+          if (!text || seen.has(text)) return;
+          seen.add(text);
+          output.push(text);
+        });
+        return output;
+      }
+
+      function alignmentNeedsAttention(alignment) {
+        return nonEmptyText(alignment?.status, "not_provided") !== "aligned";
+      }
+
+      function hasResultContextMismatch(packet) {
+        return packet.suggested_next_action === "new_handoff_needed" ||
+          safeArray(packet.warnings).some((warning) => /does not match the opened/i.test(warning));
+      }
+
+      function deriveClosureRecommendation(packet) {
+        const resultMissing = packet.status === "needs_result_input" ||
+          packet.status === "not_provided" ||
+          packet.result_source === "not_provided";
+        if (resultMissing) return "needs_result_input";
+        if (hasResultContextMismatch(packet)) return "new_handoff_needed";
+        if (packet.suggested_result_status === "blocked" || packet.suggested_next_action === "result_incomplete_blocked") {
+          return "result_incomplete_or_blocked";
+        }
+        if (packet.suggested_result_status === "failed" || packet.suggested_next_action === "follow_up_fix_needed") {
+          return "follow_up_fix_needed";
+        }
+        const verificationMissing = alignmentNeedsAttention(packet.verification_alignment) ||
+          (safeArray(packet.reported_verification_commands).length === 0 && safeArray(packet.reported_verification_results).length === 0) ||
+          packet.suggested_next_action === "additional_verification_needed";
+        if (verificationMissing) return "additional_verification_needed";
+        const closeReady = packet.review_recommendation === "ready_for_human_review" &&
+          packet.suggested_result_status === "completed" &&
+          packet.suggested_next_action === "close_done" &&
+          safeArray(packet.missing_result_input_fields).length === 0 &&
+          safeArray(packet.authority_boundary_issues).length === 0 &&
+          packet.file_alignment.status === "aligned" &&
+          packet.verification_alignment.status === "aligned" &&
+          packet.skipped_check_alignment.status === "aligned";
+        return closeReady ? "close_ready" : "human_decision_needed";
+      }
+
+      function deriveVerificationStillNeeded(packet) {
+        if (packet.status === "needs_result_input" || packet.result_source === "not_provided") {
+          const expectedChecks = safeArray(packet.expected_checks);
+          return expectedChecks.length
+            ? expectedChecks.map((check) => `Provide verification command/result coverage for: ${check}`)
+            : ["Provide verification commands and results from the Codex run."];
+        }
+        if (packet.verification_alignment.status === "aligned") return [];
+        if (safeArray(packet.verification_alignment.missing).length) {
+          return safeArray(packet.verification_alignment.missing).map((check) => `Missing expected verification coverage: ${check}`);
+        }
+        if (!safeArray(packet.reported_verification_commands).length && !safeArray(packet.reported_verification_results).length) {
+          return safeArray(packet.expected_checks).length
+            ? safeArray(packet.expected_checks).map((check) => `Verification result not reported for expected check: ${check}`)
+            : ["Verification commands and results were not reported."];
+        }
+        return [packet.verification_alignment.summary];
+      }
+
+      function deriveMissingBeforeClose(packet) {
+        const missingFiles = packet.file_alignment.status === "aligned"
+          ? []
+          : safeArray(packet.file_alignment.missing).map((path) => `Expected file not covered by reported changes: ${path}`);
+        const skippedCheckGaps = packet.skipped_check_alignment.status === "aligned"
+          ? []
+          : safeArray(packet.skipped_check_alignment.missing).map((item) => `Skipped check needs concrete closeout handling: ${item}`);
+        const missingSections = safeArray(packet.missing_required_closeout_sections).map(
+          (section) => `Closeout section not found in reported result: ${section}`
+        );
+        return uniqueTextArray([
+          ...safeArray(packet.missing_result_input_fields).map((field) => `Missing result input: ${field}`),
+          ...missingFiles,
+          ...skippedCheckGaps,
+          ...safeArray(packet.authority_boundary_issues),
+          ...missingSections,
+        ]);
+      }
+
+      function closureSummaryForRecommendation(recommendation, packet) {
+        const summaries = {
+          needs_result_input: "Result closure needs Codex result input before Augnes can review close readiness.",
+          close_ready: "Result appears ready for a human close, merge, or review decision outside this preview surface.",
+          additional_verification_needed: "Result needs additional verification evidence before a close decision.",
+          follow_up_fix_needed: "Result needs a fix-focused follow-up before close.",
+          new_handoff_needed: "Result appears mismatched or broad enough that a new manual handoff should be considered.",
+          result_incomplete_or_blocked: "Result appears incomplete or blocked and needs an unblock decision.",
+          human_decision_needed: `Result closure is ambiguous after review recommendation ${packet.review_recommendation}; a human decision is needed.`,
+        };
+        return summaries[recommendation] || summaries.human_decision_needed;
+      }
+
+      function closureHumanDecisionItems(packet, recommendation) {
+        const closeDecision = "Human/Core must decide whether to close the work; GitHub reviewers decide merge/review outside this surface.";
+        const base = uniqueTextArray([
+          ...safeArray(packet.review_questions),
+          ...safeArray(packet.remaining_caveats).map((caveat) => `Review remaining caveat: ${caveat}`),
+        ]);
+        const leading = {
+          close_ready: [closeDecision],
+          needs_result_input: ["Decide whether to provide Codex result input now or defer closure review."],
+          new_handoff_needed: ["Decide whether this result belongs to another work item or should start a new manual handoff."],
+          result_incomplete_or_blocked: ["Decide whether Codex or a human should unblock the reported result."],
+          additional_verification_needed: ["Decide who should run or provide the missing verification before any close decision."],
+          follow_up_fix_needed: ["Decide whether to send a fix-focused follow-up to Codex or handle the gap manually."],
+          human_decision_needed: [closeDecision, "Decide whether the result is enough for close, needs verification, or needs a follow-up."],
+        };
+        return uniqueTextArray([...(leading[recommendation] || leading.human_decision_needed), ...base]);
+      }
+
+      function closureFollowUpSeed(packet, recommendation, verificationStillNeeded, humanDecisionItems) {
+        const workLabel = nonEmptyText(packet.work_id, "this work item");
+        const prefix = `Preview-only follow-up seed for ${workLabel}:`;
+        if (recommendation === "needs_result_input") {
+          return `${prefix} ask the user to provide Codex final report text, changed files, verification commands/results, skipped checks with concrete reasons or an explicit none-skipped statement, remaining caveats, and an authority boundary statement.`;
+        }
+        if (recommendation === "additional_verification_needed") {
+          return `${prefix} run a verification-focused manual follow-up using: ${safeArray(verificationStillNeeded).join("; ") || "the missing expected checks from the result review packet"}`;
+        }
+        if (recommendation === "follow_up_fix_needed") {
+          return `${prefix} start a fix-focused manual follow-up using the missing files, partial alignments, caveats, and review questions from the result review packet.`;
+        }
+        if (recommendation === "new_handoff_needed") {
+          return `${prefix} open a new manual handoff only if the human confirms the imported result is mismatched or a new task is needed.`;
+        }
+        if (recommendation === "result_incomplete_or_blocked") {
+          return `${prefix} summarize the blocker and ask whether Codex or a human should unblock it before any close decision.`;
+        }
+        if (recommendation === "close_ready") {
+          return `${prefix} result appears ready for human close/merge/review decision, but this surface does not close work, merge PRs, approve, commit state, or record proof.`;
+        }
+        return `${prefix} ask a human to decide between close, more verification, a fix follow-up, or a new handoff using: ${safeArray(humanDecisionItems).join("; ") || "the review questions and warnings"}`;
+      }
+
+      function formatClosureReasonText(value) {
+        const statuses = [
+          "needs_result_input",
+          "close_ready",
+          "additional_verification_needed",
+          "follow_up_fix_needed",
+          "new_handoff_needed",
+          "result_incomplete_or_blocked",
+          "result_incomplete_blocked",
+          "human_decision_needed",
+          "ready_for_human_review",
+          "needs_revision",
+          "blocked_by_missing_evidence",
+          "not_provided",
+          "preview_ready",
+          "structured_payload",
+          "user_provided_input",
+          "needs_human_review",
+        ];
+        return statuses.reduce(
+          (text, status) => text.replaceAll(status, formatUiStatus(status)),
+          nonEmptyText(value, "")
+        );
+      }
+
+      function normalizeResultReviewClosurePreview(source, data) {
+        const record = firstRecord(
+          source,
+          data?.result_review_closure_preview,
+          data?.work_result_closure_preview,
+          data?.next_action_closure,
+          data?.followup_closure_preview
+        );
+        const packetSource =
+          data?.codex_result_review_packet_preview ||
+          data?.final_handoff_codex_result_review_packet ||
+          data?.codex_pr_review_packet_preview ||
+          data?.final_codex_handoff_packet?.codex_result_review_packet_preview;
+        const packet = normalizeCodexResultReviewPacket(packetSource || {}, data?.final_codex_handoff_packet || {});
+        const timeline = normalizeWorkEventSpineTimeline(data?.work_event_spine_timeline || data?.coordination_event_timeline || data?.event_spine_timeline, data);
+        const recommendation = nonEmptyText(record.closure_recommendation, deriveClosureRecommendation(packet));
+        const missingBeforeClose = safeArray(record.missing_before_close).length
+          ? safeArray(record.missing_before_close)
+          : deriveMissingBeforeClose(packet);
+        const verificationStillNeeded = safeArray(record.verification_still_needed).length
+          ? safeArray(record.verification_still_needed)
+          : deriveVerificationStillNeeded(packet);
+        const humanDecisionItems = safeArray(record.human_decision_items).length
+          ? safeArray(record.human_decision_items)
+          : closureHumanDecisionItems(packet, recommendation);
+        const reasons = safeArray(record.reasons).length
+          ? safeArray(record.reasons)
+          : [
+              `Result review status is ${packet.status}.`,
+              `Result source is ${packet.result_source}.`,
+              `Review recommendation is ${packet.review_recommendation}.`,
+              `Suggested result status is ${packet.suggested_result_status}.`,
+              `Suggested next action is ${packet.suggested_next_action}.`,
+              `Related event timeline status is ${timeline.status} with ${timeline.event_count} event(s).`,
+            ];
+        return {
+          closure_type: nonEmptyText(record.closure_type, "result_review_followup_closure_preview"),
+          status: nonEmptyText(record.status, recommendation),
+          scope: nonEmptyText(record.scope, nonEmptyText(data?.scope || data?.work_contract_card?.scope, "")),
+          work_id: nonEmptyText(record.work_id, nonEmptyText(packet.work_id || data?.work_contract_card?.work_id, "")),
+          result_review_status: nonEmptyText(record.result_review_status, packet.status),
+          result_source: nonEmptyText(record.result_source, packet.result_source),
+          review_recommendation: nonEmptyText(record.review_recommendation, packet.review_recommendation),
+          suggested_result_status: nonEmptyText(record.suggested_result_status, packet.suggested_result_status),
+          suggested_next_action: nonEmptyText(record.suggested_next_action, packet.suggested_next_action),
+          closure_recommendation: recommendation,
+          closure_summary: nonEmptyText(record.closure_summary, closureSummaryForRecommendation(recommendation, packet)),
+          reasons,
+          missing_before_close: missingBeforeClose,
+          verification_still_needed: verificationStillNeeded,
+          follow_up_seed: nonEmptyText(record.follow_up_seed, closureFollowUpSeed(packet, recommendation, verificationStillNeeded, humanDecisionItems)),
+          human_decision_items: humanDecisionItems,
+          related_event_count: Number.isFinite(record.related_event_count) ? record.related_event_count : timeline.event_count,
+          timeline_status: nonEmptyText(record.timeline_status, timeline.status),
+          warnings: safeArray(record.warnings).length
+            ? safeArray(record.warnings)
+            : uniqueTextArray([
+                ...safeArray(packet.warnings),
+                ...(timeline.status === "empty" ? ["No coordination events are attached to this work item; closure guidance has no related event spine anchor."] : []),
+                "Result closure recommendation is advisory preview text only and does not create durable lifecycle state.",
+              ]),
+          boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : resultReviewClosureBoundaryText(),
         };
       }
 
@@ -3956,6 +4207,57 @@
         return root;
       }
 
+      function renderResultReviewClosurePreview(closure, data) {
+        const normalized = normalizeResultReviewClosurePreview(closure, data);
+        const root = el("div", { className: "stack" });
+        root.appendChild(el("div", {
+          className: "status-box",
+          text:
+            "Read-only closure guidance derived from the result review packet and event timeline. It does not close work, update status, create events, record proof/evidence, execute Codex, call GitHub or providers, create branches or PRs, submit PR reviews, publish, merge, retry, replay, or deploy.",
+        }));
+        root.appendChild(createMetricGrid([
+          ["Status", formatUiStatus(normalized.status)],
+          ["Next action", formatUiStatus(normalized.suggested_next_action)],
+          ["Closure recommendation", formatUiStatus(normalized.closure_recommendation)],
+          ["Result review", formatUiStatus(normalized.result_review_status)],
+          ["Result status", formatUiStatus(normalized.suggested_result_status)],
+          ["Related events", safeCount(normalized.related_event_count)],
+        ]));
+        root.appendChild(createSection(
+          "Closure recommendation",
+          el("div", { className: "status-box", text: normalized.closure_summary }),
+          { badge: formatUiStatus(normalized.closure_recommendation) }
+        ));
+        root.appendChild(createSection(
+          "Why this recommendation",
+          createTextList(normalized.reasons.map(formatClosureReasonText)),
+          { badge: `${safeArray(normalized.reasons).length}` }
+        ));
+        root.appendChild(createSection(
+          "Follow-up seed",
+          el("div", { className: "status-box", text: normalized.follow_up_seed }),
+          { badge: "preview only" }
+        ));
+        root.appendChild(createSection(
+          "Missing before close",
+          createTextList(normalized.missing_before_close),
+          { badge: `${safeArray(normalized.missing_before_close).length}` }
+        ));
+        root.appendChild(createSection(
+          "Verification still needed",
+          createTextList(normalized.verification_still_needed),
+          { badge: `${safeArray(normalized.verification_still_needed).length}` }
+        ));
+        root.appendChild(createSection(
+          "Human decision needed",
+          createTextList(normalized.human_decision_items),
+          { badge: `${safeArray(normalized.human_decision_items).length}` }
+        ));
+        root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${safeArray(normalized.warnings).length}`, open: false }));
+        root.appendChild(createSection("What this screen does not do", createTextList(normalized.boundary_text), { badge: "read-only", open: false }));
+        return root;
+      }
+
       function formatTimelineSortOrder(value) {
         const text = nonEmptyText(value, "created_at_ascending");
         if (text === "created_at_ascending") return "Created at ascending";
@@ -4195,6 +4497,17 @@
             data
           ),
           { badge: "read-only" }
+        ));
+        root.appendChild(createSection(
+          "Result closure",
+          renderResultReviewClosurePreview(
+            data?.result_review_closure_preview ||
+              data?.work_result_closure_preview ||
+              data?.next_action_closure ||
+              data?.followup_closure_preview,
+            data
+          ),
+          { badge: formatUiStatus(nonEmptyText(data?.result_review_closure_preview?.closure_recommendation, "needs_result_input")) }
         ));
         root.appendChild(createSection(
           "Related perspective",
