@@ -533,6 +533,8 @@ const PR_BODY_CHECKLIST_WARNINGS = [
 ] as const;
 
 const CODEX_RESULT_REVIEW_PACKET_REQUIRED_INPUTS = [
+  "work_id.",
+  "scope.",
   "Codex final report text or structured result payload.",
   "Changed files.",
   "Verification commands and results.",
@@ -541,6 +543,34 @@ const CODEX_RESULT_REVIEW_PACKET_REQUIRED_INPUTS = [
   "Remaining caveats.",
   "PR URL/number only if a separate read-only GitHub connector/reviewer flow is explicitly run outside the App/MCP server.",
 ] as const;
+
+const CODEX_RESULT_REVIEW_PACKET_MISSING_RESULT_INPUTS = [
+  "Codex final report text or structured result payload.",
+  "Changed files.",
+  "Verification commands and results.",
+  "Skipped checks with concrete reasons or an explicit none-skipped statement.",
+  "Authority boundary statement.",
+  "Remaining caveats or an explicit none-remaining statement.",
+] as const;
+
+const CODEX_RESULT_REVIEW_PACKET_OPTIONAL_INPUTS = [
+  "PR URL or PR number, user-provided only.",
+  "Result status if Codex reported one.",
+] as const;
+
+const CODEX_RESULT_IMPORT_INPUT_SHAPE = {
+  work_id: "Work ID for the Augnes work item being reviewed.",
+  scope: "Augnes scope for the work item.",
+  final_report_text: "Codex final report text or a structured result summary.",
+  pr_url_or_number: "Optional user-provided PR URL or PR number; this surface does not fetch it.",
+  changed_files: "Optional list of files Codex reports changing.",
+  verification_commands: "Optional list of verification commands Codex reports running.",
+  verification_results: "Optional list of verification results, including command status or summary.",
+  skipped_checks: "Optional list of skipped checks with concrete reasons, or an explicit none-skipped statement.",
+  remaining_caveats: "Optional list of remaining caveats, or an explicit none-remaining statement.",
+  authority_boundary_statement: "Optional closeout boundary statement supplied by Codex.",
+  result_status: "Optional Codex-reported status such as completed, partial, blocked, failed, or needs_review.",
+} as const;
 
 const CODEX_RESULT_REVIEW_PACKET_BOUNDARY_TEXT = [
   "Codex result review packet is preview-only review preparation.",
@@ -554,6 +584,39 @@ const CODEX_RESULT_REVIEW_PACKET_WARNINGS = [
   "Run any GitHub PR metadata review through a separate explicitly scoped read-only connector/reviewer flow outside the App/MCP server.",
   "Review recommendations are advisory only and do not submit or post anything.",
 ] as const;
+
+const CodexResultImportListItemSchema = z.union([z.string().min(1), z.record(z.unknown())]);
+const CodexResultImportInputSchema = z
+  .object({
+    work_id: z.string().min(1).optional(),
+    workId: z.string().min(1).optional(),
+    scope: z.string().min(1).optional(),
+    final_report_text: z.string().min(1).optional(),
+    finalReportText: z.string().min(1).optional(),
+    codex_final_report_text: z.string().min(1).optional(),
+    final_report_summary: z.string().min(1).optional(),
+    summary: z.string().min(1).optional(),
+    pr_url: z.string().min(1).optional(),
+    prUrl: z.string().min(1).optional(),
+    pr_number: z.union([z.string().min(1), z.number().int().positive()]).optional(),
+    prNumber: z.union([z.string().min(1), z.number().int().positive()]).optional(),
+    changed_files: z.array(z.string().min(1)).optional(),
+    changedFiles: z.array(z.string().min(1)).optional(),
+    verification_commands: z.array(z.string().min(1)).optional(),
+    verificationCommands: z.array(z.string().min(1)).optional(),
+    verification_results: z.array(CodexResultImportListItemSchema).optional(),
+    verificationResults: z.array(CodexResultImportListItemSchema).optional(),
+    skipped_checks: z.array(CodexResultImportListItemSchema).optional(),
+    skippedChecks: z.array(CodexResultImportListItemSchema).optional(),
+    remaining_caveats: z.array(z.string().min(1)).optional(),
+    remainingCaveats: z.array(z.string().min(1)).optional(),
+    authority_boundary_statement: z.string().min(1).optional(),
+    authorityBoundaryStatement: z.string().min(1).optional(),
+    result_status: z.string().min(1).optional(),
+    resultStatus: z.string().min(1).optional(),
+  })
+  .passthrough();
+type CodexResultImportInput = z.infer<typeof CodexResultImportInputSchema>;
 
 const FINAL_HANDOFF_READINESS_SUMMARY_BOUNDARY_TEXT = [
   "Final handoff readiness summary is display-only status clarification.",
@@ -781,12 +844,26 @@ type FinalHandoffCloseoutSkeleton = {
 };
 
 type CodexResultReviewPacketStatus = "not_provided" | "preview_ready" | "needs_result_input" | "unavailable";
-type CodexResultReviewSource = "not_provided" | "pasted_result" | "structured_payload" | "pr_metadata_payload";
+type CodexResultReviewSource = "not_provided" | "pasted_result" | "structured_payload" | "pr_metadata_payload" | "user_provided_input";
 type CodexResultReviewRecommendation =
   | "needs_result_input"
   | "ready_for_human_review"
   | "needs_revision"
   | "blocked_by_missing_evidence";
+type CodexResultReviewSuggestedResultStatus =
+  | "completed"
+  | "partial"
+  | "blocked"
+  | "failed"
+  | "needs_human_review"
+  | "not_provided";
+type CodexResultReviewNextActionCategory =
+  | "close_done"
+  | "follow_up_fix_needed"
+  | "additional_verification_needed"
+  | "new_handoff_needed"
+  | "result_incomplete_blocked"
+  | "human_decision_needed";
 
 type CodexResultReviewAlignment = {
   status: "aligned" | "missing" | "partial" | "not_provided" | "needs_review";
@@ -802,11 +879,27 @@ type CodexResultReviewPacketPreview = {
   result_source: CodexResultReviewSource;
   reviewed_against_packet_id: string | null;
   work_id: string | null;
+  input_shape: typeof CODEX_RESULT_IMPORT_INPUT_SHAPE;
+  provided_result_input_fields: string[];
+  missing_result_input_fields: string[];
+  optional_result_input_fields: readonly string[];
+  result_review_summary: string;
+  pr_reference: {
+    url: string | null;
+    number: string | null;
+    source: "user_provided" | "not_provided";
+    fetched: false;
+  };
+  reported_result_status: string | null;
+  suggested_result_status: CodexResultReviewSuggestedResultStatus;
+  reported_authority_boundary_statement: string | null;
   expected_files: string[];
   reported_changed_files: string[];
   expected_checks: string[];
+  reported_verification_commands: string[];
   reported_verification_results: string[];
   skipped_checks: string[];
+  remaining_caveats: string[];
   missing_required_closeout_sections: string[];
   required_result_input_fields: readonly string[];
   authority_boundary_issues: string[];
@@ -819,6 +912,7 @@ type CodexResultReviewPacketPreview = {
   skipped_check_alignment: CodexResultReviewAlignment;
   review_questions: string[];
   review_recommendation: CodexResultReviewRecommendation;
+  suggested_next_action: CodexResultReviewNextActionCategory;
   warnings: string[];
   boundary_text: readonly string[];
 };
@@ -2009,62 +2103,233 @@ function stringArrayFromResultObjects(value: unknown, fields: string[]): string[
     .filter(Boolean);
 }
 
-function resultReviewPayloadFromBrief(brief: WorkBrief): {
+function firstRecordValue(record: Record<string, unknown>, fields: string[]): unknown {
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(record, field)) return record[field];
+  }
+  return undefined;
+}
+
+function stringValueFromRecord(record: Record<string, unknown>, fields: string[]): string | null {
+  for (const field of fields) {
+    const value = record[field];
+    const text = nonEmptyString(value);
+    if (text) return text;
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
+
+function stringArrayFromRecordFields(record: Record<string, unknown>, fields: string[]): string[] {
+  return firstStringArray(...fields.map((field) => record[field]));
+}
+
+function normalizeResultStatus(value: string | null): CodexResultReviewSuggestedResultStatus | null {
+  const text = value?.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!text) return null;
+  if (["completed", "complete", "done", "success", "succeeded", "passed"].includes(text)) return "completed";
+  if (["partial", "partially_completed", "incomplete", "needs_followup", "needs_follow_up"].includes(text)) return "partial";
+  if (["blocked", "stuck", "waiting"].includes(text)) return "blocked";
+  if (["failed", "failure", "error"].includes(text)) return "failed";
+  if (["needs_review", "needs_human_review", "human_review", "review_needed"].includes(text)) return "needs_human_review";
+  return null;
+}
+
+function inferResultStatusFromText(text: string): CodexResultReviewSuggestedResultStatus | null {
+  const normalized = text.toLowerCase();
+  if (/\b(blocked|waiting on|cannot proceed)\b/.test(normalized)) return "blocked";
+  if (/\b(failed|failure|error)\b/.test(normalized)) return "failed";
+  if (/\b(partial|incomplete|follow-?up needed)\b/.test(normalized)) return "partial";
+  if (/\b(completed|complete|done|implemented)\b/.test(normalized)) return "completed";
+  return null;
+}
+
+function skippedCheckHasConcreteReason(text: string): boolean {
+  const normalized = text.trim();
+  if (!normalized) return false;
+  if (/\b(no skipped checks|none skipped|nothing skipped)\b/i.test(normalized)) return true;
+  const hasReasonWord = /\b(because|reason|due to|unavailable|missing|blocked|not available|not applicable|without|no .{1,40}available)\b/i.test(normalized);
+  return normalized.split(/\s+/).length >= 5 && (hasReasonWord || normalized.includes(":"));
+}
+
+function hasExplicitNone(text: string, kind: "skipped" | "caveats"): boolean {
+  if (kind === "skipped") return /\b(no skipped checks|none skipped|nothing skipped|skipped checks:\s*none)\b/i.test(text);
+  return /\b(no remaining caveats|no caveats remain|remaining caveats:\s*none|none remaining)\b/i.test(text);
+}
+
+function resultReviewPayloadFromBrief(brief: WorkBrief, resultInput?: CodexResultImportInput | null): {
   source: Record<string, unknown>;
+  finalReportText: string;
   resultText: string;
   resultSource: CodexResultReviewSource;
+  resultWorkId: string | null;
+  resultScope: string | null;
+  prUrl: string | null;
+  prNumber: string | null;
+  reportedResultStatus: string | null;
+  suggestedResultStatus: CodexResultReviewSuggestedResultStatus | null;
+  authorityBoundaryStatement: string | null;
+  providedInputFields: string[];
+  missingInputFields: string[];
   changedFiles: string[];
+  verificationCommands: string[];
   verificationResults: string[];
   skippedChecks: string[];
+  skippedCheckReasonIssues: string[];
   remainingCaveats: string[];
 } {
   const briefRecord = brief as WorkBrief & Record<string, unknown>;
   const codexHandoff = objectFromUnknown(brief.codex_handoff);
+  const inputRecord = objectFromUnknown(resultInput);
+  const hasUserInput = Object.keys(inputRecord).length > 0;
   const prMetadata = objectFromUnknown(briefRecord.codex_pr_metadata ?? codexHandoff.codex_pr_metadata);
   const prDiffSummary = objectFromUnknown(briefRecord.codex_pr_diff_summary ?? codexHandoff.codex_pr_diff_summary);
+  const inputPrNumber = stringValueFromRecord(inputRecord, ["pr_number", "prNumber"]);
+  const inputVerificationValue = firstRecordValue(inputRecord, ["verification_results", "verificationResults"]);
+  const inputSkippedValue = firstRecordValue(inputRecord, ["skipped_checks", "skippedChecks"]);
   const source = {
+    codex_result_input: hasUserInput ? inputRecord : undefined,
     codex_result_summary: briefRecord.codex_result_summary ?? codexHandoff.codex_result_summary,
     codex_result_report: briefRecord.codex_result_report ?? codexHandoff.codex_result_report,
     codex_pr_metadata: briefRecord.codex_pr_metadata ?? codexHandoff.codex_pr_metadata,
     codex_pr_diff_summary: briefRecord.codex_pr_diff_summary ?? codexHandoff.codex_pr_diff_summary,
+    codex_authority_boundary_statement:
+      briefRecord.codex_authority_boundary_statement ?? codexHandoff.codex_authority_boundary_statement,
     codex_verification_results: briefRecord.codex_verification_results ?? codexHandoff.codex_verification_results,
+    codex_verification_commands: briefRecord.codex_verification_commands ?? codexHandoff.codex_verification_commands,
     codex_changed_files: briefRecord.codex_changed_files ?? codexHandoff.codex_changed_files,
     codex_skipped_checks: briefRecord.codex_skipped_checks ?? codexHandoff.codex_skipped_checks,
     codex_remaining_caveats: briefRecord.codex_remaining_caveats ?? codexHandoff.codex_remaining_caveats,
+    codex_result_status: briefRecord.codex_result_status ?? codexHandoff.codex_result_status,
   };
-  const resultText = collectResultText(source.codex_result_summary, source.codex_result_report, source.codex_pr_metadata, source.codex_pr_diff_summary);
+  const finalReportText = collectResultText(
+    stringValueFromRecord(inputRecord, [
+      "final_report_text",
+      "finalReportText",
+      "codex_final_report_text",
+      "final_report_summary",
+      "summary",
+    ]),
+    source.codex_result_summary,
+    source.codex_result_report
+  );
   const changedFiles = firstStringArray(
+    stringArrayFromRecordFields(inputRecord, ["changed_files", "changedFiles"]),
     source.codex_changed_files,
     prDiffSummary.changed_files,
     prMetadata.changed_files,
     prMetadata.files_changed
   );
+  const verificationCommands = firstStringArray(
+    stringArrayFromRecordFields(inputRecord, ["verification_commands", "verificationCommands"]),
+    source.codex_verification_commands,
+    prMetadata.verification_commands
+  );
   const verificationResults = [
-    ...firstStringArray(source.codex_verification_results, prMetadata.verification_results, prMetadata.checks),
-    ...stringArrayFromResultObjects(source.codex_verification_results, ["command", "check", "name", "summary", "result"]),
+    ...firstStringArray(inputVerificationValue, source.codex_verification_results, prMetadata.verification_results, prMetadata.checks),
+    ...stringArrayFromResultObjects(inputVerificationValue, ["command", "check", "name", "summary", "result", "status"]),
+    ...stringArrayFromResultObjects(source.codex_verification_results, ["command", "check", "name", "summary", "result", "status"]),
   ];
   const skippedChecks = [
-    ...firstStringArray(source.codex_skipped_checks, prMetadata.skipped_checks),
+    ...firstStringArray(inputSkippedValue, source.codex_skipped_checks, prMetadata.skipped_checks),
+    ...stringArrayFromResultObjects(inputSkippedValue, ["check", "summary", "reason"]),
     ...stringArrayFromResultObjects(source.codex_skipped_checks, ["check", "summary", "reason"]),
   ];
-  const remainingCaveats = firstStringArray(source.codex_remaining_caveats, prMetadata.remaining_caveats, prMetadata.caveats);
+  const remainingCaveats = firstStringArray(
+    stringArrayFromRecordFields(inputRecord, ["remaining_caveats", "remainingCaveats"]),
+    source.codex_remaining_caveats,
+    prMetadata.remaining_caveats,
+    prMetadata.caveats
+  );
+  const authorityBoundaryStatement =
+    stringValueFromRecord(inputRecord, ["authority_boundary_statement", "authorityBoundaryStatement"]) ??
+    nonEmptyString(source.codex_authority_boundary_statement);
+  const reportedResultStatus =
+    stringValueFromRecord(inputRecord, ["result_status", "resultStatus"]) ??
+    nonEmptyString(source.codex_result_status);
+  const resultWorkId = stringValueFromRecord(inputRecord, ["work_id", "workId"]);
+  const resultScope = stringValueFromRecord(inputRecord, ["scope"]);
+  const prUrl = stringValueFromRecord(inputRecord, ["pr_url", "prUrl"]) ?? nonEmptyString(prMetadata.pr_url);
+  const prNumber = inputPrNumber ?? stringValueFromRecord(prMetadata, ["pr_number", "number"]);
+  const resultText = collectResultText(
+    finalReportText,
+    authorityBoundaryStatement,
+    reportedResultStatus,
+    prUrl,
+    prNumber ? `PR #${prNumber}` : "",
+    changedFiles.join("\n"),
+    verificationCommands.join("\n"),
+    verificationResults.join("\n"),
+    skippedChecks.join("\n"),
+    remainingCaveats.join("\n"),
+    source.codex_pr_metadata,
+    source.codex_pr_diff_summary
+  );
   const hasPrMetadata = Object.keys(prMetadata).length > 0 || Object.keys(prDiffSummary).length > 0;
-  const hasStructuredPayload = changedFiles.length > 0 || verificationResults.length > 0 || skippedChecks.length > 0 || remainingCaveats.length > 0;
-  const resultSource: CodexResultReviewSource = hasPrMetadata
+  const hasStructuredPayload =
+    changedFiles.length > 0 ||
+    verificationCommands.length > 0 ||
+    verificationResults.length > 0 ||
+    skippedChecks.length > 0 ||
+    remainingCaveats.length > 0 ||
+    Boolean(authorityBoundaryStatement || reportedResultStatus || prUrl || prNumber);
+  const resultSource: CodexResultReviewSource = hasUserInput
+    ? "user_provided_input"
+    : hasPrMetadata
     ? "pr_metadata_payload"
     : hasStructuredPayload
       ? "structured_payload"
-      : resultText
+      : finalReportText
         ? "pasted_result"
         : "not_provided";
+  const skippedCheckReasonIssues = [...new Set(skippedChecks)].filter((check) => !skippedCheckHasConcreteReason(check));
+  const combinedText = resultText || finalReportText;
+  const hasSkippedNone = hasExplicitNone(combinedText, "skipped");
+  const hasCaveatsNone = hasExplicitNone(combinedText, "caveats");
+  const providedInputFields = uniqueNonEmptyStrings([
+    resultWorkId ? "work_id" : null,
+    resultScope ? "scope" : null,
+    finalReportText ? "codex final report text" : null,
+    prUrl || prNumber ? "PR URL or PR number" : null,
+    changedFiles.length ? "changed files" : null,
+    verificationCommands.length || verificationResults.length ? "verification commands and results" : null,
+    skippedChecks.length || hasSkippedNone ? "skipped checks" : null,
+    remainingCaveats.length || hasCaveatsNone ? "remaining caveats" : null,
+    authorityBoundaryStatement || /authority boundary/i.test(combinedText) ? "authority boundary statement" : null,
+    reportedResultStatus ? "result status" : null,
+  ]);
+  const missingInputFields = uniqueNonEmptyStrings([
+    finalReportText ? null : "Codex final report text or structured result payload.",
+    changedFiles.length ? null : "Changed files.",
+    verificationCommands.length || verificationResults.length ? null : "Verification commands and results.",
+    skippedChecks.length || hasSkippedNone ? null : "Skipped checks with concrete reasons or an explicit none-skipped statement.",
+    authorityBoundaryStatement || /authority boundary/i.test(combinedText) ? null : "Authority boundary statement.",
+    remainingCaveats.length || hasCaveatsNone ? null : "Remaining caveats or an explicit none-remaining statement.",
+  ]);
+  const suggestedResultStatus =
+    normalizeResultStatus(reportedResultStatus) ??
+    inferResultStatusFromText(combinedText) ??
+    (resultSource === "not_provided" ? "not_provided" : null);
 
   return {
     source,
+    finalReportText,
     resultText,
     resultSource,
+    resultWorkId,
+    resultScope,
+    prUrl,
+    prNumber,
+    reportedResultStatus,
+    suggestedResultStatus,
+    authorityBoundaryStatement,
+    providedInputFields,
+    missingInputFields,
     changedFiles: [...new Set(changedFiles)],
+    verificationCommands: [...new Set(verificationCommands)],
     verificationResults: [...new Set(verificationResults)],
     skippedChecks: [...new Set(skippedChecks)],
+    skippedCheckReasonIssues,
     remainingCaveats,
   };
 }
@@ -2132,25 +2397,32 @@ function buildCodexResultReviewPacketPreview(
     | "final_handoff_codex_result_review_packet"
     | "codex_pr_review_packet_preview"
     | "handoff_automation_slots"
-  >
+  >,
+  resultInput?: CodexResultImportInput | null
 ): CodexResultReviewPacketPreview {
-  const resultPayload = resultReviewPayloadFromBrief(brief);
+  const resultPayload = resultReviewPayloadFromBrief(brief, resultInput);
   const resultProvided = resultPayload.resultSource !== "not_provided";
   const expectedFiles = packet.expected_files;
   const expectedChecks = packet.expected_checks;
-  const resultText = [
-    resultPayload.resultText,
-    resultPayload.changedFiles.join("\n"),
-    resultPayload.verificationResults.join("\n"),
-    resultPayload.skippedChecks.join("\n"),
-    resultPayload.remainingCaveats.join("\n"),
-  ].filter(Boolean).join("\n");
+  const reportedVerification = uniqueNonEmptyStrings([
+    ...resultPayload.verificationCommands,
+    ...resultPayload.verificationResults,
+  ]);
+  const resultText = resultPayload.resultText;
   const missingRequiredCloseoutSections = resultProvided
     ? PR_BODY_CHECKLIST_REQUIRED_SECTIONS.filter((section) => !includesText(resultText, section))
     : [...PR_BODY_CHECKLIST_REQUIRED_SECTIONS];
-  const authorityBoundaryIssues = resultProvided && !/authority boundary/i.test(resultText)
+  const authorityBoundaryIssues = resultProvided && !resultPayload.authorityBoundaryStatement && !/authority boundary/i.test(resultText)
     ? ["Authority boundary statement is missing from the reported result payload."]
     : [];
+  const contextWarnings = [
+    ...(resultPayload.resultWorkId && packet.work_id && resultPayload.resultWorkId !== packet.work_id
+      ? [`Result work_id ${resultPayload.resultWorkId} does not match the opened work item ${packet.work_id}.`]
+      : []),
+    ...(resultPayload.resultScope && packet.work_scope && resultPayload.resultScope !== packet.work_scope
+      ? [`Result scope ${resultPayload.resultScope} does not match the opened scope ${packet.work_scope}.`]
+      : []),
+  ];
   const skippedCheckAlignment: CodexResultReviewAlignment = !resultProvided
     ? {
         status: "not_provided",
@@ -2160,19 +2432,29 @@ function buildCodexResultReviewPacketPreview(
         missing: [FINAL_HANDOFF_SKIPPED_CHECK_POLICY],
       }
     : resultPayload.skippedChecks.length === 0
-      ? {
-          status: "needs_review",
-          summary: "No skipped checks were reported; confirm whether none were skipped or attach concrete reasons.",
-          expected: [FINAL_HANDOFF_SKIPPED_CHECK_POLICY],
-          reported: [],
-          missing: [],
-        }
+      ? resultPayload.providedInputFields.includes("skipped checks")
+        ? {
+            status: "aligned",
+            summary: "Result explicitly reports no skipped checks.",
+            expected: [FINAL_HANDOFF_SKIPPED_CHECK_POLICY],
+            reported: ["No skipped checks reported."],
+            missing: [],
+          }
+        : {
+            status: "needs_review",
+            summary: "No skipped checks were reported; confirm whether none were skipped or attach concrete reasons.",
+            expected: [FINAL_HANDOFF_SKIPPED_CHECK_POLICY],
+            reported: [],
+            missing: [],
+          }
       : {
-          status: resultPayload.skippedChecks.every((check) => /because|reason|:|-/.test(check)) ? "aligned" : "partial",
-          summary: "Skipped checks were reported; verify each skipped check has a concrete reason.",
+          status: resultPayload.skippedCheckReasonIssues.length === 0 ? "aligned" : "partial",
+          summary: resultPayload.skippedCheckReasonIssues.length === 0
+            ? "Skipped checks were reported with concrete reasons."
+            : "Some skipped checks were reported without concrete reasons.",
           expected: [FINAL_HANDOFF_SKIPPED_CHECK_POLICY],
           reported: resultPayload.skippedChecks,
-          missing: [],
+          missing: resultPayload.skippedCheckReasonIssues,
         };
 
   const fileAlignment = buildListAlignment({
@@ -2185,7 +2467,7 @@ function buildCodexResultReviewPacketPreview(
   });
   const verificationAlignment = buildListAlignment({
     expected: expectedChecks,
-    reported: resultPayload.verificationResults,
+    reported: reportedVerification,
     absentSummary: "No verification results were reported.",
     alignedSummary: "Reported verification results cover the expected checks.",
     partialSummary: "Reported verification results cover some expected checks; review missing expected checks.",
@@ -2220,12 +2502,18 @@ function buildCodexResultReviewPacketPreview(
     statusWhenAbsent: resultProvided ? "missing" : "not_provided",
   });
 
+  const missingResultInputQuestions = resultPayload.missingInputFields.map((field) => `Can Codex provide ${field}`);
   const reviewQuestions = resultProvided
     ? [
+        ...missingResultInputQuestions,
+        ...(contextWarnings.length ? ["Does this imported result belong to the opened work item and scope?"] : []),
         ...(fileAlignment.status === "aligned" ? [] : ["Do reported changed files cover every expected path?"]),
         ...(verificationAlignment.status === "aligned" ? [] : ["Do reported verification results cover every expected check?"]),
         ...(skippedCheckAlignment.status === "aligned" ? [] : ["Are skipped checks either absent by fact or reported with concrete reasons?"]),
         ...(authorityBoundaryIssues.length ? ["Does the closeout include the required authority boundary statement?"] : []),
+        ...(resultPayload.remainingCaveats.length || resultPayload.providedInputFields.includes("remaining caveats")
+          ? []
+          : ["Does the closeout include remaining caveats or explicitly state that none remain?"]),
         ...(memoryReuseAlignment.status === "aligned" ? [] : ["Does the closeout include Memory Reuse attachment status?"]),
         ...(constellationContextAlignment.status === "aligned" ? [] : ["Does the closeout include Project Constellation context status?"]),
         ...(preflightAlignment.status === "aligned" ? [] : ["Does the closeout include final handoff preflight status?"]),
@@ -2234,11 +2522,16 @@ function buildCodexResultReviewPacketPreview(
         "Attach Codex final report text or a structured result payload before review.",
         "Include changed files, verification commands and results, skipped checks with concrete reasons, authority boundary statement, and remaining caveats.",
       ];
-  const blockingMissingEvidence = resultProvided && (resultPayload.verificationResults.length === 0 || authorityBoundaryIssues.length > 0);
+  const blockingMissingEvidence = resultProvided && (reportedVerification.length === 0 || authorityBoundaryIssues.length > 0);
   const needsRevision =
     resultProvided &&
-    (fileAlignment.status === "missing" ||
+    (contextWarnings.length > 0 ||
+      fileAlignment.status === "missing" ||
+      fileAlignment.status === "partial" ||
       verificationAlignment.status === "missing" ||
+      verificationAlignment.status === "partial" ||
+      skippedCheckAlignment.status === "partial" ||
+      resultPayload.missingInputFields.length > 0 ||
       memoryReuseAlignment.status === "missing" ||
       constellationContextAlignment.status === "missing" ||
       preflightAlignment.status === "missing" ||
@@ -2250,11 +2543,43 @@ function buildCodexResultReviewPacketPreview(
       : needsRevision
         ? "needs_revision"
         : "ready_for_human_review";
+  const suggestedResultStatus: CodexResultReviewSuggestedResultStatus =
+    resultPayload.suggestedResultStatus ??
+    (!resultProvided
+      ? "not_provided"
+      : blockingMissingEvidence || needsRevision
+        ? "partial"
+        : "completed");
+  const suggestedNextAction: CodexResultReviewNextActionCategory = !resultProvided
+    ? "result_incomplete_blocked"
+    : contextWarnings.length > 0
+      ? "new_handoff_needed"
+      : suggestedResultStatus === "blocked"
+        ? "result_incomplete_blocked"
+        : suggestedResultStatus === "failed"
+          ? "follow_up_fix_needed"
+          : blockingMissingEvidence || verificationAlignment.status !== "aligned"
+            ? "additional_verification_needed"
+            : needsRevision
+              ? "follow_up_fix_needed"
+              : suggestedResultStatus === "completed" && reviewRecommendation === "ready_for_human_review"
+                ? "close_done"
+                : "human_decision_needed";
   const status: CodexResultReviewPacketStatus = resultProvided ? "preview_ready" : "needs_result_input";
+  const missingInputWarnings = resultProvided && resultPayload.missingInputFields.length
+    ? [`Missing result input: ${resultPayload.missingInputFields.join("; ")}`]
+    : [];
   const warnings = [
     ...(!resultProvided ? ["No Codex result payload is attached; no changed files, verification results, PR URLs, proof IDs, evidence IDs, screenshots, findings, or host observations were invented."] : []),
+    ...contextWarnings,
     ...authorityBoundaryIssues,
-    ...CODEX_RESULT_REVIEW_PACKET_WARNINGS,
+    ...resultPayload.skippedCheckReasonIssues.map((check) => `Skipped check needs a concrete reason: ${check}`),
+    ...missingInputWarnings,
+    ...(!resultProvided || resultPayload.missingInputFields.includes("Codex final report text or structured result payload.")
+      ? [CODEX_RESULT_REVIEW_PACKET_WARNINGS[0]]
+      : []),
+    CODEX_RESULT_REVIEW_PACKET_WARNINGS[1],
+    CODEX_RESULT_REVIEW_PACKET_WARNINGS[2],
   ];
 
   return {
@@ -2263,11 +2588,31 @@ function buildCodexResultReviewPacketPreview(
     result_source: resultPayload.resultSource,
     reviewed_against_packet_id: packet.work_id ? `final_codex_handoff_packet:${packet.work_id}` : null,
     work_id: packet.work_id,
+    input_shape: CODEX_RESULT_IMPORT_INPUT_SHAPE,
+    provided_result_input_fields: resultPayload.providedInputFields,
+    missing_result_input_fields: resultProvided
+      ? resultPayload.missingInputFields
+      : [...CODEX_RESULT_REVIEW_PACKET_MISSING_RESULT_INPUTS],
+    optional_result_input_fields: CODEX_RESULT_REVIEW_PACKET_OPTIONAL_INPUTS,
+    result_review_summary: resultProvided
+      ? `Codex result import has ${resultPayload.providedInputFields.length} provided field(s) and ${resultPayload.missingInputFields.length} missing field(s).`
+      : "Codex result import is waiting for user-provided Codex output; no result data was invented.",
+    pr_reference: {
+      url: resultPayload.prUrl,
+      number: resultPayload.prNumber,
+      source: resultPayload.prUrl || resultPayload.prNumber ? "user_provided" : "not_provided",
+      fetched: false,
+    },
+    reported_result_status: resultPayload.reportedResultStatus,
+    suggested_result_status: suggestedResultStatus,
+    reported_authority_boundary_statement: resultPayload.authorityBoundaryStatement,
     expected_files: expectedFiles,
     reported_changed_files: resultPayload.changedFiles,
     expected_checks: expectedChecks,
+    reported_verification_commands: resultPayload.verificationCommands,
     reported_verification_results: resultPayload.verificationResults,
     skipped_checks: resultPayload.skippedChecks,
+    remaining_caveats: resultPayload.remainingCaveats,
     missing_required_closeout_sections: missingRequiredCloseoutSections,
     required_result_input_fields: CODEX_RESULT_REVIEW_PACKET_REQUIRED_INPUTS,
     authority_boundary_issues: authorityBoundaryIssues,
@@ -2280,6 +2625,7 @@ function buildCodexResultReviewPacketPreview(
     skipped_check_alignment: skippedCheckAlignment,
     review_questions: reviewQuestions,
     review_recommendation: reviewRecommendation,
+    suggested_next_action: suggestedNextAction,
     warnings,
     boundary_text: CODEX_RESULT_REVIEW_PACKET_BOUNDARY_TEXT,
   };
@@ -2301,6 +2647,14 @@ function codexResultReviewPacketLines(packet: CodexResultReviewPacketPreview): s
     `- Result source: ${packet.result_source}`,
     `- Reviewed against: ${formatPacketLine(packet.reviewed_against_packet_id)}`,
     `- Review recommendation: ${packet.review_recommendation}`,
+    `- Suggested result status: ${packet.suggested_result_status}`,
+    `- Suggested next action: ${packet.suggested_next_action}`,
+    `- Result review summary: ${packet.result_review_summary}`,
+    `- PR reference: ${packet.pr_reference.url ?? packet.pr_reference.number ?? "not provided"}; fetched=${packet.pr_reference.fetched}`,
+    "- What was provided:",
+    listForPacket(packet.provided_result_input_fields, "No Codex result input fields were provided."),
+    "- Missing result input:",
+    listForPacket(packet.missing_result_input_fields, "No required result input fields are missing."),
     "- Required result input fields:",
     listForPacket([...packet.required_result_input_fields], "No required result input fields listed."),
     "- Expected files:",
@@ -2309,10 +2663,16 @@ function codexResultReviewPacketLines(packet: CodexResultReviewPacketPreview): s
     listForPacket(packet.reported_changed_files, "No reported changed files attached."),
     "- Expected checks:",
     listForPacket(packet.expected_checks, "No expected checks listed."),
+    "- Reported verification commands:",
+    listForPacket(packet.reported_verification_commands, "No reported verification commands attached."),
     "- Reported verification results:",
     listForPacket(packet.reported_verification_results, "No reported verification results attached."),
     "- Skipped checks:",
     listForPacket(packet.skipped_checks, "No skipped checks attached."),
+    "- Remaining caveats:",
+    listForPacket(packet.remaining_caveats, "No remaining caveats attached."),
+    "- Authority boundary statement:",
+    listForPacket(packet.reported_authority_boundary_statement ? [packet.reported_authority_boundary_statement] : [], "No authority boundary statement attached."),
     "- Missing required closeout sections:",
     listForPacket(packet.missing_required_closeout_sections, "No required closeout sections missing."),
     "- Authority boundary issues:",
@@ -2777,7 +3137,8 @@ function buildFinalCodexHandoffPacket(
   brief: WorkBrief,
   card: WorkContractCard,
   preview: CodexHandoffPreview,
-  memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal
+  memoryReuseAttachmentProposal: FinalHandoffMemoryReuseAttachmentProposal,
+  resultInput?: CodexResultImportInput | null
 ): FinalCodexHandoffPacket {
   const implementationAnchors = buildFullContextImplementationAnchors(brief, card);
   const basePacketWithoutTextAndSlots = {
@@ -2845,7 +3206,7 @@ function buildFinalCodexHandoffPacket(
     codex_pr_body_checklist: prBodyChecklistPreview,
     codex_closeout_skeleton: closeoutSkeleton,
     final_handoff_closeout_skeleton: closeoutSkeleton,
-  });
+  }, resultInput);
   const packetWithoutText = {
     ...basePacketWithoutTextAndSlots,
     pr_body_checklist_preview: prBodyChecklistPreview,
@@ -3037,17 +3398,19 @@ function finalHandoffCodexResultReviewPacketPreflightCheck(packet: FinalCodexHan
   if (reviewPacket.status === "preview_ready") {
     const ready =
       reviewPacket.result_source !== "not_provided" &&
-      reviewPacket.reported_changed_files.length > 0 &&
-      reviewPacket.reported_verification_results.length > 0 &&
+      reviewPacket.provided_result_input_fields.length > 0 &&
       reviewPacket.review_recommendation !== "needs_result_input" &&
       packetMentionsReview &&
       slotValid;
+    const complete = ready && reviewPacket.review_recommendation === "ready_for_human_review";
     return {
       id: "codex_result_review_packet_state",
-      status: ready ? "pass" : "fail",
-      message: ready
+      status: ready ? complete ? "pass" : "warn" : "fail",
+      message: complete
         ? "Codex result review packet has attached result payload for bounded human review."
-        : "Codex result review packet is preview_ready but lacks reported files, verification results, or bounded recommendation.",
+        : ready
+          ? "Codex result review packet has partial attached result input; missing fields are surfaced for bounded human review."
+          : "Codex result review packet is preview_ready but lacks provided input fields or bounded recommendation.",
     };
   }
 
@@ -4545,16 +4908,20 @@ export function createMcpAppServer(
     "augnes_get_work_brief",
     {
       title: "Get Augnes work brief",
-      description: "Return a ChatGPT-friendly work packet with current metadata, recent events, proof links, and Codex handoff.",
+      description: "Return a ChatGPT-friendly work packet with current metadata, recent events, proof links, Codex handoff, and optional read-only user-provided Codex result import preview.",
       inputSchema: {
         scope: z.string().min(1).optional(),
         workId: z.string().min(1),
+        codexResult: CodexResultImportInputSchema.optional(),
+        codexResultInput: CodexResultImportInputSchema.optional(),
+        codex_result: CodexResultImportInputSchema.optional(),
       },
       annotations: bridgeReadAnnotations,
       _meta: widgetToolMeta,
     },
-    async ({ scope, workId }) => {
+    async ({ scope, workId, codexResult, codexResultInput, codex_result }) => {
       const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+      const resultInput = codexResult ?? codexResultInput ?? codex_result ?? null;
 
       try {
         const brief = await stateRuntimeAdapter.getWorkBrief(resolvedScope, workId);
@@ -4569,7 +4936,8 @@ export function createMcpAppServer(
           brief,
           workContractCard,
           codexHandoffPreview,
-          memoryReuseAttachmentProposal
+          memoryReuseAttachmentProposal,
+          resultInput
         );
         const coreCodexHandoffPacket = buildCoreCodexHandoffPacket(finalCodexHandoffPacket);
         const codexHandoffDecision = buildCodexHandoffDecision(coreCodexHandoffPacket);
@@ -4606,6 +4974,8 @@ export function createMcpAppServer(
           codex_result_review_packet_preview: finalCodexHandoffPacket.codex_result_review_packet_preview,
           final_handoff_codex_result_review_packet: finalCodexHandoffPacket.final_handoff_codex_result_review_packet,
           codex_pr_review_packet_preview: finalCodexHandoffPacket.codex_pr_review_packet_preview,
+          codex_result_import_input_shape: CODEX_RESULT_IMPORT_INPUT_SHAPE,
+          codex_result_import_review_surface: finalCodexHandoffPacket.codex_result_review_packet_preview,
           final_handoff_preflight: finalHandoffPreflight,
           final_handoff_readiness_summary: finalHandoffReadinessSummary,
           pre_run_handoff_readiness: finalHandoffReadinessSummary.pre_run_handoff_readiness,

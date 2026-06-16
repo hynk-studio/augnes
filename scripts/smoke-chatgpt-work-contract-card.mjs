@@ -60,6 +60,12 @@ assert.match(server, /final_handoff_closeout_skeleton/, "server must return a cl
 assert.match(server, /codex_result_review_packet_preview/, "server must return Codex result review packet preview structured content");
 assert.match(server, /final_handoff_codex_result_review_packet/, "server must return a final handoff result review packet alias");
 assert.match(server, /codex_pr_review_packet_preview/, "server must return a PR review packet preview alias");
+assert.match(server, /CodexResultImportInputSchema/, "server must define a bounded Codex result import input schema");
+assert.match(server, /codexResult:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codexResult input");
+assert.match(server, /codexResultInput:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codexResultInput input");
+assert.match(server, /codex_result:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codex_result input");
+assert.match(server, /codex_result_import_input_shape/, "server must expose the result import input shape");
+assert.match(server, /codex_result_import_review_surface/, "server must expose the result import review surface alias");
 assert.match(server, /final_handoff_readiness_summary/, "server must return final handoff readiness summary structured content");
 assert.match(server, /pre_run_handoff_readiness/, "server must expose pre-run handoff readiness");
 assert.match(server, /post_run_result_review_readiness/, "server must expose post-run result review readiness");
@@ -78,6 +84,14 @@ assert.match(widget, /renderHandoffAutomationSlots/, "widget must render future 
 assert.match(widget, /renderMemoryReuseAttachmentProposal/, "widget must render Memory Reuse attachment proposal state");
 assert.match(widget, /renderPrBodyChecklistPreview/, "widget must render PR body checklist preview state");
 assert.match(widget, /renderCodexResultReviewPacketPreview/, "widget must render Codex result review packet preview state");
+assert.match(widget, /Codex result import/, "widget must render the Codex result import section");
+assert.match(widget, /What was provided/, "widget must render provided result input");
+assert.match(widget, /Missing result input/, "widget must render missing result input");
+assert.match(widget, /Expected vs actual/, "widget must render expected-vs-actual review");
+assert.match(widget, /Verification review/, "widget must render verification review");
+assert.match(widget, /Remaining caveats/, "widget must render remaining caveats");
+assert.match(widget, /Suggested next action/, "widget must render suggested next action");
+assert.match(widget, /What this screen does not do/, "widget must render result-review non-authority text");
 assert.match(widget, /renderFinalHandoffReadinessSummary/, "widget must render final handoff readiness summary state");
 assert.match(widget, /normalizeFinalHandoffReadinessSummary/, "widget must normalize final handoff readiness summary state");
 assert.match(widget, /renderWorkContractConstellationContext/, "widget must render Work Contract / Constellation context");
@@ -151,7 +165,7 @@ assert.match(runbook, /needs_result_input/i, "runbook must document missing resu
 assert.match(runbook, /pre-run handoff readiness/i, "runbook must distinguish pre-run handoff readiness");
 assert.match(runbook, /post-run result review readiness/i, "runbook must distinguish post-run result review readiness");
 assert.match(runbook, /does not mean the pre-run handoff packet is broken/i, "runbook must explain needs_result_input warning meaning");
-assert.match(runbook, /no\s+GitHub PR data is fetched/i, "runbook must document no App/MCP GitHub fetching");
+assert.match(runbook, /no\s+GitHub PR data\s+is\s+fetched/i, "runbook must document no App/MCP GitHub fetching");
 assert.match(runbook, /codex_execution_request_preview/, "runbook must document the Codex execution request preview alias");
 assert.match(runbook, /This preview does not execute Codex\. It only prepares the request shape for later explicit user-confirmed execution\./, "runbook must preserve execution request preview boundary wording");
 assert.match(runbook, /awaiting_user_confirmation/, "runbook must document the awaiting user confirmation state");
@@ -162,7 +176,7 @@ for (const status of ["proposed", "no_match", "unavailable", "not_configured"]) 
   assert.match(server, new RegExp(escapeRegExp(status)), `server must support Memory Reuse proposal status ${status}`);
   assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Memory Reuse proposal status ${status}`);
 }
-for (const status of ["not_provided", "needs_result_input", "preview_ready", "unavailable"]) {
+for (const status of ["not_provided", "needs_result_input", "preview_ready", "unavailable", "user_provided_input", "close_done", "additional_verification_needed", "follow_up_fix_needed", "new_handoff_needed", "result_incomplete_blocked", "human_decision_needed"]) {
   assert.match(server, new RegExp(escapeRegExp(status)), `server must support Codex result review status ${status}`);
   assert.match(widget, new RegExp(escapeRegExp(status)), `widget must support Codex result review status ${status}`);
 }
@@ -277,6 +291,13 @@ assertNoNetworkCalls(extractFunction(server, "includesText"), "includesText");
 assertNoNetworkCalls(extractFunction(server, "stringFromUnknownResult"), "stringFromUnknownResult");
 assertNoNetworkCalls(extractFunction(server, "collectResultText"), "collectResultText");
 assertNoNetworkCalls(extractFunction(server, "stringArrayFromResultObjects"), "stringArrayFromResultObjects");
+assertNoNetworkCalls(extractFunction(server, "firstRecordValue"), "firstRecordValue");
+assertNoNetworkCalls(extractFunction(server, "stringValueFromRecord"), "stringValueFromRecord");
+assertNoNetworkCalls(extractFunction(server, "stringArrayFromRecordFields"), "stringArrayFromRecordFields");
+assertNoNetworkCalls(extractFunction(server, "normalizeResultStatus"), "normalizeResultStatus");
+assertNoNetworkCalls(extractFunction(server, "inferResultStatusFromText"), "inferResultStatusFromText");
+assertNoNetworkCalls(extractFunction(server, "skippedCheckHasConcreteReason"), "skippedCheckHasConcreteReason");
+assertNoNetworkCalls(extractFunction(server, "hasExplicitNone"), "hasExplicitNone");
 assertNoNetworkCalls(extractFunction(server, "resultReviewPayloadFromBrief"), "resultReviewPayloadFromBrief");
 assertNoNetworkCalls(extractFunction(server, "buildListAlignment"), "buildListAlignment");
 assertNoNetworkCalls(extractFunction(server, "buildPresenceAlignment"), "buildPresenceAlignment");
@@ -410,6 +431,8 @@ const renderSource = [
   extractFunction(widget, "prBodyChecklistForbiddenClaims"),
   extractFunction(widget, "prBodyChecklistWarnings"),
   extractFunction(widget, "codexResultReviewRequiredInputs"),
+  extractFunction(widget, "codexResultReviewMissingInputs"),
+  extractFunction(widget, "codexResultReviewOptionalInputs"),
   extractFunction(widget, "codexResultReviewBoundaryText"),
   extractFunction(widget, "codexResultReviewWarnings"),
   extractFunction(widget, "normalizePrBodyChecklistPreview"),
@@ -601,14 +624,21 @@ for (const expectedVisibleText of [
   "Remaining caveats",
   "Next step",
   "Work result review",
-  "Result input needed",
+  "Result incomplete / blocked",
+  "Codex result import",
+  "What was provided",
+  "Missing result input",
   "Codex final report text or structured result payload.",
   "Changed files.",
   "Verification commands and results.",
-  "Skipped checks with concrete reasons.",
+  "Skipped checks with concrete reasons or an explicit none-skipped statement.",
   "Guardrail statement.",
-  "Remaining caveats.",
+  "Remaining caveats or an explicit none-remaining statement.",
+  "Expected vs actual",
   "No reported changed files attached.",
+  "Verification review",
+  "Suggested next action",
+  "What this screen does not do",
   "Readiness reasons",
   "Copy packet",
   "Codex handoff recommendation",
@@ -780,8 +810,20 @@ for (const expectedResultReviewText of [
   "preview_ready",
   "structured_payload",
   "ready_for_human_review",
+  "close_done",
+  "Close / done",
+  "Codex result import",
+  "What was provided",
+  "Missing result input",
+  "Expected vs actual",
+  "Verification review",
+  "Remaining caveats",
+  "Suggested next action",
+  "What this screen does not do",
   "apps/augnes_apps/src/server.ts",
+  "npm run smoke:chatgpt-work-contract-card",
   "npm run smoke:chatgpt-work-contract-card passed",
+  "No live Developer Mode observation was made.",
   "Reported changed files cover the expected file list.",
   "Reported verification results cover the expected checks.",
   "Reported result includes Memory Reuse attachment status.",
@@ -797,6 +839,32 @@ for (const expectedResultReviewText of [
 ]) {
   assert.match(renderedWithResultReview.text, new RegExp(escapeRegExp(expectedResultReviewText)), `result review render must include: ${expectedResultReviewText}`);
 }
+const renderedPartialResultReview = renderResultReviewPartialCard(renderSource);
+for (const expectedPartialReviewText of [
+  "user_provided_input",
+  "User-provided result",
+  "needs_revision",
+  "additional_verification_needed",
+  "Additional verification needed",
+  "Codex result import",
+  "What was provided",
+  "Missing result input",
+  "Changed files.",
+  "Verification commands and results.",
+  "Authority boundary statement.",
+  "Remaining caveats or an explicit none-remaining statement.",
+  "No reported changed files attached.",
+  "Some skipped checks were reported without concrete reasons.",
+  "Skipped check needs a concrete reason: Host visual check skipped",
+  "Codex result review packet has partial attached result input; missing fields are surfaced for bounded human review.",
+]) {
+  assert.match(renderedPartialResultReview.text, new RegExp(escapeRegExp(expectedPartialReviewText)), `partial result review render must include: ${expectedPartialReviewText}`);
+}
+assert.doesNotMatch(
+  renderedPartialResultReview.text,
+  /Reported changed files cover the expected file list\./,
+  "partial result review must not claim missing changed files cover expectations",
+);
 await assertRenderedCopyAffordance(
   renderedWithResultReview,
   "clipboard",
@@ -856,8 +924,14 @@ console.log(
       closeout_skeleton_placeholders_checked: true,
       closeout_skeleton_copy_packet_checked: true,
       codex_result_review_packet_present: true,
+      codex_result_import_input_shape_present: true,
       codex_result_review_needs_input_checked: true,
       codex_result_review_preview_ready_fixture_checked: true,
+      codex_result_review_partial_fixture_checked: true,
+      codex_result_review_missing_changed_files_warned: true,
+      codex_result_review_missing_verification_warned: true,
+      codex_result_review_skipped_reason_required: true,
+      codex_result_review_suggested_next_action_present: true,
       codex_result_review_copy_packet_checked: true,
       codex_execution_request_preview_present: true,
       codex_execution_request_preview_status_checked: true,
@@ -1092,11 +1166,38 @@ function assertFinalPreflightFixtures(source) {
     result_source: "structured_payload",
     reviewed_against_packet_id: "final_codex_handoff_packet:AG-SMOKE",
     work_id: "AG-SMOKE",
+    provided_result_input_fields: [
+      "work_id",
+      "scope",
+      "codex final report text",
+      "changed files",
+      "verification commands and results",
+      "skipped checks",
+      "remaining caveats",
+      "authority boundary statement",
+    ],
+    missing_result_input_fields: [],
+    optional_result_input_fields: [
+      "PR URL or PR number, user-provided only.",
+      "Result status if Codex reported one.",
+    ],
+    result_review_summary: "Codex result import has 8 provided field(s) and 0 missing field(s).",
+    pr_reference: {
+      url: "",
+      number: "",
+      source: "not_provided",
+      fetched: false,
+    },
+    reported_result_status: "completed",
+    suggested_result_status: "completed",
+    reported_authority_boundary_statement: "Authority boundary statement: preview-only review; no durable state or merge authority.",
     expected_files: ["apps/augnes_apps/src/server.ts"],
     reported_changed_files: ["apps/augnes_apps/src/server.ts"],
     expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
+    reported_verification_commands: ["npm run smoke:chatgpt-work-contract-card"],
     reported_verification_results: ["npm run smoke:chatgpt-work-contract-card passed"],
     skipped_checks: ["Optional live validation skipped because no cheap session was available."],
+    remaining_caveats: ["No live Developer Mode observation was made."],
     missing_required_closeout_sections: [],
     required_result_input_fields: ["Codex final report text or structured result payload."],
     authority_boundary_issues: [],
@@ -1151,6 +1252,7 @@ function assertFinalPreflightFixtures(source) {
     },
     review_questions: ["Ready for human review after checking the reported result payload."],
     review_recommendation: "ready_for_human_review",
+    suggested_next_action: "close_done",
     warnings: ["Review recommendations are advisory only and do not submit or post anything."],
     boundary_text: ["Codex result review packet is preview-only review preparation."],
   };
@@ -1420,11 +1522,39 @@ function resultReviewPreviewReadyCardPayload() {
       result_source: "structured_payload",
       reviewed_against_packet_id: "final_codex_handoff_packet:AG-SMOKE",
       work_id: "AG-SMOKE",
+      provided_result_input_fields: [
+        "work_id",
+        "scope",
+        "codex final report text",
+        "changed files",
+        "verification commands and results",
+        "skipped checks",
+        "remaining caveats",
+        "authority boundary statement",
+        "result status",
+      ],
+      missing_result_input_fields: [],
+      optional_result_input_fields: [
+        "PR URL or PR number, user-provided only.",
+        "Result status if Codex reported one.",
+      ],
+      result_review_summary: "Codex result import has 9 provided field(s) and 0 missing field(s).",
+      pr_reference: {
+        url: "https://github.com/hynk-studio/augnes/pull/000",
+        number: "000",
+        source: "user_provided",
+        fetched: false,
+      },
+      reported_result_status: "completed",
+      suggested_result_status: "completed",
+      reported_authority_boundary_statement: "Authority boundary statement: preview-only review; no durable state or merge authority.",
       expected_files: ["apps/augnes_apps/src/server.ts"],
       reported_changed_files: ["apps/augnes_apps/src/server.ts"],
       expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
+      reported_verification_commands: ["npm run smoke:chatgpt-work-contract-card"],
       reported_verification_results: ["npm run smoke:chatgpt-work-contract-card passed"],
       skipped_checks: ["Optional live validation skipped because no cheap session was available."],
+      remaining_caveats: ["No live Developer Mode observation was made."],
       missing_required_closeout_sections: [],
       required_result_input_fields: [
         "Codex final report text or structured result payload.",
@@ -1485,7 +1615,128 @@ function resultReviewPreviewReadyCardPayload() {
         "Ready for human review after checking the reported result payload.",
       ],
       review_recommendation: "ready_for_human_review",
+      suggested_next_action: "close_done",
       warnings: [
+        "Review recommendations are advisory only and do not submit or post anything.",
+      ],
+      boundary_text: [
+        "Codex result review packet is preview-only review preparation.",
+        "No GitHub PR data is fetched by the App/MCP server.",
+      ],
+    },
+  };
+}
+
+function resultReviewPartialCardPayload() {
+  return {
+    ...memoryReuseProposedCardPayload(),
+    codex_result_review_packet_preview: {
+      packet_type: "codex_result_review_packet_preview",
+      status: "preview_ready",
+      result_source: "user_provided_input",
+      reviewed_against_packet_id: "final_codex_handoff_packet:AG-SMOKE",
+      work_id: "AG-SMOKE",
+      provided_result_input_fields: [
+        "work_id",
+        "scope",
+        "codex final report text",
+        "skipped checks",
+      ],
+      missing_result_input_fields: [
+        "Changed files.",
+        "Verification commands and results.",
+        "Authority boundary statement.",
+        "Remaining caveats or an explicit none-remaining statement.",
+      ],
+      optional_result_input_fields: [
+        "PR URL or PR number, user-provided only.",
+        "Result status if Codex reported one.",
+      ],
+      result_review_summary: "Codex result import has 4 provided field(s) and 4 missing field(s).",
+      pr_reference: {
+        url: "",
+        number: "",
+        source: "not_provided",
+        fetched: false,
+      },
+      reported_result_status: "partial",
+      suggested_result_status: "partial",
+      reported_authority_boundary_statement: "",
+      expected_files: ["apps/augnes_apps/src/server.ts"],
+      reported_changed_files: [],
+      expected_checks: ["npm run smoke:chatgpt-work-contract-card"],
+      reported_verification_commands: [],
+      reported_verification_results: [],
+      skipped_checks: ["Host visual check skipped"],
+      remaining_caveats: [],
+      missing_required_closeout_sections: ["Verification", "Authority boundary statement", "Remaining caveats"],
+      required_result_input_fields: [
+        "work_id.",
+        "scope.",
+        "Codex final report text or structured result payload.",
+        "Changed files.",
+        "Verification commands and results.",
+      ],
+      authority_boundary_issues: ["Authority boundary statement is missing from the reported result payload."],
+      memory_reuse_alignment: {
+        status: "missing",
+        summary: "Reported result is missing Memory Reuse attachment status.",
+        expected: ["Memory Reuse attachment status", "proposed"],
+        reported: [],
+        missing: ["Memory Reuse attachment status", "proposed"],
+      },
+      constellation_context_alignment: {
+        status: "missing",
+        summary: "Reported result is missing Project Constellation context status.",
+        expected: ["Project Constellation context status", "attached"],
+        reported: [],
+        missing: ["Project Constellation context status", "attached"],
+      },
+      preflight_alignment: {
+        status: "missing",
+        summary: "Reported result is missing final handoff preflight status.",
+        expected: ["Final handoff preflight status"],
+        reported: [],
+        missing: ["Final handoff preflight status"],
+      },
+      checklist_alignment: {
+        status: "missing",
+        summary: "Reported result is missing PR body checklist / closeout skeleton context.",
+        expected: ["PR body checklist", "closeout skeleton"],
+        reported: [],
+        missing: ["PR body checklist", "closeout skeleton"],
+      },
+      file_alignment: {
+        status: "not_provided",
+        summary: "No changed files were reported.",
+        expected: ["apps/augnes_apps/src/server.ts"],
+        reported: [],
+        missing: ["apps/augnes_apps/src/server.ts"],
+      },
+      verification_alignment: {
+        status: "not_provided",
+        summary: "No verification results were reported.",
+        expected: ["npm run smoke:chatgpt-work-contract-card"],
+        reported: [],
+        missing: ["npm run smoke:chatgpt-work-contract-card"],
+      },
+      skipped_check_alignment: {
+        status: "partial",
+        summary: "Some skipped checks were reported without concrete reasons.",
+        expected: ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."],
+        reported: ["Host visual check skipped"],
+        missing: ["Host visual check skipped"],
+      },
+      review_questions: [
+        "Can Codex provide Changed files.",
+        "Can Codex provide Verification commands and results.",
+        "Does the closeout include the required authority boundary statement?",
+      ],
+      review_recommendation: "needs_revision",
+      suggested_next_action: "additional_verification_needed",
+      warnings: [
+        "Skipped check needs a concrete reason: Host visual check skipped",
+        "Missing result input: Changed files.; Verification commands and results.; Authority boundary statement.; Remaining caveats or an explicit none-remaining statement.",
         "Review recommendations are advisory only and do not submit or post anything.",
       ],
       boundary_text: [
@@ -1664,6 +1915,10 @@ function renderMemoryReuseProposedCard(source, options = {}) {
 
 function renderResultReviewPreviewReadyCard(source, options = {}) {
   return renderCard(source, resultReviewPreviewReadyCardPayload(), options);
+}
+
+function renderResultReviewPartialCard(source, options = {}) {
+  return renderCard(source, resultReviewPartialCardPayload(), options);
 }
 
 function renderImplementationReadyCard(source, options = {}) {

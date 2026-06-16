@@ -918,11 +918,19 @@
           attached: "Attached",
           awaiting_user_confirmation: "Needs user confirmation",
           blocked: "Blocked",
+          close_done: "Close / done",
+          completed: "Completed",
           explicit_absent: "Not attached",
           explicitly_absent: "Not attached",
           fail: "Needs fixes",
+          failed: "Failed",
+          follow_up_fix_needed: "Follow-up fix needed",
+          additional_verification_needed: "Additional verification needed",
+          human_decision_needed: "Human decision needed",
           missing: "Missing",
           needs_attention: "Needs attention",
+          needs_human_review: "Needs human review",
+          new_handoff_needed: "New handoff needed",
           needs_result_input: "Needs result input",
           needs_revision: "Needs revision",
           needs_review: "Needs review",
@@ -933,14 +941,17 @@
           not_generated: "Not ready",
           not_provided: "Not provided",
           pass: "Ready",
+          partial: "Partial",
           pending_preflight: "Pending check",
           preview_only: "Preview only",
           preview_ready: "Ready to review",
           proposed: "Reference memory attached",
           ready: "Ready",
           ready_for_human_review: "Ready for human review",
+          result_incomplete_blocked: "Result incomplete / blocked",
           structured_payload: "Structured result",
           unavailable: "Unavailable",
+          user_provided_input: "User-provided result",
           warn: "Needs attention",
         };
         const fallback = text.replace(/_/g, " ");
@@ -999,6 +1010,8 @@
         const text = nonEmptyText(value, "Result input");
         const labels = {
           "Authority boundary statement.": "Guardrail statement.",
+          "work_id.": "Work ID.",
+          "scope.": "Scope.",
           "PR URL/number only if a separate read-only GitHub connector/reviewer flow is explicitly run outside the App/MCP server.":
             "PR link only if a separate read-only review flow was explicitly used.",
         };
@@ -1713,6 +1726,8 @@
 
       function codexResultReviewRequiredInputs() {
         return [
+          "work_id.",
+          "scope.",
           "Codex final report text or structured result payload.",
           "Changed files.",
           "Verification commands and results.",
@@ -1720,6 +1735,24 @@
           "Authority boundary statement.",
           "Remaining caveats.",
           "PR URL/number only if a separate read-only GitHub connector/reviewer flow is explicitly run outside the App/MCP server.",
+        ];
+      }
+
+      function codexResultReviewMissingInputs() {
+        return [
+          "Codex final report text or structured result payload.",
+          "Changed files.",
+          "Verification commands and results.",
+          "Skipped checks with concrete reasons or an explicit none-skipped statement.",
+          "Authority boundary statement.",
+          "Remaining caveats or an explicit none-remaining statement.",
+        ];
+      }
+
+      function codexResultReviewOptionalInputs() {
+        return [
+          "PR URL or PR number, user-provided only.",
+          "Result status if Codex reported one.",
         ];
       }
 
@@ -1913,9 +1946,13 @@
       function normalizeCodexResultReviewPacket(source, packet) {
         const record = safeRecord(source);
         const resultSource = nonEmptyText(record.result_source, "not_provided");
+        const providedInputFields = safeArray(record.provided_result_input_fields);
+        const missingInputFields = safeArray(record.missing_result_input_fields);
         const reportedChangedFiles = safeArray(record.reported_changed_files);
+        const reportedVerificationCommands = safeArray(record.reported_verification_commands);
         const reportedVerificationResults = safeArray(record.reported_verification_results);
         const skippedChecks = safeArray(record.skipped_checks);
+        const remainingCaveats = safeArray(record.remaining_caveats);
         const status = ["not_provided", "preview_ready", "needs_result_input", "unavailable"].includes(nonEmptyText(record.status, ""))
           ? nonEmptyText(record.status, "")
           : resultSource === "not_provided"
@@ -1924,11 +1961,18 @@
         const expectedFiles = safeArray(record.expected_files).length ? safeArray(record.expected_files) : safeArray(packet?.expected_files);
         const expectedChecks = safeArray(record.expected_checks).length ? safeArray(record.expected_checks) : safeArray(packet?.expected_checks);
         const requiredInputs = safeArray(record.required_result_input_fields).length ? safeArray(record.required_result_input_fields) : codexResultReviewRequiredInputs();
+        const missingInputs = missingInputFields.length
+          ? missingInputFields
+          : status === "preview_ready"
+            ? []
+            : codexResultReviewMissingInputs();
+        const optionalInputs = safeArray(record.optional_result_input_fields).length ? safeArray(record.optional_result_input_fields) : codexResultReviewOptionalInputs();
         const missingSections = safeArray(record.missing_required_closeout_sections).length
           ? safeArray(record.missing_required_closeout_sections)
           : status === "preview_ready"
             ? []
             : prBodyChecklistRequiredSections();
+        const prReference = safeRecord(record.pr_reference);
         const noResultWarning = status === "needs_result_input" || status === "not_provided"
           ? ["No Codex result payload is attached; no changed files, verification results, PR URLs, proof IDs, evidence IDs, screenshots, findings, or host observations were invented."]
           : [];
@@ -1938,11 +1982,32 @@
           result_source: resultSource,
           reviewed_against_packet_id: nonEmptyText(record.reviewed_against_packet_id, packet?.work_id ? `final_codex_handoff_packet:${packet.work_id}` : ""),
           work_id: nonEmptyText(record.work_id, nonEmptyText(packet?.work_id, "")),
+          input_shape: safeRecord(record.input_shape),
+          provided_result_input_fields: providedInputFields,
+          missing_result_input_fields: missingInputs,
+          optional_result_input_fields: optionalInputs,
+          result_review_summary: nonEmptyText(
+            record.result_review_summary,
+            status === "preview_ready"
+              ? `Codex result import has ${providedInputFields.length} provided field(s) and ${missingInputs.length} missing field(s).`
+              : "Codex result import is waiting for user-provided Codex output; no result data was invented."
+          ),
+          pr_reference: {
+            url: nonEmptyText(prReference.url, ""),
+            number: nonEmptyText(prReference.number, ""),
+            source: nonEmptyText(prReference.source, prReference.url || prReference.number ? "user_provided" : "not_provided"),
+            fetched: false,
+          },
+          reported_result_status: nonEmptyText(record.reported_result_status, ""),
+          suggested_result_status: nonEmptyText(record.suggested_result_status, status === "preview_ready" ? "partial" : "not_provided"),
+          reported_authority_boundary_statement: nonEmptyText(record.reported_authority_boundary_statement, ""),
           expected_files: expectedFiles,
           reported_changed_files: reportedChangedFiles,
           expected_checks: expectedChecks,
+          reported_verification_commands: reportedVerificationCommands,
           reported_verification_results: reportedVerificationResults,
           skipped_checks: skippedChecks,
+          remaining_caveats: remainingCaveats,
           missing_required_closeout_sections: missingSections,
           required_result_input_fields: requiredInputs,
           authority_boundary_issues: safeArray(record.authority_boundary_issues),
@@ -1951,7 +2016,7 @@
           preflight_alignment: makeAlignment(record.preflight_alignment, status === "preview_ready" ? "needs_review" : "not_provided", status === "preview_ready" ? "Review final handoff preflight status in the reported result." : "No final handoff preflight result payload was provided.", ["Final handoff preflight status"], [], status === "preview_ready" ? [] : ["Final handoff preflight status"]),
           checklist_alignment: makeAlignment(record.checklist_alignment, status === "preview_ready" ? "needs_review" : "not_provided", status === "preview_ready" ? "Review PR body checklist context in the reported result." : "No PR body checklist result payload was provided.", ["PR body checklist", "closeout skeleton"], [], status === "preview_ready" ? [] : ["PR body checklist", "closeout skeleton"]),
           file_alignment: makeAlignment(record.file_alignment, reportedChangedFiles.length ? "needs_review" : "not_provided", reportedChangedFiles.length ? "Review reported changed files against expected files." : "No changed files were reported.", expectedFiles, reportedChangedFiles, reportedChangedFiles.length ? [] : expectedFiles),
-          verification_alignment: makeAlignment(record.verification_alignment, reportedVerificationResults.length ? "needs_review" : "not_provided", reportedVerificationResults.length ? "Review reported verification results against expected checks." : "No verification results were reported.", expectedChecks, reportedVerificationResults, reportedVerificationResults.length ? [] : expectedChecks),
+          verification_alignment: makeAlignment(record.verification_alignment, reportedVerificationCommands.length || reportedVerificationResults.length ? "needs_review" : "not_provided", reportedVerificationCommands.length || reportedVerificationResults.length ? "Review reported verification results against expected checks." : "No verification results were reported.", expectedChecks, [...reportedVerificationCommands, ...reportedVerificationResults], reportedVerificationCommands.length || reportedVerificationResults.length ? [] : expectedChecks),
           skipped_check_alignment: makeAlignment(record.skipped_check_alignment, skippedChecks.length ? "needs_review" : "not_provided", skippedChecks.length ? "Review skipped checks for concrete reasons." : "No skipped-check result payload was provided.", ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."], skippedChecks, skippedChecks.length ? [] : ["Skipped checks must be reported with concrete reasons; do not claim skipped checks passed."]),
           review_questions: safeArray(record.review_questions).length
             ? safeArray(record.review_questions)
@@ -1962,6 +2027,7 @@
                   "Include changed files, verification commands and results, skipped checks with concrete reasons, authority boundary statement, and remaining caveats.",
                 ],
           review_recommendation: nonEmptyText(record.review_recommendation, status === "preview_ready" ? "ready_for_human_review" : "needs_result_input"),
+          suggested_next_action: nonEmptyText(record.suggested_next_action, status === "preview_ready" ? "human_decision_needed" : "result_incomplete_blocked"),
           warnings: [...noResultWarning, ...(safeArray(record.warnings).length ? safeArray(record.warnings) : codexResultReviewWarnings())],
           boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : codexResultReviewBoundaryText(),
         };
@@ -1974,6 +2040,14 @@
           `- Result source: ${normalized.result_source}`,
           `- Reviewed against: ${nonEmptyText(normalized.reviewed_against_packet_id, "missing")}`,
           `- Review recommendation: ${normalized.review_recommendation}`,
+          `- Suggested result status: ${normalized.suggested_result_status}`,
+          `- Suggested next action: ${normalized.suggested_next_action}`,
+          `- Result review summary: ${normalized.result_review_summary}`,
+          `- PR reference: ${normalized.pr_reference.url || normalized.pr_reference.number || "not provided"}; fetched=${normalized.pr_reference.fetched}`,
+          "- What was provided:",
+          ...(safeArray(normalized.provided_result_input_fields).length ? safeArray(normalized.provided_result_input_fields).map((item) => `  - ${item}`) : ["  - No Codex result input fields were provided."]),
+          "- Missing result input:",
+          ...(safeArray(normalized.missing_result_input_fields).length ? safeArray(normalized.missing_result_input_fields).map((item) => `  - ${item}`) : ["  - No required result input fields are missing."]),
           "- Required result input fields:",
           ...(safeArray(normalized.required_result_input_fields).length ? safeArray(normalized.required_result_input_fields).map((item) => `  - ${item}`) : ["  - No required result input fields listed."]),
           "- Expected files:",
@@ -1982,10 +2056,16 @@
           ...(safeArray(normalized.reported_changed_files).length ? safeArray(normalized.reported_changed_files).map((item) => `  - ${item}`) : ["  - No reported changed files attached."]),
           "- Expected checks:",
           ...(safeArray(normalized.expected_checks).length ? safeArray(normalized.expected_checks).map((item) => `  - ${item}`) : ["  - No expected checks listed."]),
+          "- Reported verification commands:",
+          ...(safeArray(normalized.reported_verification_commands).length ? safeArray(normalized.reported_verification_commands).map((item) => `  - ${item}`) : ["  - No reported verification commands attached."]),
           "- Reported verification results:",
           ...(safeArray(normalized.reported_verification_results).length ? safeArray(normalized.reported_verification_results).map((item) => `  - ${item}`) : ["  - No reported verification results attached."]),
           "- Skipped checks:",
           ...(safeArray(normalized.skipped_checks).length ? safeArray(normalized.skipped_checks).map((item) => `  - ${item}`) : ["  - No skipped checks attached."]),
+          "- Remaining caveats:",
+          ...(safeArray(normalized.remaining_caveats).length ? safeArray(normalized.remaining_caveats).map((item) => `  - ${item}`) : ["  - No remaining caveats attached."]),
+          "- Authority boundary statement:",
+          ...(normalized.reported_authority_boundary_statement ? [`  - ${normalized.reported_authority_boundary_statement}`] : ["  - No authority boundary statement attached."]),
           "- Missing required closeout sections:",
           ...(safeArray(normalized.missing_required_closeout_sections).length ? safeArray(normalized.missing_required_closeout_sections).map((item) => `  - ${item}`) : ["  - No required closeout sections missing."]),
           "- Authority boundary issues:",
@@ -2779,6 +2859,7 @@
           reviewPacket.result_source === "not_provided" &&
           safeArray(reviewPacket.required_result_input_fields).length > 0 &&
           safeArray(reviewPacket.reported_changed_files).length === 0 &&
+          safeArray(reviewPacket.reported_verification_commands).length === 0 &&
           safeArray(reviewPacket.reported_verification_results).length === 0 &&
           text.includes("Codex result review packet") &&
           slot.generated === true &&
@@ -2795,18 +2876,20 @@
         if (reviewPacket.status === "preview_ready") {
           const ready =
             reviewPacket.result_source !== "not_provided" &&
-            safeArray(reviewPacket.reported_changed_files).length > 0 &&
-            safeArray(reviewPacket.reported_verification_results).length > 0 &&
+            safeArray(reviewPacket.provided_result_input_fields).length > 0 &&
             reviewPacket.review_recommendation !== "needs_result_input" &&
             text.includes("Codex result review packet") &&
             slot.generated === true &&
             slot.inert !== false;
+          const complete = ready && reviewPacket.review_recommendation === "ready_for_human_review";
           return {
             id: "codex_result_review_packet_state",
-            status: ready ? "pass" : "fail",
-            message: ready
+            status: ready ? complete ? "pass" : "warn" : "fail",
+            message: complete
               ? "Codex result review packet has attached result payload for bounded human review."
-              : "Codex result review packet is preview_ready but lacks reported files, verification results, or bounded recommendation.",
+              : ready
+                ? "Codex result review packet has partial attached result input; missing fields are surfaced for bounded human review."
+                : "Codex result review packet is preview_ready but lacks provided input fields or bounded recommendation.",
           };
         }
         return {
@@ -3699,32 +3782,67 @@
         root.appendChild(createMetricGrid([
           ["Status", formatUiStatus(normalized.status)],
           ["Result input", formatUiStatus(normalized.result_source)],
-          ["Recommendation", formatUiStatus(normalized.review_recommendation)],
+          ["Result status", formatUiStatus(normalized.suggested_result_status)],
+          ["Suggested next action", formatUiStatus(normalized.suggested_next_action)],
           ["Work ID", normalized.work_id || "missing"],
         ]));
+        root.appendChild(createSection(
+          "Codex result import",
+          createTextList([
+            normalized.result_review_summary,
+            `PR reference: ${normalized.pr_reference.url || normalized.pr_reference.number || "not provided"}`,
+            `PR data fetched: ${normalized.pr_reference.fetched ? "yes" : "no"}`,
+          ]),
+          { badge: formatUiStatus(normalized.result_source) }
+        ));
+        root.appendChild(createSection(
+          "What was provided",
+          createTextList(normalized.provided_result_input_fields),
+          { badge: `${safeArray(normalized.provided_result_input_fields).length}` }
+        ));
         if (normalized.status === "needs_result_input" || normalized.status === "not_provided") {
           root.appendChild(createSection(
-            "Result input needed",
-            createTextList(normalized.required_result_input_fields.map(formatResultInputField)),
+            "Missing result input",
+            createTextList(normalized.missing_result_input_fields.map(formatResultInputField)),
             { badge: "needed" }
           ));
+        } else {
+          root.appendChild(createSection(
+            "Missing result input",
+            createTextList(normalized.missing_result_input_fields.map(formatResultInputField)),
+            { badge: `${safeArray(normalized.missing_result_input_fields).length}` }
+          ));
         }
-        root.appendChild(createSection("Reported changed files", createCodeListWithFallback(normalized.reported_changed_files, "No reported changed files attached."), { badge: `${safeArray(normalized.reported_changed_files).length}` }));
-        root.appendChild(createSection("Reported verification results", createTextList(normalized.reported_verification_results), { badge: `${safeArray(normalized.reported_verification_results).length}` }));
-        root.appendChild(createSection("Skipped checks", createTextList(normalized.skipped_checks), { badge: `${safeArray(normalized.skipped_checks).length}` }));
-        root.appendChild(createSection("Missing closeout sections", createTextList(normalized.missing_required_closeout_sections), { badge: `${safeArray(normalized.missing_required_closeout_sections).length}` }));
-        root.appendChild(createSection("Alignment", createTextList([
+        root.appendChild(createSection("Expected vs actual", createTextList([
           `files: ${formatUiStatus(normalized.file_alignment.status)} - ${normalized.file_alignment.summary}`,
           `verification: ${formatUiStatus(normalized.verification_alignment.status)} - ${normalized.verification_alignment.summary}`,
+          `expected files: ${safeArray(normalized.expected_files).length}`,
+          `reported changed files: ${safeArray(normalized.reported_changed_files).length}`,
+          `expected checks: ${safeArray(normalized.expected_checks).length}`,
+          `reported verification items: ${safeArray(normalized.reported_verification_commands).length + safeArray(normalized.reported_verification_results).length}`,
+        ]), { badge: "review" }));
+        root.appendChild(createSection("Reported changed files", createCodeListWithFallback(normalized.reported_changed_files, "No reported changed files attached."), { badge: `${safeArray(normalized.reported_changed_files).length}` }));
+        root.appendChild(createSection("Verification review", createTextList([
+          ...safeArray(normalized.reported_verification_commands).map((item) => `command: ${item}`),
+          ...safeArray(normalized.reported_verification_results).map((item) => `result: ${item}`),
+        ]), { badge: `${safeArray(normalized.reported_verification_commands).length + safeArray(normalized.reported_verification_results).length}` }));
+        root.appendChild(createSection("Skipped checks", createTextList(normalized.skipped_checks), { badge: `${safeArray(normalized.skipped_checks).length}` }));
+        root.appendChild(createSection("Remaining caveats", createTextList(normalized.remaining_caveats), { badge: `${safeArray(normalized.remaining_caveats).length}` }));
+        root.appendChild(createSection("Missing closeout sections", createTextList(normalized.missing_required_closeout_sections), { badge: `${safeArray(normalized.missing_required_closeout_sections).length}` }));
+        root.appendChild(createSection("Alignment", createTextList([
           `skipped checks: ${formatUiStatus(normalized.skipped_check_alignment.status)} - ${normalized.skipped_check_alignment.summary}`,
           `reference memory: ${formatUiStatus(normalized.memory_reuse_alignment.status)} - ${normalized.memory_reuse_alignment.summary}`,
           `related perspective: ${formatUiStatus(normalized.constellation_context_alignment.status)} - ${normalized.constellation_context_alignment.summary}`,
           `final check: ${formatUiStatus(normalized.preflight_alignment.status)} - ${normalized.preflight_alignment.summary}`,
           `checklist: ${formatUiStatus(normalized.checklist_alignment.status)} - ${normalized.checklist_alignment.summary}`,
         ]), { badge: "read-only", open: false }));
+        root.appendChild(createSection("Suggested next action", el("div", {
+          className: "status-box",
+          text: formatUiStatus(normalized.suggested_next_action),
+        }), { badge: formatUiStatus(normalized.review_recommendation) }));
         root.appendChild(createSection("Review questions", createTextList(normalized.review_questions), { badge: `${safeArray(normalized.review_questions).length}` }));
         root.appendChild(createSection("Warnings", createTextList(normalized.warnings), { badge: `${safeArray(normalized.warnings).length}`, open: false }));
-        root.appendChild(createSection("Technical boundary", createTextList(normalized.boundary_text), { badge: "preview only", open: false }));
+        root.appendChild(createSection("What this screen does not do", createTextList(normalized.boundary_text), { badge: "preview only", open: false }));
         return root;
       }
 
