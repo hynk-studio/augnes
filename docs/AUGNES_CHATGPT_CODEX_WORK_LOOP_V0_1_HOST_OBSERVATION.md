@@ -41,16 +41,43 @@ Observed local surfaces:
 - Temporary widget harness: `http://127.0.0.1:8799`
 - MCP Inspector UI: `http://localhost:6274`
 - MCP Inspector proxy: `http://localhost:6277`
+- Developer Mode follow-up HTTPS tunnel:
+  `https://verbal-morning-reform-downloaded.trycloudflare.com/mcp`
+  forwarded to `http://localhost:8897/mcp`
 
 Setup friction: a probe of `npm run db:reset -- --help` and
 `npm run demo:seed -- --help` executed the scripts because they do not implement
 a help-only mode. That reset the ignored local `data/augnes.db`; git remained
 clean. All host observation after that point used the isolated `/tmp` DB above.
 
+A follow-up ChatGPT Developer Mode attempt used the same local runtime and
+bridge ports with a second isolated DB path:
+`/tmp/augnes-work-loop-host-observation-597-devmode.db`. The HTTPS tunnel was
+created with:
+
+```text
+cloudflared tunnel --url http://localhost:8897 --no-autoupdate
+```
+
+The tunnel `/mcp` endpoint was verified with a read-only JSON-RPC
+`initialize` request and returned `augnes-console` version `0.1.0`.
+
 ## Host Used
 
-- ChatGPT Developer Mode: no. No Developer Mode host session was available in
-  this Codex/browser environment, so Developer Mode rendering is not claimed.
+- ChatGPT Developer Mode: partial setup observed, but no tool/widget rendering
+  claim. The ChatGPT Apps / Developer Mode New App form was reachable in
+  Chrome. The form accepted the app name `Augnes Work Loop Local`, Server URL
+  mode, `No Auth`, and the custom MCP risk acknowledgement. Plain
+  `http://localhost:8897/mcp` was rejected by the host as an unsafe URL. A
+  temporary HTTPS Cloudflare tunnel to the same local bridge was created and
+  verified, but the available browser-control paths could not update and submit
+  the already-open form: Computer Use could inspect the Chrome window but
+  returned `not active` for click/key actions, shell AppleScript keystrokes were
+  denied by macOS accessibility permissions, CoreGraphics synthesized clicks did
+  not focus the form, and the Chrome extension could list/claim tabs but failed
+  on ChatGPT DOM/screenshot interaction. Developer Mode app creation, tool
+  invocation, iframe rendering, and clipboard behavior are therefore not
+  claimed.
 - MCP Inspector: yes. Inspector v0.22.0 connected to the local bridge and ran
   read-only work-loop tools.
 - Local browser harness: yes. The harness served the existing
@@ -187,6 +214,34 @@ made exact recommendation text assertions noisy after repeated runs. Exact
 status mapping was therefore taken from the live bridge payloads and local
 widget harness, not from substring checks over the whole Inspector page.
 
+## ChatGPT Developer Mode Attempt
+
+Developer Mode was present enough to open the ChatGPT Apps / Developer Mode
+New App form. The observed form fields and controls were:
+
+- Name: `Augnes Work Loop Local`
+- Connection: `Server URL`
+- Initial MCP Server URL: `http://localhost:8897/mcp`
+- Authentication: `No Auth`
+- Custom MCP risk acknowledgement: checked
+- Create button: visible
+
+The host rejected the plain HTTP localhost URL as unsafe. This is consistent
+with the Server URL field expecting an HTTPS MCP endpoint. A temporary
+Cloudflare quick tunnel was started and verified against the read-only local
+bridge:
+
+```text
+https://verbal-morning-reform-downloaded.trycloudflare.com/mcp
+```
+
+Verification of that endpoint returned the expected MCP initialize response for
+`augnes-console` version `0.1.0`. The observation did not proceed to app
+creation or tool invocation because the browser-control surfaces available in
+this run could not update or submit the form after the HTTPS tunnel was ready.
+This is an environment/control-plane limitation, not an observed Augnes product
+failure.
+
 ## Layout / Scroll / Overflow
 
 Observed layout behavior:
@@ -248,13 +303,17 @@ pass:
 - no durable lifecycle automation
 
 Only local developer shell commands were used to start the isolated runtime,
-bridge, Inspector, and browser harness. Only read-only work-loop tools were
-invoked through the bridge and Inspector.
+bridge, Inspector, browser harness, and temporary HTTPS tunnel. Only read-only
+work-loop tools were invoked through the bridge and Inspector. No ChatGPT
+Developer Mode tool invocation completed.
 
 ## Skipped Checks
 
-- ChatGPT Developer Mode host observation: skipped because no Developer Mode
-  host session was available in this environment.
+- ChatGPT Developer Mode tool/widget rendering: skipped because the Developer
+  Mode form was reachable but plain HTTP localhost was rejected as unsafe, and
+  after a verified HTTPS tunnel was created, the available browser-control
+  surfaces could not update or submit the form. No Developer Mode app creation,
+  tool invocation, iframe rendering, or clipboard success is claimed.
 - System clipboard success claim: skipped because independent read-back did not
   verify the widget copy status in the in-app Browser host.
 - Committed screenshots: skipped to keep the PR documentation-only and avoid
@@ -264,8 +323,9 @@ invoked through the bridge and Inspector.
 
 ## Remaining Caveats
 
-- A real ChatGPT Developer Mode pass is still needed before claiming ChatGPT
-  host-specific iframe and clipboard behavior.
+- A real ChatGPT Developer Mode pass is still needed with an HTTPS MCP endpoint
+  and a browser session where form input/submission works before claiming
+  ChatGPT host-specific iframe and clipboard behavior.
 - Clipboard behavior differs between the widget's in-frame status and external
   read-back in this host; treat copy success as unverified unless the actual host
   clipboard path is observed.
@@ -290,8 +350,9 @@ git diff --cached --check
 
 ## Next Recommended Step
 
-Run one real ChatGPT Developer Mode host pass for the same AG-006 scenarios,
-focusing on iframe clipping and clipboard behavior. If that host reveals no
-layout or copy-control issues, the v0.1 loop can stay closed as a preview-only
+Run one real ChatGPT Developer Mode host pass for the same AG-006 scenarios
+using either ChatGPT's Secure MCP Tunnel flow or a verified HTTPS tunnel, then
+focus on iframe clipping and clipboard behavior. If that host reveals no layout
+or copy-control issues, the v0.1 loop can stay closed as a preview-only
 operator path until the project explicitly scopes semi-automation gates or
 knowledge accumulation surfaces.
