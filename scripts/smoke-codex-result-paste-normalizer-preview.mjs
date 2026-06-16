@@ -47,6 +47,7 @@ for (const key of [
   "codex_result_paste_normalizer_preview",
   "codex_result_normalizer_preview",
   "normalized_codex_result_candidate",
+  "ambiguous_combined_section_lines",
 ]) {
   assert.match(server, new RegExp(escapeRegExp(key)), `server must expose ${key}`);
 }
@@ -56,6 +57,7 @@ for (const label of [
   "Normalized result candidate",
   "Detected fields",
   "Needs human review",
+  "Ambiguous combined lines",
   "What this helper does not do",
 ]) {
   assert.match(widget, new RegExp(escapeRegExp(label)), `widget must render ${label}`);
@@ -65,6 +67,8 @@ for (const [pattern, description] of [
   [/existing structured `codexResult` \/ `codexResultInput` \/ `codex_result`[\s\S]*path still works/i, "structured result path still works"],
   [/Explicit structured fields override parsed fields\./, "structured precedence"],
   [/Partial extraction remains partial\./, "partial extraction remains partial"],
+  [/Combined closeout sections[\s\S]*split conservatively/i, "combined sections split conservatively"],
+  [/ambiguous_combined_section_lines/, "ambiguous combined lines exposed"],
   [/helper does not fetch GitHub/i, "no GitHub fetch boundary"],
 ]) {
   assert.match(`${runbook}\n${note}`, pattern, `docs must include ${description}`);
@@ -190,6 +194,98 @@ assert.equal(partialPreview.candidate.changed_files, undefined, "missing changed
 assert.equal(partialPreview.candidate.verification_results, undefined, "missing verification results must not be invented");
 assert.ok(partialPreview.extraction_warnings.length >= 4, "missing fields must surface extraction warnings");
 
+const combinedSplitPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+Skipped checks and caveats
+- Live ChatGPT Developer Mode validation skipped because no tunnel/session was available.
+- Parser output remains a candidate only and needs human review.
+`,
+});
+assert.deepEqual(
+  combinedSplitPreview.candidate.skipped_checks,
+  ["Live ChatGPT Developer Mode validation skipped because no tunnel/session was available"],
+  "combined section must classify clear skipped validation into skipped_checks",
+);
+assert.deepEqual(
+  combinedSplitPreview.candidate.remaining_caveats,
+  ["Parser output remains a candidate only and needs human review"],
+  "combined section must classify clear caveat into remaining_caveats",
+);
+assert.ok(
+  !combinedSplitPreview.candidate.skipped_checks.some((line) => combinedSplitPreview.candidate.remaining_caveats.includes(line)),
+  "combined section lines must not be duplicated across skipped_checks and remaining_caveats",
+);
+
+const combinedNoneSkippedPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+Skipped checks and caveats
+- Skipped checks: none
+- Remaining caveat: Live host validation remains manual.
+`,
+});
+assert.deepEqual(combinedNoneSkippedPreview.candidate.skipped_checks, ["No skipped checks."], "combined none-skipped signal must be preserved");
+assert.deepEqual(
+  combinedNoneSkippedPreview.candidate.remaining_caveats,
+  ["Remaining caveat: Live host validation remains manual"],
+  "combined section must keep real caveat when skipped checks are explicitly none",
+);
+
+const combinedNoneRemainingPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+Skipped validation and caveats
+- No remaining caveats.
+- Copy Full Context read-back skipped because no trusted host session was available.
+`,
+});
+assert.deepEqual(combinedNoneRemainingPreview.candidate.remaining_caveats, ["No remaining caveats."], "combined none-remaining signal must be preserved");
+assert.deepEqual(
+  combinedNoneRemainingPreview.candidate.skipped_checks,
+  ["Copy Full Context read-back skipped because no trusted host session was available"],
+  "combined section must keep skipped check when remaining caveats are explicitly none",
+);
+
+const combinedAmbiguousPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+Caveats and skipped checks
+- Operator follow-up noted in transcript.
+`,
+});
+assert.equal(combinedAmbiguousPreview.candidate.skipped_checks, undefined, "ambiguous combined line must not become skipped_checks");
+assert.equal(combinedAmbiguousPreview.candidate.remaining_caveats, undefined, "ambiguous combined line must not become remaining_caveats");
+assert.deepEqual(
+  combinedAmbiguousPreview.ambiguous_combined_section_lines,
+  ["Operator follow-up noted in transcript"],
+  "ambiguous combined line must be exposed for human classification",
+);
+assert.ok(
+  combinedAmbiguousPreview.extraction_warnings.some((warning) => /Operator follow-up noted in transcript/.test(warning)),
+  "ambiguous combined line must be surfaced in extraction warnings",
+);
+
+const singlePurposeSkippedPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+Skipped checks
+- Operator follow-up noted in transcript.
+`,
+});
+assert.deepEqual(
+  singlePurposeSkippedPreview.candidate.skipped_checks,
+  ["Operator follow-up noted in transcript"],
+  "single-purpose skipped section must preserve current behavior",
+);
+
+const singlePurposeCaveatPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+Remaining caveats
+- Operator follow-up noted in transcript.
+`,
+});
+assert.deepEqual(
+  singlePurposeCaveatPreview.candidate.remaining_caveats,
+  ["Operator follow-up noted in transcript"],
+  "single-purpose caveats section must preserve current behavior",
+);
+
 assert.deepEqual(
   normalizeCodexResultPasteInput({ structuredInput: { closeoutText: sampleCloseoutText } }).source,
   "structured_input_raw_text",
@@ -200,6 +296,9 @@ const featureSource = [
   extractFunction(server, "normalizeCodexResultPasteInput"),
   extractFunction(server, "buildCodexResultPasteNormalizerPreview"),
   extractFunction(server, "mergeCodexResultInputWithPasteCandidate"),
+  extractFunction(server, "classifyCodexResultCombinedSectionLine"),
+  extractFunction(server, "splitCodexResultCombinedSectionEntries"),
+  extractFunction(server, "combinedSectionLineClassificationReason"),
   extractFunction(widget, "normalizeCodexResultPasteNormalizerPreview"),
   extractFunction(widget, "renderCodexResultPasteNormalizerPreview"),
   workBriefBlock,
@@ -218,6 +317,11 @@ console.log(
       conflict_warnings_surfaced: true,
       skipped_check_reasons_preserved: true,
       explicit_none_signals_detected: true,
+      combined_section_split_checked: true,
+      combined_none_skipped_checked: true,
+      combined_none_remaining_checked: true,
+      ambiguous_combined_lines_checked: true,
+      single_purpose_sections_unchanged: true,
       missing_fields_remain_partial: true,
       forbidden_feature_authority_absent: true,
     },

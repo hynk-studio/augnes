@@ -452,6 +452,17 @@ headed sections such as `Files changed`, `Verification`, `Skipped checks`,
 candidate only. It fills missing structured fields conservatively and leaves
 missing fields as warnings or review questions.
 
+Combined closeout sections such as `Skipped checks and caveats`,
+`Skipped validation and caveats`, `Skipped checks / remaining caveats`,
+`Caveats and skipped checks`, and `Limitations / skipped checks` are split
+conservatively. Lines that clearly describe skipped or unavailable validation
+become `skipped_checks`; lines that clearly describe residual limitations,
+future work, manual review, or candidate-only behavior become
+`remaining_caveats`. Ambiguous combined-section lines are not duplicated into
+both fields. They remain human-review warnings and are exposed as
+`ambiguous_combined_section_lines` in the paste normalizer preview. Explicit
+none-skipped and none-remaining signals are still preserved.
+
 Explicit structured fields override parsed fields. If structured input and
 paste extraction disagree, the structured value is preserved and the
 `codex_result_paste_normalizer_preview` exposes conflict warnings. The raw
@@ -469,11 +480,11 @@ The tool exposes the paste helper through model-readable aliases:
 
 The widget renders the helper in the result-review area with labels including
 `Codex result paste helper`, `Normalized result candidate`, `Detected fields`,
-`Needs human review`, and `What this helper does not do`. The helper does not
-fetch GitHub, write proof/evidence, close work, mutate state, execute Codex,
-spawn shell commands, create events, create branches or PRs, submit PR
-reviews, create or merge PRs, call providers/OpenAI, publish, retry, replay, or
-deploy.
+`Needs human review`, `Ambiguous combined lines`, and `What this helper does
+not do`. The helper does not fetch GitHub, write proof/evidence, close work,
+mutate state, execute Codex, spawn shell commands, create events, create
+branches or PRs, submit PR reviews, create or merge PRs, call providers/OpenAI,
+publish, retry, replay, or deploy.
 
 When no Codex result is attached, the card shows an explicit
 `needs_result_input` / `not_provided` state and lists the exact input needed for

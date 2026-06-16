@@ -34,6 +34,10 @@ for (const expected of [
   "normalizeCodexResultPasteInput",
   "buildCodexResultPasteNormalizerPreview",
   "mergeCodexResultInputWithPasteCandidate",
+  "classifyCodexResultCombinedSectionLine",
+  "splitCodexResultCombinedSectionEntries",
+  "combinedSectionLineClassificationReason",
+  "ambiguous_combined_section_lines",
   "normalizeSkippedCheckResultObjects",
   "provided_result_input_fields",
   "missing_result_input_fields",
@@ -93,6 +97,7 @@ for (const expected of [
   "Normalized result candidate",
   "Detected fields",
   "Needs human review",
+  "Ambiguous combined lines",
   "What this helper does not do",
 ]) {
   assert.match(widget, new RegExp(escapeRegExp(expected)), `widget must render ${expected}`);
@@ -102,6 +107,8 @@ assert.match(runbook, /codexResult/, "runbook must document codexResult input");
 assert.match(runbook, /codexResultText/, "runbook must document top-level raw paste input");
 assert.match(runbook, /raw_result_text/, "runbook must document structured raw paste input");
 assert.match(runbook, /Explicit structured fields override parsed fields/, "runbook must document structured precedence");
+assert.match(runbook, /combined closeout sections/i, "runbook must document combined skipped/caveat section disambiguation");
+assert.match(runbook, /ambiguous_combined_section_lines/, "runbook must document ambiguous combined lines");
 assert.match(runbook, /user-provided only/i, "runbook must document user-provided result input");
 assert.match(runbook, /Partial result input is reviewable but remains partial/i, "runbook must document partial input behavior");
 assert.match(runbook, /Structured `skipped_checks` objects preserve concrete reasons/, "runbook must document structured skipped-check reason preservation");
@@ -112,6 +119,9 @@ const featureSource = [
   extractFunction(server, "normalizeCodexResultPasteInput"),
   extractFunction(server, "buildCodexResultPasteNormalizerPreview"),
   extractFunction(server, "mergeCodexResultInputWithPasteCandidate"),
+  extractFunction(server, "classifyCodexResultCombinedSectionLine"),
+  extractFunction(server, "splitCodexResultCombinedSectionEntries"),
+  extractFunction(server, "combinedSectionLineClassificationReason"),
   extractFunction(server, "resultReviewPayloadFromBrief"),
   extractFunction(server, "buildCodexResultReviewPacketPreview"),
   extractFunction(server, "finalHandoffCodexResultReviewPacketPreflightCheck"),
@@ -134,6 +144,7 @@ console.log(
       structured_result_preview_supported: true,
       paste_normalizer_preview_supported: true,
       paste_normalizer_stays_on_read_only_work_brief: true,
+      paste_normalizer_combined_section_disambiguation_supported: true,
       partial_result_warnings_present: true,
       skipped_check_reason_required: true,
       structured_skipped_check_reason_preserved: true,
