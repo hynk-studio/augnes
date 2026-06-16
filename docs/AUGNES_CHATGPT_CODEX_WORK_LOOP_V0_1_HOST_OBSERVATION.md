@@ -11,6 +11,9 @@ that smoke tests cannot prove: iframe rendering, scroll reachability, section
 visibility, copy controls, long packet readability, result review rendering,
 event timeline rendering, and closure guidance rendering.
 
+A follow-up real ChatGPT Developer Mode attempt after PR #598 is recorded in
+`docs/AUGNES_CHATGPT_CODEX_WORK_LOOP_V0_1_DEVELOPER_MODE_OBSERVATION.md`.
+
 ## Baseline
 
 - Repository: `hynk-studio/augnes`
