@@ -11,7 +11,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { createAugnesCoreAdapter } from "./adapters/index.js";
 import { StateRuntimeHttpAdapter } from "./adapters/state-runtime-http.js";
-import { config } from "./lib/config.js";
+import { config, type AugnesAppToolSurface } from "./lib/config.js";
 import { withPresentation } from "./lib/profile.js";
 import { sanitizeValue } from "./lib/sanitize.js";
 import {
@@ -5104,6 +5104,7 @@ function describeProjectConstellationPreviewSurface(surface: ProjectConstellatio
 
 export type McpAppServerOptions = {
   enableAgentBridge?: boolean;
+  toolSurface?: AugnesAppToolSurface;
 };
 
 export function createMcpAppServer(
@@ -5112,6 +5113,9 @@ export function createMcpAppServer(
   options: McpAppServerOptions = {}
 ) {
   const enableAgentBridge = options.enableAgentBridge ?? config.enableAgentBridge;
+  const toolSurface = options.toolSurface ?? config.appToolSurface;
+  const enableLegacyPublicTools = toolSurface !== "work_loop_readonly";
+  const enableBridgeTools = enableAgentBridge && toolSurface !== "work_loop_readonly";
   const server = new McpServer({ name: APP_NAME, version: APP_VERSION });
 
   registerAppResource(
@@ -5150,40 +5154,41 @@ export function createMcpAppServer(
     })
   );
 
-  registerAppTool(
-    server,
-    "search",
-    {
-      title: "Search Augnes knowledge",
-      description: "Search evidence-backed Augnes knowledge, casefiles, working pointers, boundary packets, continuity records, and repo nodes.",
-      inputSchema: {
-        query: z.string().min(1),
-        scope: z
-          .array(z.enum(["evidence", "casefile", "working_view", "boundary", "continuity", "repo"]))
-          .optional(),
-        timeRange: z.string().optional(),
+  if (enableLegacyPublicTools) {
+    registerAppTool(
+      server,
+      "search",
+      {
+        title: "Search Augnes knowledge",
+        description: "Search evidence-backed Augnes knowledge, casefiles, working pointers, boundary packets, continuity records, and repo nodes.",
+        inputSchema: {
+          query: z.string().min(1),
+          scope: z
+            .array(z.enum(["evidence", "casefile", "working_view", "boundary", "continuity", "repo"]))
+            .optional(),
+          timeRange: z.string().optional(),
+        },
+        annotations: readOnlyAnnotations,
+        _meta: modelOnlyToolMeta,
       },
-      annotations: readOnlyAnnotations,
-      _meta: modelOnlyToolMeta,
-    },
-    async ({ query, scope, timeRange }) => {
-      try {
-        const results = await adapter.search(query, scope as SearchScope[] | undefined, timeRange);
-        const structuredContent = sanitizePayload({ profile: config.appProfile, results });
-        return {
-          structuredContent,
-          content: narrative(
-            results.length
-              ? `Found ${results.length} result(s) for "${query}" in ${scope?.length ? asSummaryList(scope) : "all scopes"}.`
-              : `No results found for "${query}".`
-          ),
-          _meta: sanitizePayload({ profile: config.appProfile }),
-        };
-      } catch (error) {
-        return buildToolError("search", error);
+      async ({ query, scope, timeRange }) => {
+        try {
+          const results = await adapter.search(query, scope as SearchScope[] | undefined, timeRange);
+          const structuredContent = sanitizePayload({ profile: config.appProfile, results });
+          return {
+            structuredContent,
+            content: narrative(
+              results.length
+                ? `Found ${results.length} result(s) for "${query}" in ${scope?.length ? asSummaryList(scope) : "all scopes"}.`
+                : `No results found for "${query}".`
+            ),
+            _meta: sanitizePayload({ profile: config.appProfile }),
+          };
+        } catch (error) {
+          return buildToolError("search", error);
+        }
       }
-    }
-  );
+    );
 
   registerAppTool(
     server,
@@ -5400,6 +5405,7 @@ export function createMcpAppServer(
       }
     }
   );
+  }
 
   registerAppTool(
     server,
@@ -5557,7 +5563,7 @@ export function createMcpAppServer(
     }
   );
 
-  if (enableAgentBridge) {
+  if (enableBridgeTools) {
     registerAppTool(
       server,
       "augnes_get_state_brief",

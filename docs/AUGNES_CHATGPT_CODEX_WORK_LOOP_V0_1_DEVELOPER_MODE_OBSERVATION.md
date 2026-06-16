@@ -251,3 +251,7 @@ either expose a narrower read-only-only Developer Mode app surface for the
 work-loop tools or identify the exact ChatGPT host safety criterion blocking
 `Augnes_Work_Loop_Local.augnes_list_work_items`. Then rerun the same AG-006
 Work Picker -> Work Brief -> result-state scenarios and clipboard checks.
+
+Follow-up: `docs/AUGNES_CHATGPT_CODEX_WORK_LOOP_V0_1_READONLY_DEVELOPER_PROFILE.md`
+records the read-only-only work-loop profile added after this observation and
+the remaining Developer Mode create/update limitation observed in ChatGPT Atlas.
