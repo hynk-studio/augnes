@@ -592,6 +592,22 @@ const CODEX_RESULT_REVIEW_PACKET_BOUNDARY_TEXT = [
   "Result review uses only already-present structured payload fields and does not invent changed files, verification results, PR URLs, screenshots, proof IDs, evidence IDs, findings, or host observations.",
 ] as const;
 
+const RESULT_REVIEW_CLOSURE_PREVIEW_BOUNDARY_TEXT = [
+  "Result closure is read-only preview guidance.",
+  "No work close.",
+  "No work status update.",
+  "No event creation.",
+  "No event mutation.",
+  "No proof/evidence write.",
+  "No state commit/reject.",
+  "No Codex execution.",
+  "No GitHub calls.",
+  "No PR review submission.",
+  "No branch/PR creation.",
+  "No provider/OpenAI calls.",
+  "No publish/merge/retry/replay/deploy authority.",
+] as const;
+
 const CODEX_RESULT_REVIEW_PACKET_WARNINGS = [
   "Attach a Codex final report or structured result payload before treating this packet as ready for human review.",
   "Run any GitHub PR metadata review through a separate explicitly scoped read-only connector/reviewer flow outside the App/MCP server.",
@@ -962,6 +978,38 @@ type CodexResultReviewPacketPreview = {
   review_questions: string[];
   review_recommendation: CodexResultReviewRecommendation;
   suggested_next_action: CodexResultReviewNextActionCategory;
+  warnings: string[];
+  boundary_text: readonly string[];
+};
+
+type ResultReviewClosureRecommendation =
+  | "needs_result_input"
+  | "close_ready"
+  | "additional_verification_needed"
+  | "follow_up_fix_needed"
+  | "new_handoff_needed"
+  | "result_incomplete_or_blocked"
+  | "human_decision_needed";
+
+type ResultReviewClosurePreview = {
+  closure_type: "result_review_followup_closure_preview";
+  status: ResultReviewClosureRecommendation;
+  scope: string | null;
+  work_id: string | null;
+  result_review_status: CodexResultReviewPacketStatus;
+  result_source: CodexResultReviewSource;
+  review_recommendation: CodexResultReviewRecommendation;
+  suggested_result_status: CodexResultReviewSuggestedResultStatus;
+  suggested_next_action: CodexResultReviewNextActionCategory;
+  closure_recommendation: ResultReviewClosureRecommendation;
+  closure_summary: string;
+  reasons: string[];
+  missing_before_close: string[];
+  verification_still_needed: string[];
+  follow_up_seed: string;
+  human_decision_items: string[];
+  related_event_count: number;
+  timeline_status: WorkEventSpineTimelineStatus;
   warnings: string[];
   boundary_text: readonly string[];
 };
@@ -2813,6 +2861,305 @@ function buildCodexResultReviewPacketPreview(
     warnings,
     boundary_text: CODEX_RESULT_REVIEW_PACKET_BOUNDARY_TEXT,
   };
+}
+
+function resultReviewAlignmentNeedsAttention(alignment: CodexResultReviewAlignment): boolean {
+  return alignment.status !== "aligned";
+}
+
+function resultReviewHasContextMismatch(packet: CodexResultReviewPacketPreview): boolean {
+  return (
+    packet.suggested_next_action === "new_handoff_needed" ||
+    packet.warnings.some((warning) => /does not match the opened/i.test(warning))
+  );
+}
+
+function resultReviewVerificationStillNeeded(packet: CodexResultReviewPacketPreview): string[] {
+  if (packet.status === "needs_result_input" || packet.result_source === "not_provided") {
+    return packet.expected_checks.length
+      ? packet.expected_checks.map((check) => `Provide verification command/result coverage for: ${check}`)
+      : ["Provide verification commands and results from the Codex run."];
+  }
+
+  if (packet.verification_alignment.status === "aligned") return [];
+
+  if (packet.verification_alignment.missing.length) {
+    return packet.verification_alignment.missing.map((check) => `Missing expected verification coverage: ${check}`);
+  }
+
+  if (packet.reported_verification_commands.length === 0 && packet.reported_verification_results.length === 0) {
+    return packet.expected_checks.length
+      ? packet.expected_checks.map((check) => `Verification result not reported for expected check: ${check}`)
+      : ["Verification commands and results were not reported."];
+  }
+
+  return [packet.verification_alignment.summary];
+}
+
+function resultReviewMissingBeforeClose(packet: CodexResultReviewPacketPreview): string[] {
+  const missingFiles = packet.file_alignment.status === "aligned"
+    ? []
+    : packet.file_alignment.missing.map((path) => `Expected file not covered by reported changes: ${path}`);
+  const skippedCheckGaps = packet.skipped_check_alignment.status === "aligned"
+    ? []
+    : packet.skipped_check_alignment.missing.map((item) => `Skipped check needs concrete closeout handling: ${item}`);
+  const missingSections = packet.missing_required_closeout_sections.map((section) => `Closeout section not found in reported result: ${section}`);
+
+  return uniqueNonEmptyStrings([
+    ...packet.missing_result_input_fields.map((field) => `Missing result input: ${field}`),
+    ...missingFiles,
+    ...skippedCheckGaps,
+    ...packet.authority_boundary_issues,
+    ...missingSections,
+  ]);
+}
+
+function resultReviewClosureRecommendation(packet: CodexResultReviewPacketPreview): ResultReviewClosureRecommendation {
+  const resultMissing =
+    packet.status === "needs_result_input" ||
+    packet.status === "not_provided" ||
+    packet.result_source === "not_provided";
+  if (resultMissing) return "needs_result_input";
+  if (resultReviewHasContextMismatch(packet)) return "new_handoff_needed";
+  if (packet.suggested_result_status === "blocked" || packet.suggested_next_action === "result_incomplete_blocked") {
+    return "result_incomplete_or_blocked";
+  }
+  if (packet.suggested_result_status === "failed" || packet.suggested_next_action === "follow_up_fix_needed") {
+    return "follow_up_fix_needed";
+  }
+
+  const verificationMissing =
+    resultReviewAlignmentNeedsAttention(packet.verification_alignment) ||
+    (packet.reported_verification_commands.length === 0 && packet.reported_verification_results.length === 0) ||
+    packet.suggested_next_action === "additional_verification_needed";
+  if (verificationMissing) return "additional_verification_needed";
+
+  const closeReady =
+    packet.review_recommendation === "ready_for_human_review" &&
+    packet.suggested_result_status === "completed" &&
+    packet.suggested_next_action === "close_done" &&
+    packet.missing_result_input_fields.length === 0 &&
+    packet.authority_boundary_issues.length === 0 &&
+    packet.file_alignment.status === "aligned" &&
+    packet.verification_alignment.status === "aligned" &&
+    packet.skipped_check_alignment.status === "aligned";
+  if (closeReady) return "close_ready";
+
+  return "human_decision_needed";
+}
+
+function resultReviewClosureReasons(
+  packet: CodexResultReviewPacketPreview,
+  recommendation: ResultReviewClosureRecommendation,
+  missingBeforeClose: string[],
+  verificationStillNeeded: string[],
+  timeline: WorkEventSpineTimeline
+): string[] {
+  const base = [
+    `Result review status is ${packet.status}.`,
+    `Result source is ${packet.result_source}.`,
+    `Review recommendation is ${packet.review_recommendation}.`,
+    `Suggested result status is ${packet.suggested_result_status}.`,
+    `Suggested next action is ${packet.suggested_next_action}.`,
+    `Related event timeline status is ${timeline.status} with ${timeline.event_count} event(s).`,
+  ];
+
+  switch (recommendation) {
+    case "needs_result_input":
+      return [
+        ...base,
+        "No complete Codex result input is attached, so Augnes cannot review close readiness.",
+      ];
+    case "new_handoff_needed":
+      return [
+        ...base,
+        "The imported result appears mismatched to the opened work item or scope.",
+      ];
+    case "result_incomplete_or_blocked":
+      return [
+        ...base,
+        "The result is reported or inferred as blocked/incomplete.",
+      ];
+    case "follow_up_fix_needed":
+      return [
+        ...base,
+        "The result is failed or has review gaps that point to a fix-focused follow-up.",
+      ];
+    case "additional_verification_needed":
+      return [
+        ...base,
+        verificationStillNeeded.length
+          ? "Expected verification is missing or only partially covered."
+          : "Verification alignment is not ready for close.",
+      ];
+    case "close_ready":
+      return [
+        ...base,
+        "Reported result input covers required result fields, expected files, expected checks, skipped checks, and authority boundary review.",
+      ];
+    case "human_decision_needed":
+    default:
+      return [
+        ...base,
+        missingBeforeClose.length
+          ? "Review gaps remain but do not map cleanly to a single automated follow-up category."
+          : "The result is ambiguous; a human decision is needed before close or follow-up.",
+      ];
+  }
+}
+
+function resultReviewHumanDecisionItems(
+  packet: CodexResultReviewPacketPreview,
+  recommendation: ResultReviewClosureRecommendation
+): string[] {
+  const closeDecision =
+    "Human/Core must decide whether to close the work; GitHub reviewers decide merge/review outside this surface.";
+  const base = uniqueNonEmptyStrings([
+    ...packet.review_questions,
+    ...packet.remaining_caveats.map((caveat) => `Review remaining caveat: ${caveat}`),
+  ]);
+
+  switch (recommendation) {
+    case "close_ready":
+      return uniqueNonEmptyStrings([closeDecision, ...base]);
+    case "needs_result_input":
+      return ["Decide whether to provide Codex result input now or defer closure review."];
+    case "new_handoff_needed":
+      return uniqueNonEmptyStrings([
+        "Decide whether this result belongs to another work item or should start a new manual handoff.",
+        ...base,
+      ]);
+    case "result_incomplete_or_blocked":
+      return uniqueNonEmptyStrings([
+        "Decide whether Codex or a human should unblock the reported result.",
+        ...base,
+      ]);
+    case "additional_verification_needed":
+      return uniqueNonEmptyStrings([
+        "Decide who should run or provide the missing verification before any close decision.",
+        ...base,
+      ]);
+    case "follow_up_fix_needed":
+      return uniqueNonEmptyStrings([
+        "Decide whether to send a fix-focused follow-up to Codex or handle the gap manually.",
+        ...base,
+      ]);
+    case "human_decision_needed":
+    default:
+      return uniqueNonEmptyStrings([
+        closeDecision,
+        "Decide whether the result is enough for close, needs verification, or needs a follow-up.",
+        ...base,
+      ]);
+  }
+}
+
+function resultReviewClosureSummary(
+  packet: CodexResultReviewPacketPreview,
+  recommendation: ResultReviewClosureRecommendation
+): string {
+  switch (recommendation) {
+    case "needs_result_input":
+      return "Result closure needs Codex result input before Augnes can review close readiness.";
+    case "close_ready":
+      return "Result appears ready for a human close, merge, or review decision outside this preview surface.";
+    case "additional_verification_needed":
+      return "Result needs additional verification evidence before a close decision.";
+    case "follow_up_fix_needed":
+      return "Result needs a fix-focused follow-up before close.";
+    case "new_handoff_needed":
+      return "Result appears mismatched or broad enough that a new manual handoff should be considered.";
+    case "result_incomplete_or_blocked":
+      return "Result appears incomplete or blocked and needs an unblock decision.";
+    case "human_decision_needed":
+    default:
+      return `Result closure is ambiguous after review recommendation ${packet.review_recommendation}; a human decision is needed.`;
+  }
+}
+
+function resultReviewClosureFollowUpSeed(input: {
+  packet: CodexResultReviewPacketPreview;
+  recommendation: ResultReviewClosureRecommendation;
+  missingBeforeClose: string[];
+  verificationStillNeeded: string[];
+  humanDecisionItems: string[];
+}): string {
+  const workLabel = input.packet.work_id ?? "this work item";
+  const prefix = `Preview-only follow-up seed for ${workLabel}:`;
+
+  switch (input.recommendation) {
+    case "needs_result_input":
+      return `${prefix} ask the user to provide Codex final report text, changed files, verification commands/results, skipped checks with concrete reasons or an explicit none-skipped statement, remaining caveats, and an authority boundary statement.`;
+    case "additional_verification_needed":
+      return `${prefix} run a verification-focused manual follow-up using: ${listForPacket(input.verificationStillNeeded, "the missing expected checks from the result review packet")}`;
+    case "follow_up_fix_needed":
+      return `${prefix} start a fix-focused manual follow-up using the missing files, partial alignments, caveats, and review questions from the result review packet.`;
+    case "new_handoff_needed":
+      return `${prefix} open a new manual handoff only if the human confirms the imported result is mismatched or a new task is needed.`;
+    case "result_incomplete_or_blocked":
+      return `${prefix} summarize the blocker and ask whether Codex or a human should unblock it before any close decision.`;
+    case "human_decision_needed":
+      return `${prefix} ask a human to decide between close, more verification, a fix follow-up, or a new handoff using: ${listForPacket(input.humanDecisionItems, "the review questions and warnings")}`;
+    case "close_ready":
+      return `${prefix} result appears ready for human close/merge/review decision, but this surface does not close work, merge PRs, approve, commit state, or record proof.`;
+  }
+}
+
+function buildResultReviewClosurePreview(input: {
+  reviewPacket: CodexResultReviewPacketPreview;
+  timeline: WorkEventSpineTimeline;
+  scope: string | null;
+  workId: string | null;
+}): ResultReviewClosurePreview {
+  const recommendation = resultReviewClosureRecommendation(input.reviewPacket);
+  const missingBeforeClose = resultReviewMissingBeforeClose(input.reviewPacket);
+  const verificationStillNeeded = resultReviewVerificationStillNeeded(input.reviewPacket);
+  const humanDecisionItems = resultReviewHumanDecisionItems(input.reviewPacket, recommendation);
+  const timelineWarnings = input.timeline.status === "empty"
+    ? ["No coordination events are attached to this work item; closure guidance has no related event spine anchor."]
+    : [];
+  const warnings = uniqueNonEmptyStrings([
+    ...input.reviewPacket.warnings,
+    ...timelineWarnings,
+    "Result closure recommendation is advisory preview text only and does not create durable lifecycle state.",
+  ]);
+
+  return {
+    closure_type: "result_review_followup_closure_preview",
+    status: recommendation,
+    scope: input.scope,
+    work_id: input.workId ?? input.reviewPacket.work_id,
+    result_review_status: input.reviewPacket.status,
+    result_source: input.reviewPacket.result_source,
+    review_recommendation: input.reviewPacket.review_recommendation,
+    suggested_result_status: input.reviewPacket.suggested_result_status,
+    suggested_next_action: input.reviewPacket.suggested_next_action,
+    closure_recommendation: recommendation,
+    closure_summary: resultReviewClosureSummary(input.reviewPacket, recommendation),
+    reasons: resultReviewClosureReasons(input.reviewPacket, recommendation, missingBeforeClose, verificationStillNeeded, input.timeline),
+    missing_before_close: missingBeforeClose,
+    verification_still_needed: verificationStillNeeded,
+    follow_up_seed: resultReviewClosureFollowUpSeed({
+      packet: input.reviewPacket,
+      recommendation,
+      missingBeforeClose,
+      verificationStillNeeded,
+      humanDecisionItems,
+    }),
+    human_decision_items: humanDecisionItems,
+    related_event_count: input.timeline.event_count,
+    timeline_status: input.timeline.status,
+    warnings,
+    boundary_text: RESULT_REVIEW_CLOSURE_PREVIEW_BOUNDARY_TEXT,
+  };
+}
+
+function describeResultReviewClosurePreview(preview: ResultReviewClosurePreview): string {
+  return [
+    `Result closure preview for ${preview.work_id ?? "unknown work"} recommends ${preview.closure_recommendation}.`,
+    preview.closure_summary,
+    RESULT_REVIEW_CLOSURE_PREVIEW_BOUNDARY_TEXT.join(" "),
+  ].join(" ");
 }
 
 function summarizeCodexResultReviewPacket(packet: CodexResultReviewPacketPreview): string {
@@ -5140,6 +5487,12 @@ export function createMcpAppServer(
         );
         const codexExecutionRequestPreview = buildCodexExecutionRequestPreview(finalCodexHandoffPacket);
         const workEventSpineTimeline = buildWorkEventSpineTimeline(brief);
+        const resultReviewClosurePreview = buildResultReviewClosurePreview({
+          reviewPacket: finalCodexHandoffPacket.codex_result_review_packet_preview,
+          timeline: workEventSpineTimeline,
+          scope: finalCodexHandoffPacket.work_scope,
+          workId: finalCodexHandoffPacket.work_id,
+        });
         const structuredContent = sanitizePayload({
           profile: config.appProfile,
           panel: "work_contract_card",
@@ -5173,6 +5526,10 @@ export function createMcpAppServer(
           codex_pr_review_packet_preview: finalCodexHandoffPacket.codex_pr_review_packet_preview,
           codex_result_import_input_shape: CODEX_RESULT_IMPORT_INPUT_SHAPE,
           codex_result_import_review_surface: finalCodexHandoffPacket.codex_result_review_packet_preview,
+          result_review_closure_preview: resultReviewClosurePreview,
+          work_result_closure_preview: resultReviewClosurePreview,
+          next_action_closure: resultReviewClosurePreview,
+          followup_closure_preview: resultReviewClosurePreview,
           final_handoff_preflight: finalHandoffPreflight,
           final_handoff_readiness_summary: finalHandoffReadinessSummary,
           pre_run_handoff_readiness: finalHandoffReadinessSummary.pre_run_handoff_readiness,
@@ -5190,7 +5547,7 @@ export function createMcpAppServer(
         return {
           structuredContent,
           content: narrative(
-            `${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)} ${describeWorkEventSpineTimeline(workEventSpineTimeline)} ${describeCodexHandoffPreview(codexHandoffPreview)} ${describeFinalCodexHandoffPacket(finalCodexHandoffPacket, finalHandoffPreflight)} ${codexExecutionRequestPreview.boundary_text.join(" ")}`
+            `${describeWorkBrief(brief)} ${describeWorkContractCard(workContractCard)} ${describeWorkEventSpineTimeline(workEventSpineTimeline)} ${describeResultReviewClosurePreview(resultReviewClosurePreview)} ${describeCodexHandoffPreview(codexHandoffPreview)} ${describeFinalCodexHandoffPacket(finalCodexHandoffPacket, finalHandoffPreflight)} ${codexExecutionRequestPreview.boundary_text.join(" ")}`
           ),
           _meta: structuredContent,
         };

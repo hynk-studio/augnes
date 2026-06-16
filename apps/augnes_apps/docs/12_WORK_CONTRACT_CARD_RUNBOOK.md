@@ -219,6 +219,58 @@ commit/reject. It does not fetch `/api/events`, call GitHub, call
 OpenAI/providers, execute Codex, create or mutate events, write database rows,
 persist selections, publish, merge, retry, replay, or deploy.
 
+## Result Review Closure Preview
+
+The Result Review Closure Preview is a compact read-only section inside the
+Work Contract Card. It helps the operator decide what should happen after a
+Codex result import/review without closing work, creating follow-up work, or
+performing any write.
+
+Data sources:
+
+```text
+finalCodexHandoffPacket.codex_result_review_packet_preview
+work_event_spine_timeline
+existing work contract / handoff context
+```
+
+The `augnes_get_work_brief` response exposes the derived model-readable
+closure object through these aliases:
+
+- `result_review_closure_preview`
+- `work_result_closure_preview`
+- `next_action_closure`
+- `followup_closure_preview`
+
+The closure preview maps the existing result review packet into one bounded
+recommendation category: `needs_result_input`, `close_ready`,
+`additional_verification_needed`, `follow_up_fix_needed`,
+`new_handoff_needed`, `result_incomplete_or_blocked`, or
+`human_decision_needed`. It preserves the result review packet's
+`suggested_next_action`, but derives its own closure recommendation from the
+review status, source, result status, alignments, missing input fields,
+authority boundary issues, skipped-check handling, caveats, review questions,
+and timeline availability. When the data is ambiguous, it chooses
+`human_decision_needed` instead of treating the result as close-ready.
+
+The visible section shows `Result closure`, `Next action`,
+`Closure recommendation`, `Why this recommendation`, `Follow-up seed`,
+`Missing before close`, `Verification still needed`,
+`Human decision needed`, and `What this screen does not do`. The follow-up
+seed is preview-only text that can help a human start the next Codex or human
+step manually. It is not a created work item, handoff record, mailbox item,
+event, proof row, or evidence row.
+
+If no Codex result input is attached, the closure preview explicitly recommends
+`needs_result_input`. It must not invent changed files, verification results,
+PR URLs, proof IDs, evidence IDs, event IDs, close status, or human approval.
+
+This surface is not durable lifecycle closure and not follow-up automation. It
+does not close work, update work status, create or mutate coordination events,
+record proof/evidence, commit or reject Augnes state, execute Codex, fetch
+GitHub, submit PR reviews, create branches or PRs, call OpenAI/providers,
+publish, merge, retry, replay, or deploy.
+
 ## Final Codex Handoff Auto-Compose And Preflight
 
 The Work Contract Card also derives a `final_codex_handoff_packet` from the

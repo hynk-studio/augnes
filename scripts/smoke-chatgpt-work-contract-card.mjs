@@ -60,6 +60,11 @@ assert.match(server, /final_handoff_closeout_skeleton/, "server must return a cl
 assert.match(server, /codex_result_review_packet_preview/, "server must return Codex result review packet preview structured content");
 assert.match(server, /final_handoff_codex_result_review_packet/, "server must return a final handoff result review packet alias");
 assert.match(server, /codex_pr_review_packet_preview/, "server must return a PR review packet preview alias");
+assert.match(server, /buildResultReviewClosurePreview/, "server must build a result review closure preview");
+assert.match(server, /result_review_closure_preview/, "server must return result review closure preview structured content");
+assert.match(server, /work_result_closure_preview/, "server must return work result closure preview alias");
+assert.match(server, /next_action_closure/, "server must return next action closure alias");
+assert.match(server, /followup_closure_preview/, "server must return follow-up closure preview alias");
 assert.match(server, /CodexResultImportInputSchema/, "server must define a bounded Codex result import input schema");
 assert.match(server, /normalizeSkippedCheckResultObjects/, "server must preserve structured skipped-check reason objects");
 assert.match(server, /codexResult:\s*CodexResultImportInputSchema\.optional\(\)/, "augnes_get_work_brief must accept optional codexResult input");
@@ -93,6 +98,8 @@ assert.match(widget, /renderHandoffAutomationSlots/, "widget must render future 
 assert.match(widget, /renderMemoryReuseAttachmentProposal/, "widget must render Memory Reuse attachment proposal state");
 assert.match(widget, /renderPrBodyChecklistPreview/, "widget must render PR body checklist preview state");
 assert.match(widget, /renderCodexResultReviewPacketPreview/, "widget must render Codex result review packet preview state");
+assert.match(widget, /normalizeResultReviewClosurePreview/, "widget must normalize result review closure preview state");
+assert.match(widget, /renderResultReviewClosurePreview/, "widget must render result review closure preview state");
 assert.match(widget, /normalizeWorkEventSpineTimeline/, "widget must normalize Work Event Spine timeline state");
 assert.match(widget, /renderWorkEventSpineTimeline/, "widget must render Work Event Spine timeline state");
 assert.match(widget, /Work event spine/, "widget must render the Work event spine section");
@@ -110,6 +117,12 @@ assert.match(widget, /Verification review/, "widget must render verification rev
 assert.match(widget, /Remaining caveats/, "widget must render remaining caveats");
 assert.match(widget, /Suggested next action/, "widget must render suggested next action");
 assert.match(widget, /What this screen does not do/, "widget must render result-review non-authority text");
+assert.match(widget, /Result closure/, "widget must render result closure section");
+assert.match(widget, /Closure recommendation/, "widget must render closure recommendation");
+assert.match(widget, /Follow-up seed/, "widget must render closure follow-up seed");
+assert.match(widget, /Missing before close/, "widget must render missing-before-close details");
+assert.match(widget, /Verification still needed/, "widget must render verification-still-needed details");
+assert.match(widget, /Human decision needed/, "widget must render human-decision details");
 assert.match(widget, /renderFinalHandoffReadinessSummary/, "widget must render final handoff readiness summary state");
 assert.match(widget, /normalizeFinalHandoffReadinessSummary/, "widget must normalize final handoff readiness summary state");
 assert.match(widget, /renderWorkContractConstellationContext/, "widget must render Work Contract / Constellation context");
@@ -353,6 +366,9 @@ assertNoNetworkCalls(extractFunction(server, "finalHandoffCodexResultReviewPacke
 assertNoNetworkCalls(extractFunction(server, "buildFinalHandoffPreflight"), "buildFinalHandoffPreflight");
 assertNoNetworkCalls(extractFunction(server, "buildFinalHandoffReadinessSummary"), "buildFinalHandoffReadinessSummary");
 assertNoNetworkCalls(extractFunction(server, "buildCodexExecutionRequestPreview"), "buildCodexExecutionRequestPreview");
+assertNoNetworkCalls(extractFunction(server, "buildResultReviewClosurePreview"), "buildResultReviewClosurePreview");
+assertNoNetworkCalls(extractFunction(server, "resultReviewClosureRecommendation"), "resultReviewClosureRecommendation");
+assertNoNetworkCalls(extractFunction(server, "resultReviewClosureFollowUpSeed"), "resultReviewClosureFollowUpSeed");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContext"), "buildWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(server, "buildWorkContractConstellationContextFromBrief"), "buildWorkContractConstellationContextFromBrief");
 assertNoNetworkCalls(extractFunction(server, "describeWorkContractCard"), "describeWorkContractCard");
@@ -370,6 +386,8 @@ assertNoNetworkCalls(extractFunction(widget, "renderFinalHandoffPreflight"), "re
 assertNoNetworkCalls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoNetworkCalls(extractFunction(widget, "renderPrBodyChecklistPreview"), "renderPrBodyChecklistPreview");
 assertNoNetworkCalls(extractFunction(widget, "renderCodexResultReviewPacketPreview"), "renderCodexResultReviewPacketPreview");
+assertNoNetworkCalls(extractFunction(widget, "normalizeResultReviewClosurePreview"), "normalizeResultReviewClosurePreview");
+assertNoNetworkCalls(extractFunction(widget, "renderResultReviewClosurePreview"), "renderResultReviewClosurePreview");
 assertNoNetworkCalls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoNetworkCalls(extractFunction(widget, "renderWorkContractConstellationContext"), "renderWorkContractConstellationContext");
 assertNoNetworkCalls(extractFunction(widget, "renderCopyableHandoffPacket"), "renderCopyableHandoffPacket");
@@ -406,6 +424,9 @@ assertNoNetworkCalls(extractFunction(widget, "normalizeMemoryReuseAttachmentProp
 assertNoNetworkCalls(extractFunction(widget, "normalizePrBodyChecklistPreview"), "normalizePrBodyChecklistPreview");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCloseoutSkeleton"), "normalizeCloseoutSkeleton");
 assertNoNetworkCalls(extractFunction(widget, "normalizeCodexResultReviewPacket"), "normalizeCodexResultReviewPacket");
+assertNoNetworkCalls(extractFunction(widget, "deriveClosureRecommendation"), "deriveClosureRecommendation");
+assertNoNetworkCalls(extractFunction(widget, "closureFollowUpSeed"), "closureFollowUpSeed");
+assertNoNetworkCalls(extractFunction(widget, "formatClosureReasonText"), "formatClosureReasonText");
 assertNoNetworkCalls(extractFunction(widget, "memoryReuseAttachmentPreflightCheck"), "memoryReuseAttachmentPreflightCheck");
 assertNoNetworkCalls(extractFunction(widget, "prBodyChecklistPreflightCheck"), "prBodyChecklistPreflightCheck");
 assertNoNetworkCalls(extractFunction(widget, "codexResultReviewPacketPreflightCheck"), "codexResultReviewPacketPreflightCheck");
@@ -471,6 +492,18 @@ const renderSource = [
   extractFunction(widget, "normalizeCloseoutSkeleton"),
   extractFunction(widget, "makeAlignment"),
   extractFunction(widget, "normalizeCodexResultReviewPacket"),
+  extractFunction(widget, "resultReviewClosureBoundaryText"),
+  extractFunction(widget, "uniqueTextArray"),
+  extractFunction(widget, "alignmentNeedsAttention"),
+  extractFunction(widget, "hasResultContextMismatch"),
+  extractFunction(widget, "deriveClosureRecommendation"),
+  extractFunction(widget, "deriveVerificationStillNeeded"),
+  extractFunction(widget, "deriveMissingBeforeClose"),
+  extractFunction(widget, "closureSummaryForRecommendation"),
+  extractFunction(widget, "closureHumanDecisionItems"),
+  extractFunction(widget, "closureFollowUpSeed"),
+  extractFunction(widget, "formatClosureReasonText"),
+  extractFunction(widget, "normalizeResultReviewClosurePreview"),
   extractFunction(widget, "codexResultReviewPacketLineItems"),
   extractFunction(widget, "fallbackHandoffAutomationSlots"),
   extractFunction(widget, "slotLine"),
@@ -513,6 +546,7 @@ const renderSource = [
   extractFunction(widget, "renderMemoryReuseAttachmentProposal"),
   extractFunction(widget, "renderPrBodyChecklistPreview"),
   extractFunction(widget, "renderCodexResultReviewPacketPreview"),
+  extractFunction(widget, "renderResultReviewClosurePreview"),
   extractFunction(widget, "formatTimelineSortOrder"),
   extractFunction(widget, "renderWorkEventTimelineItem"),
   extractFunction(widget, "renderWorkEventSpineTimeline"),
@@ -532,9 +566,11 @@ assertNoForbiddenControls(extractFunction(widget, "renderCodexExecutionRequestPr
 assertNoForbiddenControls(extractFunction(widget, "renderMemoryReuseAttachmentProposal"), "renderMemoryReuseAttachmentProposal");
 assertNoForbiddenControls(extractFunction(widget, "renderPrBodyChecklistPreview"), "renderPrBodyChecklistPreview");
 assertNoForbiddenControls(extractFunction(widget, "renderCodexResultReviewPacketPreview"), "renderCodexResultReviewPacketPreview");
+assertNoForbiddenControls(extractFunction(widget, "renderResultReviewClosurePreview"), "renderResultReviewClosurePreview");
 assertNoForbiddenControls(extractFunction(widget, "renderHandoffAutomationSlots"), "renderHandoffAutomationSlots");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkContractCard"), "normalizeWorkContractCard");
 assertNoForbiddenControls(extractFunction(widget, "normalizeWorkEventSpineTimeline"), "normalizeWorkEventSpineTimeline");
+assertNoForbiddenControls(extractFunction(widget, "normalizeResultReviewClosurePreview"), "normalizeResultReviewClosurePreview");
 assertNoForbiddenControls(extractFunction(widget, "renderWorkEventSpineTimeline"), "renderWorkEventSpineTimeline");
 assertNoForbiddenControls(extractFunction(widget, "normalizeCodexHandoffPreview"), "normalizeCodexHandoffPreview");
 assertNoForbiddenControls(extractFunction(widget, "normalizeFinalHandoffReadinessSummary"), "normalizeFinalHandoffReadinessSummary");
@@ -616,6 +652,7 @@ for (const expectedFallback of [
   "No related state keys are listed in the work brief.",
   "No proof/evidence expectation is listed in the work brief; proof and evidence remain separate from approval.",
   "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief.",
+  "No work close.",
 ]) {
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedFallback)), `fallback render must include: ${expectedFallback}`);
 }
@@ -682,6 +719,14 @@ for (const expectedVisibleText of [
   "Created at ascending",
   "No coordination events yet",
   "No coordination events are attached to this work item yet.",
+  "Result closure",
+  "Closure recommendation",
+  "Needs result input",
+  "Why this recommendation",
+  "Follow-up seed",
+  "Missing before close",
+  "Verification still needed",
+  "Human decision needed",
   "Readiness reasons",
   "Copy packet",
   "Codex handoff recommendation",
