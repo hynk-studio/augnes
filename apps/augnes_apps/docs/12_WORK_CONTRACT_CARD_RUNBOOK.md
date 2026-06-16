@@ -9,6 +9,9 @@ Codex worker is expected to honor before implementation and closeout.
 The card is decision support only. It does not create authority, record proof,
 record evidence, mutate runtime state, or dispatch execution.
 
+For the integrated post-PR #596 dogfood closeout snapshot, see
+`docs/AUGNES_CHATGPT_CODEX_WORK_LOOP_V0_1_SNAPSHOT.md`.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
