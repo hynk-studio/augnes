@@ -188,6 +188,38 @@ const readOnlyLocalCurlDefault = runHelper({ packet: packetWithJson(readOnlyLoca
 assert.equal(readOnlyLocalCurlDefault.status, 0, readOnlyLocalCurlDefault.stderr);
 assertCheck(readOnlyLocalCurlDefault.json, "write_shell_commands", "pass");
 
+const fullPacketCloseoutCurlJson = cloneJson(completeJson);
+fullPacketCloseoutCurlJson.packet_kind = "final_codex_handoff_packet";
+fullPacketCloseoutCurlJson.final_packet_schema = "augnes.final_codex_handoff_packet.v0_1";
+fullPacketCloseoutCurlJson.expected_scope.checks = [
+  'curl -sS "http://localhost:3000/api/work/AG-006?scope=project%3Aaugnes" | jq .',
+  'curl -sS "http://localhost:3000/api/work/AG-006/brief?scope=project%3Aaugnes" | jq .',
+];
+fullPacketCloseoutCurlJson.codex_closeout_skeleton = {
+  status: "preview_only",
+  copyable_closeout_text: [
+    "## Verification",
+    "Expected checks from handoff:",
+    '  - curl -sS "http://localhost:3000/api/work/AG-006?scope=project%3Aaugnes" | jq .',
+    '  - curl -sS "http://localhost:3000/api/work/AG-006/brief?scope=project%3Aaugnes" | jq .',
+    "Do not claim they passed until they have actually run.",
+  ].join("\n"),
+};
+const fullPacketCloseoutCurlDefault = runHelper({ packet: packetWithJson(fullPacketCloseoutCurlJson) });
+assert.equal(fullPacketCloseoutCurlDefault.status, 0, fullPacketCloseoutCurlDefault.stderr);
+assertCheck(fullPacketCloseoutCurlDefault.json, "write_shell_commands", "pass");
+
+const fullPacketCloseoutUnsafeCurlJson = cloneJson(fullPacketCloseoutCurlJson);
+fullPacketCloseoutUnsafeCurlJson.codex_closeout_skeleton.copyable_closeout_text = [
+  "## Verification",
+  "Expected checks from handoff:",
+  '  - curl -sS -X POST "http://localhost:3000/api/work/AG-006" | jq .',
+  "Do not claim they passed until they have actually run.",
+].join("\n");
+const fullPacketCloseoutUnsafeCurlDefault = runHelper({ packet: packetWithJson(fullPacketCloseoutUnsafeCurlJson) });
+assert.notEqual(fullPacketCloseoutUnsafeCurlDefault.status, 0);
+assertCheck(fullPacketCloseoutUnsafeCurlDefault.json, "write_shell_commands", "fail");
+
 for (const unsafeCurlCheck of [
   'curl -sS -X POST "http://localhost:3000/api/work/AG-006" | jq .',
   'curl --request PATCH "http://localhost:3000/api/work/AG-006"',
@@ -469,6 +501,8 @@ console.log(
         "complete copied handoff packet with JSON block passes default mode",
         "complete copied handoff packet with JSON block passes strict mode",
         "read-only localhost curl GET checks piped to jq are allowed",
+        "Full packet closeout read-only localhost curl GET checks piped to jq are allowed",
+        "Full packet closeout mutating curl checks are blocked",
         "mutating curl and shell write forms are blocked",
         "JSON block with placeholder runtime warns by default and fails strict",
         "malformed JSON block fails",

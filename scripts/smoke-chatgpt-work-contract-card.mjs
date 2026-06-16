@@ -6,14 +6,16 @@ const serverPath = "apps/augnes_apps/src/server.ts";
 const widgetPath = "apps/augnes_apps/public/console-widget.html";
 const runbookPath = "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md";
 const packagePath = "package.json";
+const demoSeedPath = "scripts/demo-seed.mjs";
 
-for (const filePath of [serverPath, widgetPath, runbookPath, packagePath]) {
+for (const filePath of [serverPath, widgetPath, runbookPath, packagePath, demoSeedPath]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 
 const server = readFileSync(serverPath, "utf8");
 const widget = readFileSync(widgetPath, "utf8");
 const runbook = readFileSync(runbookPath, "utf8");
+const demoSeed = readFileSync(demoSeedPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assert.equal(
@@ -35,6 +37,9 @@ assert.match(server, /core_codex_handoff_packet/, "server must return Core Codex
 assert.match(server, /copyable_core_handoff_text/, "server must expose copyable Core handoff text");
 assert.match(server, /core_handoff_usage/, "server must expose Core handoff usage state");
 assert.match(server, /implementation_anchors/, "server must expose Core implementation anchors");
+assert.match(server, /buildFullContextImplementationAnchors/, "server must derive Full Context implementation anchors");
+assert.match(server, /FULL_CONTEXT_ANCHORS_BY_STATE_KEY/, "server must keep grounded state-key implementation anchors");
+assert.match(server, /implementation_anchor_summary/, "server must expose a Full Context implementation anchor summary");
 assert.match(server, /full_context_required_before_implementation/, "server must expose Full Context requirement state");
 assert.match(server, /codex_handoff_decision/, "server must expose Codex handoff decision guidance");
 assert.match(server, /codex_handoff_recommendation/, "server must expose Codex handoff recommendation alias");
@@ -112,6 +117,7 @@ assert.match(
 assert.match(runbook, /Copy Full Context/i, "runbook must document the full-context copy action");
 assert.match(runbook, /copyable_core_handoff_text/, "runbook must name the Core copy text field");
 assert.match(runbook, /copyable_full_handoff_text/, "runbook must name the Full copy text field");
+assert.match(runbook, /Full Context[\s\S]*Implementation anchors/i, "runbook must document Full Context implementation anchors");
 assert.match(runbook, /Final Codex Handoff Auto-Compose And Preflight/i, "runbook must explain final handoff auto-compose and preflight");
 assert.match(runbook, /final_codex_handoff_packet/, "runbook must name the final handoff packet field");
 assert.match(runbook, /final_handoff_preflight/, "runbook must name the final handoff preflight field");
@@ -122,6 +128,24 @@ assert.match(runbook, /preview-only PR body checklist/i, "runbook must document 
 assert.match(runbook, /closeout skeleton/i, "runbook must document the closeout skeleton");
 assert.match(runbook, /placeholders/i, "runbook must distinguish placeholders from actual results");
 assert.match(runbook, /codex_result_review_packet/, "runbook must document result review packet slot");
+
+assert.match(demoSeed, /workId:\s*"AG-006"/, "demo seed must include AG-006");
+assert.match(demoSeed, /implementation_anchors/, "AG-006 seed must expose implementation anchors without using expected_files");
+for (const expectedAg006Anchor of [
+  "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
+  "lib/db/schema.sql#coordination_events",
+  "lib/coordination-events.ts",
+  "app/api/events/route.ts",
+  "app/api/events/[event_id]/route.ts",
+  "lib/work.ts#appendCoordinationEvent",
+  "app/api/work/[work_id]/route.ts",
+  "app/api/work/[work_id]/brief/route.ts",
+  "scripts/demo-seed.mjs#AG-006",
+  "scripts/smoke-authority-invariants.mjs#coordination_events",
+]) {
+  assert.match(demoSeed, new RegExp(escapeRegExp(expectedAg006Anchor)), `AG-006 seed must include grounded Full Context anchor: ${expectedAg006Anchor}`);
+  assert.match(server, new RegExp(escapeRegExp(expectedAg006Anchor)), `server state-key fallback must include grounded Full Context anchor: ${expectedAg006Anchor}`);
+}
 assert.match(runbook, /preview-only Codex\s+result review packet/i, "runbook must document preview-only result review packet behavior");
 assert.match(runbook, /needs_result_input/i, "runbook must document missing result input state");
 assert.match(runbook, /pre-run handoff readiness/i, "runbook must distinguish pre-run handoff readiness");
@@ -263,6 +287,8 @@ assertNoNetworkCalls(extractFunction(server, "buildHandoffAutomationSlots"), "bu
 assertNoNetworkCalls(extractFunction(server, "constellationSummaryLines"), "constellationSummaryLines");
 assertNoNetworkCalls(extractFunction(server, "memoryReuseSummaryLines"), "memoryReuseSummaryLines");
 assertNoNetworkCalls(extractFunction(server, "prChecklistSummaryLines"), "prChecklistSummaryLines");
+assertNoNetworkCalls(extractFunction(server, "buildFullContextImplementationAnchors"), "buildFullContextImplementationAnchors");
+assertNoNetworkCalls(extractFunction(server, "fullContextImplementationAnchorSummary"), "fullContextImplementationAnchorSummary");
 assertNoNetworkCalls(extractFunction(server, "buildCodexHandoffDecision"), "buildCodexHandoffDecision");
 assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffJsonBlock"), "buildCoreCodexHandoffJsonBlock");
 assertNoNetworkCalls(extractFunction(server, "buildCoreCodexHandoffText"), "buildCoreCodexHandoffText");
@@ -803,6 +829,8 @@ console.log(
       core_codex_handoff_packet_present: true,
       core_handoff_usage_present: true,
       implementation_anchors_present: true,
+      full_context_implementation_anchors_present: true,
+      ag006_full_context_anchor_seed_checked: true,
       missing_anchors_require_full_context: true,
       anchored_core_packet_checked: true,
       codex_handoff_decision_present: true,

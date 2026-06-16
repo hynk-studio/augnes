@@ -719,6 +719,7 @@ function findWriteCommands(text) {
 
 function findUnsafeCurlCommands(text) {
   return text
+    .replace(/\\r\\n|\\n|\\r/g, "\n")
     .split(/\r?\n/)
     .map(extractCurlCommand)
     .filter((command) => command && !isAllowedReadOnlyLocalCurlCheck(command));
