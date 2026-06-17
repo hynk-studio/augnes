@@ -84,6 +84,15 @@ adds no paper ingestion, provider/OpenAI calls, embeddings, RAG, vector search,
 database schema, durable state writes, proof/evidence writes, work-status
 mutation, App/MCP tools, or `work_loop_readonly` widening.
 
+For Codex worker start-of-task discovery, see
+`docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md` and run
+`npm run codex:next-work -- --scope project:augnes` or the existing
+`npm run codex:read-brief` flow. Runtime Work Brief retrieval is preferred.
+Repo-backed fallback is allowed only when runtime is unavailable and must be
+reported honestly. This adds no write authority, no proof/evidence writes, no
+event creation/mutation, no state commit/reject, no App/MCP tools, and no
+`work_loop_readonly` widening.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
