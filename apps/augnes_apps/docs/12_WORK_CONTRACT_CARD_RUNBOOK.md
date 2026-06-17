@@ -102,6 +102,14 @@ report -> `codexResultText` / `codexResultPaste` preview-review path for
 `AG-DOGFOOD-RESEARCH-001`. It is deterministic and preview-only, with live
 Work Picker / Work Brief skipped because no runtime was configured.
 
+For the narrow live local-runtime observation of the same research work path,
+see `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md` and run
+`npm run smoke:live-research-work-picker-brief-observation-v0-1`. It records
+that the read-only Work Picker can show `AG-DOGFOOD-RESEARCH-001`, the Work
+Brief / Work Contract Card can open, Core Handoff and result-return paths are
+available, and no blocking live-path UX issue was found before pausing general
+UX polish for Research Accumulation preparation.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user

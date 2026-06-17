@@ -181,6 +181,7 @@
     "smoke:chatgpt-augnes-codex-flow-dogfood-scenario": "node scripts/smoke-chatgpt-augnes-codex-flow-dogfood-scenario.mjs",
     "smoke:research-accumulation-scenario-pack-v0-1": "node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
     "smoke:research-work-user-happy-path-observation-v0-1": "node scripts/smoke-research-work-user-happy-path-observation-v0-1.mjs",
+    "smoke:live-research-work-picker-brief-observation-v0-1": "node scripts/smoke-live-research-work-picker-brief-observation-v0-1.mjs",
     "smoke:chatgpt-augnes-codex-flow-dogfood-observation": "node scripts/smoke-chatgpt-augnes-codex-flow-dogfood-observation.mjs",
     "smoke:codex-self-opinion-dogfood-scenario": "node scripts/smoke-codex-self-opinion-dogfood-scenario.mjs",
     "smoke:codex-self-opinion-dogfood-run-observation": "node scripts/smoke-codex-self-opinion-dogfood-run-observation.mjs",
