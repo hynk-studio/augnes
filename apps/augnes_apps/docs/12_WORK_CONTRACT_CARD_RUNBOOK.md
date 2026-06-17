@@ -59,6 +59,13 @@ records the same filled AG-DOGFOOD-RESEARCH-001 sample after direct
 field-first parsing and keeps `field_first_report_context` preview-only rather
 than proof/evidence, host observation, mutation evidence, or close authority.
 
+For the deterministic dogfood observation after the Core Handoff `Current task
+only` compact subsection, see
+`docs/AUGNES_CORE_HANDOFF_CURRENT_TASK_DOGFOOD_OBSERVATION_V0_1.md`. It records
+the AG-006 fixture-backed Core copy shape, broader-context preservation, and the
+selected next narrow follow-up without adding execution, write authority, or new
+App/MCP tools.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
