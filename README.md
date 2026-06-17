@@ -1,71 +1,48 @@
 # Augnes
 
-## What it is
+Augnes is a local-first, operator-led runtime for AI-assisted project work. It
+keeps committed project state, work items, handoff context, proof-only action
+records, and Codex result reports in one local workspace so a human operator,
+ChatGPT / MCP clients, and Codex workers can coordinate without giving models
+direct authority over durable state.
 
-Augnes is a local runtime for AI-assisted project work. It keeps proposed
-changes, accepted state, work traces, and proof records in one place so ChatGPT
-Apps, MCP clients, Codex, and the Cockpit can work from the same committed
-state.
+## What It Can Do Today
 
-OpenAI output is used to draft interpretations and proposals, but it is not
-stored as durable project state on its own. Augnes records accepted transitions
-in SQLite, keeps commit/reject decisions behind a user/runtime gate, and links
-work to `AG-xxx` trace IDs.
+- Run a local Cockpit for reviewing state, work, bridge activity, Perspective
+  context, and operator controls.
+- Store accepted temporal state transitions in a local SQLite ledger behind an
+  explicit user/runtime commit/reject gate.
+- Compile local observe, plan, and temporal-interpretation previews with
+  deterministic mock fallbacks; optional OpenAI-backed flows can be used when a
+  local `OPENAI_API_KEY` is supplied.
+- Show Work Picker, Work Brief, Work Contract Card, Core Handoff, and Full
+  Handoff context for bounded work items.
+- Expose read-first ChatGPT / MCP bridge tools such as `augnes_list_work_items`
+  and `augnes_get_work_brief`.
+- Let Codex discover bounded work with `npm run codex:next-work`, use a pasted
+  Core Handoff or runtime Work Brief when available, and report what source it
+  used.
+- Let a human paste Codex results back through `codexResultText` or
+  `codexResultPaste` for preview review.
 
-Cockpit is the local UI for reviewing state, work, bridge activity, and local
-proposal decisions. ChatGPT App / MCP tools provide read-first bridge access.
-Codex can record implementation results, evidence, and work trace notes. Each
-surface reads from or records back to the same runtime-owned state.
+## What It Does Not Do Automatically
 
-## Why it exists
+- Augnes does not let models directly mutate durable state.
+- Augnes does not automatically execute Codex.
+- Augnes does not automatically fetch, review, merge, publish, or approve
+  GitHub work.
+- Augnes does not treat proof, evidence, a PR, or a pasted Codex report as
+  approval or state authority.
+- Augnes does not ingest papers, fetch papers, crawl sources, create
+  embeddings, run RAG/vector search, or persist research accumulation state.
+- Augnes is not a hosted production service and does not implement production
+  auth, OAuth, multi-user hosting, or deployment controls.
 
-AI-assisted project work often gets split across chat memory, local code
-changes, GitHub history, screenshots, and human handoffs. ChatGPT can plan and
-review, Codex can implement and test, and GitHub can store the code, but the
-current project state can still live in the operator's head.
+## Use Augnes In Three Paths
 
-Augnes gives that work a shared local record: committed state, work trace
-anchors, and proof records. Models can help interpret and propose changes, while
-the runtime and the user keep control over what becomes durable state.
+### 1. Human/operator local path
 
-## What it does
-
-- Compiles natural language into typed temporal state delta proposals.
-- Keeps committed state behind an explicit commit/reject gate.
-- Stores accepted transitions in a local SQLite ledger and renders them in a
-  Temporal State Graph.
-- Shows State Snapshot, Current Work, and `/api/state/brief` / `agent_handoff`
-  views for external-agent continuity.
-- Uses Work IDs and Work Trace Spine views to anchor AG-xxx task context.
-- Provides a five-tab Cockpit operator UI: Overview, Work, Perspective,
-  Bridge, and Operator. Perspective contains Ledger Basis, Evidence, Tensions,
-  and Boundary / Next sections.
-- Exposes MCP / ChatGPT App bridge tools for read-first state access and gated
-  proof recording.
-- Includes Codex handoff, completion, evidence, and session helper scripts.
-- Provides a read-only Temporal Interpretation Preview for structured
-  project-context interpretation.
-
-## How it uses OpenAI APIs
-
-OpenAI APIs are used for interpretation, planning, and preview generation, not
-direct mutation of durable state.
-
-- `POST /api/observe` uses the OpenAI Responses API to compile natural language
-  into typed temporal state delta proposals when `OPENAI_API_KEY` is set.
-- `POST /api/plan` uses committed Augnes state to generate grounded
-  next-action recommendations when `OPENAI_API_KEY` is set.
-- `POST /api/temporal-interpretation/preview` uses OpenAI to generate a
-  read-only temporal interpretation preview when `OPENAI_API_KEY` is set.
-- Deterministic mock fallbacks keep the local demo runnable when
-  `OPENAI_API_KEY` is unset.
-
-The runtime validates model output before saving proposals. Only accepted
-transitions become committed state.
-
-## Quick start
-
-Run the local runtime:
+Run the local demo:
 
 ```bash
 npm install
@@ -81,59 +58,107 @@ Then open:
 http://localhost:3000
 ```
 
+Use the Cockpit to inspect Overview, Work, Perspective, Bridge, and Operator
+surfaces. Work Picker and Work Brief / Work Contract Card are for reviewing
+bounded work before a separate Codex session starts.
+
 `OPENAI_API_KEY` is optional for the local demo because deterministic mock
 fallbacks are included. To test OpenAI-backed observe, plan, and preview flows,
 set `OPENAI_API_KEY` in your local environment. Do not commit `.env` or
 `.env.local`.
 
-## Bridge proof
+### 2. ChatGPT / MCP path
 
-Start the MCP / ChatGPT App bridge in a second terminal:
+Start the local runtime first. For the read-only Work Loop surface used by
+ChatGPT Developer Mode, start the bridge in a second terminal:
 
 ```bash
 npm --prefix apps/augnes_apps install
-AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
+AUGNES_ENABLE_AGENT_BRIDGE=true AUGNES_APP_TOOL_SURFACE=work_loop_readonly AUGNES_API_BASE_URL=http://localhost:3000 npm --prefix apps/augnes_apps run dev
 ```
 
-The bridge listens at:
+Connect ChatGPT Developer Mode, MCP Inspector, or another MCP-compatible
+client to:
 
 ```text
 http://localhost:8787/mcp
 ```
 
-With MCP Inspector, run `augnes_get_state_brief` for `project:augnes`, then run
-`augnes_record_action_result` with a safe proof action. The committed graph node
-shows that an external MCP-compatible client read Augnes state and recorded an
-action result back into the runtime without gaining commit/reject authority.
+In `work_loop_readonly` mode, useful calls are:
 
-### ChatGPT App / Developer Mode use
+- `augnes_list_work_items` with args `{ "scope": "project:augnes" }`
+- `augnes_get_work_brief` with args
+  `{ "scope": "project:augnes", "workId": "AG-DOGFOOD-RESEARCH-001" }`
 
-After the bridge is running, connect ChatGPT Developer Mode or any
-MCP-compatible client to:
+This read-only profile can show Work Picker and Work Brief / Work Contract
+Card context, including Core Handoff and result-return paths. It does not
+execute Codex, create branches or PRs, call GitHub, record proof/evidence,
+commit/reject state, or widen the Developer Mode tool surface.
 
-```text
-http://localhost:8787/mcp
+Broader local bridge/proof workflows are documented separately and should not
+be confused with the read-only ChatGPT work-loop path.
+
+### 3. Codex worker path
+
+If a Core Handoff or Full Handoff is pasted into a Codex task, use that handoff
+as the primary work contract.
+
+If a runtime Work Brief is available and `CODEX_WORK_ID` is set, use:
+
+```bash
+npm run codex:read-brief
 ```
 
-Useful calls:
+If no handoff is pasted, start with:
 
-- `augnes_get_state_brief` with args `{ "scope": "project:augnes" }`
-- `augnes_get_work_brief` with args `{ "scope": "project:augnes", "work_id": "AG-001" }`
+```bash
+npm run codex:next-work -- --scope project:augnes
+```
 
-These calls let ChatGPT read committed Augnes project state, `agent_handoff`,
-work status, proof links, and Codex handoff context without receiving
-commit/reject authority.
+For the current research accumulation dogfood item:
 
-For Codex-side usage, see the [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md),
-which covers `codex:read-brief`, `codex:record-evidence`, and the preferred
-proof-only `codex:record-completion-proof` closeout path through
-`/api/actions/record-proof`.
-`codex:record-completion` remains legacy compatibility behavior and may use
-`/api/actions/record` to create legacy `external.*` marker state. Successful
-legacy writes emit a stderr compatibility warning, and compatibility migration
-remains unresolved. `codex:record-result` is the lower-level legacy
-compatibility helper for direct action-record writes, not the normal Codex
-closeout path.
+```bash
+npm run codex:next-work -- --scope project:augnes --work-id AG-DOGFOOD-RESEARCH-001
+```
+
+Codex should report whether discovery came from `runtime_work_brief`,
+`repo_seed_fallback`, `docs_fallback`, or `blocked`. Use
+`docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md` for the final report, then
+return it to the human for manual paste through `codexResultText` or
+`codexResultPaste`.
+
+## Result Return Path
+
+Codex result return is manual and preview-only:
+
+1. Codex completes the bounded repo task.
+2. Codex writes a field-first result report using
+   `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`.
+3. The human pastes that report into `codexResultText` or
+   `codexResultPaste`.
+4. Augnes previews the returned report without treating it as proof, evidence,
+   state, work closure, approval, or merge authority.
+
+Codex must not claim a PR URL, host observation, proof/evidence row, event row,
+state decision, work close, provider call, or runtime behavior unless it
+actually happened.
+
+## Research Accumulation Status
+
+Research Accumulation is currently a preview-only work loop, not implemented
+product behavior. The current repo-backed item is
+`AG-DOGFOOD-RESEARCH-001`, which points to:
+
+- `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
+- `docs/AUGNES_RESEARCH_WORK_USER_HAPPY_PATH_OBSERVATION_V0_1.md`
+- `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
+
+The scenario pack defines candidate preview shapes for research sessions,
+paper references, claims, evidence, tensions, knowledge gaps, perspective
+updates, and follow-up work. It does not implement ingestion, persistence,
+fetching, provider calls, embeddings, RAG, vector search, crawling, indexing,
+durable research writes, proof/evidence writes, work mutation, or automatic
+Codex/GitHub automation.
 
 ## Screenshots
 
@@ -143,85 +168,34 @@ closeout path.
 |---|---|
 | <img src="screenshots/12-final-cockpit-overview.png" width="520" alt="Cockpit Overview with five top-level tabs"> | <img src="screenshots/17-final-perspective-current-frame.png" width="520" alt="Perspective tab showing current frame, Ledger Basis, Evidence, Tensions, and Boundary / Next"> |
 
-### AI surfaces using Augnes
+### AI Surfaces Using Augnes
 
 | ChatGPT state brief | ChatGPT work brief | Codex completion proof |
 |---|---|---|
 | <img src="screenshots/13-final-chatgpt-state-brief.png" width="320"> | <img src="screenshots/14-final-chatgpt-work-brief.png" width="320"> | <img src="screenshots/15-final-codex-terminal-completion-proof.png" width="320"> |
 
-More screenshots and supporting proof captures are listed in [screenshots/README.md](screenshots/README.md).
+More screenshots and supporting proof captures are listed in
+`screenshots/README.md`.
 
-## Demo flow
+## Read Next
 
-1. Run the quick-start commands and open the Cockpit.
-2. Review the Overview tab and Temporal State Graph.
-3. Open Work to see AG-xxx Work Focus / Trace Spine context.
-4. Open Perspective to inspect the current frame, Ledger Basis, Evidence,
-   Tensions, and Boundary / Next.
-5. Open Bridge to review read-first / no direct external-control boundaries.
-6. Open Operator to see safe local runtime controls.
-7. Fetch the state brief and inspect `agent_handoff`:
+- `docs/AUGNES_START_HERE_FOR_USERS_AND_AI.md`
+- `AGENTS.md`
+- `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
+- `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
+- `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
+- `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
+- `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
+- `docs/AUTHORITY_MATRIX.md`
+- `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`
+- `docs/00_INDEX_LATEST.md`
 
-```bash
-curl -sS 'http://localhost:3000/api/state/brief?scope=project:augnes' | jq '.agent_handoff'
-```
-
-8. Start the MCP bridge and verify state brief + action record proof through
-   MCP Inspector.
-
-## Augnes-on-Augnes evaluation
-
-Augnes is being evaluated through its own development workflow as bounded
-dogfooding and research practice.
-
-The repo-local dogfooding docs are:
-
-- [Augnes dogfooding research direction](docs/AUGNES_DOGFOODING_RESEARCH_DIRECTION_V0_1.md)
-- [Raw episode capture](docs/RAW_EPISODE_CAPTURE_V0_1.md)
-- [Dogfooding episode log](docs/DOGFOODING_EPISODE_LOG_V0_1.md)
-- [Dogfooding evaluation criteria](docs/DOGFOODING_EVALUATION_CRITERIA_V0_1.md)
-
-For an independent dogfood report, keep outputs in bounded repo-local paths:
-
-- `reports/dogfood/<date>-<run-id>.md`
-- `reports/dogfood/<date>-<index-or-summary>.md`
-- `backlog/augnes-friction-backlog.md`
-- `backlog/augnes-improvement-proposals.md`
-
-Dogfood notes are research and evaluation guidance only. They do not change
-runtime behavior, DB schema, API routes, bridge tools, Cockpit controls, or
-authority boundaries.
-
-## Security and boundaries
+## Security And Boundaries
 
 - No API keys are committed. `.env` and `.env*.local` are ignored.
-- Augnes is local-first and is not a hosted production deployment.
-- Production auth, OAuth, and multi-user support are intentionally out of
-  scope for this challenge build.
-- The model does not directly mutate durable state.
-- Commit/reject authority remains user/runtime gated.
-- The bridge remains read-first plus gated proof recording.
+- Augnes is local-first and operator-led.
+- Durable state remains behind explicit user/runtime gates.
+- ChatGPT / MCP bridge surfaces remain read-first unless separately scoped.
 - Work IDs are trace anchors, not state authority.
-- Action records are execution proof.
-- GitHub App installation-token exchange remains future/design-boundary work;
-  this repo does not implement a live GitHub App token provider.
-
-## Limitations
-
-- The app is a local challenge build, not a hosted service.
-- The bridge proof uses local MCP / Inspector workflows.
-- OpenAI-backed flows require a locally supplied `OPENAI_API_KEY`.
-- Mock fallbacks are deterministic and useful for demos, but they are not a
-  replacement for evaluating OpenAI-backed behavior.
-- The runtime is single-operator/local-first and does not implement production
-  auth or multi-user collaboration.
-
-## Deep docs
-
-- [Cockpit Perspective IA](docs/COCKPIT_PERSPECTIVE_IA_V0_1.md)
-- [Codex Session Adapter workflow](docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md)
-- [Evidence Pack / verification evidence](docs/VERIFICATION_EVIDENCE_PACK.md)
-- [Authority matrix](docs/AUTHORITY_MATRIX.md)
-- [Dogfooding evaluation criteria](docs/DOGFOODING_EVALUATION_CRITERIA_V0_1.md)
-- [Raw episode capture](docs/RAW_EPISODE_CAPTURE_V0_1.md)
-- [Latest docs index](docs/00_INDEX_LATEST.md)
+- Action records are execution proof, not approval.
+- PRs are review artifacts, not merge authority.

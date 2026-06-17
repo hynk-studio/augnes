@@ -11,16 +11,33 @@ repo implementation and verification worker. Preserve the authority boundaries.
 - Read current repo instructions and task-relevant docs before editing.
 - For Augnes code/docs/scripts implementation tasks, use Perspective Memory
   Reuse Intake before coding so task-start context includes prior Augnes memory.
+- If a Core Handoff or Full Handoff is pasted into the task, use that pasted
+  handoff as the primary work contract.
 - For Augnes workflow tasks, prefer this minimum context:
   - `README.md`
   - `docs/AUTHORITY_MATRIX.md`
   - `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`
+  - `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
+  - `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
   - `docs/CANONICAL_REPO_OWNER_NOTE_V0_1.md`
   - task-specific roadmap, handoff, or protocol docs
 - Inspect `git status` before editing and keep changes scoped to the task.
 - If the local Augnes runtime is available, run `npm run codex:read-brief`.
 - If `CODEX_WORK_ID` is set, use `npm run codex:read-brief` so the Work Brief
   context is read too.
+- If no handoff is pasted, start with:
+  `npm run codex:next-work -- --scope project:augnes`.
+- If research work is requested, use:
+  `npm run codex:next-work -- --scope project:augnes --prefer-research`, or
+  `npm run codex:next-work -- --scope project:augnes --work-id AG-DOGFOOD-RESEARCH-001`
+  when that work ID is named.
+- Report honestly whether the work source was `runtime_work_brief`,
+  `repo_seed_fallback`, `docs_fallback`, or `blocked`. Do not claim a live
+  Work Brief, Work Picker, host observation, proof/evidence row, state change,
+  work close, or PR URL unless it actually happened.
+- Return Codex results with
+  `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md` for manual paste through
+  `codexResultText` or `codexResultPaste`.
 
 ## Codex Augnes Reuse Hook v0.1
 
