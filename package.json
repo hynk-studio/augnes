@@ -173,6 +173,7 @@
     "smoke:codex-result-paste-normalizer-preview": "node scripts/smoke-codex-result-paste-normalizer-preview.mjs",
     "smoke:codex-result-report-template-v0-1": "node scripts/smoke-codex-result-report-template-v0-1.mjs",
     "smoke:codex-result-report-template-dogfood-observation-v0-1": "node scripts/smoke-codex-result-report-template-dogfood-observation-v0-1.mjs",
+    "smoke:codex-field-first-result-parser-dogfood-observation-v0-1": "node scripts/smoke-codex-field-first-result-parser-dogfood-observation-v0-1.mjs",
     "smoke:chatgpt-augnes-codex-flow-dogfood-scenario": "node scripts/smoke-chatgpt-augnes-codex-flow-dogfood-scenario.mjs",
     "smoke:chatgpt-augnes-codex-flow-dogfood-observation": "node scripts/smoke-chatgpt-augnes-codex-flow-dogfood-observation.mjs",
     "smoke:codex-self-opinion-dogfood-scenario": "node scripts/smoke-codex-self-opinion-dogfood-scenario.mjs",

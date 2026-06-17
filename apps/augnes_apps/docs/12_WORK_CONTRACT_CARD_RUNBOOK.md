@@ -53,6 +53,12 @@ records the filled AG-DOGFOOD-RESEARCH-001 sample normalizer output and selects
 direct field-first snake_case parsing as the next narrow parser follow-up
 without implementing it.
 
+For the deterministic dogfood observation after field-first parser support, see
+`docs/AUGNES_CODEX_FIELD_FIRST_RESULT_PARSER_DOGFOOD_OBSERVATION_V0_1.md`. It
+records the same filled AG-DOGFOOD-RESEARCH-001 sample after direct
+field-first parsing and keeps `field_first_report_context` preview-only rather
+than proof/evidence, host observation, mutation evidence, or close authority.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
