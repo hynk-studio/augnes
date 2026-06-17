@@ -52,16 +52,16 @@ const previewShapes = [
 ];
 
 const boundaryPhrases = [
-  "no automatic research ingestion",
-  "no paper fetching",
-  "no crawlers",
-  "no provider/OpenAI calls",
-  "no embeddings",
-  "no RAG",
-  "no vector search",
-  "no indexing",
-  "no database schema or migration",
-  "no durable research state writes",
+  "no unscoped automatic research ingestion",
+  "no unscoped paper or source fetching",
+  "no unscoped crawlers",
+  "no unscoped provider/OpenAI calls",
+  "no unscoped embeddings",
+  "no unscoped RAG",
+  "no unscoped vector search",
+  "no unscoped indexing",
+  "no database schema or migration in this preview pack",
+  "no durable research candidate memory writes",
   "no proof/evidence writes",
   "no event creation/mutation",
   "no work close/status mutation",
@@ -78,6 +78,15 @@ const boundaryPhrases = [
   "no widening of the `work_loop_readonly` Developer Mode tool surface",
 ];
 
+const futureCapabilityLanePhrases = [
+  "manual source intake",
+  "bounded source fetching for operator-provided sources",
+  "provider-assisted extraction or summary",
+  "derived retrieval indexes",
+  "durable research candidate memory",
+  "human-reviewed perspective promotion",
+];
+
 assertDocShape();
 assertSourceWorkRouting();
 assertPackageScript();
@@ -92,6 +101,8 @@ console.log(
       source_work_routing_checked: true,
       preview_shapes_checked: true,
       expected_files_and_checks_checked: true,
+      preview_scope_stop_conditions_checked: true,
+      future_authorized_capability_lanes_checked: true,
       package_script_checked: true,
       runbook_pointer_checked: true,
       preview_only_authority_boundaries_checked: true,
@@ -113,6 +124,7 @@ function assertDocShape() {
     "## Purpose",
     "## Source Work Routing",
     "## Preview Shapes Only",
+    "## Preview-scope Stop Conditions, Not Permanent Product Bans",
     "## Shape Catalog",
     "## Scenario Flow",
     "## Expected Files And Checks",
@@ -134,6 +146,31 @@ function assertDocShape() {
   );
   assert.match(doc, /not database\s+schemas/i, "doc must state that preview shapes are not database schemas");
   assert.match(doc, /candidate status and human-review status/i, "doc must keep candidate review status explicit");
+  assert.match(
+    doc,
+    /current preview implementation status, not a permanent product ban/i,
+    "doc must scope current omissions as implementation status",
+  );
+  assert.match(
+    doc,
+    /fresh Work Brief or Core Handoff/i,
+    "doc must require a fresh Work Brief or Core Handoff for future lanes",
+  );
+  assert.match(
+    doc,
+    /rebuildable,\s+non-authoritative,\s+and source-ref based/i,
+    "doc must keep derived retrieval indexes rebuildable and non-authoritative",
+  );
+  assert.match(
+    doc,
+    /candidate or review records first/i,
+    "doc must route durable research writes to candidate or review records first",
+  );
+  assert.match(
+    doc,
+    /Perspective update candidates remain candidates/i,
+    "doc must keep perspective update candidates pending review gates",
+  );
 
   for (const shapeName of previewShapes) {
     assert.match(doc, new RegExp(`^### ${escapeRegExp(shapeName)}$`, "m"), `doc must define ${shapeName}`);
@@ -162,6 +199,10 @@ function assertDocShape() {
 
   for (const boundary of boundaryPhrases) {
     assert.match(doc, new RegExp(escapeRegExp(boundary)), `doc must include boundary ${boundary}`);
+  }
+
+  for (const lane of futureCapabilityLanePhrases) {
+    assert.match(doc, new RegExp(escapeRegExp(lane)), `doc must include future lane ${lane}`);
   }
 
   assert.match(

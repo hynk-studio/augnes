@@ -80,9 +80,12 @@ For the preview-only Research Accumulation Scenario Pack selected by
 `npm run smoke:research-accumulation-scenario-pack-v0-1`. The pack defines
 preview shapes only for research session, paper reference, claim, evidence,
 tension, knowledge gap, perspective update, and follow-up work candidates. It
-adds no paper ingestion, provider/OpenAI calls, embeddings, RAG, vector search,
-database schema, durable state writes, proof/evidence writes, work-status
-mutation, App/MCP tools, or `work_loop_readonly` widening.
+adds no unscoped paper/source fetching, no unscoped provider/OpenAI calls, no
+unscoped embeddings, RAG, vector search, or retrieval indexing, no database
+schema, and no durable research candidate memory writes; no proof/evidence
+writes, work-status mutation, App/MCP tools, or `work_loop_readonly` widening.
+Future research capability lanes need a fresh Work Brief or Core Handoff before
+implementation.
 
 For Codex worker start-of-task discovery, see
 `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md` and run

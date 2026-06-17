@@ -79,7 +79,10 @@ function assertReadme() {
     "docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md",
     "does not automatically execute Codex",
     "does not automatically fetch, review, merge, publish, or approve",
-    "does not ingest papers",
+    "does not automatically ingest papers",
+    "Brief/Core Handoff",
+    "Current Research Accumulation implementation is a",
+    "preview contract only",
     "not a hosted production service",
   ]) {
     assertIncludes(readme, requiredText, `README must include ${requiredText}`);
@@ -153,6 +156,8 @@ function assertGuide() {
     "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
     "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
     "docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md",
+    "Research accumulation product lanes are not implemented in the current",
+    "Work Brief/Core Handoff",
   ]) {
     assertIncludes(guide, requiredText, `guide must include ${requiredText}`);
   }
@@ -201,9 +206,17 @@ function assertNoForbiddenAuthorityPatterns(files) {
 }
 
 function hasBoundaryNegation(line) {
-  return /\b(no|not|never|without|unless|do not|does not|must not|cannot|is not|are not|adds no|not implemented|preview-only|forbidden|skipped)\b|(?:변경하지|만들지|아니다|않는다)/i.test(
-    line,
-  );
+  const negativeBoundaryTerms =
+    /\b(no|not|never|without|unless|do not|does not|must not|cannot|is not|are not|adds no|not implemented|not yet|preview-only|forbidden|skipped)\b|(?:변경하지|만들지|아니다|않는다)/i;
+  const scopedBoundaryPhrases = [
+    /\bfresh Work Brief(?:\/| or )Core Handoff\b/i,
+    /\bexplicitly scopes the lane\b/i,
+    /\bexplicitly authorizes a bounded (?:capability )?lane\b/i,
+    /\bnon-authoritative candidates?\b/i,
+    /\bcandidate\/review records\b/i,
+  ];
+
+  return negativeBoundaryTerms.test(line) || scopedBoundaryPhrases.some((pattern) => pattern.test(line));
 }
 
 function assertIncludes(source, expected, message) {

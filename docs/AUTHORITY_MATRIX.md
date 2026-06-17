@@ -145,6 +145,17 @@ integration-test work.
 `docs/PERSPECTIVE_SNAPSHOT_V0_1.md` defines the first Perspective-specific read
 model over these same boundaries. PerspectiveSnapshot is derived-view-only and
 `research_diagnostics` remains log_only and non-authoritative.
+
+Research capability lanes may add source fetch, provider-assisted extraction,
+derived retrieval, or durable research candidate memory only when a fresh Work
+Brief or Core Handoff explicitly scopes the lane, files, checks, source limits,
+and authority boundary. These lanes are bounded and non-authoritative: fetched
+or provider-derived content is candidate input, retrieval indexes are
+rebuildable source-ref based views, and durable research writes should create
+candidate/review records before any committed perspective state. None of these
+lanes creates durable approval, proof/evidence, work closure, publication,
+merge, or Augnes state commit/reject authority by itself.
+
 `loopness_hint` is a bounded log_only diagnostic object; it is the only bounded
 log_only diagnostic object in `research_diagnostics`.
 `sidecar_e_t` is a structured placeholder object.

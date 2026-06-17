@@ -115,6 +115,17 @@ repo implementation and verification worker. Preserve the authority boundaries.
 - Secret handling changes
 - Approve, publish, retry, replay, merge, or external posting automation
 
+Explicitly scoped future research capability work is allowed only when the
+task names the capability lane, expected files, expected checks, verification,
+and authority boundary. Examples include manual source intake, bounded
+operator-provided source fetching, provider-assisted extraction/summary,
+derived retrieval indexes, durable research candidate memory, and
+human-reviewed perspective promotion. Retrieval, provider, fetch, and durable
+candidate outputs remain non-authoritative candidates until human review and
+cannot directly commit/reject Augnes state, close work, write proof/evidence,
+approve/publish/merge, or mutate perspective memory unless a separately scoped
+Core-gated path explicitly implements that authority.
+
 ## PR Closeout
 
 Every PR body should include:
