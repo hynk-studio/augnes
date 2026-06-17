@@ -619,6 +619,27 @@ Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
 schema, routes, Cockpit controls, 또는 Augnes Core authority를 변경하지
 않는다.
 
+### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
+
+이 포인터는 Active set을 늘리거나 새 권위를 만들지 않는다. Human
+operator, ChatGPT / MCP user, and Codex worker가 현재 Augnes 시작 경로를
+빠르게 찾기 위한 repo-local 색인이다.
+
+- `AUGNES_START_HERE_FOR_USERS_AND_AI.md`: README front-door companion
+  guide다. What Augnes is, what works today, preview-only areas, local human
+  quick start, ChatGPT / MCP bridge quick start, Codex quick start,
+  `AG-DOGFOOD-RESEARCH-001` research work loop, `codexResultText` /
+  `codexResultPaste` return path, and authority boundaries를 한 곳에 모은다.
+
+이 문서는 Active set을 확장하지 않고 runtime/schema/implementation/
+diagnostic/evaluation/evidence/proof authority를 만들지 않는다.
+production-readiness 또는 autonomous capability를 의미하지 않는다.
+
+Boundary 요약: 이 start guide는 Cockpit behavior, routes, DB schema,
+MCP/App tools, research ingestion, provider/OpenAI calls, Codex execution,
+GitHub automation, proof/evidence writes, state commit/reject, 또는
+work_loop_readonly surface를 변경하지 않는다.
+
 ### 최근 dogfooding episode template 포인터 (repo-local, non-SSOT)
 
 이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. raw episode
