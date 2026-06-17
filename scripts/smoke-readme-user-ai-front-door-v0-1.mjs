@@ -206,9 +206,17 @@ function assertNoForbiddenAuthorityPatterns(files) {
 }
 
 function hasBoundaryNegation(line) {
-  return /\b(no|not|never|without|unless|do not|does not|must not|cannot|is not|are not|adds no|not implemented|not yet|preview-only|forbidden|skipped|explicitly scoped|explicitly authorizes|authorized|bounded|candidate|fresh Work Brief|Core Handoff)\b|(?:변경하지|만들지|아니다|않는다)/i.test(
-    line,
-  );
+  const negativeBoundaryTerms =
+    /\b(no|not|never|without|unless|do not|does not|must not|cannot|is not|are not|adds no|not implemented|not yet|preview-only|forbidden|skipped)\b|(?:변경하지|만들지|아니다|않는다)/i;
+  const scopedBoundaryPhrases = [
+    /\bfresh Work Brief(?:\/| or )Core Handoff\b/i,
+    /\bexplicitly scopes the lane\b/i,
+    /\bexplicitly authorizes a bounded (?:capability )?lane\b/i,
+    /\bnon-authoritative candidates?\b/i,
+    /\bcandidate\/review records\b/i,
+  ];
+
+  return negativeBoundaryTerms.test(line) || scopedBoundaryPhrases.some((pattern) => pattern.test(line));
 }
 
 function assertIncludes(source, expected, message) {
