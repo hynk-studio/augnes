@@ -1542,6 +1542,11 @@
           scope: fallbackScope,
           title: fallbackWorkTitle,
           current_task: fallbackWorkNextAction,
+          core_usage: "implementation_requires_full_context",
+          implementation_anchor_status: "missing",
+          implementation_anchor_count: 0,
+          implementation_anchor_summary: "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation.",
+          full_context_required_before_implementation: true,
           expected_files: fallbackExpectedFiles,
           expected_checks: fallbackExpectedChecks,
           stop_conditions: stopConditions,
@@ -1610,6 +1615,8 @@
             `- Work ID: ${fallbackWorkId}`,
             `- Scope: ${fallbackScope}`,
             `- Task: ${fallbackWorkNextAction}`,
+            "- Core usage: planning only / full context needed",
+            "- Implementation anchors: none attached; open Full Context before implementation.",
             "- Expected files:",
             ...(fallbackExpectedFiles.length ? fallbackExpectedFiles.map((item) => `  - ${item}`) : ["  - No expected files are listed in the work brief."]),
             "- Expected checks:",
@@ -2854,11 +2861,22 @@
             ? "Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing."
             : "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation."
         );
+        const fullContextRequiredBeforeImplementation = implementationAnchors.length === 0;
+        const implementationAnchorStatus = implementationAnchors.length
+          ? "attached"
+          : coreHandoffUsage === "implementation_requires_full_context" || fullContextRequiredBeforeImplementation
+            ? "missing"
+            : "unknown";
         const currentTaskOnly = {
           work_id: packet.work_id,
           scope: packet.work_scope,
           title: packet.work_title,
           current_task: nonEmptyText(packet.current_or_next_step || packet.work_title, "No current or next step is listed in the work brief."),
+          core_usage: coreHandoffUsage,
+          implementation_anchor_status: implementationAnchorStatus,
+          implementation_anchor_count: implementationAnchors.length,
+          implementation_anchor_summary: implementationAnchorSummary,
+          full_context_required_before_implementation: fullContextRequiredBeforeImplementation,
           expected_files: safeArray(packet.expected_files),
           expected_checks: safeArray(packet.expected_checks),
           stop_conditions: safeArray(packet.stop_conditions),
@@ -2896,7 +2914,7 @@
             core_handoff_usage: coreHandoffUsage,
             implementation_anchors: implementationAnchors,
             implementation_anchor_summary: implementationAnchorSummary,
-            full_context_required_before_implementation: implementationAnchors.length === 0,
+            full_context_required_before_implementation: fullContextRequiredBeforeImplementation,
             core_current_task_only: currentTaskOnly,
             runtime: {
               endpoint_label: "provided by current Augnes runtime",
@@ -2961,6 +2979,14 @@
           `- Work ID: ${currentTaskOnly.work_id}`,
           `- Scope: ${currentTaskOnly.scope}`,
           `- Task: ${currentTaskOnly.current_task}`,
+          `- Core usage: ${currentTaskOnly.full_context_required_before_implementation ? "planning only / full context needed" : currentTaskOnly.core_usage}`,
+          `- Implementation anchors: ${
+            currentTaskOnly.implementation_anchor_status === "attached"
+              ? `${currentTaskOnly.implementation_anchor_count} attached; ${currentTaskOnly.implementation_anchor_summary}`
+              : currentTaskOnly.implementation_anchor_status === "missing"
+                ? "none attached; open Full Context before implementation."
+                : `${currentTaskOnly.implementation_anchor_count} known; ${currentTaskOnly.implementation_anchor_summary}`
+          }`,
           "- Expected files:",
           ...(currentTaskOnly.expected_files.length ? currentTaskOnly.expected_files.map((item) => `  - ${item}`) : ["  - No expected files are listed in the work brief."]),
           "- Expected checks:",

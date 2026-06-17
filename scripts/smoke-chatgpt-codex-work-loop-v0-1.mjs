@@ -283,6 +283,26 @@ function assertFixtureScenarios() {
       /codexResultText \/ codexResultPaste/,
       "Core packet must keep manual result return through codexResultText / codexResultPaste",
     );
+    assert.equal(
+      payload.core_codex_handoff_packet.core_current_task_only?.core_usage,
+      payload.core_codex_handoff_packet.core_handoff_usage,
+      "Core current-task object must mirror Core usage",
+    );
+    assert.equal(
+      payload.core_codex_handoff_packet.core_current_task_only?.implementation_anchor_count,
+      payload.core_codex_handoff_packet.implementation_anchors.length,
+      "Core current-task object must mirror implementation anchor count",
+    );
+    assert.match(
+      payload.copyable_core_handoff_text,
+      /Core usage:/,
+      "copyable Core handoff text must include compact Core usage line",
+    );
+    assert.match(
+      payload.copyable_core_handoff_text,
+      /Implementation anchors:/,
+      "copyable Core handoff text must include compact implementation anchor status line",
+    );
     assert.ok(payload.copyable_full_handoff_text, "copyable Full handoff text must exist");
     assertNoCreatedFollowUpRefs(payload.result_review_closure_preview.follow_up_seed);
     for (const boundary of payload.result_review_closure_preview.boundary_text) {
@@ -433,6 +453,11 @@ function integratedPayload(packet) {
       scope: "project:augnes",
       title: "Coordination event spine schema and storage",
       current_task: "Verify the preview-only ChatGPT-Codex work loop snapshot.",
+      core_usage: "implementation_ready",
+      implementation_anchor_status: "attached",
+      implementation_anchor_count: 2,
+      implementation_anchor_summary: "Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing.",
+      full_context_required_before_implementation: false,
       expected_files: EXPECTED_FILES,
       expected_checks: EXPECTED_CHECKS,
       stop_conditions: ["Work ID is missing or unknown."],
@@ -454,6 +479,8 @@ function integratedPayload(packet) {
       "- Work ID: AG-006",
       "- Scope: project:augnes",
       "- Task: Verify the preview-only ChatGPT-Codex work loop snapshot.",
+      "- Core usage: implementation_ready",
+      "- Implementation anchors: 2 attached; Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing.",
       "- Expected files:",
       "  - apps/augnes_apps/src/server.ts",
       "- Expected checks:",
@@ -477,6 +504,11 @@ function integratedPayload(packet) {
         core_current_task_only: {
           work_id: "AG-006",
           scope: "project:augnes",
+          core_usage: "implementation_ready",
+          implementation_anchor_status: "attached",
+          implementation_anchor_count: 2,
+          implementation_anchor_summary: "Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing.",
+          full_context_required_before_implementation: false,
           result_report_template: "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
           next_return_path: "Paste through codexResultText / codexResultPaste for preview review.",
         },
