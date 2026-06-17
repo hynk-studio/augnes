@@ -46,6 +46,13 @@ template for result return through `codexResultText` / `codexResultPaste` and
 does not add automatic Codex execution, proof/evidence writes, state mutation,
 GitHub automation, App/MCP tools, or result-review authority.
 
+For the deterministic dogfood observation of that reusable report template,
+see
+`docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_DOGFOOD_OBSERVATION_V0_1.md`. It
+records the filled AG-DOGFOOD-RESEARCH-001 sample normalizer output and selects
+direct field-first snake_case parsing as the next narrow parser follow-up
+without implementing it.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
