@@ -493,6 +493,15 @@ headed sections such as `Files changed`, `Verification`, `Skipped checks`,
 candidate only. It fills missing structured fields conservatively and leaves
 missing fields as warnings or review questions.
 
+For reports that use
+`docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`, the paste helper also
+parses top-level field-first labels such as `changed_files`,
+`verification_commands`, `verification_results`, `skipped_checks`,
+`remaining_caveats`, `ambiguous_combined_section_lines`, and
+`authority_boundary_statement` directly. Labels that describe host observation
+or no-write/no-mutation status remain preview-only report context and do not
+create proof, evidence, events, work closure, or state decisions.
+
 Combined closeout sections such as `Skipped checks and caveats`,
 `Skipped validation and caveats`, `Skipped checks / remaining caveats`,
 `Caveats and skipped checks`, and `Limitations / skipped checks` are split
@@ -521,8 +530,9 @@ The tool exposes the paste helper through model-readable aliases:
 
 The widget renders the helper in the result-review area with labels including
 `Codex result paste helper`, `Normalized result candidate`, `Detected fields`,
-`Needs human review`, `Ambiguous combined lines`, and `What this helper does
-not do`. The helper does not fetch GitHub, write proof/evidence, close work,
+`Needs human review`, `Ambiguous combined lines`,
+`Field-first report context`, and `What this helper does not do`. The helper
+does not fetch GitHub, write proof/evidence, close work,
 mutate state, execute Codex, spawn shell commands, create events, create
 branches or PRs, submit PR reviews, create or merge PRs, call providers/OpenAI,
 publish, retry, replay, or deploy.

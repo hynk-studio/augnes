@@ -40,6 +40,7 @@ console.log(
       no_invented_authority_checked: true,
       exactly_one_next_pr_candidate_selected: true,
       snake_case_parser_candidate_selected: true,
+      field_first_parser_follow_up_checked: true,
       authority_boundaries_present: true,
       forbidden_feature_authority_absent: true,
     },
@@ -68,6 +69,7 @@ function assertObservationDoc() {
     "## No-invention Checks",
     "## Template Usefulness Assessment",
     "## Candidate Next PR Selection",
+    "## Field-first Parser Follow-up",
     "## Why That Next PR Is Selected",
     "## Why Other Candidates Are Deferred",
     "## Authority Boundaries",
@@ -112,6 +114,16 @@ function assertObservationDoc() {
     observationDoc,
     /Direct field-first parser support: skipped because this PR only observes that\s+it should be the next PR\./,
     "observation doc must not implement direct parser support",
+  );
+  assert.match(
+    observationDoc,
+    /later PR implements the selected follow-up by teaching the paste normalizer to\s+parse field-first snake_case report labels directly\./,
+    "observation doc must preserve the historical observation and acknowledge the follow-up parser PR",
+  );
+  assert.match(
+    observationDoc,
+    /expected to expose `ambiguous_combined_section_lines` and\s+`field_first_report_context` directly/,
+    "observation doc must name the new direct parser preview fields",
   );
 
   for (const noInvention of [
@@ -170,7 +182,24 @@ async function assertObservationMatchesNormalizerOutput() {
   assert.equal(observedStatus, preview.status, "observation status must match actual normalizer status");
 
   const observedDetectedFields = extractBacktickListAfterMarker(observationDoc, "detected_fields:");
-  assert.deepEqual(observedDetectedFields, preview.detected_fields, "observation detected_fields must match actual normalizer output");
+  if (/## Field-first Parser Follow-up/.test(observationDoc)) {
+    for (const observedField of observedDetectedFields) {
+      assert.ok(
+        preview.detected_fields.includes(observedField),
+        `historical observed field ${observedField} must still be present in current normalizer output`,
+      );
+    }
+    assert.ok(
+      preview.detected_fields.includes("ambiguous_combined_section_lines"),
+      "current normalizer output must include direct ambiguous_combined_section_lines detection",
+    );
+    assert.ok(
+      preview.detected_fields.includes("field_first_report_context"),
+      "current normalizer output must include field_first_report_context detection",
+    );
+  } else {
+    assert.deepEqual(observedDetectedFields, preview.detected_fields, "observation detected_fields must match actual normalizer output");
+  }
 
   assert.equal(extractBacktickValueAfterLabel(observationDoc, "work_id"), preview.candidate.work_id);
   assert.equal(extractBacktickValueAfterLabel(observationDoc, "scope"), preview.candidate.scope);

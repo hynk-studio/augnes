@@ -45,11 +45,11 @@ The report should include these required fields or sections:
 - `authority_boundary_statement`
 - `next_recommended_step`
 
-The current paste normalizer recognizes parser-friendly section headings such
-as `Changed files`, `Verification`, `Skipped checks`, `Remaining caveats`,
-`Skipped checks and caveats`, `Authority boundary statement`, and
-`Next recommended step`. The snake_case names above are the review fields the
-report is meant to populate.
+The paste normalizer directly parses the snake_case field labels above when
+they appear as top-level report lines. It also continues to recognize
+parser-friendly section headings such as `Changed files`, `Verification`,
+`Skipped checks`, `Remaining caveats`, `Skipped checks and caveats`,
+`Authority boundary statement`, and `Next recommended step`.
 
 ## Optional Fields
 
@@ -221,8 +221,8 @@ truth, state, work closure, or merge approval.
 
 ## Expected Paste Normalizer Behavior
 
-The current PR #602 / PR #603 paste normalizer should extract these fields from
-the filled sample report:
+The PR #602 / PR #603 paste normalizer, with this field-first label support,
+should extract these fields from the filled sample report:
 
 - `work_id`
 - `scope`
@@ -234,6 +234,16 @@ the filled sample report:
 - `remaining_caveats`
 - `ambiguous_combined_section_lines`
 - `authority_boundary_statement`
+
+The normalizer parses field-first `verification_commands` and
+`verification_results` separately when those labels are present. Values such as
+`pr_url: not opened` and `pr_number: not opened` must not become PR fields.
+
+The normalizer exposes field-first no-write/no-mutation fields such as
+`live_host_observation`, `proof_evidence_rows_written`,
+`event_rows_created_or_mutated`, `work_status_changed`, and
+`state_committed_or_rejected` as preview-only report context, not proof,
+evidence, host observation, event mutation, work closure, or state decision.
 
 The normalizer may expose `ambiguous_combined_section_lines` as a review warning
 instead of assigning the line to `skipped_checks` or `remaining_caveats`.

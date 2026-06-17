@@ -171,7 +171,9 @@ function assertTemplateDoc() {
   }
 
   assert.match(normalizerDoc, /AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1\.md/, "normalizer doc must point to the template");
+  assert.match(normalizerDoc, /directly recognizes field-first snake_case labels/, "normalizer doc must describe direct field-first parsing");
   assert.match(runbook, /AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1\.md/, "runbook must point to the template");
+  assert.match(runbook, /Field-first report context/, "runbook must mention field-first report context rendering");
 }
 
 async function assertSampleReportNormalizerBehavior() {
@@ -227,11 +229,32 @@ async function assertSampleReportNormalizerBehavior() {
     "Augnes review may remain conservative because one combined skipped-check/caveat line requires human classification",
   ]);
   assert.deepEqual(preview.ambiguous_combined_section_lines, ["Operator follow-up noted in transcript"]);
+  assert.ok(
+    preview.detected_fields.includes("ambiguous_combined_section_lines"),
+    "sample must expose ambiguous_combined_section_lines as a detected field",
+  );
+  assert.ok(
+    preview.detected_fields.includes("field_first_report_context"),
+    "sample must expose field-first report context as a detected field",
+  );
+  assert.equal(
+    countMatches(preview.extraction_warnings.join("\n"), /Operator follow-up noted in transcript/g),
+    1,
+    "duplicate field-first and combined-section ambiguous lines must not create duplicate warnings",
+  );
   assert.match(
     preview.candidate.authority_boundary_statement ?? "",
     /reusable preview-only Codex result report template/,
     "sample must extract authority boundary statement",
   );
+  assert.deepEqual(preview.field_first_report_context, {
+    live_host_observation: "not run - no live MCP Inspector or ChatGPT Developer Mode session was started",
+    proof_evidence_rows_written: "No proof/evidence rows written.",
+    event_rows_created_or_mutated: "No event rows created or mutated.",
+    work_status_changed: "No work close/status mutation.",
+    state_committed_or_rejected: "No state commit/reject.",
+    next_recommended_step: null,
+  });
 
   const candidateRecord = preview.candidate;
   for (const inventedField of [
@@ -251,6 +274,88 @@ async function assertSampleReportNormalizerBehavior() {
   assert.match(sampleReport, /live_host_observation: not run - no live MCP Inspector or ChatGPT Developer Mode session was started/);
   assert.match(sampleReport, /work_status_changed: No work close\/status mutation\./);
   assert.match(sampleReport, /state_committed_or_rejected: No state commit\/reject\./);
+
+  const fieldFirstOnlyPreview = buildCodexResultPasteNormalizerPreview({
+    topLevelPasteText: `
+summary: Field-first closeout smoke.
+work_id: AG-DOGFOOD-RESEARCH-001
+scope: project:augnes
+result_status: completed
+pr_url: not opened
+pr_number: n/a
+live_host_observation: not run - no live host observation was attempted
+proof_evidence_rows_written: No proof/evidence rows written.
+event_rows_created_or_mutated: No event rows created or mutated.
+work_status_changed: No work close/status mutation.
+state_committed_or_rejected: No state commit/reject.
+changed_files:
+- docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md
+- scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs
+verification_commands:
+- npm run typecheck
+- node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs
+verification_results:
+- npm run typecheck passed
+- node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs passed
+skipped_checks:
+- No skipped checks.
+remaining_caveats:
+- No remaining caveats.
+ambiguous_combined_section_lines:
+- No ambiguous combined-section lines.
+authority_boundary_statement: Preview-only result report; no proof/evidence write, no work close/status mutation, no event creation/mutation, and no state commit/reject.
+next_recommended_step: Human review of the field-first candidate.
+`,
+  });
+  assert.equal(fieldFirstOnlyPreview.candidate.work_id, "AG-DOGFOOD-RESEARCH-001");
+  assert.equal(fieldFirstOnlyPreview.candidate.scope, "project:augnes");
+  assert.equal(fieldFirstOnlyPreview.candidate.result_status, "completed");
+  assert.equal(fieldFirstOnlyPreview.candidate.pr_url, undefined, "not opened PR URL must not become a PR field");
+  assert.equal(fieldFirstOnlyPreview.candidate.pr_number, undefined, "n/a PR number must not become a PR field");
+  assert.deepEqual(fieldFirstOnlyPreview.candidate.changed_files, [
+    "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
+    "scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
+  ]);
+  assert.deepEqual(fieldFirstOnlyPreview.candidate.verification_commands, [
+    "npm run typecheck",
+    "node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
+  ]);
+  assert.deepEqual(fieldFirstOnlyPreview.candidate.verification_results, [
+    "npm run typecheck passed",
+    "node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs passed",
+  ]);
+  assert.deepEqual(fieldFirstOnlyPreview.candidate.skipped_checks, ["No skipped checks."]);
+  assert.deepEqual(fieldFirstOnlyPreview.candidate.remaining_caveats, ["No remaining caveats."]);
+  assert.deepEqual(
+    fieldFirstOnlyPreview.ambiguous_combined_section_lines,
+    [],
+    "explicit No ambiguous combined-section lines must preserve a non-ambiguous preview",
+  );
+  assert.equal(
+    fieldFirstOnlyPreview.field_first_report_context.live_host_observation,
+    "not run - no live host observation was attempted",
+  );
+  assert.equal(
+    fieldFirstOnlyPreview.field_first_report_context.proof_evidence_rows_written,
+    "No proof/evidence rows written.",
+  );
+  assert.equal(
+    fieldFirstOnlyPreview.field_first_report_context.next_recommended_step,
+    "Human review of the field-first candidate.",
+  );
+  for (const inventedField of [
+    "proof_evidence_rows_written",
+    "live_host_observation",
+    "event_rows_created_or_mutated",
+    "work_status_changed",
+    "state_committed_or_rejected",
+  ]) {
+    assert.equal(
+      Object.hasOwn(fieldFirstOnlyPreview.candidate, inventedField),
+      false,
+      `field-first preview candidate must not invent ${inventedField}`,
+    );
+  }
 }
 
 function extractFencedBlockAfterHeading(source, heading) {
@@ -317,4 +422,8 @@ function escapeRegExp(value) {
 
 function looseTextPattern(value) {
   return new RegExp(value.split(/\s+/).map(escapeRegExp).join("\\s+"));
+}
+
+function countMatches(source, pattern) {
+  return [...source.matchAll(pattern)].length;
 }

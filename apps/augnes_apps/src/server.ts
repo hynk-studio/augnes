@@ -1002,6 +1002,15 @@ type NormalizedCodexResultCandidate = {
   result_status?: string;
 };
 
+type CodexResultFieldFirstReportContext = {
+  live_host_observation: string | null;
+  proof_evidence_rows_written: string | null;
+  event_rows_created_or_mutated: string | null;
+  work_status_changed: string | null;
+  state_committed_or_rejected: string | null;
+  next_recommended_step: string | null;
+};
+
 type CodexResultPasteNormalizerPreview = {
   normalizer_type: "codex_result_paste_normalizer_preview";
   status: CodexResultPasteNormalizerStatus;
@@ -1013,6 +1022,7 @@ type CodexResultPasteNormalizerPreview = {
   conflict_warnings: string[];
   extraction_warnings: string[];
   ambiguous_combined_section_lines: string[];
+  field_first_report_context: CodexResultFieldFirstReportContext;
   candidate: NormalizedCodexResultCandidate;
   boundary_text: readonly string[];
 };
@@ -2720,7 +2730,244 @@ function extractCodexResultCombinedSectionAmbiguity(rawText: string): {
   };
 }
 
-function extractCodexResultPasteCandidate(rawText: string): NormalizedCodexResultCandidate {
+type CodexResultFieldFirstLabel =
+  | "summary"
+  | "work_id"
+  | "scope"
+  | "result_status"
+  | "pr_url"
+  | "pr_number"
+  | "live_host_observation"
+  | "proof_evidence_rows_written"
+  | "event_rows_created_or_mutated"
+  | "work_status_changed"
+  | "state_committed_or_rejected"
+  | "changed_files"
+  | "verification_commands"
+  | "verification_results"
+  | "skipped_checks"
+  | "remaining_caveats"
+  | "ambiguous_combined_section_lines"
+  | "authority_boundary_statement"
+  | "next_recommended_step";
+
+type CodexResultFieldFirstExtraction = {
+  candidate: NormalizedCodexResultCandidate;
+  context: CodexResultFieldFirstReportContext;
+  ambiguous_combined_section_lines: string[];
+};
+
+const CODEX_RESULT_EMPTY_FIELD_FIRST_CONTEXT: CodexResultFieldFirstReportContext = {
+  live_host_observation: null,
+  proof_evidence_rows_written: null,
+  event_rows_created_or_mutated: null,
+  work_status_changed: null,
+  state_committed_or_rejected: null,
+  next_recommended_step: null,
+};
+
+const CODEX_RESULT_FIELD_FIRST_LABELS = new Map<string, CodexResultFieldFirstLabel>([
+  ["summary", "summary"],
+  ["work_id", "work_id"],
+  ["scope", "scope"],
+  ["result_status", "result_status"],
+  ["pr_url", "pr_url"],
+  ["pr_number", "pr_number"],
+  ["live_host_observation", "live_host_observation"],
+  ["proof_evidence_rows_written", "proof_evidence_rows_written"],
+  ["event_rows_created_or_mutated", "event_rows_created_or_mutated"],
+  ["work_status_changed", "work_status_changed"],
+  ["state_committed_or_rejected", "state_committed_or_rejected"],
+  ["changed_files", "changed_files"],
+  ["verification_commands", "verification_commands"],
+  ["verification_results", "verification_results"],
+  ["skipped_checks", "skipped_checks"],
+  ["remaining_caveats", "remaining_caveats"],
+  ["ambiguous_combined_section_lines", "ambiguous_combined_section_lines"],
+  ["authority_boundary_statement", "authority_boundary_statement"],
+  ["next_recommended_step", "next_recommended_step"],
+]);
+
+function emptyCodexResultFieldFirstContext(): CodexResultFieldFirstReportContext {
+  return { ...CODEX_RESULT_EMPTY_FIELD_FIRST_CONTEXT };
+}
+
+function normalizeCodexResultFieldFirstTextValue(line: string): string {
+  let text = line.trim();
+  text = text.replace(/^```[a-zA-Z0-9_-]*\s*/, "").replace(/```$/, "").trim();
+  text = text.replace(/^\s*(?:[-*+]|\d+\.)\s+/, "").trim();
+  text = text.replace(/^\[[ xX]\]\s+/, "").trim();
+  const codeSpan = text.match(/^`([^`]+)`$/);
+  if (codeSpan) text = codeSpan[1].trim();
+  return text.replace(/^`|`$/g, "").trim();
+}
+
+function codexResultFieldFirstLineKey(rawLine: string): { key: CodexResultFieldFirstLabel; remainder: string | null } | null {
+  const trimmed = rawLine.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(?:[-*+]\s*)?(?:\*\*)?([A-Za-z][A-Za-z0-9_]{1,80})(?:\*\*)?\s*:\s*(.*)$/);
+  if (!match) return null;
+  if (match[1].trim() !== match[1].trim().toLowerCase()) return null;
+  const key = CODEX_RESULT_FIELD_FIRST_LABELS.get(match[1].trim().toLowerCase());
+  if (!key) return null;
+  return { key, remainder: match[2].trim() || null };
+}
+
+function codexResultStandaloneLabelLine(rawLine: string): boolean {
+  const trimmed = rawLine.trim();
+  if (!trimmed || /^[-*+]\s+/.test(trimmed)) return false;
+  return /^(?:\*\*)?[A-Za-z][A-Za-z0-9 _/-]{1,80}(?:\*\*)?\s*:\s+/.test(trimmed);
+}
+
+function parseCodexResultFieldFirstLabels(rawText: string): Map<CodexResultFieldFirstLabel, string[]> {
+  const fields = new Map<CodexResultFieldFirstLabel, string[]>();
+  let currentKey: CodexResultFieldFirstLabel | null = null;
+
+  for (const rawLine of rawText.split(/\r?\n/)) {
+    const fieldFirstLine = codexResultFieldFirstLineKey(rawLine);
+    if (fieldFirstLine) {
+      currentKey = fieldFirstLine.key;
+      if (!fields.has(currentKey)) fields.set(currentKey, []);
+      if (fieldFirstLine.remainder) fields.get(currentKey)?.push(fieldFirstLine.remainder);
+      continue;
+    }
+
+    if (codexResultStandaloneLabelLine(rawLine)) {
+      currentKey = null;
+      continue;
+    }
+
+    const sectionKey = codexResultPasteSectionKey(rawLine);
+    if (sectionKey) {
+      currentKey = null;
+      continue;
+    }
+
+    if (currentKey) fields.get(currentKey)?.push(rawLine);
+  }
+
+  return fields;
+}
+
+function fieldFirstScalarValue(fields: Map<CodexResultFieldFirstLabel, string[]>, key: CodexResultFieldFirstLabel): string | null {
+  const entries = fields.get(key) ?? [];
+  const value = entries
+    .map(normalizeCodexResultFieldFirstTextValue)
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return value || null;
+}
+
+function parseCodexResultFieldFirstList(
+  fields: Map<CodexResultFieldFirstLabel, string[]>,
+  key: CodexResultFieldFirstLabel,
+  options: { splitCommas?: boolean } = {}
+): string[] {
+  const entries = fields.get(key) ?? [];
+  const values = entries.flatMap((entry) => {
+    const text = normalizeCodexResultFieldFirstTextValue(entry);
+    if (!text) return [];
+    if (options.splitCommas) return text.split(",").map((item) => item.trim()).filter(Boolean);
+    return [text];
+  });
+  return uniqueNonEmptyStrings(values);
+}
+
+function parseCodexResultFieldFirstPrUrl(value: string | null): string | undefined {
+  if (!value || /^(?:not opened|none|not applicable|n\/a|na|null)$/i.test(value)) return undefined;
+  const match = value.match(/https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/[0-9]+/);
+  return match?.[0]?.replace(/[).,\]]+$/g, "");
+}
+
+function parseCodexResultFieldFirstPrNumber(value: string | null): string | undefined {
+  if (!value || /^(?:not opened|none|not applicable|n\/a|na|null)$/i.test(value)) return undefined;
+  const match = value.trim().match(/^#?([0-9]+)$/);
+  return match?.[1];
+}
+
+function parseCodexResultFieldFirstNoneAwareList(
+  fields: Map<CodexResultFieldFirstLabel, string[]>,
+  key: "skipped_checks" | "remaining_caveats" | "ambiguous_combined_section_lines"
+): string[] {
+  const entries = parseCodexResultFieldFirstList(fields, key, { splitCommas: false });
+  const combinedText = entries.join("\n");
+  if (key === "skipped_checks" && hasExplicitNoneSkippedText(combinedText)) return ["No skipped checks."];
+  if (key === "remaining_caveats" && hasExplicitNoneRemainingText(combinedText)) return ["No remaining caveats."];
+  if (key === "ambiguous_combined_section_lines" && /\b(no ambiguous combined-section lines|no ambiguous combined section lines|none)\b/i.test(combinedText)) {
+    return [];
+  }
+  return uniqueNonEmptyStrings(entries.map(normalizeCodexResultPasteLine));
+}
+
+function extractCodexResultFieldFirstCandidate(rawText: string): CodexResultFieldFirstExtraction {
+  const fields = parseCodexResultFieldFirstLabels(rawText);
+  const candidate: NormalizedCodexResultCandidate = {};
+  const context = emptyCodexResultFieldFirstContext();
+
+  const workId = fieldFirstScalarValue(fields, "work_id");
+  const scope = fieldFirstScalarValue(fields, "scope");
+  const resultStatus = normalizeResultStatus(fieldFirstScalarValue(fields, "result_status"));
+  const prUrl = parseCodexResultFieldFirstPrUrl(fieldFirstScalarValue(fields, "pr_url"));
+  const prNumber = parseCodexResultFieldFirstPrNumber(fieldFirstScalarValue(fields, "pr_number"));
+  const changedFiles = uniqueNonEmptyStrings(
+    parseCodexResultFieldFirstList(fields, "changed_files", { splitCommas: true })
+      .map((line) => fileLookingLine(line) ?? normalizeCodexResultPasteLine(line))
+  );
+  const verificationCommands = parseCodexResultFieldFirstList(fields, "verification_commands", { splitCommas: false });
+  const verificationResults = parseCodexResultFieldFirstList(fields, "verification_results", { splitCommas: false });
+  const skippedChecks = parseCodexResultFieldFirstNoneAwareList(fields, "skipped_checks");
+  const remainingCaveats = parseCodexResultFieldFirstNoneAwareList(fields, "remaining_caveats");
+  const ambiguousEntries = parseCodexResultFieldFirstNoneAwareList(fields, "ambiguous_combined_section_lines");
+  const authorityBoundaryStatement = fieldFirstScalarValue(fields, "authority_boundary_statement");
+
+  if (workId) candidate.work_id = workId;
+  if (scope) candidate.scope = scope;
+  if (resultStatus) candidate.result_status = resultStatus;
+  if (prUrl) candidate.pr_url = prUrl;
+  if (prNumber) candidate.pr_number = prNumber;
+  if (changedFiles.length) candidate.changed_files = changedFiles;
+  if (verificationCommands.length) candidate.verification_commands = verificationCommands;
+  if (verificationResults.length) candidate.verification_results = verificationResults;
+  if (skippedChecks.length) candidate.skipped_checks = skippedChecks;
+  if (remainingCaveats.length) candidate.remaining_caveats = remainingCaveats;
+  if (authorityBoundaryStatement) candidate.authority_boundary_statement = authorityBoundaryStatement;
+
+  context.live_host_observation = fieldFirstScalarValue(fields, "live_host_observation");
+  context.proof_evidence_rows_written = fieldFirstScalarValue(fields, "proof_evidence_rows_written");
+  context.event_rows_created_or_mutated = fieldFirstScalarValue(fields, "event_rows_created_or_mutated");
+  context.work_status_changed = fieldFirstScalarValue(fields, "work_status_changed");
+  context.state_committed_or_rejected = fieldFirstScalarValue(fields, "state_committed_or_rejected");
+  context.next_recommended_step = fieldFirstScalarValue(fields, "next_recommended_step");
+
+  return {
+    candidate,
+    context,
+    ambiguous_combined_section_lines: ambiguousEntries,
+  };
+}
+
+function mergeCodexResultFieldFirstCandidate(
+  sectionCandidate: NormalizedCodexResultCandidate,
+  fieldFirstCandidate: NormalizedCodexResultCandidate
+): { candidate: NormalizedCodexResultCandidate; warnings: string[] } {
+  const candidate: NormalizedCodexResultCandidate = { ...sectionCandidate };
+  const warnings: string[] = [];
+  for (const [field, fieldFirstValue] of Object.entries(fieldFirstCandidate) as Array<[keyof NormalizedCodexResultCandidate, NormalizedCodexResultCandidate[keyof NormalizedCodexResultCandidate]]>) {
+    if (Array.isArray(fieldFirstValue) ? fieldFirstValue.length === 0 : !fieldFirstValue) continue;
+    const sectionValue = candidate[field];
+    if (
+      sectionValue &&
+      normalizeCodexResultCandidateValue(sectionValue) !== normalizeCodexResultCandidateValue(fieldFirstValue)
+    ) {
+      warnings.push(`Field-first ${field} was used; section-heading extraction suggested a different value.`);
+    }
+    (candidate as Record<string, unknown>)[field] = fieldFirstValue;
+  }
+  return { candidate, warnings: uniqueNonEmptyStrings(warnings) };
+}
+
+function extractCodexResultPasteSectionCandidate(rawText: string): NormalizedCodexResultCandidate {
   const trimmedText = rawText.trim();
   const sections = parseCodexResultPasteSections(trimmedText);
   const changedFiles = uniqueNonEmptyStrings(
@@ -2783,6 +3030,27 @@ function extractCodexResultPasteCandidate(rawText: string): NormalizedCodexResul
   if (authorityBoundaryStatement) candidate.authority_boundary_statement = authorityBoundaryStatement;
   if (normalizedStatus) candidate.result_status = normalizedStatus;
   return candidate;
+}
+
+function extractCodexResultPasteCandidateWithFieldFirst(rawText: string): {
+  candidate: NormalizedCodexResultCandidate;
+  fieldFirstContext: CodexResultFieldFirstReportContext;
+  fieldFirstAmbiguousLines: string[];
+  fieldFirstWarnings: string[];
+} {
+  const sectionCandidate = extractCodexResultPasteSectionCandidate(rawText);
+  const fieldFirstExtraction = extractCodexResultFieldFirstCandidate(rawText);
+  const mergeResult = mergeCodexResultFieldFirstCandidate(sectionCandidate, fieldFirstExtraction.candidate);
+  return {
+    candidate: mergeResult.candidate,
+    fieldFirstContext: fieldFirstExtraction.context,
+    fieldFirstAmbiguousLines: fieldFirstExtraction.ambiguous_combined_section_lines,
+    fieldFirstWarnings: mergeResult.warnings,
+  };
+}
+
+function extractCodexResultPasteCandidate(rawText: string): NormalizedCodexResultCandidate {
+  return extractCodexResultPasteCandidateWithFieldFirst(rawText).candidate;
 }
 
 function detectedCodexResultCandidateFields(candidate: NormalizedCodexResultCandidate): string[] {
@@ -2914,14 +3182,25 @@ export function buildCodexResultPasteNormalizerPreview(input: {
       conflict_warnings: [...normalizedInput.conflictWarnings, ...mergeResult.conflictWarnings],
       extraction_warnings: ["No raw Codex result paste text was provided."],
       ambiguous_combined_section_lines: [],
+      field_first_report_context: emptyCodexResultFieldFirstContext(),
       candidate: {},
       boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
     };
   }
 
-  const candidate = extractCodexResultPasteCandidate(normalizedInput.rawText);
+  const fieldFirstCandidateExtraction = extractCodexResultPasteCandidateWithFieldFirst(normalizedInput.rawText);
+  const candidate = fieldFirstCandidateExtraction.candidate;
   const combinedSectionAmbiguity = extractCodexResultCombinedSectionAmbiguity(normalizedInput.rawText);
-  const detectedFields = detectedCodexResultCandidateFields(candidate);
+  const ambiguousCombinedSectionLines = uniqueNonEmptyStrings([
+    ...combinedSectionAmbiguity.ambiguousEntries,
+    ...fieldFirstCandidateExtraction.fieldFirstAmbiguousLines,
+  ]);
+  const hasFieldFirstContext = Object.values(fieldFirstCandidateExtraction.fieldFirstContext).some(Boolean);
+  const detectedFields = uniqueNonEmptyStrings([
+    ...detectedCodexResultCandidateFields(candidate),
+    ...(ambiguousCombinedSectionLines.length ? ["ambiguous_combined_section_lines"] : []),
+    ...(hasFieldFirstContext ? ["field_first_report_context"] : []),
+  ]);
   const mergeResult = mergeCodexResultInputWithPasteCandidate(input.structuredInput, candidate);
   const candidateHasCoreReviewFields = Boolean(
     candidate.final_report_text &&
@@ -2943,8 +3222,12 @@ export function buildCodexResultPasteNormalizerPreview(input: {
     ...(candidate.authority_boundary_statement ? [] : ["No explicit authority boundary statement section was extracted."]),
   ];
   const allConflictWarnings = uniqueNonEmptyStrings([...normalizedInput.conflictWarnings, ...mergeResult.conflictWarnings]);
+  const combinedAmbiguousLineSet = new Set(combinedSectionAmbiguity.ambiguousEntries);
+  const fieldFirstAmbiguityWarnings = fieldFirstCandidateExtraction.fieldFirstAmbiguousLines
+    .filter((line) => !combinedAmbiguousLineSet.has(line))
+    .map((line) => `Field-first ambiguous_combined_section_lines needs human classification: ${line}`);
   const status: CodexResultPasteNormalizerStatus =
-    normalizedInput.conflictWarnings.length > 0 || combinedSectionAmbiguity.ambiguousEntries.length > 0
+    normalizedInput.conflictWarnings.length > 0 || ambiguousCombinedSectionLines.length > 0
       ? "ambiguous"
       : candidateHasCoreReviewFields
         ? "candidate_ready"
@@ -2959,8 +3242,14 @@ export function buildCodexResultPasteNormalizerPreview(input: {
     filled_fields: mergeResult.filledFields,
     structured_fields_preserved: mergeResult.structuredFieldsPreserved,
     conflict_warnings: allConflictWarnings,
-    extraction_warnings: uniqueNonEmptyStrings([...missingWarnings, ...combinedSectionAmbiguity.warnings]),
-    ambiguous_combined_section_lines: combinedSectionAmbiguity.ambiguousEntries,
+    extraction_warnings: uniqueNonEmptyStrings([
+      ...missingWarnings,
+      ...combinedSectionAmbiguity.warnings,
+      ...fieldFirstCandidateExtraction.fieldFirstWarnings,
+      ...fieldFirstAmbiguityWarnings,
+    ]),
+    ambiguous_combined_section_lines: ambiguousCombinedSectionLines,
+    field_first_report_context: fieldFirstCandidateExtraction.fieldFirstContext,
     candidate,
     boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
   };

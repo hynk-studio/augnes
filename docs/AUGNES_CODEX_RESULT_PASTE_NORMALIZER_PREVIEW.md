@@ -53,6 +53,7 @@ The parser extracts fields only when they are explicit in the pasted text:
 - `verification_results`
 - `skipped_checks`
 - `remaining_caveats`
+- `ambiguous_combined_section_lines`
 - `authority_boundary_statement`
 - `result_status`
 
@@ -70,6 +71,42 @@ For future manual Codex closeouts, prefer the reusable report template in
 review fields, including `skipped_checks`, `remaining_caveats`, and
 `ambiguous_combined_section_lines`, while preserving the current preview-only
 paste path through `codexResultText` / `codexResultPaste`.
+
+The parser directly recognizes field-first snake_case labels when they appear
+as top-level report lines:
+
+- `summary:`
+- `work_id:`
+- `scope:`
+- `result_status:`
+- `pr_url:`
+- `pr_number:`
+- `live_host_observation:`
+- `proof_evidence_rows_written:`
+- `event_rows_created_or_mutated:`
+- `work_status_changed:`
+- `state_committed_or_rejected:`
+- `changed_files:`
+- `verification_commands:`
+- `verification_results:`
+- `skipped_checks:`
+- `remaining_caveats:`
+- `ambiguous_combined_section_lines:`
+- `authority_boundary_statement:`
+- `next_recommended_step:`
+
+Field-first `verification_commands` and `verification_results` are kept
+separate when those labels are present. `pr_url: not opened`,
+`pr_number: not opened`, `none`, `not applicable`, and `n/a` do not become PR
+fields. `No skipped checks.` and `No remaining caveats.` are preserved as
+explicit no-skipped/no-caveat statements.
+
+Field-first labels that describe host observation or write/mutation status are
+preview-only report context. `live_host_observation`,
+`proof_evidence_rows_written`, `event_rows_created_or_mutated`,
+`work_status_changed`, `state_committed_or_rejected`, and
+`next_recommended_step` do not create proof/evidence rows, host observations,
+events, work status changes, state decisions, or close authority.
 
 Combined skipped-check/caveat sections are split conservatively. Supported
 combined headings include `Skipped checks and caveats`, `Skipped validation and

@@ -224,6 +224,19 @@ parse them directly in a later narrow PR.
 Selected next PR candidate: teach paste normalizer to parse field-first
 snake_case report labels directly.
 
+## Field-first Parser Follow-up
+
+This observation remains a historical PR #609 sample-template observation. A
+later PR implements the selected follow-up by teaching the paste normalizer to
+parse field-first snake_case report labels directly.
+
+The historical `Paste Normalizer Outcome` above records what the normalizer
+returned at baseline `67e7e2c`. After the follow-up parser PR, the same sample
+is expected to expose `ambiguous_combined_section_lines` and
+`field_first_report_context` directly while still treating no-write and
+no-mutation labels as preview-only context, not proof, evidence, host
+observation, event mutation, work closure, or state decision.
+
 ## Why That Next PR Is Selected
 
 The dogfood observation shows the template is useful immediately, but the
