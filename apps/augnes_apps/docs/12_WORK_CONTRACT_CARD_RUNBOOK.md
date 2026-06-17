@@ -74,6 +74,16 @@ line and selects the Research Accumulation Scenario Pack doc/smoke as the next
 narrow preview-only pass without adding execution, write authority, or new
 App/MCP tools.
 
+For the preview-only Research Accumulation Scenario Pack selected by
+`AG-DOGFOOD-RESEARCH-001`, see
+`docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md` and run
+`npm run smoke:research-accumulation-scenario-pack-v0-1`. The pack defines
+preview shapes only for research session, paper reference, claim, evidence,
+tension, knowledge gap, perspective update, and follow-up work candidates. It
+adds no paper ingestion, provider/OpenAI calls, embeddings, RAG, vector search,
+database schema, durable state writes, proof/evidence writes, work-status
+mutation, App/MCP tools, or `work_loop_readonly` widening.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
