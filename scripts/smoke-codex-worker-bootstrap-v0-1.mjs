@@ -8,18 +8,25 @@ const bootstrapDocPath = "docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md";
 const helperPath = "scripts/codex-next-work.mjs";
 const runbookPath = "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md";
 const packageJsonPath = "package.json";
-const workId = "AG-DOGFOOD-RESEARCH-001";
+const currentResearchWorkId = "AG-RESEARCH-CAPABILITY-LANES-001";
+const historicalDogfoodWorkId = "AG-DOGFOOD-RESEARCH-001";
 
 const bootstrapDoc = readText(bootstrapDocPath);
 const helperSource = readText(helperPath);
 const runbook = readText(runbookPath);
 const packageJson = JSON.parse(readText(packageJsonPath));
 
-assertIncludes(bootstrapDoc, workId, "bootstrap doc references AG-DOGFOOD-RESEARCH-001");
+assertIncludes(bootstrapDoc, currentResearchWorkId, "bootstrap doc references active research capability work item");
+assertIncludes(bootstrapDoc, historicalDogfoodWorkId, "bootstrap doc references historical AG-DOGFOOD-RESEARCH-001");
+assertIncludes(
+  bootstrapDoc,
+  "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md",
+  "bootstrap doc references the research capability lanes preparation doc",
+);
 assertIncludes(
   bootstrapDoc,
   "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
-  "bootstrap doc references the research accumulation scenario pack",
+  "bootstrap doc references the historical research accumulation scenario pack",
 );
 assertIncludes(
   bootstrapDoc,
@@ -77,8 +84,15 @@ assert.equal(
   "node scripts/smoke-codex-worker-bootstrap-v0-1.mjs",
   "package.json exposes smoke:codex-worker-bootstrap-v0-1",
 );
+assert.equal(
+  packageJson.scripts["smoke:research-capability-lanes-preparation-v0-1"],
+  "node scripts/smoke-research-capability-lanes-preparation-v0-1.mjs",
+  "package.json exposes smoke:research-capability-lanes-preparation-v0-1",
+);
 
-assertIncludes(helperSource, workId, "bootstrap helper contains AG-DOGFOOD fallback support");
+assertIncludes(helperSource, currentResearchWorkId, "bootstrap helper contains active research fallback support");
+assertIncludes(helperSource, historicalDogfoodWorkId, "bootstrap helper contains historical dogfood fallback support");
+assertIncludes(helperSource, "CURRENT_RESEARCH_WORK_ID", "bootstrap helper uses current research work constant");
 assertIncludes(helperSource, "repo_seed_fallback", "bootstrap helper can report repo seed fallback");
 assertIncludes(helperSource, "unscoped paper/source fetching", "bootstrap helper scopes fallback stop conditions");
 assertIncludes(helperSource, "bounded research capability lane", "bootstrap helper preserves future lane allowance");
@@ -86,17 +100,17 @@ assertIncludes(runbook, bootstrapDocPath, "runbook points Codex workers to the b
 
 const requested = await buildBootstrapResult({
   scope: "project:augnes",
-  workId,
+  workId: historicalDogfoodWorkId,
   runtimeMode: "never",
 });
-assertFallbackForResearch(requested, "requested work-id fallback");
+assertHistoricalDogfoodFallback(requested, "requested historical work-id fallback");
 
 const preferred = await buildBootstrapResult({
   scope: "project:augnes",
   preferResearch: true,
   runtimeMode: "never",
 });
-assertFallbackForResearch(preferred, "prefer-research fallback");
+assertCurrentResearchFallback(preferred, "prefer-research fallback");
 
 assertNoForbiddenPatterns({
   [bootstrapDocPath]: bootstrapDoc,
@@ -121,8 +135,9 @@ console.log(
       package_codex_next_work_script: true,
       package_smoke_script: true,
       helper_ag_dogfood_fallback_support: true,
+      helper_current_research_fallback_support: true,
       deterministic_requested_fallback_returns_ag_dogfood: true,
-      deterministic_prefer_research_returns_ag_dogfood: true,
+      deterministic_prefer_research_returns_capability_lanes: true,
       forbidden_authority_patterns_found: false,
     },
     null,
@@ -130,21 +145,11 @@ console.log(
   ),
 );
 
-function assertFallbackForResearch(result, label) {
+function assertCommonFallback(result, label) {
   assert.equal(result.source, "repo_seed_fallback", `${label} reports repo seed fallback`);
   assert.equal(result.runtime_attempted, false, `${label} does not attempt runtime in deterministic mode`);
   assert.equal(result.runtime_available, false, `${label} reports runtime unavailable`);
-  assert.equal(result.work_id, workId, `${label} returns AG-DOGFOOD-RESEARCH-001`);
   assert.equal(result.scope, "project:augnes", `${label} preserves scope`);
-  assertIncludes(result.title, "Research accumulation scenario pack", `${label} returns research title`);
-  assert.ok(
-    result.expected_files.includes("docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md"),
-    `${label} returns expected scenario pack file`,
-  );
-  assert.ok(
-    result.expected_checks.includes("node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs"),
-    `${label} returns expected smoke check`,
-  );
   assert.ok(
     result.stop_conditions.some((condition) => condition.includes("unscoped paper/source fetching")),
     `${label} scopes research stop conditions to preview fallback work`,
@@ -162,6 +167,44 @@ function assertFallbackForResearch(result, label) {
     result.next_return_path,
     "codexResultText or codexResultPaste",
     `${label} returns result-return path`,
+  );
+}
+
+function assertCurrentResearchFallback(result, label) {
+  assertCommonFallback(result, label);
+  assert.equal(result.work_id, currentResearchWorkId, `${label} returns active research capability work item`);
+  assertIncludes(result.title, "Research capability lanes preparation", `${label} returns capability lanes title`);
+  assert.ok(
+    result.expected_files.includes("docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md"),
+    `${label} returns expected preparation doc file`,
+  );
+  assert.ok(
+    result.expected_checks.includes("node scripts/smoke-research-capability-lanes-preparation-v0-1.mjs"),
+    `${label} returns expected preparation smoke check`,
+  );
+  assertIncludes(
+    result.codex_worker_next_action,
+    "prepare the product-facing research capability lane contract",
+    `${label} points to product-facing preparation work`,
+  );
+}
+
+function assertHistoricalDogfoodFallback(result, label) {
+  assertCommonFallback(result, label);
+  assert.equal(result.work_id, historicalDogfoodWorkId, `${label} returns AG-DOGFOOD-RESEARCH-001`);
+  assertIncludes(result.title, "Research accumulation scenario pack", `${label} returns historical research title`);
+  assert.ok(
+    result.expected_files.includes("docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md"),
+    `${label} returns expected historical scenario pack file`,
+  );
+  assert.ok(
+    result.expected_checks.includes("node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs"),
+    `${label} returns expected historical smoke check`,
+  );
+  assertIncludes(
+    result.codex_worker_next_action,
+    "only when that work ID is explicitly requested",
+    `${label} does not treat dogfood as current active research target`,
   );
 }
 

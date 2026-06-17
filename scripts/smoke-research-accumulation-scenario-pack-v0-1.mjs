@@ -216,8 +216,8 @@ function assertSourceWorkRouting() {
   assert.match(sourceScenario, /\bAG-DOGFOOD-RESEARCH-001\b/, "source scenario must name the work item");
   assert.match(sourceObservation, /Selected next PR candidate:\s+Add preview-only Research Accumulation Scenario Pack\s+doc\/smoke\./);
   assert.match(workItemBlock, /workId:\s*"AG-DOGFOOD-RESEARCH-001"/, "seed must include the work item");
-  assert.match(workItemBlock, /status:\s*"in_progress"/, "seeded work item must be active");
-  assert.match(workItemBlock, /priority:\s*"normal"/, "seeded work item must not displace priority-now work");
+  assert.match(workItemBlock, /status:\s*"completed"/, "seeded dogfood work item must be preserved as historical/completed");
+  assert.match(workItemBlock, /priority:\s*"normal"/, "seeded dogfood work item must not displace priority-now work");
 
   for (const expectedFile of expectedFiles) {
     assert.match(workItemBlock, new RegExp(escapeRegExp(expectedFile)), `seed must include ${expectedFile}`);

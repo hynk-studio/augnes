@@ -29,8 +29,10 @@ repo implementation and verification worker. Preserve the authority boundaries.
   `npm run codex:next-work -- --scope project:augnes`.
 - If research work is requested, use:
   `npm run codex:next-work -- --scope project:augnes --prefer-research`, or
+  `npm run codex:next-work -- --scope project:augnes --work-id AG-RESEARCH-CAPABILITY-LANES-001`
+  for the current research capability preparation item, or
   `npm run codex:next-work -- --scope project:augnes --work-id AG-DOGFOOD-RESEARCH-001`
-  when that work ID is named.
+  when that historical dogfood work ID is named.
 - Report honestly whether the work source was `runtime_work_brief`,
   `repo_seed_fallback`, `docs_fallback`, or `blocked`. Do not claim a live
   Work Brief, Work Picker, host observation, proof/evidence row, state change,

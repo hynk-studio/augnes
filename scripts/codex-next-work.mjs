@@ -3,7 +3,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_SCOPE = "project:augnes";
-const RESEARCH_WORK_ID = "AG-DOGFOOD-RESEARCH-001";
+const CURRENT_RESEARCH_WORK_ID = "AG-RESEARCH-CAPABILITY-LANES-001";
+const HISTORICAL_RESEARCH_DOGFOOD_WORK_ID = "AG-DOGFOOD-RESEARCH-001";
 const DEFAULT_WORK_ID = "AG-006";
 const JSON_BEGIN = "BEGIN_AUGNES_CODEX_NEXT_WORK_JSON";
 const JSON_END = "END_AUGNES_CODEX_NEXT_WORK_JSON";
@@ -171,7 +172,7 @@ function trimTrailingSlash(value) {
 
 function selectWorkId(parsed, seedSource) {
   if (parsed.workId) return parsed.workId;
-  if (parsed.preferResearch) return RESEARCH_WORK_ID;
+  if (parsed.preferResearch) return CURRENT_RESEARCH_WORK_ID;
 
   for (const workId of readSeededWorkIds(seedSource)) {
     const work = readSeededWorkItem(seedSource, workId);
@@ -316,8 +317,9 @@ function buildFallbackResult({
   const expectedFiles = fallbackWork.expected_files;
   const expectedChecks = fallbackWork.expected_checks;
   const implementationAnchors = fallbackWork.implementation_anchors;
-  const isResearchWork = fallbackWork.work_id === RESEARCH_WORK_ID;
-  const fallbackDocs = isResearchWork
+  const isCurrentResearchWork = fallbackWork.work_id === CURRENT_RESEARCH_WORK_ID;
+  const isHistoricalResearchDogfoodWork = fallbackWork.work_id === HISTORICAL_RESEARCH_DOGFOOD_WORK_ID;
+  const fallbackDocs = isHistoricalResearchDogfoodWork
     ? ["docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md", ...docs]
     : docs;
 
@@ -342,11 +344,24 @@ function buildFallbackResult({
       : bootstrapAuthorityBoundary,
     result_report_template: resultReportTemplatePath,
     next_return_path: "Paste the field-first report through codexResultText or codexResultPaste for Augnes preview review.",
-    codex_worker_next_action: isResearchWork
-      ? "Use AG-DOGFOOD-RESEARCH-001 repo seed fallback and related docs only when runtime is unavailable; implement only the bounded preview docs/smoke contract if still requested."
-      : "Use the selected seeded work item only as deterministic fallback context when runtime is unavailable; stop if implementation scope is not bounded by repo-backed expected files/checks.",
+    codex_worker_next_action: buildFallbackNextAction({
+      isCurrentResearchWork,
+      isHistoricalResearchDogfoodWork,
+    }),
     repo_fallback_sources: uniqueStrings([seedPathRelative(), ...fallbackDocs, ...implementationAnchors]),
   };
+}
+
+function buildFallbackNextAction({ isCurrentResearchWork, isHistoricalResearchDogfoodWork }) {
+  if (isCurrentResearchWork) {
+    return "Use AG-RESEARCH-CAPABILITY-LANES-001 repo seed fallback and related docs only when runtime is unavailable; prepare the product-facing research capability lane contract without implementing fetching, provider calls, retrieval indexes, DB migrations, durable writes, or perspective promotion.";
+  }
+
+  if (isHistoricalResearchDogfoodWork) {
+    return "Use historical AG-DOGFOOD-RESEARCH-001 repo seed fallback only when that work ID is explicitly requested; preserve it as dogfood evidence and do not treat it as the current active research target.";
+  }
+
+  return "Use the selected seeded work item only as deterministic fallback context when runtime is unavailable; stop if implementation scope is not bounded by repo-backed expected files/checks.";
 }
 
 function readSeededWorkItem(seedSource, workId) {
