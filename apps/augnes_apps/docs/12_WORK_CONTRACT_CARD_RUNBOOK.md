@@ -27,6 +27,12 @@ Work Picker visibility check, no-result Work Contract state, sample
 `codexResultText` paste normalizer outcome, conservative closure result, and
 live MCP Inspector / ChatGPT Developer Mode skipped reasons.
 
+For a preview-only Codex worker-perspective review contract, see
+`docs/AUGNES_CODEX_SELF_OPINION_DOGFOOD_SCENARIO_V0_1.md`. That self-opinion
+scenario is advisory review input only. It does not run Codex, add App/MCP
+tools, submit GitHub reviews, write proof/evidence, mutate state, or widen the
+`work_loop_readonly` surface.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
