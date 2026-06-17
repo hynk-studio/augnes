@@ -2170,6 +2170,7 @@
           conflict_warnings: safeArray(record.conflict_warnings),
           extraction_warnings: safeArray(record.extraction_warnings),
           ambiguous_combined_section_lines: safeArray(record.ambiguous_combined_section_lines),
+          field_first_report_context: safeRecord(record.field_first_report_context),
           candidate,
           boundary_text: safeArray(record.boundary_text).length ? safeArray(record.boundary_text) : codexResultPasteNormalizerBoundaryText(),
         };
@@ -2191,6 +2192,15 @@
           ...safeArray(candidate.verification_results).map((item) => `verification result: ${item}`),
           ...safeArray(candidate.skipped_checks).map((item) => `skipped check: ${item}`),
           ...safeArray(candidate.remaining_caveats).map((item) => `remaining caveat: ${item}`),
+        ].filter(Boolean);
+        const fieldFirstContext = safeRecord(normalized.field_first_report_context);
+        const fieldFirstContextLines = [
+          fieldFirstContext.live_host_observation ? `live_host_observation: ${fieldFirstContext.live_host_observation}` : "",
+          fieldFirstContext.proof_evidence_rows_written ? `proof_evidence_rows_written: ${fieldFirstContext.proof_evidence_rows_written}` : "",
+          fieldFirstContext.event_rows_created_or_mutated ? `event_rows_created_or_mutated: ${fieldFirstContext.event_rows_created_or_mutated}` : "",
+          fieldFirstContext.work_status_changed ? `work_status_changed: ${fieldFirstContext.work_status_changed}` : "",
+          fieldFirstContext.state_committed_or_rejected ? `state_committed_or_rejected: ${fieldFirstContext.state_committed_or_rejected}` : "",
+          fieldFirstContext.next_recommended_step ? `next_recommended_step: ${fieldFirstContext.next_recommended_step}` : "",
         ].filter(Boolean);
         root.appendChild(createMetricGrid([
           ["Helper", "Codex result paste helper"],
@@ -2233,6 +2243,13 @@
             "Ambiguous combined lines",
             createTextList(normalized.ambiguous_combined_section_lines),
             { badge: `${safeArray(normalized.ambiguous_combined_section_lines).length}` }
+          ));
+        }
+        if (fieldFirstContextLines.length) {
+          root.appendChild(createSection(
+            "Field-first report context",
+            createTextList(fieldFirstContextLines),
+            { badge: `${fieldFirstContextLines.length}`, open: false }
           ));
         }
         root.appendChild(createSection(

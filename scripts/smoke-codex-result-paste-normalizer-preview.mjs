@@ -48,6 +48,7 @@ for (const key of [
   "codex_result_normalizer_preview",
   "normalized_codex_result_candidate",
   "ambiguous_combined_section_lines",
+  "field_first_report_context",
 ]) {
   assert.match(server, new RegExp(escapeRegExp(key)), `server must expose ${key}`);
 }
@@ -58,6 +59,7 @@ for (const label of [
   "Detected fields",
   "Needs human review",
   "Ambiguous combined lines",
+  "Field-first report context",
   "What this helper does not do",
 ]) {
   assert.match(widget, new RegExp(escapeRegExp(label)), `widget must render ${label}`);
@@ -286,6 +288,126 @@ assert.deepEqual(
   "single-purpose caveats section must preserve current behavior",
 );
 
+const fieldFirstPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+summary: Field-first label parser smoke.
+work_id: AG-FIELD-FIRST-001
+scope: project:augnes
+result_status: completed
+pr_url: not opened
+pr_number: not applicable
+live_host_observation: not run - no live host session was started
+proof_evidence_rows_written: No proof/evidence rows written.
+event_rows_created_or_mutated: No event rows created or mutated.
+work_status_changed: No work close/status mutation.
+state_committed_or_rejected: No state commit/reject.
+changed_files:
+- apps/augnes_apps/src/server.ts
+- docs/AUGNES_CODEX_RESULT_PASTE_NORMALIZER_PREVIEW.md
+verification_commands:
+- npm run smoke:codex-result-paste-normalizer-preview
+- git diff --check
+verification_results:
+- npm run smoke:codex-result-paste-normalizer-preview passed
+- git diff --check passed
+skipped_checks:
+- Live host observation skipped because no live host session was started.
+remaining_caveats:
+- Result review remains preview-only.
+ambiguous_combined_section_lines:
+- Operator follow-up noted in transcript.
+authority_boundary_statement: Preview-only parser/read-model change; no proof/evidence write, no work close/status mutation, no event creation/mutation, and no state commit/reject.
+next_recommended_step: Human review of field-first parser output.
+`,
+});
+assert.equal(fieldFirstPreview.status, "ambiguous", "field-first ambiguous lines must keep the preview conservative");
+assert.equal(fieldFirstPreview.candidate.work_id, "AG-FIELD-FIRST-001");
+assert.equal(fieldFirstPreview.candidate.scope, "project:augnes");
+assert.equal(fieldFirstPreview.candidate.result_status, "completed");
+assert.equal(fieldFirstPreview.candidate.pr_url, undefined, "field-first pr_url: not opened must not become a PR URL");
+assert.equal(fieldFirstPreview.candidate.pr_number, undefined, "field-first pr_number: not applicable must not become a PR number");
+assert.deepEqual(fieldFirstPreview.candidate.changed_files, [
+  "apps/augnes_apps/src/server.ts",
+  "docs/AUGNES_CODEX_RESULT_PASTE_NORMALIZER_PREVIEW.md",
+]);
+assert.deepEqual(fieldFirstPreview.candidate.verification_commands, [
+  "npm run smoke:codex-result-paste-normalizer-preview",
+  "git diff --check",
+]);
+assert.deepEqual(fieldFirstPreview.candidate.verification_results, [
+  "npm run smoke:codex-result-paste-normalizer-preview passed",
+  "git diff --check passed",
+]);
+assert.deepEqual(fieldFirstPreview.candidate.skipped_checks, [
+  "Live host observation skipped because no live host session was started",
+]);
+assert.deepEqual(fieldFirstPreview.candidate.remaining_caveats, ["Result review remains preview-only"]);
+assert.deepEqual(fieldFirstPreview.ambiguous_combined_section_lines, ["Operator follow-up noted in transcript"]);
+assert.equal(
+  fieldFirstPreview.field_first_report_context.live_host_observation,
+  "not run - no live host session was started",
+);
+assert.equal(
+  fieldFirstPreview.field_first_report_context.proof_evidence_rows_written,
+  "No proof/evidence rows written.",
+);
+assert.equal(
+  fieldFirstPreview.field_first_report_context.event_rows_created_or_mutated,
+  "No event rows created or mutated.",
+);
+assert.equal(
+  fieldFirstPreview.field_first_report_context.work_status_changed,
+  "No work close/status mutation.",
+);
+assert.equal(
+  fieldFirstPreview.field_first_report_context.state_committed_or_rejected,
+  "No state commit/reject.",
+);
+assert.equal(
+  fieldFirstPreview.field_first_report_context.next_recommended_step,
+  "Human review of field-first parser output.",
+);
+assert.match(fieldFirstPreview.candidate.authority_boundary_statement ?? "", /Preview-only parser\/read-model change/);
+for (const inventedField of [
+  "proof_evidence_rows_written",
+  "live_host_observation",
+  "event_rows_created_or_mutated",
+  "work_status_changed",
+  "state_committed_or_rejected",
+]) {
+  assert.equal(
+    Object.hasOwn(fieldFirstPreview.candidate, inventedField),
+    false,
+    `field-first parser must not add ${inventedField} to the result candidate`,
+  );
+}
+
+const fieldFirstConflictPreview = buildCodexResultPasteNormalizerPreview({
+  topLevelPasteText: `
+work_id: AG-FIELD-FIRST-CONFLICT
+scope: project:augnes
+result_status: completed
+changed_files:
+- docs/FIELD_FIRST.md
+
+Changed files
+- docs/SECTION_HEADING.md
+
+verification_results:
+- npm run smoke:codex-result-paste-normalizer-preview passed
+authority_boundary_statement: Preview-only parser conflict smoke; no write authority.
+`,
+});
+assert.deepEqual(
+  fieldFirstConflictPreview.candidate.changed_files,
+  ["docs/FIELD_FIRST.md"],
+  "field-first list value must win over conflicting section-heading extraction",
+);
+assert.ok(
+  fieldFirstConflictPreview.extraction_warnings.some((warning) => /Field-first changed_files was used/.test(warning)),
+  "field-first/section conflict must be surfaced as an extraction warning",
+);
+
 assert.deepEqual(
   normalizeCodexResultPasteInput({ structuredInput: { closeoutText: sampleCloseoutText } }).source,
   "structured_input_raw_text",
@@ -299,6 +421,10 @@ const featureSource = [
   extractFunction(server, "classifyCodexResultCombinedSectionLine"),
   extractFunction(server, "splitCodexResultCombinedSectionEntries"),
   extractFunction(server, "combinedSectionLineClassificationReason"),
+  extractFunction(server, "parseCodexResultFieldFirstLabels"),
+  extractFunction(server, "parseCodexResultFieldFirstList"),
+  extractFunction(server, "extractCodexResultFieldFirstCandidate"),
+  extractFunction(server, "mergeCodexResultFieldFirstCandidate"),
   extractFunction(widget, "normalizeCodexResultPasteNormalizerPreview"),
   extractFunction(widget, "renderCodexResultPasteNormalizerPreview"),
   workBriefBlock,
@@ -321,6 +447,8 @@ console.log(
       combined_none_skipped_checked: true,
       combined_none_remaining_checked: true,
       ambiguous_combined_lines_checked: true,
+      field_first_report_labels_checked: true,
+      field_first_section_conflict_checked: true,
       single_purpose_sections_unchanged: true,
       missing_fields_remain_partial: true,
       forbidden_feature_authority_absent: true,
