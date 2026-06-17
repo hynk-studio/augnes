@@ -35,6 +35,7 @@ assert.match(server, /handoff_tool_hint/, "server must return model-readable han
 assert.match(server, /codex_handoff_preview/, "server must return Codex Handoff Preview structured content");
 assert.match(server, /core_codex_handoff_packet/, "server must return Core Codex Handoff Packet structured content");
 assert.match(server, /copyable_core_handoff_text/, "server must expose copyable Core handoff text");
+assert.match(server, /core_current_task_only/, "server must expose Core current-task-only structured content");
 assert.match(server, /core_handoff_usage/, "server must expose Core handoff usage state");
 assert.match(server, /implementation_anchors/, "server must expose Core implementation anchors");
 assert.match(server, /buildFullContextImplementationAnchors/, "server must derive Full Context implementation anchors");
@@ -150,6 +151,9 @@ assert.match(runbook, /augnes_get_work_brief/i, "runbook must name the handoff c
 assert.match(runbook, /Missing Data Behavior/i, "runbook must explain missing data behavior");
 assert.match(runbook, /Codex Handoff Preview/i, "runbook must explain the Codex Handoff Preview");
 assert.match(runbook, /Core Handoff/i, "runbook must document the Core Handoff packet");
+assert.match(runbook, /Current task only/, "runbook must document the Core current-task-only subsection");
+assert.match(runbook, /AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1\.md/, "runbook must point Core Handoff results to the reusable report template");
+assert.match(runbook, /codexResultText[\s\S]*codexResultPaste/, "runbook must document manual result return through codexResultText / codexResultPaste");
 assert.match(runbook, /Codex handoff recommendation/i, "runbook must document the handoff recommendation panel");
 assert.match(runbook, /What to copy/i, "runbook must document the user-facing copy decision");
 assert.match(runbook, /core_handoff_usage/, "runbook must document Core handoff usage state");
@@ -286,6 +290,7 @@ assert.match(workBriefBlock, /work_contract_card/, "augnes_get_work_brief must c
 assert.match(workBriefBlock, /codex_handoff_preview/, "augnes_get_work_brief must carry handoff preview structured content");
 assert.match(workBriefBlock, /core_codex_handoff_packet/, "augnes_get_work_brief must carry Core Handoff structured content");
 assert.match(workBriefBlock, /copyable_core_handoff_text/, "augnes_get_work_brief must expose Core Handoff copy text");
+assert.match(workBriefBlock, /core_current_task_only|coreCodexHandoffPacket/, "augnes_get_work_brief must expose Core current-task-only data through the Core packet");
 assert.match(workBriefBlock, /final_codex_handoff_packet/, "augnes_get_work_brief must carry final handoff packet structured content");
 assert.match(workBriefBlock, /full_codex_handoff_packet/, "augnes_get_work_brief must expose a full handoff packet alias");
 assert.match(workBriefBlock, /copyable_full_handoff_text/, "augnes_get_work_brief must expose full handoff copy text");
@@ -1034,6 +1039,7 @@ console.log(
       handoff_preview_stop_conditions_present: true,
       handoff_preview_copyable_packet_present: true,
       core_codex_handoff_packet_present: true,
+      core_current_task_only_section_present: true,
       core_handoff_usage_present: true,
       implementation_anchors_present: true,
       full_context_implementation_anchors_present: true,
@@ -2424,6 +2430,45 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
     assert.equal(jsonBlock.core_packet_schema, "augnes.core_codex_handoff_packet.v0_1", "Core JSON must identify the Core packet schema");
     assert.equal(jsonBlock.copy_packet.core_packet, true, "Core JSON must mark the packet as the Core copy");
     assert.equal(jsonBlock.copy_packet.full_context_available_separately, true, "Core JSON must point to separate full context availability");
+    assert.match(copiedText, /Current task only/, "Core copy must include the compact current-task-only subsection");
+    for (const compactLabel of [
+      "Work ID:",
+      "Scope:",
+      "Task:",
+      "Expected files:",
+      "Expected checks:",
+      "Stop if:",
+      "Authority boundary:",
+      "Return result using:",
+      "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+      "codexResultText / codexResultPaste",
+    ]) {
+      assert.match(copiedText, new RegExp(escapeRegExp(compactLabel)), `Core copy must include compact label: ${compactLabel}`);
+    }
+    assert.ok(jsonBlock.core_current_task_only, "Core JSON must include core_current_task_only");
+    assert.equal(jsonBlock.core_current_task_only.work_id, jsonBlock.work?.work_id, "current-task JSON work_id must match work block");
+    assert.equal(jsonBlock.core_current_task_only.scope, jsonBlock.work?.scope, "current-task JSON scope must match work block");
+    assert.ok(jsonBlock.core_current_task_only.current_task, "current-task JSON must include a current task");
+    assert.ok(Array.isArray(jsonBlock.core_current_task_only.expected_files), "current-task JSON must include expected files array");
+    assert.ok(Array.isArray(jsonBlock.core_current_task_only.expected_checks), "current-task JSON must include expected checks array");
+    assert.ok(Array.isArray(jsonBlock.core_current_task_only.stop_conditions), "current-task JSON must include stop conditions array");
+    assert.deepEqual(jsonBlock.core_current_task_only.authority_boundary_summary, [
+      "no Codex execution from App/MCP",
+      "no proof/evidence write unless separately authorized",
+      "no work close/status mutation",
+      "no event/state mutation",
+      "no GitHub review/merge/publish/retry/replay/deploy",
+    ]);
+    assert.equal(
+      jsonBlock.core_current_task_only.result_report_template,
+      "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+      "current-task JSON must point to the reusable result report template",
+    );
+    assert.equal(
+      jsonBlock.core_current_task_only.next_return_path,
+      "Paste through codexResultText / codexResultPaste for preview review.",
+      "current-task JSON must keep manual result return path",
+    );
     assert.ok(jsonBlock.work?.title, "Core JSON must include task title");
     assert.ok(jsonBlock.work?.work_id, "Core JSON must include work ID");
     assert.ok(jsonBlock.expected_scope, "Core JSON must include expected scope");

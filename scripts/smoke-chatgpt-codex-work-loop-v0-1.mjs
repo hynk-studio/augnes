@@ -139,6 +139,7 @@ function assertStructuredToolSurface() {
   for (const field of [
     "work_contract_card",
     "core_codex_handoff_packet",
+    "core_current_task_only",
     "copyable_core_handoff_text",
     "full_codex_handoff_packet",
     "copyable_full_handoff_text",
@@ -271,6 +272,17 @@ function assertFixtureScenarios() {
     assert.equal(payload.codex_handoff_decision.recommended_for_planning, "core_handoff", "Core handoff planning recommendation must be explicit");
     assert.equal(payload.codex_handoff_decision.recommended_for_implementation, "core_handoff", "Core / Full implementation recommendation must be explicit");
     assert.ok(payload.copyable_core_handoff_text, "copyable Core handoff text must exist");
+    assert.match(payload.copyable_core_handoff_text, /Current task only/, "copyable Core handoff text must include current-task-only section");
+    assert.equal(
+      payload.core_codex_handoff_packet.core_current_task_only?.result_report_template,
+      "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+      "Core packet must point to the reusable result report template",
+    );
+    assert.match(
+      payload.core_codex_handoff_packet.core_current_task_only?.next_return_path ?? "",
+      /codexResultText \/ codexResultPaste/,
+      "Core packet must keep manual result return through codexResultText / codexResultPaste",
+    );
     assert.ok(payload.copyable_full_handoff_text, "copyable Full handoff text must exist");
     assertNoCreatedFollowUpRefs(payload.result_review_closure_preview.follow_up_seed);
     for (const boundary of payload.result_review_closure_preview.boundary_text) {
@@ -416,7 +428,70 @@ function integratedPayload(packet) {
     expected_files: EXPECTED_FILES,
     expected_checks: EXPECTED_CHECKS,
     related_state_keys: ["coordination.event_spine"],
-    copyable_handoff_text: "Core Codex Handoff Packet for AG-006. Preview/copy only; does not execute Codex.",
+    core_current_task_only: {
+      work_id: "AG-006",
+      scope: "project:augnes",
+      title: "Coordination event spine schema and storage",
+      current_task: "Verify the preview-only ChatGPT-Codex work loop snapshot.",
+      expected_files: EXPECTED_FILES,
+      expected_checks: EXPECTED_CHECKS,
+      stop_conditions: ["Work ID is missing or unknown."],
+      authority_boundary_summary: [
+        "no Codex execution from App/MCP",
+        "no proof/evidence write unless separately authorized",
+        "no work close/status mutation",
+        "no event/state mutation",
+        "no GitHub review/merge/publish/retry/replay/deploy",
+      ],
+      result_report_template: "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+      next_return_path: "Paste through codexResultText / codexResultPaste for preview review.",
+    },
+    copyable_handoff_text: [
+      "Core Codex Handoff Packet",
+      "Preview/copy only; does not execute Codex.",
+      "",
+      "Current task only",
+      "- Work ID: AG-006",
+      "- Scope: project:augnes",
+      "- Task: Verify the preview-only ChatGPT-Codex work loop snapshot.",
+      "- Expected files:",
+      "  - apps/augnes_apps/src/server.ts",
+      "- Expected checks:",
+      "  - npm run smoke:chatgpt-work-contract-card",
+      "- Stop if:",
+      "  - Work ID is missing or unknown.",
+      "- Authority boundary:",
+      "  - no Codex execution from App/MCP",
+      "  - no proof/evidence write unless separately authorized",
+      "  - no work close/status mutation",
+      "  - no event/state mutation",
+      "  - no GitHub review/merge/publish/retry/replay/deploy",
+      "- Return result using:",
+      "  - docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+      "  - Paste through codexResultText / codexResultPaste for preview review.",
+      "BEGIN_AUGNES_CODEX_HANDOFF_JSON",
+      JSON.stringify({
+        schema: "augnes.codex_handoff_preview.v0_1",
+        packet_kind: "core_codex_handoff_packet",
+        core_packet_schema: "augnes.core_codex_handoff_packet.v0_1",
+        core_current_task_only: {
+          work_id: "AG-006",
+          scope: "project:augnes",
+          result_report_template: "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+          next_return_path: "Paste through codexResultText / codexResultPaste for preview review.",
+        },
+        copy_packet: {
+          preview_only: true,
+          core_packet: true,
+          does_not_execute_codex: true,
+          does_not_record_evidence: true,
+          does_not_record_proof: true,
+          does_not_mutate_state: true,
+          does_not_merge: true,
+        },
+      }),
+      "END_AUGNES_CODEX_HANDOFF_JSON",
+    ].join("\n"),
   };
   const handoffDecision = {
     decision_type: "codex_handoff_recommendation",
