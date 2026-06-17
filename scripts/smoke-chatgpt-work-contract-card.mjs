@@ -2435,6 +2435,8 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
       "Work ID:",
       "Scope:",
       "Task:",
+      "Core usage:",
+      "Implementation anchors:",
       "Expected files:",
       "Expected checks:",
       "Stop if:",
@@ -2449,6 +2451,30 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
     assert.equal(jsonBlock.core_current_task_only.work_id, jsonBlock.work?.work_id, "current-task JSON work_id must match work block");
     assert.equal(jsonBlock.core_current_task_only.scope, jsonBlock.work?.scope, "current-task JSON scope must match work block");
     assert.ok(jsonBlock.core_current_task_only.current_task, "current-task JSON must include a current task");
+    assert.equal(
+      jsonBlock.core_current_task_only.core_usage,
+      jsonBlock.core_handoff_usage,
+      "current-task JSON core_usage must match Core packet usage",
+    );
+    assert.ok(
+      ["attached", "missing", "unknown"].includes(jsonBlock.core_current_task_only.implementation_anchor_status),
+      "current-task JSON must include bounded implementation anchor status",
+    );
+    assert.equal(
+      jsonBlock.core_current_task_only.implementation_anchor_count,
+      jsonBlock.implementation_anchors.length,
+      "current-task JSON implementation_anchor_count must match Core anchors length",
+    );
+    assert.equal(
+      jsonBlock.core_current_task_only.implementation_anchor_summary,
+      jsonBlock.implementation_anchor_summary,
+      "current-task JSON implementation_anchor_summary must match Core summary",
+    );
+    assert.equal(
+      jsonBlock.core_current_task_only.full_context_required_before_implementation,
+      jsonBlock.full_context_required_before_implementation,
+      "current-task JSON Full Context requirement must match Core packet",
+    );
     assert.ok(Array.isArray(jsonBlock.core_current_task_only.expected_files), "current-task JSON must include expected files array");
     assert.ok(Array.isArray(jsonBlock.core_current_task_only.expected_checks), "current-task JSON must include expected checks array");
     assert.ok(Array.isArray(jsonBlock.core_current_task_only.stop_conditions), "current-task JSON must include stop conditions array");
@@ -2488,6 +2514,17 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
         true,
         "Core JSON without implementation anchors must mark Full Context required",
       );
+      assert.equal(
+        jsonBlock.core_current_task_only.implementation_anchor_status,
+        "missing",
+        "current-task JSON without anchors must mark anchor status missing",
+      );
+      assert.match(copiedText, /Core usage: planning only \/ full context needed/, "Core copy without anchors must say planning-only / Full Context needed");
+      assert.match(
+        copiedText,
+        /Implementation anchors: none attached; open Full Context before implementation\./,
+        "Core copy without anchors must direct the operator to Full Context before implementation",
+      );
       assert.match(
         copiedText,
         /No implementation file\/schema anchors are attached in Core\. Use Core for planning only, or open Full Context before implementation\./,
@@ -2495,6 +2532,12 @@ async function assertRenderedCopyAffordance(renderedFallback, expectedPath = "cl
       );
     } else {
       assert.equal(jsonBlock.core_handoff_usage, "implementation_ready", "Core JSON with anchors must mark implementation_ready");
+      assert.equal(
+        jsonBlock.core_current_task_only.implementation_anchor_status,
+        "attached",
+        "current-task JSON with anchors must mark anchor status attached",
+      );
+      assert.match(copiedText, /Implementation anchors: \d+ attached;/, "Core copy with anchors must summarize attached implementation anchors");
       assert.equal(
         jsonBlock.full_context_required_before_implementation,
         false,

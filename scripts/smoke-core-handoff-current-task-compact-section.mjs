@@ -38,6 +38,8 @@ for (const requiredText of [
   "Work ID:",
   "Scope:",
   "Task:",
+  "Core usage:",
+  "Implementation anchors:",
   "Expected files:",
   "Expected checks:",
   "Stop if:",
@@ -75,6 +77,11 @@ for (const structuredKey of [
   "scope",
   "title",
   "current_task",
+  "core_usage",
+  "implementation_anchor_status",
+  "implementation_anchor_count",
+  "implementation_anchor_summary",
+  "full_context_required_before_implementation",
   "expected_files",
   "expected_checks",
   "stop_conditions",
@@ -103,15 +110,27 @@ for (const requiredDocText of [
   "codexResultPaste",
   "does not execute Codex",
   "does not add App/MCP tools",
+  "Core usage / implementation anchor status",
+  "planning-only / full context needed",
+  "Core usage and Implementation anchors sections remain below",
 ]) {
   assert.match(runbook, new RegExp(escapeRegExp(requiredDocText)), `runbook must document ${requiredDocText}`);
 }
-assert.match(runbook, /broader\s+Core\s+Handoff context remains below/, "runbook must document that broader Core Handoff context remains below");
+assert.match(runbook, /broader\s+Core\s+Handoff\s+context remains below/, "runbook must document that broader Core Handoff context remains below");
+assert.match(runbook, /does not grant\s+implementation authority/, "runbook must document that compact status does not grant implementation authority");
 
 assert.match(corePacketBuilder, /buildCoreCurrentTaskOnly\(packetBase\)/, "Core packet must derive compact object from existing packet data");
+assert.match(currentTaskBuilder, /core_handoff_usage/, "Core current-task object must derive core_usage from Core packet usage");
+assert.match(currentTaskBuilder, /implementation_anchors\.length/, "Core current-task object must derive implementation anchor count from Core packet anchors");
+assert.match(currentTaskBuilder, /implementation_anchor_summary/, "Core current-task object must derive implementation anchor summary from Core packet data");
+assert.match(currentTaskBuilder, /full_context_required_before_implementation/, "Core current-task object must derive Full Context requirement from Core packet data");
 assert.match(coreTextBuilder, /No expected files are listed in the work brief\./, "Core text must preserve missing expected-files fallback");
 assert.match(coreTextBuilder, /No expected checks are listed in the work brief\./, "Core text must preserve missing expected-checks fallback");
 assert.match(coreTextBuilder, /No stop conditions listed\./, "Core text must preserve missing stop-condition fallback");
+assert.match(coreTextBuilder, /planning only \/ full context needed/, "Core text must expose missing-anchor planning-only status");
+assert.match(coreTextBuilder, /none attached; open Full Context before implementation\./, "Core text must expose missing-anchor Full Context fallback");
+assert.match(widgetFallbackBuilder, /planning only \/ full context needed/, "widget fallback must expose missing-anchor planning-only status");
+assert.match(widgetFallbackBuilder, /none attached; open Full Context before implementation\./, "widget fallback must expose missing-anchor Full Context fallback");
 assert.match(server, /copyable_core_handoff_text: coreCodexHandoffPacket\.copyable_handoff_text/, "Core copy text alias must remain present");
 assert.match(server, /final_codex_handoff_packet: finalCodexHandoffPacket/, "Final handoff packet must remain present");
 assert.match(server, /full_codex_handoff_packet: finalCodexHandoffPacket/, "Full handoff alias must remain present");

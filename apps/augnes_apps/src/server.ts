@@ -1147,11 +1147,18 @@ type HandoffAutomationSlots = {
   codex_result_review_packet: FinalHandoffAutomationSlot;
 };
 
+type CoreCurrentTaskImplementationAnchorStatus = "attached" | "missing" | "unknown";
+
 type CoreCurrentTaskOnly = {
   work_id: string | null;
   scope: string | null;
   title: string | null;
   current_task: string;
+  core_usage: CoreHandoffUsage;
+  implementation_anchor_status: CoreCurrentTaskImplementationAnchorStatus;
+  implementation_anchor_count: number;
+  implementation_anchor_summary: string;
+  full_context_required_before_implementation: boolean;
   expected_files: string[];
   expected_checks: string[];
   stop_conditions: string[];
@@ -4341,11 +4348,17 @@ function buildCoreCodexHandoffJsonBlock(
 function buildCoreCurrentTaskOnly(
   packet: Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text" | "core_current_task_only">
 ): CoreCurrentTaskOnly {
+  const implementationAnchorCount = packet.implementation_anchors.length;
   return {
     work_id: packet.work_id,
     scope: packet.work_scope,
     title: packet.work_title,
     current_task: packet.current_or_next_step || packet.user_facing_goal,
+    core_usage: packet.core_handoff_usage,
+    implementation_anchor_status: coreCurrentTaskImplementationAnchorStatus(packet),
+    implementation_anchor_count: implementationAnchorCount,
+    implementation_anchor_summary: packet.implementation_anchor_summary,
+    full_context_required_before_implementation: packet.full_context_required_before_implementation,
     expected_files: packet.expected_files,
     expected_checks: packet.expected_checks,
     stop_conditions: [...packet.stop_conditions],
@@ -4353,6 +4366,16 @@ function buildCoreCurrentTaskOnly(
     result_report_template: CORE_CURRENT_TASK_RESULT_REPORT_TEMPLATE,
     next_return_path: CORE_CURRENT_TASK_NEXT_RETURN_PATH,
   };
+}
+
+function coreCurrentTaskImplementationAnchorStatus(
+  packet: Pick<CoreCodexHandoffPacket, "core_handoff_usage" | "implementation_anchors" | "full_context_required_before_implementation">
+): CoreCurrentTaskImplementationAnchorStatus {
+  if (packet.implementation_anchors.length > 0) return "attached";
+  if (packet.full_context_required_before_implementation || packet.core_handoff_usage === "implementation_requires_full_context") {
+    return "missing";
+  }
+  return "unknown";
 }
 
 function buildCoreCodexHandoffText(
@@ -4369,6 +4392,14 @@ function buildCoreCodexHandoffText(
     `- Work ID: ${formatStatus(currentTask.work_id, "No work ID listed.")}`,
     `- Scope: ${formatStatus(currentTask.scope)}`,
     `- Task: ${currentTask.current_task}`,
+    `- Core usage: ${currentTask.full_context_required_before_implementation ? "planning only / full context needed" : currentTask.core_usage}`,
+    `- Implementation anchors: ${
+      currentTask.implementation_anchor_status === "attached"
+        ? `${currentTask.implementation_anchor_count} attached; ${currentTask.implementation_anchor_summary}`
+        : currentTask.implementation_anchor_status === "missing"
+          ? "none attached; open Full Context before implementation."
+          : `${currentTask.implementation_anchor_count} known; ${currentTask.implementation_anchor_summary}`
+    }`,
     "- Expected files:",
     listForPacket(currentTask.expected_files, "No expected files are listed in the work brief."),
     "- Expected checks:",

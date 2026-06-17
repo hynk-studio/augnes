@@ -603,18 +603,25 @@ It copies the Core Handoff packet from `core_codex_handoff_packet` /
 `copyable_core_handoff_text`. This is the shorter packet for starting Codex
 work. It now starts with a compact `Current task only` subsection before the
 broader context sections. That subsection repeats only the immediate work ID,
-scope, current task, expected files, expected checks, stop conditions, authority
-boundary summary, and manual result-return path. It points Codex to
+scope, current task, Core usage / implementation anchor status, expected files,
+expected checks, stop conditions, authority boundary summary, and manual
+result-return path. It points Codex to
 `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md` and says to return results
-through `codexResultText` / `codexResultPaste` for preview review.
+through `codexResultText` / `codexResultPaste` for preview review. If
+implementation anchors are missing, the compact subsection says Core is
+planning-only / full context needed and instructs the operator to open Full
+Context before implementation.
 
 The `Current task only` subsection is copied text only. It does not execute
 Codex, generate a report, fetch GitHub, write proof/evidence, close work,
 mutate events or state, submit PR reviews, merge, publish, retry, replay,
 deploy, or add write authority. It does not add App/MCP tools. The broader
-Core Handoff context remains below: work ID, scope, title, user-facing goal,
-status, next step, Core usage state, implementation anchors when available,
-expected files/checks, relevant
+Core usage and Implementation anchors sections remain below with their existing
+confirmation and fallback language. The compact status line does not grant
+implementation authority when anchors are missing. The broader Core Handoff
+context remains below: work ID, scope, title, user-facing goal, status, next
+step, Core usage state, implementation anchors when available, expected
+files/checks, relevant
 Constellation summary, Memory Reuse summary, PR checklist summary,
 closeout/report expectations, skipped-check policy, stop conditions, concise
 authority boundary, final report requirements, and a compact structured JSON
