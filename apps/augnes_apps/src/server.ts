@@ -393,6 +393,17 @@ const CORE_HANDOFF_AUTHORITY_BOUNDARIES = [
   "Durable approval remains user/Core gated.",
 ] as const;
 
+const CORE_CURRENT_TASK_RESULT_REPORT_TEMPLATE = "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md" as const;
+const CORE_CURRENT_TASK_NEXT_RETURN_PATH =
+  "Paste through codexResultText / codexResultPaste for preview review." as const;
+const CORE_CURRENT_TASK_AUTHORITY_BOUNDARY_SUMMARY = [
+  "no Codex execution from App/MCP",
+  "no proof/evidence write unless separately authorized",
+  "no work close/status mutation",
+  "no event/state mutation",
+  "no GitHub review/merge/publish/retry/replay/deploy",
+] as const;
+
 const CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT = [
   "This preview is read-only.",
   "This preview cannot execute Codex.",
@@ -1136,6 +1147,19 @@ type HandoffAutomationSlots = {
   codex_result_review_packet: FinalHandoffAutomationSlot;
 };
 
+type CoreCurrentTaskOnly = {
+  work_id: string | null;
+  scope: string | null;
+  title: string | null;
+  current_task: string;
+  expected_files: string[];
+  expected_checks: string[];
+  stop_conditions: string[];
+  authority_boundary_summary: string[];
+  result_report_template: typeof CORE_CURRENT_TASK_RESULT_REPORT_TEMPLATE;
+  next_return_path: typeof CORE_CURRENT_TASK_NEXT_RETURN_PATH;
+};
+
 type CoreCodexHandoffPacket = {
   packet_type: "core_codex_handoff_packet";
   schema: typeof CORE_CODEX_HANDOFF_PACKET_SCHEMA;
@@ -1147,6 +1171,7 @@ type CoreCodexHandoffPacket = {
   implementation_anchors: string[];
   implementation_anchor_summary: string;
   full_context_required_before_implementation: boolean;
+  core_current_task_only: CoreCurrentTaskOnly;
   work_scope: string | null;
   work_id: string | null;
   work_title: string | null;
@@ -4260,6 +4285,7 @@ function buildCoreCodexHandoffJsonBlock(
     implementation_anchors: packet.implementation_anchors,
     implementation_anchor_summary: packet.implementation_anchor_summary,
     full_context_required_before_implementation: packet.full_context_required_before_implementation,
+    core_current_task_only: packet.core_current_task_only,
     runtime: {
       endpoint_label: "provided by current Augnes runtime",
       requires_user_core_confirmation: true,
@@ -4312,14 +4338,48 @@ function buildCoreCodexHandoffJsonBlock(
   };
 }
 
+function buildCoreCurrentTaskOnly(
+  packet: Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text" | "core_current_task_only">
+): CoreCurrentTaskOnly {
+  return {
+    work_id: packet.work_id,
+    scope: packet.work_scope,
+    title: packet.work_title,
+    current_task: packet.current_or_next_step || packet.user_facing_goal,
+    expected_files: packet.expected_files,
+    expected_checks: packet.expected_checks,
+    stop_conditions: [...packet.stop_conditions],
+    authority_boundary_summary: [...CORE_CURRENT_TASK_AUTHORITY_BOUNDARY_SUMMARY],
+    result_report_template: CORE_CURRENT_TASK_RESULT_REPORT_TEMPLATE,
+    next_return_path: CORE_CURRENT_TASK_NEXT_RETURN_PATH,
+  };
+}
+
 function buildCoreCodexHandoffText(
   packet: Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text">
 ): string {
   const structuredJson = JSON.stringify(buildCoreCodexHandoffJsonBlock(packet), null, 2);
+  const currentTask = packet.core_current_task_only;
   return [
     "Core Codex Handoff Packet",
     "Shorter packet for starting Codex work. Use Copy Full Context when full appendices are needed.",
     "This is a preview/copy packet, not an execution action.",
+    "",
+    "Current task only",
+    `- Work ID: ${formatStatus(currentTask.work_id, "No work ID listed.")}`,
+    `- Scope: ${formatStatus(currentTask.scope)}`,
+    `- Task: ${currentTask.current_task}`,
+    "- Expected files:",
+    listForPacket(currentTask.expected_files, "No expected files are listed in the work brief."),
+    "- Expected checks:",
+    listForPacket(currentTask.expected_checks, "No expected checks are listed in the work brief."),
+    "- Stop if:",
+    listForPacket(currentTask.stop_conditions, "No stop conditions listed."),
+    "- Authority boundary:",
+    listForPacket(currentTask.authority_boundary_summary, "No authority boundary summary listed."),
+    "- Return result using:",
+    `  - ${currentTask.result_report_template}`,
+    `  - ${currentTask.next_return_path}`,
     "",
     "Immediate task context",
     `- Scope: ${formatStatus(packet.work_scope)}`,
@@ -4381,7 +4441,7 @@ function buildCoreCodexHandoffText(
 function buildCoreCodexHandoffPacket(finalPacket: FinalCodexHandoffPacket): CoreCodexHandoffPacket {
   const implementationAnchors = buildCoreImplementationAnchors(finalPacket);
   const coreHandoffUsage = coreHandoffUsageForAnchors(implementationAnchors);
-  const packetWithoutText = {
+  const packetBase = {
     packet_type: "core_codex_handoff_packet",
     schema: CORE_CODEX_HANDOFF_PACKET_SCHEMA,
     title: "Core Codex Handoff Packet",
@@ -4431,6 +4491,10 @@ function buildCoreCodexHandoffPacket(finalPacket: FinalCodexHandoffPacket): Core
       openai_calls: false,
       persistence: false,
     },
+  } satisfies Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text" | "core_current_task_only">;
+  const packetWithoutText = {
+    ...packetBase,
+    core_current_task_only: buildCoreCurrentTaskOnly(packetBase),
   } satisfies Omit<CoreCodexHandoffPacket, "copyable_handoff_text" | "copyable_core_handoff_text">;
   const copyableHandoffText = buildCoreCodexHandoffText(packetWithoutText);
   return {
@@ -6425,6 +6489,7 @@ export function createMcpAppServer(
           codex_handoff_preview: codexHandoffPreview,
           core_codex_handoff_packet: coreCodexHandoffPacket,
           codex_core_handoff_packet: coreCodexHandoffPacket,
+          core_current_task_only: coreCodexHandoffPacket.core_current_task_only,
           codex_handoff_decision: codexHandoffDecision,
           codex_handoff_recommendation: codexHandoffDecision,
           copyable_core_handoff_text: coreCodexHandoffPacket.copyable_handoff_text,

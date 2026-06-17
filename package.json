@@ -169,6 +169,7 @@
     "smoke:codex-mcp-augnes-bridge-docs": "node scripts/smoke-codex-mcp-augnes-bridge-docs.mjs",
     "smoke:chatgpt-constellation-preview-surface": "node scripts/smoke-chatgpt-constellation-preview-surface.mjs",
     "smoke:chatgpt-work-contract-card": "node scripts/smoke-chatgpt-work-contract-card.mjs",
+    "smoke:core-handoff-current-task-compact-section": "node scripts/smoke-core-handoff-current-task-compact-section.mjs",
     "smoke:codex-result-import-review-surface": "node scripts/smoke-codex-result-import-review-surface.mjs",
     "smoke:codex-result-paste-normalizer-preview": "node scripts/smoke-codex-result-paste-normalizer-preview.mjs",
     "smoke:codex-result-report-template-v0-1": "node scripts/smoke-codex-result-report-template-v0-1.mjs",

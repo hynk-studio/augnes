@@ -1537,10 +1537,29 @@
         const fallbackTaskProfile = nonEmptyText(preview.task_profile, "unknown");
         const fallbackRuntimeForCommand =
           fallbackRuntimeLabel === "provided by current Augnes runtime" ? "<provided-current-runtime>" : fallbackRuntimeLabel;
+        const fallbackCurrentTaskOnly = {
+          work_id: fallbackWorkId,
+          scope: fallbackScope,
+          title: fallbackWorkTitle,
+          current_task: fallbackWorkNextAction,
+          expected_files: fallbackExpectedFiles,
+          expected_checks: fallbackExpectedChecks,
+          stop_conditions: stopConditions,
+          authority_boundary_summary: [
+            "no Codex execution from App/MCP",
+            "no proof/evidence write unless separately authorized",
+            "no work close/status mutation",
+            "no event/state mutation",
+            "no GitHub review/merge/publish/retry/replay/deploy",
+          ],
+          result_report_template: "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+          next_return_path: "Paste through codexResultText / codexResultPaste for preview review.",
+        };
         const fallbackJson = JSON.stringify(
           {
             schema: "augnes.codex_handoff_preview.v0_1",
             packet_kind: "codex_handoff_preview",
+            core_current_task_only: fallbackCurrentTaskOnly,
             readiness_status: fallbackReadinessStatus,
             readiness_reasons: readinessReasons,
             task_profile: fallbackTaskProfile,
@@ -1586,6 +1605,22 @@
           [
             "Codex Handoff Preview",
             "This is a preview/copy packet, not an execution action.",
+            "",
+            "Current task only",
+            `- Work ID: ${fallbackWorkId}`,
+            `- Scope: ${fallbackScope}`,
+            `- Task: ${fallbackWorkNextAction}`,
+            "- Expected files:",
+            ...(fallbackExpectedFiles.length ? fallbackExpectedFiles.map((item) => `  - ${item}`) : ["  - No expected files are listed in the work brief."]),
+            "- Expected checks:",
+            ...(fallbackExpectedChecks.length ? fallbackExpectedChecks.map((item) => `  - ${item}`) : ["  - No expected checks are listed in the work brief."]),
+            "- Stop if:",
+            ...(stopConditions.length ? stopConditions.map((item) => `  - ${item}`) : ["  - No stop conditions listed."]),
+            "- Authority boundary:",
+            ...fallbackCurrentTaskOnly.authority_boundary_summary.map((item) => `  - ${item}`),
+            "- Return result using:",
+            `  - ${fallbackCurrentTaskOnly.result_report_template}`,
+            `  - ${fallbackCurrentTaskOnly.next_return_path}`,
             "",
             `AUGNES_API_BASE_URL=${fallbackRuntimeForCommand} CODEX_SCOPE=${fallbackScope} CODEX_WORK_ID=${fallbackWorkId} npm run codex:read-brief`,
             "",
@@ -2819,6 +2854,24 @@
             ? "Implementation file/schema anchors are attached in Core; confirm them with codex:read-brief before editing."
             : "No implementation file/schema anchors are attached in Core. Use Core for planning only, or open Full Context before implementation."
         );
+        const currentTaskOnly = {
+          work_id: packet.work_id,
+          scope: packet.work_scope,
+          title: packet.work_title,
+          current_task: nonEmptyText(packet.current_or_next_step || packet.work_title, "No current or next step is listed in the work brief."),
+          expected_files: safeArray(packet.expected_files),
+          expected_checks: safeArray(packet.expected_checks),
+          stop_conditions: safeArray(packet.stop_conditions),
+          authority_boundary_summary: [
+            "no Codex execution from App/MCP",
+            "no proof/evidence write unless separately authorized",
+            "no work close/status mutation",
+            "no event/state mutation",
+            "no GitHub review/merge/publish/retry/replay/deploy",
+          ],
+          result_report_template: "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+          next_return_path: "Paste through codexResultText / codexResultPaste for preview review.",
+        };
         const memoryReuseStatus = nonEmptyText(packet.memory_reuse_attachment_proposal?.status, "no_match");
         const memoryReuseFallback = nonEmptyText(
           packet.memory_reuse_attachment_proposal?.fallback_brief,
@@ -2844,6 +2897,7 @@
             implementation_anchors: implementationAnchors,
             implementation_anchor_summary: implementationAnchorSummary,
             full_context_required_before_implementation: implementationAnchors.length === 0,
+            core_current_task_only: currentTaskOnly,
             runtime: {
               endpoint_label: "provided by current Augnes runtime",
               requires_user_core_confirmation: true,
@@ -2902,6 +2956,22 @@
           "Core Codex Handoff Packet",
           "Shorter packet for starting Codex work. Use Copy Full Context when full appendices are needed.",
           "This is a preview/copy packet, not an execution action.",
+          "",
+          "Current task only",
+          `- Work ID: ${currentTaskOnly.work_id}`,
+          `- Scope: ${currentTaskOnly.scope}`,
+          `- Task: ${currentTaskOnly.current_task}`,
+          "- Expected files:",
+          ...(currentTaskOnly.expected_files.length ? currentTaskOnly.expected_files.map((item) => `  - ${item}`) : ["  - No expected files are listed in the work brief."]),
+          "- Expected checks:",
+          ...(currentTaskOnly.expected_checks.length ? currentTaskOnly.expected_checks.map((item) => `  - ${item}`) : ["  - No expected checks are listed in the work brief."]),
+          "- Stop if:",
+          ...(currentTaskOnly.stop_conditions.length ? currentTaskOnly.stop_conditions.map((item) => `  - ${item}`) : ["  - No stop conditions listed."]),
+          "- Authority boundary:",
+          ...currentTaskOnly.authority_boundary_summary.map((item) => `  - ${item}`),
+          "- Return result using:",
+          `  - ${currentTaskOnly.result_report_template}`,
+          `  - ${currentTaskOnly.next_return_path}`,
           "",
           "Immediate task context",
           `- Scope: ${packet.work_scope}`,
