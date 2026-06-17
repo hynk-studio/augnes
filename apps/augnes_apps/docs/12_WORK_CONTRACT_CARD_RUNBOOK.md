@@ -33,6 +33,13 @@ scenario is advisory review input only. It does not run Codex, add App/MCP
 tools, submit GitHub reviews, write proof/evidence, mutate state, or widen the
 `work_loop_readonly` surface.
 
+For the first deterministic sample-run observation of that self-opinion
+scenario, see
+`docs/AUGNES_CODEX_SELF_OPINION_DOGFOOD_RUN_OBSERVATION_V0_1.md`. It records
+that no live Codex self-opinion session was run, uses only the scenario sample
+report, and selects a reusable Codex result report template as the next narrow
+PR candidate without implementing it.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
