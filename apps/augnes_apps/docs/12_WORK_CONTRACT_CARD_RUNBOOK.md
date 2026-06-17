@@ -21,6 +21,12 @@ fetch, no proof/evidence write, no event creation/mutation, no work
 close/status mutation, no state commit/reject, and no
 merge/publish/retry/replay/deploy controls.
 
+For the first deterministic local observation pass against that scenario, see
+`docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_OBSERVATION_V0_1.md`. It records the
+Work Picker visibility check, no-result Work Contract state, sample
+`codexResultText` paste normalizer outcome, conservative closure result, and
+live MCP Inspector / ChatGPT Developer Mode skipped reasons.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
