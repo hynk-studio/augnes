@@ -66,6 +66,14 @@ the AG-006 fixture-backed Core copy shape, broader-context preservation, and the
 selected next narrow follow-up without adding execution, write authority, or new
 App/MCP tools.
 
+For the deterministic dogfood observation after the Core Handoff usage/status
+line, see
+`docs/AUGNES_CORE_HANDOFF_CURRENT_TASK_USAGE_STATUS_DOGFOOD_OBSERVATION_V0_1.md`.
+It records the AG-006 fixture-backed Core usage / implementation anchor status
+line and selects the Research Accumulation Scenario Pack doc/smoke as the next
+narrow preview-only pass without adding execution, write authority, or new
+App/MCP tools.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
