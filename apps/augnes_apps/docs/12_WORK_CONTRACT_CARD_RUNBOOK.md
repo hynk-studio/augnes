@@ -93,6 +93,15 @@ reported honestly. This adds no write authority, no proof/evidence writes, no
 event creation/mutation, no state commit/reject, no App/MCP tools, and no
 `work_loop_readonly` widening.
 
+For the deterministic user-facing happy path observation of the research work
+loop after the Codex worker bootstrap, see
+`docs/AUGNES_RESEARCH_WORK_USER_HAPPY_PATH_OBSERVATION_V0_1.md` and run
+`npm run smoke:research-work-user-happy-path-observation-v0-1`. It records the
+Work Picker / Work Brief -> Core Handoff -> `codex:next-work` -> Codex result
+report -> `codexResultText` / `codexResultPaste` preview-review path for
+`AG-DOGFOOD-RESEARCH-001`. It is deterministic and preview-only, with live
+Work Picker / Work Brief skipped because no runtime was configured.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user
