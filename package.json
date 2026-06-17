@@ -171,6 +171,7 @@
     "smoke:chatgpt-work-contract-card": "node scripts/smoke-chatgpt-work-contract-card.mjs",
     "smoke:codex-result-import-review-surface": "node scripts/smoke-codex-result-import-review-surface.mjs",
     "smoke:codex-result-paste-normalizer-preview": "node scripts/smoke-codex-result-paste-normalizer-preview.mjs",
+    "smoke:codex-result-report-template-v0-1": "node scripts/smoke-codex-result-report-template-v0-1.mjs",
     "smoke:chatgpt-augnes-codex-flow-dogfood-scenario": "node scripts/smoke-chatgpt-augnes-codex-flow-dogfood-scenario.mjs",
     "smoke:chatgpt-augnes-codex-flow-dogfood-observation": "node scripts/smoke-chatgpt-augnes-codex-flow-dogfood-observation.mjs",
     "smoke:codex-self-opinion-dogfood-scenario": "node scripts/smoke-codex-self-opinion-dogfood-scenario.mjs",

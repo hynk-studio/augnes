@@ -40,6 +40,12 @@ that no live Codex self-opinion session was run, uses only the scenario sample
 report, and selects a reusable Codex result report template as the next narrow
 PR candidate without implementing it.
 
+For the reusable manual Codex closeout report shape, see
+`docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`. It is a preview-only
+template for result return through `codexResultText` / `codexResultPaste` and
+does not add automatic Codex execution, proof/evidence writes, state mutation,
+GitHub automation, App/MCP tools, or result-review authority.
+
 ## Work Picker Entry Surface
 
 The Work Picker Entry Surface is the scope-only first-entry path for a user

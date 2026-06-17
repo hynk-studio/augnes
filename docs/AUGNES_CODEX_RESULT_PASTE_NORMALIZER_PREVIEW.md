@@ -63,6 +63,14 @@ overwrite structured input.
 Partial extraction remains partial. Missing fields stay visible as warnings or
 review questions, not invented pass results.
 
+## Recommended Report Shape
+
+For future manual Codex closeouts, prefer the reusable report template in
+`docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`. It names the expected
+review fields, including `skipped_checks`, `remaining_caveats`, and
+`ambiguous_combined_section_lines`, while preserving the current preview-only
+paste path through `codexResultText` / `codexResultPaste`.
+
 Combined skipped-check/caveat sections are split conservatively. Supported
 combined headings include `Skipped checks and caveats`, `Skipped validation and
 caveats`, `Skipped checks / remaining caveats`, `Caveats and skipped checks`,
