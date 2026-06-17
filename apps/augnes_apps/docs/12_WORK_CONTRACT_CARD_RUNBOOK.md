@@ -75,7 +75,7 @@ narrow preview-only pass without adding execution, write authority, or new
 App/MCP tools.
 
 For the preview-only Research Accumulation Scenario Pack selected by
-`AG-DOGFOOD-RESEARCH-001`, see
+historical `AG-DOGFOOD-RESEARCH-001`, see
 `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md` and run
 `npm run smoke:research-accumulation-scenario-pack-v0-1`. The pack defines
 preview shapes only for research session, paper reference, claim, evidence,
@@ -86,6 +86,16 @@ schema, and no durable research candidate memory writes; no proof/evidence
 writes, work-status mutation, App/MCP tools, or `work_loop_readonly` widening.
 Future research capability lanes need a fresh Work Brief or Core Handoff before
 implementation.
+
+For the current product-facing research preparation lane selected by
+`--prefer-research`, see
+`docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md` and run
+`npm run smoke:research-capability-lanes-preparation-v0-1`. The work item is
+`AG-RESEARCH-CAPABILITY-LANES-001`. It prepares lane contracts for manual source
+intake, bounded operator-provided source fetching, provider-assisted
+extraction/summary, derived retrieval indexes, durable research candidate
+memory, and human-reviewed perspective promotion without implementing any
+capability lane or adding authority.
 
 For Codex worker start-of-task discovery, see
 `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md` and run

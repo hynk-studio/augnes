@@ -16,7 +16,7 @@ Use this bootstrap at the start of an Augnes Codex worker session when:
 
 - the user asks Codex to use Augnes to find the next work item
 - the user gives only a scope such as `project:augnes`
-- the user asks for the current research accumulation work item
+- the user asks for the current research capability preparation work item
 - a Core Handoff or live Work Brief was not pasted manually
 - Codex needs to report honestly whether runtime Work Brief retrieval happened
 
@@ -52,34 +52,49 @@ Work Picker access is unavailable.
 For a known work item:
 
 ```sh
-npm run codex:next-work -- --scope project:augnes --work-id AG-DOGFOOD-RESEARCH-001
+npm run codex:next-work -- --scope project:augnes --work-id AG-RESEARCH-CAPABILITY-LANES-001
 ```
 
-For the current research accumulation dogfood lane:
+For the current research capability preparation lane:
 
 ```sh
 npm run codex:next-work -- --scope project:augnes --prefer-research
 ```
 
-## How To Target AG-DOGFOOD-RESEARCH-001
+## How To Target The Current Research Preparation Item
 
-`AG-DOGFOOD-RESEARCH-001` is the repo-backed research accumulation dogfood work
-item. It routes to the preview-only Research Accumulation Scenario Pack at:
+`AG-RESEARCH-CAPABILITY-LANES-001` is the current repo-backed research
+capability preparation work item. It routes to the product-facing preparation
+contract at:
 
 ```text
-docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md
+docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md
 ```
 
 The seeded item also points back to:
 
 ```text
-docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md
 scripts/demo-seed.mjs
 ```
 
-Use `--work-id AG-DOGFOOD-RESEARCH-001` when the user names the item. Use
-`--prefer-research` when the user asks for the current research accumulation
-work item but does not name a work ID.
+Use `--prefer-research` when the user asks for the current research work item
+but does not name a work ID. Use
+`--work-id AG-RESEARCH-CAPABILITY-LANES-001` when the user names the current
+preparation item directly.
+
+## Historical Research Dogfood Item
+
+`AG-DOGFOOD-RESEARCH-001` is preserved as repo-backed research accumulation
+dogfood evidence. It still routes to the preview-only Research Accumulation
+Scenario Pack at:
+
+```text
+docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md
+```
+
+Use `--work-id AG-DOGFOOD-RESEARCH-001` only when the user explicitly names
+that historical item. `--prefer-research` does not select the historical
+dogfood item.
 
 ## Runtime Work Brief Path
 
@@ -111,6 +126,8 @@ The fallback sources are:
 
 - `scripts/demo-seed.mjs`
 - linked docs in the seeded work item
+- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md` for
+  `AG-RESEARCH-CAPABILITY-LANES-001`
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md` for
   `AG-DOGFOOD-RESEARCH-001`
 - `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md` for result return
@@ -147,8 +164,8 @@ Discovery is successful when the helper can identify, without invention:
 - `next_return_path`
 - `codex_worker_next_action`
 
-For `AG-DOGFOOD-RESEARCH-001`, the expected files and checks come from the
-seeded work item and repo docs. The related result report path is:
+For `AG-RESEARCH-CAPABILITY-LANES-001`, the expected files and checks come
+from the seeded work item and repo docs. The related result report path is:
 
 ```text
 docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md
@@ -203,10 +220,13 @@ scope fences.
 If expected files or expected checks are missing, Codex should stop or ask for
 human direction unless the user explicitly provides a narrower bounded task.
 
-For the current `AG-DOGFOOD-RESEARCH-001` research accumulation pack,
-implementation remains docs/smoke/contract-only. Future research capability
-work may proceed only when a fresh Work Brief or Core Handoff explicitly names
-the bounded lane, expected files, checks, authority boundary, and verification.
+For the current `AG-RESEARCH-CAPABILITY-LANES-001` research preparation item,
+implementation remains docs/smoke/helper-contract routing only. It prepares
+product-facing capability lane contracts without implementing source fetching,
+provider calls, retrieval indexes, DB migrations, durable writes, or
+perspective promotion. Future research capability implementation may proceed
+only when a fresh Work Brief or Core Handoff explicitly names the bounded lane,
+expected files, checks, authority boundary, and verification.
 
 ## How Codex Reports Fallback Use
 
@@ -241,7 +261,7 @@ This bootstrap adds a read-only Codex worker discovery path. It adds:
 - no unscoped provider/OpenAI calls
 - no unscoped embeddings, RAG, vector search, FTS, or retrieval indexes
 - no unscoped crawlers or indexing
-- no DB migration in the current preview pack
+- no DB migration in the current preparation slice
 - no durable research candidate memory write
 - no perspective update commit
 - no automatic work item creation
@@ -272,8 +292,9 @@ migrations, write durable research candidate memory, write proof/evidence
 rows, mutate events, mutate work status, commit/reject state, create App/MCP
 tools, widen `work_loop_readonly`, execute Codex automatically, fetch GitHub
 automatically, submit GitHub reviews, merge, publish, retry, replay, deploy, or
-create PRs. Those omissions describe this bootstrap and the current preview
-fallback; they do not forbid a future explicitly scoped capability lane.
+create PRs. Those omissions describe this bootstrap and the current
+preparation fallback; they do not forbid a future explicitly scoped capability
+lane.
 
 ## Next Recommended Step
 

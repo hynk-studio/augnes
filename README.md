@@ -90,7 +90,7 @@ In `work_loop_readonly` mode, useful calls are:
 
 - `augnes_list_work_items` with args `{ "scope": "project:augnes" }`
 - `augnes_get_work_brief` with args
-  `{ "scope": "project:augnes", "workId": "AG-DOGFOOD-RESEARCH-001" }`
+  `{ "scope": "project:augnes", "workId": "AG-RESEARCH-CAPABILITY-LANES-001" }`
 
 This read-only profile can show Work Picker and Work Brief / Work Contract
 Card context, including Core Handoff and result-return paths. It does not
@@ -117,7 +117,14 @@ If no handoff is pasted, start with:
 npm run codex:next-work -- --scope project:augnes
 ```
 
-For the current research accumulation dogfood item:
+For the current research capability preparation item:
+
+```bash
+npm run codex:next-work -- --scope project:augnes --prefer-research
+npm run codex:next-work -- --scope project:augnes --work-id AG-RESEARCH-CAPABILITY-LANES-001
+```
+
+For historical dogfood evidence only:
 
 ```bash
 npm run codex:next-work -- --scope project:augnes --work-id AG-DOGFOOD-RESEARCH-001
@@ -147,23 +154,26 @@ actually happened.
 
 ## Research Accumulation Status
 
-Research Accumulation is currently a preview-only work loop, not implemented
-product behavior. The current repo-backed item is
-`AG-DOGFOOD-RESEARCH-001`, which points to:
+Research Accumulation is currently moving from preview-only vocabulary toward
+product-facing capability preparation. The current repo-backed research item is
+`AG-RESEARCH-CAPABILITY-LANES-001`, which points to:
+
+- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
+
+The historical dogfood item `AG-DOGFOOD-RESEARCH-001` remains available for
+explicit work-id lookup and points to:
 
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
 - `docs/AUGNES_RESEARCH_WORK_USER_HAPPY_PATH_OBSERVATION_V0_1.md`
 - `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
 
-The scenario pack defines candidate preview shapes for research sessions,
-paper references, claims, evidence, tensions, knowledge gaps, perspective
-updates, and follow-up work. Current Research Accumulation implementation is a
-preview contract only; it does not yet implement ingestion, persistence,
-fetching, provider calls, embeddings, RAG, vector search, crawling, indexing,
-durable research candidate memory, proof/evidence writes, work mutation, or
-automatic Codex/GitHub automation. These are closed for the current preview
-unless a future Work Brief or Core Handoff explicitly authorizes a bounded
-capability lane.
+The preparation contract defines candidate future lanes and the first
+recommended manually supplied source/reference/notes review slice. It does not
+implement ingestion, persistence, fetching, provider calls, embeddings, RAG,
+vector search, crawling, indexing, durable research candidate memory,
+proof/evidence writes, work mutation, or automatic Codex/GitHub automation.
+These remain closed unless a future Work Brief or Core Handoff explicitly
+authorizes a bounded capability lane.
 
 ## Screenshots
 
@@ -189,6 +199,7 @@ More screenshots and supporting proof captures are listed in
 - `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
 - `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
 - `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
+- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
 - `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
 - `docs/AUTHORITY_MATRIX.md`

@@ -173,7 +173,7 @@ function assertScenarioDoc() {
 
 function assertSeedWorkItem() {
   assert.match(workItemBlock, /workId:\s*"AG-DOGFOOD-RESEARCH-001"/, "demo seed must include the dogfood work item");
-  assert.match(workItemBlock, /status:\s*"in_progress"/, "dogfood work item must use an active status");
+  assert.match(workItemBlock, /status:\s*"completed"/, "dogfood work item must be preserved as historical/completed");
   assert.match(workItemBlock, /priority:\s*"normal"/, "dogfood work item must not displace priority now work");
   assert.match(workItemBlock, /Research \/ Paper \/ Knowledge Accumulation/, "dogfood work item summary must target the research direction");
   assert.match(workItemBlock, /codexResultText or codexResultPaste/, "dogfood work item must point to the result-return path");

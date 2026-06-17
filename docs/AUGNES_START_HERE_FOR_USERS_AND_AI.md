@@ -42,6 +42,9 @@ direct authority over durable state.
   closure by itself.
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md` defines
   preview-only research accumulation shapes for `AG-DOGFOOD-RESEARCH-001`.
+- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md` defines the
+  current product-facing research capability preparation lane for
+  `AG-RESEARCH-CAPABILITY-LANES-001`.
 - `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md` records
   that the live local Work Picker / Work Brief path was observed for the
   research work loop, without adding product behavior.
@@ -103,7 +106,7 @@ In `work_loop_readonly` mode, useful calls are:
 
 - `augnes_list_work_items` with `{ "scope": "project:augnes" }`
 - `augnes_get_work_brief` with
-  `{ "scope": "project:augnes", "workId": "AG-DOGFOOD-RESEARCH-001" }`
+  `{ "scope": "project:augnes", "workId": "AG-RESEARCH-CAPABILITY-LANES-001" }`
 
 This read-only profile can show Work Picker and Work Brief / Work Contract
 Card context, including Core Handoff and result-return paths. It does not
@@ -134,6 +137,7 @@ For research work:
 
 ```bash
 npm run codex:next-work -- --scope project:augnes --prefer-research
+npm run codex:next-work -- --scope project:augnes --work-id AG-RESEARCH-CAPABILITY-LANES-001
 npm run codex:next-work -- --scope project:augnes --work-id AG-DOGFOOD-RESEARCH-001
 ```
 
@@ -142,21 +146,24 @@ Codex must report whether the source was `runtime_work_brief`,
 
 ## Research Work Loop Example
 
-`AG-DOGFOOD-RESEARCH-001` is the current repo-backed research accumulation
-dogfood work item. The loop is:
+`AG-RESEARCH-CAPABILITY-LANES-001` is the current repo-backed research
+capability preparation item. The historical `AG-DOGFOOD-RESEARCH-001` dogfood
+item remains available only when named explicitly. The current preparation loop
+is:
 
 1. Human/operator finds the work item through Work Picker or names the work ID.
 2. Human/operator opens Work Brief / Work Contract Card.
 3. Human/operator copies Core Handoff, or Codex runs `npm run codex:next-work`
    as a fallback.
-4. Codex completes the bounded docs/smoke work and uses
+4. Codex completes the bounded preparation docs/smoke work and uses
    `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`.
 5. Human/operator pastes the report through `codexResultText` or
    `codexResultPaste` for preview review.
 
-The research work loop currently prepares preview vocabulary and observation
-evidence only. It does not yet ingest papers or persist research candidate
-memory in the current preview lane.
+The research work loop currently prepares capability-lane contract vocabulary
+and source/review authority expectations only. It does not ingest papers, fetch
+sources, call providers, build retrieval indexes, persist research candidate
+memory, or promote perspectives.
 
 ## Result Report Return Path
 
@@ -189,6 +196,7 @@ Handoff explicitly scopes the lane, files, checks, and authority boundary.
 - `AGENTS.md`
 - `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
 - `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
+- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
 - `docs/AUGNES_RESEARCH_WORK_USER_HAPPY_PATH_OBSERVATION_V0_1.md`
 - `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
