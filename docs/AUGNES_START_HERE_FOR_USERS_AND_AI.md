@@ -48,9 +48,12 @@ direct authority over durable state.
 
 ## What Is Not Implemented Yet
 
-- Research ingestion is not implemented; paper fetching, crawling, indexing,
-  durable research persistence, embeddings, RAG, and vector search are not
-  implemented.
+- Research accumulation product lanes are not implemented in the current
+  preview; paper/source fetching, crawling, indexing, durable research
+  candidate memory, embeddings, RAG, vector search, provider-assisted
+  extraction/summary, and human-reviewed perspective promotion need a fresh
+  Work Brief/Core Handoff, explicit scope, authority boundaries, and
+  verification.
 - Automatic Codex execution is not implemented.
 - Automatic GitHub fetch, review, merge, publish, or approval controls are not
   implemented.
@@ -152,7 +155,8 @@ dogfood work item. The loop is:
    `codexResultPaste` for preview review.
 
 The research work loop currently prepares preview vocabulary and observation
-evidence only. It does not ingest papers or persist research state.
+evidence only. It does not yet ingest papers or persist research candidate
+memory in the current preview lane.
 
 ## Result Report Return Path
 
@@ -170,12 +174,14 @@ or merge authority.
 ## Authority Boundaries
 
 This guide adds no runtime behavior, no UI behavior, no API routes, no MCP/App
-tools, no database migration, no research ingestion, no paper fetching, no
-provider/OpenAI calls, no embeddings/RAG/vector search, no durable research
-state write, no proof/evidence write, no work close/status mutation, no event
-creation/mutation, no state commit/reject, no automatic Codex execution, no
-automatic GitHub fetch/review/merge/publish, and no widening of the
-`work_loop_readonly` Developer Mode tool surface.
+tools, no database migration, no research ingestion, no paper/source fetching,
+no provider/OpenAI calls, no embeddings/RAG/vector search, no durable research
+candidate memory write, no proof/evidence write, no work close/status
+mutation, no event creation/mutation, no state commit/reject, no automatic
+Codex execution, no automatic GitHub fetch/review/merge/publish, and no
+widening of the `work_loop_readonly` Developer Mode tool surface. Future
+research capability work is allowed only when a fresh Work Brief or Core
+Handoff explicitly scopes the lane, files, checks, and authority boundary.
 
 ## Recommended Next Docs
 

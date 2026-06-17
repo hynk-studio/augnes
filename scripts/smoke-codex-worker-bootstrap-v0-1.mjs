@@ -31,6 +31,21 @@ assertIncludes(bootstrapDoc, "codexResultPaste", "bootstrap doc references codex
 assertIncludes(bootstrapDoc, "Runtime Work Brief retrieval is preferred", "runtime Work Brief preferred path is documented");
 assertIncludes(bootstrapDoc, "Repo seed/docs fallback is acceptable only when runtime is unavailable", "repo-backed fallback path is documented");
 assertIncludes(bootstrapDoc, "Fallback honesty is required", "fallback honesty is documented");
+assertIncludes(
+  bootstrapDoc,
+  "Future research capability",
+  "bootstrap doc scopes future research capability lanes",
+);
+assertIncludes(
+  bootstrapDoc,
+  "fresh Work Brief or Core Handoff explicitly names",
+  "bootstrap doc requires a fresh Work Brief or Core Handoff for future lanes",
+);
+assertIncludes(
+  bootstrapDoc,
+  "no unscoped paper/source fetching",
+  "bootstrap doc scopes paper/source fetching boundary",
+);
 
 for (const field of [
   "source",
@@ -65,6 +80,8 @@ assert.equal(
 
 assertIncludes(helperSource, workId, "bootstrap helper contains AG-DOGFOOD fallback support");
 assertIncludes(helperSource, "repo_seed_fallback", "bootstrap helper can report repo seed fallback");
+assertIncludes(helperSource, "unscoped paper/source fetching", "bootstrap helper scopes fallback stop conditions");
+assertIncludes(helperSource, "bounded research capability lane", "bootstrap helper preserves future lane allowance");
 assertIncludes(runbook, bootstrapDocPath, "runbook points Codex workers to the bootstrap doc");
 
 const requested = await buildBootstrapResult({
@@ -99,6 +116,7 @@ console.log(
       runtime_work_brief_preferred_path_documented: true,
       repo_backed_fallback_path_documented: true,
       fallback_honesty_documented: true,
+      future_research_capability_lane_scope_documented: true,
       expected_output_shape_fields_documented: true,
       package_codex_next_work_script: true,
       package_smoke_script: true,
@@ -126,6 +144,14 @@ function assertFallbackForResearch(result, label) {
   assert.ok(
     result.expected_checks.includes("node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs"),
     `${label} returns expected smoke check`,
+  );
+  assert.ok(
+    result.stop_conditions.some((condition) => condition.includes("unscoped paper/source fetching")),
+    `${label} scopes research stop conditions to preview fallback work`,
+  );
+  assert.ok(
+    result.stop_conditions.some((condition) => condition.includes("bounded research capability lane")),
+    `${label} keeps future authorized capability lane allowance`,
   );
   assert.equal(
     result.result_report_template,

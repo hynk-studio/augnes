@@ -5,11 +5,12 @@
 This scenario pack defines the first preview-only contract for a future
 Research / Paper / Knowledge Accumulation surface in Augnes.
 
-It is a docs/smoke artifact for `AG-DOGFOOD-RESEARCH-001`. It does not ingest
-papers, fetch papers, call providers, create embeddings, index content, define
-database tables, or write durable research state. It gives operators and Codex
-workers a shared vocabulary for what future research accumulation previews may
-show once implementation is separately authorized.
+It is a docs/smoke artifact for `AG-DOGFOOD-RESEARCH-001`. The current pack
+does not ingest papers, fetch papers, call providers, create embeddings, index
+content, define database tables, or write durable research state. That is the
+current preview implementation status, not a permanent product ban. It gives
+operators and Codex workers a shared vocabulary for what future research
+accumulation previews may show once implementation is separately authorized.
 
 ## Source Work Routing
 
@@ -35,6 +36,35 @@ mutations.
 Every preview shape must preserve candidate status and human-review status
 explicitly. A candidate can support later human review, but it is not accepted
 knowledge, committed state, proof, evidence, closure authority, or approval.
+
+## Preview-scope Stop Conditions, Not Permanent Product Bans
+
+The stop conditions in this pack apply to the current preview-only docs/smoke
+work. They mean stop if this work would require unscoped fetching, crawling,
+provider calls, retrieval indexing, persistence, proof/evidence writes, work
+mutation, or state mutation.
+
+They do not mean Augnes can never grow research capability lanes. A future
+fresh Work Brief or Core Handoff may authorize bounded product-facing lanes
+when it names the lane, expected files, expected checks, authority boundary,
+source limits, and verification evidence. Future authorized lanes may include:
+
+- manual source intake
+- bounded source fetching for operator-provided sources
+- provider-assisted extraction or summary
+- derived retrieval indexes, including FTS, embedding, vector, or RAG-style
+  retrieval
+- durable research candidate memory
+- human-reviewed perspective promotion
+
+Provider, fetch, and retrieval results remain non-authoritative candidates
+until human review. Derived retrieval indexes must be rebuildable,
+non-authoritative, and source-ref based; they cannot create proof/evidence
+rows, committed perspective state, work closure, approval, or Augnes state
+commit/reject authority by themselves. Durable research writes, when separately
+authorized, should write candidate or review records first, not committed
+perspective state directly. Perspective update candidates remain candidates
+until human review, promote, and commit gates are explicitly implemented.
 
 ## Shape Catalog
 
@@ -215,18 +245,19 @@ Augnes close authority.
 
 ## Authority Boundaries
 
-This pack is preview-only docs/smoke contract work. It adds:
+This pack is preview-only docs/smoke contract work. In this preview scope, it
+adds:
 
-- no automatic research ingestion
-- no paper fetching
-- no crawlers
-- no provider/OpenAI calls
-- no embeddings
-- no RAG
-- no vector search
-- no indexing
-- no database schema or migration
-- no durable research state writes
+- no unscoped automatic research ingestion
+- no unscoped paper or source fetching
+- no unscoped crawlers
+- no unscoped provider/OpenAI calls
+- no unscoped embeddings
+- no unscoped RAG
+- no unscoped vector search
+- no unscoped indexing
+- no database schema or migration in this preview pack
+- no durable research candidate memory writes
 - no proof/evidence writes
 - no event creation/mutation
 - no work close/status mutation
@@ -244,18 +275,25 @@ This pack is preview-only docs/smoke contract work. It adds:
 
 ## Stop Conditions
 
-Stop instead of implementing if the requested work requires any of these:
+Stop instead of implementing this preview-only pack if the requested work
+requires any of these without a fresh Work Brief or Core Handoff that
+explicitly authorizes the bounded lane:
 
-- fetching or crawling papers
+- fetching or crawling papers or sources
 - calling providers or OpenAI
-- creating embeddings, RAG, vector search, or indexes
-- adding database schema, migrations, durable research writes, proof rows, or
-  evidence rows
-- creating or mutating events, work status, state, perspective memory, or
-  follow-up work
+- creating embeddings, RAG, vector search, FTS, or other retrieval indexes
+- adding database schema, migrations, durable research candidate memory writes,
+  proof rows, or evidence rows
+- creating or mutating events, work status, state, committed perspective
+  memory, or follow-up work
 - adding App/MCP tools or widening `work_loop_readonly`
 - claiming live MCP Inspector, ChatGPT Developer Mode, or host observations
   without actually running them
+
+Do not stop merely because a future product task names one of those lanes. If
+the fresh Work Brief or Core Handoff explicitly authorizes the lane, expected
+files, checks, authority boundary, and verification, then follow that newer
+contract and keep candidates non-authoritative until human review.
 
 ## Result Return Contract
 
@@ -273,15 +311,19 @@ Paste this report through codexResultText or codexResultPaste for Augnes preview
 
 ## What This Pack Does Not Implement
 
-This pack does not implement a research product surface. It does not implement
-paper ingestion, paper fetching, metadata normalization, provider calls,
-embeddings, RAG, vector search, indexing, database persistence, durable state,
+This current v0.1 pack does not implement a research product surface. In this
+preview-only docs/smoke slice, it does not implement paper ingestion, paper
+fetching, metadata normalization, provider calls, embeddings, RAG, vector
+search, indexing, database persistence, durable research candidate memory,
 proof/evidence recording, event creation, work closure, automatic follow-up
 creation, GitHub automation, Codex execution, or a new App/MCP tool surface.
+Those omissions describe current implementation status and do not forbid a
+future explicitly scoped capability lane.
 
 ## Next Recommended Step
 
 Use this scenario pack as the preview-only contract for later human-reviewed
 Research / Paper / Knowledge Accumulation design or implementation work. Any
 future implementation should start from a fresh Augnes Work Brief or Core
-Handoff and must keep authority boundaries visible.
+Handoff, name the authorized capability lane, and keep authority boundaries and
+candidate-review gates visible.

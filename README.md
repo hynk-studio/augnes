@@ -33,8 +33,10 @@ direct authority over durable state.
   GitHub work.
 - Augnes does not treat proof, evidence, a PR, or a pasted Codex report as
   approval or state authority.
-- Augnes does not ingest papers, fetch papers, crawl sources, create
-  embeddings, run RAG/vector search, or persist research accumulation state.
+- Augnes does not automatically ingest papers, fetch or crawl sources, create
+  embeddings or retrieval indexes, run RAG/vector search, persist research
+  candidate memory, or promote perspective updates without a fresh Work
+  Brief/Core Handoff, explicit scope, authority boundaries, and verification.
 - Augnes is not a hosted production service and does not implement production
   auth, OAuth, multi-user hosting, or deployment controls.
 
@@ -155,10 +157,13 @@ product behavior. The current repo-backed item is
 
 The scenario pack defines candidate preview shapes for research sessions,
 paper references, claims, evidence, tensions, knowledge gaps, perspective
-updates, and follow-up work. It does not implement ingestion, persistence,
+updates, and follow-up work. Current Research Accumulation implementation is a
+preview contract only; it does not yet implement ingestion, persistence,
 fetching, provider calls, embeddings, RAG, vector search, crawling, indexing,
-durable research writes, proof/evidence writes, work mutation, or automatic
-Codex/GitHub automation.
+durable research candidate memory, proof/evidence writes, work mutation, or
+automatic Codex/GitHub automation. These are closed for the current preview
+unless a future Work Brief or Core Handoff explicitly authorizes a bounded
+capability lane.
 
 ## Screenshots
 

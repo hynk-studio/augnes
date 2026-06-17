@@ -203,8 +203,10 @@ scope fences.
 If expected files or expected checks are missing, Codex should stop or ask for
 human direction unless the user explicitly provides a narrower bounded task.
 
-For research accumulation work, implementation remains docs/smoke/contract-only
-unless a separate human authorization widens scope.
+For the current `AG-DOGFOOD-RESEARCH-001` research accumulation pack,
+implementation remains docs/smoke/contract-only. Future research capability
+work may proceed only when a fresh Work Brief or Core Handoff explicitly names
+the bounded lane, expected files, checks, authority boundary, and verification.
 
 ## How Codex Reports Fallback Use
 
@@ -234,13 +236,13 @@ This bootstrap adds a read-only Codex worker discovery path. It adds:
 - no work close/status mutation
 - no event creation/mutation
 - no state commit/reject
-- no paper ingestion
-- no paper fetching
-- no provider/OpenAI calls
-- no embeddings, RAG, or vector search
-- no crawlers or indexing
-- no DB migration
-- no durable research state write
+- no unscoped paper ingestion
+- no unscoped paper/source fetching
+- no unscoped provider/OpenAI calls
+- no unscoped embeddings, RAG, vector search, FTS, or retrieval indexes
+- no unscoped crawlers or indexing
+- no DB migration in the current preview pack
+- no durable research candidate memory write
 - no perspective update commit
 - no automatic work item creation
 - no shell execution from App/MCP
@@ -264,12 +266,14 @@ reporting that a live Work Brief was retrieved.
 
 ## What This Bootstrap Does Not Do
 
-This bootstrap does not ingest papers, fetch papers, call providers, generate
-embeddings, run RAG, perform vector search, crawl, index, create DB migrations,
-write durable research state, write proof/evidence rows, mutate events, mutate
-work status, commit/reject state, create App/MCP tools, widen
-`work_loop_readonly`, execute Codex automatically, fetch GitHub automatically,
-submit GitHub reviews, merge, publish, retry, replay, deploy, or create PRs.
+This bootstrap does not by itself ingest papers, fetch papers, call providers,
+generate embeddings, run RAG, perform vector search, crawl, index, create DB
+migrations, write durable research candidate memory, write proof/evidence
+rows, mutate events, mutate work status, commit/reject state, create App/MCP
+tools, widen `work_loop_readonly`, execute Codex automatically, fetch GitHub
+automatically, submit GitHub reviews, merge, publish, retry, replay, deploy, or
+create PRs. Those omissions describe this bootstrap and the current preview
+fallback; they do not forbid a future explicitly scoped capability lane.
 
 ## Next Recommended Step
 

@@ -13,13 +13,14 @@ const seedPath = path.join(rootDir, "scripts", "demo-seed.mjs");
 const resultReportTemplatePath = "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md";
 
 const defaultStopConditions = [
-  "Stop if the requested work requires paper ingestion, paper fetching, provider/OpenAI calls, embeddings, RAG, vector search, crawlers, indexing, DB migrations, durable research state writes, proof/evidence writes, event/status/state mutation, App/MCP tools, or work_loop_readonly widening.",
+  "Stop if this preview-only fallback work requires unscoped paper/source fetching, crawling, provider/OpenAI calls, embeddings, RAG, vector search, retrieval indexing, DB migrations, durable research candidate memory writes, proof/evidence writes, event/status/state mutation, App/MCP tools, or work_loop_readonly widening.",
+  "Do not stop merely because a future fresh Work Brief or Core Handoff explicitly authorizes a bounded research capability lane with expected files, checks, authority boundaries, and verification.",
   "Stop if no live Work Brief, seeded work item, or repo docs fallback can identify the work item without invention.",
   "Stop if expected files or expected checks are unavailable from the Work Brief, seed, or documented repo fallback.",
 ];
 
 const bootstrapAuthorityBoundary =
-  "Read-only Codex worker work discovery only. No automatic Codex execution, no automatic report generation, no automatic GitHub fetch, no proof/evidence write, no work close/status mutation, no event creation/mutation, no state commit/reject, no paper ingestion, no paper fetching, no provider/OpenAI calls, no embeddings/RAG/vector search, no DB migration, no durable research state write, no automatic work item creation, no shell execution from App/MCP, no branch/PR creation from App/MCP code, no PR review submission, no merge/publish/retry/replay/deploy controls, no new user-facing App/MCP tools, and no widening of the work_loop_readonly Developer Mode tool surface.";
+  "Read-only Codex worker work discovery only. No automatic Codex execution, no automatic report generation, no automatic GitHub fetch, no proof/evidence write, no work close/status mutation, no event creation/mutation, no state commit/reject, no unscoped paper/source fetching, no unscoped provider/OpenAI calls, no unscoped embeddings/RAG/vector search or retrieval indexing, no DB migration, no durable research candidate memory write, no automatic work item creation, no shell execution from App/MCP, no branch/PR creation from App/MCP code, no PR review submission, no merge/publish/retry/replay/deploy controls, no new user-facing App/MCP tools, and no widening of the work_loop_readonly Developer Mode tool surface.";
 
 export function parseArgs(argv) {
   const parsed = {
