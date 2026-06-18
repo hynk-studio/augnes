@@ -286,8 +286,8 @@ function assertGateDocNextStep() {
   const nextStep = extractSection(gateDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /Candidate Constellation Overlay preview/i,
-    "gate doc next step must mention Candidate Constellation Overlay preview",
+    /Research Candidate AI Context Packet preview/i,
+    "gate doc next step must mention Research Candidate AI Context Packet preview",
   );
 }
 
@@ -295,21 +295,21 @@ function assertSurfaceDocNextStep() {
   const nextStep = extractSection(surfaceDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /Candidate Constellation Overlay preview/i,
-    "surface doc next step must mention Candidate Constellation Overlay preview",
+    /Research Candidate AI Context Packet preview/i,
+    "surface doc next step must mention Research Candidate AI Context Packet preview",
   );
 }
 
 function assertExistingSmokeAlignment() {
   assert.match(
     typeSmoke,
-    /Candidate Constellation Overlay preview/i,
-    "type smoke must expect the Candidate Constellation Overlay preview next step",
+    /Research Candidate AI Context Packet preview/i,
+    "type smoke must expect the Research Candidate AI Context Packet preview next step",
   );
   assert.match(
     gateSmoke,
-    /Candidate Constellation Overlay preview/i,
-    "gate smoke must expect the Candidate Constellation Overlay preview next step",
+    /Research Candidate AI Context Packet preview/i,
+    "gate smoke must expect the Research Candidate AI Context Packet preview next step",
   );
 }
 

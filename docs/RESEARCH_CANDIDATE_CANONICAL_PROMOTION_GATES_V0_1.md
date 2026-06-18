@@ -215,6 +215,13 @@ raw/source-bound display material, and `target_perspective_key` remains a
 stable dotted key. The panel adds no runtime/API/DB/provider/retrieval/promotion
 behavior.
 
+The Candidate Constellation Overlay preview preserves canonical promotion
+gates. Node IDs and edge IDs must not use raw source titles, URLs, provider
+IDs, raw thread/run/session strings, arbitrary user strings, episode IDs, or
+demo refs. Target perspective anchors are read-only and non-authoritative. The
+overlay adds no graph DB, layout algorithm, runtime/API/DB/provider/retrieval,
+or promotion behavior.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -269,6 +276,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Candidate Constellation Overlay preview for Research Candidate Review
-candidates, mapping source/claim/evidence/tension/gap/delta/follow-up
-candidates to read-only candidate nodes and typed edges.
+Add Research Candidate AI Context Packet preview that compiles
+source/claim/evidence/tension/gap/delta/follow-up candidate summaries from the
+overlay into a read-only handoff packet.

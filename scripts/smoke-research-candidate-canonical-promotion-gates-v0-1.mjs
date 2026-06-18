@@ -188,8 +188,8 @@ function assertDocGateContract() {
   );
   assert.match(
     gateDoc,
-    /Candidate Constellation Overlay preview/i,
-    "gate doc next step must point to Candidate Constellation Overlay preview",
+    /Research Candidate AI Context Packet preview/i,
+    "gate doc next step must point to Research Candidate AI Context Packet preview",
   );
 }
 

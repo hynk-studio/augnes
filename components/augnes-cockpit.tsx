@@ -1,9 +1,12 @@
 "use client";
 
+import researchCandidateReviewConstellationOverlayFixture from "@/fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json";
+import researchCandidateReviewManualNoteConstellationOverlayFixture from "@/fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json";
 import researchCandidateReviewParserOutputFixture from "@/fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json";
 import researchCandidateReviewFixture from "@/fixtures/research-candidate-review.sample.v0.1.json";
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
+import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
 import {
   FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY,
   FORMATION_SWITCH_BASIS_VERSION,
@@ -72,6 +75,7 @@ import type {
   PerspectiveIngestNextActionCandidate,
   PerspectiveIngestUnresolvedTension,
 } from "@/types/perspective-ingest-constellation-preview";
+import type { ResearchCandidateConstellationOverlay } from "@/types/research-candidate-constellation-overlay";
 import type { ResearchCandidateReviewSampleFixture } from "@/types/research-candidate-review";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -83,10 +87,18 @@ const RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_INPUT_FIXTURE_PATH =
   "fixtures/research-candidate-review.manual-note.sample.v0.1.txt";
 const RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_OUTPUT_FIXTURE_PATH =
   "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json";
+const RESEARCH_CANDIDATE_REVIEW_CONSTELLATION_OVERLAY_FIXTURE_PATH =
+  "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json";
+const RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_CONSTELLATION_OVERLAY_FIXTURE_PATH =
+  "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json";
 const researchCandidateReviewPreview =
   researchCandidateReviewFixture as ResearchCandidateReviewSampleFixture;
 const researchCandidateReviewParserOutputPreview =
   researchCandidateReviewParserOutputFixture as ManualResearchNoteParserResult;
+const researchCandidateReviewConstellationOverlayPreview =
+  researchCandidateReviewConstellationOverlayFixture as ResearchCandidateConstellationOverlay;
+const researchCandidateReviewManualNoteConstellationOverlayPreview =
+  researchCandidateReviewManualNoteConstellationOverlayFixture as ResearchCandidateConstellationOverlay;
 const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
   "/api/augnes/read/constellation-preview?scope=project:augnes";
 const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
@@ -6546,6 +6558,9 @@ function PerspectiveTab({
         <a href="#research-candidate-review-parser-output-preview">
           Manual parser output
         </a>
+        <a href="#research-candidate-constellation-overlay-preview">
+          Candidate constellation overlay
+        </a>
       </nav>
 
       {/* Research Candidate Review Cockpit Preview Start */}
@@ -7782,6 +7797,76 @@ function PerspectiveTab({
         </div>
       </section>
       {/* Research Candidate Review Parser Output Cockpit Preview End */}
+
+      {/* Research Candidate Constellation Overlay Cockpit Preview Start */}
+      <section
+        className="perspective-section"
+        id="research-candidate-constellation-overlay-preview"
+        aria-label="Candidate Constellation Overlay"
+        data-augnes-authority="read-only static-overlay-fixture non-authoritative candidate-only"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">AUGNES / Research</p>
+            <h2>Candidate Constellation Overlay</h2>
+            <p>
+              Read-only static overlay preview for Research Candidate Review
+              candidates. Overlay nodes and typed edges are candidate-only and
+              non-authoritative inspection material.
+            </p>
+            <p>
+              This panel compares the original static fixture overlay with the
+              manual parser output overlay. It adds no graph DB, no layout
+              algorithm, no embeddings, and no
+              runtime/API/DB/provider/retrieval/promotion behavior.
+            </p>
+          </div>
+          <div className="perspective-constellation-shell-status">
+            <span className="status-pill">read-only</span>
+            <span className="status-pill">candidate-only</span>
+            <span className="status-pill">typed edges</span>
+          </div>
+        </div>
+
+        <div className="perspective-workbench-status-row">
+          <span>
+            original overlay fixture{" "}
+            <code>
+              {RESEARCH_CANDIDATE_REVIEW_CONSTELLATION_OVERLAY_FIXTURE_PATH}
+            </code>
+          </span>
+          <span>
+            manual note overlay fixture{" "}
+            <code>
+              {
+                RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_CONSTELLATION_OVERLAY_FIXTURE_PATH
+              }
+            </code>
+          </span>
+          <span>no proof/evidence write</span>
+          <span>no work item creation</span>
+        </div>
+
+        <div className="perspective-constellation-workspace-grid">
+          <ResearchCandidateConstellationOverlayPreview
+            title="Original static fixture overlay"
+            description="Candidate nodes and typed edges built from the hand-authored Research Candidate Review static fixture."
+            overlay={researchCandidateReviewConstellationOverlayPreview}
+            fixturePath={
+              RESEARCH_CANDIDATE_REVIEW_CONSTELLATION_OVERLAY_FIXTURE_PATH
+            }
+          />
+          <ResearchCandidateConstellationOverlayPreview
+            title="Manual parser output overlay"
+            description="Candidate nodes and typed edges built from the manual parser output fixture."
+            overlay={researchCandidateReviewManualNoteConstellationOverlayPreview}
+            fixturePath={
+              RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_CONSTELLATION_OVERLAY_FIXTURE_PATH
+            }
+          />
+        </div>
+      </section>
+      {/* Research Candidate Constellation Overlay Cockpit Preview End */}
 
       <section
         className="perspective-section perspective-constellation-workspace-shell perspective-primary-workbench"
