@@ -71,11 +71,15 @@ contract at:
 docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md
 ```
 
-The seeded item also points back to:
+The manifest-backed seeded item also points back to:
 
 ```text
-scripts/demo-seed.mjs
+fixtures/work-items.project-augnes.v0.json
 ```
+
+`scripts/demo-seed.mjs` consumes the same manifest for deterministic local demo
+seeding; it is no longer the implicit work item source for Codex fallback
+discovery.
 
 Use `--prefer-research` when the user asks for the current research work item
 but does not name a work ID. Use
@@ -124,7 +128,9 @@ configured. The fallback path is deterministic and must be reported honestly.
 
 The fallback sources are:
 
-- `scripts/demo-seed.mjs`
+- `fixtures/work-items.project-augnes.v0.json`
+- `scripts/demo-seed.mjs` as the deterministic local demo seed consumer of
+  that manifest
 - linked docs in the seeded work item
 - `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md` for
   `AG-RESEARCH-CAPABILITY-LANES-001`
