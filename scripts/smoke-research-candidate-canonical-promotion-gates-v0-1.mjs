@@ -188,8 +188,8 @@ function assertDocGateContract() {
   );
   assert.match(
     gateDoc,
-    /Cockpit\/Perspective static fixture preview/,
-    "gate doc next step must point to Cockpit/Perspective static fixture preview",
+    /manual pasted research note parser preview-only/i,
+    "gate doc next step must point to Manual pasted research note parser preview-only",
   );
 }
 
