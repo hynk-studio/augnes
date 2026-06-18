@@ -1,0 +1,297 @@
+{
+  "packet_version": "research_candidate_ai_context_packet.v0.1",
+  "scope": "project:augnes",
+  "source_kind": "research_candidate_review_overlay",
+  "source_overlay": {
+    "overlay_version": "research_candidate_constellation_overlay.v0.1",
+    "source_kind": "research_candidate_review_fixture",
+    "source_fixture_path": "fixtures/research-candidate-review.sample.v0.1.json",
+    "overlay_fixture_path": "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json",
+    "node_count": 11,
+    "edge_count": 24
+  },
+  "audience": "assistant_preview",
+  "mission_brief": "Review Research Candidate Review overlay candidates without treating them as durable state.",
+  "non_authority_notice": "This packet is read-only preview material. It is not source of truth, not proof/evidence, not a work item, not a perspective promotion, not a provider call, not retrieval, and not Codex execution.",
+  "source_summaries": [
+    {
+      "id": "source_summary_source_ref_manual_notes_001",
+      "node_id": "node_source_ref_source_ref_manual_notes_001",
+      "summary": "Notes describe why source provenance, candidate status, and later human promotion gates should stay separate.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_research_session",
+        "node_tension_candidate_001"
+      ],
+      "authority_note": "Source summary is display/source pointer material only; not source of truth."
+    }
+  ],
+  "claim_summaries": [
+    {
+      "id": "claim_summary_claim_candidate_001",
+      "node_id": "node_claim_candidate_001",
+      "summary": "Manually supplied research material should first appear as candidate review objects before any durable Perspective change.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_evidence_candidate_001",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "authority_note": "Claim summary is candidate-only review material; do not treat it as fact.",
+      "supporting_evidence_node_ids": [
+        "node_evidence_candidate_001"
+      ],
+      "contradicting_evidence_node_ids": [],
+      "review_status": "needs_review",
+      "epistemic_status": "candidate_claim"
+    },
+    {
+      "id": "claim_summary_claim_candidate_002",
+      "node_id": "node_claim_candidate_002",
+      "summary": "Future provider or retrieval outputs should remain candidate inputs until a bounded human review path promotes them.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_evidence_candidate_002",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "authority_note": "Claim summary is candidate-only review material; do not treat it as fact.",
+      "supporting_evidence_node_ids": [],
+      "contradicting_evidence_node_ids": [],
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported"
+    }
+  ],
+  "evidence_summaries": [
+    {
+      "id": "evidence_summary_evidence_candidate_001",
+      "node_id": "node_evidence_candidate_001",
+      "summary": "The notes emphasize that candidate review should precede durable Perspective mutation.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "authority_note": "Evidence summary is candidate-only context; it is not an Augnes proof/evidence row.",
+      "evidence_relation_labels": [
+        "supports"
+      ],
+      "related_claim_node_ids": [
+        "node_claim_candidate_001"
+      ],
+      "review_status": "needs_review",
+      "epistemic_status": "operator_note"
+    },
+    {
+      "id": "evidence_summary_evidence_candidate_002",
+      "node_id": "node_evidence_candidate_002",
+      "summary": "The notes separate future retrieval and provider lanes from this static review contract.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_claim_candidate_002",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "authority_note": "Evidence summary is candidate-only context; it is not an Augnes proof/evidence row.",
+      "evidence_relation_labels": [
+        "qualifies"
+      ],
+      "related_claim_node_ids": [
+        "node_claim_candidate_002"
+      ],
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported"
+    }
+  ],
+  "tension_summaries": [
+    {
+      "id": "tension_summary_tension_candidate_001",
+      "node_id": "node_tension_candidate_001",
+      "summary": "A review surface is useful before storage exists, but over-specific preview fields could be mistaken for a durable schema.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001"
+      ],
+      "authority_note": "Tension summary preserves unresolved review material; do not smooth it away.",
+      "related_claim_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002"
+      ],
+      "related_evidence_node_ids": [
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002"
+      ],
+      "preserved_by_delta_node_ids": [
+        "node_perspective_delta_candidate_001"
+      ],
+      "review_status": "needs_review",
+      "epistemic_status": "contested"
+    }
+  ],
+  "knowledge_gap_summaries": [
+    {
+      "id": "knowledge_gap_summary_knowledge_gap_candidate_001",
+      "node_id": "node_knowledge_gap_candidate_001",
+      "summary": "The exact TypeScript response contract and parser behavior have not been designed yet.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "authority_note": "Knowledge gap summary must remain explicit; do not fill it by inference.",
+      "related_claim_node_ids": [
+        "node_claim_candidate_001"
+      ],
+      "related_tension_node_ids": [
+        "node_tension_candidate_001"
+      ],
+      "tracked_by_delta_node_ids": [
+        "node_perspective_delta_candidate_001"
+      ],
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only"
+    }
+  ],
+  "perspective_delta_summaries": [
+    {
+      "id": "perspective_delta_summary_perspective_delta_candidate_001",
+      "node_id": "node_perspective_delta_candidate_001",
+      "summary": "Refine the research capability lane perspective toward review-first candidate bundles.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_target_perspective_research_capability_lanes",
+        "node_tension_candidate_001"
+      ],
+      "authority_note": "Perspective delta summary is candidate pressure only; it is not committed state.",
+      "target_perspective_key": "research.capability_lanes",
+      "basis_claim_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002"
+      ],
+      "basis_evidence_node_ids": [
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002"
+      ],
+      "related_tension_node_ids": [
+        "node_tension_candidate_001"
+      ],
+      "related_gap_node_ids": [
+        "node_knowledge_gap_candidate_001"
+      ],
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only"
+    }
+  ],
+  "follow_up_summaries": [
+    {
+      "id": "follow_up_summary_follow_up_work_candidate_001",
+      "node_id": "node_follow_up_work_candidate_001",
+      "summary": "Define a TypeScript shape for the static candidate review fixture without adding runtime routes or durable writes.",
+      "source_refs": [],
+      "related_node_ids": [
+        "node_research_session"
+      ],
+      "authority_note": "Follow-up summary is candidate-only planning material; it is not a work item.",
+      "derived_from_session_node_ids": [
+        "node_research_session"
+      ],
+      "derived_from_source_node_ids": [],
+      "is_work_item": false,
+      "review_status": "candidate_only"
+    }
+  ],
+  "target_perspective_summaries": [
+    {
+      "target_perspective_key": "research.capability_lanes",
+      "anchor_node_id": "node_target_perspective_research_capability_lanes",
+      "delta_node_ids": [
+        "node_perspective_delta_candidate_001"
+      ],
+      "authority_note": "Target perspective summary is a read-only anchor, not committed Perspective state."
+    }
+  ],
+  "diagnostics": {
+    "source_overlay_node_count": 11,
+    "source_overlay_edge_count": 24,
+    "source_summary_count": 1,
+    "claim_summary_count": 2,
+    "evidence_summary_count": 2,
+    "tension_summary_count": 1,
+    "knowledge_gap_summary_count": 1,
+    "perspective_delta_summary_count": 1,
+    "follow_up_summary_count": 1,
+    "target_perspective_summary_count": 1,
+    "unresolved_tension_count": 1,
+    "blocked_or_not_ready_delta_count": 1,
+    "source_ref_coverage_ratio": 1,
+    "final_guardrail_count": 8
+  },
+  "final_guardrails": [
+    "Do not treat candidate claims as facts.",
+    "Do not treat evidence candidates as proof/evidence rows.",
+    "Preserve unresolved tensions.",
+    "Preserve knowledge gaps instead of filling them by inference.",
+    "Do not promote perspective deltas.",
+    "Do not create work items from follow-up candidates.",
+    "Do not use raw source titles, URLs, provider IDs, thread IDs, run IDs, session IDs, arbitrary user strings, episode IDs, or demo refs as canonical labels.",
+    "Do not execute Codex or send external handoffs from this preview packet."
+  ],
+  "authority": {
+    "read_only": true,
+    "preview_only": true,
+    "candidate_only": true,
+    "source_of_truth": false,
+    "creates_evidence": false,
+    "creates_proof": false,
+    "commits_state": false,
+    "promotes_perspective": false,
+    "creates_work_item": false,
+    "mutates_runtime": false,
+    "executes_agents": false,
+    "sends_handoff": false,
+    "calls_provider": false,
+    "performs_retrieval": false
+  }
+}

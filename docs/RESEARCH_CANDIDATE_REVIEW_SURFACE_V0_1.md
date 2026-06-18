@@ -432,24 +432,57 @@ no runtime/API/DB/provider/retrieval/promotion behavior.
 It is guarded by
 `smoke:research-candidate-review-constellation-overlay-v0-1`.
 
+## AI Context Packet Preview Pointer
+
+`types/research-candidate-ai-context-packet.ts` defines the type-only packet
+contract.
+
+`lib/research-candidate-review/ai-context-packet.ts` builds a deterministic
+read-only handoff packet from Candidate Constellation Overlay data.
+
+`fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json`
+contains the original overlay packet.
+
+`fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json`
+contains the manual parser overlay packet.
+
+`components/research-candidate-ai-context-packet-preview.tsx` renders packet
+diagnostics, summaries, guardrails, and authority read-only.
+
+`components/augnes-cockpit.tsx` shows the Research Candidate AI Context Packet
+preview in the Perspective tab.
+
+This is not provider prompt execution, not Codex execution, not retrieval, not
+durable memory, not proof/evidence write, not work item creation, and not
+perspective promotion. It adds no runtime/API/DB/provider/retrieval/promotion
+behavior.
+
+It is guarded by `smoke:research-candidate-review-ai-context-packet-v0-1`.
+
 ## Expected Files And Checks
 
 Expected files:
 
+- `components/research-candidate-ai-context-packet-preview.tsx`
 - `components/research-candidate-constellation-overlay-preview.tsx`
 - `components/augnes-cockpit.tsx`
 - `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`
 - `docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md`
+- `lib/research-candidate-review/ai-context-packet.ts`
 - `lib/research-candidate-review/constellation-overlay.ts`
 - `lib/research-candidate-review/manual-note-parser.ts`
+- `types/research-candidate-ai-context-packet.ts`
 - `types/research-candidate-constellation-overlay.ts`
 - `types/research-candidate-review.ts`
 - `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`
+- `fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json`
 - `fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json`
+- `fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note.sample.v0.1.txt`
 - `fixtures/research-candidate-review.sample.v0.1.json`
+- `scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-constellation-overlay-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
@@ -462,10 +495,12 @@ Expected files:
 
 Expected checks:
 
+- `node scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-constellation-overlay-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs`
+- `npm run smoke:research-candidate-review-ai-context-packet-v0-1`
 - `npm run smoke:research-candidate-review-cockpit-preview-v0-1`
 - `npm run smoke:research-candidate-review-constellation-overlay-v0-1`
 - `npm run smoke:research-candidate-review-manual-parser-v0-1`
@@ -519,6 +554,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Research Candidate AI Context Packet preview that compiles
-source/claim/evidence/tension/gap/delta/follow-up candidate summaries from the
-overlay into a read-only handoff packet.
+Add Formation Receipt preview for Research Candidate Review, recording which
+source refs, candidate nodes, typed edges, and AI context packet sections
+contributed to a read-only review artifact.
