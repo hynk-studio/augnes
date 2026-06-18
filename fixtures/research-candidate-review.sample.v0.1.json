@@ -1,0 +1,201 @@
+{
+  "fixture_version": "research_candidate_review.sample.v0.1",
+  "scope": "project:augnes",
+  "status": "sample_fixture_only",
+  "authority": {
+    "candidate_only": true,
+    "source_of_truth": false,
+    "creates_evidence": false,
+    "creates_proof": false,
+    "commits_state": false,
+    "promotes_perspective": false,
+    "creates_work_item": false
+  },
+  "research_session_preview": {
+    "session_id": "research_session_sample_001",
+    "scope": "project:augnes",
+    "work_id": "AG-RESEARCH-CANDIDATE-REVIEW-SURFACE-001",
+    "research_question": "How should manually supplied research notes become reviewable Perspective candidates without becoming durable knowledge?",
+    "operator_intent": "Prepare a candidate-only review bundle from public-safe notes for later human review.",
+    "source_refs": [
+      "source_ref_manual_notes_001"
+    ],
+    "claim_candidate_count": 2,
+    "evidence_candidate_count": 2,
+    "tension_candidate_count": 1,
+    "knowledge_gap_candidate_count": 1,
+    "perspective_delta_candidate_count": 1,
+    "follow_up_work_candidate_count": 1,
+    "review_status": "candidate_only",
+    "boundary_notes": "Sample preview only; no durable research state, proof, evidence, work item, or perspective promotion is created."
+  },
+  "source_reference_previews": [
+    {
+      "source_ref_id": "source_ref_manual_notes_001",
+      "title": "Public-safe operator notes on review-first research candidates",
+      "authors_or_origin": "synthetic_operator_note",
+      "identifier_or_url": "public-safe-example-ref:rcr-001",
+      "reference_source": "manual_note",
+      "source_status": "operator_supplied_reference",
+      "operator_note_summary": "Notes describe why source provenance, candidate status, and later human promotion gates should stay separate.",
+      "review_status": "reviewed_reference_only",
+      "boundary_notes": "Reference preview only; it is not fetched, enriched, indexed, stored as durable memory, or treated as source of truth."
+    }
+  ],
+  "claim_candidates": [
+    {
+      "claim_candidate_id": "claim_candidate_001",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "claim_text": "Manually supplied research material should first appear as candidate review objects before any durable Perspective change.",
+      "claim_type": "process_boundary",
+      "confidence_label": "moderate_candidate",
+      "supporting_evidence_candidate_ids": [
+        "evidence_candidate_001"
+      ],
+      "contradicting_evidence_candidate_ids": [],
+      "review_status": "needs_review",
+      "epistemic_status": "candidate_claim",
+      "boundary_notes": "Candidate claim only; it does not create committed state or approval authority."
+    },
+    {
+      "claim_candidate_id": "claim_candidate_002",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "claim_text": "Future provider or retrieval outputs should remain candidate inputs until a bounded human review path promotes them.",
+      "claim_type": "future_lane_boundary",
+      "confidence_label": "weak_candidate",
+      "supporting_evidence_candidate_ids": [
+        "evidence_candidate_002"
+      ],
+      "contradicting_evidence_candidate_ids": [],
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported",
+      "boundary_notes": "Candidate claim only; it does not authorize provider calls, retrieval indexes, or durable writes."
+    }
+  ],
+  "evidence_candidates": [
+    {
+      "evidence_candidate_id": "evidence_candidate_001",
+      "source_ref_id": "source_ref_manual_notes_001",
+      "claim_candidate_id": "claim_candidate_001",
+      "evidence_summary": "The notes emphasize that candidate review should precede durable Perspective mutation.",
+      "evidence_role": "supports",
+      "locator": "manual_note_section:review_first_boundary",
+      "quality_note": "Operator summary requires later source review before promotion.",
+      "review_status": "needs_review",
+      "epistemic_status": "operator_note",
+      "boundary_notes": "Evidence candidate only; it is not an Augnes evidence row or proof record."
+    },
+    {
+      "evidence_candidate_id": "evidence_candidate_002",
+      "source_ref_id": "source_ref_manual_notes_001",
+      "claim_candidate_id": "claim_candidate_002",
+      "evidence_summary": "The notes separate future retrieval and provider lanes from this static review contract.",
+      "evidence_role": "qualifies",
+      "locator": "manual_note_section:future_lanes",
+      "quality_note": "Synthetic fixture support; later lane work needs separate validation.",
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported",
+      "boundary_notes": "Evidence candidate only; it does not authorize retrieval, provider, DB, or API work."
+    }
+  ],
+  "tension_candidates": [
+    {
+      "tension_candidate_id": "tension_candidate_001",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "summary": "A review surface is useful before storage exists, but over-specific preview fields could be mistaken for a durable schema.",
+      "related_claim_candidate_ids": [
+        "claim_candidate_001",
+        "claim_candidate_002"
+      ],
+      "related_evidence_candidate_ids": [
+        "evidence_candidate_001",
+        "evidence_candidate_002"
+      ],
+      "tension_type": "schema_misread_risk",
+      "operator_question": "Which fields should remain display contracts until a type-only contract is separately added?",
+      "blocks_or_qualifies_promotion": true,
+      "review_status": "needs_review",
+      "epistemic_status": "contested",
+      "boundary_notes": "Tension candidate only; it flags review risk without blocking repo work status or mutating state."
+    }
+  ],
+  "knowledge_gap_candidates": [
+    {
+      "knowledge_gap_candidate_id": "knowledge_gap_candidate_001",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "summary": "The exact TypeScript response contract and parser behavior have not been designed yet.",
+      "why_it_matters": "A future UI or route should validate the fixture against a type-only contract before runtime behavior exists.",
+      "related_claim_candidate_ids": [
+        "claim_candidate_001"
+      ],
+      "related_tension_candidate_ids": [
+        "tension_candidate_001"
+      ],
+      "suggested_next_reading": [
+        "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md"
+      ],
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only",
+      "boundary_notes": "Knowledge gap candidate only; it does not create follow-up work automatically."
+    }
+  ],
+  "perspective_delta_candidates": [
+    {
+      "perspective_delta_candidate_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "target_perspective_key": "research.capability_lanes",
+      "delta_type": "refine",
+      "before_summary": "Research capability lanes are planned as bounded, non-authoritative candidate inputs.",
+      "after_summary": "The first lane should expose manually supplied source material as candidate review bundles before durable research writes.",
+      "proposed_update_summary": "Refine the research capability lane perspective toward review-first candidate bundles.",
+      "basis_claim_candidate_ids": [
+        "claim_candidate_001",
+        "claim_candidate_002"
+      ],
+      "basis_evidence_candidate_ids": [
+        "evidence_candidate_001",
+        "evidence_candidate_002"
+      ],
+      "related_tension_candidate_ids": [
+        "tension_candidate_001"
+      ],
+      "related_gap_candidate_ids": [
+        "knowledge_gap_candidate_001"
+      ],
+      "risk_or_conflict_note": "Could be mistaken for a committed Perspective update unless kept candidate-only.",
+      "promotion_readiness": "not_ready",
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only",
+      "boundary_notes": "Perspective delta candidate only; no perspective memory is promoted or committed."
+    }
+  ],
+  "follow_up_work_candidates": [
+    {
+      "follow_up_work_candidate_id": "follow_up_work_candidate_001",
+      "candidate_title": "Add type-only ResearchCandidateReviewPreviewResponse contract",
+      "candidate_scope": "project:augnes",
+      "candidate_summary": "Define a TypeScript shape for the static candidate review fixture without adding runtime routes or durable writes.",
+      "reason": "The static fixture should eventually be checked against a type-only response contract before UI rendering is added.",
+      "suggested_expected_files": [
+        "lib/research-candidate-review-preview.ts",
+        "scripts/smoke-research-candidate-review-preview-type-v0-1.mjs"
+      ],
+      "suggested_expected_checks": [
+        "npm run typecheck",
+        "node scripts/smoke-research-candidate-review-preview-type-v0-1.mjs"
+      ],
+      "review_status": "candidate_only",
+      "boundary_notes": "Follow-up candidate only; it does not create a work item, issue, branch, or dispatch."
+    }
+  ]
+}
