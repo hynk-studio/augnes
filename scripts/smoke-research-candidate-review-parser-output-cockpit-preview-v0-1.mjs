@@ -1,18 +1,21 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { stripTypeScriptTypes } from "node:module";
 
-const parserPath = "lib/research-candidate-review/manual-note-parser.ts";
+const componentPath = "components/augnes-cockpit.tsx";
 const inputFixturePath =
   "fixtures/research-candidate-review.manual-note.sample.v0.1.txt";
-const outputFixturePath =
+const parserOutputFixturePath =
   "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json";
+const originalFixturePath = "fixtures/research-candidate-review.sample.v0.1.json";
+const parserPath = "lib/research-candidate-review/manual-note-parser.ts";
 const typePath = "types/research-candidate-review.ts";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
+const parserOutputCockpitSmokePath =
+  "scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs";
 const manualParserSmokePath =
   "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs";
 const cockpitSmokePath =
@@ -22,14 +25,17 @@ const gateSmokePath =
   "scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs";
 
 for (const filePath of [
-  parserPath,
+  componentPath,
   inputFixturePath,
-  outputFixturePath,
+  parserOutputFixturePath,
+  originalFixturePath,
+  parserPath,
   typePath,
   surfaceDocPath,
   gateDocPath,
   indexPath,
   packagePath,
+  parserOutputCockpitSmokePath,
   manualParserSmokePath,
   cockpitSmokePath,
   typeSmokePath,
@@ -38,47 +44,56 @@ for (const filePath of [
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 
-const parserSource = readFileSync(parserPath, "utf8");
-const inputFixture = readFileSync(inputFixturePath, "utf8");
-const outputFixtureText = readFileSync(outputFixturePath, "utf8");
-const outputFixture = JSON.parse(outputFixtureText);
+const component = readFileSync(componentPath, "utf8");
+const parserOutputFixtureText = readFileSync(parserOutputFixturePath, "utf8");
+const parserOutputFixture = JSON.parse(parserOutputFixtureText);
 const surfaceDoc = readFileSync(surfaceDocPath, "utf8");
 const gateDoc = readFileSync(gateDocPath, "utf8");
 const index = readFileSync(indexPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
+const parserOutputCockpitSmoke = readFileSync(
+  parserOutputCockpitSmokePath,
+  "utf8",
+);
 const manualParserSmoke = readFileSync(manualParserSmokePath, "utf8");
 const cockpitSmoke = readFileSync(cockpitSmokePath, "utf8");
 const typeSmoke = readFileSync(typeSmokePath, "utf8");
 const gateSmoke = readFileSync(gateSmokePath, "utf8");
 
-assertParserExports();
-assertParserPurity();
-assertPrefixGrammar();
-assertInputFixture();
-assertExpectedOutputFixture();
-await assertParserExecution();
-assertDocsPointers();
+assertParserOutputFixture();
+assertCockpitImports();
+assertRuntimeParserGuard();
+const cockpitSection = extractParserOutputCockpitSection(component);
+assertCockpitPreviewContent(cockpitSection);
+assertCandidateFamilyRendering(cockpitSection);
+assertReadOnlySection(cockpitSection);
+assertForbiddenActionControls(cockpitSection);
+assertParserOutputFixtureIntegrity(parserOutputFixture.preview);
+assertSurfaceDocPointer();
+assertGateDocPointer();
+assertNextStepAlignment();
 assertExistingSmokeAlignment();
 assertIndexPointer();
 assertPackageScript();
-assertNoForbiddenImplementationPatterns();
+assertNoForbiddenImplementationPatterns(cockpitSection);
 
 console.log(
   JSON.stringify(
     {
-      smoke: "research-candidate-review-manual-parser-v0-1",
+      smoke: "research-candidate-review-parser-output-cockpit-preview-v0-1",
       required_files_present: true,
-      parser_exports_checked: true,
-      parser_purity_checked: true,
-      prefix_grammar_checked: true,
-      input_fixture_checked: true,
-      expected_output_fixture_checked: true,
-      parser_execution_checked: true,
-      source_ref_integrity_checked: true,
-      session_preview_counts_checked: true,
-      cross_references_checked: true,
-      canonical_gate_alignment_checked: true,
-      docs_pointer_checked: true,
+      parser_output_fixture_checked: true,
+      cockpit_imports_checked: true,
+      runtime_parser_guard_checked: true,
+      cockpit_section_markers_checked: true,
+      cockpit_preview_content_checked: true,
+      candidate_family_rendering_checked: true,
+      read_only_section_checked: true,
+      forbidden_action_controls_checked: true,
+      parser_output_fixture_integrity_checked: true,
+      surface_doc_pointer_checked: true,
+      gate_doc_pointer_checked: true,
+      next_step_alignment_checked: true,
       existing_smoke_alignment_checked: true,
       index_pointer_checked: true,
       package_script_checked: true,
@@ -89,132 +104,12 @@ console.log(
   ),
 );
 
-function assertParserExports() {
-  for (const exportName of [
-    "ManualResearchNoteParserVersion",
-    "ManualResearchNoteParserOptions",
-    "ManualResearchNoteParserWarning",
-    "ManualResearchNoteParserResult",
-  ]) {
-    assert.match(
-      parserSource,
-      new RegExp(`export\\s+type\\s+${escapeRegExp(exportName)}\\b`),
-      `parser source must export ${exportName}`,
-    );
-  }
-
-  for (const exportName of [
-    "parseManualResearchNoteToPreview",
-    "parseManualResearchNoteLines",
-    "buildManualResearchNotePreview",
-  ]) {
-    assert.match(
-      parserSource,
-      new RegExp(`export\\s+function\\s+${escapeRegExp(exportName)}\\b`),
-      `parser source must export ${exportName}`,
-    );
-  }
-
-  assert.match(
-    parserSource,
-    /manual_research_note_parser\.v0\.1/,
-    "parser source must mention manual_research_note_parser.v0.1",
+function assertParserOutputFixture() {
+  assert.equal(
+    parserOutputFixture.parser_version,
+    "manual_research_note_parser.v0.1",
   );
-}
-
-function assertParserPurity() {
-  assert.match(
-    parserSource,
-    /import type \{[\s\S]+?\} from "@\/types\/research-candidate-review";/,
-    "parser must import only types from research-candidate-review",
-  );
-  assert.doesNotMatch(
-    parserSource,
-    /^import\s+(?!type\b)/m,
-    "parser must not import runtime modules",
-  );
-
-  for (const { label, regex } of [
-    pattern(["node", ":fs"]),
-    pattern(["node", ":http"]),
-    pattern(["node", ":https"]),
-    pattern(["child", "_process"]),
-    pattern(["fetch"], "\\b", "\\s*\\("),
-    pattern(["process", ".env"], "\\b", "\\b"),
-    pattern(["Date", ".now"], "\\b", "\\s*\\("),
-    pattern(["Math", ".random"], "\\b", "\\s*\\("),
-    pattern(["api", ".open", "ai", ".com"]),
-    pattern(["provider", "SDK"], "\\b", "\\b", "i"),
-    pattern(["CREATE", " TABLE"], "\\b", "\\b", "i"),
-    pattern(["ALTER", " TABLE"], "\\b", "\\b", "i"),
-    pattern(["INSERT", " INTO"], "\\b", "\\b", "i"),
-    pattern(["Next", "Response"], "\\b", "\\b"),
-    pattern(["route", ".ts"], "\\b", "\\b"),
-    pattern(["use", " client"], "\\b", "\\b"),
-  ]) {
-    assert.doesNotMatch(parserSource, regex, `parser source must not include ${label}`);
-  }
-}
-
-function assertPrefixGrammar() {
-  for (const prefix of [
-    "Research Question:",
-    "Operator Intent:",
-    "Source Title:",
-    "Source Origin:",
-    "Source Identifier:",
-    "Claim:",
-    "Evidence:",
-    "Tension:",
-    "Gap:",
-    "Perspective Delta:",
-    "Next:",
-    "연구질문:",
-    "의도:",
-    "출처제목:",
-    "출처:",
-    "식별자:",
-    "주장:",
-    "근거:",
-    "긴장:",
-    "공백:",
-    "관점변화:",
-    "다음:",
-  ]) {
-    assert.ok(parserSource.includes(prefix), `parser source must include prefix ${prefix}`);
-  }
-}
-
-function assertInputFixture() {
-  for (const prefix of [
-    "Research Question:",
-    "Claim:",
-    "Evidence:",
-    "Tension:",
-    "Gap:",
-    "Perspective Delta:",
-    "Next:",
-  ]) {
-    assert.ok(inputFixture.includes(prefix), `input fixture must include ${prefix}`);
-  }
-
-  for (const { label, regex } of [
-    { label: "http://", regex: /http:\/\// },
-    { label: "https://", regex: /https:\/\// },
-    pattern(["provider", "_run"]),
-    pattern(["thread", "_"]),
-    pattern(["workspace", "_"]),
-    pattern(["OPEN", "AI", "_API", "_KEY"]),
-    pattern(["GITHUB", "_TOKEN"]),
-    { label: "email address", regex: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i },
-  ]) {
-    assert.doesNotMatch(inputFixture, regex, `input fixture must not include ${label}`);
-  }
-}
-
-function assertExpectedOutputFixture() {
-  assert.equal(outputFixture.parser_version, "manual_research_note_parser.v0.1");
-  assert.equal(outputFixture.input_fixture_path, inputFixturePath);
+  assert.equal(parserOutputFixture.input_fixture_path, inputFixturePath);
 
   for (const [field, expected] of [
     ["preview_only", true],
@@ -226,14 +121,13 @@ function assertExpectedOutputFixture() {
     ["proof_or_evidence_writes", false],
   ]) {
     assert.equal(
-      outputFixture.authority?.[field],
+      parserOutputFixture.authority?.[field],
       expected,
-      `parser fixture authority ${field} must be ${expected}`,
+      `parser authority ${field} must be ${expected}`,
     );
   }
 
-  const preview = outputFixture.preview;
-  assert.equal(preview.preview_version, "research_candidate_review.v0.1");
+  const preview = parserOutputFixture.preview;
   assert.equal(preview.scope, "project:augnes");
   assert.equal(preview.status, "candidate_preview_only");
 
@@ -252,61 +146,222 @@ function assertExpectedOutputFixture() {
       `preview authority ${field} must be ${expected}`,
     );
   }
+}
 
-  for (const family of requiredPreviewFamilies()) {
-    assert.ok(Object.hasOwn(preview, family), `preview must include ${family}`);
+function assertCockpitImports() {
+  for (const requiredText of [
+    "research-candidate-review.manual-note-preview.sample.v0.1.json",
+    "research-candidate-review.manual-note.sample.v0.1.txt",
+    "ManualResearchNoteParserResult",
+    "RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_INPUT_FIXTURE_PATH",
+    "RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_OUTPUT_FIXTURE_PATH",
+    "researchCandidateReviewParserOutputPreview",
+    'id="research-candidate-review-parser-output-preview"',
+    'href="#research-candidate-review-parser-output-preview"',
+    "Manual Parser Output Preview",
+  ]) {
+    assert.ok(component.includes(requiredText), `component must include ${requiredText}`);
   }
+}
 
-  assert.ok(preview.source_reference_previews.length === 1, "preview must contain one source reference");
-  assert.ok(preview.claim_candidates.length >= 1, "preview must contain claim candidates");
-  assert.ok(preview.evidence_candidates.length >= 2, "preview must contain evidence candidates");
-  assert.ok(preview.tension_candidates.length >= 1, "preview must contain tension candidates");
-  assert.ok(preview.knowledge_gap_candidates.length >= 1, "preview must contain knowledge gap candidates");
-  assert.ok(preview.perspective_delta_candidates.length >= 1, "preview must contain perspective delta candidates");
-  assert.ok(preview.follow_up_work_candidates.length >= 1, "preview must contain follow-up work candidates");
-
-  for (const item of everyPreviewObject(preview)) {
-    assert.ok(item.review_status, `${objectId(item)} must include review_status`);
-    assert.ok(item.boundary_notes, `${objectId(item)} must include boundary_notes`);
-  }
-
-  for (const item of groundedCandidates(preview)) {
-    assert.ok(item.epistemic_status, `${objectId(item)} must include epistemic_status`);
-    assert.ok(
-      typeof item.source_ref_id === "string" || Array.isArray(item.source_refs),
-      `${objectId(item)} must include source_ref_id or source_refs`,
+function assertRuntimeParserGuard() {
+  for (const forbiddenName of [
+    "parseManualResearchNoteToPreview",
+    "parseManualResearchNoteLines",
+    "buildManualResearchNotePreview",
+  ]) {
+    assert.doesNotMatch(
+      component,
+      new RegExp(`\\b${escapeRegExp(forbiddenName)}\\b`),
+      `component must not import or call ${forbiddenName}`,
     );
   }
 
-  assertSourceReferenceIntegrity(preview);
-  assertSessionPreviewCounts(preview);
-  assertCrossReferences(preview);
-  assertCanonicalGateAlignment(preview);
-}
-
-async function assertParserExecution() {
-  const parserModule = await importParserModule();
-  const result = parserModule.parseManualResearchNoteToPreview(inputFixture);
-  assert.deepEqual(
-    result,
-    {
-      parser_version: outputFixture.parser_version,
-      preview: outputFixture.preview,
-      warnings: outputFixture.warnings,
-      authority: outputFixture.authority,
-    },
-    "parser output must match expected output fixture exactly",
+  assert.match(
+    component,
+    /import type \{ ManualResearchNoteParserResult \} from "@\/lib\/research-candidate-review\/manual-note-parser";/,
+    "component must import ManualResearchNoteParserResult as a type-only import",
   );
 }
 
-function assertDocsPointers() {
+function extractParserOutputCockpitSection(source) {
+  const startMarker =
+    "Research Candidate Review Parser Output Cockpit Preview Start";
+  const endMarker =
+    "Research Candidate Review Parser Output Cockpit Preview End";
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker);
+  assert.notEqual(start, -1, "parser output cockpit preview start marker must exist");
+  assert.notEqual(end, -1, "parser output cockpit preview end marker must exist");
+  assert.ok(end > start, "parser output cockpit preview end marker must follow start marker");
+  return source.slice(start, end + endMarker.length);
+}
+
+function assertCockpitPreviewContent(section) {
   for (const requiredText of [
-    parserPath,
+    "researchCandidateReviewParserOutputPreview",
+    "RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_INPUT_FIXTURE_PATH",
+    "RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_OUTPUT_FIXTURE_PATH",
+    "parser_version",
+    "manual_research_note_parser.v0.1",
+    "preview_only",
+    "deterministic_parser_only",
+    "provider_calls",
+    "retrieval",
+    "db_writes",
+    "perspective_promotion",
+    "proof_or_evidence_writes",
+    "candidate_preview_only",
+    "candidate_only",
+    "non-authoritative",
+    "research_session_preview",
+    "source_reference_previews",
+    "claim_candidates",
+    "evidence_candidates",
+    "tension_candidates",
+    "knowledge_gap_candidates",
+    "perspective_delta_candidates",
+    "follow_up_work_candidates",
+    "review_status",
+    "epistemic_status",
+    "source_refs",
+    "source_ref_id",
+    "target_perspective_key",
+    "delta_type",
+    "promotion_readiness",
+    "warnings",
+    "No parser warnings",
+    "canonical promotion gate",
+    "source title/origin/identifier remain raw/source-bound",
+    "stable dotted key",
+    "no runtime UI input",
+    "no live parser execution",
+    "no provider calls",
+    "no retrieval",
+    "no DB writes",
+    "no proof/evidence write",
+    "no work item creation",
+    "no perspective promotion",
+  ]) {
+    assert.ok(section.includes(requiredText), `parser output section must include ${requiredText}`);
+  }
+}
+
+function assertCandidateFamilyRendering(section) {
+  for (const family of [
+    "source_reference_previews",
+    "claim_candidates",
+    "evidence_candidates",
+    "tension_candidates",
+    "knowledge_gap_candidates",
+    "perspective_delta_candidates",
+    "follow_up_work_candidates",
+  ]) {
+    assert.match(
+      section,
+      new RegExp(
+        `researchCandidateReviewParserOutputPreview\\.preview\\.${family}\\.map\\s*\\(`,
+      ),
+      `parser output section must render ${family}`,
+    );
+  }
+}
+
+function assertReadOnlySection(section) {
+  const forbiddenPatterns = [
+    { label: "<button", regex: /<button\b/i },
+    { label: "<form", regex: /<form\b/i },
+    { label: "<input", regex: /<input\b/i },
+    { label: "<textarea", regex: /<textarea\b/i },
+    { label: "<select", regex: /<select\b/i },
+    { label: "onClick=", regex: /\bonClick=/ },
+    { label: "onSubmit=", regex: /\bonSubmit=/ },
+    pattern(["fetch"], "\\b", "\\s*\\("),
+    { label: "fetchJson", regex: /\bfetchJson\b/ },
+    { label: 'method: "POST"', regex: /method:\s*["']POST["']/i },
+    { label: 'method: "PUT"', regex: /method:\s*["']PUT["']/i },
+    { label: 'method: "PATCH"', regex: /method:\s*["']PATCH["']/i },
+    { label: 'method: "DELETE"', regex: /method:\s*["']DELETE["']/i },
+    { label: "/api/", regex: /\/api\// },
+    { label: "db/", regex: /\bdb\// },
+    { label: "migrations/", regex: /\bmigrations\// },
+    { label: "createResearchCandidate", regex: /\bcreateResearchCandidate\b/ },
+    { label: "promotePerspective", regex: /\bpromotePerspective\b/ },
+    { label: "rejectCandidate", regex: /\brejectCandidate\b/ },
+    { label: "createWorkItem", regex: /\bcreateWorkItem\b/ },
+    { label: "recordProof", regex: /\brecordProof\b/ },
+    { label: "recordEvidence", regex: /\brecordEvidence\b/ },
+    { label: "executeCodex", regex: /\bexecuteCodex\b/ },
+    {
+      label: "parseManualResearchNoteToPreview(",
+      regex: /\bparseManualResearchNoteToPreview\s*\(/,
+    },
+    {
+      label: "parseManualResearchNoteLines(",
+      regex: /\bparseManualResearchNoteLines\s*\(/,
+    },
+    {
+      label: "buildManualResearchNotePreview(",
+      regex: /\bbuildManualResearchNotePreview\s*\(/,
+    },
+    { label: "launch Codex", regex: /\blaunch Codex\b/i },
+    { label: "merge", regex: /\bmerge\b/i },
+    { label: "publish", regex: /\bpublish\b/i },
+    { label: "retry", regex: /\bretry\b/i },
+    { label: "replay", regex: /\breplay\b/i },
+    { label: "deploy", regex: /\bdeploy\b/i },
+  ];
+
+  for (const { label, regex } of forbiddenPatterns) {
+    assert.doesNotMatch(section, regex, `parser output section must not include ${label}`);
+  }
+}
+
+function assertForbiddenActionControls(section) {
+  const text = section.replace(/<[^>]+>/g, " ").toLowerCase();
+  for (const label of [
+    "save candidate",
+    "save review",
+    "parse note",
+    "run parser",
+    "promote candidate",
+    "reject candidate",
+    "approve candidate",
+    "create work item",
+    "execute codex",
+    "launch codex",
+    "run codex",
+    "record proof",
+    "record evidence",
+    "commit state",
+    "merge changes",
+    "publish result",
+    "retry action",
+    "replay action",
+    "deploy preview",
+  ]) {
+    assert.ok(!text.includes(label), `parser output section must not include action-control phrase ${label}`);
+  }
+}
+
+function assertParserOutputFixtureIntegrity(preview) {
+  assertSourceReferenceIntegrity(preview);
+  assertSessionPreviewCounts(preview);
+  assertCrossReferences(preview);
+  assertStableTargetPerspectiveKeys(preview);
+}
+
+function assertSurfaceDocPointer() {
+  for (const requiredText of [
+    "parser output Cockpit/Perspective static preview panel",
+    componentPath,
+    parserOutputFixturePath,
     inputFixturePath,
-    outputFixturePath,
-    "smoke:research-candidate-review-manual-parser-v0-1",
-    "preview-only",
-    "deterministic parser",
+    "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1",
+    "read-only",
+    "static fixture",
+    "no runtime UI input",
+    "no live parser execution",
     "no provider calls",
     "no retrieval",
     "no DB writes",
@@ -314,38 +369,38 @@ function assertDocsPointers() {
   ]) {
     assert.ok(surfaceDoc.includes(requiredText), `surface doc must include ${requiredText}`);
   }
+}
 
-  assert.match(
-    gateDoc,
-    /manual parser preserves canonical promotion gates/i,
-    "gate doc must mention manual parser canonical gate preservation",
-  );
-  assert.match(
-    gateDoc,
-    /raw source strings remain raw\/source-bound/i,
-    "gate doc must keep raw source strings raw/source-bound",
-  );
-  assert.match(
-    gateDoc,
-    /no runtime\/API\/DB\/provider\/retrieval\/promotion behavior/i,
-    "gate doc must preserve no runtime/API/DB/provider/retrieval/promotion boundary",
-  );
+function assertGateDocPointer() {
+  for (const requiredText of [
+    "parser output Cockpit/Perspective static preview panel",
+    "read-only",
+    "static parser output fixture",
+    "raw/source-bound",
+    "stable dotted key",
+    "no runtime/API/DB/provider/retrieval/promotion behavior",
+  ]) {
+    assert.ok(gateDoc.includes(requiredText), `gate doc must include ${requiredText}`);
+  }
+}
 
-  const expectedNextStep = /Candidate Constellation Overlay preview/i;
+function assertNextStepAlignment() {
+  const expected = /Candidate Constellation Overlay preview/i;
   assert.match(
     extractSection(surfaceDoc, "## Next Recommended Step"),
-    expectedNextStep,
-    "surface doc next step must point to Candidate Constellation Overlay preview",
+    expected,
+    "surface doc next step must mention Candidate Constellation Overlay preview",
   );
   assert.match(
     extractSection(gateDoc, "## Next Recommended Step"),
-    expectedNextStep,
-    "gate doc next step must point to Candidate Constellation Overlay preview",
+    expected,
+    "gate doc next step must mention Candidate Constellation Overlay preview",
   );
 }
 
 function assertExistingSmokeAlignment() {
   for (const [label, source] of [
+    ["manual parser smoke", manualParserSmoke],
     ["cockpit smoke", cockpitSmoke],
     ["type smoke", typeSmoke],
     ["gate smoke", gateSmoke],
@@ -353,29 +408,31 @@ function assertExistingSmokeAlignment() {
     assert.match(
       source,
       /Candidate Constellation Overlay preview/i,
-      `${label} must expect the Candidate Constellation Overlay preview next step`,
+      `${label} must expect Candidate Constellation Overlay preview as next step`,
     );
   }
 }
 
 function assertIndexPointer() {
-  const pointerStart = index.indexOf(parserPath);
-  assert.notEqual(pointerStart, -1, "index must mention the manual parser helper");
+  const pointerStart = index.indexOf("parser output Cockpit/Perspective static preview panel");
+  assert.notEqual(pointerStart, -1, "index must mention parser output Cockpit/Perspective static preview panel");
   const pointer = index.slice(pointerStart, pointerStart + 2600);
   for (const requiredText of [
-    parserPath,
+    componentPath,
+    parserOutputFixturePath,
     inputFixturePath,
-    outputFixturePath,
-    "smoke:research-candidate-review-manual-parser-v0-1",
-    "preview-only deterministic parser",
+    "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1",
+    "read-only",
+    "static parser output fixture",
+    "no runtime UI input",
+    "no live parser execution",
     "no provider calls",
     "no retrieval",
     "no DB writes",
-    "no runtime/API route",
-    "no UI input behavior",
     "no proof/evidence write",
     "no work item creation",
     "no promotion behavior",
+    "no runtime/API route",
   ]) {
     assert.ok(pointer.includes(requiredText), `index pointer must include ${requiredText}`);
   }
@@ -383,27 +440,22 @@ function assertIndexPointer() {
 
 function assertPackageScript() {
   assert.equal(
-    packageJson.scripts?.["smoke:research-candidate-review-manual-parser-v0-1"],
-    "node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
-    "package.json must expose the manual parser smoke",
+    packageJson.scripts?.[
+      "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
+    "package.json must expose the parser output Cockpit preview smoke",
   );
 }
 
-function assertNoForbiddenImplementationPatterns() {
+function assertNoForbiddenImplementationPatterns(section) {
   const combinedStaticText = [
-    parserSource,
-    inputFixture,
-    outputFixtureText,
-    extractAround(surfaceDoc, "Manual Parser Preview Pointer", 2200),
-    extractSection(gateDoc, "## Static Audit Scope"),
-    extractAround(index, parserPath, 2600),
-    manualParserSmoke,
+    parserOutputCockpitSmoke,
+    section,
+    extractAround(surfaceDoc, "Parser Output Cockpit Preview Pointer", 2400),
+    extractAround(gateDoc, "parser output Cockpit/Perspective static preview panel", 1200),
+    extractAround(index, "parser output Cockpit/Perspective static preview panel", 2600),
   ].join("\n\n");
-  assert.doesNotMatch(
-    [parserSource, inputFixture, outputFixtureText, manualParserSmoke].join("\n\n"),
-    pattern(["open", "ai"], "\\b", "\\b", "i").regex,
-    "manual parser source, fixtures, and smoke must not include provider implementation text",
-  );
   const forbiddenPatterns = [
     pattern(["child", "_process"], "\\b", "\\b"),
     pattern(["spawn"], "\\b", "\\s*\\("),
@@ -425,32 +477,15 @@ function assertNoForbiddenImplementationPatterns() {
     pattern(["INSERT", " INTO"], "\\b", "\\b", "i"),
     pattern(["Next", "Response"], "\\b", "\\b"),
     pattern(["route", ".ts"], "\\b", "\\b"),
-    pattern(["use", " client"], "\\b", "\\b"),
-    pattern(["pris", "ma"], "\\b", "\\b", "i"),
-    pattern(["sql", "ite"], "\\b", "\\b", "i"),
-    pattern(["driz", "zle"], "\\b", "\\b", "i"),
-    pattern(["supa", "base"], "\\b", "\\b", "i"),
-    pattern(["embed", "dings"], "\\b", "\\b", "i"),
-    pattern(["vec", "tor"], "\\b", "\\b", "i"),
-    pattern(["r", "ag"], "\\b", "\\b", "i"),
   ];
 
   for (const { label, regex } of forbiddenPatterns) {
     assert.doesNotMatch(
       combinedStaticText,
       regex,
-      `manual parser static text must not include ${label}`,
+      `parser output static text must not include ${label}`,
     );
   }
-}
-
-async function importParserModule() {
-  const transformedSource = stripTypeScriptTypes(parserSource, {
-    mode: "transform",
-  });
-  return import(
-    `data:text/javascript;charset=utf-8,${encodeURIComponent(transformedSource)}`
-  );
 }
 
 function assertSourceReferenceIntegrity(preview) {
@@ -583,7 +618,7 @@ function assertCrossReferences(preview) {
   }
 }
 
-function assertCanonicalGateAlignment(preview) {
+function assertStableTargetPerspectiveKeys(preview) {
   const sourceTitles = new Set(
     preview.source_reference_previews.map((source) => source.title),
   );
@@ -611,32 +646,6 @@ function assertCanonicalGateAlignment(preview) {
       `${delta.perspective_delta_candidate_id} target key must not contain raw trace/demo text`,
     );
   }
-}
-
-function requiredPreviewFamilies() {
-  return [
-    "research_session_preview",
-    "source_reference_previews",
-    "claim_candidates",
-    "evidence_candidates",
-    "tension_candidates",
-    "knowledge_gap_candidates",
-    "perspective_delta_candidates",
-    "follow_up_work_candidates",
-  ];
-}
-
-function everyPreviewObject(preview) {
-  return [
-    preview.research_session_preview,
-    ...preview.source_reference_previews,
-    ...preview.claim_candidates,
-    ...preview.evidence_candidates,
-    ...preview.tension_candidates,
-    ...preview.knowledge_gap_candidates,
-    ...preview.perspective_delta_candidates,
-    ...preview.follow_up_work_candidates,
-  ];
 }
 
 function groundedCandidates(preview) {

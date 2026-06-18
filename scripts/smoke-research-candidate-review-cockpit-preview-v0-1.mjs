@@ -286,8 +286,8 @@ function assertGateDocNextStep() {
   const nextStep = extractSection(gateDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /parser output Cockpit\/Perspective static preview panel/i,
-    "gate doc next step must mention parser output Cockpit/Perspective static preview panel",
+    /Candidate Constellation Overlay preview/i,
+    "gate doc next step must mention Candidate Constellation Overlay preview",
   );
 }
 
@@ -295,21 +295,21 @@ function assertSurfaceDocNextStep() {
   const nextStep = extractSection(surfaceDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /parser output Cockpit\/Perspective static preview panel/i,
-    "surface doc next step must mention parser output Cockpit/Perspective static preview panel",
+    /Candidate Constellation Overlay preview/i,
+    "surface doc next step must mention Candidate Constellation Overlay preview",
   );
 }
 
 function assertExistingSmokeAlignment() {
   assert.match(
     typeSmoke,
-    /parser output Cockpit\/Perspective static preview panel/i,
-    "type smoke must expect the parser output Cockpit/Perspective static preview panel next step",
+    /Candidate Constellation Overlay preview/i,
+    "type smoke must expect the Candidate Constellation Overlay preview next step",
   );
   assert.match(
     gateSmoke,
-    /parser output Cockpit\/Perspective static preview panel/i,
-    "gate smoke must expect the parser output Cockpit/Perspective static preview panel next step",
+    /Candidate Constellation Overlay preview/i,
+    "gate smoke must expect the Candidate Constellation Overlay preview next step",
   );
 }
 

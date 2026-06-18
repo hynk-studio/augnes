@@ -210,6 +210,11 @@ The manual parser preserves canonical promotion gates: raw source strings remain
 display/reference material, while `target_perspective_key` remains a stable
 dotted key such as `research.candidate_review`. The parser adds no runtime/API/DB/provider/retrieval/promotion behavior.
 
+The parser output Cockpit/Perspective static preview panel renders the static parser output fixture read-only. Raw source title/origin/identifier remain
+raw/source-bound display material, and `target_perspective_key` remains a
+stable dotted key. The panel adds no runtime/API/DB/provider/retrieval/promotion
+behavior.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -264,5 +269,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add a parser output Cockpit/Perspective static preview panel that renders the
-manual parser sample output read-only beside the original static fixture.
+Add Candidate Constellation Overlay preview for Research Candidate Review
+candidates, mapping source/claim/evidence/tension/gap/delta/follow-up
+candidates to read-only candidate nodes and typed edges.

@@ -639,8 +639,8 @@ repo-local 색인이다.
   `fixtures/research-candidate-review.sample.v0.1.json` through
   `types/research-candidate-review.ts` as static fixture only,
   non-authoritative review material, with no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
-- `lib/research-candidate-review/manual-note-parser.ts`: preview-only
-  deterministic parser for bounded manual pasted notes. It produces Research
+- `lib/research-candidate-review/manual-note-parser.ts`: preview-only deterministic parser
+  for bounded manual pasted notes. It produces Research
   Candidate Review preview data with no provider calls, no retrieval, no DB writes, no runtime/API route, no UI input behavior, no proof/evidence write, no work item creation, and no promotion behavior.
 - `fixtures/research-candidate-review.manual-note.sample.v0.1.txt`:
   public-safe manual note parser input fixture.
@@ -673,10 +673,21 @@ repo-local 색인이다.
   purity, prefix grammar, input/output fixture alignment, parser execution,
   source ref integrity, count consistency, cross-reference integrity,
   canonical gate preservation, and non-authority boundaries를 정적으로 확인한다.
+- parser output Cockpit/Perspective static preview panel:
+  `components/augnes-cockpit.tsx` renders
+  `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`
+  beside the original static fixture and displays
+  `fixtures/research-candidate-review.manual-note.sample.v0.1.txt` as
+  reference text only. This is a read-only static parser output fixture panel
+  with no runtime UI input, no live parser execution, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, no promotion behavior, and no runtime/API route.
+- `npm run smoke:research-candidate-review-parser-output-cockpit-preview-v0-1`:
+  parser output fixture wiring, runtime parser guard, read-only section
+  markers, parser output fixture integrity, docs/index pointers, and
+  non-authority boundaries를 정적으로 확인한다.
 
 Boundary 요약: candidate-only, type-only, static audit only, read-only static
 fixture only, preview-only deterministic parser, non-authoritative preview
-contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write. The manual parser adds no runtime/API route, no UI input behavior, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, and no promotion behavior.
+contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write. The manual parser adds no runtime/API route, no UI input behavior, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, and no promotion behavior. The parser output Cockpit/Perspective static preview panel is read-only static parser output fixture material with no runtime UI input, no live parser execution, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, no promotion behavior, and no runtime/API route.
 
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 
