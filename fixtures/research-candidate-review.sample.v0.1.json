@@ -187,12 +187,12 @@
       "candidate_summary": "Define a TypeScript shape for the static candidate review fixture without adding runtime routes or durable writes.",
       "reason": "The static fixture should eventually be checked against a type-only response contract before UI rendering is added.",
       "suggested_expected_files": [
-        "lib/research-candidate-review-preview.ts",
-        "scripts/smoke-research-candidate-review-preview-type-v0-1.mjs"
+        "types/research-candidate-review.ts",
+        "scripts/smoke-research-candidate-review-types-v0-1.mjs"
       ],
       "suggested_expected_checks": [
         "npm run typecheck",
-        "node scripts/smoke-research-candidate-review-preview-type-v0-1.mjs"
+        "node scripts/smoke-research-candidate-review-types-v0-1.mjs"
       ],
       "review_status": "candidate_only",
       "boundary_notes": "Follow-up candidate only; it does not create a work item, issue, branch, or dispatch."

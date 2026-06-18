@@ -631,11 +631,17 @@ repo-local 색인이다.
 - `fixtures/research-candidate-review.sample.v0.1.json`: public-safe sample
   fixture for source provenance, claims, evidence, tensions, knowledge gaps,
   perspective delta candidates, and follow-up work candidates.
+- `types/research-candidate-review.ts`: type-only, non-authoritative preview
+  contract for the fixture shape. It is not a DB schema, not an API route, and
+  not runtime behavior.
 - `npm run smoke:research-candidate-review-surface-v0-1`: doc headings,
   fixture shape/counts, candidate boundaries, source grounding, package/index
   pointers, and forbidden implementation-pattern absence를 정적으로 확인한다.
+- `npm run smoke:research-candidate-review-types-v0-1`: type literals,
+  fixture alignment, source ref integrity, count consistency, cross-reference
+  integrity, and non-authority pointers를 정적으로 확인한다.
 
-Boundary 요약: candidate-only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
+Boundary 요약: candidate-only, type-only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
 
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 
