@@ -286,8 +286,8 @@ function assertGateDocNextStep() {
   const nextStep = extractSection(gateDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /Research Candidate Review v0\.1 milestone closeout docs/i,
-    "gate doc next step must mention Research Candidate Review v0.1 milestone closeout docs",
+    /Cockpit manual pasted note preview UI shell/i,
+    "gate doc next step must mention Cockpit manual pasted note preview UI shell",
   );
 }
 
@@ -295,21 +295,21 @@ function assertSurfaceDocNextStep() {
   const nextStep = extractSection(surfaceDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /Research Candidate Review v0\.1 milestone closeout docs/i,
-    "surface doc next step must mention Research Candidate Review v0.1 milestone closeout docs",
+    /Cockpit manual pasted note preview UI shell/i,
+    "surface doc next step must mention Cockpit manual pasted note preview UI shell",
   );
 }
 
 function assertExistingSmokeAlignment() {
   assert.match(
     typeSmoke,
-    /Research Candidate Review v0\.1 milestone closeout docs/i,
-    "type smoke must expect the Research Candidate Review v0.1 milestone closeout docs next step",
+    /Cockpit manual pasted note preview UI shell/i,
+    "type smoke must expect the Cockpit manual pasted note preview UI shell next step",
   );
   assert.match(
     gateSmoke,
-    /Research Candidate Review v0\.1 milestone closeout docs/i,
-    "gate smoke must expect the Research Candidate Review v0.1 milestone closeout docs next step",
+    /Cockpit manual pasted note preview UI shell/i,
+    "gate smoke must expect the Cockpit manual pasted note preview UI shell next step",
   );
 }
 

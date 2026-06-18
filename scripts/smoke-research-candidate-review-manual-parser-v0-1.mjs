@@ -331,16 +331,16 @@ function assertDocsPointers() {
     "gate doc must preserve no runtime/API/DB/provider/retrieval/promotion boundary",
   );
 
-  const expectedNextStep = /Research Candidate Review v0\.1 milestone closeout docs/i;
+  const expectedNextStep = /Cockpit manual pasted note preview UI shell/i;
   assert.match(
     extractSection(surfaceDoc, "## Next Recommended Step"),
     expectedNextStep,
-    "surface doc next step must point to Research Candidate Review v0.1 milestone closeout docs",
+    "surface doc next step must point to Cockpit manual pasted note preview UI shell",
   );
   assert.match(
     extractSection(gateDoc, "## Next Recommended Step"),
     expectedNextStep,
-    "gate doc next step must point to Research Candidate Review v0.1 milestone closeout docs",
+    "gate doc next step must point to Cockpit manual pasted note preview UI shell",
   );
 }
 
@@ -352,8 +352,8 @@ function assertExistingSmokeAlignment() {
   ]) {
     assert.match(
       source,
-      /Research Candidate Review v0\.1 milestone closeout docs/i,
-      `${label} must expect the Research Candidate Review v0.1 milestone closeout docs next step`,
+      /Cockpit manual pasted note preview UI shell/i,
+      `${label} must expect the Cockpit manual pasted note preview UI shell next step`,
     );
   }
 }
