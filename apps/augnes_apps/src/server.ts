@@ -350,6 +350,51 @@ function describeWorkBrief(brief: WorkBrief): string {
   return `Work brief for ${brief.work_id}: ${brief.work.title}. Status ${brief.work.status}, priority ${brief.work.priority}, ${brief.recent_events.length} recent event(s), ${brief.related_proof.action_ids.length} linked action record(s). work_id is a trace anchor; committed state remains authoritative.`;
 }
 
+const BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF = "docs/AUTHORITY_MATRIX.md#read-only-response-sections" as const;
+
+type BoundaryCopyDiagnostics = {
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
+  detailed_boundary_text: readonly string[];
+  diagnostics_boundary_text: readonly string[];
+  detailed_forbidden_actions?: readonly string[];
+  detailed_non_authorities?: readonly string[];
+};
+
+type BoundaryCopySummary = {
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
+  boundary_diagnostics: BoundaryCopyDiagnostics;
+};
+
+function compactBoundaryCopy(input: {
+  capabilityClass: readonly string[] | string;
+  defaultBoundarySummary: string;
+  detailedBoundaryText: readonly string[];
+  detailedForbiddenActions?: readonly string[];
+  detailedNonAuthorities?: readonly string[];
+}): BoundaryCopySummary {
+  const capabilityClass = Array.isArray(input.capabilityClass)
+    ? input.capabilityClass
+    : [input.capabilityClass];
+  return {
+    capability_class: capabilityClass,
+    default_boundary_summary: input.defaultBoundarySummary,
+    diagnostics_available: true,
+    authority_matrix_ref: BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF,
+    boundary_diagnostics: {
+      diagnostics_available: true,
+      authority_matrix_ref: BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF,
+      detailed_boundary_text: input.detailedBoundaryText,
+      diagnostics_boundary_text: input.detailedBoundaryText,
+      ...(input.detailedForbiddenActions ? { detailed_forbidden_actions: input.detailedForbiddenActions } : {}),
+      ...(input.detailedNonAuthorities ? { detailed_non_authorities: input.detailedNonAuthorities } : {}),
+    },
+  };
+}
+
 const WORK_CONTRACT_CARD_BOUNDARY_TEXT = [
   "Work ID is a trace anchor, not committed state authority.",
   "This card is read-only.",
@@ -463,7 +508,12 @@ type WorkPickerCard = {
     github_calls: false;
     persistence: false;
   };
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 const CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS = [
@@ -472,6 +522,11 @@ const CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS = [
   "No approve/publish/retry/replay/external posting.",
   "No merge/auto-merge.",
   "No proof/evidence recording controls.",
+] as const;
+
+const CODEX_HANDOFF_PREVIEW_DEFAULT_FORBIDDEN_ACTIONS = [
+  "Read-only handoff preparation only.",
+  "Execution, write, lifecycle, and external-action authority remain outside this preview.",
 ] as const;
 
 const CODEX_HANDOFF_PREVIEW_STOP_CONDITIONS = [
@@ -548,6 +603,12 @@ const PR_BODY_CHECKLIST_FORBIDDEN_CLAIMS = [
   "Do not claim verification passed without actual command results.",
   "Do not claim proof/evidence rows, screenshots, host observations, GitHub PR creation, branch creation, merge, publish, retry, replay, deploy, Codex execution, provider calls, or Augnes state mutation unless they actually happened under explicit authority.",
   "Do not write N/A for skipped checks; give concrete skipped reasons.",
+] as const;
+
+const PR_BODY_CHECKLIST_DEFAULT_FORBIDDEN_CLAIMS = [
+  "Replace placeholders with observed Codex results.",
+  "Keep proof, evidence, GitHub, state, and approval claims tied to explicit external evidence.",
+  "Use concrete skipped-check reasons.",
 ] as const;
 
 const PR_BODY_CHECKLIST_WARNINGS = [
@@ -738,6 +799,80 @@ const CODEX_EXECUTION_REQUEST_PREVIEW_BOUNDARY_TEXT = [
   "Any later Codex work still requires an explicit user-started Codex session and separate confirmation of write or recording authority.",
 ] as const;
 
+const WORK_PICKER_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["read_only_work_selection", "boundary_next_review"],
+  defaultBoundarySummary:
+    "Read-only work selection. It chooses what to inspect next; durable state and external-action authority stay outside this card.",
+  detailedBoundaryText: WORK_PICKER_CARD_BOUNDARY_TEXT,
+});
+
+const WORK_CONTRACT_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["read_only_work_context", "copyable_handoff_draft"],
+  defaultBoundarySummary:
+    "Read-only work context and handoff preparation. Durable decisions, proof/evidence recording, and external actions stay outside this card.",
+  detailedBoundaryText: WORK_CONTRACT_CARD_BOUNDARY_TEXT,
+});
+
+const CODEX_HANDOFF_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["copyable_handoff_draft", "boundary_next_review"],
+  defaultBoundarySummary:
+    "Copyable handoff draft for a separate user-started Codex session. This surface prepares context only.",
+  detailedBoundaryText: CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT,
+  detailedForbiddenActions: CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS,
+});
+
+const CORE_HANDOFF_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["copyable_handoff_draft", "core_context"],
+  defaultBoundarySummary:
+    "Short copyable handoff packet for Codex planning or scoped implementation context; detailed authority limits are in diagnostics.",
+  detailedBoundaryText: CORE_HANDOFF_AUTHORITY_BOUNDARIES,
+  detailedForbiddenActions: CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS,
+});
+
+const PR_BODY_CHECKLIST_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["preview_only_pr_report_outline", "boundary_next_review"],
+  defaultBoundarySummary:
+    "Preview-only PR/report drafting checklist. It provides placeholders and review prompts, not GitHub or lifecycle actions.",
+  detailedBoundaryText: PR_BODY_CHECKLIST_BOUNDARY_TEXT,
+  detailedForbiddenActions: PR_BODY_CHECKLIST_FORBIDDEN_CLAIMS,
+});
+
+const CODEX_RESULT_REVIEW_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["preview_only_result_review", "boundary_next_review"],
+  defaultBoundarySummary:
+    "Preview-only result review from user-provided fields. It compares reported facts without fetching or posting externally.",
+  detailedBoundaryText: CODEX_RESULT_REVIEW_PACKET_BOUNDARY_TEXT,
+});
+
+const CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["preview_only_result_parser"],
+  defaultBoundarySummary:
+    "Preview-only parser for pasted Codex reports. It extracts candidate fields for human review.",
+  detailedBoundaryText: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
+});
+
+const RESULT_REVIEW_CLOSURE_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["read_only_closure_guidance", "boundary_next_review"],
+  defaultBoundarySummary:
+    "Read-only closeout guidance. Human/Core and GitHub decisions remain outside this preview.",
+  detailedBoundaryText: RESULT_REVIEW_CLOSURE_PREVIEW_BOUNDARY_TEXT,
+});
+
+const CODEX_EXECUTION_REQUEST_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["preview_only_request_shape", "copyable_handoff_draft"],
+  defaultBoundarySummary:
+    "Preview-only request shape for later explicit user-confirmed Codex work; it does not start that work.",
+  detailedBoundaryText: CODEX_EXECUTION_REQUEST_PREVIEW_BOUNDARY_TEXT,
+  detailedNonAuthorities: CODEX_EXECUTION_REQUEST_PREVIEW_NON_AUTHORITIES,
+});
+
+const FINAL_HANDOFF_READINESS_BOUNDARY_COPY = compactBoundaryCopy({
+  capabilityClass: ["display_only_readiness_summary", "boundary_next_review"],
+  defaultBoundarySummary:
+    "Display-only readiness summary that separates handoff preparation from post-run result review.",
+  detailedBoundaryText: FINAL_HANDOFF_READINESS_SUMMARY_BOUNDARY_TEXT,
+});
+
 const FINAL_HANDOFF_FORBIDDEN_CONTROL_LABEL_PARTS = [
   ["Run", " ", "Codex"],
   ["Start", " ", "Codex"],
@@ -809,7 +944,12 @@ type WorkContractCard = {
   linked_proof_summary: string;
   proof_evidence_expectation_summary: string;
   skipped_check_expectation_summary: string;
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   authority_boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
   constellation_context: WorkContractConstellationContext | null;
   source: {
     tool: "augnes_get_work_brief";
@@ -891,7 +1031,12 @@ type CodexHandoffPreview = {
   stop_conditions: readonly string[];
   constellation_context: WorkContractConstellationContext | null;
   copyable_handoff_text: string;
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 type MemoryReuseAttachmentProposalStatus = "proposed" | "no_match" | "unavailable" | "not_configured";
@@ -932,7 +1077,12 @@ type FinalHandoffPrBodyChecklistPreview = {
   forbidden_claims: readonly string[];
   required_sections: readonly string[];
   warnings: readonly string[];
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 type FinalHandoffCloseoutSkeleton = {
@@ -1035,7 +1185,12 @@ type CodexResultPasteNormalizerPreview = {
   ambiguous_combined_section_lines: string[];
   field_first_report_context: CodexResultFieldFirstReportContext;
   candidate: NormalizedCodexResultCandidate;
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 type CodexResultPasteMergeResult = {
@@ -1086,7 +1241,12 @@ type CodexResultReviewPacketPreview = {
   review_recommendation: CodexResultReviewRecommendation;
   suggested_next_action: CodexResultReviewNextActionCategory;
   warnings: string[];
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 type ResultReviewClosureRecommendation =
@@ -1118,7 +1278,12 @@ type ResultReviewClosurePreview = {
   related_event_count: number;
   timeline_status: WorkEventSpineTimelineStatus;
   warnings: string[];
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 type FinalHandoffAutomationSlot = {
@@ -1134,7 +1299,12 @@ type FinalHandoffAutomationSlot = {
   inert: boolean;
   generated: boolean;
   summary: string;
+  capability_class?: readonly string[];
+  default_boundary_summary?: string;
+  diagnostics_available?: true;
+  authority_matrix_ref?: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics?: BoundaryCopyDiagnostics;
   proposal?: FinalHandoffMemoryReuseAttachmentProposal;
   checklist?: FinalHandoffPrBodyChecklistPreview;
   closeout_skeleton?: FinalHandoffCloseoutSkeleton;
@@ -1194,7 +1364,12 @@ type CoreCodexHandoffPacket = {
   closeout_report_expectations: string[];
   skipped_check_policy: typeof FINAL_HANDOFF_SKIPPED_CHECK_POLICY;
   stop_conditions: readonly string[];
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   authority_boundaries: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
   final_report_requirements: readonly string[];
   structured_json_delimiters: {
     begin: typeof CODEX_HANDOFF_JSON_BEGIN;
@@ -1258,7 +1433,12 @@ type FinalCodexHandoffPacket = {
   browser_verification_expectation: CodexHandoffPreview["browser_verification"];
   forbidden_actions: readonly string[];
   stop_conditions: readonly string[];
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   authority_boundaries: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
   final_report_requirements: readonly string[];
   constellation_context: WorkContractConstellationContext | null;
   constellation_context_status: "attached" | "explicitly_absent";
@@ -1332,7 +1512,12 @@ type FinalHandoffReadinessSummary = {
   explanation: string;
   pre_run_check_ids: string[];
   post_run_check_id: "codex_result_review_packet_state";
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 type CodexExecutionRequestPreviewStatus = "preview_only" | "awaiting_user_confirmation" | "unavailable";
@@ -1359,8 +1544,14 @@ type CodexExecutionRequestPreview = {
   result_review_packet_expected_after_run: true;
   result_review_packet_status_before_run: CodexResultReviewPacketStatus;
   required_user_confirmation_fields: readonly string[];
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
   non_authorities: readonly string[];
+  non_authority_diagnostics: BoundaryCopyDiagnostics;
   boundary_text: readonly string[];
+  boundary_diagnostics: BoundaryCopyDiagnostics;
 };
 
 type CodexHandoffJsonBlock = {
@@ -1393,6 +1584,14 @@ type CodexHandoffJsonBlock = {
   forbidden_actions: readonly string[];
   stop_conditions: readonly string[];
   constellation_context: WorkContractConstellationContext | null;
+  capability_class: readonly string[];
+  default_boundary_summary: string;
+  diagnostics_available: true;
+  authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
+  boundary_diagnostics: {
+    diagnostics_available: true;
+    authority_matrix_ref: typeof BOUNDARY_COPY_DIET_AUTHORITY_MATRIX_REF;
+  };
   authority_boundaries: readonly string[];
   copy_packet: {
     preview_only: true;
@@ -2096,6 +2295,14 @@ function buildStructuredHandoffJsonBlock(
     forbidden_actions: preview.forbidden_actions,
     stop_conditions: preview.stop_conditions,
     constellation_context: preview.constellation_context,
+    capability_class: preview.capability_class,
+    default_boundary_summary: preview.default_boundary_summary,
+    diagnostics_available: preview.diagnostics_available,
+    authority_matrix_ref: preview.authority_matrix_ref,
+    boundary_diagnostics: {
+      diagnostics_available: true,
+      authority_matrix_ref: preview.authority_matrix_ref,
+    },
     authority_boundaries: preview.boundary_text,
     copy_packet: {
       preview_only: true,
@@ -2172,14 +2379,13 @@ function buildCopyableHandoffText(preview: Omit<CodexHandoffPreview, "copyable_h
     "- Related state keys:",
     listForPacket(preview.related_state_keys, "No related state keys are listed in the work brief."),
     "",
-    "Forbidden actions",
-    listForPacket([...preview.forbidden_actions], "No forbidden actions listed."),
-    "",
     "Stop conditions",
     listForPacket([...preview.stop_conditions], "No stop conditions listed."),
     "",
-    "Authority boundaries",
-    listForPacket([...preview.boundary_text], "No boundary text listed."),
+    "Capability boundary",
+    `- Classes: ${preview.capability_class.join(", ")}`,
+    `- Summary: ${preview.default_boundary_summary}`,
+    `- Detailed diagnostics: available at ${preview.authority_matrix_ref} and structured boundary_diagnostics.`,
     "",
     "Structured JSON",
     CODEX_HANDOFF_JSON_BEGIN,
@@ -2256,10 +2462,11 @@ function buildPrBodyChecklistPreview(): FinalHandoffPrBodyChecklistPreview {
     memory_reuse_summary_required: true,
     constellation_context_summary_required: true,
     final_handoff_preflight_summary_required: true,
-    forbidden_claims: PR_BODY_CHECKLIST_FORBIDDEN_CLAIMS,
+    forbidden_claims: PR_BODY_CHECKLIST_DEFAULT_FORBIDDEN_CLAIMS,
     required_sections: PR_BODY_CHECKLIST_REQUIRED_SECTIONS,
     warnings: PR_BODY_CHECKLIST_WARNINGS,
-    boundary_text: PR_BODY_CHECKLIST_BOUNDARY_TEXT,
+    ...PR_BODY_CHECKLIST_BOUNDARY_COPY,
+    boundary_text: [PR_BODY_CHECKLIST_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -2395,7 +2602,7 @@ function buildCloseoutSkeleton(
     project_constellation_context_status: packet.constellation_context_status,
     final_handoff_preflight_status: "pending_preflight",
     warnings: PR_BODY_CHECKLIST_WARNINGS,
-    boundary_text: PR_BODY_CHECKLIST_BOUNDARY_TEXT,
+    boundary_text: [PR_BODY_CHECKLIST_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -3216,7 +3423,8 @@ export function buildCodexResultPasteNormalizerPreview(input: {
       ambiguous_combined_section_lines: [],
       field_first_report_context: emptyCodexResultFieldFirstContext(),
       candidate: {},
-      boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
+      ...CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_COPY,
+      boundary_text: [CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_COPY.default_boundary_summary],
     };
   }
 
@@ -3283,7 +3491,8 @@ export function buildCodexResultPasteNormalizerPreview(input: {
     ambiguous_combined_section_lines: ambiguousCombinedSectionLines,
     field_first_report_context: fieldFirstCandidateExtraction.fieldFirstContext,
     candidate,
-    boundary_text: CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_TEXT,
+    ...CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_COPY,
+    boundary_text: [CODEX_RESULT_PASTE_NORMALIZER_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -3769,7 +3978,8 @@ function buildCodexResultReviewPacketPreview(
     review_recommendation: reviewRecommendation,
     suggested_next_action: suggestedNextAction,
     warnings,
-    boundary_text: CODEX_RESULT_REVIEW_PACKET_BOUNDARY_TEXT,
+    ...CODEX_RESULT_REVIEW_BOUNDARY_COPY,
+    boundary_text: [CODEX_RESULT_REVIEW_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -4060,7 +4270,8 @@ function buildResultReviewClosurePreview(input: {
     related_event_count: input.timeline.event_count,
     timeline_status: input.timeline.status,
     warnings,
-    boundary_text: RESULT_REVIEW_CLOSURE_PREVIEW_BOUNDARY_TEXT,
+    ...RESULT_REVIEW_CLOSURE_BOUNDARY_COPY,
+    boundary_text: [RESULT_REVIEW_CLOSURE_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -4068,7 +4279,7 @@ function describeResultReviewClosurePreview(preview: ResultReviewClosurePreview)
   return [
     `Result closure preview for ${preview.work_id ?? "unknown work"} recommends ${preview.closure_recommendation}.`,
     preview.closure_summary,
-    RESULT_REVIEW_CLOSURE_PREVIEW_BOUNDARY_TEXT.join(" "),
+    RESULT_REVIEW_CLOSURE_BOUNDARY_COPY.default_boundary_summary,
   ].join(" ");
 }
 
@@ -4131,6 +4342,8 @@ function codexResultReviewPacketLines(packet: CodexResultReviewPacketPreview): s
     listForPacket(packet.warnings, "No result review warnings listed."),
     "- Boundary:",
     listForPacket([...packet.boundary_text], "No result review boundary text listed."),
+    "- Boundary diagnostics:",
+    `  - Detailed boundary text: ${packet.boundary_diagnostics.detailed_boundary_text.length} item(s); see ${packet.authority_matrix_ref}.`,
   ];
 
   return lines;
@@ -4160,7 +4373,12 @@ function buildHandoffAutomationSlots(
       inert: true,
       generated: true,
       summary: "Preview-only PR body checklist and closeout skeleton are prepared for later manual PR body drafting; no GitHub PR or branch is created.",
+      capability_class: prBodyChecklistPreview.capability_class,
+      default_boundary_summary: prBodyChecklistPreview.default_boundary_summary,
+      diagnostics_available: true,
+      authority_matrix_ref: prBodyChecklistPreview.authority_matrix_ref,
       boundary_text: prBodyChecklistPreview.boundary_text,
+      boundary_diagnostics: prBodyChecklistPreview.boundary_diagnostics,
       checklist: prBodyChecklistPreview,
       closeout_skeleton: closeoutSkeleton,
     },
@@ -4171,7 +4389,12 @@ function buildHandoffAutomationSlots(
       inert: true,
       generated: true,
       summary: summarizeCodexResultReviewPacket(codexResultReviewPacket),
+      capability_class: codexResultReviewPacket.capability_class,
+      default_boundary_summary: codexResultReviewPacket.default_boundary_summary,
+      diagnostics_available: true,
+      authority_matrix_ref: codexResultReviewPacket.authority_matrix_ref,
       boundary_text: codexResultReviewPacket.boundary_text,
+      boundary_diagnostics: codexResultReviewPacket.boundary_diagnostics,
       review_packet: codexResultReviewPacket,
     },
   };
@@ -4211,7 +4434,7 @@ function buildFinalCodexHandoffJsonBlock(
     proof_evidence_expectation_summary: packet.proof_evidence_expectation_summary,
     skipped_check_policy: packet.skipped_check_policy,
     final_report_requirements: packet.final_report_requirements,
-    forbidden_actions: packet.forbidden_actions,
+    forbidden_actions: CODEX_HANDOFF_PREVIEW_DEFAULT_FORBIDDEN_ACTIONS,
     stop_conditions: packet.stop_conditions,
     constellation_context: packet.constellation_context,
     constellation_context_status: packet.constellation_context_status,
@@ -4225,6 +4448,14 @@ function buildFinalCodexHandoffJsonBlock(
     final_handoff_codex_result_review_packet: packet.final_handoff_codex_result_review_packet,
     codex_pr_review_packet_preview: packet.codex_pr_review_packet_preview,
     handoff_automation_slots: packet.handoff_automation_slots,
+    capability_class: packet.capability_class,
+    default_boundary_summary: packet.default_boundary_summary,
+    diagnostics_available: packet.diagnostics_available,
+    authority_matrix_ref: packet.authority_matrix_ref,
+    boundary_diagnostics: {
+      diagnostics_available: true,
+      authority_matrix_ref: packet.authority_matrix_ref,
+    },
     authority_boundaries: packet.authority_boundaries,
     copy_packet: {
       preview_only: true,
@@ -4321,14 +4552,16 @@ function buildCoreCodexHandoffJsonBlock(
     closeout_report_expectations: packet.closeout_report_expectations,
     skipped_check_policy: packet.skipped_check_policy,
     final_report_requirements: packet.final_report_requirements,
-    forbidden_actions: [
-      "No Codex execution from this card.",
-      "No commit/reject state.",
-      "No approve/publish/retry/replay/external posting.",
-      "No merge/auto-merge.",
-      "No proof/evidence recording controls.",
-    ],
+    forbidden_actions: packet.forbidden_actions,
     stop_conditions: packet.stop_conditions,
+    capability_class: packet.capability_class,
+    default_boundary_summary: packet.default_boundary_summary,
+    diagnostics_available: packet.diagnostics_available,
+    authority_matrix_ref: packet.authority_matrix_ref,
+    boundary_diagnostics: {
+      diagnostics_available: true,
+      authority_matrix_ref: packet.authority_matrix_ref,
+    },
     authority_boundaries: packet.authority_boundaries,
     copy_packet: {
       preview_only: true,
@@ -4459,8 +4692,10 @@ function buildCoreCodexHandoffText(
     "Stop conditions",
     listForPacket([...packet.stop_conditions], "No stop conditions listed."),
     "",
-    "Concise authority boundary",
-    listForPacket([...packet.authority_boundaries], "No boundary text listed."),
+    "Capability boundary",
+    `- Classes: ${packet.capability_class.join(", ")}`,
+    `- Summary: ${packet.default_boundary_summary}`,
+    `- Detailed diagnostics: available at ${packet.authority_matrix_ref} and structured boundary_diagnostics.`,
     "",
     "Structured JSON",
     CODEX_HANDOFF_JSON_BEGIN,
@@ -4507,7 +4742,8 @@ function buildCoreCodexHandoffPacket(finalPacket: FinalCodexHandoffPacket): Core
     ],
     skipped_check_policy: finalPacket.skipped_check_policy,
     stop_conditions: finalPacket.stop_conditions,
-    authority_boundaries: CORE_HANDOFF_AUTHORITY_BOUNDARIES,
+    ...CORE_HANDOFF_BOUNDARY_COPY,
+    authority_boundaries: [CORE_HANDOFF_BOUNDARY_COPY.default_boundary_summary],
     final_report_requirements: finalPacket.final_report_requirements,
     structured_json_delimiters: finalPacket.structured_json_delimiters,
     boundaries: {
@@ -4602,12 +4838,11 @@ function buildFinalCodexHandoffText(
     `- Generated: ${packet.pr_body_checklist_preview.generated}`,
     "- Required sections:",
     listForPacket([...packet.pr_body_checklist_preview.required_sections], "No required PR body sections listed."),
-    "- Forbidden claims:",
-    listForPacket([...packet.pr_body_checklist_preview.forbidden_claims], "No forbidden claims listed."),
+    "- Guardrail summary:",
+    `  - ${packet.pr_body_checklist_preview.default_boundary_summary}`,
+    `  - Detailed forbidden-claim diagnostics: ${packet.pr_body_checklist_preview.boundary_diagnostics.detailed_forbidden_actions?.length ?? 0} item(s); see ${packet.pr_body_checklist_preview.authority_matrix_ref}.`,
     "- Warnings:",
     listForPacket([...packet.pr_body_checklist_preview.warnings], "No PR body checklist warnings listed."),
-    "- Boundary:",
-    listForPacket([...packet.pr_body_checklist_preview.boundary_text], "No PR body checklist boundary text listed."),
     "",
     "Closeout skeleton preview",
     packet.codex_closeout_skeleton.copyable_closeout_text,
@@ -4621,14 +4856,13 @@ function buildFinalCodexHandoffText(
     "Final report requirements",
     listForPacket([...packet.final_report_requirements], "No final report requirements listed."),
     "",
-    "Forbidden actions",
-    listForPacket([...packet.forbidden_actions], "No forbidden actions listed."),
-    "",
     "Stop conditions",
     listForPacket([...packet.stop_conditions], "No stop conditions listed."),
     "",
-    "Authority boundaries",
-    listForPacket([...packet.authority_boundaries], "No boundary text listed."),
+    "Capability boundary",
+    `- Classes: ${packet.capability_class.join(", ")}`,
+    `- Summary: ${packet.default_boundary_summary}`,
+    `- Detailed diagnostics: available at ${packet.authority_matrix_ref} and structured boundary_diagnostics.`,
     "",
     "Structured JSON",
     CODEX_HANDOFF_JSON_BEGIN,
@@ -4667,7 +4901,8 @@ function buildFinalCodexHandoffPacket(
     browser_verification_expectation: preview.browser_verification,
     forbidden_actions: preview.forbidden_actions,
     stop_conditions: preview.stop_conditions,
-    authority_boundaries: preview.boundary_text,
+    ...CODEX_HANDOFF_BOUNDARY_COPY,
+    authority_boundaries: [CODEX_HANDOFF_BOUNDARY_COPY.default_boundary_summary],
     final_report_requirements: FINAL_HANDOFF_FINAL_REPORT_REQUIREMENTS,
     constellation_context: preview.constellation_context,
     constellation_context_status: preview.constellation_context ? "attached" : "explicitly_absent",
@@ -5113,7 +5348,8 @@ function buildFinalHandoffReadinessSummary(
     explanation,
     pre_run_check_ids: preRunChecks.map((check) => check.id),
     post_run_check_id: "codex_result_review_packet_state",
-    boundary_text: FINAL_HANDOFF_READINESS_SUMMARY_BOUNDARY_TEXT,
+    ...FINAL_HANDOFF_READINESS_BOUNDARY_COPY,
+    boundary_text: [FINAL_HANDOFF_READINESS_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -5150,8 +5386,10 @@ function buildCodexExecutionRequestPreview(packet: FinalCodexHandoffPacket): Cod
     result_review_packet_expected_after_run: true,
     result_review_packet_status_before_run: packet.codex_result_review_packet_preview.status,
     required_user_confirmation_fields: CODEX_EXECUTION_REQUEST_PREVIEW_REQUIRED_CONFIRMATION_FIELDS,
-    non_authorities: CODEX_EXECUTION_REQUEST_PREVIEW_NON_AUTHORITIES,
-    boundary_text: CODEX_EXECUTION_REQUEST_PREVIEW_BOUNDARY_TEXT,
+    ...CODEX_EXECUTION_REQUEST_BOUNDARY_COPY,
+    non_authorities: [CODEX_EXECUTION_REQUEST_BOUNDARY_COPY.default_boundary_summary],
+    non_authority_diagnostics: CODEX_EXECUTION_REQUEST_BOUNDARY_COPY.boundary_diagnostics,
+    boundary_text: [CODEX_EXECUTION_REQUEST_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -5226,7 +5464,8 @@ function buildWorkPickerCard(scope: string, workItems: WorkItem[]): WorkPickerCa
       github_calls: false,
       persistence: false,
     },
-    boundary_text: WORK_PICKER_CARD_BOUNDARY_TEXT,
+    ...WORK_PICKER_BOUNDARY_COPY,
+    boundary_text: [WORK_PICKER_BOUNDARY_COPY.default_boundary_summary],
   };
 }
 
@@ -5287,7 +5526,8 @@ function buildWorkContractCard(brief: WorkBrief): WorkContractCard {
     proof_evidence_expectation_summary: proofEvidenceSummary,
     skipped_check_expectation_summary:
       "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief.",
-    authority_boundary_text: WORK_CONTRACT_CARD_BOUNDARY_TEXT,
+    ...WORK_CONTRACT_BOUNDARY_COPY,
+    authority_boundary_text: [WORK_CONTRACT_BOUNDARY_COPY.default_boundary_summary],
     constellation_context: constellationContext,
     source: {
       tool: "augnes_get_work_brief",
@@ -5377,10 +5617,11 @@ function buildCodexHandoffPreview(brief: WorkBrief, card: WorkContractCard): Cod
     evidence_recording: evidenceRecording,
     proof_only_closeout: proofOnlyCloseout,
     browser_verification: browserVerification,
-    forbidden_actions: CODEX_HANDOFF_PREVIEW_FORBIDDEN_ACTIONS,
+    forbidden_actions: CODEX_HANDOFF_PREVIEW_DEFAULT_FORBIDDEN_ACTIONS,
     stop_conditions: CODEX_HANDOFF_PREVIEW_STOP_CONDITIONS,
     constellation_context: card.constellation_context,
-    boundary_text: CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT,
+    ...CODEX_HANDOFF_BOUNDARY_COPY,
+    boundary_text: [CODEX_HANDOFF_BOUNDARY_COPY.default_boundary_summary],
   } satisfies Omit<CodexHandoffPreview, "copyable_handoff_text">;
 
   return {
@@ -5392,7 +5633,7 @@ function buildCodexHandoffPreview(brief: WorkBrief, card: WorkContractCard): Cod
 function describeWorkContractCard(card: WorkContractCard): string {
   return [
     `Work Contract Card for ${card.work_id}: ${card.work_title}. Status ${card.work_status}, priority ${card.priority}, ${card.recent_events_count} recent event(s), ${card.linked_proof_action_ids_count} linked action ID(s).`,
-    WORK_CONTRACT_CARD_BOUNDARY_TEXT.join(" "),
+    card.default_boundary_summary,
   ].join(" ");
 }
 
@@ -5407,14 +5648,14 @@ function describeWorkEventSpineTimeline(timeline: WorkEventSpineTimeline): strin
 function describeCodexHandoffPreview(preview: CodexHandoffPreview): string {
   return [
     `Codex Handoff Preview for ${preview.work_id ?? "unknown work"} is ${preview.readiness_status}. Task profile ${preview.task_profile}; browser verification ${preview.browser_verification}.`,
-    CODEX_HANDOFF_PREVIEW_BOUNDARY_TEXT.join(" "),
+    preview.default_boundary_summary,
   ].join(" ");
 }
 
 function describeFinalCodexHandoffPacket(packet: FinalCodexHandoffPacket, preflight: FinalHandoffPreflight): string {
   return [
     `Final Codex Handoff Packet for ${packet.work_id ?? "unknown work"} is ${packet.composition_status}; local preflight status ${preflight.status}; Memory Reuse attachment ${packet.memory_reuse_attachment_proposal.status}.`,
-    "This is read-only preparation automation and does not execute Codex, create branches or PRs, record proof or evidence, mutate Augnes state, call providers, publish, merge, retry, replay, or deploy.",
+    packet.default_boundary_summary,
   ].join(" ");
 }
 

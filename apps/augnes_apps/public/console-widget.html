@@ -1294,10 +1294,7 @@
           boundary_text: safeArray(source.boundary_text).length
             ? safeArray(source.boundary_text)
             : [
-                "Work Picker is read-only.",
-                "Work IDs are trace anchors, not committed state authority.",
-                "Selecting a work item means choosing what to inspect next; it does not execute Codex.",
-                "This card cannot create branches or PRs, call GitHub or providers, record proof or evidence, mutate Augnes state, approve, publish, merge, retry, replay, or deploy.",
+                "Read-only work selection. It chooses what to inspect next; durable state and external-action authority stay outside this card.",
               ],
         };
       }
@@ -1320,14 +1317,7 @@
         const boundaries = safeArray(card.authority_boundary_text).length
           ? safeArray(card.authority_boundary_text)
           : [
-              "Work ID is a trace anchor, not committed state authority.",
-              "This card is read-only.",
-              "This card cannot execute Codex.",
-              "This card cannot commit or reject Augnes state.",
-              "This card cannot approve, publish, retry, replay, externally post, merge, or enable auto-merge.",
-              "Proof is not approval.",
-              "A PR is not merge authority.",
-              "Durable approval remains user/Core gated.",
+              "Read-only work context and handoff preparation. Durable decisions, proof/evidence recording, and external actions stay outside this card.",
             ];
 
         return {
@@ -1486,27 +1476,13 @@
         const boundaryText = safeArray(preview.boundary_text).length
           ? safeArray(preview.boundary_text)
           : [
-              "This preview is read-only.",
-              "This preview cannot execute Codex.",
-              "This preview cannot record evidence.",
-              "This preview cannot record proof.",
-              "This preview cannot commit or reject Augnes state.",
-              "This preview cannot approve, publish, retry, replay, or externally post.",
-              "This preview cannot merge or enable auto-merge.",
-              "Evidence is not approval.",
-              "Proof is not approval.",
-              "A PR is not merge authority.",
-              "Durable approval remains user/Core gated.",
-              "Raw DB paths are local-dev fallback only and should not be normal user-facing input.",
+              "Copyable handoff draft for a separate user-started Codex session. This surface prepares context only.",
             ];
         const forbiddenActions = safeArray(preview.forbidden_actions).length
           ? safeArray(preview.forbidden_actions)
           : [
-              "No Codex execution from this card.",
-              "No commit/reject state.",
-              "No approve/publish/retry/replay/external posting.",
-              "No merge/auto-merge.",
-              "No proof/evidence recording controls.",
+              "Read-only handoff preparation only.",
+              "Execution, write, lifecycle, and external-action authority remain outside this preview.",
             ];
         const stopConditions = safeArray(preview.stop_conditions).length
           ? safeArray(preview.stop_conditions)
@@ -1634,7 +1610,7 @@
             "Project Constellation context",
             ...constellationContextPacketLines(constellationContext),
             "",
-            "Authority boundaries",
+            "Capability boundary",
             ...boundaryText.map((item) => `- ${item}`),
             "",
             "Structured JSON",
@@ -1855,18 +1831,15 @@
 
       function prBodyChecklistBoundaryText() {
         return [
-          "PR body checklist is preview-only closeout preparation.",
-          "The closeout skeleton uses placeholders until a Codex worker replaces them with actual implementation results.",
-          "No GitHub PR is created, updated, posted, or merged by this surface.",
-          "No execution, writes, provider calls, branch creation, PR creation, proof/evidence recording, publication, merge, retry, replay, or deploy authority.",
+          "Preview-only PR/report drafting checklist. It provides placeholders and review prompts, not GitHub or lifecycle actions.",
         ];
       }
 
       function prBodyChecklistForbiddenClaims() {
         return [
-          "Do not claim verification passed without actual command results.",
-          "Do not claim proof/evidence rows, screenshots, host observations, GitHub PR creation, branch creation, merge, publish, retry, replay, deploy, Codex execution, provider calls, or Augnes state mutation unless they actually happened under explicit authority.",
-          "Do not write N/A for skipped checks; give concrete skipped reasons.",
+          "Replace placeholders with observed Codex results.",
+          "Keep proof, evidence, GitHub, state, and approval claims tied to explicit external evidence.",
+          "Use concrete skipped-check reasons.",
         ];
       }
 
@@ -1912,10 +1885,7 @@
 
       function codexResultReviewBoundaryText() {
         return [
-          "Codex result review packet is preview-only review preparation.",
-          "No GitHub PR data is fetched by the App/MCP server.",
-          "No GitHub comments, review submissions, approvals, change requests, labels, status updates, merges, proof/evidence records, Codex execution, provider calls, or Augnes state writes are performed by this surface.",
-          "Result review uses only already-present structured payload fields and does not invent changed files, verification results, PR URLs, screenshots, proof IDs, evidence IDs, findings, or host observations.",
+          "Preview-only result review from user-provided fields. It compares reported facts without fetching or posting externally.",
         ];
       }
 
@@ -2189,12 +2159,7 @@
 
       function codexResultPasteNormalizerBoundaryText() {
         return [
-          "Codex result paste normalizer is preview-only.",
-          "No GitHub PR data is fetched.",
-          "No proof or evidence is written.",
-          "No work status is changed.",
-          "No event is created or mutated.",
-          "No Codex execution, shell execution, provider call, OpenAI call, branch/PR creation, PR review submission, merge, publish, retry, replay, or deploy is performed.",
+          "Preview-only parser for pasted Codex reports. It extracts candidate fields for human review.",
         ];
       }
 
@@ -2304,19 +2269,7 @@
 
       function resultReviewClosureBoundaryText() {
         return [
-          "Result closure is read-only preview guidance.",
-          "No work close.",
-          "No work status update.",
-          "No event creation.",
-          "No event mutation.",
-          "No proof/evidence write.",
-          "No state commit/reject.",
-          "No Codex execution.",
-          "No GitHub calls.",
-          "No PR review submission.",
-          "No branch/PR creation.",
-          "No provider/OpenAI calls.",
-          "No publish/merge/retry/replay/deploy authority.",
+          "Read-only closeout guidance. Human/Core and GitHub decisions remain outside this preview.",
         ];
       }
 
@@ -2816,13 +2769,10 @@
           "  - Authority boundary statement.",
           "  - Remaining friction or next recommended step.",
           "",
-          "Forbidden actions",
-          ...safeArray(preview.forbidden_actions).map((item) => `  - ${item}`),
-          "",
           "Stop conditions",
           ...safeArray(preview.stop_conditions).map((item) => `  - ${item}`),
           "",
-          "Authority boundaries",
+          "Capability boundary",
           ...safeArray(preview.boundary_text).map((item) => `  - ${item}`),
           "",
           "Structured JSON",
@@ -2834,15 +2784,7 @@
 
       function coreAuthorityBoundaryText() {
         return [
-          "Core Handoff is read-only preview/copy packet text.",
-          "Core Handoff does not execute Codex.",
-          "Core Handoff cannot commit or reject Augnes state.",
-          "Core Handoff cannot approve, publish, retry, replay, or externally post.",
-          "Core Handoff cannot merge or enable auto-merge.",
-          "Evidence is not approval.",
-          "Proof is not approval.",
-          "A PR is not merge authority.",
-          "Durable approval remains user/Core gated.",
+          "Short copyable handoff packet for Codex planning or scoped implementation context; detailed authority limits are in diagnostics.",
         ];
       }
 
@@ -3668,20 +3610,7 @@
 
       function codexExecutionRequestNonAuthorities() {
         return [
-          "no Codex execution",
-          "no shell spawn",
-          "no Node process spawning",
-          "no branch creation",
-          "no PR creation",
-          "no GitHub calls",
-          "no proof writes",
-          "no evidence writes",
-          "no Augnes state mutation",
-          "no DB writes",
-          "no provider calls",
-          "no OpenAI calls",
-          "no persistence",
-          "no approval, merge, publish, retry, replay, or deploy authority",
+          "Preview-only request shape for later explicit user-confirmed Codex work; it does not start that work.",
         ];
       }
 
@@ -3752,9 +3681,7 @@
           boundary_text: safeArray(record.boundary_text).length
             ? safeArray(record.boundary_text)
             : [
-                "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
-                "It is not an execution button, branch creator, PR creator, proof recorder, evidence recorder, state mutation, provider call, or GitHub call.",
-                "Any later Codex work still requires an explicit user-started Codex session and separate confirmation of write or recording authority.",
+                "Preview-only request shape for later explicit user-confirmed Codex work; it does not start that work.",
               ],
         };
       }
@@ -4192,7 +4119,7 @@
         const root = el("div", { className: "stack" });
         root.appendChild(el("div", {
           className: "status-box",
-          text: "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
+          text: "Preview-only request shape for later explicit user-confirmed Codex work.",
         }));
         root.appendChild(createMetricGrid([
           ["Status", formatUiStatus(normalized.status)],
@@ -4315,7 +4242,7 @@
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Preview-only PR writing checklist and work report outline. It does not create a GitHub PR, create a branch, execute Codex, record proof or evidence, mutate Augnes state, publish, merge, retry, replay, deploy, or call providers.",
+            "Preview-only PR writing checklist and work report outline. Detailed authority limits are available in diagnostics.",
         }));
         root.appendChild(createMetricGrid([
           ["Checklist", formatUiStatus(normalizedChecklist.status)],
@@ -4350,7 +4277,7 @@
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Preview-only work result review. It does not fetch GitHub PR data, post comments, submit reviews, approve, request changes, merge, create branches or PRs, execute Codex, record proof or evidence, mutate Augnes state, publish, retry, replay, deploy, or call providers.",
+            "Preview-only work result review from user-provided facts. Detailed authority limits are available in diagnostics.",
         }));
         root.appendChild(createMetricGrid([
           ["Status", formatUiStatus(normalized.status)],
@@ -4432,7 +4359,7 @@
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Read-only closure guidance derived from the result review packet and event timeline. It does not close work, update status, create events, record proof/evidence, execute Codex, call GitHub or providers, create branches or PRs, submit PR reviews, publish, merge, retry, replay, or deploy.",
+            "Read-only closure guidance derived from the result review packet and event timeline. Detailed authority limits are available in diagnostics.",
         }));
         root.appendChild(createMetricGrid([
           ["Status", formatUiStatus(normalized.status)],
@@ -4591,7 +4518,7 @@
         root.appendChild(el("div", {
           className: "status-box",
           text:
-            "Final handoff is prepared local text only. It does not execute Codex, create branches or PRs, record proof or evidence, mutate Augnes state, publish, merge, retry, replay, deploy, or call providers.",
+            "Final handoff is prepared local text only. Detailed authority limits are available in diagnostics.",
         }));
         root.appendChild(createSection(
           "Readiness",
