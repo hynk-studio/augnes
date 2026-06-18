@@ -313,7 +313,7 @@ function assertPackageScript() {
 function assertIndexPointers() {
   const pointerStart = index.indexOf(docPath);
   assert.notEqual(pointerStart, -1, "index must point to the new doc");
-  const pointer = index.slice(pointerStart, pointerStart + 1400);
+  const pointer = index.slice(pointerStart, pointerStart + 2200);
   assert.match(pointer, new RegExp(escapeRegExp(fixturePath)), "index pointer must mention the fixture");
   assert.match(
     pointer,

@@ -340,13 +340,26 @@ validation, not a provider prompt, not proof/evidence, and not perspective
 promotion authority. The static fixture should remain aligned with it through
 `smoke:research-candidate-review-types-v0-1`.
 
+## Canonical Promotion Gate Pointer
+
+`docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md` defines a static
+audit preventing raw source titles, URLs, provider IDs, raw thread/run/session
+IDs, arbitrary user strings, episode IDs, and demo refs from becoming canonical
+state labels or operational tags.
+
+The gate is static audit only and non-authoritative. It does not add
+runtime/API/DB/provider/retrieval/promotion behavior.
+
 ## Expected Files And Checks
 
 Expected files:
 
+- `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`
 - `docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md`
 - `types/research-candidate-review.ts`
+- `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`
 - `fixtures/research-candidate-review.sample.v0.1.json`
+- `scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-surface-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-types-v0-1.mjs`
 - `docs/00_INDEX_LATEST.md`
@@ -354,6 +367,7 @@ Expected files:
 
 Expected checks:
 
+- `node scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-types-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-surface-v0-1.mjs`
 - `git diff --check`
@@ -402,6 +416,5 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add a Research candidate canonical promotion / Gate static audit to prevent
-source titles, URLs, provider IDs, raw thread IDs, and arbitrary user strings
-from becoming canonical state labels or operational tags.
+Add Cockpit/Perspective static fixture preview for the Research Candidate
+Review Surface, using the existing fixture and type contract read-only.

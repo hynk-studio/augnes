@@ -1,0 +1,258 @@
+{
+  "gate_fixture_version": "research_candidate_canonical_promotion_gates.sample.v0.1",
+  "scope": "project:augnes",
+  "status": "sample_fixture_only",
+  "authority": {
+    "static_audit_only": true,
+    "source_of_truth": false,
+    "creates_evidence": false,
+    "creates_proof": false,
+    "commits_state": false,
+    "promotes_perspective": false,
+    "creates_work_item": false,
+    "mutates_runtime": false
+  },
+  "blocked_promotion_samples": [
+    {
+      "sample_id": "blocked_source_title_001",
+      "input_class": "source_title",
+      "raw_value": "Public-safe operator notes on review-first research candidates",
+      "proposed_usage": "canonical_state_label",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "A source title is raw display text and must not become a canonical state label.",
+      "boundary_notes": "Keep the title in source/reference display fields only."
+    },
+    {
+      "sample_id": "blocked_source_url_001",
+      "input_class": "source_url",
+      "raw_value": "https://example.invalid/research/gates-001",
+      "proposed_usage": "dashboard_group_key",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "A URL is an unstable source pointer and must not become a dashboard group key.",
+      "boundary_notes": "Keep the URL as raw display or a source pointer only."
+    },
+    {
+      "sample_id": "blocked_doi_or_identifier_001",
+      "input_class": "doi_or_identifier",
+      "raw_value": "public-safe-example-ref:gates-001",
+      "proposed_usage": "evidence_metadata_promoted_key",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "DOI-like or arbitrary identifiers are source pointers, not promoted evidence metadata keys.",
+      "boundary_notes": "Use as a raw identifier field only."
+    },
+    {
+      "sample_id": "blocked_provider_id_001",
+      "input_class": "provider_id",
+      "raw_value": "provider_example_001",
+      "proposed_usage": "operational_tag",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Provider IDs are raw integration trace strings and must not become operational tags.",
+      "boundary_notes": "Keep provider identifiers raw and local to the candidate/audit sample."
+    },
+    {
+      "sample_id": "blocked_workspace_id_001",
+      "input_class": "workspace_id",
+      "raw_value": "workspace_example_001",
+      "proposed_usage": "task_schema_id",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Workspace IDs are unstable trace identifiers and must not become task schema IDs.",
+      "boundary_notes": "Do not promote workspace IDs into task routing vocabulary."
+    },
+    {
+      "sample_id": "blocked_thread_id_001",
+      "input_class": "thread_id",
+      "raw_value": "thread_example_001",
+      "proposed_usage": "task_schema_id",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Thread IDs are raw session traces and must not become task schema IDs.",
+      "boundary_notes": "Keep thread IDs raw or omit them from public fixtures."
+    },
+    {
+      "sample_id": "blocked_run_id_001",
+      "input_class": "run_id",
+      "raw_value": "provider_run_example_001",
+      "proposed_usage": "operational_tag",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Run IDs are raw provider/session traces and must not become operational tags.",
+      "boundary_notes": "Keep run IDs raw and non-canonical."
+    },
+    {
+      "sample_id": "blocked_raw_session_id_001",
+      "input_class": "raw_session_id",
+      "raw_value": "session_example_001",
+      "proposed_usage": "operational_tag",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Raw session IDs are trace-local and must not become operational tags.",
+      "boundary_notes": "Use only as local trace context when separately authorized."
+    },
+    {
+      "sample_id": "blocked_arbitrary_user_string_001",
+      "input_class": "arbitrary_user_string",
+      "raw_value": "priority idea from pasted note",
+      "proposed_usage": "canonical_state_label",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Arbitrary pasted user labels are not controlled vocabulary.",
+      "boundary_notes": "Review before any later ontology or label design."
+    },
+    {
+      "sample_id": "blocked_episode_id_001",
+      "input_class": "episode_id",
+      "raw_value": "episode_example_001",
+      "proposed_usage": "evidence_metadata_promoted_key",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Episode IDs are observation pointers and must not become promoted evidence metadata keys.",
+      "boundary_notes": "Keep episode IDs as audit/sample references only."
+    },
+    {
+      "sample_id": "blocked_demo_db_ref_001",
+      "input_class": "demo_db_ref",
+      "raw_value": "demo_db_ref_example_001",
+      "proposed_usage": "evidence_metadata_promoted_key",
+      "disposition": "blocked_canonical_promotion",
+      "allowed": false,
+      "reason": "Demo DB refs are environment-local and must not become promoted evidence metadata keys.",
+      "boundary_notes": "Do not promote demo-local refs into durable metadata."
+    }
+  ],
+  "allowed_pointer_samples": [
+    {
+      "sample_id": "allowed_source_ref_pointer_001",
+      "input_class": "source_ref_id",
+      "raw_value": "source_ref_manual_notes_001",
+      "proposed_usage": "source_pointer",
+      "disposition": "source_pointer_only",
+      "allowed": true,
+      "reason": "A source_ref_id may point within a local preview bundle.",
+      "boundary_notes": "It remains a local pointer, not a canonical state label."
+    },
+    {
+      "sample_id": "allowed_candidate_id_001",
+      "input_class": "candidate_id",
+      "raw_value": "claim_candidate_001",
+      "proposed_usage": "local_candidate_id",
+      "disposition": "candidate_id_only",
+      "allowed": true,
+      "reason": "Candidate IDs may link objects within a candidate bundle.",
+      "boundary_notes": "They remain local preview IDs unless a later durable record design says otherwise."
+    },
+    {
+      "sample_id": "allowed_repo_path_001",
+      "input_class": "repo_path",
+      "raw_value": "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+      "proposed_usage": "source_pointer",
+      "disposition": "allowed_repo_path_pointer",
+      "allowed": true,
+      "reason": "Repo paths may point to reviewed static artifacts.",
+      "boundary_notes": "A repo path pointer is not a newly invented state label."
+    },
+    {
+      "sample_id": "allowed_work_id_001",
+      "input_class": "work_id",
+      "raw_value": "AG-RESEARCH-CANDIDATE-CANONICAL-GATES-001",
+      "proposed_usage": "source_pointer",
+      "disposition": "allowed_work_id_pointer",
+      "allowed": true,
+      "reason": "Work IDs may point to existing work context.",
+      "boundary_notes": "A work ID pointer is not arbitrary research-derived vocabulary."
+    },
+    {
+      "sample_id": "allowed_source_title_raw_display_001",
+      "input_class": "source_title",
+      "raw_value": "Public-safe operator notes on review-first research candidates",
+      "proposed_usage": "raw_display",
+      "disposition": "raw_only",
+      "allowed": true,
+      "reason": "Raw titles may be displayed for reference.",
+      "boundary_notes": "Display does not promote the title to a canonical label."
+    },
+    {
+      "sample_id": "allowed_source_url_raw_display_001",
+      "input_class": "source_url",
+      "raw_value": "https://example.invalid/research/gates-001",
+      "proposed_usage": "raw_display",
+      "disposition": "raw_only",
+      "allowed": true,
+      "reason": "Raw URLs may be displayed or reviewed as source refs.",
+      "boundary_notes": "Display does not promote the URL to a dashboard key or tag."
+    }
+  ],
+  "allowed_low_cardinality_samples": [
+    {
+      "sample_id": "allowed_review_status_001",
+      "input_class": "low_cardinality_enum",
+      "raw_value": "candidate_only",
+      "proposed_usage": "review_label",
+      "disposition": "allowed_low_cardinality_enum",
+      "allowed": true,
+      "reason": "review_status values are closed vocabulary in the type contract.",
+      "boundary_notes": "Controlled review labels may be used as labels."
+    },
+    {
+      "sample_id": "allowed_epistemic_status_001",
+      "input_class": "low_cardinality_enum",
+      "raw_value": "weakly_supported",
+      "proposed_usage": "review_label",
+      "disposition": "allowed_low_cardinality_enum",
+      "allowed": true,
+      "reason": "epistemic_status values are closed vocabulary in the type contract.",
+      "boundary_notes": "Controlled epistemic labels may be used as labels."
+    },
+    {
+      "sample_id": "allowed_delta_type_001",
+      "input_class": "low_cardinality_enum",
+      "raw_value": "refine",
+      "proposed_usage": "type_union_literal",
+      "disposition": "allowed_low_cardinality_enum",
+      "allowed": true,
+      "reason": "delta_type values are closed vocabulary in the type contract.",
+      "boundary_notes": "Controlled type literals may be used as static labels."
+    },
+    {
+      "sample_id": "allowed_promotion_readiness_001",
+      "input_class": "low_cardinality_enum",
+      "raw_value": "not_ready",
+      "proposed_usage": "type_union_literal",
+      "disposition": "allowed_low_cardinality_enum",
+      "allowed": true,
+      "reason": "promotion_readiness values are closed vocabulary in the type contract.",
+      "boundary_notes": "Controlled readiness literals may be used as static labels."
+    },
+    {
+      "sample_id": "allowed_evidence_role_001",
+      "input_class": "low_cardinality_enum",
+      "raw_value": "supports",
+      "proposed_usage": "type_union_literal",
+      "disposition": "allowed_low_cardinality_enum",
+      "allowed": true,
+      "reason": "evidence_role values are closed vocabulary in the type contract.",
+      "boundary_notes": "Controlled evidence-role literals may be used as static labels."
+    },
+    {
+      "sample_id": "allowed_tension_type_001",
+      "input_class": "low_cardinality_enum",
+      "raw_value": "schema_misread_risk",
+      "proposed_usage": "type_union_literal",
+      "disposition": "allowed_low_cardinality_enum",
+      "allowed": true,
+      "reason": "tension_type values are closed vocabulary in the type contract.",
+      "boundary_notes": "Controlled tension-type literals may be used as static labels."
+    }
+  ],
+  "audit_surface_files": [
+    "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+    "fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json",
+    "fixtures/research-candidate-review.sample.v0.1.json",
+    "types/research-candidate-review.ts",
+    "scripts/smoke-research-candidate-review-types-v0-1.mjs"
+  ]
+}
