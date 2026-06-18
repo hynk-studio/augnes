@@ -186,6 +186,7 @@
     "smoke:research-candidate-canonical-promotion-gates-v0-1": "node scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs",
     "smoke:research-candidate-review-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-manual-parser-v0-1": "node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
+    "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-surface-v0-1": "node scripts/smoke-research-candidate-review-surface-v0-1.mjs",
     "smoke:research-candidate-review-types-v0-1": "node scripts/smoke-research-candidate-review-types-v0-1.mjs",
     "smoke:research-work-user-happy-path-observation-v0-1": "node scripts/smoke-research-work-user-happy-path-observation-v0-1.mjs",

@@ -383,6 +383,28 @@ The parser fixture pair is
 `fixtures/research-candidate-review.manual-note.sample.v0.1.txt` and
 `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`.
 
+## Parser Output Cockpit Preview Pointer
+
+The parser output Cockpit/Perspective static preview panel in
+`components/augnes-cockpit.tsx` renders the manual parser output fixture beside
+the original Research Candidate Review static fixture.
+
+The panel uses
+`fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`. It
+displays the source input fixture path
+`fixtures/research-candidate-review.manual-note.sample.v0.1.txt` as reference
+text only.
+
+The panel is read-only and static parser output fixture only. It does not run
+the parser in the component.
+
+The panel does not add runtime UI input, API routes, DB writes, provider calls,
+retrieval indexes, proof/evidence writes, work item creation, perspective
+promotion, or Codex execution. It is guarded by
+`smoke:research-candidate-review-parser-output-cockpit-preview-v0-1`.
+Boundary shorthand: no runtime UI input, no live parser execution, no provider
+calls, no retrieval, no DB writes, and no promotion behavior.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -398,6 +420,7 @@ Expected files:
 - `fixtures/research-candidate-review.sample.v0.1.json`
 - `scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
+- `scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs`
 - `scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-surface-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-types-v0-1.mjs`
@@ -408,8 +431,10 @@ Expected checks:
 
 - `node scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
+- `node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs`
 - `npm run smoke:research-candidate-review-cockpit-preview-v0-1`
 - `npm run smoke:research-candidate-review-manual-parser-v0-1`
+- `npm run smoke:research-candidate-review-parser-output-cockpit-preview-v0-1`
 - `node scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-types-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-surface-v0-1.mjs`
@@ -459,5 +484,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add a parser output Cockpit/Perspective static preview panel that renders the
-manual parser sample output read-only beside the original static fixture.
+Add Candidate Constellation Overlay preview for Research Candidate Review
+candidates, mapping source/claim/evidence/tension/gap/delta/follow-up
+candidates to read-only candidate nodes and typed edges.

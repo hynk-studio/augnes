@@ -188,8 +188,8 @@ function assertDocGateContract() {
   );
   assert.match(
     gateDoc,
-    /parser output Cockpit\/Perspective static preview panel/i,
-    "gate doc next step must point to parser output Cockpit/Perspective static preview panel",
+    /Candidate Constellation Overlay preview/i,
+    "gate doc next step must point to Candidate Constellation Overlay preview",
   );
 }
 
