@@ -70,6 +70,7 @@ assert.equal(firstActiveSeededItem?.work_id, "AG-006", "default scope-only fallb
 
 const currentResearch = workItem("AG-RESEARCH-CAPABILITY-LANES-001");
 const historicalDogfood = workItem("AG-DOGFOOD-RESEARCH-001");
+const ag006 = workItem("AG-006");
 assert.equal(currentResearch.status, "in_progress", "current research item must remain active");
 assert.equal(historicalDogfood.status, "completed", "historical dogfood item must remain completed");
 assert.notEqual(
@@ -77,6 +78,35 @@ assert.notEqual(
   historicalDogfood.work_id,
   "historical dogfood item must not be the default active fallback",
 );
+
+for (const expectedFile of [
+  "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md",
+  "lib/db/schema.sql",
+  "lib/coordination-events.ts",
+  "app/api/events/route.ts",
+  "app/api/events/[event_id]/route.ts",
+  "lib/work.ts",
+  "app/api/work/[work_id]/route.ts",
+  "app/api/work/[work_id]/brief/route.ts",
+  "scripts/demo-seed.mjs",
+  "scripts/smoke-authority-invariants.mjs",
+]) {
+  assert.ok(
+    ag006.links.expected_files.includes(expectedFile),
+    `AG-006 manifest item must expose expected file ${expectedFile}`,
+  );
+}
+
+for (const expectedCheck of [
+  "npm run typecheck",
+  "npm run smoke:authority-invariants",
+  "git diff --check",
+]) {
+  assert.ok(
+    ag006.links.expected_checks.includes(expectedCheck),
+    `AG-006 manifest item must expose expected check ${expectedCheck}`,
+  );
+}
 
 for (const expectedFile of [
   "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md",
@@ -148,6 +178,23 @@ const defaultFallback = await buildBootstrapResult({
 });
 assert.equal(defaultFallback.source, "repo_seed_fallback");
 assert.equal(defaultFallback.work_id, "AG-006");
+assert.ok(
+  defaultFallback.expected_files.includes("lib/coordination-events.ts"),
+  "default AG-006 fallback must include event storage helper as expected file",
+);
+assert.ok(
+  defaultFallback.expected_files.includes("app/api/events/[event_id]/route.ts"),
+  "default AG-006 fallback must include event detail route as expected file",
+);
+assert.ok(
+  defaultFallback.expected_checks.includes("npm run smoke:authority-invariants"),
+  "default AG-006 fallback must include authority invariants smoke as expected check",
+);
+assert.match(
+  defaultFallback.codex_worker_next_action,
+  /expected files, expected checks, docs, and implementation anchors/,
+  "default AG-006 fallback must point Codex at bounded fallback anchors",
+);
 assert.equal(defaultFallback.repo_fallback_sources[0], manifestPath);
 assert.deepEqual(
   defaultFallback.repo_fallback_sources,

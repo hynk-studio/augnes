@@ -18,6 +18,23 @@
         "docs": [
           "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md"
         ],
+        "expected_files": [
+          "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md",
+          "lib/db/schema.sql",
+          "lib/coordination-events.ts",
+          "app/api/events/route.ts",
+          "app/api/events/[event_id]/route.ts",
+          "lib/work.ts",
+          "app/api/work/[work_id]/route.ts",
+          "app/api/work/[work_id]/brief/route.ts",
+          "scripts/demo-seed.mjs",
+          "scripts/smoke-authority-invariants.mjs"
+        ],
+        "expected_checks": [
+          "npm run typecheck",
+          "npm run smoke:authority-invariants",
+          "git diff --check"
+        ],
         "implementation_anchors": [
           "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
           "lib/db/schema.sql#coordination_events",
@@ -29,6 +46,15 @@
           "app/api/work/[work_id]/brief/route.ts",
           "scripts/demo-seed.mjs#AG-006",
           "scripts/smoke-authority-invariants.mjs#coordination_events"
+        ],
+        "authority_boundary_expectations": [
+          "coordination event spine schema, storage helpers, and read-only API",
+          "append-only coordination event writes through scoped helper paths",
+          "no automatic Codex execution",
+          "no ChatGPT App commit/reject authority",
+          "no publisher behavior",
+          "no merge/publish/retry/replay/deploy automation",
+          "no hidden external side effects"
         ]
       },
       "codex_fallback_sources": [
@@ -39,7 +65,7 @@
         "app/api/events/route.ts"
       ],
       "created_at": "2026-05-08T00:00:00.000Z",
-      "updated_at": "2026-05-08T00:00:00.000Z"
+      "updated_at": "2026-06-18T00:00:00.000Z"
     },
     {
       "work_id": "AG-004",

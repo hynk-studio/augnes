@@ -15,10 +15,9 @@ const workItemManifestPath = path.join(rootDir, ...workItemManifestRelativePath.
 const resultReportTemplatePath = "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md";
 
 const defaultStopConditions = [
-  "Stop if this preview-only fallback work requires unscoped paper/source fetching, crawling, provider/OpenAI calls, embeddings, RAG, vector search, retrieval indexing, DB migrations, durable research candidate memory writes, proof/evidence writes, event/status/state mutation, App/MCP tools, or work_loop_readonly widening.",
-  "Do not stop merely because a future fresh Work Brief or Core Handoff explicitly authorizes a bounded research capability lane with expected files, checks, authority boundaries, and verification.",
   "Stop if no live Work Brief, seeded work item, or repo docs fallback can identify the work item without invention.",
-  "Stop if expected files or expected checks are unavailable from the Work Brief, seed, or documented repo fallback.",
+  "Stop if the selected work item provides no expected files, expected checks, implementation anchors, or task-specific docs that can bound the implementation slice.",
+  "When repo fallback is used, report fallback provenance honestly and preserve existing behavior unless the task intentionally improves it.",
 ];
 
 const bootstrapAuthorityBoundary =
@@ -364,7 +363,7 @@ function buildFallbackNextAction({ isCurrentResearchWork, isHistoricalResearchDo
     return "Use historical AG-DOGFOOD-RESEARCH-001 repo seed fallback only when that work ID is explicitly requested; preserve it as dogfood evidence and do not treat it as the current active research target.";
   }
 
-  return "Use the selected seeded work item only as deterministic fallback context when runtime is unavailable; stop if implementation scope is not bounded by repo-backed expected files/checks.";
+  return "Use the selected seeded work item as deterministic fallback context when runtime is unavailable; use its expected files, expected checks, docs, and implementation anchors to bound the implementation slice.";
 }
 
 function readManifestWorkItems() {

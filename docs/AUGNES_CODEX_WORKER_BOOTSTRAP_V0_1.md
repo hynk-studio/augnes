@@ -47,7 +47,10 @@ npm run codex:next-work -- --scope project:augnes
 Without `--work-id` or `--prefer-research`, the helper follows the Work Picker
 style of selecting the first active seeded work item for the scope. That is the
 repo-backed approximation of the active/recommended work item when runtime
-Work Picker access is unavailable.
+Work Picker access is unavailable. The default fallback currently selects
+`AG-006` and returns concrete expected files/checks plus implementation anchors
+for the coordination event spine, so Codex can proceed when the repo seed is
+bounded and the user has not provided a tighter scope fence.
 
 For a known work item:
 
@@ -154,6 +157,13 @@ runtime failure as `fallback_reason`.
 Codex must not pretend a live Work Brief was retrieved when it used this
 fallback.
 
+For the default `AG-006` fallback, the manifest supplies implementation
+anchors, expected files, and expected checks for the event spine schema,
+storage helper, read-only event API, work brief/read integration, seed data,
+and authority smoke coverage. If a future seeded item has no expected files,
+expected checks, implementation anchors, or task-specific docs, Codex should
+stop and request a bounded scope instead of inventing one.
+
 ## What Counts As Successful Discovery
 
 Discovery is successful when the helper can identify, without invention:
@@ -218,21 +228,20 @@ not backed by a seeded work item. Do not use it to invent a task.
 
 ## How Codex Decides Whether Implementation Is Allowed
 
-Implementation is allowed only when the discovered Work Brief, seed, or docs
-fallback provides a bounded task with expected files/checks and stop
-conditions. Codex should still respect the newest user request and any tighter
-scope fences.
+Implementation is allowed when the discovered Work Brief, seed, or docs
+fallback provides a bounded task through expected files, expected checks,
+implementation anchors, or task-specific docs. Codex should still respect the
+newest user request and any tighter scope fences.
 
-If expected files or expected checks are missing, Codex should stop or ask for
-human direction unless the user explicitly provides a narrower bounded task.
+If expected files/checks are missing but implementation anchors and task docs
+exist, Codex may use those anchors to bound a product-forward slice. If all of
+those bounding sources are missing, Codex should stop or ask for human
+direction instead of guessing.
 
 For the current `AG-RESEARCH-CAPABILITY-LANES-001` research preparation item,
-implementation remains docs/smoke/helper-contract routing only. It prepares
-product-facing capability lane contracts without implementing source fetching,
-provider calls, retrieval indexes, DB migrations, durable writes, or
-perspective promotion. Future research capability implementation may proceed
-only when a fresh Work Brief or Core Handoff explicitly names the bounded lane,
-expected files, checks, authority boundary, and verification.
+follow that work item's manifest and task-specific docs when it is explicitly
+selected through `--prefer-research` or `--work-id`. It is not the active
+default task merely because research capability work was previously discussed.
 
 ## How Codex Reports Fallback Use
 
@@ -278,6 +287,10 @@ This bootstrap adds a read-only Codex worker discovery path. It adds:
 - no new user-facing App/MCP tools
 - no widening of the `work_loop_readonly` Developer Mode tool surface
 
+Those omissions describe the bootstrap helper itself. They are not blanket
+development prohibitions when a user, Work Brief, Core Handoff, or seeded
+work item provides a bounded implementation scope.
+
 ## Skipped Checks Policy
 
 Skipped checks must have concrete reasons. Do not write `N/A` and do not mark
@@ -299,8 +312,8 @@ rows, mutate events, mutate work status, commit/reject state, create App/MCP
 tools, widen `work_loop_readonly`, execute Codex automatically, fetch GitHub
 automatically, submit GitHub reviews, merge, publish, retry, replay, deploy, or
 create PRs. Those omissions describe this bootstrap and the current
-preparation fallback; they do not forbid a future explicitly scoped capability
-lane.
+discovery helper; they are not blanket development prohibitions when a user,
+Work Brief, Core Handoff, or seeded work item provides a bounded product scope.
 
 ## Next Recommended Step
 
