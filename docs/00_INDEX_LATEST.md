@@ -639,10 +639,18 @@ repo-local 색인이다.
   `fixtures/research-candidate-review.sample.v0.1.json` through
   `types/research-candidate-review.ts` as static fixture only,
   non-authoritative review material, with no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
-- `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`: static audit
-  only, non-authoritative gate that prevents raw source titles, URLs, provider
+- `lib/research-candidate-review/manual-note-parser.ts`: preview-only
+  deterministic parser for bounded manual pasted notes. It produces Research
+  Candidate Review preview data with no provider calls, no retrieval, no DB writes, no runtime/API route, no UI input behavior, no proof/evidence write, no work item creation, and no promotion behavior.
+- `fixtures/research-candidate-review.manual-note.sample.v0.1.txt`:
+  public-safe manual note parser input fixture.
+- `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`:
+  expected public-safe parser output fixture.
+- `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`: static audit only,
+  non-authoritative gate that prevents raw source titles, URLs, provider
   IDs, raw thread/run/session IDs, arbitrary user strings, episode IDs, and
-  demo refs from becoming canonical state labels or operational tags.
+  demo refs from becoming canonical state labels or operational tags. It adds
+  no runtime/API/DB/provider/retrieval/promotion behavior.
 - `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`:
   public-safe gate samples for blocked promotion targets, allowed pointer
   uses, and allowed low-cardinality vocabulary.
@@ -661,9 +669,14 @@ repo-local 색인이다.
   fixture wiring, read-only section markers, candidate family rendering,
   docs/index pointers, no parser behavior, no work item creation, no
   proof/evidence write, and non-authority boundaries를 정적으로 확인한다.
+- `npm run smoke:research-candidate-review-manual-parser-v0-1`: parser
+  purity, prefix grammar, input/output fixture alignment, parser execution,
+  source ref integrity, count consistency, cross-reference integrity,
+  canonical gate preservation, and non-authority boundaries를 정적으로 확인한다.
 
 Boundary 요약: candidate-only, type-only, static audit only, read-only static
-fixture only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write.
+fixture only, preview-only deterministic parser, non-authoritative preview
+contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write. The manual parser adds no runtime/API route, no UI input behavior, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, and no promotion behavior.
 
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 

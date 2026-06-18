@@ -188,8 +188,8 @@ function assertDocGateContract() {
   );
   assert.match(
     gateDoc,
-    /manual pasted research note parser preview-only/i,
-    "gate doc next step must point to Manual pasted research note parser preview-only",
+    /parser output Cockpit\/Perspective static preview panel/i,
+    "gate doc next step must point to parser output Cockpit/Perspective static preview panel",
   );
 }
 

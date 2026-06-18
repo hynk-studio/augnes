@@ -364,6 +364,25 @@ provider calls, retrieval indexes, proof/evidence writes, work item creation,
 perspective promotion, or Codex execution. It is guarded by
 `smoke:research-candidate-review-cockpit-preview-v0-1`.
 
+## Manual Parser Preview Pointer
+
+`lib/research-candidate-review/manual-note-parser.ts` provides a
+deterministic preview-only parser for bounded prefix-based manual notes.
+
+The parser converts public-safe manual note text into Research Candidate Review
+preview data and uses the type contract from
+`types/research-candidate-review.ts`. It is a deterministic parser and
+preview-only.
+
+The parser does not fetch sources, call providers, run retrieval, create DB
+writes, create proof/evidence rows, create work items, or promote perspective.
+It is guarded by `smoke:research-candidate-review-manual-parser-v0-1`.
+Boundary shorthand: no provider calls, no retrieval, no DB writes, and no promotion behavior.
+
+The parser fixture pair is
+`fixtures/research-candidate-review.manual-note.sample.v0.1.txt` and
+`fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -371,10 +390,14 @@ Expected files:
 - `components/augnes-cockpit.tsx`
 - `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`
 - `docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md`
+- `lib/research-candidate-review/manual-note-parser.ts`
 - `types/research-candidate-review.ts`
 - `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`
+- `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`
+- `fixtures/research-candidate-review.manual-note.sample.v0.1.txt`
 - `fixtures/research-candidate-review.sample.v0.1.json`
 - `scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
+- `scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
 - `scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-surface-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-types-v0-1.mjs`
@@ -384,7 +407,9 @@ Expected files:
 Expected checks:
 
 - `node scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
+- `node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
 - `npm run smoke:research-candidate-review-cockpit-preview-v0-1`
+- `npm run smoke:research-candidate-review-manual-parser-v0-1`
 - `node scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-types-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-surface-v0-1.mjs`
@@ -434,6 +459,5 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add a manual pasted research note parser preview-only slice that turns bounded
-prefix-based manual notes into Research Candidate Review preview data without
-provider calls, retrieval, DB writes, or promotion behavior.
+Add a parser output Cockpit/Perspective static preview panel that renders the
+manual parser sample output read-only beside the original static fixture.
