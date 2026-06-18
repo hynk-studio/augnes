@@ -260,5 +260,5 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Cockpit/Perspective static fixture preview for Research Candidate Review
-Surface, using the existing fixture and type contract read-only.
+Add a manual pasted research note parser preview-only slice that keeps raw
+source strings raw/source-bound and preserves canonical promotion gates.

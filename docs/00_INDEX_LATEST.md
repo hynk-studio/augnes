@@ -634,6 +634,11 @@ repo-local 색인이다.
 - `types/research-candidate-review.ts`: type-only, non-authoritative preview
   contract for the fixture shape. It is not a DB schema, not an API route, and
   not runtime behavior.
+- `components/augnes-cockpit.tsx`: Research Candidate Review read-only
+  Cockpit/Perspective static fixture preview. It renders
+  `fixtures/research-candidate-review.sample.v0.1.json` through
+  `types/research-candidate-review.ts` as static fixture only,
+  non-authoritative review material, with no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
 - `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`: static audit
   only, non-authoritative gate that prevents raw source titles, URLs, provider
   IDs, raw thread/run/session IDs, arbitrary user strings, episode IDs, and
@@ -652,8 +657,13 @@ repo-local 색인이다.
   allowed low-cardinality vocabulary, type alignment, existing fixture
   `target_perspective_key` safety, and non-authority boundaries를 정적으로
   확인한다.
+- `npm run smoke:research-candidate-review-cockpit-preview-v0-1`: Cockpit
+  fixture wiring, read-only section markers, candidate family rendering,
+  docs/index pointers, no parser behavior, no work item creation, no
+  proof/evidence write, and non-authority boundaries를 정적으로 확인한다.
 
-Boundary 요약: candidate-only, type-only, static audit only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
+Boundary 요약: candidate-only, type-only, static audit only, read-only static
+fixture only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write.
 
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 

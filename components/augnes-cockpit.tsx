@@ -1,5 +1,6 @@
 "use client";
 
+import researchCandidateReviewFixture from "@/fixtures/research-candidate-review.sample.v0.1.json";
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import {
   FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY,
@@ -69,10 +70,15 @@ import type {
   PerspectiveIngestNextActionCandidate,
   PerspectiveIngestUnresolvedTension,
 } from "@/types/perspective-ingest-constellation-preview";
+import type { ResearchCandidateReviewSampleFixture } from "@/types/research-candidate-review";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 const SCOPE = "project:augnes";
+const RESEARCH_CANDIDATE_REVIEW_SAMPLE_FIXTURE_PATH =
+  "fixtures/research-candidate-review.sample.v0.1.json";
+const researchCandidateReviewPreview =
+  researchCandidateReviewFixture as ResearchCandidateReviewSampleFixture;
 const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
   "/api/augnes/read/constellation-preview?scope=project:augnes";
 const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
@@ -6521,6 +6527,545 @@ function PerspectiveTab({
         title="Perspective"
         description="Local graph preview for reviewing relationships, tensions, and next steps."
       />
+
+      <nav
+        className="perspective-section-nav"
+        aria-label="Perspective static preview anchors"
+      >
+        <a href="#research-candidate-review-preview">
+          Research candidate review
+        </a>
+      </nav>
+
+      {/* Research Candidate Review Cockpit Preview Start */}
+      <section
+        className="perspective-section"
+        id="research-candidate-review-preview"
+        aria-label="Research Candidate Review static fixture preview"
+        data-augnes-authority="read-only static-fixture-only non-authoritative candidate-only"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">AUGNES / Research</p>
+            <h2>Research Candidate Review</h2>
+            <p>
+              Read-only Cockpit/Perspective static fixture preview from{" "}
+              <code>{RESEARCH_CANDIDATE_REVIEW_SAMPLE_FIXTURE_PATH}</code>.
+              This display is candidate-only / non-authoritative and uses{" "}
+              <code>researchCandidateReviewPreview</code> as fixture material.
+            </p>
+          </div>
+          <div className="perspective-constellation-shell-status">
+            <span className="status-pill">
+              {researchCandidateReviewPreview.status}
+            </span>
+            <span className="status-pill">candidate_only</span>
+            <span className="status-pill">non-authoritative</span>
+          </div>
+        </div>
+
+        <div className="perspective-workbench-status-row">
+          <span>
+            scope <code>{researchCandidateReviewPreview.scope}</code>
+          </span>
+          <span>
+            status <code>sample_fixture_only</code>
+          </span>
+          <span>
+            source_of_truth{" "}
+            <code>
+              {String(researchCandidateReviewPreview.authority.source_of_truth)}
+            </code>
+          </span>
+          <span>
+            creates_evidence{" "}
+            <code>
+              {String(researchCandidateReviewPreview.authority.creates_evidence)}
+            </code>
+          </span>
+          <span>
+            creates_proof{" "}
+            <code>
+              {String(researchCandidateReviewPreview.authority.creates_proof)}
+            </code>
+          </span>
+          <span>
+            promotes_perspective{" "}
+            <code>
+              {String(
+                researchCandidateReviewPreview.authority.promotes_perspective,
+              )}
+            </code>
+          </span>
+          <span>
+            creates_work_item{" "}
+            <code>
+              {String(researchCandidateReviewPreview.authority.creates_work_item)}
+            </code>
+          </span>
+        </div>
+
+        <div className="perspective-formation-summary-grid">
+          <div>
+            <span>research_session_preview</span>
+            <strong>
+              {researchCandidateReviewPreview.research_session_preview.session_id}
+            </strong>
+            <small>
+              work_id{" "}
+              {researchCandidateReviewPreview.research_session_preview.work_id}
+            </small>
+          </div>
+          <div>
+            <span>research question</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .research_question
+              }
+            </strong>
+            <small>
+              review_status{" "}
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .review_status
+              }
+            </small>
+          </div>
+          <div>
+            <span>operator intent</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .operator_intent
+              }
+            </strong>
+            <small>
+              source_refs{" "}
+              {researchCandidateReviewPreview.research_session_preview.source_refs.join(
+                ", ",
+              )}
+            </small>
+          </div>
+        </div>
+
+        <div className="tab-stat-row" aria-label="Research candidate counts">
+          <div>
+            <span>Claims</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .claim_candidate_count
+              }
+            </strong>
+          </div>
+          <div>
+            <span>Evidence</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .evidence_candidate_count
+              }
+            </strong>
+          </div>
+          <div>
+            <span>Tensions</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .tension_candidate_count
+              }
+            </strong>
+          </div>
+          <div>
+            <span>Knowledge gaps</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .knowledge_gap_candidate_count
+              }
+            </strong>
+          </div>
+          <div>
+            <span>Perspective deltas</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .perspective_delta_candidate_count
+              }
+            </strong>
+          </div>
+          <div>
+            <span>Follow-up work</span>
+            <strong>
+              {
+                researchCandidateReviewPreview.research_session_preview
+                  .follow_up_work_candidate_count
+              }
+            </strong>
+          </div>
+        </div>
+
+        <div className="perspective-constellation-workspace-grid">
+          <section className="perspective-inspector-section">
+            <h3>Source provenance</h3>
+            {researchCandidateReviewPreview.source_reference_previews.map(
+              (sourceReference) => (
+                <div key={sourceReference.source_ref_id} className="cockpit-surface-card">
+                  <div className="meta-row">
+                    <span>
+                      source_ref_id <code>{sourceReference.source_ref_id}</code>
+                    </span>
+                    <span>
+                      review_status <code>{sourceReference.review_status}</code>
+                    </span>
+                  </div>
+                  <h4>{sourceReference.title}</h4>
+                  <p>{sourceReference.operator_note_summary}</p>
+                  <ul>
+                    <li>
+                      authors_or_origin{" "}
+                      <code>{sourceReference.authors_or_origin}</code>
+                    </li>
+                    <li>
+                      identifier_or_url{" "}
+                      <code>{sourceReference.identifier_or_url}</code>
+                    </li>
+                    <li>
+                      reference_source{" "}
+                      <code>{sourceReference.reference_source}</code>
+                    </li>
+                    <li>
+                      source_status <code>{sourceReference.source_status}</code>
+                    </li>
+                    <li>{sourceReference.boundary_notes}</li>
+                  </ul>
+                </div>
+              ),
+            )}
+          </section>
+
+          <section className="perspective-inspector-section">
+            <h3>claim_candidates</h3>
+            <p>Claim candidate is not evidence.</p>
+            {researchCandidateReviewPreview.claim_candidates.map((claim) => (
+              <div key={claim.claim_candidate_id} className="cockpit-surface-card">
+                <div className="meta-row">
+                  <span>
+                    claim_candidate_id <code>{claim.claim_candidate_id}</code>
+                  </span>
+                  <span>
+                    review_status <code>{claim.review_status}</code>
+                  </span>
+                  <span>
+                    epistemic_status <code>{claim.epistemic_status}</code>
+                  </span>
+                  <span>
+                    source_refs{" "}
+                    <code>
+                      {claim.source_refs?.join(", ") ??
+                        claim.source_ref_id ??
+                        "none"}
+                    </code>
+                  </span>
+                </div>
+                <p>{claim.claim_text}</p>
+                <ul>
+                  <li>
+                    claim_type <code>{claim.claim_type}</code>
+                  </li>
+                  <li>
+                    confidence_label <code>{claim.confidence_label}</code>
+                  </li>
+                  <li>
+                    supporting evidence candidates{" "}
+                    <code>
+                      {claim.supporting_evidence_candidate_ids.join(", ") ||
+                        "none"}
+                    </code>
+                  </li>
+                  <li>
+                    contradicting evidence candidates{" "}
+                    <code>
+                      {claim.contradicting_evidence_candidate_ids.join(", ") ||
+                        "none"}
+                    </code>
+                  </li>
+                  <li>{claim.boundary_notes}</li>
+                </ul>
+              </div>
+            ))}
+          </section>
+
+          <section className="perspective-inspector-section">
+            <h3>evidence_candidates</h3>
+            <p>Evidence candidate is not proof/evidence row.</p>
+            {researchCandidateReviewPreview.evidence_candidates.map((evidence) => (
+              <div key={evidence.evidence_candidate_id} className="cockpit-surface-card">
+                <div className="meta-row">
+                  <span>
+                    evidence_candidate_id{" "}
+                    <code>{evidence.evidence_candidate_id}</code>
+                  </span>
+                  <span>
+                    claim_candidate_id <code>{evidence.claim_candidate_id}</code>
+                  </span>
+                  <span>
+                    review_status <code>{evidence.review_status}</code>
+                  </span>
+                  <span>
+                    epistemic_status <code>{evidence.epistemic_status}</code>
+                  </span>
+                  <span>
+                    source_ref_id{" "}
+                    <code>
+                      {evidence.source_ref_id ??
+                        evidence.source_refs?.join(", ") ??
+                        "none"}
+                    </code>
+                  </span>
+                </div>
+                <p>{evidence.evidence_summary}</p>
+                <ul>
+                  <li>
+                    evidence_role <code>{evidence.evidence_role}</code>
+                  </li>
+                  <li>
+                    locator <code>{evidence.locator}</code>
+                  </li>
+                  <li>{evidence.quality_note}</li>
+                  <li>{evidence.boundary_notes}</li>
+                </ul>
+              </div>
+            ))}
+          </section>
+
+          <section className="perspective-inspector-section">
+            <h3>tension_candidates</h3>
+            <p>Tension candidate is unresolved review material.</p>
+            {researchCandidateReviewPreview.tension_candidates.map((tension) => (
+              <div key={tension.tension_candidate_id} className="cockpit-surface-card">
+                <div className="meta-row">
+                  <span>
+                    tension_candidate_id <code>{tension.tension_candidate_id}</code>
+                  </span>
+                  <span>
+                    tension_type <code>{tension.tension_type}</code>
+                  </span>
+                  <span>
+                    review_status <code>{tension.review_status}</code>
+                  </span>
+                  <span>
+                    epistemic_status <code>{tension.epistemic_status}</code>
+                  </span>
+                  <span>
+                    source_refs{" "}
+                    <code>
+                      {tension.source_refs?.join(", ") ??
+                        tension.source_ref_id ??
+                        "none"}
+                    </code>
+                  </span>
+                </div>
+                <p>{tension.summary}</p>
+                <ul>
+                  <li>
+                    related claims{" "}
+                    <code>{tension.related_claim_candidate_ids.join(", ")}</code>
+                  </li>
+                  <li>
+                    related evidence{" "}
+                    <code>
+                      {tension.related_evidence_candidate_ids.join(", ")}
+                    </code>
+                  </li>
+                  <li>{tension.operator_question}</li>
+                  <li>
+                    blocks_or_qualifies_promotion{" "}
+                    <code>
+                      {String(tension.blocks_or_qualifies_promotion)}
+                    </code>
+                  </li>
+                  <li>{tension.boundary_notes}</li>
+                </ul>
+              </div>
+            ))}
+          </section>
+
+          <section className="perspective-inspector-section">
+            <h3>knowledge_gap_candidates</h3>
+            <p>Knowledge gap candidate is not filled by provider inference.</p>
+            {researchCandidateReviewPreview.knowledge_gap_candidates.map((gap) => (
+              <div key={gap.knowledge_gap_candidate_id} className="cockpit-surface-card">
+                <div className="meta-row">
+                  <span>
+                    knowledge_gap_candidate_id{" "}
+                    <code>{gap.knowledge_gap_candidate_id}</code>
+                  </span>
+                  <span>
+                    review_status <code>{gap.review_status}</code>
+                  </span>
+                  <span>
+                    epistemic_status <code>{gap.epistemic_status}</code>
+                  </span>
+                  <span>
+                    source_refs{" "}
+                    <code>
+                      {gap.source_refs?.join(", ") ??
+                        gap.source_ref_id ??
+                        "none"}
+                    </code>
+                  </span>
+                </div>
+                <p>{gap.summary}</p>
+                <ul>
+                  <li>{gap.why_it_matters}</li>
+                  <li>
+                    related claims{" "}
+                    <code>{gap.related_claim_candidate_ids.join(", ")}</code>
+                  </li>
+                  <li>
+                    related tensions{" "}
+                    <code>{gap.related_tension_candidate_ids.join(", ")}</code>
+                  </li>
+                  <li>
+                    suggested_next_reading{" "}
+                    <code>{gap.suggested_next_reading.join(", ")}</code>
+                  </li>
+                  <li>{gap.boundary_notes}</li>
+                </ul>
+              </div>
+            ))}
+          </section>
+
+          <section className="perspective-inspector-section">
+            <h3>perspective_delta_candidates</h3>
+            <p>Perspective delta candidate is not committed state.</p>
+            {researchCandidateReviewPreview.perspective_delta_candidates.map(
+              (delta) => (
+                <div
+                  key={delta.perspective_delta_candidate_id}
+                  className="cockpit-surface-card"
+                >
+                  <div className="meta-row">
+                    <span>
+                      perspective_delta_candidate_id{" "}
+                      <code>{delta.perspective_delta_candidate_id}</code>
+                    </span>
+                    <span>
+                      target_perspective_key{" "}
+                      <code>{delta.target_perspective_key}</code>
+                    </span>
+                    <span>
+                      delta_type <code>{delta.delta_type}</code>
+                    </span>
+                    <span>
+                      promotion_readiness{" "}
+                      <code>{delta.promotion_readiness}</code>
+                    </span>
+                    <span>
+                      review_status <code>{delta.review_status}</code>
+                    </span>
+                    <span>
+                      epistemic_status <code>{delta.epistemic_status}</code>
+                    </span>
+                    <span>
+                      source_refs{" "}
+                      <code>
+                        {delta.source_refs?.join(", ") ??
+                          delta.source_ref_id ??
+                          "none"}
+                      </code>
+                    </span>
+                  </div>
+                  <p>{delta.proposed_update_summary}</p>
+                  <ul>
+                    <li>{delta.before_summary}</li>
+                    <li>{delta.after_summary}</li>
+                    <li>
+                      basis claims{" "}
+                      <code>{delta.basis_claim_candidate_ids.join(", ")}</code>
+                    </li>
+                    <li>
+                      basis evidence{" "}
+                      <code>{delta.basis_evidence_candidate_ids.join(", ")}</code>
+                    </li>
+                    <li>
+                      related tensions{" "}
+                      <code>{delta.related_tension_candidate_ids.join(", ")}</code>
+                    </li>
+                    <li>
+                      related gaps{" "}
+                      <code>{delta.related_gap_candidate_ids.join(", ")}</code>
+                    </li>
+                    <li>{delta.risk_or_conflict_note}</li>
+                    <li>{delta.boundary_notes}</li>
+                  </ul>
+                </div>
+              ),
+            )}
+          </section>
+
+          <section className="perspective-inspector-section">
+            <h3>follow_up_work_candidates</h3>
+            <p>Follow-up work candidate is not a work item.</p>
+            {researchCandidateReviewPreview.follow_up_work_candidates.map(
+              (followUp) => (
+                <div
+                  key={followUp.follow_up_work_candidate_id}
+                  className="cockpit-surface-card"
+                >
+                  <div className="meta-row">
+                    <span>
+                      follow_up_work_candidate_id{" "}
+                      <code>{followUp.follow_up_work_candidate_id}</code>
+                    </span>
+                    <span>
+                      candidate_scope <code>{followUp.candidate_scope}</code>
+                    </span>
+                    <span>
+                      review_status <code>{followUp.review_status}</code>
+                    </span>
+                  </div>
+                  <h4>{followUp.candidate_title}</h4>
+                  <p>{followUp.candidate_summary}</p>
+                  <ul>
+                    <li>{followUp.reason}</li>
+                    <li>
+                      suggested_expected_files{" "}
+                      <code>{followUp.suggested_expected_files.join(", ")}</code>
+                    </li>
+                    <li>
+                      suggested_expected_checks{" "}
+                      <code>{followUp.suggested_expected_checks.join(", ")}</code>
+                    </li>
+                    <li>{followUp.boundary_notes}</li>
+                  </ul>
+                </div>
+              ),
+            )}
+          </section>
+
+          <section className="perspective-inspector-section">
+            <h3>Authority boundary summary</h3>
+            <p>
+              canonical promotion gate reminder: source title/URL/raw IDs must
+              not become canonical labels or operational tags.
+            </p>
+            <ul>
+              <li>no proof/evidence write</li>
+              <li>no durable research write</li>
+              <li>no perspective promotion</li>
+              <li>no work item creation</li>
+              <li>no Codex execution</li>
+              <li>no runtime/API/DB/provider/retrieval behavior</li>
+              <li>no parser behavior</li>
+              <li>candidate_only remains display/review material</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+      {/* Research Candidate Review Cockpit Preview End */}
 
       <section
         className="perspective-section perspective-constellation-workspace-shell perspective-primary-workbench"
