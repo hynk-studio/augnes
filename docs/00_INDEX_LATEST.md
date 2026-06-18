@@ -619,6 +619,24 @@ Boundary 요약: 이 문서들은 `PerspectiveSnapshot` behavior, diagnostics,
 schema, routes, Cockpit controls, 또는 Augnes Core authority를 변경하지
 않는다.
 
+### 최근 Research candidate review surface 포인터 (repo-local, non-SSOT)
+
+이 포인터는 Active set을 늘리거나 새 권위를 만들지 않는다. 현재
+Research capability lane의 첫 product-facing contract를 찾기 위한
+repo-local 색인이다.
+
+- `docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md`: manually supplied
+  source/reference/notes를 candidate-only, non-authoritative review bundle로
+  정리하는 docs contract다.
+- `fixtures/research-candidate-review.sample.v0.1.json`: public-safe sample
+  fixture for source provenance, claims, evidence, tensions, knowledge gaps,
+  perspective delta candidates, and follow-up work candidates.
+- `npm run smoke:research-candidate-review-surface-v0-1`: doc headings,
+  fixture shape/counts, candidate boundaries, source grounding, package/index
+  pointers, and forbidden implementation-pattern absence를 정적으로 확인한다.
+
+Boundary 요약: candidate-only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
+
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 
 이 포인터는 Active set을 늘리거나 새 권위를 만들지 않는다. Human
