@@ -48,10 +48,15 @@ repo implementation and verification worker. Preserve the authority boundaries.
 - Use the resulting Codex Memory Brief as task context.
 - Preserve `why_selected` and `reuse_boundary` when applying selected memory.
 - Treat quality review warnings as operator-review signals, not semantic truth.
-- Do not add storage, persistence, DB schema, provider/model calls, OpenAI API
-  calls, MCP tool calls, Codex SDK execution, GitHub mutation, proof/evidence
-  writes, automatic memory creation, hidden background daemons, or Augnes state
-  commit/reject authority unless explicitly scoped.
+- Treat reuse context as task-start guidance, not as a blanket prohibition on
+  useful product work. Storage, persistence, DB schema, API routes, App/MCP
+  tools, provider integration, proof/evidence paths, Perspective workflows,
+  package scripts, and refactors are allowed when they materially advance
+  Augnes and remain reviewable.
+- Do not create perspective memory automatically, hide background daemons,
+  mutate Augnes committed state, approve/publish/retry/replay, externally post,
+  or merge unless a task explicitly grants that irreversible or external
+  authority.
 - Project-local hooks require Codex hook trust review; if hooks are not trusted
   or enabled, run `npm run perspective:memory-reuse-intake -- --task "..." --brief`
   manually when useful.
@@ -104,29 +109,33 @@ repo implementation and verification worker. Preserve the authority boundaries.
 - Do not claim a check, evidence row, action record, or proof closeout happened
   unless the command ran and returned the relevant result.
 
-## Forbidden Without Explicit Scope
+## Default Development Policy
 
-- Runtime behavior changes
-- Database or schema changes
-- API route changes
-- MCP/App tool schema changes
-- Package script changes
-- Hook implementation
-- Plugin implementation
-- Skills implementation
-- Secret handling changes
-- Approve, publish, retry, replay, merge, or external posting automation
+Build the most useful next Augnes capability when the user has not set a
+tighter scope fence. Broad categories such as runtime behavior, API routes,
+App/MCP tools, DB schema, local persistence, provider integration, retrieval,
+research capability implementation, proof/evidence paths, package scripts,
+Perspective promotion workflows, UI/Cockpit changes, and substantial refactors
+are not blanket-forbidden by default.
 
-Explicitly scoped future research capability work is allowed only when the
-task names the capability lane, expected files, expected checks, verification,
-and authority boundary. Examples include manual source intake, bounded
-operator-provided source fetching, provider-assisted extraction/summary,
-derived retrieval indexes, durable research candidate memory, and
-human-reviewed perspective promotion. Retrieval, provider, fetch, and durable
-candidate outputs remain non-authoritative candidates until human review and
-cannot directly commit/reject Augnes state, close work, write proof/evidence,
-approve/publish/merge, or mutate perspective memory unless a separately scoped
-Core-gated path explicitly implements that authority.
+Required discipline:
+
+- Preserve existing user-facing behavior unless the task intentionally improves
+  it.
+- Preserve working smoke/typecheck expectations unless the PR explicitly
+  updates them for better behavior.
+- Preserve data integrity and make durable state changes easy to review.
+- For persistence, include migration, rollback, or idempotency reasoning.
+- For external calls, keep them explicit, bounded, configurable, and disabled
+  by default unless the user requested live behavior.
+- Keep irreversible actions under explicit user/operator control.
+- Include compatibility notes when replacing existing behavior.
+- Do not hide breaking changes as cleanup.
+
+Authority boundaries still apply where they protect irreversible or external
+side effects: do not directly commit/reject Augnes state, close work, write
+proof/evidence, approve/publish/merge, mutate perspective memory, or externally
+post unless the task explicitly scopes that Core-gated authority.
 
 ## PR Closeout
 

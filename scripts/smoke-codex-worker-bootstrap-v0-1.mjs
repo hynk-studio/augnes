@@ -47,18 +47,18 @@ assertIncludes(
 );
 assertIncludes(
   bootstrapDoc,
-  "Future research capability",
-  "bootstrap doc scopes future research capability lanes",
+  "default fallback currently selects",
+  "bootstrap doc names the bounded default AG-006 fallback",
 );
 assertIncludes(
   bootstrapDoc,
-  "fresh Work Brief or Core Handoff explicitly names",
-  "bootstrap doc requires a fresh Work Brief or Core Handoff for future lanes",
+  "expected files, and expected checks",
+  "bootstrap doc documents AG-006 fallback bounds",
 );
 assertIncludes(
   bootstrapDoc,
-  "no unscoped paper/source fetching",
-  "bootstrap doc scopes paper/source fetching boundary",
+  "default task merely",
+  "bootstrap doc does not treat research capability work as the default task",
 );
 
 for (const field of [
@@ -107,9 +107,23 @@ assertIncludes(helperSource, historicalDogfoodWorkId, "bootstrap helper contains
 assertIncludes(helperSource, "CURRENT_RESEARCH_WORK_ID", "bootstrap helper uses current research work constant");
 assertIncludes(helperSource, manifestPath, "bootstrap helper loads manifest fallback data");
 assertIncludes(helperSource, "repo_seed_fallback", "bootstrap helper can report repo seed fallback");
-assertIncludes(helperSource, "unscoped paper/source fetching", "bootstrap helper scopes fallback stop conditions");
-assertIncludes(helperSource, "bounded research capability lane", "bootstrap helper preserves future lane allowance");
+assertIncludes(
+  helperSource,
+  "implementation anchors, or task-specific docs",
+  "bootstrap helper stops only when fallback scope has no bounding anchors",
+);
+assertIncludes(
+  helperSource,
+  "preserve existing behavior unless the task intentionally improves it",
+  "bootstrap helper preserves compatibility discipline",
+);
 assertIncludes(runbook, bootstrapDocPath, "runbook points Codex workers to the bootstrap doc");
+
+const defaultFallback = await buildBootstrapResult({
+  scope: "project:augnes",
+  runtimeMode: "never",
+});
+assertDefaultAg006Fallback(defaultFallback, "default AG-006 fallback");
 
 const requested = await buildBootstrapResult({
   scope: "project:augnes",
@@ -154,10 +168,11 @@ console.log(
       runtime_work_brief_preferred_path_documented: true,
       repo_backed_fallback_path_documented: true,
       fallback_honesty_documented: true,
-      future_research_capability_lane_scope_documented: true,
+      bounded_default_ag006_fallback_documented: true,
       expected_output_shape_fields_documented: true,
       package_codex_next_work_script: true,
       package_smoke_script: true,
+      deterministic_default_fallback_returns_bounded_ag006: true,
       helper_ag_dogfood_fallback_support: true,
       helper_current_research_fallback_support: true,
       manifest_fallback_source_documented: true,
@@ -176,12 +191,16 @@ function assertCommonFallback(result, label) {
   assert.equal(result.runtime_available, false, `${label} reports runtime unavailable`);
   assert.equal(result.scope, "project:augnes", `${label} preserves scope`);
   assert.ok(
-    result.stop_conditions.some((condition) => condition.includes("unscoped paper/source fetching")),
-    `${label} scopes research stop conditions to preview fallback work`,
+    result.stop_conditions.some((condition) =>
+      condition.includes("implementation anchors, or task-specific docs"),
+    ),
+    `${label} stops only when fallback scope has no bounding anchors`,
   );
   assert.ok(
-    result.stop_conditions.some((condition) => condition.includes("bounded research capability lane")),
-    `${label} keeps future authorized capability lane allowance`,
+    result.stop_conditions.some((condition) =>
+      condition.includes("preserve existing behavior unless the task intentionally improves it"),
+    ),
+    `${label} preserves compatibility discipline`,
   );
   assert.equal(
     result.result_report_template,
@@ -192,6 +211,38 @@ function assertCommonFallback(result, label) {
     result.next_return_path,
     "codexResultText or codexResultPaste",
     `${label} returns result-return path`,
+  );
+}
+
+function assertDefaultAg006Fallback(result, label) {
+  assertCommonFallback(result, label);
+  assert.equal(result.work_id, "AG-006", `${label} returns AG-006`);
+  assertIncludes(result.title, "Coordination event spine", `${label} returns coordination spine title`);
+  for (const expectedFile of [
+    "lib/db/schema.sql",
+    "lib/coordination-events.ts",
+    "app/api/events/route.ts",
+    "app/api/events/[event_id]/route.ts",
+  ]) {
+    assert.ok(
+      result.expected_files.includes(expectedFile),
+      `${label} returns expected file ${expectedFile}`,
+    );
+  }
+  for (const expectedCheck of [
+    "npm run typecheck",
+    "npm run smoke:authority-invariants",
+    "git diff --check",
+  ]) {
+    assert.ok(
+      result.expected_checks.includes(expectedCheck),
+      `${label} returns expected check ${expectedCheck}`,
+    );
+  }
+  assertIncludes(
+    result.codex_worker_next_action,
+    "expected files, expected checks, docs, and implementation anchors",
+    `${label} points Codex at bounded fallback anchors`,
   );
 }
 
