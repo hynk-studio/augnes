@@ -385,16 +385,16 @@ function assertGateDocPointer() {
 }
 
 function assertNextStepAlignment() {
-  const expected = /Research Candidate AI Context Packet preview/i;
+  const expected = /Formation Receipt preview/i;
   assert.match(
     extractSection(surfaceDoc, "## Next Recommended Step"),
     expected,
-    "surface doc next step must mention Research Candidate AI Context Packet preview",
+    "surface doc next step must mention Formation Receipt preview",
   );
   assert.match(
     extractSection(gateDoc, "## Next Recommended Step"),
     expected,
-    "gate doc next step must mention Research Candidate AI Context Packet preview",
+    "gate doc next step must mention Formation Receipt preview",
   );
 }
 
@@ -407,8 +407,8 @@ function assertExistingSmokeAlignment() {
   ]) {
     assert.match(
       source,
-      /Research Candidate AI Context Packet preview/i,
-      `${label} must expect Research Candidate AI Context Packet preview as next step`,
+      /Formation Receipt preview/i,
+      `${label} must expect Formation Receipt preview as next step`,
     );
   }
 }

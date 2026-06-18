@@ -697,10 +697,22 @@ repo-local 색인이다.
   overlay type contract, deterministic builder output, fixture integrity,
   Cockpit read-only wiring, docs/index pointers, and non-authority boundaries를
   정적으로 확인한다.
+- Research Candidate AI Context Packet preview:
+  `types/research-candidate-ai-context-packet.ts`,
+  `lib/research-candidate-review/ai-context-packet.ts`,
+  `fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json`,
+  `fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json`,
+  `components/research-candidate-ai-context-packet-preview.tsx`, and
+  `components/augnes-cockpit.tsx` define and render a read-only handoff packet
+  preview compiled from static overlay fixtures.
+- `npm run smoke:research-candidate-review-ai-context-packet-v0-1`:
+  packet type contract, deterministic packet builder output, relationship
+  summaries, final guardrails, Cockpit read-only wiring, docs/index pointers,
+  and non-authority boundaries를 정적으로 확인한다.
 
 Boundary 요약: candidate-only, type-only, static audit only, read-only static
 fixture only, preview-only deterministic parser, non-authoritative preview
-contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write. The manual parser adds no runtime/API route, no UI input behavior, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, and no promotion behavior. The parser output Cockpit/Perspective static preview panel is read-only static parser output fixture material with no runtime UI input, no live parser execution, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, no promotion behavior, and no runtime/API route. The Candidate Constellation Overlay preview uses read-only candidate nodes and typed edges with no graph DB, no layout algorithm, no embeddings, no runtime/API/DB/provider/retrieval/promotion behavior, no proof/evidence write, and no work item creation.
+contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write. The manual parser adds no runtime/API route, no UI input behavior, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, and no promotion behavior. The parser output Cockpit/Perspective static preview panel is read-only static parser output fixture material with no runtime UI input, no live parser execution, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, no promotion behavior, and no runtime/API route. The Candidate Constellation Overlay preview uses read-only candidate nodes and typed edges with no graph DB, no layout algorithm, no embeddings, no runtime/API/DB/provider/retrieval/promotion behavior, no proof/evidence write, and no work item creation. The Research Candidate AI Context Packet preview is a read-only handoff packet with no provider prompt execution, no Codex execution, no retrieval, no durable memory, no runtime/API/DB/provider/retrieval/promotion behavior, no proof/evidence write, and no work item creation.
 
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 

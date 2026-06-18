@@ -1,11 +1,14 @@
 "use client";
 
+import researchCandidateReviewAIContextPacketFixture from "@/fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json";
 import researchCandidateReviewConstellationOverlayFixture from "@/fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json";
+import researchCandidateReviewManualNoteAIContextPacketFixture from "@/fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json";
 import researchCandidateReviewManualNoteConstellationOverlayFixture from "@/fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json";
 import researchCandidateReviewParserOutputFixture from "@/fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json";
 import researchCandidateReviewFixture from "@/fixtures/research-candidate-review.sample.v0.1.json";
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
+import { ResearchCandidateAIContextPacketPreview } from "@/components/research-candidate-ai-context-packet-preview";
 import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
 import {
   FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY,
@@ -75,6 +78,7 @@ import type {
   PerspectiveIngestNextActionCandidate,
   PerspectiveIngestUnresolvedTension,
 } from "@/types/perspective-ingest-constellation-preview";
+import type { ResearchCandidateAIContextPacket } from "@/types/research-candidate-ai-context-packet";
 import type { ResearchCandidateConstellationOverlay } from "@/types/research-candidate-constellation-overlay";
 import type { ResearchCandidateReviewSampleFixture } from "@/types/research-candidate-review";
 import type { ReactNode } from "react";
@@ -91,6 +95,10 @@ const RESEARCH_CANDIDATE_REVIEW_CONSTELLATION_OVERLAY_FIXTURE_PATH =
   "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json";
 const RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_CONSTELLATION_OVERLAY_FIXTURE_PATH =
   "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json";
+const RESEARCH_CANDIDATE_REVIEW_AI_CONTEXT_PACKET_FIXTURE_PATH =
+  "fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json";
+const RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_AI_CONTEXT_PACKET_FIXTURE_PATH =
+  "fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json";
 const researchCandidateReviewPreview =
   researchCandidateReviewFixture as ResearchCandidateReviewSampleFixture;
 const researchCandidateReviewParserOutputPreview =
@@ -99,6 +107,10 @@ const researchCandidateReviewConstellationOverlayPreview =
   researchCandidateReviewConstellationOverlayFixture as ResearchCandidateConstellationOverlay;
 const researchCandidateReviewManualNoteConstellationOverlayPreview =
   researchCandidateReviewManualNoteConstellationOverlayFixture as ResearchCandidateConstellationOverlay;
+const researchCandidateReviewAIContextPacketPreview =
+  researchCandidateReviewAIContextPacketFixture as ResearchCandidateAIContextPacket;
+const researchCandidateReviewManualNoteAIContextPacketPreview =
+  researchCandidateReviewManualNoteAIContextPacketFixture as ResearchCandidateAIContextPacket;
 const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
   "/api/augnes/read/constellation-preview?scope=project:augnes";
 const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
@@ -6561,6 +6573,9 @@ function PerspectiveTab({
         <a href="#research-candidate-constellation-overlay-preview">
           Candidate constellation overlay
         </a>
+        <a href="#research-candidate-ai-context-packet-preview">
+          AI context packet
+        </a>
       </nav>
 
       {/* Research Candidate Review Cockpit Preview Start */}
@@ -7867,6 +7882,71 @@ function PerspectiveTab({
         </div>
       </section>
       {/* Research Candidate Constellation Overlay Cockpit Preview End */}
+
+      {/* Research Candidate AI Context Packet Cockpit Preview Start */}
+      <section
+        className="perspective-section"
+        id="research-candidate-ai-context-packet-preview"
+        aria-label="Research Candidate AI Context Packet"
+        data-augnes-authority="read-only static-packet-fixture non-authoritative candidate-only"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">AUGNES / Research</p>
+            <h2>Research Candidate AI Context Packet</h2>
+            <p>
+              Read-only packet preview compiled from static Candidate
+              Constellation Overlay fixtures. Packet summaries are
+              candidate-only and non-authoritative inspection material.
+            </p>
+            <p>
+              This panel adds no provider prompt execution, no Codex execution,
+              no retrieval, no durable memory, and no
+              runtime/API/DB/provider/retrieval/promotion behavior.
+            </p>
+          </div>
+          <div className="perspective-constellation-shell-status">
+            <span className="status-pill">read-only</span>
+            <span className="status-pill">static packet fixture</span>
+            <span className="status-pill">handoff packet preview</span>
+          </div>
+        </div>
+
+        <div className="perspective-workbench-status-row">
+          <span>
+            original packet fixture{" "}
+            <code>
+              {RESEARCH_CANDIDATE_REVIEW_AI_CONTEXT_PACKET_FIXTURE_PATH}
+            </code>
+          </span>
+          <span>
+            manual note packet fixture{" "}
+            <code>
+              {RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_AI_CONTEXT_PACKET_FIXTURE_PATH}
+            </code>
+          </span>
+          <span>no proof/evidence write</span>
+          <span>no work item creation</span>
+        </div>
+
+        <div className="perspective-constellation-workspace-grid">
+          <ResearchCandidateAIContextPacketPreview
+            title="Original overlay AI context packet"
+            description="Read-only handoff packet preview compiled from the original Research Candidate Review overlay fixture."
+            packet={researchCandidateReviewAIContextPacketPreview}
+            fixturePath={RESEARCH_CANDIDATE_REVIEW_AI_CONTEXT_PACKET_FIXTURE_PATH}
+          />
+          <ResearchCandidateAIContextPacketPreview
+            title="Manual parser overlay AI context packet"
+            description="Read-only handoff packet preview compiled from the manual parser output overlay fixture."
+            packet={researchCandidateReviewManualNoteAIContextPacketPreview}
+            fixturePath={
+              RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_AI_CONTEXT_PACKET_FIXTURE_PATH
+            }
+          />
+        </div>
+      </section>
+      {/* Research Candidate AI Context Packet Cockpit Preview End */}
 
       <section
         className="perspective-section perspective-constellation-workspace-shell perspective-primary-workbench"

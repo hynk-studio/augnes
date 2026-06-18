@@ -222,6 +222,13 @@ demo refs. Target perspective anchors are read-only and non-authoritative. The
 overlay adds no graph DB, layout algorithm, runtime/API/DB/provider/retrieval,
 or promotion behavior.
 
+The Research Candidate AI Context Packet preview preserves canonical promotion
+gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
+thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
+Target perspective summaries are read-only and non-authoritative. The packet
+adds no provider prompt execution, Codex execution, retrieval, durable memory,
+runtime/API/DB/provider/retrieval, or promotion behavior.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -276,6 +283,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Research Candidate AI Context Packet preview that compiles
-source/claim/evidence/tension/gap/delta/follow-up candidate summaries from the
-overlay into a read-only handoff packet.
+Add Formation Receipt preview for Research Candidate Review, recording which
+source refs, candidate nodes, typed edges, and AI context packet sections
+contributed to a read-only review artifact.
