@@ -192,6 +192,7 @@
     "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-surface-v0-1": "node scripts/smoke-research-candidate-review-surface-v0-1.mjs",
     "smoke:research-candidate-review-types-v0-1": "node scripts/smoke-research-candidate-review-types-v0-1.mjs",
+    "smoke:research-candidate-review-v0-1-closeout": "node scripts/smoke-research-candidate-review-v0-1-closeout.mjs",
     "smoke:research-work-user-happy-path-observation-v0-1": "node scripts/smoke-research-work-user-happy-path-observation-v0-1.mjs",
     "smoke:live-research-work-picker-brief-observation-v0-1": "node scripts/smoke-live-research-work-picker-brief-observation-v0-1.mjs",
     "smoke:readme-user-ai-front-door-v0-1": "node scripts/smoke-readme-user-ai-front-door-v0-1.mjs",

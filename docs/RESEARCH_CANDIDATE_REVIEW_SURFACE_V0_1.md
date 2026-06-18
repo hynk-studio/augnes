@@ -489,6 +489,9 @@ runtime/API/DB/provider/retrieval behavior.
 
 It is guarded by `smoke:research-candidate-review-formation-receipt-v0-1`.
 
+Closeout pointer: `docs/RESEARCH_CANDIDATE_REVIEW_V0_1_CLOSEOUT.md` closes
+the v0.1 preview milestone and points to the next manual preview UI lane.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -592,6 +595,5 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Research Candidate Review v0.1 milestone closeout docs summarizing the
-candidate review surface, parser, overlay, AI context packet, and formation
-receipt preview chain before any runtime or durable storage lane.
+Add Cockpit manual pasted note preview UI shell using the existing
+deterministic parser in a preview-only, read-only path.

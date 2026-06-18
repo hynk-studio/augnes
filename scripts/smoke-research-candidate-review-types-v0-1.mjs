@@ -314,8 +314,8 @@ function assertDocsPointers() {
   assert.doesNotMatch(nextStep, /Add a type-only contract/i, "next step must move beyond adding the type contract");
   assert.match(
     nextStep,
-    /Research Candidate Review v0\.1 milestone closeout docs/i,
-    "next step must point to Research Candidate Review v0.1 milestone closeout docs",
+    /Cockpit manual pasted note preview UI shell/i,
+    "next step must point to Cockpit manual pasted note preview UI shell",
   );
 }
 

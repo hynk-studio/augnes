@@ -727,6 +727,16 @@ contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this s
   receipt type contract, deterministic receipt builder output, contribution
   mappings, Cockpit read-only wiring, docs/index pointers, and non-authority
   boundaries를 정적으로 확인한다.
+- v0.1 preview milestone closeout:
+  `docs/RESEARCH_CANDIDATE_REVIEW_V0_1_CLOSEOUT.md` summarizes the Research
+  Candidate Review surface, type contract, canonical gates, Cockpit previews,
+  manual parser, parser output, Candidate Constellation Overlay, AI context
+  packet, and Formation Receipt preview chain. Its next implementation lane is
+  the Cockpit manual pasted note preview UI shell, and the closeout adds
+  no runtime/durable behavior.
+- `npm run smoke:research-candidate-review-v0-1-closeout`: closeout headings,
+  preview chain coverage, docs/index/package pointers, next implementation
+  lane, and non-authority boundaries를 정적으로 확인한다.
 
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 

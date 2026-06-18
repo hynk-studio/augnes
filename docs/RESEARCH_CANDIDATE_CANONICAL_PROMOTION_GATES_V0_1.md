@@ -236,6 +236,9 @@ contributions are read-only and non-authoritative. The receipt preview adds no
 durable receipt storage, event log, runtime/API/DB/provider/retrieval, or
 promotion behavior.
 
+The v0.1 closeout doc summarizes the preview chain before runtime/manual input
+work begins.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -290,6 +293,5 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Research Candidate Review v0.1 milestone closeout docs summarizing the
-candidate review surface, parser, overlay, AI context packet, and formation
-receipt preview chain before any runtime or durable storage lane.
+Add Cockpit manual pasted note preview UI shell using the existing
+deterministic parser in a preview-only, read-only path.
