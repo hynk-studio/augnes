@@ -206,6 +206,10 @@ external services.
 
 This slice has no runtime/API/DB/provider/retrieval/persistence behavior.
 
+The manual parser preserves canonical promotion gates: raw source strings remain raw/source-bound. Source title, origin, identifier, and note text stay
+display/reference material, while `target_perspective_key` remains a stable
+dotted key such as `research.candidate_review`. The parser adds no runtime/API/DB/provider/retrieval/promotion behavior.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -260,5 +264,5 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add a manual pasted research note parser preview-only slice that keeps raw
-source strings raw/source-bound and preserves canonical promotion gates.
+Add a parser output Cockpit/Perspective static preview panel that renders the
+manual parser sample output read-only beside the original static fixture.

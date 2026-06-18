@@ -1,0 +1,12 @@
+Research Question: How should manual notes become reviewable Research Candidate Review previews?
+Operator Intent: Convert a bounded pasted note into candidate-only review material.
+Source Title: Public-safe manual note on parser preview
+Source Origin: synthetic_operator_note
+Source Identifier: public-safe-example-ref:manual-parser-001
+Claim: Manual notes should become candidate objects before any durable perspective update.
+Evidence: The review surface already separates claim, evidence, tension, gap, delta, and follow-up work candidates.
+Evidence: limitation: Parser output should not be treated as provider extraction or proof.
+Tension: Parser convenience could be mistaken for durable research memory.
+Gap: The parser has no runtime UI or storage path yet.
+Perspective Delta: Refine research candidate review toward deterministic manual note preview parsing.
+Next: Add Cockpit read-only display for parser preview output after this pure parser slice.

@@ -286,8 +286,8 @@ function assertGateDocNextStep() {
   const nextStep = extractSection(gateDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /manual pasted research note parser preview-only/i,
-    "gate doc next step must mention Manual pasted research note parser preview-only",
+    /parser output Cockpit\/Perspective static preview panel/i,
+    "gate doc next step must mention parser output Cockpit/Perspective static preview panel",
   );
 }
 
@@ -295,21 +295,21 @@ function assertSurfaceDocNextStep() {
   const nextStep = extractSection(surfaceDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /manual pasted research note parser preview-only/i,
-    "surface doc next step must mention Manual pasted research note parser preview-only",
+    /parser output Cockpit\/Perspective static preview panel/i,
+    "surface doc next step must mention parser output Cockpit/Perspective static preview panel",
   );
 }
 
 function assertExistingSmokeAlignment() {
   assert.match(
     typeSmoke,
-    /manual pasted research note parser preview-only/i,
-    "type smoke must expect the new parser preview-only next step",
+    /parser output Cockpit\/Perspective static preview panel/i,
+    "type smoke must expect the parser output Cockpit/Perspective static preview panel next step",
   );
   assert.match(
     gateSmoke,
-    /manual pasted research note parser preview-only/i,
-    "gate smoke must expect the new parser preview-only next step",
+    /parser output Cockpit\/Perspective static preview panel/i,
+    "gate smoke must expect the parser output Cockpit/Perspective static preview panel next step",
   );
 }
 

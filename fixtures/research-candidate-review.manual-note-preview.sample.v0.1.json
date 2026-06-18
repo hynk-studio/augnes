@@ -1,0 +1,189 @@
+{
+  "parser_version": "manual_research_note_parser.v0.1",
+  "input_fixture_path": "fixtures/research-candidate-review.manual-note.sample.v0.1.txt",
+  "preview": {
+    "preview_version": "research_candidate_review.v0.1",
+    "scope": "project:augnes",
+    "status": "candidate_preview_only",
+    "authority": {
+      "candidate_only": true,
+      "source_of_truth": false,
+      "creates_evidence": false,
+      "creates_proof": false,
+      "commits_state": false,
+      "promotes_perspective": false,
+      "creates_work_item": false
+    },
+    "research_session_preview": {
+      "session_id": "research_session_manual_note_001",
+      "scope": "project:augnes",
+      "work_id": "AG-RESEARCH-CANDIDATE-MANUAL-PARSER-001",
+      "research_question": "How should manual notes become reviewable Research Candidate Review previews?",
+      "operator_intent": "Convert a bounded pasted note into candidate-only review material.",
+      "source_refs": [
+        "source_ref_manual_note_001"
+      ],
+      "claim_candidate_count": 1,
+      "evidence_candidate_count": 2,
+      "tension_candidate_count": 1,
+      "knowledge_gap_candidate_count": 1,
+      "perspective_delta_candidate_count": 1,
+      "follow_up_work_candidate_count": 1,
+      "review_status": "candidate_only",
+      "boundary_notes": "Manual parser preview only; no durable research state, proof, evidence, work item, or perspective promotion is created."
+    },
+    "source_reference_previews": [
+      {
+        "source_ref_id": "source_ref_manual_note_001",
+        "title": "Public-safe manual note on parser preview",
+        "authors_or_origin": "synthetic_operator_note",
+        "identifier_or_url": "public-safe-example-ref:manual-parser-001",
+        "reference_source": "manual_note",
+        "source_status": "operator_supplied_reference",
+        "operator_note_summary": "Manual parser preview from bounded prefix-based pasted note.",
+        "review_status": "reviewed_reference_only",
+        "boundary_notes": "Reference preview only; no fetch, provider enrichment, indexing, durable write, or source-of-truth authority."
+      }
+    ],
+    "claim_candidates": [
+      {
+        "claim_candidate_id": "claim_candidate_001",
+        "source_refs": [
+          "source_ref_manual_note_001"
+        ],
+        "claim_text": "Manual notes should become candidate objects before any durable perspective update.",
+        "claim_type": "manual_note_claim",
+        "confidence_label": "manual_candidate",
+        "supporting_evidence_candidate_ids": [
+          "evidence_candidate_001"
+        ],
+        "contradicting_evidence_candidate_ids": [],
+        "review_status": "needs_review",
+        "epistemic_status": "candidate_claim",
+        "boundary_notes": "Candidate claim only; not evidence, not proof, not committed state."
+      }
+    ],
+    "evidence_candidates": [
+      {
+        "evidence_candidate_id": "evidence_candidate_001",
+        "source_ref_id": "source_ref_manual_note_001",
+        "claim_candidate_id": "claim_candidate_001",
+        "evidence_summary": "The review surface already separates claim, evidence, tension, gap, delta, and follow-up work candidates.",
+        "evidence_role": "supports",
+        "locator": "manual_note_line:7",
+        "quality_note": "Manual note evidence candidate requires human review before promotion.",
+        "review_status": "needs_review",
+        "epistemic_status": "operator_note",
+        "boundary_notes": "Evidence candidate only; not an Augnes evidence row or proof record."
+      },
+      {
+        "evidence_candidate_id": "evidence_candidate_002",
+        "source_ref_id": "source_ref_manual_note_001",
+        "claim_candidate_id": "claim_candidate_001",
+        "evidence_summary": "Parser output should not be treated as provider extraction or proof.",
+        "evidence_role": "limitation",
+        "locator": "manual_note_line:8",
+        "quality_note": "Manual note evidence candidate requires human review before promotion.",
+        "review_status": "needs_review",
+        "epistemic_status": "operator_note",
+        "boundary_notes": "Evidence candidate only; not an Augnes evidence row or proof record."
+      }
+    ],
+    "tension_candidates": [
+      {
+        "tension_candidate_id": "tension_candidate_001",
+        "source_refs": [
+          "source_ref_manual_note_001"
+        ],
+        "summary": "Parser convenience could be mistaken for durable research memory.",
+        "related_claim_candidate_ids": [
+          "claim_candidate_001"
+        ],
+        "related_evidence_candidate_ids": [
+          "evidence_candidate_001",
+          "evidence_candidate_002"
+        ],
+        "tension_type": "ambiguity",
+        "operator_question": "Parser convenience could be mistaken for durable research memory.",
+        "blocks_or_qualifies_promotion": true,
+        "review_status": "needs_review",
+        "epistemic_status": "contested",
+        "boundary_notes": "Tension candidate only; unresolved review material."
+      }
+    ],
+    "knowledge_gap_candidates": [
+      {
+        "knowledge_gap_candidate_id": "knowledge_gap_candidate_001",
+        "source_refs": [
+          "source_ref_manual_note_001"
+        ],
+        "summary": "The parser has no runtime UI or storage path yet.",
+        "why_it_matters": "The parser has no runtime UI or storage path yet.",
+        "related_claim_candidate_ids": [
+          "claim_candidate_001"
+        ],
+        "related_tension_candidate_ids": [
+          "tension_candidate_001"
+        ],
+        "suggested_next_reading": [],
+        "review_status": "needs_review",
+        "epistemic_status": "hypothesis_only",
+        "boundary_notes": "Knowledge gap candidate only; not filled by provider inference."
+      }
+    ],
+    "perspective_delta_candidates": [
+      {
+        "perspective_delta_candidate_id": "perspective_delta_candidate_001",
+        "source_refs": [
+          "source_ref_manual_note_001"
+        ],
+        "target_perspective_key": "research.candidate_review",
+        "delta_type": "refine",
+        "before_summary": "Research Candidate Review remains a preview-only candidate surface.",
+        "after_summary": "Refine research candidate review toward deterministic manual note preview parsing.",
+        "proposed_update_summary": "Refine research candidate review toward deterministic manual note preview parsing.",
+        "basis_claim_candidate_ids": [
+          "claim_candidate_001"
+        ],
+        "basis_evidence_candidate_ids": [
+          "evidence_candidate_001",
+          "evidence_candidate_002"
+        ],
+        "related_tension_candidate_ids": [
+          "tension_candidate_001"
+        ],
+        "related_gap_candidate_ids": [
+          "knowledge_gap_candidate_001"
+        ],
+        "risk_or_conflict_note": "Manual parser delta is not committed state, promotion, or source-of-truth authority.",
+        "promotion_readiness": "not_ready",
+        "review_status": "needs_review",
+        "epistemic_status": "hypothesis_only",
+        "boundary_notes": "Perspective delta candidate only; not committed state or promotion."
+      }
+    ],
+    "follow_up_work_candidates": [
+      {
+        "follow_up_work_candidate_id": "follow_up_work_candidate_001",
+        "candidate_title": "Add Cockpit read-only display for parser preview output after this pure parser slice.",
+        "candidate_scope": "project:augnes",
+        "candidate_summary": "Add Cockpit read-only display for parser preview output after this pure parser slice.",
+        "reason": "Manual note proposed this as follow-up candidate material.",
+        "suggested_expected_files": [],
+        "suggested_expected_checks": [],
+        "review_status": "candidate_only",
+        "boundary_notes": "Follow-up work candidate only; not a work item, issue, branch, or dispatch."
+      }
+    ]
+  },
+  "warnings": [],
+  "authority": {
+    "preview_only": true,
+    "deterministic_parser_only": true,
+    "provider_calls": false,
+    "retrieval": false,
+    "db_writes": false,
+    "perspective_promotion": false,
+    "proof_or_evidence_writes": false
+  }
+}
