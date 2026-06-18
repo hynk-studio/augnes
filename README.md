@@ -1,48 +1,34 @@
 # Augnes
 
 Augnes is a local-first, operator-led runtime for AI-assisted project work. It
-keeps committed project state, work items, handoff context, proof-only action
-records, and Codex result reports in one local workspace so a human operator,
-ChatGPT / MCP clients, and Codex workers can coordinate without giving models
-direct authority over durable state.
+keeps project state, work items, handoff context, proof-only action records,
+and Codex result reports in one local workspace so a human operator, ChatGPT /
+MCP clients, and Codex workers can coordinate around bounded work without
+handing durable decisions to a model.
 
-## What It Can Do Today
+## What Augnes Can Do Today
 
-- Run a local Cockpit for reviewing state, work, bridge activity, Perspective
-  context, and operator controls.
-- Store accepted temporal state transitions in a local SQLite ledger behind an
+- Run a local Cockpit for reviewing committed state, active work, Perspective
+  context, bridge activity, and operator controls.
+- Keep accepted temporal state transitions in a local SQLite ledger behind an
   explicit user/runtime commit/reject gate.
-- Compile local observe, plan, and temporal-interpretation previews with
-  deterministic mock fallbacks; optional OpenAI-backed flows can be used when a
-  local `OPENAI_API_KEY` is supplied.
 - Show Work Picker, Work Brief, Work Contract Card, Core Handoff, and Full
   Handoff context for bounded work items.
-- Expose read-first ChatGPT / MCP bridge tools such as `augnes_list_work_items`
-  and `augnes_get_work_brief`.
-- Let Codex discover bounded work with `npm run codex:next-work`, use a pasted
-  Core Handoff or runtime Work Brief when available, and report what source it
-  used.
-- Let a human paste Codex results back through `codexResultText` or
+- Expose read-first ChatGPT / MCP bridge calls such as
+  `augnes_list_work_items` and `augnes_get_work_brief`.
+- Let Codex discover bounded work with `npm run codex:next-work`, use a
+  pasted Core Handoff or runtime Work Brief when available, and report whether
+  it used runtime or repo fallback context.
+- Accept manual Codex result reports through `codexResultText` or
   `codexResultPaste` for preview review.
+- Compile local observe, plan, and temporal-interpretation previews with
+  deterministic mock fallbacks; optional OpenAI-backed flows can be tested
+  when a local `OPENAI_API_KEY` is supplied.
+- Keep proof, evidence, work traces, handoffs, and result reports separate so
+  reviewers can inspect what happened without confusing review artifacts with
+  approval.
 
-## What It Does Not Do Automatically
-
-- Augnes does not let models directly mutate durable state.
-- Augnes does not automatically execute Codex.
-- Augnes does not automatically fetch, review, merge, publish, or approve
-  GitHub work.
-- Augnes does not treat proof, evidence, a PR, or a pasted Codex report as
-  approval or state authority.
-- Augnes does not automatically ingest papers, fetch or crawl sources, create
-  embeddings or retrieval indexes, run RAG/vector search, persist research
-  candidate memory, or promote perspective updates without a fresh Work
-  Brief/Core Handoff, explicit scope, authority boundaries, and verification.
-- Augnes is not a hosted production service and does not implement production
-  auth, OAuth, multi-user hosting, or deployment controls.
-
-## Use Augnes In Three Paths
-
-### 1. Human/operator local path
+## Quick Start
 
 Run the local demo:
 
@@ -61,13 +47,21 @@ http://localhost:3000
 ```
 
 Use the Cockpit to inspect Overview, Work, Perspective, Bridge, and Operator
-surfaces. Work Picker and Work Brief / Work Contract Card are for reviewing
+surfaces. Work Picker and Work Brief / Work Contract Card help a human review
 bounded work before a separate Codex session starts.
 
 `OPENAI_API_KEY` is optional for the local demo because deterministic mock
 fallbacks are included. To test OpenAI-backed observe, plan, and preview flows,
 set `OPENAI_API_KEY` in your local environment. Do not commit `.env` or
 `.env.local`.
+
+## Three Ways To Use Augnes
+
+### 1. Human/operator local path
+
+Run the local runtime, open the Cockpit, inspect current state and work, and
+decide what should become durable state. This path is the main operator view
+for local project continuity.
 
 ### 2. ChatGPT / MCP path
 
@@ -93,12 +87,9 @@ In `work_loop_readonly` mode, useful calls are:
   `{ "scope": "project:augnes", "workId": "AG-RESEARCH-CAPABILITY-LANES-001" }`
 
 This read-only profile can show Work Picker and Work Brief / Work Contract
-Card context, including Core Handoff and result-return paths. It does not
-execute Codex, create branches or PRs, call GitHub, record proof/evidence,
-commit/reject state, or widen the Developer Mode tool surface.
-
-Broader local bridge/proof workflows are documented separately and should not
-be confused with the read-only ChatGPT work-loop path.
+Card context, including Core Handoff and result-return paths.
+Broader local bridge/proof workflows are documented separately from the
+read-only ChatGPT work-loop path.
 
 ### 3. Codex worker path
 
@@ -136,44 +127,38 @@ Codex should report whether discovery came from `runtime_work_brief`,
 return it to the human for manual paste through `codexResultText` or
 `codexResultPaste`.
 
-## Result Return Path
+## Research And Perspective Development Direction
 
-Codex result return is manual and preview-only:
-
-1. Codex completes the bounded repo task.
-2. Codex writes a field-first result report using
-   `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`.
-3. The human pastes that report into `codexResultText` or
-   `codexResultPaste`.
-4. Augnes previews the returned report without treating it as proof, evidence,
-   state, work closure, approval, or merge authority.
-
-Codex must not claim a PR URL, host observation, proof/evidence row, event row,
-state decision, work close, provider call, or runtime behavior unless it
-actually happened.
-
-## Research Accumulation Status
-
-Research Accumulation is currently moving from preview-only vocabulary toward
-product-facing capability preparation. The current repo-backed research item is
-`AG-RESEARCH-CAPABILITY-LANES-001`, which points to:
+Research Accumulation is moving from preview vocabulary toward product-facing
+Research capability lanes for Perspective development. The current repo-backed
+preparation item is `AG-RESEARCH-CAPABILITY-LANES-001`, which points to:
 
 - `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
 
-The historical dogfood item `AG-DOGFOOD-RESEARCH-001` remains available for
+The next R&D focus is a review-first path for manually supplied
+source/reference/notes material: clear provenance, candidate/review records,
+retrieval non-authority rules, and human-reviewed perspective promotion. The
+historical dogfood item `AG-DOGFOOD-RESEARCH-001` remains available for
 explicit work-id lookup and points to:
 
 - `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
 - `docs/AUGNES_RESEARCH_WORK_USER_HAPPY_PATH_OBSERVATION_V0_1.md`
 - `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
 
-The preparation contract defines candidate future lanes and the first
-recommended manually supplied source/reference/notes review slice. It does not
-implement ingestion, persistence, fetching, provider calls, embeddings, RAG,
-vector search, crawling, indexing, durable research candidate memory,
-proof/evidence writes, work mutation, or automatic Codex/GitHub automation.
-These remain closed unless a future Work Brief or Core Handoff explicitly
-authorizes a bounded capability lane.
+## Result Return Path
+
+Codex result return is manual and preview-first:
+
+1. Codex completes the bounded repo task.
+2. Codex writes a field-first result report using
+   `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`.
+3. The human pastes that report into `codexResultText` or
+   `codexResultPaste`.
+4. Augnes previews the returned report for review.
+
+Codex should not claim a PR URL, host observation, proof/evidence row, event
+row, state decision, work close, provider call, or runtime behavior unless it
+actually happened.
 
 ## Screenshots
 
@@ -192,19 +177,15 @@ authorizes a bounded capability lane.
 More screenshots and supporting proof captures are listed in
 `screenshots/README.md`.
 
-## Read Next
+## Unsupported / Not Yet Supported
 
-- `docs/AUGNES_START_HERE_FOR_USERS_AND_AI.md`
-- `AGENTS.md`
-- `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
-- `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
-- `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
-- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
-- `docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md`
-- `docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md`
-- `docs/AUTHORITY_MATRIX.md`
-- `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`
-- `docs/00_INDEX_LATEST.md`
+- Augnes is local-first, not a hosted production service.
+- External publishing, merging, deployment, and irreversible actions remain
+  operator-controlled.
+- Research fetching, retrieval, durable research memory, and perspective
+  promotion are active development lanes, not automatic default behavior.
+- Proof, evidence, PRs, and pasted Codex reports are review artifacts, not
+  approval authority.
 
 ## Security And Boundaries
 
@@ -215,3 +196,14 @@ More screenshots and supporting proof captures are listed in
 - Work IDs are trace anchors, not state authority.
 - Action records are execution proof, not approval.
 - PRs are review artifacts, not merge authority.
+
+## Read Next
+
+- `docs/AUGNES_START_HERE_FOR_USERS_AND_AI.md`
+- `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
+- `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
+- `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
+- `docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md`
+- `docs/AUTHORITY_MATRIX.md`
+- `AGENTS.md`
+- `docs/00_INDEX_LATEST.md`

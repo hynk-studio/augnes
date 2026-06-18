@@ -39,6 +39,9 @@ console.log(
     {
       smoke: "readme-user-ai-front-door-v0-1",
       readme_human_operator_chatgpt_mcp_codex_paths_checked: true,
+      readme_product_forward_structure_checked: true,
+      readme_unsupported_section_lower_and_compact: true,
+      readme_research_direction_checked: true,
       readme_codex_next_work_reference_checked: true,
       readme_codex_result_text_paste_reference_checked: true,
       readme_result_report_template_reference_checked: true,
@@ -61,12 +64,18 @@ function assertReadme() {
     "# Augnes",
     "local-first",
     "operator-led",
-    "## What It Can Do Today",
-    "## What It Does Not Do Automatically",
-    "## Use Augnes In Three Paths",
+    "## What Augnes Can Do Today",
+    "## Quick Start",
+    "## Three Ways To Use Augnes",
     "### 1. Human/operator local path",
     "### 2. ChatGPT / MCP path",
     "### 3. Codex worker path",
+    "## Research And Perspective Development Direction",
+    "## Result Return Path",
+    "## Screenshots",
+    "## Unsupported / Not Yet Supported",
+    "## Security And Boundaries",
+    "## Read Next",
     "AUGNES_APP_TOOL_SURFACE=work_loop_readonly",
     "In `work_loop_readonly` mode, useful calls are:",
     "Broader local bridge/proof workflows are documented separately",
@@ -80,17 +89,20 @@ function assertReadme() {
     "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md",
     "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
     "docs/AUGNES_LIVE_RESEARCH_WORK_PICKER_BRIEF_OBSERVATION_V0_1.md",
-    "does not automatically execute Codex",
-    "does not automatically fetch, review, merge, publish, or approve",
-    "does not automatically ingest papers",
-    "Brief/Core Handoff",
-    "current repo-backed research item is",
+    "current repo-backed",
     "AG-RESEARCH-CAPABILITY-LANES-001",
     "historical dogfood item",
+    "The next R&D focus is a review-first path",
+    "manually supplied",
+    "candidate/review records",
     "not a hosted production service",
+    "External publishing, merging, deployment, and irreversible actions remain",
+    "Proof, evidence, PRs, and pasted Codex reports are review artifacts",
   ]) {
     assertIncludes(readme, requiredText, `README must include ${requiredText}`);
   }
+
+  assertProductForwardReadmeShape();
 
   for (const forbiddenClaim of [
     /\bresearch ingestion is implemented\b/i,
@@ -102,9 +114,63 @@ function assertReadme() {
     /\bautomatically reviews GitHub\b/i,
     /\bautomatically merges\b/i,
     /\bautomatically publishes\b/i,
+    /^## What It Does Not Do Automatically$/m,
   ]) {
     assert.doesNotMatch(readme, forbiddenClaim, `README must not claim ${forbiddenClaim}`);
   }
+}
+
+function assertProductForwardReadmeShape() {
+  const capabilityIndex = headingIndex(readme, "## What Augnes Can Do Today");
+  const quickStartIndex = headingIndex(readme, "## Quick Start");
+  const threePathsIndex = headingIndex(readme, "## Three Ways To Use Augnes");
+  const researchIndex = headingIndex(readme, "## Research And Perspective Development Direction");
+  const resultIndex = headingIndex(readme, "## Result Return Path");
+  const screenshotsIndex = headingIndex(readme, "## Screenshots");
+  const unsupportedIndex = headingIndex(readme, "## Unsupported / Not Yet Supported");
+  const securityIndex = headingIndex(readme, "## Security And Boundaries");
+  const readNextIndex = headingIndex(readme, "## Read Next");
+
+  assert.ok(capabilityIndex < quickStartIndex, "README must lead with capability before quick start");
+  assert.ok(quickStartIndex < threePathsIndex, "README must put quick start before usage paths");
+  assert.ok(threePathsIndex < researchIndex, "README must preserve usage paths before research direction");
+  assert.ok(researchIndex < resultIndex, "README must put research direction before result return");
+  assert.ok(resultIndex < screenshotsIndex, "README must put screenshots after result return");
+  assert.ok(screenshotsIndex < unsupportedIndex, "unsupported section must be lower than screenshots");
+  assert.ok(unsupportedIndex < securityIndex, "security boundaries must follow unsupported section");
+  assert.ok(securityIndex < readNextIndex, "read next must close the README");
+
+  const capabilitySection = sectionAfter(readme, "## What Augnes Can Do Today");
+  assert.match(capabilitySection, /Cockpit/, "capability section must name Cockpit");
+  assert.match(capabilitySection, /Work Picker/, "capability section must name Work Picker");
+  assert.match(capabilitySection, /Codex/, "capability section must name Codex");
+  assert.match(capabilitySection, /codexResultText/, "capability section must name result return");
+
+  const unsupportedSection = sectionAfter(readme, "## Unsupported / Not Yet Supported");
+  const unsupportedBullets = unsupportedSection
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("- "));
+  assert.ok(unsupportedBullets.length > 0, "unsupported section must have bullets");
+  assert.ok(unsupportedBullets.length <= 5, "unsupported section must stay compact");
+  assert.ok(
+    unsupportedSection.length < 900,
+    "unsupported section must stay compact instead of becoming a large warning block",
+  );
+
+  const researchSection = sectionAfter(readme, "## Research And Perspective Development Direction");
+  assert.match(researchSection, /Research capability lanes/, "research section must describe current direction");
+  assert.match(researchSection, /next R&D focus/, "research section must describe next R&D focus");
+  assert.match(researchSection, /review-first path/, "research section must emphasize review-first direction");
+  assert.doesNotMatch(
+    researchSection,
+    /ingestion, persistence, fetching, provider calls, embeddings, RAG,\s+vector search, crawling, indexing/s,
+    "research section must not repeat the old long prohibition list",
+  );
+  assert.doesNotMatch(
+    researchSection,
+    /\bdoes not implement\b/i,
+    "research section should describe direction rather than lead with non-implementation",
+  );
 }
 
 function assertAgents() {
@@ -228,6 +294,19 @@ function hasBoundaryNegation(line) {
 
 function assertIncludes(source, expected, message) {
   assert.ok(source.includes(expected), message);
+}
+
+function headingIndex(source, heading) {
+  const index = source.indexOf(`\n${heading}\n`);
+  assert.notEqual(index, -1, `README must include heading ${heading}`);
+  return index;
+}
+
+function sectionAfter(source, heading) {
+  const start = headingIndex(source, heading);
+  const rest = source.slice(start + heading.length + 2);
+  const nextHeading = rest.search(/\n## /);
+  return nextHeading === -1 ? rest : rest.slice(0, nextHeading);
 }
 
 function escapeRegExp(value) {
