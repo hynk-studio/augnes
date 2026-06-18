@@ -170,6 +170,7 @@
     "smoke:chatgpt-constellation-preview-surface": "node scripts/smoke-chatgpt-constellation-preview-surface.mjs",
     "smoke:chatgpt-work-contract-card": "node scripts/smoke-chatgpt-work-contract-card.mjs",
     "smoke:codex-worker-bootstrap-v0-1": "node scripts/smoke-codex-worker-bootstrap-v0-1.mjs",
+    "smoke:work-item-manifest-v0-1": "node scripts/smoke-work-item-manifest-v0-1.mjs",
     "smoke:core-handoff-current-task-compact-section": "node scripts/smoke-core-handoff-current-task-compact-section.mjs",
     "smoke:core-handoff-current-task-dogfood-observation-v0-1": "node scripts/smoke-core-handoff-current-task-dogfood-observation-v0-1.mjs",
     "smoke:core-handoff-current-task-usage-status-dogfood-observation-v0-1": "node scripts/smoke-core-handoff-current-task-usage-status-dogfood-observation-v0-1.mjs",

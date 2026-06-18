@@ -10,7 +10,8 @@ const JSON_BEGIN = "BEGIN_AUGNES_CODEX_NEXT_WORK_JSON";
 const JSON_END = "END_AUGNES_CODEX_NEXT_WORK_JSON";
 
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const seedPath = path.join(rootDir, "scripts", "demo-seed.mjs");
+const workItemManifestRelativePath = "fixtures/work-items.project-augnes.v0.json";
+const workItemManifestPath = path.join(rootDir, ...workItemManifestRelativePath.split("/"));
 const resultReportTemplatePath = "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md";
 
 const defaultStopConditions = [
@@ -108,9 +109,9 @@ export async function buildBootstrapResult(options = {}) {
     apiBaseUrl: options.apiBaseUrl || process.env.AUGNES_API_BASE_URL?.trim() || null,
   };
 
-  const seedSource = fs.readFileSync(seedPath, "utf8");
-  const selectedWorkId = selectWorkId(parsed, seedSource);
-  const fallbackWork = readSeededWorkItem(seedSource, selectedWorkId);
+  const workItems = readManifestWorkItems();
+  const selectedWorkId = selectWorkId(parsed, workItems);
+  const fallbackWork = readManifestWorkItem(workItems, selectedWorkId);
   const runtimeDecision = resolveRuntimeDecision(parsed);
 
   if (runtimeDecision.attempted) {
@@ -170,23 +171,21 @@ function trimTrailingSlash(value) {
   return value.trim().replace(/\/+$/, "");
 }
 
-function selectWorkId(parsed, seedSource) {
+function selectWorkId(parsed, workItems) {
   if (parsed.workId) return parsed.workId;
   if (parsed.preferResearch) return CURRENT_RESEARCH_WORK_ID;
 
-  for (const workId of readSeededWorkIds(seedSource)) {
-    const work = readSeededWorkItem(seedSource, workId);
-    if (work && !isCompletedWorkStatus(work.status)) {
-      return workId;
+  for (const work of workItems) {
+    if (!isCompletedWorkStatus(work.status)) {
+      return work.work_id;
     }
   }
 
-  if (findSeededWorkBlock(seedSource, DEFAULT_WORK_ID)) {
+  if (readManifestWorkItem(workItems, DEFAULT_WORK_ID)) {
     return DEFAULT_WORK_ID;
   }
 
-  const firstWorkId = readSeededWorkIds(seedSource)[0];
-  return firstWorkId ?? null;
+  return workItems[0]?.work_id ?? null;
 }
 
 function resolveRuntimeDecision(parsed) {
@@ -312,16 +311,20 @@ function buildFallbackResult({
     };
   }
 
-  const authorityExpectations = fallbackWork.authority_boundary_expectations;
-  const docs = fallbackWork.docs;
-  const expectedFiles = fallbackWork.expected_files;
-  const expectedChecks = fallbackWork.expected_checks;
-  const implementationAnchors = fallbackWork.implementation_anchors;
+  const authorityExpectations = fallbackWork.links.authority_boundary_expectations;
+  const docs = fallbackWork.links.docs;
+  const expectedFiles = fallbackWork.links.expected_files;
+  const expectedChecks = fallbackWork.links.expected_checks;
+  const implementationAnchors = fallbackWork.links.implementation_anchors;
+  const codexFallbackSources = fallbackWork.codex_fallback_sources;
   const isCurrentResearchWork = fallbackWork.work_id === CURRENT_RESEARCH_WORK_ID;
   const isHistoricalResearchDogfoodWork = fallbackWork.work_id === HISTORICAL_RESEARCH_DOGFOOD_WORK_ID;
   const fallbackDocs = isHistoricalResearchDogfoodWork
     ? ["docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md", ...docs]
     : docs;
+  const fallbackSources = codexFallbackSources.length
+    ? codexFallbackSources
+    : [...fallbackDocs, ...implementationAnchors];
 
   return {
     source: "repo_seed_fallback",
@@ -348,7 +351,7 @@ function buildFallbackResult({
       isCurrentResearchWork,
       isHistoricalResearchDogfoodWork,
     }),
-    repo_fallback_sources: uniqueStrings([seedPathRelative(), ...fallbackDocs, ...implementationAnchors]),
+    repo_fallback_sources: uniqueStrings([workItemManifestPathRelative(), ...fallbackSources]),
   };
 }
 
@@ -364,100 +367,49 @@ function buildFallbackNextAction({ isCurrentResearchWork, isHistoricalResearchDo
   return "Use the selected seeded work item only as deterministic fallback context when runtime is unavailable; stop if implementation scope is not bounded by repo-backed expected files/checks.";
 }
 
-function readSeededWorkItem(seedSource, workId) {
-  if (!workId) return null;
+function readManifestWorkItems() {
+  const manifest = JSON.parse(fs.readFileSync(workItemManifestPath, "utf8"));
+  if (!Array.isArray(manifest.work_items)) {
+    throw new Error("CODEX_NEXT_WORK_MANIFEST_INVALID");
+  }
 
-  const block = findSeededWorkBlock(seedSource, workId);
-  if (!block) return null;
-
-  return {
-    work_id: workId,
-    title: readStringProperty(block, "title"),
-    status: readStringProperty(block, "status"),
-    priority: readStringProperty(block, "priority"),
-    summary: readStringProperty(block, "summary"),
-    next_action: readStringProperty(block, "nextAction"),
-    docs: readArrayProperty(block, "docs"),
-    expected_files: readArrayProperty(block, "expected_files"),
-    expected_checks: readArrayProperty(block, "expected_checks"),
-    implementation_anchors: readArrayProperty(block, "implementation_anchors"),
-    authority_boundary_expectations: readArrayProperty(block, "authority_boundary_expectations"),
-  };
+  return manifest.work_items.map(normalizeManifestWorkItem);
 }
 
-function readSeededWorkIds(seedSource) {
-  const workIds = [...seedSource.matchAll(/workId:\s*"([^"]+)"/g)].map((match) => match[1]);
-  return uniqueStrings(workIds);
+function readManifestWorkItem(workItems, workId) {
+  if (!workId) return null;
+
+  return workItems.find((item) => item.work_id === workId) ?? null;
 }
 
 function isCompletedWorkStatus(status) {
   return ["completed", "done", "closed", "cancelled", "canceled"].includes(status);
 }
 
-function findSeededWorkBlock(seedSource, workId) {
-  const marker = `workId: "${workId}"`;
-  const markerIndex = seedSource.indexOf(marker);
-  if (markerIndex === -1) return null;
-
-  const openIndex = seedSource.lastIndexOf("{", markerIndex);
-  if (openIndex === -1) return null;
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let index = openIndex; index < seedSource.length; index += 1) {
-    const char = seedSource[index];
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return seedSource.slice(openIndex, index + 1);
-      }
-    }
-  }
-
-  return null;
-}
-
-function readStringProperty(block, property) {
-  const match = block.match(new RegExp(`${escapeRegExp(property)}:\\s*"([^"]*)"`, "m"));
-  if (match) return match[1];
-
-  const multiline = block.match(new RegExp(`${escapeRegExp(property)}:\\s*\\n\\s*"([\\s\\S]*?)"`, "m"));
-  return multiline?.[1] ?? "";
-}
-
-function readArrayProperty(block, property) {
-  const match = block.match(new RegExp(`${escapeRegExp(property)}:\\s*\\[([\\s\\S]*?)\\]`, "m"));
-  if (!match) return [];
-
-  return [...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]);
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function normalizeManifestWorkItem(item) {
+  const links = objectFromUnknown(item.links);
+  return {
+    work_id: stringFromUnknown(item.work_id),
+    scope: stringFromUnknown(item.scope) || DEFAULT_SCOPE,
+    title: stringFromUnknown(item.title),
+    status: stringFromUnknown(item.status),
+    priority: stringFromUnknown(item.priority),
+    summary: stringFromUnknown(item.summary),
+    next_action: stringFromUnknown(item.next_action),
+    user_attention_required: item.user_attention_required === true || item.user_attention_required === 1,
+    related_state_keys: readStringsFromUnknown(item.related_state_keys),
+    links: {
+      ...links,
+      docs: readStringsFromUnknown(links.docs),
+      expected_files: readStringsFromUnknown(links.expected_files),
+      expected_checks: readStringsFromUnknown(links.expected_checks),
+      implementation_anchors: readStringsFromUnknown(links.implementation_anchors),
+      authority_boundary_expectations: readStringsFromUnknown(links.authority_boundary_expectations),
+    },
+    codex_fallback_sources: readStringsFromUnknown(item.codex_fallback_sources),
+    created_at: stringFromUnknown(item.created_at),
+    updated_at: stringFromUnknown(item.updated_at),
+  };
 }
 
 function objectFromUnknown(value) {
@@ -476,8 +428,8 @@ function uniqueStrings(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
-function seedPathRelative() {
-  return "scripts/demo-seed.mjs";
+function workItemManifestPathRelative() {
+  return workItemManifestRelativePath;
 }
 
 async function main() {

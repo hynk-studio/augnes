@@ -2,22 +2,24 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 
 const docPath = "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md";
+const manifestPath = "fixtures/work-items.project-augnes.v0.json";
 const demoSeedPath = "scripts/demo-seed.mjs";
 const runbookPath = "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md";
 const packagePath = "package.json";
 const workId = "AG-RESEARCH-CAPABILITY-LANES-001";
 const historicalDogfoodWorkId = "AG-DOGFOOD-RESEARCH-001";
 
-for (const filePath of [docPath, demoSeedPath, runbookPath, packagePath]) {
+for (const filePath of [docPath, manifestPath, demoSeedPath, runbookPath, packagePath]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 
 const doc = readFileSync(docPath, "utf8");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const demoSeed = readFileSync(demoSeedPath, "utf8");
 const runbook = readFileSync(runbookPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
-const workItemBlock = extractObjectContainingMarker(demoSeed, `workId: "${workId}"`);
-const dogfoodWorkItemBlock = extractObjectContainingMarker(demoSeed, `workId: "${historicalDogfoodWorkId}"`);
+const workItemBlock = JSON.stringify(manifestWorkItem(workId), null, 2);
+const dogfoodWorkItemBlock = JSON.stringify(manifestWorkItem(historicalDogfoodWorkId), null, 2);
 
 const expectedFiles = [
   "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md",
@@ -133,10 +135,11 @@ function assertDocShape() {
 }
 
 function assertSeedWorkItem() {
-  assert.match(workItemBlock, new RegExp(`workId:\\s*"${escapeRegExp(workId)}"`), "seed must include active work item");
-  assert.match(workItemBlock, /status:\s*"in_progress"/, "active work item must be in progress");
-  assert.match(workItemBlock, /priority:\s*"normal"/, "active work item must not displace priority-now work");
+  assert.match(workItemBlock, new RegExp(`"work_id":\\s*"${escapeRegExp(workId)}"`), "manifest must include active work item");
+  assert.match(workItemBlock, /"status":\s*"in_progress"/, "active work item must be in progress");
+  assert.match(workItemBlock, /"priority":\s*"normal"/, "active work item must not displace priority-now work");
   assert.match(workItemBlock, /Research capability lane plan/, "active work item must describe capability lane planning");
+  assert.match(demoSeed, /work-items\.project-augnes\.v0\.json/, "demo seed must load manifest work items");
 
   for (const stateKey of [
     "research.capability_lanes",
@@ -173,7 +176,7 @@ function assertSeedWorkItem() {
     assert.match(workItemBlock, new RegExp(escapeRegExp(phrase)), `seed must include boundary ${phrase}`);
   }
 
-  assert.match(dogfoodWorkItemBlock, /status:\s*"completed"/, "dogfood work item must be historical/completed");
+  assert.match(dogfoodWorkItemBlock, /"status":\s*"completed"/, "dogfood work item must be historical/completed");
 }
 
 function assertRunbookPointer() {
@@ -233,21 +236,10 @@ function assertNoForbiddenImplementationPatterns(source) {
   }
 }
 
-function extractObjectContainingMarker(source, marker) {
-  const markerIndex = source.indexOf(marker);
-  assert.notEqual(markerIndex, -1, `${marker} must exist`);
-  const objectStart = source.lastIndexOf("{", markerIndex);
-  assert.notEqual(objectStart, -1, `${marker} must be inside an object`);
-  let depth = 0;
-  for (let index = objectStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) return source.slice(objectStart, index + 1);
-    }
-  }
-  throw new Error(`${marker} object did not terminate`);
+function manifestWorkItem(targetWorkId) {
+  const item = manifest.work_items.find((candidate) => candidate.work_id === targetWorkId);
+  assert.ok(item, `${targetWorkId} must exist in manifest`);
+  return item;
 }
 
 function runbookPointer(source) {

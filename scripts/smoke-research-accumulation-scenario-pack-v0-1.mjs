@@ -5,6 +5,7 @@ const docPath = "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md";
 const sourceScenarioPath = "docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md";
 const sourceObservationPath =
   "docs/AUGNES_CORE_HANDOFF_CURRENT_TASK_USAGE_STATUS_DOGFOOD_OBSERVATION_V0_1.md";
+const manifestPath = "fixtures/work-items.project-augnes.v0.json";
 const demoSeedPath = "scripts/demo-seed.mjs";
 const runbookPath = "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md";
 const packagePath = "package.json";
@@ -13,6 +14,7 @@ for (const filePath of [
   docPath,
   sourceScenarioPath,
   sourceObservationPath,
+  manifestPath,
   demoSeedPath,
   runbookPath,
   packagePath,
@@ -23,10 +25,11 @@ for (const filePath of [
 const doc = readFileSync(docPath, "utf8");
 const sourceScenario = readFileSync(sourceScenarioPath, "utf8");
 const sourceObservation = readFileSync(sourceObservationPath, "utf8");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const demoSeed = readFileSync(demoSeedPath, "utf8");
 const runbook = readFileSync(runbookPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
-const workItemBlock = extractObjectContainingMarker(demoSeed, 'workId: "AG-DOGFOOD-RESEARCH-001"');
+const workItemBlock = JSON.stringify(manifestWorkItem("AG-DOGFOOD-RESEARCH-001"), null, 2);
 
 const expectedFiles = [
   "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
@@ -215,9 +218,10 @@ function assertDocShape() {
 function assertSourceWorkRouting() {
   assert.match(sourceScenario, /\bAG-DOGFOOD-RESEARCH-001\b/, "source scenario must name the work item");
   assert.match(sourceObservation, /Selected next PR candidate:\s+Add preview-only Research Accumulation Scenario Pack\s+doc\/smoke\./);
-  assert.match(workItemBlock, /workId:\s*"AG-DOGFOOD-RESEARCH-001"/, "seed must include the work item");
-  assert.match(workItemBlock, /status:\s*"completed"/, "seeded dogfood work item must be preserved as historical/completed");
-  assert.match(workItemBlock, /priority:\s*"normal"/, "seeded dogfood work item must not displace priority-now work");
+  assert.match(workItemBlock, /"work_id":\s*"AG-DOGFOOD-RESEARCH-001"/, "manifest must include the work item");
+  assert.match(workItemBlock, /"status":\s*"completed"/, "seeded dogfood work item must be preserved as historical/completed");
+  assert.match(workItemBlock, /"priority":\s*"normal"/, "seeded dogfood work item must not displace priority-now work");
+  assert.match(demoSeed, /work-items\.project-augnes\.v0\.json/, "demo seed must load manifest work items");
 
   for (const expectedFile of expectedFiles) {
     assert.match(workItemBlock, new RegExp(escapeRegExp(expectedFile)), `seed must include ${expectedFile}`);
@@ -280,21 +284,10 @@ function assertNoForbiddenImplementationPatterns(source) {
   }
 }
 
-function extractObjectContainingMarker(source, marker) {
-  const markerIndex = source.indexOf(marker);
-  assert.notEqual(markerIndex, -1, `${marker} must exist`);
-  const objectStart = source.lastIndexOf("{", markerIndex);
-  assert.notEqual(objectStart, -1, `${marker} must be inside an object`);
-  let depth = 0;
-  for (let index = objectStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) return source.slice(objectStart, index + 1);
-    }
-  }
-  throw new Error(`${marker} object did not terminate`);
+function manifestWorkItem(workId) {
+  const item = manifest.work_items.find((candidate) => candidate.work_id === workId);
+  assert.ok(item, `${workId} must exist in manifest`);
+  return item;
 }
 
 function runbookPointer(source) {

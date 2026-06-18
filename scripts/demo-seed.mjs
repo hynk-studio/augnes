@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { encodeValue, initializeDatabase } from "./db-common.mjs";
 
 const scope = "project:augnes";
@@ -5,6 +6,7 @@ const agentId = "agent:demo-runtime";
 const sessionId = "session:demo-runtime-core";
 const timestamp = "2026-05-03T00:00:00.000Z";
 const scoringVersion = "v0.2-rule-001";
+const workItemManifestUrl = new URL("../fixtures/work-items.project-augnes.v0.json", import.meta.url);
 
 const transitions = [
   {
@@ -613,259 +615,36 @@ function selectSeedScores(transition) {
   };
 }
 
+function loadWorkItemManifest() {
+  const manifest = JSON.parse(readFileSync(workItemManifestUrl, "utf8"));
+  if (!Array.isArray(manifest.work_items)) {
+    throw new Error("DEMO_SEED_WORK_ITEM_MANIFEST_INVALID");
+  }
+  return manifest;
+}
+
+function toSeedWorkItem(item) {
+  return {
+    workId: item.work_id,
+    scope: item.scope || scope,
+    title: item.title,
+    status: item.status,
+    priority: item.priority,
+    summary: item.summary,
+    nextAction: item.next_action,
+    userAttentionRequired: item.user_attention_required ? 1 : 0,
+    relatedStateKeys: encodeValue(item.related_state_keys ?? []),
+    links: encodeValue(item.links ?? {}),
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
 function seedWorkTraceSpine() {
-  const workItems = [
-    {
-      workId: "AG-006",
-      title: "Coordination event spine schema and storage",
-      status: "in_progress",
-      priority: "now",
-      summary:
-        "Add the Phase 1 event spine schema, storage helpers, and read-only API without expanding write authority.",
-      nextAction:
-        "Implement PR 1.1 and verify the append-only coordination event read path.",
-      userAttentionRequired: 0,
-      relatedStateKeys: encodeValue(["coordination.event_spine"]),
-      links: encodeValue({
-        docs: ["docs/AUGNES_COORDINATION_SPINE_ROADMAP.md"],
-        implementation_anchors: [
-          "docs/AUGNES_COORDINATION_SPINE_ROADMAP.md#pr-11-event-spine-schema-and-storage",
-          "lib/db/schema.sql#coordination_events",
-          "lib/coordination-events.ts",
-          "app/api/events/route.ts",
-          "app/api/events/[event_id]/route.ts",
-          "lib/work.ts#appendCoordinationEvent",
-          "app/api/work/[work_id]/route.ts",
-          "app/api/work/[work_id]/brief/route.ts",
-          "scripts/demo-seed.mjs#AG-006",
-          "scripts/smoke-authority-invariants.mjs#coordination_events",
-        ],
-      }),
-      createdAt: "2026-05-08T00:00:00.000Z",
-      updatedAt: "2026-05-08T00:00:00.000Z",
-    },
-    {
-      workId: "AG-004",
-      title: "Codex completion protocol",
-      status: "in_progress",
-      priority: "now",
-      summary:
-        "Add a repeatable Codex completion routine that records official action proof and links it into the relevant work trace.",
-      nextAction:
-        "Implement the helper and runbook, then record the completion against this trace anchor after PR work is complete.",
-      userAttentionRequired: 0,
-      relatedStateKeys: encodeValue([
-        "integration.chatgpt_app",
-        "implementation.stack",
-      ]),
-      links: encodeValue({
-        issue: "https://github.com/Aurna-code/augnes/issues/43",
-        issues: ["https://github.com/Aurna-code/augnes/issues/43"],
-        docs: ["apps/augnes_apps/docs/09_CODEX_COMPLETION_PROTOCOL.md"],
-      }),
-      createdAt: "2026-05-07T01:00:00.000Z",
-      updatedAt: "2026-05-07T01:00:00.000Z",
-    },
-    {
-      workId: "AG-TEMPORAL-INTERPRETATION",
-      title: "Temporal Interpretation validation and persistence preparation",
-      status: "planned",
-      priority: "normal",
-      summary:
-        "Dedicated work anchor for Temporal Interpretation validation, review artifacts, and future persistence preparation. It is not state authority, proof publication, PerspectiveSnapshot runtime, or RawEpisodeBundle runtime.",
-      nextAction:
-        "Use this seeded work anchor for future Temporal Interpretation evidence and TemporalPreviewReviewArtifact schema design.",
-      userAttentionRequired: 0,
-      relatedStateKeys: encodeValue([
-        "temporal.interpretation.preview",
-        "temporal.interpretation.validation",
-        "temporal.interpretation.persistence_design",
-      ]),
-      links: encodeValue({
-        docs: [
-          "docs/TEMPORAL_INTERPRETATION_WORK_AND_EVIDENCE_BINDING.md",
-          "docs/TEMPORAL_INTERPRETATION_PERSISTENCE_DESIGN_V0_1.md",
-          "docs/TEMPORAL_INTERPRETATION_V0_2_STATUS_AND_ROADMAP.md",
-        ],
-        evidence_target_refs: [
-          "temporal:v0.2:hardening",
-          "temporal:v0.2:route-review",
-          "temporal:v0.2:cockpit-validation",
-          "temporal:v0.2:openai-validation",
-          "temporal:persistence-design:v0.1",
-          "temporal:work-binding:v0.1",
-        ],
-        lifecycle_stage: "design/validation/persistence-prep",
-        owner_surface: "user/Core",
-      }),
-      createdAt: "2026-05-14T00:00:00.000Z",
-      updatedAt: "2026-05-14T00:00:00.000Z",
-    },
-    {
-      workId: "AG-DOGFOOD-RESEARCH-001",
-      title: "Research accumulation scenario pack for ChatGPT-Augnes-Codex dogfood",
-      status: "completed",
-      priority: "normal",
-      summary:
-        "Operator-led dogfood work item for preparing a bounded, preview-only Research / Paper / Knowledge Accumulation scenario pack that exercises the existing ChatGPT-Augnes-Codex handoff loop.",
-      nextAction:
-        "Use Core Codex Handoff to prepare the preview-only research accumulation scenario pack docs/smoke slice, then paste the Codex final report back through codexResultText or codexResultPaste for conservative result review.",
-      userAttentionRequired: 0,
-      relatedStateKeys: encodeValue([
-        "research.accumulation.preview",
-        "research.paper_knowledge_surface",
-        "integration.chatgpt_app",
-      ]),
-      links: encodeValue({
-        docs: ["docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md"],
-        expected_files: [
-          "docs/AUGNES_RESEARCH_ACCUMULATION_SCENARIO_PACK_V0_1.md",
-          "scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
-          "package.json",
-          "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md",
-        ],
-        expected_checks: [
-          "node scripts/smoke-research-accumulation-scenario-pack-v0-1.mjs",
-          "git diff --check",
-        ],
-        implementation_anchors: [
-          "docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md#codex-task-payload",
-          "docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md#sample-codex-final-report-text",
-          "docs/AUGNES_CHATGPT_CODEX_FLOW_DOGFOOD_SCENARIO_V0_1.md#expected-normalizer-outcome",
-        ],
-        authority_boundary_expectations: [
-          "preview-only dogfood scenario",
-          "no automatic research ingestion",
-          "no automatic GitHub fetch",
-          "no proof/evidence writes",
-          "no event creation/mutation",
-          "no work close/status mutation",
-          "no state commit/reject",
-          "no Codex execution from App/MCP",
-          "no shell execution from App/MCP",
-          "no provider/OpenAI calls from App/MCP",
-          "no branch/PR creation from App/MCP code",
-          "no PR review submission",
-          "no merge/publish/retry/replay/deploy controls",
-        ],
-        skipped_check_policy_expectations: [
-          "Skipped checks must include concrete unavailable surface and reason.",
-          "Combined skipped-check/caveat lines stay conservative and ambiguous lines remain human-review warnings.",
-          "Do not claim proof/evidence rows, live Work Contract Card observation, or codex:read-brief output unless actually run.",
-        ],
-      }),
-      createdAt: "2026-06-17T00:00:00.000Z",
-      updatedAt: "2026-06-17T00:00:00.000Z",
-    },
-    {
-      workId: "AG-RESEARCH-CAPABILITY-LANES-001",
-      title: "Research capability lanes preparation for Perspective development",
-      status: "in_progress",
-      priority: "normal",
-      summary:
-        "Prepare the product-facing Research capability lane plan for Augnes Perspective development, covering manual source intake, bounded operator-provided source fetching, provider-assisted extraction/summary, derived retrieval indexes, durable research candidate memory, and human-reviewed perspective promotion.",
-      nextAction:
-        "Define the bounded lane contract, expected candidate/review records, source provenance expectations, retrieval non-authority rules, and first user-facing slice without implementing fetching, provider calls, retrieval indexes, DB migrations, durable writes, or perspective promotion.",
-      userAttentionRequired: 0,
-      relatedStateKeys: encodeValue([
-        "research.capability_lanes",
-        "research.accumulation.preview",
-        "perspective.development",
-        "integration.chatgpt_app",
-      ]),
-      links: encodeValue({
-        docs: ["docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md"],
-        expected_files: [
-          "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md",
-          "scripts/smoke-research-capability-lanes-preparation-v0-1.mjs",
-          "scripts/demo-seed.mjs",
-          "scripts/codex-next-work.mjs",
-          "scripts/smoke-codex-worker-bootstrap-v0-1.mjs",
-          "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md",
-          "package.json",
-        ],
-        expected_checks: [
-          "node scripts/smoke-research-capability-lanes-preparation-v0-1.mjs",
-          "node scripts/smoke-codex-worker-bootstrap-v0-1.mjs",
-          "git diff --check",
-        ],
-        implementation_anchors: [
-          "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md#bounded-lane-contract",
-          "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md#authority-model",
-          "docs/AUGNES_RESEARCH_CAPABILITY_LANES_PREPARATION_V0_1.md#first-recommended-product-slice",
-          "scripts/codex-next-work.mjs#CURRENT_RESEARCH_WORK_ID",
-        ],
-        authority_boundary_expectations: [
-          "product-facing research capability preparation only",
-          "no source fetching",
-          "no crawler",
-          "no provider/OpenAI call",
-          "no embeddings/RAG/vector/FTS/index implementation",
-          "no DB migration",
-          "no durable research writes",
-          "no candidate/review record storage",
-          "no perspective promotion",
-          "no proof/evidence writes",
-          "no work close/status mutation outside the seed/demo fixture update",
-          "no state commit/reject",
-          "no API route changes",
-          "no App/MCP tool changes",
-          "no automatic Codex execution",
-          "no GitHub automation",
-        ],
-        skipped_check_policy_expectations: [
-          "Skipped checks must include concrete unavailable surface and reason.",
-          "Do not claim proof/evidence rows, durable research records, live Work Brief retrieval, or capability-lane execution unless actually run.",
-        ],
-      }),
-      createdAt: "2026-06-17T00:00:00.000Z",
-      updatedAt: "2026-06-17T00:00:00.000Z",
-    },
-    {
-      workId: "AG-001",
-      title: "Work Trace Spine v0 and Work Focus View",
-      status: "completed",
-      priority: "later",
-      summary:
-        "Work Trace Spine v0 and Work Focus View were implemented and merged by PR #38 without replacing Augnes state authority.",
-      nextAction:
-        "Validate ChatGPT App work tools through Developer Mode, then update README/SUBMISSION and final proof assets with Work Trace Spine evidence.",
-      userAttentionRequired: 0,
-      relatedStateKeys: encodeValue([
-        "product.name",
-        "implementation.stack",
-        "integration.chatgpt_app",
-      ]),
-      links: encodeValue({
-        issue: "https://github.com/Aurna-code/augnes/issues/37",
-        issues: ["https://github.com/Aurna-code/augnes/issues/37"],
-        prs: ["https://github.com/Aurna-code/augnes/pull/38"],
-        docs: ["docs/OPS_PLAYBOOK.md", "docs/00_INDEX_LATEST.md"],
-      }),
-      createdAt: "2026-05-07T00:00:00.000Z",
-      updatedAt: "2026-05-07T00:25:00.000Z",
-    },
-    {
-      workId: "AG-000",
-      title: "Current Work card and agent handoff",
-      status: "completed",
-      priority: "later",
-      summary:
-        "Expose project-level current status and Codex handoff from the Augnes state brief.",
-      nextAction:
-        "Use AG-001 to inspect focused work traces beside the project-level Current Work card.",
-      userAttentionRequired: 0,
-      relatedStateKeys: encodeValue(["submission.readme_checklist_created"]),
-      links: encodeValue({
-        docs: ["components/augnes-cockpit.tsx", "lib/state/brief.ts"],
-      }),
-      createdAt: "2026-05-06T00:00:00.000Z",
-      updatedAt: "2026-05-06T01:00:00.000Z",
-    },
-  ];
+  const workItems = loadWorkItemManifest().work_items.map(toSeedWorkItem);
 
   for (const item of workItems) {
-    upsertWorkItem.run({ ...item, scope });
+    upsertWorkItem.run(item);
   }
 
   const events = [

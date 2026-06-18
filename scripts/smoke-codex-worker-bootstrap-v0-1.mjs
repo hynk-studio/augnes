@@ -6,6 +6,7 @@ import { buildBootstrapResult } from "./codex-next-work.mjs";
 const rootDir = process.cwd();
 const bootstrapDocPath = "docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md";
 const helperPath = "scripts/codex-next-work.mjs";
+const manifestPath = "fixtures/work-items.project-augnes.v0.json";
 const runbookPath = "apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md";
 const packageJsonPath = "package.json";
 const currentResearchWorkId = "AG-RESEARCH-CAPABILITY-LANES-001";
@@ -13,6 +14,7 @@ const historicalDogfoodWorkId = "AG-DOGFOOD-RESEARCH-001";
 
 const bootstrapDoc = readText(bootstrapDocPath);
 const helperSource = readText(helperPath);
+const manifest = JSON.parse(readText(manifestPath));
 const runbook = readText(runbookPath);
 const packageJson = JSON.parse(readText(packageJsonPath));
 
@@ -38,6 +40,11 @@ assertIncludes(bootstrapDoc, "codexResultPaste", "bootstrap doc references codex
 assertIncludes(bootstrapDoc, "Runtime Work Brief retrieval is preferred", "runtime Work Brief preferred path is documented");
 assertIncludes(bootstrapDoc, "Repo seed/docs fallback is acceptable only when runtime is unavailable", "repo-backed fallback path is documented");
 assertIncludes(bootstrapDoc, "Fallback honesty is required", "fallback honesty is documented");
+assertIncludes(
+  bootstrapDoc,
+  manifestPath,
+  "bootstrap doc references the explicit work item manifest",
+);
 assertIncludes(
   bootstrapDoc,
   "Future research capability",
@@ -89,10 +96,16 @@ assert.equal(
   "node scripts/smoke-research-capability-lanes-preparation-v0-1.mjs",
   "package.json exposes smoke:research-capability-lanes-preparation-v0-1",
 );
+assert.equal(
+  packageJson.scripts["smoke:work-item-manifest-v0-1"],
+  "node scripts/smoke-work-item-manifest-v0-1.mjs",
+  "package.json exposes smoke:work-item-manifest-v0-1",
+);
 
 assertIncludes(helperSource, currentResearchWorkId, "bootstrap helper contains active research fallback support");
 assertIncludes(helperSource, historicalDogfoodWorkId, "bootstrap helper contains historical dogfood fallback support");
 assertIncludes(helperSource, "CURRENT_RESEARCH_WORK_ID", "bootstrap helper uses current research work constant");
+assertIncludes(helperSource, manifestPath, "bootstrap helper loads manifest fallback data");
 assertIncludes(helperSource, "repo_seed_fallback", "bootstrap helper can report repo seed fallback");
 assertIncludes(helperSource, "unscoped paper/source fetching", "bootstrap helper scopes fallback stop conditions");
 assertIncludes(helperSource, "bounded research capability lane", "bootstrap helper preserves future lane allowance");
@@ -111,6 +124,17 @@ const preferred = await buildBootstrapResult({
   runtimeMode: "never",
 });
 assertCurrentResearchFallback(preferred, "prefer-research fallback");
+assert.deepEqual(
+  manifest.work_items.map((item) => item.work_id).slice(0, 5),
+  [
+    "AG-006",
+    "AG-004",
+    "AG-TEMPORAL-INTERPRETATION",
+    "AG-DOGFOOD-RESEARCH-001",
+    currentResearchWorkId,
+  ],
+  "manifest preserves front-of-list seeded work item ordering",
+);
 
 assertNoForbiddenPatterns({
   [bootstrapDocPath]: bootstrapDoc,
@@ -136,6 +160,7 @@ console.log(
       package_smoke_script: true,
       helper_ag_dogfood_fallback_support: true,
       helper_current_research_fallback_support: true,
+      manifest_fallback_source_documented: true,
       deterministic_requested_fallback_returns_ag_dogfood: true,
       deterministic_prefer_research_returns_capability_lanes: true,
       forbidden_authority_patterns_found: false,
