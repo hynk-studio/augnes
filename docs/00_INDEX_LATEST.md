@@ -634,14 +634,26 @@ repo-local 색인이다.
 - `types/research-candidate-review.ts`: type-only, non-authoritative preview
   contract for the fixture shape. It is not a DB schema, not an API route, and
   not runtime behavior.
+- `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`: static audit
+  only, non-authoritative gate that prevents raw source titles, URLs, provider
+  IDs, raw thread/run/session IDs, arbitrary user strings, episode IDs, and
+  demo refs from becoming canonical state labels or operational tags.
+- `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`:
+  public-safe gate samples for blocked promotion targets, allowed pointer
+  uses, and allowed low-cardinality vocabulary.
 - `npm run smoke:research-candidate-review-surface-v0-1`: doc headings,
   fixture shape/counts, candidate boundaries, source grounding, package/index
   pointers, and forbidden implementation-pattern absence를 정적으로 확인한다.
 - `npm run smoke:research-candidate-review-types-v0-1`: type literals,
   fixture alignment, source ref integrity, count consistency, cross-reference
   integrity, and non-authority pointers를 정적으로 확인한다.
+- `npm run smoke:research-candidate-canonical-promotion-gates-v0-1`: gate
+  doc/fixture shape, blocked raw-string promotions, allowed pointer uses,
+  allowed low-cardinality vocabulary, type alignment, existing fixture
+  `target_perspective_key` safety, and non-authority boundaries를 정적으로
+  확인한다.
 
-Boundary 요약: candidate-only, type-only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
+Boundary 요약: candidate-only, type-only, static audit only, non-authoritative preview contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
 
 ### 최근 front-door start guide 포인터 (repo-local, non-SSOT)
 

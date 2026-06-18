@@ -314,15 +314,15 @@ function assertDocsPointers() {
   assert.doesNotMatch(nextStep, /Add a type-only contract/i, "next step must move beyond adding the type contract");
   assert.match(
     nextStep,
-    /Research candidate canonical promotion \/ Gate static audit/,
-    "next step must point to the Gate static audit",
+    /Cockpit\/Perspective static fixture preview/,
+    "next step must point to Cockpit/Perspective static fixture preview",
   );
 }
 
 function assertIndexPointers() {
   const pointerStart = index.indexOf(docPath);
   assert.notEqual(pointerStart, -1, "index must include the research candidate review pointer");
-  const pointer = index.slice(pointerStart, pointerStart + 1700);
+  const pointer = index.slice(pointerStart, pointerStart + 2400);
   assert.match(pointer, new RegExp(escapeRegExp(typePath)), "index pointer must mention the type file");
   assert.match(pointer, /smoke:research-candidate-review-types-v0-1/, "index pointer must mention the type smoke");
   assert.match(pointer, /type-only/, "index pointer must state type-only");
