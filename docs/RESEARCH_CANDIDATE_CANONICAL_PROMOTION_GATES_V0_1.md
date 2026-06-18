@@ -229,6 +229,13 @@ Target perspective summaries are read-only and non-authoritative. The packet
 adds no provider prompt execution, Codex execution, retrieval, durable memory,
 runtime/API/DB/provider/retrieval, or promotion behavior.
 
+The Formation Receipt preview preserves canonical promotion gates. Receipt IDs
+must not use raw source titles, URLs, provider IDs, raw thread/run/session
+strings, arbitrary user strings, episode IDs, or demo refs. Receipt
+contributions are read-only and non-authoritative. The receipt preview adds no
+durable receipt storage, event log, runtime/API/DB/provider/retrieval, or
+promotion behavior.
+
 ## Expected Files And Checks
 
 Expected files:
@@ -283,6 +290,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Formation Receipt preview for Research Candidate Review, recording which
-source refs, candidate nodes, typed edges, and AI context packet sections
-contributed to a read-only review artifact.
+Add Research Candidate Review v0.1 milestone closeout docs summarizing the
+candidate review surface, parser, overlay, AI context packet, and formation
+receipt preview chain before any runtime or durable storage lane.

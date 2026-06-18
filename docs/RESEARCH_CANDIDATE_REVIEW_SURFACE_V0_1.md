@@ -459,29 +459,65 @@ behavior.
 
 It is guarded by `smoke:research-candidate-review-ai-context-packet-v0-1`.
 
+## Formation Receipt Preview Pointer
+
+`types/research-candidate-formation-receipt.ts` defines the type-only receipt
+contract.
+
+`lib/research-candidate-review/formation-receipt.ts` builds a deterministic
+read-only receipt from AI context packet and Candidate Constellation Overlay
+data.
+
+`fixtures/research-candidate-review.formation-receipt.sample.v0.1.json`
+contains the original packet receipt.
+
+`fixtures/research-candidate-review.manual-note-formation-receipt.sample.v0.1.json`
+contains the manual parser packet receipt.
+
+`components/research-candidate-formation-receipt-preview.tsx` renders receipt
+diagnostics and contributions read-only.
+
+`components/augnes-cockpit.tsx` shows the Formation Receipt preview in the
+Perspective tab.
+
+This records source refs, candidate nodes, typed edges, AI context packet
+sections, and guardrails as read-only contribution data.
+
+This is not durable receipt storage, not an event log, not proof/evidence
+write, not work item creation, and not perspective promotion. It adds no
+runtime/API/DB/provider/retrieval behavior.
+
+It is guarded by `smoke:research-candidate-review-formation-receipt-v0-1`.
+
 ## Expected Files And Checks
 
 Expected files:
 
+- `components/research-candidate-formation-receipt-preview.tsx`
 - `components/research-candidate-ai-context-packet-preview.tsx`
 - `components/research-candidate-constellation-overlay-preview.tsx`
 - `components/augnes-cockpit.tsx`
 - `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`
 - `docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md`
+- `lib/research-candidate-review/formation-receipt.ts`
 - `lib/research-candidate-review/ai-context-packet.ts`
 - `lib/research-candidate-review/constellation-overlay.ts`
 - `lib/research-candidate-review/manual-note-parser.ts`
+- `types/research-candidate-formation-receipt.ts`
 - `types/research-candidate-ai-context-packet.ts`
 - `types/research-candidate-constellation-overlay.ts`
 - `types/research-candidate-review.ts`
 - `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`
+- `fixtures/research-candidate-review.formation-receipt.sample.v0.1.json`
 - `fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json`
 - `fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json`
+- `fixtures/research-candidate-review.manual-note-formation-receipt.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note.sample.v0.1.txt`
 - `fixtures/research-candidate-review.sample.v0.1.json`
+- `scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-constellation-overlay-v0-1.mjs`
@@ -495,11 +531,13 @@ Expected files:
 
 Expected checks:
 
+- `node scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-constellation-overlay-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs`
+- `npm run smoke:research-candidate-review-formation-receipt-v0-1`
 - `npm run smoke:research-candidate-review-ai-context-packet-v0-1`
 - `npm run smoke:research-candidate-review-cockpit-preview-v0-1`
 - `npm run smoke:research-candidate-review-constellation-overlay-v0-1`
@@ -554,6 +592,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Formation Receipt preview for Research Candidate Review, recording which
-source refs, candidate nodes, typed edges, and AI context packet sections
-contributed to a read-only review artifact.
+Add Research Candidate Review v0.1 milestone closeout docs summarizing the
+candidate review surface, parser, overlay, AI context packet, and formation
+receipt preview chain before any runtime or durable storage lane.

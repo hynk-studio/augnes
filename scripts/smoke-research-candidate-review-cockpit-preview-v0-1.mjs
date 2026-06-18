@@ -286,8 +286,8 @@ function assertGateDocNextStep() {
   const nextStep = extractSection(gateDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /Formation Receipt preview/i,
-    "gate doc next step must mention Formation Receipt preview",
+    /Research Candidate Review v0\.1 milestone closeout docs/i,
+    "gate doc next step must mention Research Candidate Review v0.1 milestone closeout docs",
   );
 }
 
@@ -295,21 +295,21 @@ function assertSurfaceDocNextStep() {
   const nextStep = extractSection(surfaceDoc, "## Next Recommended Step");
   assert.match(
     nextStep,
-    /Formation Receipt preview/i,
-    "surface doc next step must mention Formation Receipt preview",
+    /Research Candidate Review v0\.1 milestone closeout docs/i,
+    "surface doc next step must mention Research Candidate Review v0.1 milestone closeout docs",
   );
 }
 
 function assertExistingSmokeAlignment() {
   assert.match(
     typeSmoke,
-    /Formation Receipt preview/i,
-    "type smoke must expect the Formation Receipt preview next step",
+    /Research Candidate Review v0\.1 milestone closeout docs/i,
+    "type smoke must expect the Research Candidate Review v0.1 milestone closeout docs next step",
   );
   assert.match(
     gateSmoke,
-    /Formation Receipt preview/i,
-    "gate smoke must expect the Formation Receipt preview next step",
+    /Research Candidate Review v0\.1 milestone closeout docs/i,
+    "gate smoke must expect the Research Candidate Review v0.1 milestone closeout docs next step",
   );
 }
 
