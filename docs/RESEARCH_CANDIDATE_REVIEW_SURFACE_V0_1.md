@@ -405,20 +405,53 @@ promotion, or Codex execution. It is guarded by
 Boundary shorthand: no runtime UI input, no live parser execution, no provider
 calls, no retrieval, no DB writes, and no promotion behavior.
 
+## Candidate Constellation Overlay Pointer
+
+`types/research-candidate-constellation-overlay.ts` defines the type-only
+overlay contract.
+
+`lib/research-candidate-review/constellation-overlay.ts` builds a deterministic
+read-only overlay from Research Candidate Review preview data.
+
+`fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json`
+contains the original static fixture overlay.
+
+`fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json`
+contains the manual parser output overlay.
+
+`components/research-candidate-constellation-overlay-preview.tsx` renders
+overlay diagnostics, candidate nodes, and typed edges read-only.
+
+`components/augnes-cockpit.tsx` shows the Candidate Constellation Overlay preview
+in the Perspective tab.
+
+This is not graph DB, not layout, not embeddings, not retrieval, not
+proof/evidence, not work item creation, and not perspective promotion. It adds
+no runtime/API/DB/provider/retrieval/promotion behavior.
+
+It is guarded by
+`smoke:research-candidate-review-constellation-overlay-v0-1`.
+
 ## Expected Files And Checks
 
 Expected files:
 
+- `components/research-candidate-constellation-overlay-preview.tsx`
 - `components/augnes-cockpit.tsx`
 - `docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md`
 - `docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md`
+- `lib/research-candidate-review/constellation-overlay.ts`
 - `lib/research-candidate-review/manual-note-parser.ts`
+- `types/research-candidate-constellation-overlay.ts`
 - `types/research-candidate-review.ts`
 - `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`
+- `fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`
+- `fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json`
 - `fixtures/research-candidate-review.manual-note.sample.v0.1.txt`
 - `fixtures/research-candidate-review.sample.v0.1.json`
 - `scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
+- `scripts/smoke-research-candidate-review-constellation-overlay-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
 - `scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs`
 - `scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
@@ -430,9 +463,11 @@ Expected files:
 Expected checks:
 
 - `node scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs`
+- `node scripts/smoke-research-candidate-review-constellation-overlay-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs`
 - `npm run smoke:research-candidate-review-cockpit-preview-v0-1`
+- `npm run smoke:research-candidate-review-constellation-overlay-v0-1`
 - `npm run smoke:research-candidate-review-manual-parser-v0-1`
 - `npm run smoke:research-candidate-review-parser-output-cockpit-preview-v0-1`
 - `node scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs`
@@ -484,6 +519,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Candidate Constellation Overlay preview for Research Candidate Review
-candidates, mapping source/claim/evidence/tension/gap/delta/follow-up
-candidates to read-only candidate nodes and typed edges.
+Add Research Candidate AI Context Packet preview that compiles
+source/claim/evidence/tension/gap/delta/follow-up candidate summaries from the
+overlay into a read-only handoff packet.

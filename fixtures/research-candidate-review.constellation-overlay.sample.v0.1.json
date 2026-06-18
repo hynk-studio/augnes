@@ -1,0 +1,932 @@
+{
+  "overlay_version": "research_candidate_constellation_overlay.v0.1",
+  "scope": "project:augnes",
+  "source_kind": "research_candidate_review_fixture",
+  "source_fixture_path": "fixtures/research-candidate-review.sample.v0.1.json",
+  "source_fixture_version": "research_candidate_review.sample.v0.1",
+  "nodes": [
+    {
+      "id": "node_research_session",
+      "kind": "research_session",
+      "label": "How should manually supplied research notes become reviewable Perspective candidates without becoming durable knowledge?",
+      "summary": "Prepare a candidate-only review bundle from public-safe notes for later human review.",
+      "source_family": "research_session_preview",
+      "source_object_id": "research_session_sample_001",
+      "review_status": "candidate_only",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 1,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_source_ref_source_ref_manual_notes_001",
+      "kind": "source_reference",
+      "label": "Public-safe operator notes on review-first research candidates",
+      "summary": "Notes describe why source provenance, candidate status, and later human promotion gates should stay separate.",
+      "source_family": "source_reference_previews",
+      "source_object_id": "source_ref_manual_notes_001",
+      "review_status": "reviewed_reference_only",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 2,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_claim_candidate_001",
+      "kind": "claim_candidate",
+      "label": "claim_candidate_001",
+      "summary": "Manually supplied research material should first appear as candidate review objects before any durable Perspective change.",
+      "source_family": "claim_candidates",
+      "source_object_id": "claim_candidate_001",
+      "review_status": "needs_review",
+      "epistemic_status": "candidate_claim",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 3,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_claim_candidate_002",
+      "kind": "claim_candidate",
+      "label": "claim_candidate_002",
+      "summary": "Future provider or retrieval outputs should remain candidate inputs until a bounded human review path promotes them.",
+      "source_family": "claim_candidates",
+      "source_object_id": "claim_candidate_002",
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 4,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_evidence_candidate_001",
+      "kind": "evidence_candidate",
+      "label": "evidence_candidate_001",
+      "summary": "The notes emphasize that candidate review should precede durable Perspective mutation.",
+      "source_family": "evidence_candidates",
+      "source_object_id": "evidence_candidate_001",
+      "review_status": "needs_review",
+      "epistemic_status": "operator_note",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 5,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_evidence_candidate_002",
+      "kind": "evidence_candidate",
+      "label": "evidence_candidate_002",
+      "summary": "The notes separate future retrieval and provider lanes from this static review contract.",
+      "source_family": "evidence_candidates",
+      "source_object_id": "evidence_candidate_002",
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 6,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_tension_candidate_001",
+      "kind": "tension_candidate",
+      "label": "tension_candidate_001",
+      "summary": "A review surface is useful before storage exists, but over-specific preview fields could be mistaken for a durable schema.",
+      "source_family": "tension_candidates",
+      "source_object_id": "tension_candidate_001",
+      "review_status": "needs_review",
+      "epistemic_status": "contested",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 7,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_knowledge_gap_candidate_001",
+      "kind": "knowledge_gap_candidate",
+      "label": "knowledge_gap_candidate_001",
+      "summary": "The exact TypeScript response contract and parser behavior have not been designed yet.",
+      "source_family": "knowledge_gap_candidates",
+      "source_object_id": "knowledge_gap_candidate_001",
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "display_order": 8,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_perspective_delta_candidate_001",
+      "kind": "perspective_delta_candidate",
+      "label": "perspective_delta_candidate_001",
+      "summary": "Refine the research capability lane perspective toward review-first candidate bundles.",
+      "source_family": "perspective_delta_candidates",
+      "source_object_id": "perspective_delta_candidate_001",
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "target_perspective_key": "research.capability_lanes",
+      "display_order": 9,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_follow_up_work_candidate_001",
+      "kind": "follow_up_work_candidate",
+      "label": "Add type-only ResearchCandidateReviewPreviewResponse contract",
+      "summary": "Define a TypeScript shape for the static candidate review fixture without adding runtime routes or durable writes.",
+      "source_family": "follow_up_work_candidates",
+      "source_object_id": "follow_up_work_candidate_001",
+      "review_status": "candidate_only",
+      "source_refs": [],
+      "display_order": 10,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "node_target_perspective_research_capability_lanes",
+      "kind": "target_perspective_anchor",
+      "label": "research.capability_lanes",
+      "summary": "Read-only target perspective anchor for candidate delta preview.",
+      "source_family": "target_perspective_anchor",
+      "source_object_id": "research.capability_lanes",
+      "source_refs": [],
+      "target_perspective_key": "research.capability_lanes",
+      "display_order": 11,
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_node_research_session__session_uses_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_research_session",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "session_uses_source",
+      "label": "session uses source",
+      "source_object_id": "research_session_sample_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_claim_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_claim_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "label": "derived from source",
+      "source_object_id": "claim_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_claim_candidate_002__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_claim_candidate_002",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "label": "derived from source",
+      "source_object_id": "claim_candidate_002",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_evidence_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_evidence_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "label": "derived from source",
+      "source_object_id": "evidence_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_claim_candidate_001__claim_supported_by_evidence__node_evidence_candidate_001",
+      "source_node_id": "node_claim_candidate_001",
+      "target_node_id": "node_evidence_candidate_001",
+      "relation": "claim_supported_by_evidence",
+      "label": "supports",
+      "source_object_id": "evidence_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_evidence_candidate_002__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_evidence_candidate_002",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "label": "derived from source",
+      "source_object_id": "evidence_candidate_002",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_claim_candidate_002__claim_qualified_by_evidence__node_evidence_candidate_002",
+      "source_node_id": "node_claim_candidate_002",
+      "target_node_id": "node_evidence_candidate_002",
+      "relation": "claim_qualified_by_evidence",
+      "label": "qualifies",
+      "source_object_id": "evidence_candidate_002",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_tension_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "label": "derived from source",
+      "source_object_id": "tension_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_tension_candidate_001__tension_relates_to_claim__node_claim_candidate_001",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_claim_candidate_001",
+      "relation": "tension_relates_to_claim",
+      "label": "tension relates to claim",
+      "source_object_id": "tension_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_tension_candidate_001__tension_relates_to_claim__node_claim_candidate_002",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_claim_candidate_002",
+      "relation": "tension_relates_to_claim",
+      "label": "tension relates to claim",
+      "source_object_id": "tension_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_tension_candidate_001__tension_relates_to_evidence__node_evidence_candidate_001",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_evidence_candidate_001",
+      "relation": "tension_relates_to_evidence",
+      "label": "tension relates to evidence",
+      "source_object_id": "tension_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_tension_candidate_001__tension_relates_to_evidence__node_evidence_candidate_002",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_evidence_candidate_002",
+      "relation": "tension_relates_to_evidence",
+      "label": "tension relates to evidence",
+      "source_object_id": "tension_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_knowledge_gap_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_knowledge_gap_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "label": "derived from source",
+      "source_object_id": "knowledge_gap_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_knowledge_gap_candidate_001__gap_relates_to_claim__node_claim_candidate_001",
+      "source_node_id": "node_knowledge_gap_candidate_001",
+      "target_node_id": "node_claim_candidate_001",
+      "relation": "gap_relates_to_claim",
+      "label": "gap relates to claim",
+      "source_object_id": "knowledge_gap_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_knowledge_gap_candidate_001__gap_relates_to_tension__node_tension_candidate_001",
+      "source_node_id": "node_knowledge_gap_candidate_001",
+      "target_node_id": "node_tension_candidate_001",
+      "relation": "gap_relates_to_tension",
+      "label": "gap relates to tension",
+      "source_object_id": "knowledge_gap_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "label": "derived from source",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__delta_proposes_change_to_perspective__node_target_perspective_research_capability_lanes",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_target_perspective_research_capability_lanes",
+      "relation": "delta_proposes_change_to_perspective",
+      "label": "delta proposes change to perspective",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__delta_uses_claim_basis__node_claim_candidate_001",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_claim_candidate_001",
+      "relation": "delta_uses_claim_basis",
+      "label": "delta uses claim basis",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__delta_uses_claim_basis__node_claim_candidate_002",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_claim_candidate_002",
+      "relation": "delta_uses_claim_basis",
+      "label": "delta uses claim basis",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__delta_uses_evidence_basis__node_evidence_candidate_001",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_evidence_candidate_001",
+      "relation": "delta_uses_evidence_basis",
+      "label": "delta uses evidence basis",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__delta_uses_evidence_basis__node_evidence_candidate_002",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_evidence_candidate_002",
+      "relation": "delta_uses_evidence_basis",
+      "label": "delta uses evidence basis",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__delta_preserves_tension__node_tension_candidate_001",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_tension_candidate_001",
+      "relation": "delta_preserves_tension",
+      "label": "delta preserves tension",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_perspective_delta_candidate_001__delta_tracks_gap__node_knowledge_gap_candidate_001",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_knowledge_gap_candidate_001",
+      "relation": "delta_tracks_gap",
+      "label": "delta tracks gap",
+      "source_object_id": "perspective_delta_candidate_001",
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_notes_001"
+        }
+      ],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    },
+    {
+      "id": "edge_node_follow_up_work_candidate_001__follow_up_derived_from_session__node_research_session",
+      "source_node_id": "node_follow_up_work_candidate_001",
+      "target_node_id": "node_research_session",
+      "relation": "follow_up_derived_from_session",
+      "label": "follow-up derived from session",
+      "source_object_id": "follow_up_work_candidate_001",
+      "source_refs": [],
+      "authority": {
+        "read_only": true,
+        "candidate_only": true,
+        "source_of_truth": false,
+        "creates_evidence": false,
+        "creates_proof": false,
+        "commits_state": false,
+        "promotes_perspective": false,
+        "creates_work_item": false,
+        "mutates_runtime": false,
+        "executes_agents": false
+      }
+    }
+  ],
+  "diagnostics": {
+    "node_count": 11,
+    "edge_count": 24,
+    "source_reference_node_count": 1,
+    "claim_node_count": 2,
+    "evidence_node_count": 2,
+    "tension_node_count": 1,
+    "knowledge_gap_node_count": 1,
+    "perspective_delta_node_count": 1,
+    "follow_up_work_node_count": 1,
+    "target_perspective_anchor_count": 1,
+    "unresolved_tension_count": 1,
+    "promotion_ready_count": 0,
+    "blocked_or_not_ready_delta_count": 1,
+    "source_ref_coverage_ratio": 1
+  },
+  "authority": {
+    "read_only": true,
+    "candidate_only": true,
+    "source_of_truth": false,
+    "creates_evidence": false,
+    "creates_proof": false,
+    "commits_state": false,
+    "promotes_perspective": false,
+    "creates_work_item": false,
+    "mutates_runtime": false,
+    "executes_agents": false
+  }
+}

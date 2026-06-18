@@ -331,16 +331,16 @@ function assertDocsPointers() {
     "gate doc must preserve no runtime/API/DB/provider/retrieval/promotion boundary",
   );
 
-  const expectedNextStep = /Candidate Constellation Overlay preview/i;
+  const expectedNextStep = /Research Candidate AI Context Packet preview/i;
   assert.match(
     extractSection(surfaceDoc, "## Next Recommended Step"),
     expectedNextStep,
-    "surface doc next step must point to Candidate Constellation Overlay preview",
+    "surface doc next step must point to Research Candidate AI Context Packet preview",
   );
   assert.match(
     extractSection(gateDoc, "## Next Recommended Step"),
     expectedNextStep,
-    "gate doc next step must point to Candidate Constellation Overlay preview",
+    "gate doc next step must point to Research Candidate AI Context Packet preview",
   );
 }
 
@@ -352,8 +352,8 @@ function assertExistingSmokeAlignment() {
   ]) {
     assert.match(
       source,
-      /Candidate Constellation Overlay preview/i,
-      `${label} must expect the Candidate Constellation Overlay preview next step`,
+      /Research Candidate AI Context Packet preview/i,
+      `${label} must expect the Research Candidate AI Context Packet preview next step`,
     );
   }
 }
