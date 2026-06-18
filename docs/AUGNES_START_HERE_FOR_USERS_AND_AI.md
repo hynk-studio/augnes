@@ -113,6 +113,9 @@ Card context, including Core Handoff and result-return paths. It does not
 execute Codex, create branches or PRs, call GitHub, record proof/evidence,
 commit/reject state, or widen the Developer Mode tool surface.
 
+Default App/MCP cards now use compact capability summaries. Detailed boundary
+text stays available in diagnostics/debug fields and Authority Matrix refs.
+
 Broader local bridge/proof workflows are documented separately and should not
 be confused with the read-only ChatGPT work-loop path.
 

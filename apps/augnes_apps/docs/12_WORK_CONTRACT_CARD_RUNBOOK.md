@@ -840,6 +840,11 @@ No new bridge write tool is added. No new API route, database schema, MCP
 configuration, hook, plugin behavior, dependency, secret handling, or external
 service call is added for this card.
 
+Default Work Picker, Work Contract, handoff, result-review, paste-normalizer,
+closure, and execution-request sections use compact capability summaries.
+Detailed boundary text remains available in diagnostics/debug fields and
+Authority Matrix references.
+
 ## Card Fields
 
 When available, the card displays:

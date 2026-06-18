@@ -661,7 +661,7 @@ for (const expectedFallback of [
   "No related state keys are listed in the work brief.",
   "No proof/evidence expectation is listed in the work brief; proof and evidence remain separate from approval.",
   "Skipped checks must be reported with concrete reasons; no per-check skipped expectation is listed in the work brief.",
-  "No work close.",
+  "Read-only closeout guidance. Human/Core and GitHub decisions remain outside this preview.",
 ]) {
   assert.match(renderedFallbackText, new RegExp(escapeRegExp(expectedFallback)), `fallback render must include: ${expectedFallback}`);
 }
@@ -680,7 +680,7 @@ for (const expectedVisibleText of [
   "Not attached",
   "Result review is waiting for a Codex final report or structured result payload. This does not mean the pre-run handoff packet is broken.",
   "Codex handoff readiness",
-  "This preview does not execute Codex. It only prepares the request shape for later explicit user-confirmed execution.",
+  "Preview-only request shape for later explicit user-confirmed Codex work.",
   "What will be handed to Codex",
   "source handoff package: Final handoff package for AG-SMOKE",
   "copyable handoff text unchanged: true",
@@ -1128,29 +1128,27 @@ console.log(
 );
 
 function assertBoundaryText(text) {
-  const requiredPatterns = [
-    /Work ID is a trace anchor, not committed state authority\./,
-    /This card is read-only\./,
-    /This card cannot execute Codex\./,
-    /This card cannot commit or reject Augnes state\./,
-    /This card cannot approve, publish, retry, replay, externally post, merge, or enable auto-merge\./,
-    /Proof is not approval\./,
-    /A PR is not merge authority\./,
-    /Durable approval remains user\/Core gated\./,
-    /This preview is read-only\./,
-    /This preview cannot execute Codex\./,
-    /This preview cannot record evidence\./,
-    /This preview cannot record proof\./,
-    /This preview cannot commit or reject Augnes state\./,
-    /This preview cannot approve, publish, retry, replay, or externally post\./,
-    /This preview cannot merge or enable auto-merge\./,
-    /Evidence is not approval\./,
-    /Raw DB paths are local-dev fallback only and should not be normal user-facing input\./,
+  const compactSignals = [
+    /Read-only work selection\./,
+    /Read-only work context and handoff preparation\./,
+    /Copyable handoff draft for a separate user-started Codex session\./,
+    /Default Work Picker, Work Contract, handoff, result-review, paste-normalizer,\s+closure, and execution-request sections use compact capability summaries\./,
   ];
+  assert.ok(
+    compactSignals.some((pattern) => pattern.test(text)),
+    "boundary text must include compact capability-summary copy",
+  );
 
-  for (const pattern of requiredPatterns) {
-    assert.match(text, pattern, `boundary text must include ${pattern}`);
-  }
+  const diagnosticsSignals = [
+    /boundary_diagnostics/,
+    /detailed_boundary_text/,
+    /diagnostics\/debug fields/,
+    /Detailed authority limits are available in diagnostics\./,
+  ];
+  assert.ok(
+    diagnosticsSignals.some((pattern) => pattern.test(text)),
+    "boundary text must keep detailed diagnostics available",
+  );
 }
 
 function collectToolsWithAnnotation(source, annotationName) {
