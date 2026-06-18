@@ -98,6 +98,7 @@ console.log(
       fixture_json_checked: true,
       fixture_counts_checked: true,
       candidate_required_fields_checked: true,
+      source_ref_integrity_checked: true,
       authority_flags_checked: true,
       package_script_checked: true,
       index_pointer_checked: true,
@@ -240,6 +241,8 @@ function assertFixtureContract() {
     );
   }
 
+  assertSourceReferenceIntegrity();
+
   assert.equal(fixture.authority?.candidate_only, true, "fixture authority must be candidate_only true");
   assert.equal(fixture.authority?.source_of_truth, false, "fixture authority must be source_of_truth false");
   assert.equal(fixture.authority?.creates_evidence, false, "fixture authority must be creates_evidence false");
@@ -250,6 +253,53 @@ function assertFixtureContract() {
     false,
     "fixture authority must be promotes_perspective false",
   );
+}
+
+function assertSourceReferenceIntegrity() {
+  const sourceRefIds = new Set(fixture.source_reference_previews.map((sourceRef) => sourceRef.source_ref_id));
+
+  assertSourceRefsExist(
+    "research_session_preview",
+    fixture.research_session_preview?.session_id ?? "research_session_preview",
+    fixture.research_session_preview?.source_refs,
+    sourceRefIds,
+  );
+
+  for (const { family, idField, items } of [
+    { family: "claim_candidate", idField: "claim_candidate_id", items: fixture.claim_candidates },
+    { family: "evidence_candidate", idField: "evidence_candidate_id", items: fixture.evidence_candidates },
+    { family: "tension_candidate", idField: "tension_candidate_id", items: fixture.tension_candidates },
+    {
+      family: "knowledge_gap_candidate",
+      idField: "knowledge_gap_candidate_id",
+      items: fixture.knowledge_gap_candidates,
+    },
+    {
+      family: "perspective_delta_candidate",
+      idField: "perspective_delta_candidate_id",
+      items: fixture.perspective_delta_candidates,
+    },
+  ]) {
+    for (const item of items) {
+      const objectId = item[idField] ?? "(missing id)";
+      if (Object.hasOwn(item, "source_ref_id")) {
+        assert.ok(
+          sourceRefIds.has(item.source_ref_id),
+          `${family} ${objectId} references missing source_ref_id ${item.source_ref_id}`,
+        );
+      }
+      if (Object.hasOwn(item, "source_refs")) {
+        assertSourceRefsExist(family, objectId, item.source_refs, sourceRefIds);
+      }
+    }
+  }
+}
+
+function assertSourceRefsExist(family, objectId, sourceRefs, sourceRefIds) {
+  assert.ok(Array.isArray(sourceRefs), `${family} ${objectId} must include source_refs as an array`);
+  for (const sourceRef of sourceRefs) {
+    assert.ok(sourceRefIds.has(sourceRef), `${family} ${objectId} references missing source ref ${sourceRef}`);
+  }
 }
 
 function assertPackageScript() {
