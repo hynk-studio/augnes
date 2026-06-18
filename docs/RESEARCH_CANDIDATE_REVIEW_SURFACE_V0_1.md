@@ -330,18 +330,31 @@ Every candidate object must include `review_status` and `boundary_notes`.
 Claim, evidence, tension, knowledge gap, and perspective delta candidates must
 also include `epistemic_status` and `source_ref_id` or `source_refs`.
 
+## Type Contract Pointer
+
+`types/research-candidate-review.ts` is the type-only preview contract for
+this surface. It is non-SSOT and non-authoritative.
+
+The type contract is not a DB schema, not an API contract, not runtime
+validation, not a provider prompt, not proof/evidence, and not perspective
+promotion authority. The static fixture should remain aligned with it through
+`smoke:research-candidate-review-types-v0-1`.
+
 ## Expected Files And Checks
 
 Expected files:
 
 - `docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md`
+- `types/research-candidate-review.ts`
 - `fixtures/research-candidate-review.sample.v0.1.json`
 - `scripts/smoke-research-candidate-review-surface-v0-1.mjs`
+- `scripts/smoke-research-candidate-review-types-v0-1.mjs`
 - `docs/00_INDEX_LATEST.md`
 - `package.json`
 
 Expected checks:
 
+- `node scripts/smoke-research-candidate-review-types-v0-1.mjs`
 - `node scripts/smoke-research-candidate-review-surface-v0-1.mjs`
 - `git diff --check`
 - `npm run smoke:research-capability-lanes-preparation-v0-1`
@@ -389,5 +402,6 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add a type-only contract for ResearchCandidateReviewPreviewResponse and align
-the static fixture against it.
+Add a Research candidate canonical promotion / Gate static audit to prevent
+source titles, URLs, provider IDs, raw thread IDs, and arbitrary user strings
+from becoming canonical state labels or operational tags.
