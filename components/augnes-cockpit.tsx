@@ -2,14 +2,17 @@
 
 import researchCandidateReviewAIContextPacketFixture from "@/fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json";
 import researchCandidateReviewConstellationOverlayFixture from "@/fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json";
+import researchCandidateReviewFormationReceiptFixture from "@/fixtures/research-candidate-review.formation-receipt.sample.v0.1.json";
 import researchCandidateReviewManualNoteAIContextPacketFixture from "@/fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json";
 import researchCandidateReviewManualNoteConstellationOverlayFixture from "@/fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json";
+import researchCandidateReviewManualNoteFormationReceiptFixture from "@/fixtures/research-candidate-review.manual-note-formation-receipt.sample.v0.1.json";
 import researchCandidateReviewParserOutputFixture from "@/fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json";
 import researchCandidateReviewFixture from "@/fixtures/research-candidate-review.sample.v0.1.json";
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
 import { ResearchCandidateAIContextPacketPreview } from "@/components/research-candidate-ai-context-packet-preview";
 import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
+import { ResearchCandidateFormationReceiptPreview } from "@/components/research-candidate-formation-receipt-preview";
 import {
   FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY,
   FORMATION_SWITCH_BASIS_VERSION,
@@ -80,6 +83,7 @@ import type {
 } from "@/types/perspective-ingest-constellation-preview";
 import type { ResearchCandidateAIContextPacket } from "@/types/research-candidate-ai-context-packet";
 import type { ResearchCandidateConstellationOverlay } from "@/types/research-candidate-constellation-overlay";
+import type { ResearchCandidateFormationReceipt } from "@/types/research-candidate-formation-receipt";
 import type { ResearchCandidateReviewSampleFixture } from "@/types/research-candidate-review";
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -99,6 +103,10 @@ const RESEARCH_CANDIDATE_REVIEW_AI_CONTEXT_PACKET_FIXTURE_PATH =
   "fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json";
 const RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_AI_CONTEXT_PACKET_FIXTURE_PATH =
   "fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json";
+const RESEARCH_CANDIDATE_REVIEW_FORMATION_RECEIPT_FIXTURE_PATH =
+  "fixtures/research-candidate-review.formation-receipt.sample.v0.1.json";
+const RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_FORMATION_RECEIPT_FIXTURE_PATH =
+  "fixtures/research-candidate-review.manual-note-formation-receipt.sample.v0.1.json";
 const researchCandidateReviewPreview =
   researchCandidateReviewFixture as ResearchCandidateReviewSampleFixture;
 const researchCandidateReviewParserOutputPreview =
@@ -111,6 +119,10 @@ const researchCandidateReviewAIContextPacketPreview =
   researchCandidateReviewAIContextPacketFixture as ResearchCandidateAIContextPacket;
 const researchCandidateReviewManualNoteAIContextPacketPreview =
   researchCandidateReviewManualNoteAIContextPacketFixture as ResearchCandidateAIContextPacket;
+const researchCandidateReviewFormationReceiptPreview =
+  researchCandidateReviewFormationReceiptFixture as ResearchCandidateFormationReceipt;
+const researchCandidateReviewManualNoteFormationReceiptPreview =
+  researchCandidateReviewManualNoteFormationReceiptFixture as ResearchCandidateFormationReceipt;
 const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
   "/api/augnes/read/constellation-preview?scope=project:augnes";
 const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
@@ -6576,6 +6588,9 @@ function PerspectiveTab({
         <a href="#research-candidate-ai-context-packet-preview">
           AI context packet
         </a>
+        <a href="#research-candidate-formation-receipt-preview">
+          Formation receipt
+        </a>
       </nav>
 
       {/* Research Candidate Review Cockpit Preview Start */}
@@ -7947,6 +7962,75 @@ function PerspectiveTab({
         </div>
       </section>
       {/* Research Candidate AI Context Packet Cockpit Preview End */}
+
+      {/* Research Candidate Formation Receipt Cockpit Preview Start */}
+      <section
+        className="perspective-section"
+        id="research-candidate-formation-receipt-preview"
+        aria-label="Research Candidate Formation Receipt"
+        data-augnes-authority="read-only static-receipt-fixture non-authoritative candidate-only"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">AUGNES / Research</p>
+            <h2>Research Candidate Formation Receipt</h2>
+            <p>
+              Read-only receipt preview compiled from static AI context packet
+              and Candidate Constellation Overlay fixtures. Receipt
+              contributions are candidate-only and non-authoritative inspection
+              material.
+            </p>
+            <p>
+              This panel adds no durable receipt storage, no event log, no
+              proof/evidence write, no work item creation, no perspective
+              promotion, no provider calls, no Codex execution, no retrieval,
+              and no runtime/API/DB behavior.
+            </p>
+          </div>
+          <div className="perspective-constellation-shell-status">
+            <span className="status-pill">read-only</span>
+            <span className="status-pill">static receipt fixture</span>
+            <span className="status-pill">formation receipt preview</span>
+          </div>
+        </div>
+
+        <div className="perspective-workbench-status-row">
+          <span>
+            original receipt fixture{" "}
+            <code>
+              {RESEARCH_CANDIDATE_REVIEW_FORMATION_RECEIPT_FIXTURE_PATH}
+            </code>
+          </span>
+          <span>
+            manual note receipt fixture{" "}
+            <code>
+              {RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_FORMATION_RECEIPT_FIXTURE_PATH}
+            </code>
+          </span>
+          <span>source refs</span>
+          <span>candidate nodes</span>
+          <span>typed edges</span>
+          <span>AI context packet sections</span>
+        </div>
+
+        <div className="perspective-constellation-workspace-grid">
+          <ResearchCandidateFormationReceiptPreview
+            title="Original packet formation receipt"
+            description="Read-only receipt preview recording the original Research Candidate Review packet and overlay contributions."
+            receipt={researchCandidateReviewFormationReceiptPreview}
+            fixturePath={RESEARCH_CANDIDATE_REVIEW_FORMATION_RECEIPT_FIXTURE_PATH}
+          />
+          <ResearchCandidateFormationReceiptPreview
+            title="Manual parser packet formation receipt"
+            description="Read-only receipt preview recording the manual parser packet and overlay contributions."
+            receipt={researchCandidateReviewManualNoteFormationReceiptPreview}
+            fixturePath={
+              RESEARCH_CANDIDATE_REVIEW_MANUAL_NOTE_FORMATION_RECEIPT_FIXTURE_PATH
+            }
+          />
+        </div>
+      </section>
+      {/* Research Candidate Formation Receipt Cockpit Preview End */}
 
       <section
         className="perspective-section perspective-constellation-workspace-shell perspective-primary-workbench"

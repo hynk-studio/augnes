@@ -1,0 +1,762 @@
+{
+  "receipt_version": "research_candidate_formation_receipt.v0.1",
+  "scope": "project:augnes",
+  "source_kind": "research_candidate_review_packet",
+  "artifact": {
+    "artifact_id": "formation_receipt_artifact_research_candidate_review",
+    "artifact_kind": "read_only_review_artifact",
+    "title": "Research Candidate Review formation receipt preview",
+    "summary": "Read-only formation receipt preview for source refs, candidate nodes, typed edges, packet sections, and guardrails.",
+    "source_packet_version": "research_candidate_ai_context_packet.v0.1",
+    "source_overlay_version": "research_candidate_constellation_overlay.v0.1",
+    "review_scope": "project:augnes"
+  },
+  "source_packet_fixture_path": "fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json",
+  "source_overlay_fixture_path": "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json",
+  "source_refs": [
+    {
+      "source_ref_id": "source_ref_manual_notes_001",
+      "contribution_kind": "source_ref",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Source ref contribution is a read-only pointer, not source-of-truth authority."
+    }
+  ],
+  "candidate_nodes": [
+    {
+      "node_id": "node_claim_candidate_001",
+      "node_kind": "claim_candidate",
+      "source_object_id": "claim_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "needs_review",
+      "epistemic_status": "candidate_claim"
+    },
+    {
+      "node_id": "node_claim_candidate_002",
+      "node_kind": "claim_candidate",
+      "source_object_id": "claim_candidate_002",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported"
+    },
+    {
+      "node_id": "node_evidence_candidate_001",
+      "node_kind": "evidence_candidate",
+      "source_object_id": "evidence_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "needs_review",
+      "epistemic_status": "operator_note"
+    },
+    {
+      "node_id": "node_evidence_candidate_002",
+      "node_kind": "evidence_candidate",
+      "source_object_id": "evidence_candidate_002",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "needs_review",
+      "epistemic_status": "weakly_supported"
+    },
+    {
+      "node_id": "node_tension_candidate_001",
+      "node_kind": "tension_candidate",
+      "source_object_id": "tension_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "needs_review",
+      "epistemic_status": "contested"
+    },
+    {
+      "node_id": "node_knowledge_gap_candidate_001",
+      "node_kind": "knowledge_gap_candidate",
+      "source_object_id": "knowledge_gap_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only"
+    },
+    {
+      "node_id": "node_perspective_delta_candidate_001",
+      "node_kind": "perspective_delta_candidate",
+      "source_object_id": "perspective_delta_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "needs_review",
+      "epistemic_status": "hypothesis_only"
+    },
+    {
+      "node_id": "node_follow_up_work_candidate_001",
+      "node_kind": "follow_up_work_candidate",
+      "source_object_id": "follow_up_work_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_follow_up_summaries"
+      ],
+      "authority_note": "Candidate node contribution is read-only review material, not committed state.",
+      "review_status": "candidate_only"
+    }
+  ],
+  "typed_edges": [
+    {
+      "edge_id": "edge_node_research_session__session_uses_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "session_uses_source",
+      "source_node_id": "node_research_session",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_follow_up_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_claim_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "source_node_id": "node_claim_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_claim_candidate_002__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "source_node_id": "node_claim_candidate_002",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_evidence_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "source_node_id": "node_evidence_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_claim_candidate_001__claim_supported_by_evidence__node_evidence_candidate_001",
+      "relation": "claim_supported_by_evidence",
+      "source_node_id": "node_claim_candidate_001",
+      "target_node_id": "node_evidence_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_evidence_candidate_002__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "source_node_id": "node_evidence_candidate_002",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_claim_candidate_002__claim_qualified_by_evidence__node_evidence_candidate_002",
+      "relation": "claim_qualified_by_evidence",
+      "source_node_id": "node_claim_candidate_002",
+      "target_node_id": "node_evidence_candidate_002",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_tension_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_tension_candidate_001__tension_relates_to_claim__node_claim_candidate_001",
+      "relation": "tension_relates_to_claim",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_claim_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_tension_candidate_001__tension_relates_to_claim__node_claim_candidate_002",
+      "relation": "tension_relates_to_claim",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_claim_candidate_002",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_tension_candidate_001__tension_relates_to_evidence__node_evidence_candidate_001",
+      "relation": "tension_relates_to_evidence",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_evidence_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_tension_candidate_001__tension_relates_to_evidence__node_evidence_candidate_002",
+      "relation": "tension_relates_to_evidence",
+      "source_node_id": "node_tension_candidate_001",
+      "target_node_id": "node_evidence_candidate_002",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_knowledge_gap_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "source_node_id": "node_knowledge_gap_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_knowledge_gap_candidate_001__gap_relates_to_claim__node_claim_candidate_001",
+      "relation": "gap_relates_to_claim",
+      "source_node_id": "node_knowledge_gap_candidate_001",
+      "target_node_id": "node_claim_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_knowledge_gap_candidate_001__gap_relates_to_tension__node_tension_candidate_001",
+      "relation": "gap_relates_to_tension",
+      "source_node_id": "node_knowledge_gap_candidate_001",
+      "target_node_id": "node_tension_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__derived_from_source__node_source_ref_source_ref_manual_notes_001",
+      "relation": "derived_from_source",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_source_ref_source_ref_manual_notes_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__delta_proposes_change_to_perspective__node_target_perspective_research_capability_lanes",
+      "relation": "delta_proposes_change_to_perspective",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_target_perspective_research_capability_lanes",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__delta_uses_claim_basis__node_claim_candidate_001",
+      "relation": "delta_uses_claim_basis",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_claim_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__delta_uses_claim_basis__node_claim_candidate_002",
+      "relation": "delta_uses_claim_basis",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_claim_candidate_002",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__delta_uses_evidence_basis__node_evidence_candidate_001",
+      "relation": "delta_uses_evidence_basis",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_evidence_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__delta_uses_evidence_basis__node_evidence_candidate_002",
+      "relation": "delta_uses_evidence_basis",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_evidence_candidate_002",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__delta_preserves_tension__node_tension_candidate_001",
+      "relation": "delta_preserves_tension",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_tension_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_perspective_delta_candidate_001__delta_tracks_gap__node_knowledge_gap_candidate_001",
+      "relation": "delta_tracks_gap",
+      "source_node_id": "node_perspective_delta_candidate_001",
+      "target_node_id": "node_knowledge_gap_candidate_001",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_claim_summaries",
+        "packet_section_evidence_summaries",
+        "packet_section_tension_summaries",
+        "packet_section_knowledge_gap_summaries",
+        "packet_section_perspective_delta_summaries",
+        "packet_section_target_perspective_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    },
+    {
+      "edge_id": "edge_node_follow_up_work_candidate_001__follow_up_derived_from_session__node_research_session",
+      "relation": "follow_up_derived_from_session",
+      "source_node_id": "node_follow_up_work_candidate_001",
+      "target_node_id": "node_research_session",
+      "contributed_to_sections": [
+        "packet_section_source_summaries",
+        "packet_section_follow_up_summaries"
+      ],
+      "authority_note": "Typed edge contribution is read-only relationship context, not graph persistence."
+    }
+  ],
+  "packet_sections": [
+    {
+      "section_id": "packet_section_source_summaries",
+      "section_kind": "source_summaries",
+      "item_count": 1,
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_research_session",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "related_source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_claim_summaries",
+      "section_kind": "claim_summaries",
+      "item_count": 2,
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "related_source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_evidence_summaries",
+      "section_kind": "evidence_summaries",
+      "item_count": 2,
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "related_source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_tension_summaries",
+      "section_kind": "tension_summaries",
+      "item_count": 1,
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "related_source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_knowledge_gap_summaries",
+      "section_kind": "knowledge_gap_summaries",
+      "item_count": 1,
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_tension_candidate_001"
+      ],
+      "related_source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_perspective_delta_summaries",
+      "section_kind": "perspective_delta_summaries",
+      "item_count": 1,
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_claim_candidate_002",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_notes_001",
+        "node_target_perspective_research_capability_lanes",
+        "node_tension_candidate_001"
+      ],
+      "related_source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_follow_up_summaries",
+      "section_kind": "follow_up_summaries",
+      "item_count": 1,
+      "related_node_ids": [
+        "node_follow_up_work_candidate_001",
+        "node_research_session"
+      ],
+      "related_source_refs": [],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_target_perspective_summaries",
+      "section_kind": "target_perspective_summaries",
+      "item_count": 1,
+      "related_node_ids": [
+        "node_perspective_delta_candidate_001",
+        "node_target_perspective_research_capability_lanes"
+      ],
+      "related_source_refs": [],
+      "authority_note": "Packet section contribution records static preview participation only."
+    },
+    {
+      "section_id": "packet_section_final_guardrails",
+      "section_kind": "final_guardrails",
+      "item_count": 8,
+      "related_node_ids": [],
+      "related_source_refs": [],
+      "authority_note": "Packet section contribution records static preview participation only."
+    }
+  ],
+  "guardrails": [
+    {
+      "guardrail_id": "guardrail_001",
+      "text": "Do not treat candidate claims as facts.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    },
+    {
+      "guardrail_id": "guardrail_002",
+      "text": "Do not treat evidence candidates as proof/evidence rows.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    },
+    {
+      "guardrail_id": "guardrail_003",
+      "text": "Preserve unresolved tensions.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    },
+    {
+      "guardrail_id": "guardrail_004",
+      "text": "Preserve knowledge gaps instead of filling them by inference.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    },
+    {
+      "guardrail_id": "guardrail_005",
+      "text": "Do not promote perspective deltas.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    },
+    {
+      "guardrail_id": "guardrail_006",
+      "text": "Do not create work items from follow-up candidates.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    },
+    {
+      "guardrail_id": "guardrail_007",
+      "text": "Do not use raw source titles, URLs, provider IDs, thread IDs, run IDs, session IDs, arbitrary user strings, episode IDs, or demo refs as canonical labels.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    },
+    {
+      "guardrail_id": "guardrail_008",
+      "text": "Do not execute Codex or send external handoffs from this preview packet.",
+      "contributed_to_sections": [
+        "packet_section_final_guardrails"
+      ],
+      "authority_note": "Guardrail contribution is read-only boundary text, not runtime enforcement."
+    }
+  ],
+  "diagnostics": {
+    "source_ref_contribution_count": 1,
+    "candidate_node_contribution_count": 8,
+    "typed_edge_contribution_count": 24,
+    "packet_section_contribution_count": 9,
+    "guardrail_contribution_count": 8,
+    "source_packet_summary_count": 10,
+    "source_overlay_node_count": 11,
+    "source_overlay_edge_count": 24,
+    "unresolved_tension_count": 1,
+    "knowledge_gap_count": 1,
+    "perspective_delta_count": 1,
+    "follow_up_candidate_count": 1,
+    "authority_guardrail_count": 8
+  },
+  "authority": {
+    "read_only": true,
+    "preview_only": true,
+    "candidate_only": true,
+    "source_of_truth": false,
+    "creates_evidence": false,
+    "creates_proof": false,
+    "commits_state": false,
+    "promotes_perspective": false,
+    "creates_work_item": false,
+    "mutates_runtime": false,
+    "executes_agents": false,
+    "sends_handoff": false,
+    "calls_provider": false,
+    "performs_retrieval": false,
+    "writes_receipt": false,
+    "writes_event_log": false
+  },
+  "non_authority_notice": "This formation receipt is read-only preview material. It is not durable receipt storage, not an event log, not proof/evidence, not a work item, not a perspective promotion, not a provider call, not retrieval, not Codex execution, and not an external handoff."
+}

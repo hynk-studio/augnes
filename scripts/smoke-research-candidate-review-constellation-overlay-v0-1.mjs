@@ -737,16 +737,16 @@ function assertGatePointer() {
 }
 
 function assertNextStepAlignment() {
-  const expected = /Formation Receipt preview/i;
+  const expected = /Research Candidate Review v0\.1 milestone closeout docs/i;
   assert.match(
     extractSection(surfaceDoc, "## Next Recommended Step"),
     expected,
-    "surface doc next step must mention Formation Receipt preview",
+    "surface doc next step must mention Research Candidate Review v0.1 milestone closeout docs",
   );
   assert.match(
     extractSection(gateDoc, "## Next Recommended Step"),
     expected,
-    "gate doc next step must mention Formation Receipt preview",
+    "gate doc next step must mention Research Candidate Review v0.1 milestone closeout docs",
   );
 }
 
@@ -760,8 +760,8 @@ function assertExistingSmokeAlignment() {
   ]) {
     assert.match(
       source,
-      /Formation Receipt preview/i,
-      `${label} must expect Formation Receipt preview`,
+      /Research Candidate Review v0\.1 milestone closeout docs/i,
+      `${label} must expect Research Candidate Review v0.1 milestone closeout docs`,
     );
   }
 }

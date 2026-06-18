@@ -188,8 +188,8 @@ function assertDocGateContract() {
   );
   assert.match(
     gateDoc,
-    /Formation Receipt preview/i,
-    "gate doc next step must point to Formation Receipt preview",
+    /Research Candidate Review v0\.1 milestone closeout docs/i,
+    "gate doc next step must point to Research Candidate Review v0.1 milestone closeout docs",
   );
 }
 
