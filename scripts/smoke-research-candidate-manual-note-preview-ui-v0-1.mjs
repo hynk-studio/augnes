@@ -31,8 +31,13 @@ assertDedicatedComponent();
 assertCockpitWiring();
 assertParserReuse();
 assertLocalOnlyParserExecution();
+assertSampleNoteAction();
+assertEmptyFormattingHint();
+assertWarningSummaryCard();
+assertCompactResultSummary();
 assertPreviewOutputRendering();
 assertAuthorityBoundaryCopy();
+assertClearBehavior();
 assertForbiddenImplementationPatterns();
 assertIndexPointer();
 assertPackageScript();
@@ -45,8 +50,13 @@ console.log(
       cockpit_imports_and_renders_component: true,
       existing_manual_note_parser_reused: true,
       parser_execution_local_only: true,
+      sample_note_action_checked: true,
+      empty_formatting_hint_checked: true,
+      warning_summary_card_checked: true,
+      compact_result_summary_checked: true,
       preview_output_rendering_checked: true,
       visible_authority_boundary_copy_checked: true,
+      clear_behavior_checked: true,
       forbidden_implementation_patterns_absent: true,
       index_pointer_checked: true,
       package_script_checked: true,
@@ -131,6 +141,162 @@ function assertLocalOnlyParserExecution() {
   );
 }
 
+function assertSampleNoteAction() {
+  assert.match(
+    component,
+    /const MANUAL_NOTE_SAMPLE = \[/,
+    "component must define a local sample manual note",
+  );
+  assert.match(
+    component,
+    /Use sample note/,
+    "component must expose a Use sample note action",
+  );
+  assert.match(
+    component,
+    /function useSampleNote\(\)/,
+    "component must implement sample note fill handler",
+  );
+  assert.match(
+    component,
+    /setManualNoteText\(MANUAL_NOTE_SAMPLE\)/,
+    "sample action must populate local textarea state",
+  );
+  assert.doesNotMatch(
+    component,
+    /function useSampleNote\(\)[\s\S]*parseManualResearchNoteToPreview/,
+    "sample action must not auto-parse",
+  );
+
+  for (const requiredText of [
+    "Research Question:",
+    "Operator Intent:",
+    "Source Title:",
+    "Source Origin:",
+    "Source Identifier:",
+    "Claim:",
+    "Evidence: supports:",
+    "Evidence: context:",
+    "Tension:",
+    "Gap:",
+    "next:",
+    "Perspective Delta:",
+    "Next:",
+    "files:",
+    "checks:",
+    "candidate-only",
+    "non-authoritative",
+  ]) {
+    assert.ok(
+      component.includes(requiredText),
+      `sample/manual help must include ${requiredText}`,
+    );
+  }
+}
+
+function assertEmptyFormattingHint() {
+  assert.match(
+    component,
+    /function ManualNoteFormatHint\(\)/,
+    "component must render a compact empty formatting hint",
+  );
+  assert.match(
+    component,
+    /How to format a note/,
+    "empty state must include formatting help heading",
+  );
+  assert.match(
+    component,
+    /research-candidate-manual-note-format-hint/,
+    "textarea must reference formatting hint for accessibility",
+  );
+
+  for (const requiredPrefix of [
+    "Research Question:",
+    "연구질문:",
+    "Operator Intent:",
+    "의도:",
+    "Source Title:",
+    "출처제목:",
+    "Source Origin:",
+    "출처:",
+    "Source Identifier:",
+    "식별자:",
+    "Claim:",
+    "주장:",
+    "Evidence:",
+    "근거:",
+    "Tension:",
+    "긴장:",
+    "Gap:",
+    "공백:",
+    "Perspective Delta:",
+    "관점변화:",
+    "Next:",
+    "다음:",
+    "files:",
+    "checks:",
+  ]) {
+    assert.ok(
+      component.includes(requiredPrefix),
+      `format hint must include parser-supported prefix ${requiredPrefix}`,
+    );
+  }
+}
+
+function assertWarningSummaryCard() {
+  assert.match(
+    component,
+    /function ParserWarningSummary\(/,
+    "component must include a top warning summary card",
+  );
+  assert.match(
+    component,
+    /Parser warning summary/,
+    "warning summary must have a visible heading",
+  );
+  assert.match(
+    component,
+    /role="status"/,
+    "warning summary must be readable by assistive tech",
+  );
+  assert.match(
+    component,
+    /warning\.code/,
+    "warning summary must render warning code",
+  );
+  assert.match(
+    component,
+    /warning\.message/,
+    "warning summary must render warning message",
+  );
+  assert.match(
+    component,
+    /warning\.line \?\? "not available"/,
+    "warning summary must render line number fallback",
+  );
+}
+
+function assertCompactResultSummary() {
+  assert.match(
+    component,
+    /function ManualNoteResultSummary\(/,
+    "component must include a compact parse result summary",
+  );
+  for (const requiredText of [
+    "Parse result summary",
+    "candidates",
+    "claims",
+    "evidence",
+    "warnings",
+    "parser_version",
+    "preview_status",
+    "local_parse_count",
+  ]) {
+    assert.ok(component.includes(requiredText), `summary must include ${requiredText}`);
+  }
+}
+
 function assertPreviewOutputRendering() {
   for (const requiredText of [
     "parser_version",
@@ -156,6 +322,35 @@ function assertPreviewOutputRendering() {
   ]) {
     assert.ok(component.includes(requiredText), `component must render ${requiredText}`);
   }
+}
+
+function assertClearBehavior() {
+  assert.match(component, /Clear local note/, "component must expose local clear action");
+  assert.match(
+    component,
+    /function clearManualNote\(\)/,
+    "component must keep a clear handler",
+  );
+  assert.match(
+    component,
+    /setManualNoteText\(""\)/,
+    "clear handler must empty textarea state",
+  );
+  assert.match(
+    component,
+    /setParserResult\(null\)/,
+    "clear handler must reset parser result",
+  );
+  assert.match(
+    component,
+    /setParseCount\(0\)/,
+    "clear handler must reset parse count",
+  );
+  assert.match(
+    component,
+    /disabled=\{!manualNoteText && !parserResult\}/,
+    "clear button must disable when there is no local input or result",
+  );
 }
 
 function assertAuthorityBoundaryCopy() {
