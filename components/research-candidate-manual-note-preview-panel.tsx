@@ -8,12 +8,15 @@ import type {
 import {
   MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE,
   MANUAL_NOTE_PREVIEW_ROUTE,
+  MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH,
   buildManualNotePreviewDraftDetailRoute,
   buildManualNotePreviewDraftDiscardRoute,
+  buildManualNotePreviewDraftLabelRoute,
   type ManualNotePreviewDraftCandidateFilter,
   type ManualNotePreviewDraftDetailOkResponse,
   type ManualNotePreviewDraftDetailResponse,
   type ManualNotePreviewDraftDiscardResponse,
+  type ManualNotePreviewDraftLabelUpdateResponse,
   type ManualNotePreviewDraftListLifecycleFilter,
   type ManualNotePreviewDraftListItem,
   type ManualNotePreviewDraftListResponse,
@@ -85,6 +88,9 @@ const AUTHORITY_BOUNDARY_COPY = [
   "Optional DB write is a non-canonical preview draft.",
   "Recent draft reads use same-origin preview draft routes only.",
   "Stored preview content is parsed preview JSON.",
+  "Labels are operator-facing preview metadata only.",
+  "Labels do not promote, classify, or canonize the draft.",
+  "Raw note text is not stored or recoverable.",
   "Raw pasted note text is not persisted.",
   "Raw note text not stored.",
   "Output is read-only preview material.",
@@ -156,8 +162,15 @@ type DraftListControls = {
   limit: (typeof DRAFT_LIST_LIMIT_OPTIONS)[number];
 };
 
+type DraftLabelEditState = {
+  previewDraftId: string;
+  value: string;
+  error: string | null;
+};
+
 export function ResearchCandidateManualNotePreviewPanel() {
   const [manualNoteText, setManualNoteText] = useState("");
+  const [operatorPreviewLabel, setOperatorPreviewLabel] = useState("");
   const [parserResult, setParserResult] =
     useState<ManualResearchNoteParserResult | null>(null);
   const [runtimeResult, setRuntimeResult] =
@@ -191,9 +204,17 @@ export function ResearchCandidateManualNotePreviewPanel() {
   >(null);
   const [confirmDiscardPreviewDraftId, setConfirmDiscardPreviewDraftId] =
     useState<string | null>(null);
+  const [draftLabelEditState, setDraftLabelEditState] =
+    useState<DraftLabelEditState | null>(null);
+  const [savingDraftLabelId, setSavingDraftLabelId] = useState<string | null>(
+    null,
+  );
   const [parseCount, setParseCount] = useState(0);
 
   const inputHasText = manualNoteText.trim().length > 0;
+  const operatorPreviewLabelLength = operatorPreviewLabel.trim().length;
+  const operatorPreviewLabelTooLong =
+    operatorPreviewLabelLength > MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH;
   const displayResult: ManualNoteDisplayResult | null = openedPreviewDraft
     ? {
         parser_version: openedPreviewDraft.draft.parser_version,
@@ -244,10 +265,11 @@ export function ResearchCandidateManualNotePreviewPanel() {
   }
 
   async function createRuntimePreviewDraft() {
-    if (!inputHasText || isRuntimeLoading) return;
+    if (!inputHasText || operatorPreviewLabelTooLong || isRuntimeLoading) return;
 
     setIsRuntimeLoading(true);
     setRuntimeError(null);
+    const cleanOperatorPreviewLabel = operatorPreviewLabel.trim();
 
     try {
       const response = await fetch(MANUAL_NOTE_PREVIEW_ROUTE, {
@@ -259,7 +281,9 @@ export function ResearchCandidateManualNotePreviewPanel() {
           manual_note_text: manualNoteText,
           scope: "project:augnes",
           persist_preview_draft: true,
-          operator_note_label: "Cockpit manual pasted note preview",
+          ...(cleanOperatorPreviewLabel
+            ? { operator_note_label: cleanOperatorPreviewLabel }
+            : {}),
         }),
       });
       const result = (await response.json()) as ManualNotePreviewRuntimeResponse;
@@ -296,6 +320,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
   function clearManualNote() {
     setManualNoteText("");
+    setOperatorPreviewLabel("");
     setParserResult(null);
     setRuntimeResult(null);
     setOpenedPreviewDraft(null);
@@ -449,6 +474,135 @@ export function ResearchCandidateManualNotePreviewPanel() {
     }
   }
 
+  function startDraftLabelEdit(item: ManualNotePreviewDraftListItem) {
+    setDraftLabelEditState({
+      previewDraftId: item.preview_draft_id,
+      value: item.operator_note_label ?? "",
+      error: null,
+    });
+    setConfirmDiscardPreviewDraftId(null);
+  }
+
+  function updateDraftLabelEditValue(value: string) {
+    setDraftLabelEditState((currentState) =>
+      currentState
+        ? {
+            ...currentState,
+            value,
+            error: null,
+          }
+        : currentState,
+    );
+  }
+
+  function clearDraftLabelEditValue() {
+    updateDraftLabelEditValue("");
+  }
+
+  function cancelDraftLabelEdit() {
+    setDraftLabelEditState(null);
+    setSavingDraftLabelId(null);
+  }
+
+  async function saveDraftLabel(previewDraftId: string) {
+    if (
+      !draftLabelEditState ||
+      draftLabelEditState.previewDraftId !== previewDraftId
+    ) {
+      return;
+    }
+
+    const nextLabel = draftLabelEditState.value.trim();
+    if (nextLabel.length > MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH) {
+      setDraftLabelEditState({
+        ...draftLabelEditState,
+        error: `Label must be ${MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH} characters or fewer.`,
+      });
+      return;
+    }
+
+    setSavingDraftLabelId(previewDraftId);
+    setDraftLabelEditState({
+      ...draftLabelEditState,
+      error: null,
+    });
+
+    try {
+      const response = await fetch(
+        buildManualNotePreviewDraftLabelRoute(previewDraftId),
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            operator_note_label: nextLabel.length > 0 ? nextLabel : null,
+          }),
+        },
+      );
+      const result =
+        (await response.json()) as ManualNotePreviewDraftLabelUpdateResponse;
+
+      if (!response.ok || !result.ok) {
+        setDraftLabelEditState((currentState) =>
+          currentState?.previewDraftId === previewDraftId
+            ? {
+                ...currentState,
+                error: result.ok
+                  ? "Preview draft label route returned an unavailable response."
+                  : result.message,
+              }
+            : currentState,
+        );
+        return;
+      }
+
+      setPreviewDraftItems((currentItems) =>
+        currentItems.map((item) =>
+          item.preview_draft_id === previewDraftId
+            ? {
+                ...item,
+                operator_note_label: result.operator_note_label,
+                updated_at: result.updated_at,
+                lifecycle_status: result.lifecycle_status,
+              }
+            : item,
+        ),
+      );
+      setOpenedPreviewDraft((currentDraft) => {
+        if (
+          !currentDraft ||
+          currentDraft.draft.preview_draft_id !== previewDraftId
+        ) {
+          return currentDraft;
+        }
+
+        return {
+          ...currentDraft,
+          lifecycle_status: result.lifecycle_status,
+          draft: {
+            ...currentDraft.draft,
+            operator_note_label: result.operator_note_label,
+            updated_at: result.updated_at,
+            lifecycle_status: result.lifecycle_status,
+          },
+        };
+      });
+      setDraftLabelEditState(null);
+    } catch {
+      setDraftLabelEditState((currentState) =>
+        currentState?.previewDraftId === previewDraftId
+          ? {
+              ...currentState,
+              error: "Preview draft label route is unavailable.",
+            }
+          : currentState,
+      );
+    } finally {
+      setSavingDraftLabelId(null);
+    }
+  }
+
   function updateDraftLifecycleFilter(
     lifecycle: ManualNotePreviewDraftListLifecycleFilter,
   ) {
@@ -526,6 +680,32 @@ export function ResearchCandidateManualNotePreviewPanel() {
             Use sample note
           </button>
         </div>
+        <div className="manual-note-label-field">
+          <label htmlFor="research-candidate-manual-note-label-input">
+            Operator preview label
+          </label>
+          <input
+            id="research-candidate-manual-note-label-input"
+            value={operatorPreviewLabel}
+            onChange={(event) => setOperatorPreviewLabel(event.target.value)}
+            maxLength={MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH}
+            placeholder="Paper synthesis: retrieval quality notes"
+            aria-describedby="research-candidate-manual-note-label-boundary"
+          />
+          <small>
+            {operatorPreviewLabelLength}/
+            {MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH} characters. Optional
+            and saved only when creating a runtime preview draft.
+          </small>
+          <ul
+            className="manual-note-label-boundary-copy"
+            id="research-candidate-manual-note-label-boundary"
+          >
+            <li>Labels are operator-facing preview metadata only.</li>
+            <li>Labels do not promote, classify, or canonize the draft.</li>
+            <li>Raw note text is not stored or recoverable.</li>
+          </ul>
+        </div>
         <textarea
           id="research-candidate-manual-note-input"
           value={manualNoteText}
@@ -542,7 +722,9 @@ export function ResearchCandidateManualNotePreviewPanel() {
           <button
             type="button"
             className="secondary-button"
-            disabled={!inputHasText || isRuntimeLoading}
+            disabled={
+              !inputHasText || operatorPreviewLabelTooLong || isRuntimeLoading
+            }
             onClick={createRuntimePreviewDraft}
           >
             {isRuntimeLoading
@@ -616,6 +798,8 @@ export function ResearchCandidateManualNotePreviewPanel() {
         openingPreviewDraftId={openingPreviewDraftId}
         discardingPreviewDraftId={discardingPreviewDraftId}
         confirmDiscardPreviewDraftId={confirmDiscardPreviewDraftId}
+        labelEditState={draftLabelEditState}
+        savingDraftLabelId={savingDraftLabelId}
         onRefresh={() => void refreshPreviewDrafts()}
         onChangeLifecycle={updateDraftLifecycleFilter}
         onChangeSort={updateDraftSort}
@@ -625,6 +809,11 @@ export function ResearchCandidateManualNotePreviewPanel() {
         onOpen={(previewDraftId) => void openPreviewDraft(previewDraftId)}
         onDiscard={(previewDraftId) => void discardPreviewDraft(previewDraftId)}
         onCancelDiscard={() => setConfirmDiscardPreviewDraftId(null)}
+        onStartLabelEdit={startDraftLabelEdit}
+        onChangeLabelEdit={updateDraftLabelEditValue}
+        onSaveLabelEdit={(previewDraftId) => void saveDraftLabel(previewDraftId)}
+        onCancelLabelEdit={cancelDraftLabelEdit}
+        onClearLabelEdit={clearDraftLabelEditValue}
       />
 
       {displayResult && preview && session ? (
@@ -750,6 +939,8 @@ function RecentPreviewDraftsPanel({
   openingPreviewDraftId,
   discardingPreviewDraftId,
   confirmDiscardPreviewDraftId,
+  labelEditState,
+  savingDraftLabelId,
   onRefresh,
   onChangeLifecycle,
   onChangeSort,
@@ -759,6 +950,11 @@ function RecentPreviewDraftsPanel({
   onOpen,
   onDiscard,
   onCancelDiscard,
+  onStartLabelEdit,
+  onChangeLabelEdit,
+  onSaveLabelEdit,
+  onCancelLabelEdit,
+  onClearLabelEdit,
 }: {
   items: ManualNotePreviewDraftListItem[];
   controls: DraftListControls;
@@ -768,6 +964,8 @@ function RecentPreviewDraftsPanel({
   openingPreviewDraftId: string | null;
   discardingPreviewDraftId: string | null;
   confirmDiscardPreviewDraftId: string | null;
+  labelEditState: DraftLabelEditState | null;
+  savingDraftLabelId: string | null;
   onRefresh: () => void;
   onChangeLifecycle: (
     lifecycle: ManualNotePreviewDraftListLifecycleFilter,
@@ -779,6 +977,11 @@ function RecentPreviewDraftsPanel({
   onOpen: (previewDraftId: string) => void;
   onDiscard: (previewDraftId: string) => void;
   onCancelDiscard: () => void;
+  onStartLabelEdit: (item: ManualNotePreviewDraftListItem) => void;
+  onChangeLabelEdit: (value: string) => void;
+  onSaveLabelEdit: (previewDraftId: string) => void;
+  onCancelLabelEdit: () => void;
+  onClearLabelEdit: () => void;
 }) {
   const isDefaultEmptyState =
     controls.lifecycle === "active" &&
@@ -933,12 +1136,35 @@ function RecentPreviewDraftsPanel({
               discardingPreviewDraftId === item.preview_draft_id;
             const isConfirming =
               confirmDiscardPreviewDraftId === item.preview_draft_id;
+            const isEditingLabel =
+              labelEditState?.previewDraftId === item.preview_draft_id;
+            const isSavingLabel = savingDraftLabelId === item.preview_draft_id;
+            const displayLabel =
+              item.operator_note_label ?? "Untitled preview draft";
+            const editedLabelValue = isEditingLabel ? labelEditState.value : "";
+            const editedLabelTrimmed = editedLabelValue.trim();
+            const labelIsTooLong =
+              editedLabelTrimmed.length >
+              MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH;
+            const labelIsUnchanged =
+              editedLabelTrimmed === (item.operator_note_label ?? "");
 
             return (
               <article
                 key={item.preview_draft_id}
                 className="cockpit-surface-card manual-note-preview-draft-card"
               >
+                <div className="manual-note-preview-draft-title-row">
+                  <div>
+                    <strong>{displayLabel}</strong>
+                    <small>
+                      {item.operator_note_label
+                        ? "operator_note_label"
+                        : "generated fallback label"}
+                    </small>
+                  </div>
+                  <span className="status-pill">label-only metadata</span>
+                </div>
                 <div className="meta-row">
                   <span>
                     preview_draft_id{" "}
@@ -956,8 +1182,7 @@ function RecentPreviewDraftsPanel({
                     created_at <code>{item.created_at}</code>
                   </span>
                   <span>
-                    operator_note_label{" "}
-                    <code>{item.operator_note_label ?? "none"}</code>
+                    updated_at <code>{item.updated_at}</code>
                   </span>
                   <span>
                     input_fingerprint{" "}
@@ -982,6 +1207,60 @@ function RecentPreviewDraftsPanel({
                     lifecycle_status <code>{item.lifecycle_status}</code>
                   </span>
                 </div>
+                {isEditingLabel ? (
+                  <div className="manual-note-preview-draft-label-edit">
+                    <label>
+                      <span>Edit label</span>
+                      <input
+                        value={editedLabelValue}
+                        onChange={(event) =>
+                          onChangeLabelEdit(event.currentTarget.value)
+                        }
+                        maxLength={MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH}
+                        placeholder="Untitled preview draft"
+                        disabled={isSavingLabel}
+                      />
+                    </label>
+                    <small>
+                      {editedLabelTrimmed.length}/
+                      {MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH} characters.
+                      Labels are operator-facing preview metadata only.
+                    </small>
+                    {labelEditState.error ? (
+                      <p className="manual-note-runtime-error" role="alert">
+                        {labelEditState.error}
+                      </p>
+                    ) : null}
+                    <div className="manual-note-preview-draft-label-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={
+                          isSavingLabel || labelIsUnchanged || labelIsTooLong
+                        }
+                        onClick={() => onSaveLabelEdit(item.preview_draft_id)}
+                      >
+                        {isSavingLabel ? "Saving label..." : "Save label"}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={isSavingLabel}
+                        onClick={onCancelLabelEdit}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={isSavingLabel || editedLabelValue.length === 0}
+                        onClick={onClearLabelEdit}
+                      >
+                        Clear label
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 {item.discard_metadata ? (
                   <p className="manual-note-runtime-hint">
                     discarded_at <code>{item.discard_metadata.discarded_at}</code>
@@ -990,6 +1269,19 @@ function RecentPreviewDraftsPanel({
                   </p>
                 ) : null}
                 <div className="manual-note-preview-draft-controls">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={
+                      isEditingLabel ||
+                      isOpening ||
+                      isDiscarding ||
+                      isSavingLabel
+                    }
+                    onClick={() => onStartLabelEdit(item)}
+                  >
+                    Edit label
+                  </button>
                   <button
                     type="button"
                     className="secondary-button"
@@ -1022,9 +1314,10 @@ function RecentPreviewDraftsPanel({
                   ) : null}
                 </div>
                 <p className="manual-note-runtime-hint">
-                  Discard only marks this preview draft as no longer active; it
-                  does not delete canonical state because the draft never created
-                  canonical state.
+                  Label editing is metadata-only, including discarded preview
+                  drafts. Discard only marks this preview draft as no longer
+                  active; it does not delete canonical state because the draft
+                  never created canonical state.
                 </p>
               </article>
             );
@@ -1179,6 +1472,10 @@ function RuntimeMetadataSummary({
           </span>
           <span>
             lifecycle_status <code>{storedDraftResult.lifecycle_status}</code>
+          </span>
+          <span>
+            operator_note_label{" "}
+            <code>{draft.operator_note_label ?? "Untitled preview draft"}</code>
           </span>
           <span>
             input_fingerprint <code>{draft.input_fingerprint}</code>

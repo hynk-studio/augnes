@@ -751,6 +751,26 @@ repo-local 색인이다.
   UI controls and filter summary copy, package/index pointers, no browser
   persistence, and forbidden provider/retrieval/proof/evidence/work/state
   write-pattern absence.
+- Manual note preview draft label refinement lane:
+  `app/api/research-candidate-review/manual-note-preview-drafts/[preview_draft_id]/label`
+  provides a bounded same-origin `PATCH` route for operator-facing preview
+  label metadata. Cockpit/Perspective lets operators provide an optional
+  `operator_note_label` before creating a runtime preview draft, shows labels
+  prominently in Recent runtime preview drafts with an `Untitled preview draft`
+  fallback, and allows compact inline label edits after creation. The lane
+  updates only `operator_note_label` and `updated_at` on
+  `research_candidate_manual_note_preview_drafts`; raw note text remains
+  unavailable and unpersisted, labels do not promote/classify/canonize drafts,
+  and the lane adds no provider/OpenAI calls, retrieval/RAG/source fetching,
+  proof/evidence rows, work items, canonical Perspective writes, Codex
+  execution, browser persistence, or promotion/reject/defer workflow.
+- `npm run smoke:research-candidate-preview-draft-label-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-label-v0-1.mjs` checks the
+  label route `PATCH` contract and validation, label-specific runtime boundary
+  and no-side-effect response metadata, preview-draft store label update shape,
+  UI label input/display/edit affordances, preserved list filters/open/discard
+  behavior, package/index pointers, no browser persistence, and forbidden
+  provider/retrieval/proof/evidence/work/state write-pattern absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

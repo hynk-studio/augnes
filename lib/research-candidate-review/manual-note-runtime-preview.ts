@@ -22,6 +22,7 @@ export const MAX_MANUAL_NOTE_BODY_BYTES = 64 * 1024;
 export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT = 50;
 export const DEFAULT_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT = 10;
 export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_DISCARD_REASON_LENGTH = 500;
+export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH = 160;
 
 export type ManualNotePreviewPersistenceMode =
   | "persisted_preview_draft"
@@ -160,6 +161,33 @@ export type ManualNotePreviewDraftLifecycleRuntimeBoundary = {
   external_handoff_sending: false;
 };
 
+export type ManualNotePreviewDraftLabelRuntimeBoundary = {
+  route: string;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  source_kind: "stored_manual_paste_preview_draft";
+  lifecycle_actions: "label_update_only";
+  lifecycle_status_source: "discard_marker_table";
+  raw_manual_note_text_persisted: false;
+  raw_manual_note_text_returned: false;
+  preview_draft_records_are_non_canonical: true;
+  label_is_operator_preview_metadata_only: true;
+  label_promotes_perspective: false;
+  label_creates_proof_or_evidence: false;
+  label_creates_work_item: false;
+  discard_deletes_canonical_state: false;
+  durable_candidate_storage: false;
+  durable_review_storage: false;
+  durable_receipt_storage: false;
+  canonical_perspective_write: false;
+  proof_or_evidence_writes: false;
+  work_item_creation: false;
+  provider_or_openai_calls: false;
+  retrieval_or_rag: false;
+  source_fetching: false;
+  codex_execution: false;
+  external_handoff_sending: false;
+};
+
 export type ManualNotePreviewDraftDiscardMetadata = {
   discard_id: string;
   preview_draft_id: string;
@@ -233,6 +261,21 @@ export type ManualNotePreviewDraftDiscardOkResponse = {
   runtime_boundary: ManualNotePreviewDraftLifecycleRuntimeBoundary;
 };
 
+export type ManualNotePreviewDraftLabelUpdateRequest = {
+  operator_note_label: string | null;
+};
+
+export type ManualNotePreviewDraftLabelUpdateOkResponse = {
+  ok: true;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  preview_draft_id: string;
+  operator_note_label: string | null;
+  updated_at: string;
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  runtime_boundary: ManualNotePreviewDraftLabelRuntimeBoundary;
+  no_side_effects: ManualNotePreviewNoSideEffects;
+};
+
 export type ManualNotePreviewDraftRuntimeErrorResponse = {
   ok: false;
   error_code:
@@ -247,9 +290,12 @@ export type ManualNotePreviewDraftRuntimeErrorResponse = {
     | "invalid_preview_draft_id"
     | "preview_draft_not_found"
     | "discard_reason_too_large"
+    | "operator_note_label_too_large"
     | "runtime_unavailable";
   message: string;
-  runtime_boundary: ManualNotePreviewDraftLifecycleRuntimeBoundary;
+  runtime_boundary:
+    | ManualNotePreviewDraftLifecycleRuntimeBoundary
+    | ManualNotePreviewDraftLabelRuntimeBoundary;
 };
 
 export type ManualNotePreviewDraftListResponse =
@@ -262,6 +308,10 @@ export type ManualNotePreviewDraftDetailResponse =
 
 export type ManualNotePreviewDraftDiscardResponse =
   | ManualNotePreviewDraftDiscardOkResponse
+  | ManualNotePreviewDraftRuntimeErrorResponse;
+
+export type ManualNotePreviewDraftLabelUpdateResponse =
+  | ManualNotePreviewDraftLabelUpdateOkResponse
   | ManualNotePreviewDraftRuntimeErrorResponse;
 
 export type ManualNotePreviewRuntimeRequest = {
@@ -332,6 +382,10 @@ export function buildManualNotePreviewDraftDetailRoute(previewDraftId: string) {
 
 export function buildManualNotePreviewDraftDiscardRoute(previewDraftId: string) {
   return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/discard`;
+}
+
+export function buildManualNotePreviewDraftLabelRoute(previewDraftId: string) {
+  return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/label`;
 }
 
 export function buildManualNotePreviewRuntimeBoundary({
@@ -408,6 +462,39 @@ export function buildManualNotePreviewDraftLifecycleBoundary({
     raw_manual_note_text_persisted: false,
     raw_manual_note_text_returned: false,
     preview_draft_records_are_non_canonical: true,
+    discard_deletes_canonical_state: false,
+    durable_candidate_storage: false,
+    durable_review_storage: false,
+    durable_receipt_storage: false,
+    canonical_perspective_write: false,
+    proof_or_evidence_writes: false,
+    work_item_creation: false,
+    provider_or_openai_calls: false,
+    retrieval_or_rag: false,
+    source_fetching: false,
+    codex_execution: false,
+    external_handoff_sending: false,
+  };
+}
+
+export function buildManualNotePreviewDraftLabelBoundary({
+  route,
+}: {
+  route: string;
+}): ManualNotePreviewDraftLabelRuntimeBoundary {
+  return {
+    route,
+    runtime_version: MANUAL_NOTE_RUNTIME_VERSION,
+    source_kind: "stored_manual_paste_preview_draft",
+    lifecycle_actions: "label_update_only",
+    lifecycle_status_source: "discard_marker_table",
+    raw_manual_note_text_persisted: false,
+    raw_manual_note_text_returned: false,
+    preview_draft_records_are_non_canonical: true,
+    label_is_operator_preview_metadata_only: true,
+    label_promotes_perspective: false,
+    label_creates_proof_or_evidence: false,
+    label_creates_work_item: false,
     discard_deletes_canonical_state: false,
     durable_candidate_storage: false,
     durable_review_storage: false,
