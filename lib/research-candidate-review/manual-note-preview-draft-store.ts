@@ -1,12 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { openDatabase } from "@/lib/db";
-import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
 import type {
+  ManualResearchNoteParserResult,
+  ManualResearchNoteParserWarning,
+} from "@/lib/research-candidate-review/manual-note-parser";
+import type {
+  ManualNotePreviewDraftCandidateCountSummary,
+  ManualNotePreviewDraftDetailMetadata,
+  ManualNotePreviewDraftDiscardMetadata,
+  ManualNotePreviewDraftLifecycleAuthority,
+  ManualNotePreviewDraftLifecycleStatus,
+  ManualNotePreviewDraftListItem,
   ManualNotePreviewNoSideEffects,
   ManualNotePreviewRuntimeAuthority,
   ManualNotePreviewRuntimeBoundary,
 } from "@/lib/research-candidate-review/manual-note-runtime-preview";
-import type { ResearchCandidateReviewScope } from "@/types/research-candidate-review";
+import type {
+  ResearchCandidateReviewPreviewResponse,
+  ResearchCandidateReviewScope,
+} from "@/types/research-candidate-review";
 
 export type ResearchCandidateManualNotePreviewDraftRecord = {
   preview_draft_id: string;
@@ -47,6 +59,44 @@ type ResearchCandidateManualNotePreviewDraftRow = Omit<
   authority_json: string;
   runtime_boundary_json: string;
   no_side_effects_json: string;
+};
+
+export type ResearchCandidateManualNotePreviewDraftDiscardRecord = {
+  discard_id: string;
+  preview_draft_id: string;
+  scope: ResearchCandidateReviewScope;
+  discarded_at: string;
+  discarded_by: string;
+  discard_reason: string;
+  authority_json: ManualNotePreviewDraftLifecycleAuthority;
+  no_side_effects_json: ManualNotePreviewNoSideEffects;
+};
+
+type ResearchCandidateManualNotePreviewDraftDiscardRow = Omit<
+  ResearchCandidateManualNotePreviewDraftDiscardRecord,
+  "authority_json" | "no_side_effects_json"
+> & {
+  authority_json: string;
+  no_side_effects_json: string;
+};
+
+type ResearchCandidateManualNotePreviewDraftJoinedRow =
+  ResearchCandidateManualNotePreviewDraftRow & {
+    discard_id: string | null;
+    discarded_at: string | null;
+    discarded_by: string | null;
+    discard_reason: string | null;
+    discard_authority_json: string | null;
+    discard_no_side_effects_json: string | null;
+  };
+
+export type ResearchCandidateManualNotePreviewDraftDetail = {
+  draft: ManualNotePreviewDraftDetailMetadata;
+  preview: ResearchCandidateReviewPreviewResponse;
+  warnings: ManualResearchNoteParserWarning[];
+  authority: ManualNotePreviewRuntimeAuthority;
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  discard_metadata?: ManualNotePreviewDraftDiscardMetadata;
 };
 
 export function insertResearchCandidateManualNotePreviewDraft({
@@ -183,10 +233,253 @@ export function insertResearchCandidateManualNotePreviewDraft({
   }
 }
 
+export function listResearchCandidateManualNotePreviewDrafts({
+  scope,
+  limit,
+  includeDiscarded,
+}: {
+  scope: ResearchCandidateReviewScope;
+  limit: number;
+  includeDiscarded: boolean;
+}): ManualNotePreviewDraftListItem[] {
+  const db = openDatabase();
+
+  try {
+    const rows = db
+      .prepare(
+        `
+          SELECT
+            drafts.preview_draft_id,
+            drafts.status,
+            drafts.scope,
+            drafts.source_kind,
+            drafts.operator_note_label,
+            drafts.parser_version,
+            drafts.preview_version,
+            drafts.input_fingerprint,
+            drafts.manual_note_text_stored,
+            drafts.preview_json,
+            drafts.warnings_json,
+            drafts.authority_json,
+            drafts.runtime_boundary_json,
+            drafts.no_side_effects_json,
+            drafts.promoted_at,
+            drafts.canonical_perspective_id,
+            drafts.proof_id,
+            drafts.evidence_id,
+            drafts.work_item_id,
+            drafts.created_at,
+            drafts.updated_at,
+            discards.discard_id,
+            discards.discarded_at,
+            discards.discarded_by,
+            discards.discard_reason,
+            discards.authority_json AS discard_authority_json,
+            discards.no_side_effects_json AS discard_no_side_effects_json
+          FROM research_candidate_manual_note_preview_drafts drafts
+          LEFT JOIN research_candidate_manual_note_preview_draft_discards discards
+            ON discards.preview_draft_id = drafts.preview_draft_id
+          WHERE drafts.scope = @scope
+            ${includeDiscarded ? "" : "AND discards.preview_draft_id IS NULL"}
+          ORDER BY drafts.created_at DESC
+          LIMIT @limit
+        `,
+      )
+      .all({ scope, limit }) as ResearchCandidateManualNotePreviewDraftJoinedRow[];
+
+    return rows.map(parseResearchCandidateManualNotePreviewDraftListItem);
+  } finally {
+    db.close();
+  }
+}
+
+export function getResearchCandidateManualNotePreviewDraft({
+  previewDraftId,
+  scope,
+}: {
+  previewDraftId: string;
+  scope: ResearchCandidateReviewScope;
+}): ResearchCandidateManualNotePreviewDraftDetail | null {
+  const db = openDatabase();
+
+  try {
+    const row = selectResearchCandidateManualNotePreviewDraftJoinedRow(db, {
+      previewDraftId,
+      scope,
+    });
+    return row ? parseResearchCandidateManualNotePreviewDraftDetail(row) : null;
+  } finally {
+    db.close();
+  }
+}
+
+export function discardResearchCandidateManualNotePreviewDraft({
+  previewDraftId,
+  scope,
+  discardedAt,
+  discardedBy,
+  discardReason,
+  authority,
+  noSideEffects,
+}: {
+  previewDraftId: string;
+  scope: ResearchCandidateReviewScope;
+  discardedAt: string;
+  discardedBy: string;
+  discardReason: string;
+  authority: ManualNotePreviewDraftLifecycleAuthority;
+  noSideEffects: ManualNotePreviewNoSideEffects;
+}): ResearchCandidateManualNotePreviewDraftDiscardRecord | null {
+  const db = openDatabase();
+
+  try {
+    const draft = selectResearchCandidateManualNotePreviewDraftJoinedRow(db, {
+      previewDraftId,
+      scope,
+    });
+    if (!draft) {
+      return null;
+    }
+
+    db.prepare(
+      `
+        INSERT INTO research_candidate_manual_note_preview_draft_discards (
+          discard_id,
+          preview_draft_id,
+          scope,
+          discarded_at,
+          discarded_by,
+          discard_reason,
+          authority_json,
+          no_side_effects_json
+        )
+        VALUES (
+          @discard_id,
+          @preview_draft_id,
+          @scope,
+          @discarded_at,
+          @discarded_by,
+          @discard_reason,
+          @authority_json,
+          @no_side_effects_json
+        )
+        ON CONFLICT(preview_draft_id) DO NOTHING
+      `,
+    ).run({
+      discard_id: `research-candidate-preview-draft-discard:${randomUUID()}`,
+      preview_draft_id: previewDraftId,
+      scope,
+      discarded_at: discardedAt,
+      discarded_by: cleanDiscardedBy(discardedBy),
+      discard_reason: cleanDiscardReason(discardReason),
+      authority_json: JSON.stringify(authority),
+      no_side_effects_json: JSON.stringify(noSideEffects),
+    });
+
+    const discardRow = selectResearchCandidateManualNotePreviewDraftDiscardRow(
+      db,
+      previewDraftId,
+    );
+
+    return discardRow
+      ? parseResearchCandidateManualNotePreviewDraftDiscardRow(discardRow)
+      : null;
+  } finally {
+    db.close();
+  }
+}
+
 function cleanOperatorNoteLabel(value?: string | null) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed.slice(0, 160) : null;
+}
+
+function cleanDiscardedBy(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, 120) : "cockpit_operator";
+}
+
+function cleanDiscardReason(value: string) {
+  return value.trim().slice(0, 500);
+}
+
+function selectResearchCandidateManualNotePreviewDraftJoinedRow(
+  db: ReturnType<typeof openDatabase>,
+  {
+    previewDraftId,
+    scope,
+  }: {
+    previewDraftId: string;
+    scope: ResearchCandidateReviewScope;
+  },
+): ResearchCandidateManualNotePreviewDraftJoinedRow | undefined {
+  return db
+    .prepare(
+      `
+        SELECT
+          drafts.preview_draft_id,
+          drafts.status,
+          drafts.scope,
+          drafts.source_kind,
+          drafts.operator_note_label,
+          drafts.parser_version,
+          drafts.preview_version,
+          drafts.input_fingerprint,
+          drafts.manual_note_text_stored,
+          drafts.preview_json,
+          drafts.warnings_json,
+          drafts.authority_json,
+          drafts.runtime_boundary_json,
+          drafts.no_side_effects_json,
+          drafts.promoted_at,
+          drafts.canonical_perspective_id,
+          drafts.proof_id,
+          drafts.evidence_id,
+          drafts.work_item_id,
+          drafts.created_at,
+          drafts.updated_at,
+          discards.discard_id,
+          discards.discarded_at,
+          discards.discarded_by,
+          discards.discard_reason,
+          discards.authority_json AS discard_authority_json,
+          discards.no_side_effects_json AS discard_no_side_effects_json
+        FROM research_candidate_manual_note_preview_drafts drafts
+        LEFT JOIN research_candidate_manual_note_preview_draft_discards discards
+          ON discards.preview_draft_id = drafts.preview_draft_id
+        WHERE drafts.preview_draft_id = ?
+          AND drafts.scope = ?
+      `,
+    )
+    .get(previewDraftId, scope) as
+    | ResearchCandidateManualNotePreviewDraftJoinedRow
+    | undefined;
+}
+
+function selectResearchCandidateManualNotePreviewDraftDiscardRow(
+  db: ReturnType<typeof openDatabase>,
+  previewDraftId: string,
+): ResearchCandidateManualNotePreviewDraftDiscardRow | undefined {
+  return db
+    .prepare(
+      `
+        SELECT
+          discard_id,
+          preview_draft_id,
+          scope,
+          discarded_at,
+          discarded_by,
+          discard_reason,
+          authority_json,
+          no_side_effects_json
+        FROM research_candidate_manual_note_preview_draft_discards
+        WHERE preview_draft_id = ?
+      `,
+    )
+    .get(previewDraftId) as
+    | ResearchCandidateManualNotePreviewDraftDiscardRow
+    | undefined;
 }
 
 function parseResearchCandidateManualNotePreviewDraftRow(
@@ -204,5 +497,119 @@ function parseResearchCandidateManualNotePreviewDraftRow(
     no_side_effects_json: JSON.parse(
       row.no_side_effects_json,
     ) as ManualNotePreviewNoSideEffects,
+  };
+}
+
+function parseResearchCandidateManualNotePreviewDraftListItem(
+  row: ResearchCandidateManualNotePreviewDraftJoinedRow,
+): ManualNotePreviewDraftListItem {
+  const draft = parseResearchCandidateManualNotePreviewDraftRow(row);
+  const preview = draft.preview_json as ResearchCandidateReviewPreviewResponse;
+  const warnings = draft.warnings_json as ManualResearchNoteParserWarning[];
+  const discardMetadata = parseDiscardMetadataFromJoinedRow(row);
+
+  return {
+    preview_draft_id: draft.preview_draft_id,
+    status: draft.status,
+    lifecycle_status: discardMetadata
+      ? "discarded_preview_draft"
+      : "active_preview_draft",
+    scope: draft.scope,
+    source_kind: draft.source_kind,
+    operator_note_label: draft.operator_note_label,
+    parser_version: draft.parser_version,
+    preview_version: draft.preview_version,
+    input_fingerprint: draft.input_fingerprint,
+    manual_note_text_stored: false,
+    warning_count: warnings.length,
+    candidate_count_summary: buildCandidateCountSummary(preview),
+    created_at: draft.created_at,
+    updated_at: draft.updated_at,
+    ...(discardMetadata ? { discard_metadata: discardMetadata } : {}),
+  };
+}
+
+function parseResearchCandidateManualNotePreviewDraftDetail(
+  row: ResearchCandidateManualNotePreviewDraftJoinedRow,
+): ResearchCandidateManualNotePreviewDraftDetail {
+  const draft = parseResearchCandidateManualNotePreviewDraftRow(row);
+  const preview = draft.preview_json as ResearchCandidateReviewPreviewResponse;
+  const warnings = draft.warnings_json as ManualResearchNoteParserWarning[];
+  const discardMetadata = parseDiscardMetadataFromJoinedRow(row);
+  const lifecycleStatus: ManualNotePreviewDraftLifecycleStatus = discardMetadata
+    ? "discarded_preview_draft"
+    : "active_preview_draft";
+
+  return {
+    draft: {
+      ...parseResearchCandidateManualNotePreviewDraftListItem(row),
+      stored_authority: draft.authority_json,
+      stored_runtime_boundary: draft.runtime_boundary_json,
+      stored_no_side_effects: draft.no_side_effects_json,
+    },
+    preview,
+    warnings,
+    authority: draft.authority_json,
+    lifecycle_status: lifecycleStatus,
+    ...(discardMetadata ? { discard_metadata: discardMetadata } : {}),
+  };
+}
+
+function parseResearchCandidateManualNotePreviewDraftDiscardRow(
+  row: ResearchCandidateManualNotePreviewDraftDiscardRow,
+): ResearchCandidateManualNotePreviewDraftDiscardRecord {
+  return {
+    ...row,
+    authority_json: JSON.parse(
+      row.authority_json,
+    ) as ManualNotePreviewDraftLifecycleAuthority,
+    no_side_effects_json: JSON.parse(
+      row.no_side_effects_json,
+    ) as ManualNotePreviewNoSideEffects,
+  };
+}
+
+function parseDiscardMetadataFromJoinedRow(
+  row: ResearchCandidateManualNotePreviewDraftJoinedRow,
+): ManualNotePreviewDraftDiscardMetadata | undefined {
+  if (!row.discard_id || !row.discarded_at || !row.discarded_by) {
+    return undefined;
+  }
+
+  return {
+    discard_id: row.discard_id,
+    preview_draft_id: row.preview_draft_id,
+    scope: row.scope,
+    discarded_at: row.discarded_at,
+    discarded_by: row.discarded_by,
+    discard_reason: row.discard_reason ?? "",
+  };
+}
+
+function buildCandidateCountSummary(
+  preview: ResearchCandidateReviewPreviewResponse,
+): ManualNotePreviewDraftCandidateCountSummary {
+  const session = preview.research_session_preview;
+  const claims = session.claim_candidate_count;
+  const evidence = session.evidence_candidate_count;
+  const tensions = session.tension_candidate_count;
+  const knowledgeGaps = session.knowledge_gap_candidate_count;
+  const perspectiveDeltas = session.perspective_delta_candidate_count;
+  const followUpWork = session.follow_up_work_candidate_count;
+
+  return {
+    total:
+      claims +
+      evidence +
+      tensions +
+      knowledgeGaps +
+      perspectiveDeltas +
+      followUpWork,
+    claims,
+    evidence,
+    tensions,
+    knowledge_gaps: knowledgeGaps,
+    perspective_deltas: perspectiveDeltas,
+    follow_up_work: followUpWork,
   };
 }

@@ -5553,6 +5553,88 @@ code {
   line-height: 1.35;
 }
 
+.manual-note-preview-drafts {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.manual-note-preview-drafts-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.manual-note-preview-drafts-header h3,
+.manual-note-preview-drafts-header p {
+  margin: 0;
+}
+
+.manual-note-preview-drafts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.manual-note-preview-drafts-actions label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.manual-note-preview-drafts-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-grid,
+.manual-note-preview-draft-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-grid span {
+  display: inline-flex;
+  flex: 1 1 min(220px, 100%);
+  min-width: 0;
+  gap: 5px;
+  align-items: baseline;
+  color: #4b5563;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-preview-draft-grid code,
+.manual-note-preview-draft-card code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-preview-draft-controls button {
+  flex: 1 1 min(170px, 100%);
+  max-width: 100%;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 @media (max-width: 480px) {
   #research-candidate-manual-note-preview-panel .manual-note-input-header {
     display: grid;
@@ -5569,6 +5651,19 @@ code {
   }
 
   #research-candidate-manual-note-preview-panel .form-row button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .manual-note-preview-drafts-actions,
+  .manual-note-preview-draft-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .manual-note-preview-drafts-actions button,
+  .manual-note-preview-draft-controls button {
     width: 100%;
     min-width: 0;
   }
