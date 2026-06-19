@@ -193,6 +193,7 @@
     "smoke:research-candidate-runtime-preview-draft-v0-1": "node scripts/smoke-research-candidate-runtime-preview-draft-v0-1.mjs",
     "smoke:research-candidate-preview-draft-read-discard-v0-1": "node scripts/smoke-research-candidate-preview-draft-read-discard-v0-1.mjs",
     "smoke:research-candidate-preview-draft-list-filters-v0-1": "node scripts/smoke-research-candidate-preview-draft-list-filters-v0-1.mjs",
+    "smoke:research-candidate-preview-draft-label-v0-1": "node scripts/smoke-research-candidate-preview-draft-label-v0-1.mjs",
     "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-surface-v0-1": "node scripts/smoke-research-candidate-review-surface-v0-1.mjs",
     "smoke:research-candidate-review-types-v0-1": "node scripts/smoke-research-candidate-review-types-v0-1.mjs",

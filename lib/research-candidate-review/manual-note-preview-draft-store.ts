@@ -5,6 +5,7 @@ import type {
   ManualResearchNoteParserWarning,
 } from "@/lib/research-candidate-review/manual-note-parser";
 import {
+  MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH,
   MAX_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT,
   type ManualNotePreviewDraftCandidateCountSummary,
   type ManualNotePreviewDraftCandidateFilter,
@@ -331,6 +332,56 @@ export function getResearchCandidateManualNotePreviewDraft({
   }
 }
 
+export function updateResearchCandidateManualNotePreviewDraftLabel({
+  previewDraftId,
+  scope,
+  operatorNoteLabel,
+  updatedAt,
+}: {
+  previewDraftId: string;
+  scope: ResearchCandidateReviewScope;
+  operatorNoteLabel: string | null;
+  updatedAt: string;
+}): ResearchCandidateManualNotePreviewDraftDetail | null {
+  const db = openDatabase();
+
+  try {
+    const existing = selectResearchCandidateManualNotePreviewDraftJoinedRow(db, {
+      previewDraftId,
+      scope,
+    });
+    if (!existing) {
+      return null;
+    }
+
+    db.prepare(
+      `
+        UPDATE research_candidate_manual_note_preview_drafts
+        SET
+          operator_note_label = @operator_note_label,
+          updated_at = @updated_at
+        WHERE preview_draft_id = @preview_draft_id
+          AND scope = @scope
+      `,
+    ).run({
+      preview_draft_id: previewDraftId,
+      scope,
+      operator_note_label: cleanOperatorNoteLabel(operatorNoteLabel),
+      updated_at: updatedAt,
+    });
+
+    const updated = selectResearchCandidateManualNotePreviewDraftJoinedRow(db, {
+      previewDraftId,
+      scope,
+    });
+    return updated
+      ? parseResearchCandidateManualNotePreviewDraftDetail(updated)
+      : null;
+  } finally {
+    db.close();
+  }
+}
+
 export function discardResearchCandidateManualNotePreviewDraft({
   previewDraftId,
   scope,
@@ -410,7 +461,9 @@ export function discardResearchCandidateManualNotePreviewDraft({
 function cleanOperatorNoteLabel(value?: string | null) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed.slice(0, 160) : null;
+  return trimmed.length > 0
+    ? trimmed.slice(0, MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH)
+    : null;
 }
 
 function cleanDiscardedBy(value: string) {
