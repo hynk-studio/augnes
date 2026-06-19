@@ -227,6 +227,7 @@ export function openDatabase() {
   migrateTemporalPreviewReviewArtifactIdempotencyTable(db);
   migrateResearchCandidateManualNotePreviewDraftsTable(db);
   migrateResearchCandidateManualNotePreviewDraftDiscardsTable(db);
+  migrateResearchCandidateManualNotePreviewDraftActivitiesTable(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
   return db;
@@ -1897,6 +1898,48 @@ function migrateResearchCandidateManualNotePreviewDraftDiscardsTable(
         ON research_candidate_manual_note_preview_draft_discards(scope, discarded_at DESC)
     `,
   ).run();
+}
+
+function migrateResearchCandidateManualNotePreviewDraftActivitiesTable(
+  db: Database.Database,
+) {
+  db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS research_candidate_manual_note_preview_draft_activities (
+        activity_id TEXT PRIMARY KEY,
+        preview_draft_id TEXT NOT NULL,
+        scope TEXT NOT NULL DEFAULT 'project:augnes' CHECK (scope IN ('project:augnes')),
+        activity_type TEXT NOT NULL CHECK (activity_type IN ('preview_draft_created', 'label_updated', 'label_cleared', 'preview_draft_discarded')),
+        activity_at TEXT NOT NULL,
+        activity_by TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        before_json TEXT NOT NULL DEFAULT '{}',
+        after_json TEXT NOT NULL DEFAULT '{}',
+        authority_json TEXT NOT NULL,
+        no_side_effects_json TEXT NOT NULL,
+        FOREIGN KEY (preview_draft_id) REFERENCES research_candidate_manual_note_preview_drafts(preview_draft_id)
+      )
+    `,
+  ).run();
+
+  const indexes = [
+    `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_activities_draft_time
+        ON research_candidate_manual_note_preview_draft_activities(preview_draft_id, activity_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_activities_scope_time
+        ON research_candidate_manual_note_preview_draft_activities(scope, activity_at DESC)
+    `,
+    `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_activities_type_time
+        ON research_candidate_manual_note_preview_draft_activities(activity_type, activity_at DESC)
+    `,
+  ];
+
+  for (const sql of indexes) {
+    db.prepare(sql).run();
+  }
 }
 
 function migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(

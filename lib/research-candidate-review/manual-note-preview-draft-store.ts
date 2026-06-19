@@ -6,7 +6,12 @@ import type {
 } from "@/lib/research-candidate-review/manual-note-parser";
 import {
   MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH,
+  MAX_MANUAL_NOTE_PREVIEW_DRAFT_ACTIVITY_LIST_LIMIT,
   MAX_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT,
+  buildManualNotePreviewDraftActivityAuthority,
+  type ManualNotePreviewDraftActivityAuthority,
+  type ManualNotePreviewDraftActivityItem,
+  type ManualNotePreviewDraftActivityType,
   type ManualNotePreviewDraftCandidateCountSummary,
   type ManualNotePreviewDraftCandidateFilter,
   type ManualNotePreviewDraftDetailMetadata,
@@ -86,6 +91,30 @@ type ResearchCandidateManualNotePreviewDraftDiscardRow = Omit<
   no_side_effects_json: string;
 };
 
+export type ResearchCandidateManualNotePreviewDraftActivityRecord = {
+  activity_id: string;
+  preview_draft_id: string;
+  scope: ResearchCandidateReviewScope;
+  activity_type: ManualNotePreviewDraftActivityType;
+  activity_at: string;
+  activity_by: string;
+  summary: string;
+  before_json: Record<string, unknown>;
+  after_json: Record<string, unknown>;
+  authority_json: ManualNotePreviewDraftActivityAuthority;
+  no_side_effects_json: ManualNotePreviewNoSideEffects;
+};
+
+type ResearchCandidateManualNotePreviewDraftActivityRow = Omit<
+  ResearchCandidateManualNotePreviewDraftActivityRecord,
+  "before_json" | "after_json" | "authority_json" | "no_side_effects_json"
+> & {
+  before_json: string;
+  after_json: string;
+  authority_json: string;
+  no_side_effects_json: string;
+};
+
 type ResearchCandidateManualNotePreviewDraftJoinedRow =
   ResearchCandidateManualNotePreviewDraftRow & {
     discard_id: string | null;
@@ -103,6 +132,11 @@ export type ResearchCandidateManualNotePreviewDraftDetail = {
   authority: ManualNotePreviewRuntimeAuthority;
   lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
   discard_metadata?: ManualNotePreviewDraftDiscardMetadata;
+};
+
+export type ResearchCandidateManualNotePreviewDraftActivityList = {
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  items: ManualNotePreviewDraftActivityItem[];
 };
 
 export function insertResearchCandidateManualNotePreviewDraft({
@@ -201,6 +235,26 @@ export function insertResearchCandidateManualNotePreviewDraft({
         )
       `,
     ).run(row);
+
+    insertResearchCandidateManualNotePreviewDraftActivity(db, {
+      previewDraftId,
+      scope,
+      activityType: "preview_draft_created",
+      activityAt: createdAt,
+      activityBy: "cockpit_operator",
+      summary: row.operator_note_label
+        ? "Preview draft created with operator preview label."
+        : "Preview draft created without operator preview label.",
+      beforeJson: {},
+      afterJson: {
+        operator_note_label: row.operator_note_label,
+        parser_version: row.parser_version,
+        preview_version: row.preview_version,
+        input_fingerprint: row.input_fingerprint,
+        candidate_count_summary: buildCandidateCountSummary(parserResult.preview),
+      },
+      noSideEffects,
+    });
 
     const inserted = db
       .prepare(
@@ -354,6 +408,9 @@ export function updateResearchCandidateManualNotePreviewDraftLabel({
       return null;
     }
 
+    const previousOperatorNoteLabel = existing.operator_note_label;
+    const nextOperatorNoteLabel = cleanOperatorNoteLabel(operatorNoteLabel);
+
     db.prepare(
       `
         UPDATE research_candidate_manual_note_preview_drafts
@@ -366,7 +423,7 @@ export function updateResearchCandidateManualNotePreviewDraftLabel({
     ).run({
       preview_draft_id: previewDraftId,
       scope,
-      operator_note_label: cleanOperatorNoteLabel(operatorNoteLabel),
+      operator_note_label: nextOperatorNoteLabel,
       updated_at: updatedAt,
     });
 
@@ -374,6 +431,29 @@ export function updateResearchCandidateManualNotePreviewDraftLabel({
       previewDraftId,
       scope,
     });
+
+    if (updated && previousOperatorNoteLabel !== nextOperatorNoteLabel) {
+      insertResearchCandidateManualNotePreviewDraftActivity(db, {
+        previewDraftId,
+        scope,
+        activityType: nextOperatorNoteLabel ? "label_updated" : "label_cleared",
+        activityAt: updatedAt,
+        activityBy: "cockpit_operator",
+        summary: nextOperatorNoteLabel
+          ? "Preview draft label updated."
+          : "Preview draft label cleared.",
+        beforeJson: {
+          operator_note_label: previousOperatorNoteLabel,
+        },
+        afterJson: {
+          operator_note_label: nextOperatorNoteLabel,
+        },
+        noSideEffects: JSON.parse(
+          updated.no_side_effects_json,
+        ) as ManualNotePreviewNoSideEffects,
+      });
+    }
+
     return updated
       ? parseResearchCandidateManualNotePreviewDraftDetail(updated)
       : null;
@@ -410,6 +490,11 @@ export function discardResearchCandidateManualNotePreviewDraft({
       return null;
     }
 
+    const wasAlreadyDiscarded = Boolean(draft.discard_id);
+    const discardId = `research-candidate-preview-draft-discard:${randomUUID()}`;
+    const cleanedDiscardedBy = cleanDiscardedBy(discardedBy);
+    const cleanedDiscardReason = cleanDiscardReason(discardReason);
+
     db.prepare(
       `
         INSERT INTO research_candidate_manual_note_preview_draft_discards (
@@ -435,12 +520,12 @@ export function discardResearchCandidateManualNotePreviewDraft({
         ON CONFLICT(preview_draft_id) DO NOTHING
       `,
     ).run({
-      discard_id: `research-candidate-preview-draft-discard:${randomUUID()}`,
+      discard_id: discardId,
       preview_draft_id: previewDraftId,
       scope,
       discarded_at: discardedAt,
-      discarded_by: cleanDiscardedBy(discardedBy),
-      discard_reason: cleanDiscardReason(discardReason),
+      discarded_by: cleanedDiscardedBy,
+      discard_reason: cleanedDiscardReason,
       authority_json: JSON.stringify(authority),
       no_side_effects_json: JSON.stringify(noSideEffects),
     });
@@ -450,9 +535,92 @@ export function discardResearchCandidateManualNotePreviewDraft({
       previewDraftId,
     );
 
+    if (!wasAlreadyDiscarded && discardRow) {
+      insertResearchCandidateManualNotePreviewDraftActivity(db, {
+        previewDraftId,
+        scope,
+        activityType: "preview_draft_discarded",
+        activityAt: discardRow.discarded_at,
+        activityBy: discardRow.discarded_by,
+        summary: "Preview draft discarded as lifecycle metadata.",
+        beforeJson: {
+          lifecycle_status: "active_preview_draft",
+        },
+        afterJson: {
+          lifecycle_status: "discarded_preview_draft",
+          discard_id: discardRow.discard_id,
+          discard_reason: discardRow.discard_reason,
+        },
+        noSideEffects,
+      });
+    }
+
     return discardRow
       ? parseResearchCandidateManualNotePreviewDraftDiscardRow(discardRow)
       : null;
+  } finally {
+    db.close();
+  }
+}
+
+export function listResearchCandidateManualNotePreviewDraftActivities({
+  previewDraftId,
+  scope,
+  limit,
+}: {
+  previewDraftId: string;
+  scope: ResearchCandidateReviewScope;
+  limit: number;
+}): ResearchCandidateManualNotePreviewDraftActivityList | null {
+  const db = openDatabase();
+  const safeLimit = Math.max(
+    1,
+    Math.min(limit, MAX_MANUAL_NOTE_PREVIEW_DRAFT_ACTIVITY_LIST_LIMIT),
+  );
+
+  try {
+    const draft = selectResearchCandidateManualNotePreviewDraftJoinedRow(db, {
+      previewDraftId,
+      scope,
+    });
+    if (!draft) {
+      return null;
+    }
+
+    const rows = db
+      .prepare(
+        `
+          SELECT
+            activity_id,
+            preview_draft_id,
+            scope,
+            activity_type,
+            activity_at,
+            activity_by,
+            summary,
+            before_json,
+            after_json,
+            authority_json,
+            no_side_effects_json
+          FROM research_candidate_manual_note_preview_draft_activities
+          WHERE preview_draft_id = @preview_draft_id
+            AND scope = @scope
+          ORDER BY activity_at DESC
+          LIMIT @limit
+        `,
+      )
+      .all({
+        preview_draft_id: previewDraftId,
+        scope,
+        limit: safeLimit,
+      }) as ResearchCandidateManualNotePreviewDraftActivityRow[];
+
+    return {
+      lifecycle_status: parseDiscardMetadataFromJoinedRow(draft)
+        ? "discarded_preview_draft"
+        : "active_preview_draft",
+      items: rows.map(parseResearchCandidateManualNotePreviewDraftActivityRow),
+    };
   } finally {
     db.close();
   }
@@ -473,6 +641,27 @@ function cleanDiscardedBy(value: string) {
 
 function cleanDiscardReason(value: string) {
   return value.trim().slice(0, 500);
+}
+
+function cleanActivityBy(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, 120) : "cockpit_operator";
+}
+
+function cleanActivitySummary(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0
+    ? trimmed.slice(0, 500)
+    : "Preview draft activity recorded.";
+}
+
+function parseJsonRecord(value: string): Record<string, unknown> {
+  const parsed = JSON.parse(value) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {};
+  }
+
+  return parsed as Record<string, unknown>;
 }
 
 function buildLifecycleWhereClause(
@@ -603,6 +792,74 @@ function selectResearchCandidateManualNotePreviewDraftDiscardRow(
     | undefined;
 }
 
+function insertResearchCandidateManualNotePreviewDraftActivity(
+  db: ReturnType<typeof openDatabase>,
+  {
+    previewDraftId,
+    scope,
+    activityType,
+    activityAt,
+    activityBy,
+    summary,
+    beforeJson,
+    afterJson,
+    noSideEffects,
+  }: {
+    previewDraftId: string;
+    scope: ResearchCandidateReviewScope;
+    activityType: ManualNotePreviewDraftActivityType;
+    activityAt: string;
+    activityBy: string;
+    summary: string;
+    beforeJson: Record<string, unknown>;
+    afterJson: Record<string, unknown>;
+    noSideEffects: ManualNotePreviewNoSideEffects;
+  },
+) {
+  db.prepare(
+    `
+      INSERT INTO research_candidate_manual_note_preview_draft_activities (
+        activity_id,
+        preview_draft_id,
+        scope,
+        activity_type,
+        activity_at,
+        activity_by,
+        summary,
+        before_json,
+        after_json,
+        authority_json,
+        no_side_effects_json
+      )
+      VALUES (
+        @activity_id,
+        @preview_draft_id,
+        @scope,
+        @activity_type,
+        @activity_at,
+        @activity_by,
+        @summary,
+        @before_json,
+        @after_json,
+        @authority_json,
+        @no_side_effects_json
+      )
+    `,
+  ).run({
+    activity_id: `research-candidate-preview-draft-activity:${randomUUID()}`,
+    preview_draft_id: previewDraftId,
+    scope,
+    activity_type: activityType,
+    activity_at: activityAt,
+    activity_by: cleanActivityBy(activityBy),
+    summary: cleanActivitySummary(summary),
+    before_json: JSON.stringify(beforeJson),
+    after_json: JSON.stringify(afterJson),
+    authority_json: JSON.stringify(buildManualNotePreviewDraftActivityAuthority()),
+    no_side_effects_json: JSON.stringify(noSideEffects),
+  });
+}
+
 function parseResearchCandidateManualNotePreviewDraftRow(
   row: ResearchCandidateManualNotePreviewDraftRow,
 ): ResearchCandidateManualNotePreviewDraftRecord {
@@ -616,6 +873,27 @@ function parseResearchCandidateManualNotePreviewDraftRow(
       row.runtime_boundary_json,
     ) as ManualNotePreviewRuntimeBoundary,
     no_side_effects_json: JSON.parse(
+      row.no_side_effects_json,
+    ) as ManualNotePreviewNoSideEffects,
+  };
+}
+
+function parseResearchCandidateManualNotePreviewDraftActivityRow(
+  row: ResearchCandidateManualNotePreviewDraftActivityRow,
+): ManualNotePreviewDraftActivityItem {
+  return {
+    activity_id: row.activity_id,
+    preview_draft_id: row.preview_draft_id,
+    activity_type: row.activity_type,
+    activity_at: row.activity_at,
+    activity_by: row.activity_by,
+    summary: row.summary,
+    before_json: parseJsonRecord(row.before_json),
+    after_json: parseJsonRecord(row.after_json),
+    authority: JSON.parse(
+      row.authority_json,
+    ) as ManualNotePreviewDraftActivityAuthority,
+    no_side_effects: JSON.parse(
       row.no_side_effects_json,
     ) as ManualNotePreviewNoSideEffects,
   };

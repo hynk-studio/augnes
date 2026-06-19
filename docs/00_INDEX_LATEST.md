@@ -771,6 +771,27 @@ repo-local 색인이다.
   UI label input/display/edit affordances, preserved list filters/open/discard
   behavior, package/index pointers, no browser persistence, and forbidden
   provider/retrieval/proof/evidence/work/state write-pattern absence.
+- Manual note preview draft activity/readout lane:
+  `app/api/research-candidate-review/manual-note-preview-drafts/[preview_draft_id]/activity`
+  provides a bounded same-origin `GET` route for operator-facing preview draft
+  lifecycle metadata. Create, label update/clear, and discard paths write
+  metadata-only activity rows to
+  `research_candidate_manual_note_preview_draft_activities`; Cockpit/Perspective
+  exposes a compact manual Load activity readout for opened stored drafts. The
+  activity table does not store raw note text or preview JSON snapshots, older
+  drafts may have no historical activity rows, and activity remains non-canonical
+  preview metadata only: no approval/reject/defer/promote workflow, proof/evidence
+  rows, work items, canonical Perspective writes, provider/OpenAI calls,
+  retrieval/RAG/source fetching, Codex execution, browser persistence, or
+  external handoff sending.
+- `npm run smoke:research-candidate-preview-draft-activity-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-activity-v0-1.mjs` checks the
+  activity table schema and migrations, activity `GET` route validation and
+  response boundary, store activity hooks for create/label/discard, UI readout
+  copy/action, preserved create/list/filter/open/label/discard behavior,
+  package/index pointers, no browser persistence, no raw note text or preview
+  JSON activity storage, and forbidden provider/retrieval/proof/evidence/work/state
+  write-pattern absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

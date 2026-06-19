@@ -23,6 +23,8 @@ export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT = 50;
 export const DEFAULT_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT = 10;
 export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_DISCARD_REASON_LENGTH = 500;
 export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH = 160;
+export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_ACTIVITY_LIST_LIMIT = 50;
+export const DEFAULT_MANUAL_NOTE_PREVIEW_DRAFT_ACTIVITY_LIST_LIMIT = 20;
 
 export type ManualNotePreviewPersistenceMode =
   | "persisted_preview_draft"
@@ -52,6 +54,12 @@ export type ManualNotePreviewDraftCandidateFilter =
   | "all"
   | "with_candidates"
   | "without_candidates";
+
+export type ManualNotePreviewDraftActivityType =
+  | "preview_draft_created"
+  | "label_updated"
+  | "label_cleared"
+  | "preview_draft_discarded";
 
 export type ManualNotePreviewDraftListQuery = {
   limit: number;
@@ -188,6 +196,48 @@ export type ManualNotePreviewDraftLabelRuntimeBoundary = {
   external_handoff_sending: false;
 };
 
+export type ManualNotePreviewDraftActivityAuthority = {
+  preview_only: true;
+  lifecycle_metadata_only: true;
+  activity_is_preview_metadata_only: true;
+  activity_is_not_approval_history: true;
+  approval_workflow_created: false;
+  reject_defer_promote_workflow_created: false;
+  raw_manual_note_text_persisted: false;
+  raw_manual_note_text_returned: false;
+  preview_json_snapshot_stored: false;
+  canonical_perspective_write: false;
+  proof_or_evidence_writes: false;
+  work_item_creation: false;
+  provider_or_openai_calls: false;
+  retrieval_or_rag: false;
+  source_fetching: false;
+  codex_execution: false;
+  external_handoff_sending: false;
+};
+
+export type ManualNotePreviewDraftActivityRuntimeBoundary = {
+  route: string;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  source_kind: "stored_manual_paste_preview_draft";
+  activity_actions: "read_lifecycle_metadata_only";
+  lifecycle_status_source: "discard_marker_table";
+  activity_is_preview_metadata_only: true;
+  approval_workflow_created: false;
+  reject_defer_promote_workflow_created: false;
+  raw_manual_note_text_persisted: false;
+  raw_manual_note_text_returned: false;
+  preview_json_snapshot_returned: false;
+  canonical_perspective_write: false;
+  proof_or_evidence_writes: false;
+  work_item_creation: false;
+  provider_or_openai_calls: false;
+  retrieval_or_rag: false;
+  source_fetching: false;
+  codex_execution: false;
+  external_handoff_sending: false;
+};
+
 export type ManualNotePreviewDraftDiscardMetadata = {
   discard_id: string;
   preview_draft_id: string;
@@ -221,6 +271,19 @@ export type ManualNotePreviewDraftDetailMetadata =
     stored_runtime_boundary: ManualNotePreviewRuntimeBoundary;
     stored_no_side_effects: ManualNotePreviewNoSideEffects;
   };
+
+export type ManualNotePreviewDraftActivityItem = {
+  activity_id: string;
+  preview_draft_id: string;
+  activity_type: ManualNotePreviewDraftActivityType;
+  activity_at: string;
+  activity_by: string;
+  summary: string;
+  before_json: Record<string, unknown>;
+  after_json: Record<string, unknown>;
+  authority: ManualNotePreviewDraftActivityAuthority;
+  no_side_effects: ManualNotePreviewNoSideEffects;
+};
 
 export type ManualNotePreviewDraftListOkResponse = {
   ok: true;
@@ -276,6 +339,18 @@ export type ManualNotePreviewDraftLabelUpdateOkResponse = {
   no_side_effects: ManualNotePreviewNoSideEffects;
 };
 
+export type ManualNotePreviewDraftActivityOkResponse = {
+  ok: true;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  preview_draft_id: string;
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  items: ManualNotePreviewDraftActivityItem[];
+  count: number;
+  limit: number;
+  runtime_boundary: ManualNotePreviewDraftActivityRuntimeBoundary;
+  no_side_effects: ManualNotePreviewNoSideEffects;
+};
+
 export type ManualNotePreviewDraftRuntimeErrorResponse = {
   ok: false;
   error_code:
@@ -295,7 +370,8 @@ export type ManualNotePreviewDraftRuntimeErrorResponse = {
   message: string;
   runtime_boundary:
     | ManualNotePreviewDraftLifecycleRuntimeBoundary
-    | ManualNotePreviewDraftLabelRuntimeBoundary;
+    | ManualNotePreviewDraftLabelRuntimeBoundary
+    | ManualNotePreviewDraftActivityRuntimeBoundary;
 };
 
 export type ManualNotePreviewDraftListResponse =
@@ -312,6 +388,10 @@ export type ManualNotePreviewDraftDiscardResponse =
 
 export type ManualNotePreviewDraftLabelUpdateResponse =
   | ManualNotePreviewDraftLabelUpdateOkResponse
+  | ManualNotePreviewDraftRuntimeErrorResponse;
+
+export type ManualNotePreviewDraftActivityResponse =
+  | ManualNotePreviewDraftActivityOkResponse
   | ManualNotePreviewDraftRuntimeErrorResponse;
 
 export type ManualNotePreviewRuntimeRequest = {
@@ -388,6 +468,10 @@ export function buildManualNotePreviewDraftLabelRoute(previewDraftId: string) {
   return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/label`;
 }
 
+export function buildManualNotePreviewDraftActivityRoute(previewDraftId: string) {
+  return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/activity`;
+}
+
 export function buildManualNotePreviewRuntimeBoundary({
   persistPreviewDraft,
 }: {
@@ -448,6 +532,28 @@ export function buildManualNotePreviewDraftLifecycleAuthority(): ManualNotePrevi
   };
 }
 
+export function buildManualNotePreviewDraftActivityAuthority(): ManualNotePreviewDraftActivityAuthority {
+  return {
+    preview_only: true,
+    lifecycle_metadata_only: true,
+    activity_is_preview_metadata_only: true,
+    activity_is_not_approval_history: true,
+    approval_workflow_created: false,
+    reject_defer_promote_workflow_created: false,
+    raw_manual_note_text_persisted: false,
+    raw_manual_note_text_returned: false,
+    preview_json_snapshot_stored: false,
+    canonical_perspective_write: false,
+    proof_or_evidence_writes: false,
+    work_item_creation: false,
+    provider_or_openai_calls: false,
+    retrieval_or_rag: false,
+    source_fetching: false,
+    codex_execution: false,
+    external_handoff_sending: false,
+  };
+}
+
 export function buildManualNotePreviewDraftLifecycleBoundary({
   route,
 }: {
@@ -499,6 +605,34 @@ export function buildManualNotePreviewDraftLabelBoundary({
     durable_candidate_storage: false,
     durable_review_storage: false,
     durable_receipt_storage: false,
+    canonical_perspective_write: false,
+    proof_or_evidence_writes: false,
+    work_item_creation: false,
+    provider_or_openai_calls: false,
+    retrieval_or_rag: false,
+    source_fetching: false,
+    codex_execution: false,
+    external_handoff_sending: false,
+  };
+}
+
+export function buildManualNotePreviewDraftActivityBoundary({
+  route,
+}: {
+  route: string;
+}): ManualNotePreviewDraftActivityRuntimeBoundary {
+  return {
+    route,
+    runtime_version: MANUAL_NOTE_RUNTIME_VERSION,
+    source_kind: "stored_manual_paste_preview_draft",
+    activity_actions: "read_lifecycle_metadata_only",
+    lifecycle_status_source: "discard_marker_table",
+    activity_is_preview_metadata_only: true,
+    approval_workflow_created: false,
+    reject_defer_promote_workflow_created: false,
+    raw_manual_note_text_persisted: false,
+    raw_manual_note_text_returned: false,
+    preview_json_snapshot_returned: false,
     canonical_perspective_write: false,
     proof_or_evidence_writes: false,
     work_item_creation: false,

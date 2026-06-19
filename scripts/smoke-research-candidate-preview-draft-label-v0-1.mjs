@@ -147,6 +147,10 @@ function assertStoreLabelUpdate() {
     "WHERE preview_draft_id = @preview_draft_id",
     "AND scope = @scope",
     "cleanOperatorNoteLabel(operatorNoteLabel)",
+    "insertResearchCandidateManualNotePreviewDraftActivity",
+    'activityType: nextOperatorNoteLabel ? "label_updated" : "label_cleared"',
+    "Preview draft label updated.",
+    "Preview draft label cleared.",
     "parseResearchCandidateManualNotePreviewDraftDetail(updated)",
   ]) {
     assert.ok(
@@ -161,8 +165,8 @@ function assertStoreLabelUpdate() {
 
   assert.doesNotMatch(
     labelUpdateStoreFunction,
-    /\b(?:INSERT|DELETE)\b/i,
-    "label store update must not insert or delete rows",
+    /\bDELETE\b/i,
+    "label store update must not delete rows",
   );
 
   for (const forbiddenUpdateColumn of [
