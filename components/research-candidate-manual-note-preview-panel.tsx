@@ -10,11 +10,15 @@ import {
   MANUAL_NOTE_PREVIEW_ROUTE,
   buildManualNotePreviewDraftDetailRoute,
   buildManualNotePreviewDraftDiscardRoute,
+  type ManualNotePreviewDraftCandidateFilter,
   type ManualNotePreviewDraftDetailOkResponse,
   type ManualNotePreviewDraftDetailResponse,
   type ManualNotePreviewDraftDiscardResponse,
+  type ManualNotePreviewDraftListLifecycleFilter,
   type ManualNotePreviewDraftListItem,
   type ManualNotePreviewDraftListResponse,
+  type ManualNotePreviewDraftListSort,
+  type ManualNotePreviewDraftWarningFilter,
   type ManualNotePreviewRuntimeAuthority,
   type ManualNotePreviewRuntimeOkResponse,
   type ManualNotePreviewRuntimeResponse,
@@ -95,6 +99,36 @@ const AUTHORITY_BOUNDARY_COPY = [
   "No Codex execution or external handoff sending.",
 ];
 
+const DRAFT_LIST_LIMIT_OPTIONS = [10, 25, 50] as const;
+
+const LIFECYCLE_FILTER_LABELS: Record<
+  ManualNotePreviewDraftListLifecycleFilter,
+  string
+> = {
+  active: "Active only",
+  discarded: "Discarded only",
+  all: "All preview drafts",
+};
+
+const SORT_LABELS: Record<ManualNotePreviewDraftListSort, string> = {
+  created_desc: "Newest first",
+  created_asc: "Oldest first",
+};
+
+const WARNING_FILTER_LABELS: Record<ManualNotePreviewDraftWarningFilter, string> =
+  {
+    all: "All warning states",
+    with_warnings: "Warnings only",
+    without_warnings: "No warnings",
+  };
+
+const CANDIDATE_FILTER_LABELS: Record<ManualNotePreviewDraftCandidateFilter, string> =
+  {
+    all: "All candidate counts",
+    with_candidates: "Has candidates",
+    without_candidates: "No candidates",
+  };
+
 type ManualNoteResultSource =
   | "local_parse"
   | "persisted_preview_draft"
@@ -114,6 +148,14 @@ type ManualNoteDisplayResult = {
   storedDraftResult: ManualNotePreviewDraftDetailOkResponse | null;
 };
 
+type DraftListControls = {
+  lifecycle: ManualNotePreviewDraftListLifecycleFilter;
+  sort: ManualNotePreviewDraftListSort;
+  warnings: ManualNotePreviewDraftWarningFilter;
+  candidates: ManualNotePreviewDraftCandidateFilter;
+  limit: (typeof DRAFT_LIST_LIMIT_OPTIONS)[number];
+};
+
 export function ResearchCandidateManualNotePreviewPanel() {
   const [manualNoteText, setManualNoteText] = useState("");
   const [parserResult, setParserResult] =
@@ -125,7 +167,16 @@ export function ResearchCandidateManualNotePreviewPanel() {
   const [previewDraftItems, setPreviewDraftItems] = useState<
     ManualNotePreviewDraftListItem[]
   >([]);
-  const [includeDiscardedDrafts, setIncludeDiscardedDrafts] = useState(false);
+  const [draftLifecycleFilter, setDraftLifecycleFilter] =
+    useState<ManualNotePreviewDraftListLifecycleFilter>("active");
+  const [draftSort, setDraftSort] =
+    useState<ManualNotePreviewDraftListSort>("created_desc");
+  const [draftWarningFilter, setDraftWarningFilter] =
+    useState<ManualNotePreviewDraftWarningFilter>("all");
+  const [draftCandidateFilter, setDraftCandidateFilter] =
+    useState<ManualNotePreviewDraftCandidateFilter>("all");
+  const [draftListLimit, setDraftListLimit] =
+    useState<DraftListControls["limit"]>(10);
   const [previewDraftsError, setPreviewDraftsError] = useState<string | null>(
     null,
   );
@@ -225,7 +276,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
       setRuntimeResult(result);
       setParserResult(null);
       setOpenedPreviewDraft(null);
-      void refreshPreviewDrafts(includeDiscardedDrafts);
+      void refreshPreviewDrafts();
     } catch {
       setRuntimeError("Manual note preview route is unavailable.");
     } finally {
@@ -260,15 +311,29 @@ export function ResearchCandidateManualNotePreviewPanel() {
     setIsRuntimeLoading(false);
   }
 
-  async function refreshPreviewDrafts(includeDiscarded = includeDiscardedDrafts) {
+  async function refreshPreviewDrafts(
+    overrides: Partial<DraftListControls> = {},
+  ) {
+    const controls = {
+      lifecycle: overrides.lifecycle ?? draftLifecycleFilter,
+      sort: overrides.sort ?? draftSort,
+      warnings: overrides.warnings ?? draftWarningFilter,
+      candidates: overrides.candidates ?? draftCandidateFilter,
+      limit: overrides.limit ?? draftListLimit,
+    } satisfies DraftListControls;
+
     setIsPreviewDraftsLoading(true);
     setPreviewDraftsError(null);
     setConfirmDiscardPreviewDraftId(null);
 
     try {
       const params = new URLSearchParams({
-        limit: "10",
-        include_discarded: String(includeDiscarded),
+        limit: String(controls.limit),
+        lifecycle: controls.lifecycle,
+        sort: controls.sort,
+        warnings: controls.warnings,
+        candidates: controls.candidates,
+        include_discarded: String(controls.lifecycle !== "active"),
       });
       const response = await fetch(
         `${MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE}?${params.toString()}`,
@@ -376,7 +441,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
         };
       });
       setConfirmDiscardPreviewDraftId(null);
-      await refreshPreviewDrafts(includeDiscardedDrafts);
+      await refreshPreviewDrafts();
     } catch {
       setPreviewDraftsError("Preview draft discard route is unavailable.");
     } finally {
@@ -384,9 +449,35 @@ export function ResearchCandidateManualNotePreviewPanel() {
     }
   }
 
-  function toggleIncludeDiscardedDrafts(checked: boolean) {
-    setIncludeDiscardedDrafts(checked);
-    void refreshPreviewDrafts(checked);
+  function updateDraftLifecycleFilter(
+    lifecycle: ManualNotePreviewDraftListLifecycleFilter,
+  ) {
+    setDraftLifecycleFilter(lifecycle);
+    void refreshPreviewDrafts({ lifecycle });
+  }
+
+  function updateDraftSort(sort: ManualNotePreviewDraftListSort) {
+    setDraftSort(sort);
+    void refreshPreviewDrafts({ sort });
+  }
+
+  function updateDraftWarningFilter(
+    warnings: ManualNotePreviewDraftWarningFilter,
+  ) {
+    setDraftWarningFilter(warnings);
+    void refreshPreviewDrafts({ warnings });
+  }
+
+  function updateDraftCandidateFilter(
+    candidates: ManualNotePreviewDraftCandidateFilter,
+  ) {
+    setDraftCandidateFilter(candidates);
+    void refreshPreviewDrafts({ candidates });
+  }
+
+  function updateDraftListLimit(limit: DraftListControls["limit"]) {
+    setDraftListLimit(limit);
+    void refreshPreviewDrafts({ limit });
   }
 
   const preview = displayResult?.preview ?? null;
@@ -512,15 +603,25 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
       <RecentPreviewDraftsPanel
         items={previewDraftItems}
-        includeDiscarded={includeDiscardedDrafts}
+        controls={{
+          lifecycle: draftLifecycleFilter,
+          sort: draftSort,
+          warnings: draftWarningFilter,
+          candidates: draftCandidateFilter,
+          limit: draftListLimit,
+        }}
         isLoading={isPreviewDraftsLoading}
         error={previewDraftsError}
         openedPreviewDraftId={openedPreviewDraft?.draft.preview_draft_id ?? null}
         openingPreviewDraftId={openingPreviewDraftId}
         discardingPreviewDraftId={discardingPreviewDraftId}
         confirmDiscardPreviewDraftId={confirmDiscardPreviewDraftId}
-        onRefresh={() => void refreshPreviewDrafts(includeDiscardedDrafts)}
-        onToggleIncludeDiscarded={toggleIncludeDiscardedDrafts}
+        onRefresh={() => void refreshPreviewDrafts()}
+        onChangeLifecycle={updateDraftLifecycleFilter}
+        onChangeSort={updateDraftSort}
+        onChangeWarnings={updateDraftWarningFilter}
+        onChangeCandidates={updateDraftCandidateFilter}
+        onChangeLimit={updateDraftListLimit}
         onOpen={(previewDraftId) => void openPreviewDraft(previewDraftId)}
         onDiscard={(previewDraftId) => void discardPreviewDraft(previewDraftId)}
         onCancelDiscard={() => setConfirmDiscardPreviewDraftId(null)}
@@ -642,7 +743,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
 function RecentPreviewDraftsPanel({
   items,
-  includeDiscarded,
+  controls,
   isLoading,
   error,
   openedPreviewDraftId,
@@ -650,13 +751,17 @@ function RecentPreviewDraftsPanel({
   discardingPreviewDraftId,
   confirmDiscardPreviewDraftId,
   onRefresh,
-  onToggleIncludeDiscarded,
+  onChangeLifecycle,
+  onChangeSort,
+  onChangeWarnings,
+  onChangeCandidates,
+  onChangeLimit,
   onOpen,
   onDiscard,
   onCancelDiscard,
 }: {
   items: ManualNotePreviewDraftListItem[];
-  includeDiscarded: boolean;
+  controls: DraftListControls;
   isLoading: boolean;
   error: string | null;
   openedPreviewDraftId: string | null;
@@ -664,11 +769,22 @@ function RecentPreviewDraftsPanel({
   discardingPreviewDraftId: string | null;
   confirmDiscardPreviewDraftId: string | null;
   onRefresh: () => void;
-  onToggleIncludeDiscarded: (checked: boolean) => void;
+  onChangeLifecycle: (
+    lifecycle: ManualNotePreviewDraftListLifecycleFilter,
+  ) => void;
+  onChangeSort: (sort: ManualNotePreviewDraftListSort) => void;
+  onChangeWarnings: (warnings: ManualNotePreviewDraftWarningFilter) => void;
+  onChangeCandidates: (candidates: ManualNotePreviewDraftCandidateFilter) => void;
+  onChangeLimit: (limit: DraftListControls["limit"]) => void;
   onOpen: (previewDraftId: string) => void;
   onDiscard: (previewDraftId: string) => void;
   onCancelDiscard: () => void;
 }) {
+  const isDefaultEmptyState =
+    controls.lifecycle === "active" &&
+    controls.warnings === "all" &&
+    controls.candidates === "all";
+
   return (
     <section
       className="perspective-inspector-section manual-note-preview-drafts"
@@ -682,22 +798,111 @@ function RecentPreviewDraftsPanel({
             non-canonical preview drafts only.
           </p>
         </div>
-        <div className="manual-note-preview-drafts-actions">
-          <button type="button" className="secondary-button" onClick={onRefresh}>
-            {isLoading ? "Refreshing preview drafts..." : "Refresh preview drafts"}
-          </button>
-          <label>
-            <input
-              type="checkbox"
-              checked={includeDiscarded}
-              onChange={(event) =>
-                onToggleIncludeDiscarded(event.currentTarget.checked)
-              }
-            />
-            Show discarded
-          </label>
-        </div>
       </div>
+
+      <div
+        className="manual-note-preview-drafts-actions"
+        aria-label="Preview draft list filters"
+      >
+        <label>
+          <span>Lifecycle filter</span>
+          <select
+            value={controls.lifecycle}
+            onChange={(event) =>
+              onChangeLifecycle(
+                event.currentTarget
+                  .value as ManualNotePreviewDraftListLifecycleFilter,
+              )
+            }
+          >
+            {typedEntries(LIFECYCLE_FILTER_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Sort order</span>
+          <select
+            value={controls.sort}
+            onChange={(event) =>
+              onChangeSort(
+                event.currentTarget.value as ManualNotePreviewDraftListSort,
+              )
+            }
+          >
+            {typedEntries(SORT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Warning filter</span>
+          <select
+            value={controls.warnings}
+            onChange={(event) =>
+              onChangeWarnings(
+                event.currentTarget.value as ManualNotePreviewDraftWarningFilter,
+              )
+            }
+          >
+            {typedEntries(WARNING_FILTER_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Candidate filter</span>
+          <select
+            value={controls.candidates}
+            onChange={(event) =>
+              onChangeCandidates(
+                event.currentTarget
+                  .value as ManualNotePreviewDraftCandidateFilter,
+              )
+            }
+          >
+            {typedEntries(CANDIDATE_FILTER_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Limit selector</span>
+          <select
+            value={String(controls.limit)}
+            onChange={(event) =>
+              onChangeLimit(
+                Number(event.currentTarget.value) as DraftListControls["limit"],
+              )
+            }
+          >
+            {DRAFT_LIST_LIMIT_OPTIONS.map((limit) => (
+              <option key={limit} value={limit}>
+                {limit}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="secondary-button" onClick={onRefresh}>
+          {isLoading ? "Refreshing preview drafts..." : "Refresh preview drafts"}
+        </button>
+      </div>
+
+      <p className="manual-note-preview-drafts-summary">
+        {formatDraftListFilterSummary(controls)}
+      </p>
+      <p className="manual-note-runtime-hint">
+        Include discarded by choosing All preview drafts. Discarded only shows
+        discarded lifecycle records with discard disabled.
+      </p>
 
       <p className="manual-note-runtime-hint">
         Opening a stored preview draft reads persisted preview JSON and metadata.
@@ -713,9 +918,9 @@ function RecentPreviewDraftsPanel({
 
       {items.length === 0 ? (
         <p>
-          {includeDiscarded
-            ? "No runtime preview drafts yet."
-            : "No active runtime preview drafts yet."}
+          {isDefaultEmptyState
+            ? "No active runtime preview drafts yet."
+            : "No preview drafts match the current filters."}
         </p>
       ) : (
         <div className="manual-note-preview-drafts-list">
@@ -828,6 +1033,42 @@ function RecentPreviewDraftsPanel({
       )}
     </section>
   );
+}
+
+function typedEntries<T extends Record<string, string>>(record: T) {
+  return Object.entries(record) as [keyof T, T[keyof T]][];
+}
+
+function formatDraftListFilterSummary(controls: DraftListControls) {
+  const lifecycleSummary: Record<
+    ManualNotePreviewDraftListLifecycleFilter,
+    string
+  > = {
+    active: "active preview drafts",
+    discarded: "discarded preview drafts",
+    all: "all preview drafts",
+  };
+  const sortSummary: Record<ManualNotePreviewDraftListSort, string> = {
+    created_desc: "newest first",
+    created_asc: "oldest first",
+  };
+  const warningSummary: Record<ManualNotePreviewDraftWarningFilter, string> = {
+    all: "all warning states",
+    with_warnings: "warnings only",
+    without_warnings: "no warnings",
+  };
+  const candidateSummary: Record<ManualNotePreviewDraftCandidateFilter, string> =
+    {
+      all: "all candidate counts",
+      with_candidates: "has candidates",
+      without_candidates: "no candidates",
+    };
+
+  return `Showing ${lifecycleSummary[controls.lifecycle]}, ${
+    sortSummary[controls.sort]
+  }, ${warningSummary[controls.warnings]}, ${
+    candidateSummary[controls.candidates]
+  }. Limit ${controls.limit}.`;
 }
 
 function ManualNoteFormatHint() {

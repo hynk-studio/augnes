@@ -5578,15 +5578,45 @@ code {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .manual-note-preview-drafts-actions label {
   display: inline-flex;
+  flex: 1 1 min(180px, 100%);
+  min-width: 0;
+  flex-direction: column;
   gap: 6px;
-  align-items: center;
+  align-items: stretch;
   color: #374151;
   font-size: 0.9rem;
+}
+
+.manual-note-preview-drafts-actions label span {
+  font-weight: 650;
+}
+
+.manual-note-preview-drafts-actions select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(13, 79, 62, 0.22);
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+}
+
+.manual-note-preview-drafts-actions button {
+  flex: 0 1 min(180px, 100%);
+  align-self: end;
+}
+
+.manual-note-preview-drafts-summary {
+  margin: 0;
+  color: #374151;
+  font-weight: 650;
+  line-height: 1.45;
 }
 
 .manual-note-preview-drafts-list {
@@ -5662,6 +5692,7 @@ code {
     width: 100%;
   }
 
+  .manual-note-preview-drafts-actions label,
   .manual-note-preview-drafts-actions button,
   .manual-note-preview-draft-controls button {
     width: 100%;
