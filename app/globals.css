@@ -5537,7 +5537,8 @@ code {
 .manual-note-result-summary,
 .manual-note-runtime-summary,
 .manual-note-runtime-boundary,
-.manual-note-warning-summary {
+.manual-note-warning-summary,
+.manual-note-preview-draft-activity {
   align-content: start;
 }
 
@@ -5684,6 +5685,52 @@ code {
   min-width: 0;
 }
 
+.manual-note-preview-draft-activity {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-activity-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-activity-header h3,
+.manual-note-preview-draft-activity-header p {
+  margin: 0;
+}
+
+.manual-note-preview-draft-activity-header button {
+  flex: 0 1 min(170px, 100%);
+  max-width: 100%;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.manual-note-preview-draft-activity-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-activity-card {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-activity-card p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.45;
+}
+
 .manual-note-preview-draft-title-row {
   display: flex;
   flex-wrap: wrap;
@@ -5714,11 +5761,19 @@ code {
 
 .manual-note-preview-draft-grid,
 .manual-note-preview-draft-controls,
-.manual-note-preview-draft-label-actions {
+.manual-note-preview-draft-label-actions,
+.manual-note-preview-draft-activity-delta {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+}
+
+.manual-note-preview-draft-activity-delta {
+  padding: 8px 10px;
+  border: 1px solid rgba(13, 79, 62, 0.14);
+  border-radius: 8px;
+  background: #f8fbfa;
 }
 
 .manual-note-preview-draft-label-edit {
@@ -5748,8 +5803,21 @@ code {
   overflow-wrap: anywhere;
 }
 
+.manual-note-preview-draft-activity-delta span {
+  display: inline-flex;
+  flex: 1 1 min(180px, 100%);
+  min-width: 0;
+  gap: 5px;
+  align-items: baseline;
+  color: #4b5563;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .manual-note-preview-draft-grid code,
-.manual-note-preview-draft-card code {
+.manual-note-preview-draft-card code,
+.manual-note-preview-draft-activity-delta code {
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -5785,7 +5853,8 @@ code {
 
   .manual-note-preview-drafts-actions,
   .manual-note-preview-draft-controls,
-  .manual-note-preview-draft-label-actions {
+  .manual-note-preview-draft-label-actions,
+  .manual-note-preview-draft-activity-delta {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     width: 100%;
@@ -5794,7 +5863,8 @@ code {
   .manual-note-preview-drafts-actions label,
   .manual-note-preview-drafts-actions button,
   .manual-note-preview-draft-controls button,
-  .manual-note-preview-draft-label-actions button {
+  .manual-note-preview-draft-label-actions button,
+  .manual-note-preview-draft-activity-header button {
     width: 100%;
     min-width: 0;
   }

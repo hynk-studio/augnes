@@ -199,7 +199,12 @@ function assertPreviewDraftPersistenceShape() {
   assert.match(
     store,
     /INSERT INTO research_candidate_manual_note_preview_drafts/,
-    "store must write only the preview-draft table",
+    "store must write the preview-draft table",
+  );
+  assert.match(
+    store,
+    /INSERT INTO research_candidate_manual_note_preview_draft_activities/,
+    "store may write metadata-only preview-draft activity rows",
   );
   assert.match(
     store,

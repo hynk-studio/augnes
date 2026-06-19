@@ -664,6 +664,47 @@ export const researchCandidateManualNotePreviewDraftDiscardsIndexes = [
   },
 ];
 
+export const researchCandidateManualNotePreviewDraftActivitiesTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_note_preview_draft_activities (
+    activity_id TEXT PRIMARY KEY,
+    preview_draft_id TEXT NOT NULL,
+    scope TEXT NOT NULL DEFAULT 'project:augnes' CHECK (scope IN ('project:augnes')),
+    activity_type TEXT NOT NULL CHECK (activity_type IN ('preview_draft_created', 'label_updated', 'label_cleared', 'preview_draft_discarded')),
+    activity_at TEXT NOT NULL,
+    activity_by TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    before_json TEXT NOT NULL DEFAULT '{}',
+    after_json TEXT NOT NULL DEFAULT '{}',
+    authority_json TEXT NOT NULL,
+    no_side_effects_json TEXT NOT NULL,
+    FOREIGN KEY (preview_draft_id) REFERENCES research_candidate_manual_note_preview_drafts(preview_draft_id)
+  )
+`;
+
+export const researchCandidateManualNotePreviewDraftActivitiesIndexes = [
+  {
+    name: "idx_research_candidate_manual_note_preview_draft_activities_draft_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_activities_draft_time
+        ON research_candidate_manual_note_preview_draft_activities(preview_draft_id, activity_at DESC)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_note_preview_draft_activities_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_activities_scope_time
+        ON research_candidate_manual_note_preview_draft_activities(scope, activity_at DESC)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_note_preview_draft_activities_type_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_activities_type_time
+        ON research_candidate_manual_note_preview_draft_activities(activity_type, activity_at DESC)
+    `,
+  },
+];
+
 export function migrateResearchCandidateManualNotePreviewDrafts(db) {
   const existingTable = db
     .prepare(
@@ -739,6 +780,50 @@ export function migrateResearchCandidateManualNotePreviewDraftDiscards(db) {
   const createdIndexes = [];
 
   for (const { name, sql } of researchCandidateManualNotePreviewDraftDiscardsIndexes) {
+    if (!existingIndexes.has(name)) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    created_table: createdTable,
+    created_indexes: createdIndexes,
+  };
+}
+
+export function migrateResearchCandidateManualNotePreviewDraftActivities(db) {
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'research_candidate_manual_note_preview_draft_activities'
+      `,
+    )
+    .get();
+  const createdTable = !existingTable;
+
+  db.prepare(researchCandidateManualNotePreviewDraftActivitiesTableSql).run();
+
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = 'research_candidate_manual_note_preview_draft_activities'
+        `,
+      )
+      .all()
+      .map((index) => index.name),
+  );
+  const createdIndexes = [];
+
+  for (const { name, sql } of researchCandidateManualNotePreviewDraftActivitiesIndexes) {
     if (!existingIndexes.has(name)) {
       db.prepare(sql).run();
       createdIndexes.push(name);
