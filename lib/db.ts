@@ -226,6 +226,7 @@ export function openDatabase() {
   migrateTemporalPreviewReviewArtifactsTable(db);
   migrateTemporalPreviewReviewArtifactIdempotencyTable(db);
   migrateResearchCandidateManualNotePreviewDraftsTable(db);
+  migrateResearchCandidateManualNotePreviewDraftDiscardsTable(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
   return db;
@@ -1869,6 +1870,33 @@ function migrateResearchCandidateManualNotePreviewDraftsTable(
   for (const sql of indexes) {
     db.prepare(sql).run();
   }
+}
+
+function migrateResearchCandidateManualNotePreviewDraftDiscardsTable(
+  db: Database.Database,
+) {
+  db.prepare(
+    `
+      CREATE TABLE IF NOT EXISTS research_candidate_manual_note_preview_draft_discards (
+        discard_id TEXT PRIMARY KEY,
+        preview_draft_id TEXT NOT NULL UNIQUE,
+        scope TEXT NOT NULL DEFAULT 'project:augnes' CHECK (scope IN ('project:augnes')),
+        discarded_at TEXT NOT NULL,
+        discarded_by TEXT NOT NULL,
+        discard_reason TEXT NOT NULL DEFAULT '',
+        authority_json TEXT NOT NULL,
+        no_side_effects_json TEXT NOT NULL,
+        FOREIGN KEY (preview_draft_id) REFERENCES research_candidate_manual_note_preview_drafts(preview_draft_id)
+      )
+    `,
+  ).run();
+
+  db.prepare(
+    `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_discards_scope_time
+        ON research_candidate_manual_note_preview_draft_discards(scope, discarded_at DESC)
+    `,
+  ).run();
 }
 
 function migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(

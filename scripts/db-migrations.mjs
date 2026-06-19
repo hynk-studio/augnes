@@ -640,6 +640,30 @@ export const researchCandidateManualNotePreviewDraftsIndexes = [
   },
 ];
 
+export const researchCandidateManualNotePreviewDraftDiscardsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_note_preview_draft_discards (
+    discard_id TEXT PRIMARY KEY,
+    preview_draft_id TEXT NOT NULL UNIQUE,
+    scope TEXT NOT NULL DEFAULT 'project:augnes' CHECK (scope IN ('project:augnes')),
+    discarded_at TEXT NOT NULL,
+    discarded_by TEXT NOT NULL,
+    discard_reason TEXT NOT NULL DEFAULT '',
+    authority_json TEXT NOT NULL,
+    no_side_effects_json TEXT NOT NULL,
+    FOREIGN KEY (preview_draft_id) REFERENCES research_candidate_manual_note_preview_drafts(preview_draft_id)
+  )
+`;
+
+export const researchCandidateManualNotePreviewDraftDiscardsIndexes = [
+  {
+    name: "idx_research_candidate_manual_note_preview_draft_discards_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_discards_scope_time
+        ON research_candidate_manual_note_preview_draft_discards(scope, discarded_at DESC)
+    `,
+  },
+];
+
 export function migrateResearchCandidateManualNotePreviewDrafts(db) {
   const existingTable = db
     .prepare(
@@ -671,6 +695,50 @@ export function migrateResearchCandidateManualNotePreviewDrafts(db) {
   const createdIndexes = [];
 
   for (const { name, sql } of researchCandidateManualNotePreviewDraftsIndexes) {
+    if (!existingIndexes.has(name)) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    created_table: createdTable,
+    created_indexes: createdIndexes,
+  };
+}
+
+export function migrateResearchCandidateManualNotePreviewDraftDiscards(db) {
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'research_candidate_manual_note_preview_draft_discards'
+      `,
+    )
+    .get();
+  const createdTable = !existingTable;
+
+  db.prepare(researchCandidateManualNotePreviewDraftDiscardsTableSql).run();
+
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = 'research_candidate_manual_note_preview_draft_discards'
+        `,
+      )
+      .all()
+      .map((index) => index.name),
+  );
+  const createdIndexes = [];
+
+  for (const { name, sql } of researchCandidateManualNotePreviewDraftDiscardsIndexes) {
     if (!existingIndexes.has(name)) {
       db.prepare(sql).run();
       createdIndexes.push(name);

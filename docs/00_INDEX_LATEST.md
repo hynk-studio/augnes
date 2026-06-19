@@ -716,6 +716,23 @@ repo-local 색인이다.
   and migration wiring, UI runtime action, package/index pointers, no raw note
   text persistence, and absence of provider/retrieval/Codex/proof/evidence/work
   creation or promotion patterns.
+- Manual note preview draft read/list/discard lane:
+  `app/api/research-candidate-review/manual-note-preview-drafts` provides
+  bounded same-origin read/list access for stored parsed preview JSON, plus a
+  discard marker action for preview-draft lifecycle hygiene. The lane derives
+  `active_preview_draft` versus `discarded_preview_draft` from
+  `research_candidate_manual_note_preview_draft_discards`, keeps raw note text
+  unavailable, and does not create promotion/reject/defer workflow authority,
+  canonical Perspective state, proof/evidence rows, work items, provider calls,
+  retrieval/RAG/source fetching, Codex execution, or external handoffs.
+- `npm run smoke:research-candidate-preview-draft-read-discard-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-read-discard-v0-1.mjs`
+  checks the list/detail/discard route files, preview draft store reader,
+  limit/include-discarded/id/reason validation, runtime_boundary and
+  no_side_effects response metadata, additive discard marker table, Recent
+  runtime preview drafts UI affordances, package/index pointers, no browser
+  persistence, no raw note text fields, and no forbidden proof/evidence/work
+  item/state/Perspective writes.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

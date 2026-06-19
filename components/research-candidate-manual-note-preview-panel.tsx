@@ -6,7 +6,15 @@ import type {
   ManualResearchNoteParserWarning,
 } from "@/lib/research-candidate-review/manual-note-parser";
 import {
+  MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE,
   MANUAL_NOTE_PREVIEW_ROUTE,
+  buildManualNotePreviewDraftDetailRoute,
+  buildManualNotePreviewDraftDiscardRoute,
+  type ManualNotePreviewDraftDetailOkResponse,
+  type ManualNotePreviewDraftDetailResponse,
+  type ManualNotePreviewDraftDiscardResponse,
+  type ManualNotePreviewDraftListItem,
+  type ManualNotePreviewDraftListResponse,
   type ManualNotePreviewRuntimeAuthority,
   type ManualNotePreviewRuntimeOkResponse,
   type ManualNotePreviewRuntimeResponse,
@@ -71,9 +79,14 @@ const AUTHORITY_BOUNDARY_COPY = [
   "Local parser execution remains available.",
   "Runtime action uses the same-origin bounded preview route only.",
   "Optional DB write is a non-canonical preview draft.",
+  "Recent draft reads use same-origin preview draft routes only.",
+  "Stored preview content is parsed preview JSON.",
   "Raw pasted note text is not persisted.",
+  "Raw note text not stored.",
   "Output is read-only preview material.",
   "No durable candidate/review/receipt storage or canonical Perspective storage.",
+  "Discard is preview-draft lifecycle hygiene only.",
+  "Discard does not delete canonical state because no canonical state was created.",
   "No promotion/reject/defer workflow.",
   "No proof/evidence writes.",
   "No work item creation.",
@@ -85,10 +98,12 @@ const AUTHORITY_BOUNDARY_COPY = [
 type ManualNoteResultSource =
   | "local_parse"
   | "persisted_preview_draft"
-  | "route_only_no_persistence";
+  | "route_only_no_persistence"
+  | "stored_preview_draft"
+  | "discarded_preview_draft";
 
 type ManualNoteDisplayResult = {
-  parser_version: ManualResearchNoteParserResult["parser_version"];
+  parser_version: string;
   preview: ManualResearchNoteParserResult["preview"];
   warnings: ManualResearchNoteParserWarning[];
   authority:
@@ -96,6 +111,7 @@ type ManualNoteDisplayResult = {
     | ManualNotePreviewRuntimeAuthority;
   source: ManualNoteResultSource;
   runtimeResult: ManualNotePreviewRuntimeOkResponse | null;
+  storedDraftResult: ManualNotePreviewDraftDetailOkResponse | null;
 };
 
 export function ResearchCandidateManualNotePreviewPanel() {
@@ -106,10 +122,41 @@ export function ResearchCandidateManualNotePreviewPanel() {
     useState<ManualNotePreviewRuntimeOkResponse | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isRuntimeLoading, setIsRuntimeLoading] = useState(false);
+  const [previewDraftItems, setPreviewDraftItems] = useState<
+    ManualNotePreviewDraftListItem[]
+  >([]);
+  const [includeDiscardedDrafts, setIncludeDiscardedDrafts] = useState(false);
+  const [previewDraftsError, setPreviewDraftsError] = useState<string | null>(
+    null,
+  );
+  const [isPreviewDraftsLoading, setIsPreviewDraftsLoading] = useState(false);
+  const [openedPreviewDraft, setOpenedPreviewDraft] =
+    useState<ManualNotePreviewDraftDetailOkResponse | null>(null);
+  const [openingPreviewDraftId, setOpeningPreviewDraftId] = useState<
+    string | null
+  >(null);
+  const [discardingPreviewDraftId, setDiscardingPreviewDraftId] = useState<
+    string | null
+  >(null);
+  const [confirmDiscardPreviewDraftId, setConfirmDiscardPreviewDraftId] =
+    useState<string | null>(null);
   const [parseCount, setParseCount] = useState(0);
 
   const inputHasText = manualNoteText.trim().length > 0;
-  const displayResult: ManualNoteDisplayResult | null = runtimeResult
+  const displayResult: ManualNoteDisplayResult | null = openedPreviewDraft
+    ? {
+        parser_version: openedPreviewDraft.draft.parser_version,
+        preview: openedPreviewDraft.preview,
+        warnings: openedPreviewDraft.warnings,
+        authority: openedPreviewDraft.authority,
+        source:
+          openedPreviewDraft.lifecycle_status === "discarded_preview_draft"
+            ? "discarded_preview_draft"
+            : "stored_preview_draft",
+        runtimeResult: null,
+        storedDraftResult: openedPreviewDraft,
+      }
+    : runtimeResult
     ? {
         parser_version: runtimeResult.parser_version,
         preview: runtimeResult.preview,
@@ -119,6 +166,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
           ? "persisted_preview_draft"
           : "route_only_no_persistence",
         runtimeResult,
+        storedDraftResult: null,
       }
     : parserResult
       ? {
@@ -128,6 +176,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
           authority: parserResult.authority,
           source: "local_parse",
           runtimeResult: null,
+          storedDraftResult: null,
         }
       : null;
 
@@ -137,6 +186,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
     setParserResult(parseManualResearchNoteToPreview(manualNoteText));
     setRuntimeResult(null);
+    setOpenedPreviewDraft(null);
     setRuntimeError(null);
     setIsRuntimeLoading(false);
     setParseCount((currentCount) => currentCount + 1);
@@ -174,6 +224,8 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
       setRuntimeResult(result);
       setParserResult(null);
+      setOpenedPreviewDraft(null);
+      void refreshPreviewDrafts(includeDiscardedDrafts);
     } catch {
       setRuntimeError("Manual note preview route is unavailable.");
     } finally {
@@ -185,6 +237,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
     setManualNoteText(MANUAL_NOTE_SAMPLE);
     setParserResult(null);
     setRuntimeResult(null);
+    setOpenedPreviewDraft(null);
     setRuntimeError(null);
     setIsRuntimeLoading(false);
     setParseCount(0);
@@ -194,6 +247,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
     setManualNoteText("");
     setParserResult(null);
     setRuntimeResult(null);
+    setOpenedPreviewDraft(null);
     setRuntimeError(null);
     setIsRuntimeLoading(false);
     setParseCount(0);
@@ -201,8 +255,138 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
   function clearRuntimeResult() {
     setRuntimeResult(null);
+    setOpenedPreviewDraft(null);
     setRuntimeError(null);
     setIsRuntimeLoading(false);
+  }
+
+  async function refreshPreviewDrafts(includeDiscarded = includeDiscardedDrafts) {
+    setIsPreviewDraftsLoading(true);
+    setPreviewDraftsError(null);
+    setConfirmDiscardPreviewDraftId(null);
+
+    try {
+      const params = new URLSearchParams({
+        limit: "10",
+        include_discarded: String(includeDiscarded),
+      });
+      const response = await fetch(
+        `${MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE}?${params.toString()}`,
+      );
+      const result = (await response.json()) as ManualNotePreviewDraftListResponse;
+
+      if (!response.ok || !result.ok) {
+        setPreviewDraftsError(
+          result.ok
+            ? "Preview draft list route returned an unavailable response."
+            : result.message,
+        );
+        return;
+      }
+
+      setPreviewDraftItems(result.items);
+    } catch {
+      setPreviewDraftsError("Preview draft list route is unavailable.");
+    } finally {
+      setIsPreviewDraftsLoading(false);
+    }
+  }
+
+  async function openPreviewDraft(previewDraftId: string) {
+    setOpeningPreviewDraftId(previewDraftId);
+    setPreviewDraftsError(null);
+
+    try {
+      const response = await fetch(
+        buildManualNotePreviewDraftDetailRoute(previewDraftId),
+      );
+      const result =
+        (await response.json()) as ManualNotePreviewDraftDetailResponse;
+
+      if (!response.ok || !result.ok) {
+        setPreviewDraftsError(
+          result.ok
+            ? "Preview draft detail route returned an unavailable response."
+            : result.message,
+        );
+        return;
+      }
+
+      setOpenedPreviewDraft(result);
+      setParserResult(null);
+      setRuntimeResult(null);
+      setRuntimeError(null);
+      setIsRuntimeLoading(false);
+    } catch {
+      setPreviewDraftsError("Preview draft detail route is unavailable.");
+    } finally {
+      setOpeningPreviewDraftId(null);
+    }
+  }
+
+  async function discardPreviewDraft(previewDraftId: string) {
+    if (confirmDiscardPreviewDraftId !== previewDraftId) {
+      setConfirmDiscardPreviewDraftId(previewDraftId);
+      return;
+    }
+
+    setDiscardingPreviewDraftId(previewDraftId);
+    setPreviewDraftsError(null);
+
+    try {
+      const response = await fetch(
+        buildManualNotePreviewDraftDiscardRoute(previewDraftId),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            discard_reason:
+              "Discarded from Cockpit manual preview draft list.",
+          }),
+        },
+      );
+      const result =
+        (await response.json()) as ManualNotePreviewDraftDiscardResponse;
+
+      if (!response.ok || !result.ok) {
+        setPreviewDraftsError(
+          result.ok
+            ? "Preview draft discard route returned an unavailable response."
+            : result.message,
+        );
+        return;
+      }
+
+      setOpenedPreviewDraft((currentDraft) => {
+        if (!currentDraft || currentDraft.draft.preview_draft_id !== previewDraftId) {
+          return currentDraft;
+        }
+
+        return {
+          ...currentDraft,
+          lifecycle_status: "discarded_preview_draft",
+          discard_metadata: result.discard_metadata,
+          draft: {
+            ...currentDraft.draft,
+            lifecycle_status: "discarded_preview_draft",
+            discard_metadata: result.discard_metadata,
+          },
+        };
+      });
+      setConfirmDiscardPreviewDraftId(null);
+      await refreshPreviewDrafts(includeDiscardedDrafts);
+    } catch {
+      setPreviewDraftsError("Preview draft discard route is unavailable.");
+    } finally {
+      setDiscardingPreviewDraftId(null);
+    }
+  }
+
+  function toggleIncludeDiscardedDrafts(checked: boolean) {
+    setIncludeDiscardedDrafts(checked);
+    void refreshPreviewDrafts(checked);
   }
 
   const preview = displayResult?.preview ?? null;
@@ -291,7 +475,12 @@ export function ResearchCandidateManualNotePreviewPanel() {
           <button
             type="button"
             className="secondary-button"
-            disabled={!runtimeResult && !runtimeError && !isRuntimeLoading}
+            disabled={
+              !runtimeResult &&
+              !runtimeError &&
+              !isRuntimeLoading &&
+              !openedPreviewDraft
+            }
             onClick={clearRuntimeResult}
           >
             Clear runtime result
@@ -321,6 +510,22 @@ export function ResearchCandidateManualNotePreviewPanel() {
         </ul>
       </section>
 
+      <RecentPreviewDraftsPanel
+        items={previewDraftItems}
+        includeDiscarded={includeDiscardedDrafts}
+        isLoading={isPreviewDraftsLoading}
+        error={previewDraftsError}
+        openedPreviewDraftId={openedPreviewDraft?.draft.preview_draft_id ?? null}
+        openingPreviewDraftId={openingPreviewDraftId}
+        discardingPreviewDraftId={discardingPreviewDraftId}
+        confirmDiscardPreviewDraftId={confirmDiscardPreviewDraftId}
+        onRefresh={() => void refreshPreviewDrafts(includeDiscardedDrafts)}
+        onToggleIncludeDiscarded={toggleIncludeDiscardedDrafts}
+        onOpen={(previewDraftId) => void openPreviewDraft(previewDraftId)}
+        onDiscard={(previewDraftId) => void discardPreviewDraft(previewDraftId)}
+        onCancelDiscard={() => setConfirmDiscardPreviewDraftId(null)}
+      />
+
       {displayResult && preview && session ? (
         <div className="perspective-detail-stack">
           <ManualNoteResultSummary
@@ -330,12 +535,22 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
           <ParserWarningSummary warnings={displayResult.warnings} />
 
-          <RuntimeMetadataSummary runtimeResult={displayResult.runtimeResult} />
-          <RuntimeBoundarySummary runtimeResult={displayResult.runtimeResult} />
+          <RuntimeMetadataSummary
+            runtimeResult={displayResult.runtimeResult}
+            storedDraftResult={displayResult.storedDraftResult}
+          />
+          <RuntimeBoundarySummary
+            runtimeResult={displayResult.runtimeResult}
+            storedDraftResult={displayResult.storedDraftResult}
+          />
 
           <BooleanFlagGrid
             title={
-              displayResult.runtimeResult ? "Runtime authority" : "Parser authority"
+              displayResult.runtimeResult
+                ? "Runtime authority"
+                : displayResult.storedDraftResult
+                  ? "Stored draft authority"
+                  : "Parser authority"
             }
             flags={displayResult.authority}
           />
@@ -413,12 +628,203 @@ export function ResearchCandidateManualNotePreviewPanel() {
           <section className="perspective-inspector-section">
             <h3>Preview output</h3>
             <p>
-              Parser output appears here after local parsing. No parser result
-              has been created for this pasted note yet.
+              Parser output appears here after local parsing, runtime preview
+              draft creation, or opening a stored preview draft. No preview
+              result is selected yet.
             </p>
           </section>
           <ManualNoteFormatHint />
         </>
+      )}
+    </section>
+  );
+}
+
+function RecentPreviewDraftsPanel({
+  items,
+  includeDiscarded,
+  isLoading,
+  error,
+  openedPreviewDraftId,
+  openingPreviewDraftId,
+  discardingPreviewDraftId,
+  confirmDiscardPreviewDraftId,
+  onRefresh,
+  onToggleIncludeDiscarded,
+  onOpen,
+  onDiscard,
+  onCancelDiscard,
+}: {
+  items: ManualNotePreviewDraftListItem[];
+  includeDiscarded: boolean;
+  isLoading: boolean;
+  error: string | null;
+  openedPreviewDraftId: string | null;
+  openingPreviewDraftId: string | null;
+  discardingPreviewDraftId: string | null;
+  confirmDiscardPreviewDraftId: string | null;
+  onRefresh: () => void;
+  onToggleIncludeDiscarded: (checked: boolean) => void;
+  onOpen: (previewDraftId: string) => void;
+  onDiscard: (previewDraftId: string) => void;
+  onCancelDiscard: () => void;
+}) {
+  return (
+    <section
+      className="perspective-inspector-section manual-note-preview-drafts"
+      aria-label="Recent runtime preview drafts"
+    >
+      <div className="manual-note-preview-drafts-header">
+        <div>
+          <h3>Recent runtime preview drafts</h3>
+          <p>
+            Stored parsed preview only. Raw note text not stored. These are
+            non-canonical preview drafts only.
+          </p>
+        </div>
+        <div className="manual-note-preview-drafts-actions">
+          <button type="button" className="secondary-button" onClick={onRefresh}>
+            {isLoading ? "Refreshing preview drafts..." : "Refresh preview drafts"}
+          </button>
+          <label>
+            <input
+              type="checkbox"
+              checked={includeDiscarded}
+              onChange={(event) =>
+                onToggleIncludeDiscarded(event.currentTarget.checked)
+              }
+            />
+            Show discarded
+          </label>
+        </div>
+      </div>
+
+      <p className="manual-note-runtime-hint">
+        Opening a stored preview draft reads persisted preview JSON and metadata.
+        It does not re-parse, fetch sources, call a provider, create work items,
+        or promote Perspective state.
+      </p>
+
+      {error ? (
+        <p className="manual-note-runtime-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      {items.length === 0 ? (
+        <p>
+          {includeDiscarded
+            ? "No runtime preview drafts yet."
+            : "No active runtime preview drafts yet."}
+        </p>
+      ) : (
+        <div className="manual-note-preview-drafts-list">
+          {items.map((item) => {
+            const isDiscarded =
+              item.lifecycle_status === "discarded_preview_draft";
+            const isOpen = openedPreviewDraftId === item.preview_draft_id;
+            const isOpening = openingPreviewDraftId === item.preview_draft_id;
+            const isDiscarding =
+              discardingPreviewDraftId === item.preview_draft_id;
+            const isConfirming =
+              confirmDiscardPreviewDraftId === item.preview_draft_id;
+
+            return (
+              <article
+                key={item.preview_draft_id}
+                className="cockpit-surface-card manual-note-preview-draft-card"
+              >
+                <div className="meta-row">
+                  <span>
+                    preview_draft_id{" "}
+                    <code title={item.preview_draft_id}>
+                      {shortenMiddle(item.preview_draft_id)}
+                    </code>
+                  </span>
+                  <span>
+                    {isDiscarded ? "Discarded preview draft" : "Active preview draft"}
+                  </span>
+                  {isOpen ? <span>open</span> : null}
+                </div>
+                <div className="manual-note-preview-draft-grid">
+                  <span>
+                    created_at <code>{item.created_at}</code>
+                  </span>
+                  <span>
+                    operator_note_label{" "}
+                    <code>{item.operator_note_label ?? "none"}</code>
+                  </span>
+                  <span>
+                    input_fingerprint{" "}
+                    <code title={item.input_fingerprint}>
+                      {shortenMiddle(item.input_fingerprint)}
+                    </code>
+                  </span>
+                  <span>
+                    parser_version <code>{item.parser_version}</code>
+                  </span>
+                  <span>
+                    preview_version <code>{item.preview_version}</code>
+                  </span>
+                  <span>
+                    warnings <code>{item.warning_count}</code>
+                  </span>
+                  <span>
+                    candidates{" "}
+                    <code>{formatCandidateCountSummary(item)}</code>
+                  </span>
+                  <span>
+                    lifecycle_status <code>{item.lifecycle_status}</code>
+                  </span>
+                </div>
+                {item.discard_metadata ? (
+                  <p className="manual-note-runtime-hint">
+                    discarded_at <code>{item.discard_metadata.discarded_at}</code>
+                    {" "}reason{" "}
+                    <code>{item.discard_metadata.discard_reason || "none"}</code>
+                  </p>
+                ) : null}
+                <div className="manual-note-preview-draft-controls">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={isOpening || isDiscarding}
+                    onClick={() => onOpen(item.preview_draft_id)}
+                  >
+                    {isOpening ? "Opening preview draft..." : "Open preview draft"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={isDiscarded || isOpening || isDiscarding}
+                    onClick={() => onDiscard(item.preview_draft_id)}
+                  >
+                    {isDiscarding
+                      ? "Discarding preview draft..."
+                      : isConfirming
+                        ? "Confirm discard preview draft"
+                        : "Discard preview draft"}
+                  </button>
+                  {isConfirming ? (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isDiscarding}
+                      onClick={onCancelDiscard}
+                    >
+                      Cancel discard
+                    </button>
+                  ) : null}
+                </div>
+                <p className="manual-note-runtime-hint">
+                  Discard only marks this preview draft as no longer active; it
+                  does not delete canonical state because the draft never created
+                  canonical state.
+                </p>
+              </article>
+            );
+          })}
+        </div>
       )}
     </section>
   );
@@ -507,10 +913,68 @@ function ManualNoteResultSummary({
 
 function RuntimeMetadataSummary({
   runtimeResult,
+  storedDraftResult,
 }: {
   runtimeResult: ManualNotePreviewRuntimeOkResponse | null;
+  storedDraftResult: ManualNotePreviewDraftDetailOkResponse | null;
 }) {
-  if (!runtimeResult) return null;
+  if (!runtimeResult && !storedDraftResult) return null;
+
+  if (storedDraftResult) {
+    const draft = storedDraftResult.draft;
+
+    return (
+      <section
+        className="perspective-inspector-section manual-note-runtime-summary"
+        aria-label="Stored preview draft metadata"
+      >
+        <h3>Stored preview draft metadata</h3>
+        <div className="perspective-workbench-status-row">
+          <span>
+            runtime_version <code>{storedDraftResult.runtime_version}</code>
+          </span>
+          <span>
+            preview_draft_id <code>{draft.preview_draft_id}</code>
+          </span>
+          <span>
+            lifecycle_status <code>{storedDraftResult.lifecycle_status}</code>
+          </span>
+          <span>
+            input_fingerprint <code>{draft.input_fingerprint}</code>
+          </span>
+          <span>
+            parser_version <code>{draft.parser_version}</code>
+          </span>
+          <span>
+            preview_version <code>{draft.preview_version}</code>
+          </span>
+          <span>
+            warning_count <code>{draft.warning_count}</code>
+          </span>
+          <span>
+            candidate_count_summary{" "}
+            <code>{formatCandidateCountSummary(draft)}</code>
+          </span>
+          <span>
+            manual_note_text_stored{" "}
+            <code>{String(draft.manual_note_text_stored)}</code>
+          </span>
+          <span>
+            created_at <code>{draft.created_at}</code>
+          </span>
+          {storedDraftResult.discard_metadata ? (
+            <span>
+              discarded_at{" "}
+              <code>{storedDraftResult.discard_metadata.discarded_at}</code>
+            </span>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  const activeRuntimeResult = runtimeResult;
+  if (!activeRuntimeResult) return null;
 
   return (
     <section
@@ -520,24 +984,24 @@ function RuntimeMetadataSummary({
       <h3>Runtime preview draft metadata</h3>
       <div className="perspective-workbench-status-row">
         <span>
-          runtime_version <code>{runtimeResult.runtime_version}</code>
+          runtime_version <code>{activeRuntimeResult.runtime_version}</code>
         </span>
         <span>
-          input_fingerprint <code>{runtimeResult.input_fingerprint}</code>
+          input_fingerprint <code>{activeRuntimeResult.input_fingerprint}</code>
         </span>
         <span>
           preview_draft_id{" "}
-          <code>{runtimeResult.preview_draft_id ?? "not persisted"}</code>
+          <code>{activeRuntimeResult.preview_draft_id ?? "not persisted"}</code>
         </span>
         <span>
-          persistence_mode <code>{runtimeResult.persistence_mode}</code>
+          persistence_mode <code>{activeRuntimeResult.persistence_mode}</code>
         </span>
         <span>
           persisted_preview_draft{" "}
-          <code>{String(runtimeResult.persisted_preview_draft)}</code>
+          <code>{String(activeRuntimeResult.persisted_preview_draft)}</code>
         </span>
         <span>
-          created_at <code>{runtimeResult.created_at}</code>
+          created_at <code>{activeRuntimeResult.created_at}</code>
         </span>
       </div>
     </section>
@@ -546,10 +1010,18 @@ function RuntimeMetadataSummary({
 
 function RuntimeBoundarySummary({
   runtimeResult,
+  storedDraftResult,
 }: {
   runtimeResult: ManualNotePreviewRuntimeOkResponse | null;
+  storedDraftResult: ManualNotePreviewDraftDetailOkResponse | null;
 }) {
-  if (!runtimeResult) return null;
+  if (!runtimeResult && !storedDraftResult) return null;
+
+  const routeBoundary =
+    runtimeResult?.runtime_boundary ?? storedDraftResult?.runtime_boundary;
+  const noSideEffects =
+    runtimeResult?.no_side_effects ?? storedDraftResult?.no_side_effects;
+  if (!routeBoundary || !noSideEffects) return null;
 
   return (
     <section
@@ -558,17 +1030,38 @@ function RuntimeBoundarySummary({
     >
       <h3>Runtime boundary</h3>
       <div className="perspective-workbench-status-row">
-        {Object.entries(runtimeResult.runtime_boundary).map(([key, value]) => (
+        {Object.entries(routeBoundary).map(([key, value]) => (
           <span key={key}>
             {key} <code>{String(value)}</code>
           </span>
         ))}
-        {Object.entries(runtimeResult.no_side_effects).map(([key, value]) => (
+        {Object.entries(noSideEffects).map(([key, value]) => (
           <span key={key}>
             {key} <code>{String(value)}</code>
           </span>
         ))}
       </div>
+      {storedDraftResult ? (
+        <>
+          <h4>Stored creation boundary</h4>
+          <div className="perspective-workbench-status-row">
+            {Object.entries(storedDraftResult.draft.stored_runtime_boundary).map(
+              ([key, value]) => (
+                <span key={key}>
+                  {key} <code>{String(value)}</code>
+                </span>
+              ),
+            )}
+            {Object.entries(storedDraftResult.draft.stored_no_side_effects).map(
+              ([key, value]) => (
+                <span key={key}>
+                  {key} <code>{String(value)}</code>
+                </span>
+              ),
+            )}
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }
@@ -1046,4 +1539,27 @@ function formatCandidateSourceRefs(candidate: {
 
 function formatList(values: readonly string[]) {
   return values.length > 0 ? values.join(", ") : "none";
+}
+
+function shortenMiddle(value: string, leading = 22, trailing = 10) {
+  if (value.length <= leading + trailing + 3) {
+    return value;
+  }
+
+  return `${value.slice(0, leading)}...${value.slice(-trailing)}`;
+}
+
+function formatCandidateCountSummary(item: {
+  candidate_count_summary: ManualNotePreviewDraftListItem["candidate_count_summary"];
+}) {
+  const counts = item.candidate_count_summary;
+  return [
+    `total ${counts.total}`,
+    `claims ${counts.claims}`,
+    `evidence ${counts.evidence}`,
+    `tensions ${counts.tensions}`,
+    `gaps ${counts.knowledge_gaps}`,
+    `deltas ${counts.perspective_deltas}`,
+    `work ${counts.follow_up_work}`,
+  ].join(", ");
 }

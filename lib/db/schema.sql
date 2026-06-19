@@ -1099,6 +1099,21 @@ CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_drafts_inp
 CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_drafts_source
   ON research_candidate_manual_note_preview_drafts(source_kind, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS research_candidate_manual_note_preview_draft_discards (
+  discard_id TEXT PRIMARY KEY,
+  preview_draft_id TEXT NOT NULL UNIQUE,
+  scope TEXT NOT NULL DEFAULT 'project:augnes' CHECK (scope IN ('project:augnes')),
+  discarded_at TEXT NOT NULL,
+  discarded_by TEXT NOT NULL,
+  discard_reason TEXT NOT NULL DEFAULT '',
+  authority_json TEXT NOT NULL,
+  no_side_effects_json TEXT NOT NULL,
+  FOREIGN KEY (preview_draft_id) REFERENCES research_candidate_manual_note_preview_drafts(preview_draft_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_discards_scope_time
+  ON research_candidate_manual_note_preview_draft_discards(scope, discarded_at DESC);
+
 CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
   record_id TEXT PRIMARY KEY,
   boundary_status TEXT NOT NULL CHECK (
