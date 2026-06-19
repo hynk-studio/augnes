@@ -17,9 +17,11 @@ import {
   type ManualNotePreviewDraftDetailMetadata,
   type ManualNotePreviewDraftDiscardMetadata,
   type ManualNotePreviewDraftLifecycleAuthority,
+  type ManualNotePreviewDraftLifecycleSummary,
   type ManualNotePreviewDraftLifecycleStatus,
   type ManualNotePreviewDraftListLifecycleFilter,
   type ManualNotePreviewDraftListItem,
+  type ManualNotePreviewDraftListSummary,
   type ManualNotePreviewDraftListSort,
   type ManualNotePreviewDraftWarningFilter,
   type ManualNotePreviewNoSideEffects,
@@ -123,6 +125,9 @@ type ResearchCandidateManualNotePreviewDraftJoinedRow =
     discard_reason: string | null;
     discard_authority_json: string | null;
     discard_no_side_effects_json: string | null;
+    activity_count: number;
+    last_activity_type: ManualNotePreviewDraftActivityType | null;
+    last_activity_at: string | null;
   };
 
 export type ResearchCandidateManualNotePreviewDraftDetail = {
@@ -344,7 +349,29 @@ export function listResearchCandidateManualNotePreviewDrafts({
             discards.discarded_by,
             discards.discard_reason,
             discards.authority_json AS discard_authority_json,
-            discards.no_side_effects_json AS discard_no_side_effects_json
+            discards.no_side_effects_json AS discard_no_side_effects_json,
+            (
+              SELECT COUNT(*)
+              FROM research_candidate_manual_note_preview_draft_activities activities
+              WHERE activities.preview_draft_id = drafts.preview_draft_id
+                AND activities.scope = drafts.scope
+            ) AS activity_count,
+            (
+              SELECT activities.activity_type
+              FROM research_candidate_manual_note_preview_draft_activities activities
+              WHERE activities.preview_draft_id = drafts.preview_draft_id
+                AND activities.scope = drafts.scope
+              ORDER BY activities.activity_at DESC, activities.activity_id DESC
+              LIMIT 1
+            ) AS last_activity_type,
+            (
+              SELECT activities.activity_at
+              FROM research_candidate_manual_note_preview_draft_activities activities
+              WHERE activities.preview_draft_id = drafts.preview_draft_id
+                AND activities.scope = drafts.scope
+              ORDER BY activities.activity_at DESC, activities.activity_id DESC
+              LIMIT 1
+            ) AS last_activity_at
           FROM research_candidate_manual_note_preview_drafts drafts
           LEFT JOIN research_candidate_manual_note_preview_draft_discards discards
             ON discards.preview_draft_id = drafts.preview_draft_id
@@ -364,6 +391,39 @@ export function listResearchCandidateManualNotePreviewDrafts({
   } finally {
     db.close();
   }
+}
+
+export function summarizeResearchCandidateManualNotePreviewDraftList(
+  items: ManualNotePreviewDraftListItem[],
+): ManualNotePreviewDraftListSummary {
+  return {
+    returned_count: items.length,
+    active_count: items.filter(
+      (item) => item.lifecycle_summary.discard_state === "active",
+    ).length,
+    discarded_count: items.filter(
+      (item) => item.lifecycle_summary.discard_state === "discarded",
+    ).length,
+    with_warnings_count: items.filter((item) => item.warning_count > 0).length,
+    without_warnings_count: items.filter((item) => item.warning_count === 0)
+      .length,
+    with_candidates_count: items.filter(
+      (item) => item.candidate_count_summary.total > 0,
+    ).length,
+    without_candidates_count: items.filter(
+      (item) => item.candidate_count_summary.total === 0,
+    ).length,
+    activity_recorded_count: items.filter(
+      (item) => item.lifecycle_summary.activity_count > 0,
+    ).length,
+    label_present_count: items.filter(
+      (item) => item.lifecycle_summary.label_state === "labeled",
+    ).length,
+    label_missing_count: items.filter(
+      (item) => item.lifecycle_summary.label_state === "untitled",
+    ).length,
+    summary_scope: "returned_bounded_list",
+  };
 }
 
 export function getResearchCandidateManualNotePreviewDraft({
@@ -754,7 +814,29 @@ function selectResearchCandidateManualNotePreviewDraftJoinedRow(
           discards.discarded_by,
           discards.discard_reason,
           discards.authority_json AS discard_authority_json,
-          discards.no_side_effects_json AS discard_no_side_effects_json
+          discards.no_side_effects_json AS discard_no_side_effects_json,
+          (
+            SELECT COUNT(*)
+            FROM research_candidate_manual_note_preview_draft_activities activities
+            WHERE activities.preview_draft_id = drafts.preview_draft_id
+              AND activities.scope = drafts.scope
+          ) AS activity_count,
+          (
+            SELECT activities.activity_type
+            FROM research_candidate_manual_note_preview_draft_activities activities
+            WHERE activities.preview_draft_id = drafts.preview_draft_id
+              AND activities.scope = drafts.scope
+            ORDER BY activities.activity_at DESC, activities.activity_id DESC
+            LIMIT 1
+          ) AS last_activity_type,
+          (
+            SELECT activities.activity_at
+            FROM research_candidate_manual_note_preview_draft_activities activities
+            WHERE activities.preview_draft_id = drafts.preview_draft_id
+              AND activities.scope = drafts.scope
+            ORDER BY activities.activity_at DESC, activities.activity_id DESC
+            LIMIT 1
+          ) AS last_activity_at
         FROM research_candidate_manual_note_preview_drafts drafts
         LEFT JOIN research_candidate_manual_note_preview_draft_discards discards
           ON discards.preview_draft_id = drafts.preview_draft_id
@@ -922,9 +1004,34 @@ function parseResearchCandidateManualNotePreviewDraftListItem(
     manual_note_text_stored: false,
     warning_count: warnings.length,
     candidate_count_summary: buildCandidateCountSummary(preview),
+    lifecycle_summary: buildLifecycleSummary({
+      draft,
+      discardMetadata,
+      row,
+    }),
     created_at: draft.created_at,
     updated_at: draft.updated_at,
     ...(discardMetadata ? { discard_metadata: discardMetadata } : {}),
+  };
+}
+
+function buildLifecycleSummary({
+  draft,
+  discardMetadata,
+  row,
+}: {
+  draft: ResearchCandidateManualNotePreviewDraftRecord;
+  discardMetadata?: ManualNotePreviewDraftDiscardMetadata;
+  row: ResearchCandidateManualNotePreviewDraftJoinedRow;
+}): ManualNotePreviewDraftLifecycleSummary {
+  const activityCount = Number(row.activity_count ?? 0);
+
+  return {
+    label_state: draft.operator_note_label ? "labeled" : "untitled",
+    discard_state: discardMetadata ? "discarded" : "active",
+    activity_count: Number.isFinite(activityCount) ? activityCount : 0,
+    last_activity_type: row.last_activity_type ?? null,
+    last_activity_at: row.last_activity_at ?? null,
   };
 }
 

@@ -5673,6 +5673,30 @@ code {
   line-height: 1.45;
 }
 
+.manual-note-preview-draft-summary-badges,
+.manual-note-preview-draft-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manual-note-preview-draft-summary-badges span,
+.manual-note-preview-draft-badges span {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid rgba(13, 79, 62, 0.16);
+  border-radius: 8px;
+  background: #f6fbf8;
+  color: #374151;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
 .manual-note-preview-drafts-list {
   display: grid;
   gap: 10px;
@@ -5854,7 +5878,9 @@ code {
   .manual-note-preview-drafts-actions,
   .manual-note-preview-draft-controls,
   .manual-note-preview-draft-label-actions,
-  .manual-note-preview-draft-activity-delta {
+  .manual-note-preview-draft-activity-delta,
+  .manual-note-preview-draft-summary-badges,
+  .manual-note-preview-draft-badges {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     width: 100%;

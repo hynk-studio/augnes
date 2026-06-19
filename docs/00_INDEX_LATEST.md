@@ -792,6 +792,25 @@ repo-local 색인이다.
   package/index pointers, no browser persistence, no raw note text or preview
   JSON activity storage, and forbidden provider/retrieval/proof/evidence/work/state
   write-pattern absence.
+- Manual note preview draft lifecycle summary lane:
+  `app/api/research-candidate-review/manual-note-preview-drafts` returns
+  bounded returned-list lifecycle summary counts plus per-draft
+  `lifecycle_summary` metadata for label state, discard state, activity count,
+  and latest activity. Cockpit/Perspective renders compact list counts and
+  per-draft badges so operators can scan active/discarded/activity status
+  without opening every draft. Counts are computed over the returned bounded
+  list window, are preview-list metadata only, and do not create approval,
+  reject/defer/promote, proof/evidence, work item, canonical Perspective,
+  provider/OpenAI, retrieval/RAG/source fetching, Codex execution, browser
+  persistence, or external handoff behavior.
+- `npm run smoke:research-candidate-preview-draft-lifecycle-summary-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-lifecycle-summary-v0-1.mjs`
+  checks the list response summary contract, per-draft lifecycle summary
+  contract, store read-only summary computation from preview/discard/activity
+  tables, UI summary counts and badges, preserved create/list/filter/open/label
+  activity/discard behavior, package/index pointers, no browser persistence,
+  and forbidden provider/retrieval/proof/evidence/work/state write-pattern
+  absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
