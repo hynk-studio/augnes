@@ -634,6 +634,12 @@ repo-local 색인이다.
 - `types/research-candidate-review.ts`: type-only, non-authoritative preview
   contract for the fixture shape. It is not a DB schema, not an API route, and
   not runtime behavior.
+- `npm run smoke:research-candidate-review-surface-v0-1`: doc headings,
+  fixture shape/counts, candidate boundaries, source grounding, package/index
+  pointers, and forbidden implementation-pattern absence를 정적으로 확인한다.
+- `npm run smoke:research-candidate-review-types-v0-1`: type literals,
+  fixture alignment, source ref integrity, count consistency, cross-reference
+  integrity, and non-authority pointers를 정적으로 확인한다.
 - `components/augnes-cockpit.tsx`: Research Candidate Review read-only
   Cockpit/Perspective static fixture preview. It renders
   `fixtures/research-candidate-review.sample.v0.1.json` through
@@ -641,7 +647,7 @@ repo-local 색인이다.
   non-authoritative review material, with no runtime/API/DB/provider/retrieval/promotion behavior in this slice.
 - `lib/research-candidate-review/manual-note-parser.ts`: preview-only deterministic parser
   for bounded manual pasted notes. It produces Research
-  Candidate Review preview data with no provider calls, no retrieval, no DB writes, no runtime/API route, no UI input behavior, no proof/evidence write, no work item creation, and no promotion behavior.
+  Candidate Review preview data with no provider calls, no retrieval, no DB writes, no runtime/API route, no UI input behavior, no proof/evidence write, no work item creation, and no promotion behavior. The parser itself is still a deterministic local library, not a route or storage layer.
 - `fixtures/research-candidate-review.manual-note.sample.v0.1.txt`:
   public-safe manual note parser input fixture.
 - `fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json`:
@@ -654,12 +660,6 @@ repo-local 색인이다.
 - `fixtures/research-candidate-canonical-promotion-gates.sample.v0.1.json`:
   public-safe gate samples for blocked promotion targets, allowed pointer
   uses, and allowed low-cardinality vocabulary.
-- `npm run smoke:research-candidate-review-surface-v0-1`: doc headings,
-  fixture shape/counts, candidate boundaries, source grounding, package/index
-  pointers, and forbidden implementation-pattern absence를 정적으로 확인한다.
-- `npm run smoke:research-candidate-review-types-v0-1`: type literals,
-  fixture alignment, source ref integrity, count consistency, cross-reference
-  integrity, and non-authority pointers를 정적으로 확인한다.
 - `npm run smoke:research-candidate-canonical-promotion-gates-v0-1`: gate
   doc/fixture shape, blocked raw-string promotions, allowed pointer uses,
   allowed low-cardinality vocabulary, type alignment, existing fixture
@@ -688,18 +688,34 @@ repo-local 색인이다.
   `components/research-candidate-manual-note-preview-panel.tsx` is rendered
   from `components/augnes-cockpit.tsx` in the Perspective tab. It lets an
   operator paste manual note text, trigger local-only deterministic parsing via
-  `lib/research-candidate-review/manual-note-parser.ts`, and inspect
-  read-only Research Candidate Review preview output. It adds no network, no
-  API route, no DB, no persistence, no durable candidate/review/receipt
-  storage, no promotion/reject/defer workflow, no proof/evidence writes, no
-  work item creation, no provider/OpenAI calls, no retrieval/RAG/source
-  fetching, no Codex execution, and no external handoff sending.
+  `lib/research-candidate-review/manual-note-parser.ts`, or explicitly create
+  a bounded runtime preview draft through the
+  `app/api/research-candidate-review/manual-note-preview` route file, and inspect
+  read-only Research Candidate Review preview output. Runtime preview drafts
+  use that bounded runtime preview route plus
+  `lib/research-candidate-review/manual-note-runtime-preview.ts` for the
+  response boundary contract and
+  `lib/research-candidate-review/manual-note-preview-draft-store.ts` for a
+  scoped preview-draft database write to
+  `research_candidate_manual_note_preview_drafts`; raw pasted note text is not
+  persisted. The lane adds no durable candidate/review/receipt storage, no
+  canonical Perspective storage, no promotion/reject/defer workflow, no
+  proof/evidence writes, no work item creation, no provider/OpenAI calls, no
+  retrieval/RAG/source fetching, no Codex execution, and no external handoff
+  sending.
 - `npm run smoke:research-candidate-manual-note-preview-ui-v0-1`:
   `scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs` checks the
   dedicated component, Cockpit import/render wiring, existing parser reuse,
-  local-only parser execution, rendered parser output fields, visible authority
-  boundary copy, docs/index pointer, package script, and forbidden
-  implementation-pattern absence.
+  retained local parser execution, bounded same-origin runtime draft action,
+  rendered parser output fields, visible authority boundary copy, docs/index
+  pointer, package script, and forbidden implementation-pattern absence.
+- `npm run smoke:research-candidate-runtime-preview-draft-v0-1`:
+  `scripts/smoke-research-candidate-runtime-preview-draft-v0-1.mjs` checks the
+  bounded route, existing parser reuse, non-empty/max input guards,
+  runtime_boundary and no_side_effects response metadata, preview-draft table
+  and migration wiring, UI runtime action, package/index pointers, no raw note
+  text persistence, and absence of provider/retrieval/Codex/proof/evidence/work
+  creation or promotion patterns.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
@@ -708,7 +724,8 @@ repo-local 색인이다.
   `components/research-candidate-constellation-overlay-preview.tsx`, and
   `components/augnes-cockpit.tsx` define and render read-only candidate nodes
   and typed edges for the original Research Candidate Review fixture and the
-  manual parser output fixture.
+  manual parser output fixture, with no graph DB, no layout algorithm, no embeddings, no runtime/API/DB/provider/retrieval/promotion behavior, no
+  proof/evidence write, and no work item creation.
 - `npm run smoke:research-candidate-review-constellation-overlay-v0-1`:
   overlay type contract, deterministic builder output, fixture integrity,
   Cockpit read-only wiring, docs/index pointers, and non-authority boundaries를
@@ -720,14 +737,38 @@ repo-local 색인이다.
   `fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json`,
   `components/research-candidate-ai-context-packet-preview.tsx`, and
   `components/augnes-cockpit.tsx` define and render a read-only handoff packet
-  preview compiled from static overlay fixtures.
+  preview compiled from static overlay fixtures, with no provider prompt execution, no Codex execution, no retrieval, no durable memory, no
+  runtime/API/DB/provider/retrieval/promotion behavior, no proof/evidence write,
+  and no work item creation.
 - `npm run smoke:research-candidate-review-ai-context-packet-v0-1`:
   packet type contract, deterministic packet builder output, relationship
   summaries, final guardrails, Cockpit read-only wiring, docs/index pointers,
   and non-authority boundaries를 정적으로 확인한다.
 Boundary 요약: candidate-only, type-only, static audit only, read-only static
 fixture only, preview-only deterministic parser, non-authoritative preview
-contract이며 no runtime/API/DB/provider/retrieval/promotion behavior in this slice. The Cockpit/Perspective preview adds no parser behavior, no work item creation, and no proof/evidence write. The manual parser adds no runtime/API route, no UI input behavior, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, and no promotion behavior. The parser output Cockpit/Perspective static preview panel is read-only static parser output fixture material with no runtime UI input, no live parser execution, no provider calls, no retrieval, no DB writes, no proof/evidence write, no work item creation, no promotion behavior, and no runtime/API route. The Candidate Constellation Overlay preview uses read-only candidate nodes and typed edges with no graph DB, no layout algorithm, no embeddings, no runtime/API/DB/provider/retrieval/promotion behavior, no proof/evidence write, and no work item creation. The Research Candidate AI Context Packet preview is a read-only handoff packet with no provider prompt execution, no Codex execution, no retrieval, no durable memory, no runtime/API/DB/provider/retrieval/promotion behavior, no proof/evidence write, and no work item creation. The Formation Receipt preview is a read-only receipt preview with no durable receipt storage, no event log, no proof/evidence write, no work item creation, no perspective promotion, and no runtime/API/DB/provider/retrieval behavior.
+contract다. The Cockpit manual note panel now has a bounded same-origin runtime
+route and optional non-canonical preview-draft persistence, but it still creates
+no durable candidate/review/receipt storage, no canonical Perspective state, no
+proof/evidence write, no work item, no provider/OpenAI call, no retrieval/source
+fetch, no Codex execution, no external handoff, and no promotion/reject/defer
+workflow. The Cockpit/Perspective static fixture preview adds no parser
+behavior, no work item creation, and no proof/evidence write. The manual parser
+itself adds no runtime/API route, no UI input behavior, no provider calls, no
+retrieval, no DB writes, no proof/evidence write, no work item creation, and no
+promotion behavior. The parser output Cockpit/Perspective static preview panel
+is read-only static parser output fixture material with no runtime UI input, no
+live parser execution, no provider calls, no retrieval, no DB writes, no
+proof/evidence write, no work item creation, no promotion behavior, and no
+runtime/API route. The Candidate Constellation Overlay preview uses read-only
+candidate nodes and typed edges with no graph DB, no layout algorithm, no
+embeddings, no runtime/API/DB/provider/retrieval/promotion behavior, no
+proof/evidence write, and no work item creation. The Research Candidate AI
+Context Packet preview is a read-only handoff packet with no provider prompt
+execution, no Codex execution, no retrieval, no durable memory, no
+runtime/API/DB/provider/retrieval/promotion behavior, no proof/evidence write,
+and no work item creation. The Formation Receipt preview is a read-only receipt
+preview with no durable receipt storage, no event log, no proof/evidence write,
+no work item creation, no perspective promotion, and no runtime/API/DB/provider/retrieval behavior.
 
 - Formation Receipt preview:
   `types/research-candidate-formation-receipt.ts`,

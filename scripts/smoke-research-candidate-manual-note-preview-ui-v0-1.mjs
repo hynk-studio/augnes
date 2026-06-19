@@ -31,6 +31,7 @@ assertDedicatedComponent();
 assertCockpitWiring();
 assertParserReuse();
 assertLocalOnlyParserExecution();
+assertRuntimePreviewDraftAction();
 assertSampleNoteAction();
 assertEmptyFormattingHint();
 assertWarningSummaryCard();
@@ -50,6 +51,7 @@ console.log(
       cockpit_imports_and_renders_component: true,
       existing_manual_note_parser_reused: true,
       parser_execution_local_only: true,
+      runtime_preview_draft_action_checked: true,
       sample_note_action_checked: true,
       empty_formatting_hint_checked: true,
       warning_summary_card_checked: true,
@@ -74,7 +76,7 @@ function assertDedicatedComponent() {
   );
   assert.match(component, /"use client";/, "component must be a client component");
   assert.match(component, /<textarea\b/, "component must include textarea input");
-  assert.match(component, /Parse local note/, "component must expose local parse trigger");
+  assert.match(component, /Parse locally/, "component must expose local parse trigger");
 }
 
 function assertCockpitWiring() {
@@ -126,8 +128,8 @@ function assertLocalOnlyParserExecution() {
   );
   assert.match(
     component,
-    /data-augnes-parser-execution="local-only"/,
-    "component must declare local-only parser execution",
+    /data-augnes-parser-execution="local-parser-and-same-origin-runtime-route"/,
+    "component must declare local parser and bounded runtime route execution",
   );
   assert.match(
     component,
@@ -138,6 +140,69 @@ function assertLocalOnlyParserExecution() {
     component,
     /\buseEffect\b/,
     "component must not create background parser side effects",
+  );
+}
+
+function assertRuntimePreviewDraftAction() {
+  assert.match(
+    component,
+    /MANUAL_NOTE_PREVIEW_ROUTE/,
+    "component must import/use the bounded manual note preview route constant",
+  );
+  assert.match(
+    component,
+    /fetch\(MANUAL_NOTE_PREVIEW_ROUTE,/,
+    "component runtime action must call only the same-origin route constant",
+  );
+  assert.match(
+    component,
+    /method:\s*"POST"/,
+    "component runtime action must POST to the bounded route",
+  );
+  assert.match(
+    component,
+    /persist_preview_draft:\s*true/,
+    "component runtime action must request a preview draft explicitly",
+  );
+  assert.match(
+    component,
+    /Create runtime preview draft/,
+    "component must expose runtime preview draft action",
+  );
+  assert.match(
+    component,
+    /Clear runtime result/,
+    "component must expose runtime result reset action",
+  );
+  assert.match(
+    component,
+    /Runtime preview draft metadata/,
+    "component must render runtime metadata",
+  );
+  assert.match(
+    component,
+    /input_fingerprint/,
+    "component must render input fingerprint",
+  );
+  assert.match(
+    component,
+    /preview_draft_id/,
+    "component must render preview draft id",
+  );
+  assert.match(
+    component,
+    /persistence_mode/,
+    "component must render persistence mode",
+  );
+  assert.match(
+    component,
+    /runtime_boundary/,
+    "component must render runtime boundary",
+  );
+  assert.match(
+    component,
+    /no_side_effects/,
+    "component must render no_side_effects metadata",
   );
 }
 
@@ -343,21 +408,39 @@ function assertClearBehavior() {
   );
   assert.match(
     component,
+    /setRuntimeResult\(null\)/,
+    "clear handler must reset runtime result",
+  );
+  assert.match(
+    component,
+    /setRuntimeError\(null\)/,
+    "clear handler must reset runtime error",
+  );
+  assert.match(
+    component,
+    /setIsRuntimeLoading\(false\)/,
+    "clear handler must reset runtime loading state",
+  );
+  assert.match(
+    component,
     /setParseCount\(0\)/,
     "clear handler must reset parse count",
   );
   assert.match(
     component,
-    /disabled=\{!manualNoteText && !parserResult\}/,
-    "clear button must disable when there is no local input or result",
+    /!manualNoteText[\s\S]*!parserResult[\s\S]*!runtimeResult[\s\S]*!runtimeError[\s\S]*!isRuntimeLoading/,
+    "clear button must disable only when there is no local or runtime state",
   );
 }
 
 function assertAuthorityBoundaryCopy() {
   for (const requiredText of [
-    "Parser execution is local only.",
+    "Local parser execution remains available.",
+    "Runtime action uses the same-origin bounded preview route only.",
+    "Optional DB write is a non-canonical preview draft.",
+    "Raw pasted note text is not persisted.",
     "Output is read-only preview material.",
-    "No network, no API route, no DB, no persistence, no durable candidate/review/receipt storage.",
+    "No durable candidate/review/receipt storage or canonical Perspective storage.",
     "No promotion/reject/defer workflow.",
     "No proof/evidence writes.",
     "No work item creation.",
@@ -370,12 +453,20 @@ function assertAuthorityBoundaryCopy() {
 }
 
 function assertForbiddenImplementationPatterns() {
+  assert.doesNotMatch(
+    component,
+    /\bfetch\s*\(\s*["'`]https?:\/\//i,
+    "component must not call an external network URL",
+  );
+  assert.doesNotMatch(
+    component,
+    /["'`]\/api\/(?!research-candidate-review\/manual-note-preview)/,
+    "component must not embed any API route other than the bounded manual note route",
+  );
+
   const forbiddenPatterns = [
-    { label: "fetch call", regex: /\bfetch\s*\(/ },
     { label: "fetchJson", regex: /\bfetchJson\b/ },
     { label: "XMLHttpRequest", regex: /\bXMLHttpRequest\b/ },
-    { label: "API route path", regex: /["'`]\/api\// },
-    { label: "HTTP method mutation", regex: /method:\s*["'`](POST|PUT|PATCH|DELETE)["'`]/i },
     { label: "NextResponse route behavior", regex: /\bNextResponse\b/ },
     { label: "localStorage", regex: /\blocalStorage\b/ },
     { label: "sessionStorage", regex: /\bsessionStorage\b/ },
