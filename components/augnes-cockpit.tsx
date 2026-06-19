@@ -13,6 +13,7 @@ import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-re
 import { ResearchCandidateAIContextPacketPreview } from "@/components/research-candidate-ai-context-packet-preview";
 import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
 import { ResearchCandidateFormationReceiptPreview } from "@/components/research-candidate-formation-receipt-preview";
+import { ResearchCandidateManualNotePreviewPanel } from "@/components/research-candidate-manual-note-preview-panel";
 import {
   FORMATION_SWITCH_ACKNOWLEDGEMENT_STORAGE_KEY,
   FORMATION_SWITCH_BASIS_VERSION,
@@ -6579,6 +6580,9 @@ function PerspectiveTab({
         <a href="#research-candidate-review-preview">
           Research candidate review
         </a>
+        <a href="#research-candidate-manual-note-preview-panel">
+          Manual pasted note
+        </a>
         <a href="#research-candidate-review-parser-output-preview">
           Manual parser output
         </a>
@@ -7122,6 +7126,10 @@ function PerspectiveTab({
         </div>
       </section>
       {/* Research Candidate Review Cockpit Preview End */}
+
+      {/* Research Candidate Manual Note Preview Panel Start */}
+      <ResearchCandidateManualNotePreviewPanel />
+      {/* Research Candidate Manual Note Preview Panel End */}
 
       {/* Research Candidate Review Parser Output Cockpit Preview Start */}
       <section

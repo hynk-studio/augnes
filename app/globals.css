@@ -5419,6 +5419,33 @@ code {
   background: #eef8f4;
 }
 
+.perspective-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 14px;
+}
+
+.perspective-section-nav a {
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgba(13, 79, 62, 0.18);
+  border-radius: 8px;
+  color: #174434;
+  background: #f6fbf8;
+  font-size: 0.86rem;
+  font-weight: 720;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.perspective-section-nav a:hover {
+  border-color: rgba(13, 79, 62, 0.32);
+  background: #eef8f4;
+}
+
 .perspective-trace-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

@@ -684,6 +684,22 @@ repo-local 색인이다.
   parser output fixture wiring, runtime parser guard, read-only section
   markers, parser output fixture integrity, docs/index pointers, and
   non-authority boundaries를 정적으로 확인한다.
+- Cockpit manual pasted note preview UI shell:
+  `components/research-candidate-manual-note-preview-panel.tsx` is rendered
+  from `components/augnes-cockpit.tsx` in the Perspective tab. It lets an
+  operator paste manual note text, trigger local-only deterministic parsing via
+  `lib/research-candidate-review/manual-note-parser.ts`, and inspect
+  read-only Research Candidate Review preview output. It adds no network, no
+  API route, no DB, no persistence, no durable candidate/review/receipt
+  storage, no promotion/reject/defer workflow, no proof/evidence writes, no
+  work item creation, no provider/OpenAI calls, no retrieval/RAG/source
+  fetching, no Codex execution, and no external handoff sending.
+- `npm run smoke:research-candidate-manual-note-preview-ui-v0-1`:
+  `scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs` checks the
+  dedicated component, Cockpit import/render wiring, existing parser reuse,
+  local-only parser execution, rendered parser output fields, visible authority
+  boundary copy, docs/index pointer, package script, and forbidden
+  implementation-pattern absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

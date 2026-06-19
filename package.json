@@ -189,6 +189,7 @@
     "smoke:research-candidate-review-constellation-overlay-v0-1": "node scripts/smoke-research-candidate-review-constellation-overlay-v0-1.mjs",
     "smoke:research-candidate-review-formation-receipt-v0-1": "node scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs",
     "smoke:research-candidate-review-manual-parser-v0-1": "node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
+    "smoke:research-candidate-manual-note-preview-ui-v0-1": "node scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
     "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-surface-v0-1": "node scripts/smoke-research-candidate-review-surface-v0-1.mjs",
     "smoke:research-candidate-review-types-v0-1": "node scripts/smoke-research-candidate-review-types-v0-1.mjs",
