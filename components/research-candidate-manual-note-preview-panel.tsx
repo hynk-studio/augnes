@@ -5,6 +5,12 @@ import type {
   ManualResearchNoteParserResult,
   ManualResearchNoteParserWarning,
 } from "@/lib/research-candidate-review/manual-note-parser";
+import {
+  MANUAL_NOTE_PREVIEW_ROUTE,
+  type ManualNotePreviewRuntimeAuthority,
+  type ManualNotePreviewRuntimeOkResponse,
+  type ManualNotePreviewRuntimeResponse,
+} from "@/lib/research-candidate-review/manual-note-runtime-preview";
 import type {
   ClaimCandidate,
   EvidenceCandidate,
@@ -62,9 +68,12 @@ const MANUAL_NOTE_PREFIX_GROUPS = [
 ];
 
 const AUTHORITY_BOUNDARY_COPY = [
-  "Parser execution is local only.",
+  "Local parser execution remains available.",
+  "Runtime action uses the same-origin bounded preview route only.",
+  "Optional DB write is a non-canonical preview draft.",
+  "Raw pasted note text is not persisted.",
   "Output is read-only preview material.",
-  "No network, no API route, no DB, no persistence, no durable candidate/review/receipt storage.",
+  "No durable candidate/review/receipt storage or canonical Perspective storage.",
   "No promotion/reject/defer workflow.",
   "No proof/evidence writes.",
   "No work item creation.",
@@ -73,37 +82,132 @@ const AUTHORITY_BOUNDARY_COPY = [
   "No Codex execution or external handoff sending.",
 ];
 
+type ManualNoteResultSource =
+  | "local_parse"
+  | "persisted_preview_draft"
+  | "route_only_no_persistence";
+
+type ManualNoteDisplayResult = {
+  parser_version: ManualResearchNoteParserResult["parser_version"];
+  preview: ManualResearchNoteParserResult["preview"];
+  warnings: ManualResearchNoteParserWarning[];
+  authority:
+    | ManualResearchNoteParserResult["authority"]
+    | ManualNotePreviewRuntimeAuthority;
+  source: ManualNoteResultSource;
+  runtimeResult: ManualNotePreviewRuntimeOkResponse | null;
+};
+
 export function ResearchCandidateManualNotePreviewPanel() {
   const [manualNoteText, setManualNoteText] = useState("");
   const [parserResult, setParserResult] =
     useState<ManualResearchNoteParserResult | null>(null);
+  const [runtimeResult, setRuntimeResult] =
+    useState<ManualNotePreviewRuntimeOkResponse | null>(null);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [isRuntimeLoading, setIsRuntimeLoading] = useState(false);
   const [parseCount, setParseCount] = useState(0);
 
   const inputHasText = manualNoteText.trim().length > 0;
+  const displayResult: ManualNoteDisplayResult | null = runtimeResult
+    ? {
+        parser_version: runtimeResult.parser_version,
+        preview: runtimeResult.preview,
+        warnings: runtimeResult.warnings,
+        authority: runtimeResult.authority,
+        source: runtimeResult.persisted_preview_draft
+          ? "persisted_preview_draft"
+          : "route_only_no_persistence",
+        runtimeResult,
+      }
+    : parserResult
+      ? {
+          parser_version: parserResult.parser_version,
+          preview: parserResult.preview,
+          warnings: parserResult.warnings,
+          authority: parserResult.authority,
+          source: "local_parse",
+          runtimeResult: null,
+        }
+      : null;
 
   function parseManualNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!inputHasText) return;
 
     setParserResult(parseManualResearchNoteToPreview(manualNoteText));
+    setRuntimeResult(null);
+    setRuntimeError(null);
+    setIsRuntimeLoading(false);
     setParseCount((currentCount) => currentCount + 1);
+  }
+
+  async function createRuntimePreviewDraft() {
+    if (!inputHasText || isRuntimeLoading) return;
+
+    setIsRuntimeLoading(true);
+    setRuntimeError(null);
+
+    try {
+      const response = await fetch(MANUAL_NOTE_PREVIEW_ROUTE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          manual_note_text: manualNoteText,
+          scope: "project:augnes",
+          persist_preview_draft: true,
+          operator_note_label: "Cockpit manual pasted note preview",
+        }),
+      });
+      const result = (await response.json()) as ManualNotePreviewRuntimeResponse;
+
+      if (!response.ok || !result.ok) {
+        setRuntimeError(
+          result.ok
+            ? "Manual note preview route returned an unavailable response."
+            : result.message,
+        );
+        return;
+      }
+
+      setRuntimeResult(result);
+      setParserResult(null);
+    } catch {
+      setRuntimeError("Manual note preview route is unavailable.");
+    } finally {
+      setIsRuntimeLoading(false);
+    }
   }
 
   function useSampleNote() {
     setManualNoteText(MANUAL_NOTE_SAMPLE);
     setParserResult(null);
+    setRuntimeResult(null);
+    setRuntimeError(null);
+    setIsRuntimeLoading(false);
     setParseCount(0);
   }
 
   function clearManualNote() {
     setManualNoteText("");
     setParserResult(null);
+    setRuntimeResult(null);
+    setRuntimeError(null);
+    setIsRuntimeLoading(false);
     setParseCount(0);
   }
 
-  const preview = parserResult?.preview ?? null;
+  function clearRuntimeResult() {
+    setRuntimeResult(null);
+    setRuntimeError(null);
+    setIsRuntimeLoading(false);
+  }
+
+  const preview = displayResult?.preview ?? null;
   const session = preview?.research_session_preview ?? null;
-  const textareaDescriptionIds = parserResult
+  const textareaDescriptionIds = displayResult
     ? "research-candidate-manual-note-boundary"
     : "research-candidate-manual-note-format-hint research-candidate-manual-note-boundary";
 
@@ -112,22 +216,23 @@ export function ResearchCandidateManualNotePreviewPanel() {
       className="perspective-section"
       id="research-candidate-manual-note-preview-panel"
       tabIndex={-1}
-      aria-label="Manual pasted note local parser preview"
-      data-augnes-authority="local-only read-only preview-only candidate-only manual-parser"
-      data-augnes-parser-execution="local-only"
+      aria-label="Manual pasted note parser and runtime preview"
+      data-augnes-authority="read-only preview-only candidate-only manual-parser same-origin-runtime-preview-draft"
+      data-augnes-parser-execution="local-parser-and-same-origin-runtime-route"
     >
       <div className="perspective-constellation-shell-header">
         <div>
           <p className="panel-eyebrow">AUGNES / Research</p>
           <h2>Cockpit Manual Pasted Note Preview</h2>
           <p>
-            Paste a bounded manual research note, run the deterministic local
-            parser, and inspect candidate-only Research Candidate Review preview
-            output.
+            Paste a bounded manual research note, run the deterministic parser
+            locally or through the bounded runtime route, and inspect
+            candidate-only Research Candidate Review preview output.
           </p>
         </div>
         <div className="perspective-constellation-shell-status">
           <span className="status-pill">local parser</span>
+          <span className="status-pill">runtime preview draft</span>
           <span className="status-pill">read-only preview</span>
           <span className="status-pill">candidate-only</span>
         </div>
@@ -157,17 +262,51 @@ export function ResearchCandidateManualNotePreviewPanel() {
         />
         <div className="form-row">
           <button type="submit" disabled={!inputHasText}>
-            Parse local note
+            Parse locally
           </button>
           <button
             type="button"
             className="secondary-button"
-            disabled={!manualNoteText && !parserResult}
+            disabled={!inputHasText || isRuntimeLoading}
+            onClick={createRuntimePreviewDraft}
+          >
+            {isRuntimeLoading
+              ? "Creating runtime preview draft..."
+              : "Create runtime preview draft"}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={
+              !manualNoteText &&
+              !parserResult &&
+              !runtimeResult &&
+              !runtimeError &&
+              !isRuntimeLoading
+            }
             onClick={clearManualNote}
           >
             Clear local note
           </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={!runtimeResult && !runtimeError && !isRuntimeLoading}
+            onClick={clearRuntimeResult}
+          >
+            Clear runtime result
+          </button>
         </div>
+        <p className="manual-note-runtime-hint">
+          Local parse updates this panel only. Runtime preview draft posts to
+          the same-origin route, reruns the deterministic parser, stores a
+          preview draft when requested, and does not persist raw note text.
+        </p>
+        {runtimeError ? (
+          <p className="manual-note-runtime-error" role="alert">
+            {runtimeError}
+          </p>
+        ) : null}
       </form>
 
       <section
@@ -182,16 +321,24 @@ export function ResearchCandidateManualNotePreviewPanel() {
         </ul>
       </section>
 
-      {parserResult && preview && session ? (
+      {displayResult && preview && session ? (
         <div className="perspective-detail-stack">
           <ManualNoteResultSummary
-            parserResult={parserResult}
+            displayResult={displayResult}
             parseCount={parseCount}
           />
 
-          <ParserWarningSummary warnings={parserResult.warnings} />
+          <ParserWarningSummary warnings={displayResult.warnings} />
 
-          <BooleanFlagGrid title="Parser authority" flags={parserResult.authority} />
+          <RuntimeMetadataSummary runtimeResult={displayResult.runtimeResult} />
+          <RuntimeBoundarySummary runtimeResult={displayResult.runtimeResult} />
+
+          <BooleanFlagGrid
+            title={
+              displayResult.runtimeResult ? "Runtime authority" : "Parser authority"
+            }
+            flags={displayResult.authority}
+          />
           <BooleanFlagGrid title="Preview authority" flags={preview.authority} />
 
           <div className="perspective-formation-summary-grid">
@@ -245,7 +392,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
           </div>
 
           <div className="perspective-constellation-workspace-grid">
-            <ParserWarningsList warnings={parserResult.warnings} />
+            <ParserWarningsList warnings={displayResult.warnings} />
             <SourceReferenceList sources={preview.source_reference_previews} />
             <ClaimCandidateList candidates={preview.claim_candidates} />
             <EvidenceCandidateList candidates={preview.evidence_candidates} />
@@ -305,13 +452,13 @@ function ManualNoteFormatHint() {
 }
 
 function ManualNoteResultSummary({
-  parserResult,
+  displayResult,
   parseCount,
 }: {
-  parserResult: ManualResearchNoteParserResult;
+  displayResult: ManualNoteDisplayResult;
   parseCount: number;
 }) {
-  const { preview } = parserResult;
+  const { preview } = displayResult;
   const session = preview.research_session_preview;
 
   return (
@@ -339,17 +486,88 @@ function ManualNoteResultSummary({
           evidence <code>{session.evidence_candidate_count}</code>
         </span>
         <span>
-          warnings <code>{parserResult.warnings.length}</code>
+          warnings <code>{displayResult.warnings.length}</code>
         </span>
         <span>
-          parser_version <code>{parserResult.parser_version}</code>
+          parser_version <code>{displayResult.parser_version}</code>
         </span>
         <span>
           preview_status <code>{preview.status}</code>
         </span>
         <span>
+          source <code>{displayResult.source}</code>
+        </span>
+        <span>
           local_parse_count <code>{parseCount}</code>
         </span>
+      </div>
+    </section>
+  );
+}
+
+function RuntimeMetadataSummary({
+  runtimeResult,
+}: {
+  runtimeResult: ManualNotePreviewRuntimeOkResponse | null;
+}) {
+  if (!runtimeResult) return null;
+
+  return (
+    <section
+      className="perspective-inspector-section manual-note-runtime-summary"
+      aria-label="Runtime preview draft metadata"
+    >
+      <h3>Runtime preview draft metadata</h3>
+      <div className="perspective-workbench-status-row">
+        <span>
+          runtime_version <code>{runtimeResult.runtime_version}</code>
+        </span>
+        <span>
+          input_fingerprint <code>{runtimeResult.input_fingerprint}</code>
+        </span>
+        <span>
+          preview_draft_id{" "}
+          <code>{runtimeResult.preview_draft_id ?? "not persisted"}</code>
+        </span>
+        <span>
+          persistence_mode <code>{runtimeResult.persistence_mode}</code>
+        </span>
+        <span>
+          persisted_preview_draft{" "}
+          <code>{String(runtimeResult.persisted_preview_draft)}</code>
+        </span>
+        <span>
+          created_at <code>{runtimeResult.created_at}</code>
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function RuntimeBoundarySummary({
+  runtimeResult,
+}: {
+  runtimeResult: ManualNotePreviewRuntimeOkResponse | null;
+}) {
+  if (!runtimeResult) return null;
+
+  return (
+    <section
+      className="perspective-inspector-section manual-note-runtime-boundary"
+      aria-label="Runtime boundary and no side effects"
+    >
+      <h3>Runtime boundary</h3>
+      <div className="perspective-workbench-status-row">
+        {Object.entries(runtimeResult.runtime_boundary).map(([key, value]) => (
+          <span key={key}>
+            {key} <code>{String(value)}</code>
+          </span>
+        ))}
+        {Object.entries(runtimeResult.no_side_effects).map(([key, value]) => (
+          <span key={key}>
+            {key} <code>{String(value)}</code>
+          </span>
+        ))}
       </div>
     </section>
   );
@@ -391,6 +609,7 @@ function BooleanFlagGrid({
   title: string;
   flags:
     | ManualResearchNoteParserResult["authority"]
+    | ManualNotePreviewRuntimeAuthority
     | ResearchCandidateReviewAuthority;
 }) {
   return (

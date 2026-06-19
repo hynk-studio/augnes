@@ -583,6 +583,107 @@ export function migrateTemporalPreviewReviewArtifactIdempotency(db) {
   };
 }
 
+export const researchCandidateManualNotePreviewDraftsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_note_preview_drafts (
+    preview_draft_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ('preview_draft')),
+    scope TEXT NOT NULL DEFAULT 'project:augnes' CHECK (scope IN ('project:augnes')),
+    source_kind TEXT NOT NULL CHECK (source_kind IN ('manual_paste')),
+    operator_note_label TEXT,
+    parser_version TEXT NOT NULL,
+    preview_version TEXT NOT NULL,
+    input_fingerprint TEXT NOT NULL,
+    manual_note_text_stored INTEGER NOT NULL DEFAULT 0 CHECK (manual_note_text_stored = 0),
+    preview_json TEXT NOT NULL,
+    warnings_json TEXT NOT NULL DEFAULT '[]',
+    authority_json TEXT NOT NULL,
+    runtime_boundary_json TEXT NOT NULL,
+    no_side_effects_json TEXT NOT NULL,
+    promoted_at TEXT CHECK (promoted_at IS NULL),
+    canonical_perspective_id TEXT CHECK (canonical_perspective_id IS NULL),
+    proof_id TEXT CHECK (proof_id IS NULL),
+    evidence_id TEXT CHECK (evidence_id IS NULL),
+    work_item_id TEXT CHECK (work_item_id IS NULL),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`;
+
+export const researchCandidateManualNotePreviewDraftsIndexes = [
+  {
+    name: "idx_research_candidate_manual_note_preview_drafts_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_drafts_scope_time
+        ON research_candidate_manual_note_preview_drafts(scope, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_note_preview_drafts_status_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_drafts_status_time
+        ON research_candidate_manual_note_preview_drafts(status, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_note_preview_drafts_input",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_drafts_input
+        ON research_candidate_manual_note_preview_drafts(input_fingerprint)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_note_preview_drafts_source",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_drafts_source
+        ON research_candidate_manual_note_preview_drafts(source_kind, created_at DESC)
+    `,
+  },
+];
+
+export function migrateResearchCandidateManualNotePreviewDrafts(db) {
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'research_candidate_manual_note_preview_drafts'
+      `,
+    )
+    .get();
+  const createdTable = !existingTable;
+
+  db.prepare(researchCandidateManualNotePreviewDraftsTableSql).run();
+
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = 'research_candidate_manual_note_preview_drafts'
+        `,
+      )
+      .all()
+      .map((index) => index.name),
+  );
+  const createdIndexes = [];
+
+  for (const { name, sql } of researchCandidateManualNotePreviewDraftsIndexes) {
+    if (!existingIndexes.has(name)) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    created_table: createdTable,
+    created_indexes: createdIndexes,
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,
