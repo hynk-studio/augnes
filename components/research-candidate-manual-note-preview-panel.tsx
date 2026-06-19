@@ -32,6 +32,35 @@ const MANUAL_NOTE_PLACEHOLDER = [
   "Next: Review the candidate list before any separate work.",
 ].join("\n");
 
+const MANUAL_NOTE_SAMPLE = [
+  "Research Question: Should Augnes keep manual research notes candidate-only before any Perspective promotion?",
+  "Operator Intent: Inspect a local pasted note as non-authoritative Research Candidate Review material.",
+  "Source Title: Operator synthesis note for manual preview UX",
+  "Source Origin: local operator note",
+  "Source Identifier: local-preview-note-ux-001",
+  "Claim: Manual pasted notes should be previewed as candidate-only research material before durable promotion.",
+  "Evidence: supports: The manual parser output marks preview authority as candidate-only and read-only.",
+  "Evidence: context: Human review is still required before any canonical Perspective update.",
+  "Tension: A readable preview can still make candidate material feel more authoritative than it is.",
+  "Gap: Need operator-visible UX cues that warnings and boundaries stay near the parse result. next: warning visibility check, narrow viewport pass",
+  "Perspective Delta: Make Research Candidate Review easier to inspect without committing state.",
+  "Next: Validate the manual preview UX refinements before PR review. files: components/research-candidate-manual-note-preview-panel.tsx checks: smoke:research-candidate-manual-note-preview-ui-v0-1, typecheck, browser pass",
+].join("\n");
+
+const MANUAL_NOTE_PREFIX_GROUPS = [
+  { label: "Research Question", prefixes: ["Research Question:", "연구질문:"] },
+  { label: "Operator Intent", prefixes: ["Operator Intent:", "의도:"] },
+  { label: "Source Title", prefixes: ["Source Title:", "출처제목:"] },
+  { label: "Source Origin", prefixes: ["Source Origin:", "출처:"] },
+  { label: "Source Identifier", prefixes: ["Source Identifier:", "식별자:"] },
+  { label: "Claim", prefixes: ["Claim:", "주장:"] },
+  { label: "Evidence", prefixes: ["Evidence:", "근거:"] },
+  { label: "Tension", prefixes: ["Tension:", "긴장:"] },
+  { label: "Gap", prefixes: ["Gap:", "공백:"] },
+  { label: "Perspective Delta", prefixes: ["Perspective Delta:", "관점변화:"] },
+  { label: "Next", prefixes: ["Next:", "다음:"] },
+];
+
 const AUTHORITY_BOUNDARY_COPY = [
   "Parser execution is local only.",
   "Output is read-only preview material.",
@@ -60,6 +89,12 @@ export function ResearchCandidateManualNotePreviewPanel() {
     setParseCount((currentCount) => currentCount + 1);
   }
 
+  function useSampleNote() {
+    setManualNoteText(MANUAL_NOTE_SAMPLE);
+    setParserResult(null);
+    setParseCount(0);
+  }
+
   function clearManualNote() {
     setManualNoteText("");
     setParserResult(null);
@@ -68,6 +103,9 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
   const preview = parserResult?.preview ?? null;
   const session = preview?.research_session_preview ?? null;
+  const textareaDescriptionIds = parserResult
+    ? "research-candidate-manual-note-boundary"
+    : "research-candidate-manual-note-format-hint research-candidate-manual-note-boundary";
 
   return (
     <section
@@ -96,9 +134,18 @@ export function ResearchCandidateManualNotePreviewPanel() {
       </div>
 
       <form className="observe-form" onSubmit={parseManualNote}>
-        <label htmlFor="research-candidate-manual-note-input">
-          Manual note text
-        </label>
+        <div className="manual-note-input-header">
+          <label htmlFor="research-candidate-manual-note-input">
+            Manual note text
+          </label>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={useSampleNote}
+          >
+            Use sample note
+          </button>
+        </div>
         <textarea
           id="research-candidate-manual-note-input"
           value={manualNoteText}
@@ -106,7 +153,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
           rows={10}
           placeholder={MANUAL_NOTE_PLACEHOLDER}
           spellCheck={false}
-          aria-describedby="research-candidate-manual-note-boundary"
+          aria-describedby={textareaDescriptionIds}
         />
         <div className="form-row">
           <button type="submit" disabled={!inputHasText}>
@@ -118,7 +165,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
             disabled={!manualNoteText && !parserResult}
             onClick={clearManualNote}
           >
-            Clear
+            Clear local note
           </button>
         </div>
       </form>
@@ -137,26 +184,12 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
       {parserResult && preview && session ? (
         <div className="perspective-detail-stack">
-          <div className="perspective-workbench-status-row">
-            <span>
-              parser_version <code>{parserResult.parser_version}</code>
-            </span>
-            <span>
-              preview_version <code>{preview.preview_version}</code>
-            </span>
-            <span>
-              scope <code>{preview.scope}</code>
-            </span>
-            <span>
-              status <code>{preview.status}</code>
-            </span>
-            <span>
-              warnings <code>{parserResult.warnings.length}</code>
-            </span>
-            <span>
-              local_parse_count <code>{parseCount}</code>
-            </span>
-          </div>
+          <ManualNoteResultSummary
+            parserResult={parserResult}
+            parseCount={parseCount}
+          />
+
+          <ParserWarningSummary warnings={parserResult.warnings} />
 
           <BooleanFlagGrid title="Parser authority" flags={parserResult.authority} />
           <BooleanFlagGrid title="Preview authority" flags={preview.authority} />
@@ -229,14 +262,124 @@ export function ResearchCandidateManualNotePreviewPanel() {
           </div>
         </div>
       ) : (
-        <section className="perspective-inspector-section">
-          <h3>Preview output</h3>
-          <p>
-            Parser output appears here after local parsing. No parser result has
-            been created for this pasted note yet.
-          </p>
-        </section>
+        <>
+          <section className="perspective-inspector-section">
+            <h3>Preview output</h3>
+            <p>
+              Parser output appears here after local parsing. No parser result
+              has been created for this pasted note yet.
+            </p>
+          </section>
+          <ManualNoteFormatHint />
+        </>
       )}
+    </section>
+  );
+}
+
+function ManualNoteFormatHint() {
+  return (
+    <section
+      className="perspective-inspector-section manual-note-format-hint"
+      id="research-candidate-manual-note-format-hint"
+    >
+      <h3>How to format a note</h3>
+      <p>
+        Use one prefix per line. This help mirrors the current deterministic
+        parser prefixes; it is UI guidance, not a new parser contract.
+      </p>
+      <div className="manual-note-prefix-grid">
+        {MANUAL_NOTE_PREFIX_GROUPS.map((group) => (
+          <div key={group.label}>
+            <strong>{group.label}</strong>
+            <code>{group.prefixes.join(" / ")}</code>
+          </div>
+        ))}
+      </div>
+      <p>
+        For gap and follow-up lines, the parser also reads inline markers such
+        as <code>next:</code>, <code>files:</code>, and <code>checks:</code>.
+      </p>
+    </section>
+  );
+}
+
+function ManualNoteResultSummary({
+  parserResult,
+  parseCount,
+}: {
+  parserResult: ManualResearchNoteParserResult;
+  parseCount: number;
+}) {
+  const { preview } = parserResult;
+  const session = preview.research_session_preview;
+
+  return (
+    <section
+      className="perspective-inspector-section manual-note-result-summary"
+      aria-label="Manual note parse result summary"
+    >
+      <h3>Parse result summary</h3>
+      <div className="perspective-workbench-status-row">
+        <span>
+          candidates{" "}
+          <code>
+            {session.claim_candidate_count +
+              session.evidence_candidate_count +
+              session.tension_candidate_count +
+              session.knowledge_gap_candidate_count +
+              session.perspective_delta_candidate_count +
+              session.follow_up_work_candidate_count}
+          </code>
+        </span>
+        <span>
+          claims <code>{session.claim_candidate_count}</code>
+        </span>
+        <span>
+          evidence <code>{session.evidence_candidate_count}</code>
+        </span>
+        <span>
+          warnings <code>{parserResult.warnings.length}</code>
+        </span>
+        <span>
+          parser_version <code>{parserResult.parser_version}</code>
+        </span>
+        <span>
+          preview_status <code>{preview.status}</code>
+        </span>
+        <span>
+          local_parse_count <code>{parseCount}</code>
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function ParserWarningSummary({
+  warnings,
+}: {
+  warnings: ManualResearchNoteParserWarning[];
+}) {
+  if (warnings.length === 0) return null;
+
+  return (
+    <section
+      className="perspective-inspector-section manual-note-warning-summary"
+      role="status"
+      aria-live="polite"
+    >
+      <h3>Parser warning summary</h3>
+      <ul>
+        {warnings.map((warning) => (
+          <li key={`${warning.code}:${warning.line ?? "none"}`}>
+            <strong>{warning.code}</strong>
+            <span>{warning.message}</span>
+            <small>
+              line <code>{warning.line ?? "not available"}</code>
+            </small>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
