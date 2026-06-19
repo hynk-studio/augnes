@@ -73,6 +73,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
     <section
       className="perspective-section"
       id="research-candidate-manual-note-preview-panel"
+      tabIndex={-1}
       aria-label="Manual pasted note local parser preview"
       data-augnes-authority="local-only read-only preview-only candidate-only manual-parser"
       data-augnes-parser-execution="local-only"
