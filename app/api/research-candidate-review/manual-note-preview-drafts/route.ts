@@ -1,4 +1,7 @@
-import { listResearchCandidateManualNotePreviewDrafts } from "@/lib/research-candidate-review/manual-note-preview-draft-store";
+import {
+  listResearchCandidateManualNotePreviewDrafts,
+  summarizeResearchCandidateManualNotePreviewDraftList,
+} from "@/lib/research-candidate-review/manual-note-preview-draft-store";
 import {
   DEFAULT_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT,
   MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE,
@@ -59,6 +62,7 @@ export async function GET(request: Request) {
       warnings: query.warnings,
       candidates: query.candidates,
     });
+    const summary = summarizeResearchCandidateManualNotePreviewDraftList(items);
 
     return NextResponse.json(
       {
@@ -72,6 +76,7 @@ export async function GET(request: Request) {
         warnings: query.warnings,
         candidates: query.candidates,
         include_discarded: query.include_discarded,
+        summary,
         no_side_effects: noSideEffects,
         runtime_boundary: runtimeBoundary,
       } satisfies ManualNotePreviewDraftListResponse,

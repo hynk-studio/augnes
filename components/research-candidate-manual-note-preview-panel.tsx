@@ -23,6 +23,7 @@ import {
   type ManualNotePreviewDraftListLifecycleFilter,
   type ManualNotePreviewDraftListItem,
   type ManualNotePreviewDraftListResponse,
+  type ManualNotePreviewDraftListSummary,
   type ManualNotePreviewDraftListSort,
   type ManualNotePreviewDraftWarningFilter,
   type ManualNotePreviewRuntimeAuthority,
@@ -95,6 +96,9 @@ const AUTHORITY_BOUNDARY_COPY = [
   "Labels do not promote, classify, or canonize the draft.",
   "Activity is preview-draft metadata only.",
   "Activity does not approve, reject, defer, promote, or canonize this draft.",
+  "Counts are preview-list metadata only.",
+  "Counts do not approve, reject, defer, promote, or canonize drafts.",
+  "Activity count is lifecycle metadata, not proof or evidence.",
   "Raw note text is not stored or recoverable.",
   "Raw pasted note text is not persisted.",
   "Raw note text not stored.",
@@ -150,6 +154,16 @@ const ACTIVITY_TYPE_LABELS: Record<
   preview_draft_discarded: "Discarded preview draft",
 };
 
+const LAST_ACTIVITY_BADGE_LABELS: Record<
+  ManualNotePreviewDraftActivityItem["activity_type"],
+  string
+> = {
+  preview_draft_created: "created",
+  label_updated: "label updated",
+  label_cleared: "label cleared",
+  preview_draft_discarded: "discarded",
+};
+
 type ManualNoteResultSource =
   | "local_parse"
   | "persisted_preview_draft"
@@ -195,6 +209,8 @@ export function ResearchCandidateManualNotePreviewPanel() {
   const [previewDraftItems, setPreviewDraftItems] = useState<
     ManualNotePreviewDraftListItem[]
   >([]);
+  const [previewDraftListSummary, setPreviewDraftListSummary] =
+    useState<ManualNotePreviewDraftListSummary | null>(null);
   const [draftLifecycleFilter, setDraftLifecycleFilter] =
     useState<ManualNotePreviewDraftListLifecycleFilter>("active");
   const [draftSort, setDraftSort] =
@@ -412,6 +428,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
       }
 
       setPreviewDraftItems(result.items);
+      setPreviewDraftListSummary(result.summary);
     } catch {
       setPreviewDraftsError("Preview draft list route is unavailable.");
     } finally {
@@ -531,6 +548,14 @@ export function ResearchCandidateManualNotePreviewPanel() {
           draft: {
             ...currentDraft.draft,
             lifecycle_status: "discarded_preview_draft",
+            lifecycle_summary: {
+              ...currentDraft.draft.lifecycle_summary,
+              discard_state: "discarded",
+              activity_count:
+                currentDraft.draft.lifecycle_summary.activity_count + 1,
+              last_activity_type: "preview_draft_discarded",
+              last_activity_at: result.discarded_at,
+            },
             discard_metadata: result.discard_metadata,
           },
         };
@@ -641,6 +666,21 @@ export function ResearchCandidateManualNotePreviewPanel() {
                 operator_note_label: result.operator_note_label,
                 updated_at: result.updated_at,
                 lifecycle_status: result.lifecycle_status,
+                lifecycle_summary: {
+                  ...item.lifecycle_summary,
+                  label_state: result.operator_note_label
+                    ? "labeled"
+                    : "untitled",
+                  discard_state:
+                    result.lifecycle_status === "discarded_preview_draft"
+                      ? "discarded"
+                      : "active",
+                  activity_count: item.lifecycle_summary.activity_count + 1,
+                  last_activity_type: result.operator_note_label
+                    ? "label_updated"
+                    : "label_cleared",
+                  last_activity_at: result.updated_at,
+                },
               }
             : item,
         ),
@@ -661,10 +701,25 @@ export function ResearchCandidateManualNotePreviewPanel() {
             operator_note_label: result.operator_note_label,
             updated_at: result.updated_at,
             lifecycle_status: result.lifecycle_status,
+            lifecycle_summary: {
+              ...currentDraft.draft.lifecycle_summary,
+              label_state: result.operator_note_label ? "labeled" : "untitled",
+              discard_state:
+                result.lifecycle_status === "discarded_preview_draft"
+                  ? "discarded"
+                  : "active",
+              activity_count:
+                currentDraft.draft.lifecycle_summary.activity_count + 1,
+              last_activity_type: result.operator_note_label
+                ? "label_updated"
+                : "label_cleared",
+              last_activity_at: result.updated_at,
+            },
           },
         };
       });
       setDraftLabelEditState(null);
+      await refreshPreviewDrafts();
       if (
         previewDraftActivity?.ok &&
         previewDraftActivity.preview_draft_id === previewDraftId
@@ -867,6 +922,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
       <RecentPreviewDraftsPanel
         items={previewDraftItems}
+        summary={previewDraftListSummary}
         controls={{
           lifecycle: draftLifecycleFilter,
           sort: draftSort,
@@ -1021,6 +1077,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
 function RecentPreviewDraftsPanel({
   items,
+  summary,
   controls,
   isLoading,
   error,
@@ -1046,6 +1103,7 @@ function RecentPreviewDraftsPanel({
   onClearLabelEdit,
 }: {
   items: ManualNotePreviewDraftListItem[];
+  summary: ManualNotePreviewDraftListSummary | null;
   controls: DraftListControls;
   isLoading: boolean;
   error: string | null;
@@ -1191,6 +1249,14 @@ function RecentPreviewDraftsPanel({
       <p className="manual-note-preview-drafts-summary">
         {formatDraftListFilterSummary(controls)}
       </p>
+      <PreviewDraftListSummaryBadges summary={summary} />
+      <ul className="manual-note-label-boundary-copy">
+        <li>Counts are preview-list metadata only.</li>
+        <li>
+          Counts do not approve, reject, defer, promote, or canonize drafts.
+        </li>
+        <li>Activity count is lifecycle metadata, not proof or evidence.</li>
+      </ul>
       <p className="manual-note-runtime-hint">
         Include discarded by choosing All preview drafts. Discarded only shows
         discarded lifecycle records with discard disabled.
@@ -1230,6 +1296,10 @@ function RecentPreviewDraftsPanel({
             const isSavingLabel = savingDraftLabelId === item.preview_draft_id;
             const displayLabel =
               item.operator_note_label ?? "Untitled preview draft";
+            const lifecycleSummary = item.lifecycle_summary;
+            const lastActivityLabel = lifecycleSummary.last_activity_type
+              ? LAST_ACTIVITY_BADGE_LABELS[lifecycleSummary.last_activity_type]
+              : "none recorded";
             const editedLabelValue = isEditingLabel ? labelEditState.value : "";
             const editedLabelTrimmed = editedLabelValue.trim();
             const labelIsTooLong =
@@ -1265,6 +1335,30 @@ function RecentPreviewDraftsPanel({
                     {isDiscarded ? "Discarded preview draft" : "Active preview draft"}
                   </span>
                   {isOpen ? <span>open</span> : null}
+                </div>
+                <div
+                  className="manual-note-preview-draft-badges"
+                  aria-label="Preview draft lifecycle summary badges"
+                >
+                  <span>
+                    {lifecycleSummary.discard_state === "discarded"
+                      ? "Discarded preview draft"
+                      : "Active preview draft"}
+                  </span>
+                  <span>
+                    {lifecycleSummary.label_state === "labeled"
+                      ? "Labeled"
+                      : "Untitled"}
+                  </span>
+                  <span>Activity count {lifecycleSummary.activity_count}</span>
+                  <span>Last activity: {lastActivityLabel}</span>
+                  {lifecycleSummary.last_activity_at ? (
+                    <span>
+                      Last activity time {lifecycleSummary.last_activity_at}
+                    </span>
+                  ) : null}
+                  <span>Warnings {item.warning_count}</span>
+                  <span>Candidates {item.candidate_count_summary.total}</span>
                 </div>
                 <div className="manual-note-preview-draft-grid">
                   <span>
@@ -1417,6 +1511,36 @@ function RecentPreviewDraftsPanel({
   );
 }
 
+function PreviewDraftListSummaryBadges({
+  summary,
+}: {
+  summary: ManualNotePreviewDraftListSummary | null;
+}) {
+  if (!summary) {
+    return (
+      <p className="manual-note-runtime-hint">
+        Refresh preview drafts to load bounded lifecycle summary counts.
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className="manual-note-preview-draft-summary-badges"
+      aria-label="Preview draft list lifecycle summary counts"
+    >
+      <span>Active: {summary.active_count}</span>
+      <span>Discarded: {summary.discarded_count}</span>
+      <span>With warnings: {summary.with_warnings_count}</span>
+      <span>With candidates: {summary.with_candidates_count}</span>
+      <span>Activity recorded: {summary.activity_recorded_count}</span>
+      <span>Untitled: {summary.label_missing_count}</span>
+      <span>Returned: {summary.returned_count}</span>
+      <span>Scope: {summary.summary_scope}</span>
+    </div>
+  );
+}
+
 function typedEntries<T extends Record<string, string>>(record: T) {
   return Object.entries(record) as [keyof T, T[keyof T]][];
 }
@@ -1545,6 +1669,7 @@ function RuntimeMetadataSummary({
 
   if (storedDraftResult) {
     const draft = storedDraftResult.draft;
+    const lifecycleSummary = draft.lifecycle_summary;
 
     return (
       <section
@@ -1581,6 +1706,23 @@ function RuntimeMetadataSummary({
           <span>
             candidate_count_summary{" "}
             <code>{formatCandidateCountSummary(draft)}</code>
+          </span>
+          <span>
+            label_state <code>{lifecycleSummary.label_state}</code>
+          </span>
+          <span>
+            discard_state <code>{lifecycleSummary.discard_state}</code>
+          </span>
+          <span>
+            activity_count <code>{lifecycleSummary.activity_count}</code>
+          </span>
+          <span>
+            last_activity_type{" "}
+            <code>{lifecycleSummary.last_activity_type ?? "none recorded"}</code>
+          </span>
+          <span>
+            last_activity_at{" "}
+            <code>{lifecycleSummary.last_activity_at ?? "none recorded"}</code>
           </span>
           <span>
             manual_note_text_stored{" "}

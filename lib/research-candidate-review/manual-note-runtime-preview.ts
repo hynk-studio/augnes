@@ -61,6 +61,32 @@ export type ManualNotePreviewDraftActivityType =
   | "label_cleared"
   | "preview_draft_discarded";
 
+export type ManualNotePreviewDraftLabelState = "labeled" | "untitled";
+
+export type ManualNotePreviewDraftDiscardState = "active" | "discarded";
+
+export type ManualNotePreviewDraftLifecycleSummary = {
+  label_state: ManualNotePreviewDraftLabelState;
+  discard_state: ManualNotePreviewDraftDiscardState;
+  activity_count: number;
+  last_activity_type: ManualNotePreviewDraftActivityType | null;
+  last_activity_at: string | null;
+};
+
+export type ManualNotePreviewDraftListSummary = {
+  returned_count: number;
+  active_count: number;
+  discarded_count: number;
+  with_warnings_count: number;
+  without_warnings_count: number;
+  with_candidates_count: number;
+  without_candidates_count: number;
+  activity_recorded_count: number;
+  label_present_count: number;
+  label_missing_count: number;
+  summary_scope: "returned_bounded_list";
+};
+
 export type ManualNotePreviewDraftListQuery = {
   limit: number;
   lifecycle: ManualNotePreviewDraftListLifecycleFilter;
@@ -152,6 +178,10 @@ export type ManualNotePreviewDraftLifecycleRuntimeBoundary = {
   source_kind: "stored_manual_paste_preview_draft";
   lifecycle_actions: "list_open_discard_only";
   lifecycle_status_source: "discard_marker_table";
+  lifecycle_summary_source: "returned_bounded_list";
+  lifecycle_summary_is_preview_metadata_only: true;
+  lifecycle_summary_is_not_approval_history: true;
+  counts_do_not_promote_or_canonize: true;
   raw_manual_note_text_persisted: false;
   raw_manual_note_text_returned: false;
   preview_draft_records_are_non_canonical: true;
@@ -260,6 +290,7 @@ export type ManualNotePreviewDraftListItem = {
   manual_note_text_stored: false;
   warning_count: number;
   candidate_count_summary: ManualNotePreviewDraftCandidateCountSummary;
+  lifecycle_summary: ManualNotePreviewDraftLifecycleSummary;
   created_at: string;
   updated_at: string;
   discard_metadata?: ManualNotePreviewDraftDiscardMetadata;
@@ -296,6 +327,7 @@ export type ManualNotePreviewDraftListOkResponse = {
   warnings: ManualNotePreviewDraftWarningFilter;
   candidates: ManualNotePreviewDraftCandidateFilter;
   include_discarded: boolean;
+  summary: ManualNotePreviewDraftListSummary;
   no_side_effects: ManualNotePreviewNoSideEffects;
   runtime_boundary: ManualNotePreviewDraftLifecycleRuntimeBoundary;
 };
@@ -565,6 +597,10 @@ export function buildManualNotePreviewDraftLifecycleBoundary({
     source_kind: "stored_manual_paste_preview_draft",
     lifecycle_actions: "list_open_discard_only",
     lifecycle_status_source: "discard_marker_table",
+    lifecycle_summary_source: "returned_bounded_list",
+    lifecycle_summary_is_preview_metadata_only: true,
+    lifecycle_summary_is_not_approval_history: true,
+    counts_do_not_promote_or_canonize: true,
     raw_manual_note_text_persisted: false,
     raw_manual_note_text_returned: false,
     preview_draft_records_are_non_canonical: true,
