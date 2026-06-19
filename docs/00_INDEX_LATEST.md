@@ -733,6 +733,24 @@ repo-local 색인이다.
   runtime preview drafts UI affordances, package/index pointers, no browser
   persistence, no raw note text fields, and no forbidden proof/evidence/work
   item/state/Perspective writes.
+- Manual note preview draft list sorting/filtering lane:
+  `app/api/research-candidate-review/manual-note-preview-drafts` now accepts
+  bounded list query controls for lifecycle, created-at sort order, warning
+  state, candidate count state, and limit while preserving `include_discarded`
+  compatibility. Cockpit/Perspective renders compact operator-facing controls
+  for those filters inside Recent runtime preview drafts. This is a no-schema
+  refinement over stored parsed preview JSON and discard markers only; it adds
+  no raw note text persistence, full-text search, provider/retrieval/source
+  fetching, proof/evidence rows, work items, canonical Perspective writes,
+  Codex execution, browser persistence, or promotion/reject/defer workflow.
+- `npm run smoke:research-candidate-preview-draft-list-filters-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-list-filters-v0-1.mjs`
+  checks the list route lifecycle/sort/warnings/candidates/limit query
+  contract, `include_discarded` compatibility, response shape, bounded
+  store-side lifecycle/sort handling, TypeScript warning/candidate filtering,
+  UI controls and filter summary copy, package/index pointers, no browser
+  persistence, and forbidden provider/retrieval/proof/evidence/work/state
+  write-pattern absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

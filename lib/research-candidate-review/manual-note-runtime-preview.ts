@@ -33,6 +33,34 @@ export type ManualNotePreviewDraftLifecycleStatus =
   | "active_preview_draft"
   | "discarded_preview_draft";
 
+export type ManualNotePreviewDraftListLifecycleFilter =
+  | "active"
+  | "discarded"
+  | "all";
+
+export type ManualNotePreviewDraftListSort =
+  | "created_desc"
+  | "created_asc";
+
+export type ManualNotePreviewDraftWarningFilter =
+  | "all"
+  | "with_warnings"
+  | "without_warnings";
+
+export type ManualNotePreviewDraftCandidateFilter =
+  | "all"
+  | "with_candidates"
+  | "without_candidates";
+
+export type ManualNotePreviewDraftListQuery = {
+  limit: number;
+  lifecycle: ManualNotePreviewDraftListLifecycleFilter;
+  sort: ManualNotePreviewDraftListSort;
+  warnings: ManualNotePreviewDraftWarningFilter;
+  candidates: ManualNotePreviewDraftCandidateFilter;
+  include_discarded: boolean;
+};
+
 export type ManualNotePreviewRuntimeAuthority = {
   preview_only: true;
   read_only_preview_material: true;
@@ -171,6 +199,11 @@ export type ManualNotePreviewDraftListOkResponse = {
   runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
   items: ManualNotePreviewDraftListItem[];
   count: number;
+  limit: number;
+  lifecycle: ManualNotePreviewDraftListLifecycleFilter;
+  sort: ManualNotePreviewDraftListSort;
+  warnings: ManualNotePreviewDraftWarningFilter;
+  candidates: ManualNotePreviewDraftCandidateFilter;
   include_discarded: boolean;
   no_side_effects: ManualNotePreviewNoSideEffects;
   runtime_boundary: ManualNotePreviewDraftLifecycleRuntimeBoundary;
@@ -207,6 +240,10 @@ export type ManualNotePreviewDraftRuntimeErrorResponse = {
     | "invalid_include_discarded"
     | "invalid_json"
     | "invalid_body"
+    | "invalid_lifecycle"
+    | "invalid_sort"
+    | "invalid_warnings"
+    | "invalid_candidates"
     | "invalid_preview_draft_id"
     | "preview_draft_not_found"
     | "discard_reason_too_large"

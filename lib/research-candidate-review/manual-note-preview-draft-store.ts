@@ -4,16 +4,21 @@ import type {
   ManualResearchNoteParserResult,
   ManualResearchNoteParserWarning,
 } from "@/lib/research-candidate-review/manual-note-parser";
-import type {
-  ManualNotePreviewDraftCandidateCountSummary,
-  ManualNotePreviewDraftDetailMetadata,
-  ManualNotePreviewDraftDiscardMetadata,
-  ManualNotePreviewDraftLifecycleAuthority,
-  ManualNotePreviewDraftLifecycleStatus,
-  ManualNotePreviewDraftListItem,
-  ManualNotePreviewNoSideEffects,
-  ManualNotePreviewRuntimeAuthority,
-  ManualNotePreviewRuntimeBoundary,
+import {
+  MAX_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT,
+  type ManualNotePreviewDraftCandidateCountSummary,
+  type ManualNotePreviewDraftCandidateFilter,
+  type ManualNotePreviewDraftDetailMetadata,
+  type ManualNotePreviewDraftDiscardMetadata,
+  type ManualNotePreviewDraftLifecycleAuthority,
+  type ManualNotePreviewDraftLifecycleStatus,
+  type ManualNotePreviewDraftListLifecycleFilter,
+  type ManualNotePreviewDraftListItem,
+  type ManualNotePreviewDraftListSort,
+  type ManualNotePreviewDraftWarningFilter,
+  type ManualNotePreviewNoSideEffects,
+  type ManualNotePreviewRuntimeAuthority,
+  type ManualNotePreviewRuntimeBoundary,
 } from "@/lib/research-candidate-review/manual-note-runtime-preview";
 import type {
   ResearchCandidateReviewPreviewResponse,
@@ -236,13 +241,22 @@ export function insertResearchCandidateManualNotePreviewDraft({
 export function listResearchCandidateManualNotePreviewDrafts({
   scope,
   limit,
-  includeDiscarded,
+  lifecycle,
+  sort,
+  warnings,
+  candidates,
 }: {
   scope: ResearchCandidateReviewScope;
   limit: number;
-  includeDiscarded: boolean;
+  lifecycle: ManualNotePreviewDraftListLifecycleFilter;
+  sort: ManualNotePreviewDraftListSort;
+  warnings: ManualNotePreviewDraftWarningFilter;
+  candidates: ManualNotePreviewDraftCandidateFilter;
 }): ManualNotePreviewDraftListItem[] {
   const db = openDatabase();
+  const lifecycleClause = buildLifecycleWhereClause(lifecycle);
+  const sortClause = buildCreatedAtSortClause(sort);
+  const rowLimit = MAX_MANUAL_NOTE_PREVIEW_DRAFT_LIST_LIMIT;
 
   try {
     const rows = db
@@ -280,14 +294,18 @@ export function listResearchCandidateManualNotePreviewDrafts({
           LEFT JOIN research_candidate_manual_note_preview_draft_discards discards
             ON discards.preview_draft_id = drafts.preview_draft_id
           WHERE drafts.scope = @scope
-            ${includeDiscarded ? "" : "AND discards.preview_draft_id IS NULL"}
-          ORDER BY drafts.created_at DESC
-          LIMIT @limit
+            ${lifecycleClause}
+          ORDER BY drafts.created_at ${sortClause}
+          LIMIT @rowLimit
         `,
       )
-      .all({ scope, limit }) as ResearchCandidateManualNotePreviewDraftJoinedRow[];
+      .all({ scope, rowLimit }) as ResearchCandidateManualNotePreviewDraftJoinedRow[];
 
-    return rows.map(parseResearchCandidateManualNotePreviewDraftListItem);
+    return rows
+      .map(parseResearchCandidateManualNotePreviewDraftListItem)
+      .filter((item) => matchesWarningFilter(item, warnings))
+      .filter((item) => matchesCandidateFilter(item, candidates))
+      .slice(0, limit);
   } finally {
     db.close();
   }
@@ -402,6 +420,56 @@ function cleanDiscardedBy(value: string) {
 
 function cleanDiscardReason(value: string) {
   return value.trim().slice(0, 500);
+}
+
+function buildLifecycleWhereClause(
+  lifecycle: ManualNotePreviewDraftListLifecycleFilter,
+) {
+  switch (lifecycle) {
+    case "active":
+      return "AND discards.preview_draft_id IS NULL";
+    case "discarded":
+      return "AND discards.preview_draft_id IS NOT NULL";
+    case "all":
+      return "";
+  }
+}
+
+function buildCreatedAtSortClause(sort: ManualNotePreviewDraftListSort) {
+  switch (sort) {
+    case "created_desc":
+      return "DESC";
+    case "created_asc":
+      return "ASC";
+  }
+}
+
+function matchesWarningFilter(
+  item: ManualNotePreviewDraftListItem,
+  warnings: ManualNotePreviewDraftWarningFilter,
+) {
+  switch (warnings) {
+    case "all":
+      return true;
+    case "with_warnings":
+      return item.warning_count > 0;
+    case "without_warnings":
+      return item.warning_count === 0;
+  }
+}
+
+function matchesCandidateFilter(
+  item: ManualNotePreviewDraftListItem,
+  candidates: ManualNotePreviewDraftCandidateFilter,
+) {
+  switch (candidates) {
+    case "all":
+      return true;
+    case "with_candidates":
+      return item.candidate_count_summary.total > 0;
+    case "without_candidates":
+      return item.candidate_count_summary.total === 0;
+  }
 }
 
 function selectResearchCandidateManualNotePreviewDraftJoinedRow(
