@@ -894,6 +894,15 @@ repo-local 색인이다.
   and helper behavior, UI panel copy/actions, preserved startup/manual note
   flows, CSS, package/index pointers, no browser persistence, and forbidden
   provider/retrieval/proof/evidence/work/Codex/promotion action pattern absence.
+- Manual note promotion boundary audit artifact:
+  `lib/research-candidate-review/manual-note-promotion-boundary-audit.ts`,
+  `fixtures/research-candidate-review.manual-note-promotion-boundary-audit.sample.v0.1.json`,
+  and `npm run smoke:research-candidate-promotion-boundary-audit-v0-1`
+  maps current readiness gates to future dry-run/write authority boundaries.
+  This adds no CI authority, no product approval authority, no promotion
+  authority, no route, no UI, no write authority, no proof/evidence, no
+  Perspective/canonical graph write, no provider/retrieval/source fetch, no
+  work item, no schema/migration code, and no dependency.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
