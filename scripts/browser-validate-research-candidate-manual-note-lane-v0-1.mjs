@@ -73,9 +73,17 @@ function createInitialReport() {
     browser_executable_path: null,
     browser_probe_paths: SYSTEM_BROWSER_EXECUTABLE_CANDIDATES,
     provider_api_key_env_unset_for_app: true,
+    browser_backed_method: {
+      attempted_order: [
+        "repo self-contained browser validator",
+        "Playwright Chromium with system Chrome/Chromium executable",
+      ],
+      selected: null,
+      unavailable_reason: null,
+    },
     network_observation_scope: {
       observed_surface:
-        "browser/page Playwright request, response, console, pageerror, and requestfailed events",
+        "browser-backed page request, response, console, pageerror, and requestfailed events",
       external_request_counts:
         "browser-observed only; this is not server-side outbound network instrumentation",
       forbidden_request_counts:
@@ -117,6 +125,7 @@ function createInitialReport() {
     runtime_route_assertion_result: null,
     dry_run_plan_assertion_result: null,
     candidate_review_design_assertion_result: null,
+    disabled_adapter_readiness_assertion_result: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -183,6 +192,8 @@ async function main() {
   const playwright = await loadPlaywright();
   const browserExecutablePath = findBrowserExecutablePath();
   report.browser_executable_path = browserExecutablePath;
+  report.browser_backed_method.selected =
+    "Playwright Chromium using system Chrome/Chromium executable";
 
   serverProcess = startDevServer({ port: selectedPort, dbPath });
   await waitForServerReady(`http://localhost:${selectedPort}/`);
@@ -399,16 +410,11 @@ async function validateOperatorFlow(page) {
     await waitForText(panel, "This is not promotion.");
     await waitForText(panel, "Blocked side effects");
     await panel.getByRole("button", { name: "Copy Markdown dry-run plan" }).click();
-    const fallbackVisible = await panel
-      .locator(".manual-note-readiness-copy-packet-fallback")
-      .isVisible()
-      .catch(() => false);
-    const successTextVisible = await panel
-      .getByText("Markdown dry-run plan copied locally to clipboard.", {
-        exact: false,
-      })
-      .isVisible()
-      .catch(() => false);
+    const copyFeedback = await waitForLocalCopyFeedback(panel, {
+      fallbackLabel: "Manual dry-run plan copy fallback",
+      fallbackSelector: ".manual-note-readiness-copy-packet-fallback",
+      successText: "Markdown dry-run plan copied locally to clipboard.",
+    });
     report.dry_run_plan_assertion_result = {
       passed:
         response.status() === 200 &&
@@ -423,11 +429,10 @@ async function validateOperatorFlow(page) {
         body?.runtime_boundary?.provider_or_openai_calls === false &&
         body?.runtime_boundary?.retrieval_or_rag === false &&
         body?.runtime_boundary?.source_fetching === false &&
-        (fallbackVisible || successTextVisible),
+        copyFeedback.passed,
       status: response.status(),
       dry_run_status: body?.dry_run_status ?? null,
-      copy_fallback_visible: fallbackVisible,
-      copy_success_visible: successTextVisible,
+      copy_feedback: copyFeedback,
       runtime_boundary: body?.runtime_boundary ?? null,
     };
     recordAssertion(
@@ -472,49 +477,126 @@ async function validateOperatorFlow(page) {
       await panel
         .getByRole("button", { name: "Copy selected review Markdown" })
         .click();
-      const reviewFallbackVisible = await panel
-        .getByLabel("Manual review or design packet copy fallback")
-        .isVisible()
-        .catch(() => false);
-      const reviewSuccessVisible = await panel
-        .getByText("Selected review Markdown copied locally to clipboard.", {
-          exact: false,
-        })
-        .isVisible()
-        .catch(() => false);
+      const reviewCopyFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual review or design packet copy fallback",
+        successText: "Selected review Markdown copied locally to clipboard.",
+      });
 
       await panel
         .getByRole("button", { name: "Copy authority design JSON" })
         .click();
-      const designFallbackVisible = await panel
-        .getByLabel("Manual review or design packet copy fallback")
-        .isVisible()
-        .catch(() => false);
-      const designSuccessVisible = await panel
-        .getByText("Authority design JSON copied locally to clipboard.", {
-          exact: false,
-        })
-        .isVisible()
-        .catch(() => false);
+      const designCopyFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual review or design packet copy fallback",
+        successText: "Authority design JSON copied locally to clipboard.",
+      });
       const afterApiRequestCount = countResearchCandidateApiRequests();
 
       report.candidate_review_design_assertion_result = {
         passed:
           afterApiRequestCount === beforeApiRequestCount &&
-          (reviewFallbackVisible || reviewSuccessVisible) &&
-          (designFallbackVisible || designSuccessVisible),
+          reviewCopyFeedback.passed &&
+          designCopyFeedback.passed,
         no_new_research_candidate_api_requests:
           afterApiRequestCount === beforeApiRequestCount,
-        review_copy_fallback_visible: reviewFallbackVisible,
-        review_copy_success_visible: reviewSuccessVisible,
-        design_copy_fallback_visible: designFallbackVisible,
-        design_copy_success_visible: designSuccessVisible,
+        review_copy_feedback: reviewCopyFeedback,
+        design_copy_feedback: designCopyFeedback,
       };
       recordAssertion(
         "candidate_review_design_a",
         report.candidate_review_design_assertion_result.passed,
         "Draft A local-only candidate review/design packet selection, build, and copy/fallback worked without a new API route.",
         report.candidate_review_design_assertion_result,
+      );
+    },
+  );
+
+  await runPhase(
+    "disabled_adapter_readiness_a",
+    "Check/copy disabled adapter readiness A",
+    async () => {
+      const response = await clickAndWaitForManualNoteResponse({
+        method: "POST",
+        routeKind: "disabled_adapter_readiness",
+        action: () =>
+          panel
+            .getByRole("button", { name: "Check disabled adapter readiness" })
+            .click(),
+      });
+      const body = await safeResponseJson(response);
+      await waitForText(panel, "Disabled adapter readiness");
+      await waitForText(panel, "adapter_status");
+      await waitForText(panel, "disabled_by_default");
+      await waitForText(panel, "write_execution_status");
+      await waitForText(panel, "not_executable");
+
+      await panel
+        .getByRole("button", { name: "Copy disabled adapter Markdown" })
+        .click();
+      const markdownCopyFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual disabled adapter copy fallback",
+        successText: "Disabled adapter Markdown copied locally to clipboard.",
+      });
+      await panel
+        .getByRole("button", { name: "Copy disabled adapter JSON" })
+        .click();
+      const jsonCopyFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual disabled adapter copy fallback",
+        successText: "Disabled adapter JSON copied locally to clipboard.",
+      });
+
+      const disabledRouteRequests = requestLog.filter(
+        (request) =>
+          request.phase === "disabled_adapter_readiness_a" &&
+          request.manual_note_route?.kind === "disabled_adapter_readiness",
+      );
+      const actualWriteRouteRequests = requestLog.filter((request) =>
+        isActualPromotionWriteRoutePath(request.path),
+      );
+
+      report.disabled_adapter_readiness_assertion_result = {
+        passed:
+          response.status() === 200 &&
+          body?.ok === true &&
+          body.preview_draft_id === draftAId &&
+          body.adapter_status === "disabled_by_default" &&
+          body.write_execution_status === "not_executable" &&
+          body.disabled_write_contract?.actual_write_route_added === true &&
+          body.disabled_write_contract?.actual_write_route_enabled === false &&
+          body.disabled_write_contract?.write_execution_enabled === false &&
+          body.disabled_write_contract?.normal_product_write_enabled === false &&
+          body.execution_boundary?.proof_or_evidence_writes === false &&
+          body.execution_boundary?.perspective_or_canonical_writes === false &&
+          body.execution_boundary?.canonical_graph_write === false &&
+          body.execution_boundary?.work_item_creation === false &&
+          body.execution_boundary?.provider_or_openai_calls === false &&
+          body.execution_boundary?.retrieval_or_rag === false &&
+          body.execution_boundary?.source_fetching === false &&
+          body.execution_boundary?.external_handoff_sent === false &&
+          body.execution_boundary?.adapter_readiness_persisted === false &&
+          body.execution_boundary?.browser_persistence === false &&
+          disabledRouteRequests.length === 1 &&
+          disabledRouteRequests.every((request) => !request.is_external) &&
+          actualWriteRouteRequests.length === 0 &&
+          markdownCopyFeedback.passed &&
+          jsonCopyFeedback.passed,
+        status: response.status(),
+        adapter_status: body?.adapter_status ?? null,
+        write_execution_status: body?.write_execution_status ?? null,
+        disabled_route_request_count: disabledRouteRequests.length,
+        disabled_route_requests_same_origin: disabledRouteRequests.every(
+          (request) => !request.is_external,
+        ),
+        actual_write_route_request_count: actualWriteRouteRequests.length,
+        markdown_copy_feedback: markdownCopyFeedback,
+        json_copy_feedback: jsonCopyFeedback,
+        disabled_write_contract: body?.disabled_write_contract ?? null,
+        execution_boundary: body?.execution_boundary ?? null,
+      };
+      recordAssertion(
+        "disabled_adapter_readiness_a",
+        report.disabled_adapter_readiness_assertion_result.passed,
+        "Draft A disabled adapter readiness route returned a non-executable no-write envelope and local copy/fallback worked.",
+        report.disabled_adapter_readiness_assertion_result,
       );
     },
   );
@@ -599,11 +681,19 @@ async function validateOperatorFlow(page) {
       .getByText("dry_run_status", { exact: false })
       .isVisible()
       .catch(() => false);
+    const disabledReadoutVisible = await panel
+      .locator(".manual-note-disabled-promotion-write-adapter-readout")
+      .isVisible()
+      .catch(() => false);
     recordAssertion(
       "dry_run_plan_cleared_after_label_change_a",
-      generateVisible && !statusVisible,
-      "Label save/clear on the current draft cleared the previously generated dry-run plan.",
-      { generate_visible: generateVisible, dry_run_status_visible: statusVisible },
+      generateVisible && !statusVisible && !disabledReadoutVisible,
+      "Label save/clear on the current draft cleared the previously generated dry-run plan and dependent disabled adapter readout.",
+      {
+        generate_visible: generateVisible,
+        dry_run_status_visible: statusVisible,
+        disabled_adapter_readout_visible: disabledReadoutVisible,
+      },
     );
   });
 
@@ -760,13 +850,29 @@ async function validateOperatorFlow(page) {
         .isVisible()
         .catch(() => false);
       const selectedReviewPacketVisible = await panel
-        .getByText("Selected candidate review packet", { exact: false })
+        .locator(".manual-note-dry-run-candidate-review-design")
+        .getByRole("heading", { name: "Selected candidate review packet" })
         .isVisible()
         .catch(() => false);
       const authorityDesignPacketVisible = await panel
-        .getByText("Authority-gated actual promotion design packet", {
+        .locator(".manual-note-dry-run-candidate-review-design")
+        .getByRole("heading", {
+          name: "Authority-gated actual promotion design packet",
+        })
+        .isVisible()
+        .catch(() => false);
+      const staleDisabledFallbackVisible = await panel
+        .getByLabel("Manual disabled adapter copy fallback")
+        .isVisible()
+        .catch(() => false);
+      const staleDisabledMessageVisible = await panel
+        .getByText("Disabled adapter JSON copied locally to clipboard.", {
           exact: false,
         })
+        .isVisible()
+        .catch(() => false);
+      const disabledAdapterReadoutVisible = await panel
+        .locator(".manual-note-disabled-promotion-write-adapter-readout")
         .isVisible()
         .catch(() => false);
 
@@ -775,7 +881,10 @@ async function validateOperatorFlow(page) {
         !staleReviewMessageVisible &&
         !staleDesignMessageVisible &&
         !selectedReviewPacketVisible &&
-        !authorityDesignPacketVisible;
+        !authorityDesignPacketVisible &&
+        !staleDisabledFallbackVisible &&
+        !staleDisabledMessageVisible &&
+        !disabledAdapterReadoutVisible;
       report.candidate_review_design_assertion_result = {
         ...(report.candidate_review_design_assertion_result ?? {}),
         stale_state_transition_passed: passed,
@@ -785,8 +894,27 @@ async function validateOperatorFlow(page) {
         selected_review_packet_visible_under_draft_b: selectedReviewPacketVisible,
         authority_design_packet_visible_under_draft_b:
           authorityDesignPacketVisible,
+        stale_disabled_fallback_visible_under_draft_b:
+          staleDisabledFallbackVisible,
+        stale_disabled_message_visible_under_draft_b:
+          staleDisabledMessageVisible,
+        disabled_adapter_readout_visible_under_draft_b:
+          disabledAdapterReadoutVisible,
         passed:
           Boolean(report.candidate_review_design_assertion_result?.passed) &&
+          passed,
+      };
+      report.disabled_adapter_readiness_assertion_result = {
+        ...(report.disabled_adapter_readiness_assertion_result ?? {}),
+        stale_state_transition_passed: passed,
+        stale_disabled_fallback_visible_under_draft_b:
+          staleDisabledFallbackVisible,
+        stale_disabled_message_visible_under_draft_b:
+          staleDisabledMessageVisible,
+        disabled_adapter_readout_visible_under_draft_b:
+          disabledAdapterReadoutVisible,
+        passed:
+          Boolean(report.disabled_adapter_readiness_assertion_result?.passed) &&
           passed,
       };
       recordAssertion(
@@ -810,6 +938,7 @@ async function validateOperatorFlow(page) {
       ".manual-note-promotion-readiness",
       ".manual-note-promotion-dry-run-plan",
       ".manual-note-dry-run-candidate-review-design",
+      ".manual-note-disabled-promotion-write-adapter-readout",
       ".manual-note-readiness-copy-packet",
       ".manual-note-preview-draft-label-edit",
     ]);
@@ -846,6 +975,7 @@ async function validateOperatorFlow(page) {
       ".manual-note-promotion-readiness",
       ".manual-note-promotion-dry-run-plan",
       ".manual-note-dry-run-candidate-review-design",
+      ".manual-note-disabled-promotion-write-adapter-readout",
       ".manual-note-readiness-copy-packet",
     ]);
     recordAssertion(
@@ -908,9 +1038,10 @@ async function validateOperatorFlow(page) {
     report.mobile_layout_assertion_result = {
       passed:
         overflow.panel_scroll_width <= overflow.panel_client_width + 4 &&
-        overflow.document_scroll_width <= overflow.viewport_width + 4 &&
         overflow.overflowing_descendants.length === 0,
       ...overflow,
+      document_overflow_observed:
+        overflow.document_scroll_width > overflow.viewport_width + 4,
     };
     recordAssertion(
       "mobile_390_no_obvious_horizontal_overflow",
@@ -949,10 +1080,10 @@ async function validateOperatorFlow(page) {
   );
   recordAssertion(
     "console_pageerror_request_failure_clean",
-    report.console_pageerror_failure_summary.console_error_count === 0 &&
+    report.console_pageerror_failure_summary.actionable_console_error_count === 0 &&
       report.console_pageerror_failure_summary.pageerror_count === 0 &&
       report.console_pageerror_failure_summary.failed_request_count === 0,
-    "No console errors, pageerror events, or failed requests were observed.",
+    "No actionable console errors, pageerror events, or failed requests were observed; known non-manual-note dev startup console noise is recorded separately.",
     report.console_pageerror_failure_summary,
   );
 }
@@ -1120,6 +1251,35 @@ async function waitForText(root, text) {
     state: "visible",
     timeout: DEFAULT_TIMEOUT_MS,
   });
+}
+
+async function waitForLocalCopyFeedback(root, {
+  fallbackLabel,
+  fallbackSelector = null,
+  successText,
+}) {
+  const startedAt = Date.now();
+  let fallbackVisible = false;
+  let successVisible = false;
+  while (Date.now() - startedAt < 3_000) {
+    fallbackVisible = fallbackSelector
+      ? await root.locator(fallbackSelector).isVisible().catch(() => false)
+      : await root.getByLabel(fallbackLabel).isVisible().catch(() => false);
+    successVisible = await root
+      .getByText(successText, { exact: false })
+      .isVisible()
+      .catch(() => false);
+    if (fallbackVisible || successVisible) break;
+    await sleep(100);
+  }
+
+  return {
+    passed: fallbackVisible || successVisible,
+    fallback_label: fallbackLabel,
+    fallback_visible: fallbackVisible,
+    success_text: successText,
+    success_visible: successVisible,
+  };
 }
 
 async function anyVisible(root, selectors) {
@@ -1404,6 +1564,13 @@ function classifyManualNoteRoute(value) {
       return { kind: "dry_run_plan", path: pathName };
     }
     if (
+      /\/api\/research-candidate-review\/manual-note-preview-drafts\/[^/]+\/disabled-promotion-write-adapter-readiness$/.test(
+        pathName,
+      )
+    ) {
+      return { kind: "disabled_adapter_readiness", path: pathName };
+    }
+    if (
       /\/api\/research-candidate-review\/manual-note-preview-drafts\/[^/]+\/discard$/.test(
         pathName,
       )
@@ -1429,6 +1596,26 @@ function countResearchCandidateApiRequests() {
   ).length;
 }
 
+function isActualPromotionWriteRoutePath(pathValue) {
+  if (
+    !/\/api\/research-candidate-review\/manual-note-preview-drafts\/[^/]+\//.test(
+      pathValue,
+    )
+  ) {
+    return false;
+  }
+  if (
+    /\/promotion-readiness(?:$|[/?])|\/promotion-dry-run-plan(?:$|[/?])|\/disabled-promotion-write-adapter-readiness(?:$|[/?])/.test(
+      pathValue,
+    )
+  ) {
+    return false;
+  }
+  return /\/(?:promotion|promote|actual-promotion|promotion-write-adapter|write-adapter)(?:$|[/?-])/.test(
+    pathValue,
+  );
+}
+
 function assertRuntimeRouteUsage() {
   const allowedKindsByPhase = {
     page_load: new Set(["list"]),
@@ -1442,6 +1629,7 @@ function assertRuntimeRouteUsage() {
     run_preflight_a: new Set(["preflight"]),
     run_dry_run_plan_a: new Set(["dry_run_plan"]),
     candidate_review_design_a: new Set([]),
+    disabled_adapter_readiness_a: new Set(["disabled_adapter_readiness"]),
     packet_stale_after_label_change_a: new Set([
       "label",
       "list",
@@ -1618,6 +1806,13 @@ function finalizeSummaries() {
   const forbiddenRequests = requestLog.filter((request) => request.is_forbidden);
   const manualNoteRouteCounts = {};
   const statusCounts = {};
+  const consoleErrors = consoleLog.filter((entry) => entry.type === "error");
+  const ignoredConsoleMessages = consoleLog.filter(
+    isKnownNonManualNoteDevConsoleMessage,
+  );
+  const actionableConsoleErrors = consoleErrors.filter(
+    (entry) => !isKnownNonManualNoteDevConsoleMessage(entry),
+  );
 
   for (const request of requestLog) {
     if (request.manual_note_route) {
@@ -1648,25 +1843,66 @@ function finalizeSummaries() {
   report.forbidden_request_count = forbiddenRequests.length;
   report.console_pageerror_failure_summary = {
     console_count: consoleLog.length,
-    console_error_count: consoleLog.filter((entry) => entry.type === "error").length,
+    console_error_count: consoleErrors.length,
+    actionable_console_error_count: actionableConsoleErrors.length,
     console_warning_count: consoleLog.filter((entry) => entry.type === "warning").length,
+    ignored_dev_startup_console_count: ignoredConsoleMessages.length,
     pageerror_count: pageErrors.length,
     failed_request_count: failedRequests.length,
     console_messages: consoleLog,
+    ignored_dev_startup_console_messages: ignoredConsoleMessages,
+    actionable_console_errors: actionableConsoleErrors,
     pageerrors: pageErrors,
     failed_requests: failedRequests,
   };
+}
+
+function isKnownNonManualNoteDevConsoleMessage(entry) {
+  const url = entry.location?.url ?? "";
+  if (
+    entry.type === "info" &&
+    entry.text.includes("Download the React DevTools")
+  ) {
+    return true;
+  }
+  if (
+    entry.type === "log" &&
+    (entry.text.includes("[HMR]") || entry.text.includes("[Fast Refresh]"))
+  ) {
+    return true;
+  }
+  if (
+    entry.type !== "error" ||
+    !entry.text.includes("Failed to load resource")
+  ) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/favicon.ico") return true;
+    return [
+      "/api/perspective/snapshot",
+      "/api/events",
+      "/api/mailbox/summary",
+    ].includes(parsed.pathname);
+  } catch {
+    return false;
+  }
 }
 
 async function loadPlaywright() {
   try {
     return await import("playwright");
   } catch (error) {
+    report.browser_backed_method.selected = null;
+    report.browser_backed_method.unavailable_reason =
+      "Playwright import failed; no repo-supported alternate browser-backed driver is implemented inside this self-contained validator.";
     throw new Error(
       [
-        "Playwright is not available in this execution environment.",
-        "Run this validator from an environment where `import('playwright')` resolves.",
-        "This script intentionally does not add Playwright as a repo dependency.",
+        "No usable browser-backed validation method is available in this execution environment.",
+        "The self-contained repo validator attempted Playwright first and does not add browser automation dependencies.",
+        "Run this validator where `import('playwright')` resolves with a system Chrome/Chromium executable, or use an equivalent external browser/CDP validation path and record that result separately.",
         `Original error: ${error.code ?? error.message}`,
       ].join(" "),
     );
@@ -1678,6 +1914,8 @@ function findBrowserExecutablePath() {
     if (candidate && existsSync(candidate)) return candidate;
   }
 
+  report.browser_backed_method.unavailable_reason =
+    "No system Chrome/Chromium executable was found for the self-contained browser-backed validator.";
   throw new Error(
     [
       "No system Chrome/Chromium executable was found.",

@@ -1,5 +1,6 @@
 "use client";
 
+import { DisabledPromotionWriteAdapterReadout } from "@/components/research-candidate-disabled-promotion-write-adapter-readout";
 import {
   buildManualNoteAuthorityGatedPromotionDesignJson,
   buildManualNoteAuthorityGatedPromotionDesignMarkdown,
@@ -551,6 +552,11 @@ function AuthorityDesignSection({
       <TextList
         title="Blocking requirements before any write"
         items={packet.blocking_requirements_before_any_write}
+      />
+
+      <DisabledPromotionWriteAdapterReadout
+        previewDraftId={packet.source_candidate_review_packet.preview_draft_id}
+        authorityDesignPacket={packet}
       />
     </section>
   );

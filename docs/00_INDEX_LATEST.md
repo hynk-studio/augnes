@@ -931,6 +931,20 @@ repo-local 색인이다.
   persistence, no actual promotion, no proof/evidence write, no
   Perspective/canonical graph write, no work item, no provider/retrieval/source
   fetch, no external handoff, no schema/migration code, and no dependency.
+- Manual note disabled-by-default actual promotion write adapter skeleton:
+  `lib/research-candidate-review/manual-note-disabled-promotion-write-adapter.ts`,
+  `POST /api/research-candidate-review/manual-note-preview-drafts/[preview_draft_id]/disabled-promotion-write-adapter-readiness`,
+  `components/research-candidate-disabled-promotion-write-adapter-readout.tsx`,
+  `fixtures/research-candidate-review.manual-note-disabled-promotion-write-adapter-readiness.sample.v0.1.json`,
+  and `npm run smoke:research-candidate-disabled-promotion-write-adapter-v0-1`
+  add a disabled readiness route, disabled adapter helper/types,
+  operator-visible disabled adapter readiness readout, and local disabled
+  readiness copy packet. This is a disabled skeleton only: no normal product
+  write, no actual promotion, no proof/evidence write, no Perspective/canonical
+  graph write, no work item, no provider/retrieval/source fetch, no external
+  handoff, no adapter readiness persistence, no schema/migration code, and no
+  dependency. Browser-backed validation uses the best available method in the
+  environment, not a Playwright-only assumption.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

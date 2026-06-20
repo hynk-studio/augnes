@@ -1,0 +1,178 @@
+{
+  "ok": true,
+  "adapter_kind": "manual_note_disabled_promotion_write_adapter_readiness",
+  "adapter_version": "manual_note_disabled_promotion_write_adapter.v0.1",
+  "preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+  "adapter_status": "disabled_by_default",
+  "write_execution_status": "not_executable",
+  "disabled_reason": "Actual promotion write execution is intentionally disabled in this skeleton.",
+  "operator_intent_label": "Fixture disabled adapter readiness check",
+  "source_authority_design": {
+    "packet_kind": "manual_note_authority_gated_promotion_design_packet",
+    "packet_version": "manual_note_authority_gated_promotion_design_packet.v0.1",
+    "packet_fingerprint": "fnv1a32:6c2e4f3a",
+    "design_status": "ready_for_human_authority_review",
+    "next_recommended_slice": "disabled_by_default_actual_promotion_write_adapter_skeleton"
+  },
+  "validation_summary": {
+    "design_packet_present": true,
+    "preview_draft_id_matches_route": true,
+    "proposed_write_contract_present": true,
+    "execution_boundary_present": true,
+    "all_required_false_write_flags_present": true,
+    "blocking_requirements_present": true,
+    "idempotency_design_present": true,
+    "rollback_design_present": true,
+    "review_audit_design_present": true,
+    "source_evidence_authority_design_present": true
+  },
+  "disabled_write_contract": {
+    "actual_write_route_added": true,
+    "actual_write_route_enabled": false,
+    "write_adapter_implemented": "disabled_skeleton_only",
+    "write_execution_enabled": false,
+    "normal_product_write_enabled": false,
+    "requires_future_explicit_operator_decision": true,
+    "requires_future_source_verification_authority": true,
+    "requires_future_proof_evidence_write_authority": true,
+    "requires_future_canonical_perspective_write_authority": true,
+    "requires_future_idempotency_contract": true,
+    "requires_future_rollback_contract": true,
+    "requires_future_audit_record_contract": true
+  },
+  "write_target_mapping_skeleton": {
+    "claim_write_targets": [
+      {
+        "source_claim_candidate_id": "claim_candidate_fixture_001",
+        "target_table_or_kind_placeholder": "future_canonical_claim",
+        "canonical_claim_id": null,
+        "write_performed_now": false
+      }
+    ],
+    "evidence_write_targets": [
+      {
+        "source_evidence_candidate_id": "evidence_candidate_fixture_001",
+        "source_claim_candidate_id": "claim_candidate_fixture_001",
+        "target_table_or_kind_placeholder": "future_proof_evidence_record",
+        "proof_id": null,
+        "evidence_id": null,
+        "write_performed_now": false
+      }
+    ],
+    "perspective_write_targets": [
+      {
+        "source_perspective_delta_candidate_id": "perspective_delta_candidate_fixture_001",
+        "target_table_or_kind_placeholder": "future_perspective_canonical_graph",
+        "perspective_id": null,
+        "canonical_graph_edge_id": null,
+        "write_performed_now": false
+      }
+    ],
+    "source_verification_targets": [
+      {
+        "source_ref_id": "source_ref_fixture_001",
+        "target_table_or_kind_placeholder": "future_source_verification_record",
+        "fetched": false,
+        "verified": false,
+        "indexed": false
+      }
+    ],
+    "work_item_targets": [
+      {
+        "source_follow_up_work_candidate_id": "follow_up_work_candidate_fixture_001",
+        "target_table_or_kind_placeholder": "future_separate_work_item_lane",
+        "work_item_id": null,
+        "write_performed_now": false
+      }
+    ]
+  },
+  "idempotency_skeleton": {
+    "idempotency_required": true,
+    "idempotency_key_generated_now": false,
+    "idempotency_storage_added": false,
+    "proposed_key_inputs": [
+      "preview_draft_id",
+      "candidate review packet fingerprint",
+      "selected target ids",
+      "operator decision id placeholder"
+    ],
+    "future_contract_required": true
+  },
+  "rollback_skeleton": {
+    "rollback_required": true,
+    "rollback_implemented_now": false,
+    "rollback_storage_added": false,
+    "future_contract_required": true
+  },
+  "review_audit_skeleton": {
+    "audit_record_required": true,
+    "audit_record_created_now": false,
+    "approval_history_created_now": false,
+    "future_contract_required": true
+  },
+  "execution_boundary": {
+    "disabled_adapter_only": true,
+    "design_packet_read_only": true,
+    "normal_product_write_enabled": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "adapter_readiness_persisted": false,
+    "browser_persistence": false
+  },
+  "runtime_boundary": {
+    "route": "/api/research-candidate-review/manual-note-preview-drafts/research-candidate-preview-draft%3A00000000-0000-4000-8000-000000000001/disabled-promotion-write-adapter-readiness",
+    "route_kind": "disabled_promotion_write_adapter_readiness",
+    "disabled_readiness_route_only": true,
+    "actual_write_route_enabled": false,
+    "write_execution_enabled": false,
+    "normal_product_write_enabled": false,
+    "adapter_readiness_persisted": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "browser_persistence": false
+  },
+  "authority": {
+    "disabled_adapter_only": true,
+    "readiness_is_not_approval": true,
+    "readiness_is_not_write_authority": true,
+    "actual_promotion_allowed": false,
+    "promotion_authority_granted": false,
+    "normal_product_write_enabled": false,
+    "write_execution_enabled": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "adapter_readiness_persisted": false,
+    "browser_persistence": false
+  },
+  "local_copy_packet": {
+    "markdown": "# Research Candidate Disabled Promotion Write Adapter Readiness\n\nDisabled adapter skeleton only.\nadapter_status: disabled_by_default\nwrite_execution_status: not_executable",
+    "json": "{\n  \"adapter_status\": \"disabled_by_default\",\n  \"write_execution_status\": \"not_executable\",\n  \"normal_product_write_enabled\": false\n}",
+    "fingerprint": "fnv1a32:7dfb8a21",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted": false,
+    "promotion_authority_granted": false,
+    "actual_promotion_allowed": false
+  },
+  "next_recommended_slice": "disabled_adapter_contract_review_and_temp_execution_harness"
+}
