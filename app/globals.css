@@ -5963,6 +5963,55 @@ code {
   overflow-wrap: anywhere;
 }
 
+.manual-note-readiness-copy-packet-freshness {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.manual-note-readiness-copy-packet-freshness span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 780;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-copy-packet-freshness span.is-current {
+  border: 1px solid #9bd0af;
+  background: #edf9f0;
+  color: #176139;
+}
+
+.manual-note-readiness-copy-packet-freshness span.is-stale {
+  border: 1px solid #f0c36b;
+  background: #fff7e6;
+  color: #7a4b00;
+}
+
+.manual-note-readiness-copy-packet-freshness span.is-muted {
+  border: 1px solid #cfd8e5;
+  background: #f6f8fb;
+  color: #43536a;
+}
+
+.manual-note-readiness-copy-packet-freshness p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
 .manual-note-readiness-copy-packet-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
@@ -5987,6 +6036,75 @@ code {
 .manual-note-readiness-copy-packet-grid code {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-copy-packet-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-readiness-copy-packet-summary-grid details,
+.manual-note-readiness-copy-packet-diff {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.manual-note-readiness-copy-packet-summary-grid summary {
+  cursor: pointer;
+  color: #263142;
+  font-size: 0.86rem;
+  font-weight: 780;
+}
+
+.manual-note-readiness-copy-packet-summary-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.manual-note-readiness-copy-packet-summary-list div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 0.45fr);
+  gap: 8px;
+  min-width: 0;
+  color: #43536a;
+  font-size: 0.8rem;
+}
+
+.manual-note-readiness-copy-packet-summary-list dt {
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-copy-packet-summary-list dd {
+  margin: 0;
+  color: #111827;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-copy-packet-diff {
+  display: grid;
+  gap: 6px;
+}
+
+.manual-note-readiness-copy-packet-diff strong {
+  color: #162238;
+  font-size: 0.86rem;
+}
+
+.manual-note-readiness-copy-packet-diff ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 0.82rem;
 }
 
 .manual-note-readiness-copy-packet-fallback {
