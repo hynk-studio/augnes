@@ -33,6 +33,7 @@
     "smoke:cockpit-visual-tone-refresh": "node scripts/smoke-cockpit-visual-tone-refresh.mjs",
     "smoke:cockpit-temporal-admission": "node scripts/smoke-cockpit-temporal-admission.mjs",
     "smoke:cockpit-temporal-review-artifacts": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-cockpit-temporal-review-artifacts.mjs",
+    "smoke:approval-publication-empty-runtime-startup-fallback-v0-1": "node scripts/smoke-approval-publication-empty-runtime-startup-fallback-v0-1.mjs",
     "smoke:temporal-preview": "node scripts/smoke-temporal-preview.mjs",
     "smoke:temporal-hardening": "node scripts/smoke-temporal-hardening.mjs",
     "smoke:temporal-manual-review-report": "node scripts/smoke-temporal-manual-review-report.mjs",
