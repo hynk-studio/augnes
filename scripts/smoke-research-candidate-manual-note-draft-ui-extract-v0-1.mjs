@@ -30,6 +30,8 @@ const reviewWorkspacePath =
   "components/research-candidate-readiness-packet-review-workspace.tsx";
 const gateExplanationsPath =
   "components/research-candidate-promotion-readiness-gate-explanations.tsx";
+const preflightReadoutPath =
+  "components/research-candidate-promotion-readiness-preflight-readout.tsx";
 const localChecklistPath =
   "components/research-candidate-local-packet-review-checklist.tsx";
 const startupReadinessPath = "components/cockpit-startup-readiness-readout.tsx";
@@ -54,6 +56,7 @@ for (const filePath of [
   copyPacketPanelPath,
   reviewWorkspacePath,
   gateExplanationsPath,
+  preflightReadoutPath,
   localChecklistPath,
   startupReadinessPath,
   indexPath,
@@ -78,6 +81,7 @@ const authorityFlags = readFileSync(authorityFlagsPath, "utf8");
 const copyPacketPanel = readFileSync(copyPacketPanelPath, "utf8");
 const reviewWorkspace = readFileSync(reviewWorkspacePath, "utf8");
 const gateExplanations = readFileSync(gateExplanationsPath, "utf8");
+const preflightReadout = readFileSync(preflightReadoutPath, "utf8");
 const localChecklist = readFileSync(localChecklistPath, "utf8");
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const index = readFileSync(indexPath, "utf8");
@@ -101,6 +105,7 @@ const preservedReadinessUi = [
   copyPacketPanel,
   reviewWorkspace,
   gateExplanations,
+  preflightReadout,
   localChecklist,
   startupReadiness,
 ].join("\n");

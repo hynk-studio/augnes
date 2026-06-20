@@ -32,6 +32,8 @@ const authorityFlagsPath =
   "components/research-candidate-manual-note-authority-flags.tsx";
 const gateExplanationsPath =
   "components/research-candidate-promotion-readiness-gate-explanations.tsx";
+const preflightReadoutPath =
+  "components/research-candidate-promotion-readiness-preflight-readout.tsx";
 const startupReadinessPath = "components/cockpit-startup-readiness-readout.tsx";
 const cssPath = "app/globals.css";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -56,6 +58,7 @@ for (const filePath of [
   candidateFamilyListsPath,
   authorityFlagsPath,
   gateExplanationsPath,
+  preflightReadoutPath,
   startupReadinessPath,
   cssPath,
   indexPath,
@@ -82,6 +85,7 @@ const component = [
   readFileSync(activityReadoutPath, "utf8"),
   readFileSync(metadataReadoutPath, "utf8"),
   readFileSync(gateExplanationsPath, "utf8"),
+  readFileSync(preflightReadoutPath, "utf8"),
 ].join("\n");
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const css = readFileSync(cssPath, "utf8");

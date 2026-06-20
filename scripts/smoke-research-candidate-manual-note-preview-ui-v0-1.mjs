@@ -12,6 +12,8 @@ const activityReadoutPath =
   "components/research-candidate-preview-draft-activity-readout.tsx";
 const metadataReadoutPath =
   "components/research-candidate-preview-draft-metadata-readout.tsx";
+const preflightReadoutPath =
+  "components/research-candidate-promotion-readiness-preflight-readout.tsx";
 const formatHintPath =
   "components/research-candidate-manual-note-format-hint.tsx";
 const resultSummaryPath =
@@ -38,6 +40,7 @@ for (const filePath of [
   labelControlsPath,
   activityReadoutPath,
   metadataReadoutPath,
+  preflightReadoutPath,
   formatHintPath,
   resultSummaryPath,
   warningDisplayPath,
@@ -66,6 +69,7 @@ const draftUiComponent = [
   readFileSync(labelControlsPath, "utf8"),
   readFileSync(activityReadoutPath, "utf8"),
   readFileSync(metadataReadoutPath, "utf8"),
+  readFileSync(preflightReadoutPath, "utf8"),
 ].join("\n");
 const component = `${manualPanelComponent}\n${draftUiComponent}`;
 const cockpit = readFileSync(cockpitPath, "utf8");

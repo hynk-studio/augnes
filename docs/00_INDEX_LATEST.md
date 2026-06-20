@@ -1038,6 +1038,18 @@ repo-local 색인이다.
   wiring, absence of inline candidate display definitions, preserved draft/
   readiness/copy/checklist UI, docs/package pointers, no browser persistence,
   no storage/schema/seed behavior, and forbidden action button absence.
+- Manual note promotion readiness preflight readout extraction:
+  `components/research-candidate-promotion-readiness-preflight-readout.tsx`
+  now holds the read-only preflight display, readiness status/score/lifecycle
+  summary, blocker/warning/next-step rendering, gate grouping, gate explanation
+  hook, readiness copy packet hook, and runtime boundary/no-side-effect display
+  while the manual note panel keeps route/state orchestration.
+- `npm run smoke:research-candidate-promotion-readiness-readout-extract-v0-1`:
+  `scripts/smoke-research-candidate-promotion-readiness-readout-extract-v0-1.mjs`
+  checks the extracted preflight readout component, manual panel render/import
+  wiring, absence of inline preflight definitions, preserved candidate/list/
+  readiness/copy/checklist UI, docs/package pointers, no browser persistence,
+  no storage/schema/seed behavior, and forbidden action button absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
