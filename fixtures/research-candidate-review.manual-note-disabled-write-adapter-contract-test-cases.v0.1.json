@@ -1,0 +1,517 @@
+{
+  "suite_kind": "manual_note_disabled_write_adapter_contract_tests",
+  "suite_version": "manual_note_disabled_write_adapter_contract_tests.v0.1",
+  "positive_fixture_chain": {
+    "authority_design_fixture_path": "fixtures/research-candidate-review.manual-note-authority-gated-promotion-design-packet.sample.v0.1.json",
+    "disabled_adapter_readiness_fixture_path": "fixtures/research-candidate-review.manual-note-disabled-promotion-write-adapter-readiness.sample.v0.1.json",
+    "contract_review_fixture_path": "fixtures/research-candidate-review.manual-note-disabled-adapter-contract-review.sample.v0.1.json",
+    "temp_harness_fixture_path": "fixtures/research-candidate-review.manual-note-disabled-adapter-temp-harness.sample.v0.1.json",
+    "expected_status": "pass",
+    "expected_candidate_review_packet_fingerprint": "fnv1a32:1d7f90a1",
+    "expected_fixture_chain_fingerprint": "fnv1a32:1d1ca4b5"
+  },
+  "test_cases": [
+    {
+      "case_id": "positive_fixture_chain_passes",
+      "case_kind": "positive_chain",
+      "mutation_kind": "none",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "description": "The committed positive fixture chain preserves the disabled no-write adapter contract.",
+      "mutated_fixture_patch": null
+    },
+    {
+      "case_id": "authority_design_preview_draft_id_mismatch",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "preview_draft_id_mismatch",
+      "expected_status": "fail",
+      "expected_failure_codes": ["preview_draft_id_mismatch"],
+      "description": "Authority design preview draft id must match the downstream disabled readiness and temp harness fixtures.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["source_candidate_review_packet", "preview_draft_id"],
+            "value": "research-candidate-preview-draft:00000000-0000-4000-8000-999999999999"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_candidate_review_fingerprint_mismatch",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "candidate_review_fingerprint_mismatch",
+      "expected_status": "fail",
+      "expected_failure_codes": ["fingerprint_mismatch"],
+      "description": "Authority design source candidate review fingerprint must match the expected committed positive fixture fingerprint.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["source_candidate_review_packet", "packet_fingerprint"],
+            "value": "fnv1a32:ffffffff"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_actual_write_route_enabled",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "enabled_write_flag",
+      "expected_status": "fail",
+      "expected_failure_codes": ["write_flag_enabled"],
+      "description": "Authority design cannot claim an actual write route was added.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["proposed_write_contract", "actual_write_route_added"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_write_adapter_implemented",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "enabled_write_flag",
+      "expected_status": "fail",
+      "expected_failure_codes": ["write_flag_enabled"],
+      "description": "Authority design cannot claim a write adapter was implemented.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["proposed_write_contract", "write_adapter_implemented"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_write_execution_enabled",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "enabled_write_flag",
+      "expected_status": "fail",
+      "expected_failure_codes": ["write_flag_enabled"],
+      "description": "Authority design cannot claim write execution was enabled.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["proposed_write_contract", "write_execution_enabled"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_proof_evidence_write_true",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "enabled_write_flag",
+      "expected_status": "fail",
+      "expected_failure_codes": ["write_flag_enabled"],
+      "description": "Authority design execution boundary cannot allow proof or evidence writes.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["execution_boundary", "proof_or_evidence_writes"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_canonical_graph_write_true",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "enabled_write_flag",
+      "expected_status": "fail",
+      "expected_failure_codes": ["write_flag_enabled"],
+      "description": "Authority design execution boundary cannot allow canonical graph writes.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["execution_boundary", "canonical_graph_write"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "disabled_readiness_normal_product_write_enabled",
+      "case_kind": "negative_disabled_readiness",
+      "mutation_kind": "normal_product_write_enabled",
+      "expected_status": "fail",
+      "expected_failure_codes": ["product_write_enabled"],
+      "description": "Disabled readiness cannot enable normal product writes.",
+      "mutated_fixture_patch": {
+        "target_fixture": "disabled_readiness",
+        "set": [
+          {
+            "path": ["disabled_write_contract", "normal_product_write_enabled"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "disabled_readiness_actual_promotion_performed",
+      "case_kind": "negative_disabled_readiness",
+      "mutation_kind": "actual_promotion_enabled",
+      "expected_status": "fail",
+      "expected_failure_codes": ["actual_promotion_enabled"],
+      "description": "Disabled readiness cannot claim actual promotion happened.",
+      "mutated_fixture_patch": {
+        "target_fixture": "disabled_readiness",
+        "set": [
+          {
+            "path": ["execution_boundary", "actual_promotion_performed"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "disabled_readiness_adapter_readiness_persisted",
+      "case_kind": "negative_disabled_readiness",
+      "mutation_kind": "persistence_enabled",
+      "expected_status": "fail",
+      "expected_failure_codes": ["forbidden_persistence"],
+      "description": "Disabled readiness cannot persist adapter readiness.",
+      "mutated_fixture_patch": {
+        "target_fixture": "disabled_readiness",
+        "set": [
+          {
+            "path": ["execution_boundary", "adapter_readiness_persisted"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "disabled_readiness_non_null_proof_id",
+      "case_kind": "negative_disabled_readiness",
+      "mutation_kind": "non_null_product_id",
+      "expected_status": "fail",
+      "expected_failure_codes": ["non_null_product_id"],
+      "description": "Disabled readiness evidence target cannot contain a proof id.",
+      "mutated_fixture_patch": {
+        "target_fixture": "disabled_readiness",
+        "set": [
+          {
+            "path": ["write_target_mapping_skeleton", "evidence_write_targets", 0, "proof_id"],
+            "value": "proof_fixture_forbidden_001"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "disabled_readiness_non_null_perspective_id",
+      "case_kind": "negative_disabled_readiness",
+      "mutation_kind": "non_null_product_id",
+      "expected_status": "fail",
+      "expected_failure_codes": ["non_null_product_id"],
+      "description": "Disabled readiness perspective target cannot contain a Perspective id.",
+      "mutated_fixture_patch": {
+        "target_fixture": "disabled_readiness",
+        "set": [
+          {
+            "path": ["write_target_mapping_skeleton", "perspective_write_targets", 0, "perspective_id"],
+            "value": "perspective_fixture_forbidden_001"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "contract_review_gap_unexpected_empty_when_check_false",
+      "case_kind": "negative_contract_review",
+      "mutation_kind": "missing_contract_gap",
+      "expected_status": "fail",
+      "expected_failure_codes": ["missing_contract_gap"],
+      "description": "Contract review must include a gap when a required check is false.",
+      "mutated_fixture_patch": {
+        "target_fixture": "contract_review",
+        "set": [
+          {
+            "path": ["required_contract_checks", "idempotency_skeleton_present"],
+            "value": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "contract_review_missing_idempotency_check",
+      "case_kind": "negative_contract_review",
+      "mutation_kind": "missing_required_section",
+      "expected_status": "fail",
+      "expected_failure_codes": ["missing_required_section"],
+      "description": "Contract review must retain the idempotency required-check entry.",
+      "mutated_fixture_patch": {
+        "target_fixture": "contract_review",
+        "unset": [
+          ["required_contract_checks", "idempotency_skeleton_present"]
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_non_temp_execution_mode",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "invalid_execution_mode",
+      "expected_status": "fail",
+      "expected_failure_codes": ["invalid_execution_mode"],
+      "description": "Temp harness execution mode must remain temp_non_product_simulation.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["execution_mode"],
+            "value": "product_execution"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_product_write_mode_enabled",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "invalid_product_write_mode",
+      "expected_status": "fail",
+      "expected_failure_codes": ["invalid_product_write_mode"],
+      "description": "Temp harness product write mode must remain disabled.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["product_write_mode"],
+            "value": "enabled"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_product_db_write_true",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "product_write_enabled",
+      "expected_status": "fail",
+      "expected_failure_codes": ["product_write_enabled"],
+      "description": "Temp harness boundary cannot allow product DB writes.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["temp_harness_boundary", "product_db_write"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_non_temp_intent_id",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "invalid_temp_intent_id",
+      "expected_status": "fail",
+      "expected_failure_codes": ["invalid_temp_intent_id"],
+      "description": "Simulated write intent ids must use the temp-intent prefix.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["simulated_write_intents", "claim_intents", 0, "simulated_intent_id"],
+            "value": "product-intent:claim:001"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_non_null_product_record_id",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "non_null_product_id",
+      "expected_status": "fail",
+      "expected_failure_codes": ["non_null_product_id"],
+      "description": "Temp harness simulated intents cannot include product record ids.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["simulated_write_intents", "claim_intents", 0, "product_record_id"],
+            "value": "product_record_fixture_forbidden_001"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_non_null_work_item_id",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "non_null_product_id",
+      "expected_status": "fail",
+      "expected_failure_codes": ["non_null_product_id"],
+      "description": "Temp harness simulated intents cannot include work item ids.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["simulated_write_intents", "work_item_intents", 0, "work_item_id"],
+            "value": "work_item_fixture_forbidden_001"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_source_fetching_true",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "forbidden_source_fetching",
+      "expected_status": "fail",
+      "expected_failure_codes": ["forbidden_source_fetching"],
+      "description": "Temp harness boundary cannot allow source fetching.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["temp_harness_boundary", "source_fetching"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_durable_persistence_true",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "forbidden_persistence",
+      "expected_status": "fail",
+      "expected_failure_codes": ["forbidden_persistence"],
+      "description": "Temp harness boundary cannot allow durable persistence.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "set": [
+          {
+            "path": ["temp_harness_boundary", "durable_persistence"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_provider_call_true",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "forbidden_provider_or_retrieval",
+      "expected_status": "fail",
+      "expected_failure_codes": ["forbidden_provider_or_retrieval"],
+      "description": "Authority design boundary cannot allow provider or OpenAI calls.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["execution_boundary", "provider_or_openai_calls"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_external_handoff_true",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "forbidden_external_handoff",
+      "expected_status": "fail",
+      "expected_failure_codes": ["forbidden_external_handoff"],
+      "description": "Authority design boundary cannot allow external handoff.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "set": [
+          {
+            "path": ["execution_boundary", "external_handoff_sent"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_missing_source_evidence_section",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "missing_required_section",
+      "expected_status": "fail",
+      "expected_failure_codes": ["missing_required_section"],
+      "description": "Authority design must keep the source evidence authority section.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "unset": [
+          ["source_evidence_authority_design"]
+        ]
+      }
+    },
+    {
+      "case_id": "authority_design_missing_idempotency_section",
+      "case_kind": "negative_authority_design",
+      "mutation_kind": "missing_required_section",
+      "expected_status": "fail",
+      "expected_failure_codes": ["missing_required_section"],
+      "description": "Authority design must keep the idempotency section.",
+      "mutated_fixture_patch": {
+        "target_fixture": "authority_design",
+        "unset": [
+          ["idempotency_design"]
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_missing_rollback_section",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "missing_required_section",
+      "expected_status": "fail",
+      "expected_failure_codes": ["missing_required_section"],
+      "description": "Temp harness must keep the rollback temp harness section.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "unset": [
+          ["rollback_temp_harness"]
+        ]
+      }
+    },
+    {
+      "case_id": "temp_harness_missing_review_audit_section",
+      "case_kind": "negative_temp_harness",
+      "mutation_kind": "missing_required_section",
+      "expected_status": "fail",
+      "expected_failure_codes": ["missing_required_section"],
+      "description": "Temp harness must keep the review audit temp harness section.",
+      "mutated_fixture_patch": {
+        "target_fixture": "temp_harness",
+        "unset": [
+          ["review_audit_temp_harness"]
+        ]
+      }
+    },
+    {
+      "case_id": "fixture_drift_expected_chain_fingerprint_mismatch",
+      "case_kind": "fixture_drift",
+      "mutation_kind": "fixture_drift_detected",
+      "expected_status": "fail",
+      "expected_failure_codes": ["fixture_drift_detected"],
+      "description": "Committed fixture chain drift must fail when the expected chain fingerprint is not updated with fixture changes.",
+      "mutated_fixture_patch": {
+        "target_fixture": "suite",
+        "set": [
+          {
+            "path": ["expectedFixtureChainFingerprint"],
+            "value": "fnv1a32:ffffffff"
+          }
+        ]
+      }
+    }
+  ],
+  "preserved_boundaries": {
+    "fixture_only": true,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_persistence": false,
+    "browser_persistence": false
+  }
+}

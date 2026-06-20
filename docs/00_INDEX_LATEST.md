@@ -961,6 +961,19 @@ repo-local 색인이다.
   no schema/migration code, and no dependency. Browser-backed validation uses
   the best available method in the environment, not a Playwright-only
   assumption.
+- Manual note fixture-only disabled write adapter contract tests:
+  `lib/research-candidate-review/manual-note-disabled-write-adapter-contract-tests.ts`,
+  `fixtures/research-candidate-review.manual-note-disabled-write-adapter-contract-test-cases.v0.1.json`,
+  `npm run smoke:research-candidate-disabled-write-adapter-contract-tests-v0-1`,
+  and `npm run contracts:research-candidate-disabled-write-adapter-contract-tests-v0-1`
+  add a positive fixture chain, negative mutation matrix, invariant checker,
+  and `/tmp contract-test report runner` for disabled write adapter contracts.
+  This is fixture-only validation with no new route, no UI behavior change, no
+  normal product write, no actual promotion, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, no durable persistence, no schema/migration/dependency.
+  Browser-backed validation uses the best available method and may record the
+  local `/tmp` contract-test report if present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

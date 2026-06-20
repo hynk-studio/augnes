@@ -14,6 +14,14 @@ const tempHarnessFixturePath =
   "fixtures/research-candidate-review.manual-note-disabled-adapter-temp-harness.sample.v0.1.json";
 const tempScriptPath =
   "scripts/run-research-candidate-disabled-adapter-temp-harness-v0-1.mjs";
+const contractTestsHelperPath =
+  "lib/research-candidate-review/manual-note-disabled-write-adapter-contract-tests.ts";
+const contractTestsFixturePath =
+  "fixtures/research-candidate-review.manual-note-disabled-write-adapter-contract-test-cases.v0.1.json";
+const contractTestsSmokePath =
+  "scripts/smoke-research-candidate-disabled-write-adapter-contract-tests-v0-1.mjs";
+const contractTestsRunnerPath =
+  "scripts/run-research-candidate-disabled-write-adapter-contract-tests-v0-1.mjs";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 
@@ -24,6 +32,10 @@ for (const filePath of [
   contractFixturePath,
   tempHarnessFixturePath,
   tempScriptPath,
+  contractTestsHelperPath,
+  contractTestsFixturePath,
+  contractTestsSmokePath,
+  contractTestsRunnerPath,
   docsIndexPath,
   packagePath,
 ]) {
@@ -339,17 +351,36 @@ function assertDocsAndPackagePointers() {
     ],
     "node scripts/run-research-candidate-disabled-adapter-temp-harness-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts?.[
+      "smoke:research-candidate-disabled-write-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-disabled-write-adapter-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts?.[
+      "contracts:research-candidate-disabled-write-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/run-research-candidate-disabled-write-adapter-contract-tests-v0-1.mjs",
+  );
 
   for (const requiredText of [
     "Manual note disabled adapter contract review and temp harness",
+    "Manual note fixture-only disabled write adapter contract tests",
     helperPath,
     componentPath,
     contractFixturePath,
     tempHarnessFixturePath,
+    contractTestsHelperPath,
+    contractTestsFixturePath,
     "npm run smoke:research-candidate-disabled-adapter-temp-harness-v0-1",
     "npm run harness:research-candidate-disabled-adapter-temp-harness-v0-1",
+    "npm run smoke:research-candidate-disabled-write-adapter-contract-tests-v0-1",
+    "npm run contracts:research-candidate-disabled-write-adapter-contract-tests-v0-1",
     "disabled adapter contract review",
     "temp/non-product execution harness",
+    "fixture-only validation",
+    "negative mutation matrix",
     "operator-visible temp harness readout",
     "local clipboard only",
     "/tmp/augnes-disabled-adapter-temp-harness-v0-1",
