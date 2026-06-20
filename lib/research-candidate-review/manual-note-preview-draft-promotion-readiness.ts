@@ -7,9 +7,12 @@ import {
   buildManualNotePreviewDraftPromotionReadinessBoundary,
   buildManualNotePreviewNoSideEffects,
   type ManualNotePreviewDraftPromotionCandidateSummary,
+  type ManualNotePreviewDraftPromotionReadinessGateExplanation,
   type ManualNotePreviewDraftPromotionReadinessGateId,
   type ManualNotePreviewDraftPromotionReadinessGateResult,
   type ManualNotePreviewDraftPromotionReadinessGateStatus,
+  type ManualNotePreviewDraftPromotionReadinessResolutionBoundary,
+  type ManualNotePreviewDraftPromotionReadinessResolutionHint,
   type ManualNotePreviewDraftPromotionReadinessOkResponse,
   type ManualNotePreviewDraftPromotionReadinessStatus,
   type ManualNotePreviewDraftPromotionSourceSummary,
@@ -27,6 +30,18 @@ const CRITICAL_WARNING_CODES = new Set([
   "missing_operator_intent",
   "missing_source_title",
 ]);
+
+const PREVIEW_RESOLUTION_BOUNDARY: ManualNotePreviewDraftPromotionReadinessResolutionBoundary =
+  {
+    preview_metadata_only: true,
+    does_not_promote: true,
+    does_not_write_proof_or_evidence: true,
+    does_not_create_work_item: true,
+    does_not_fetch_sources: true,
+    does_not_run_retrieval: true,
+    does_not_call_provider: true,
+    does_not_update_perspective: true,
+  };
 
 export function buildManualNotePreviewDraftPromotionReadiness({
   detail,
@@ -355,7 +370,437 @@ function gate({
     summary,
     detail,
     evidence_fields: evidenceFields,
+    gate_explanation: buildGateExplanation({
+      gateId,
+      label,
+      status,
+      summary,
+      detail,
+      evidenceFields,
+    }),
     no_side_effects: true,
+  };
+}
+
+function buildGateExplanation({
+  gateId,
+  label,
+  status,
+  summary,
+  detail,
+  evidenceFields,
+}: {
+  gateId: ManualNotePreviewDraftPromotionReadinessGateId;
+  label: string;
+  status: ManualNotePreviewDraftPromotionReadinessGateStatus;
+  summary: string;
+  detail: string;
+  evidenceFields: string[];
+}): ManualNotePreviewDraftPromotionReadinessGateExplanation {
+  const currentSignal = `${status}: ${summary} ${detail}`;
+
+  switch (gateId) {
+    case "lifecycle_gate":
+      return explanation({
+        title: "Lifecycle state must be active preview metadata",
+        explanation:
+          status === "block"
+            ? "This preview draft is discarded. Discard is lifecycle hygiene for preview drafts, so this draft should not be used for promotion discussion."
+            : "This preview draft is active preview metadata and has no discard marker.",
+        why:
+          "Operators need to distinguish active preview material from inactive preview drafts without treating discard as a review decision.",
+        currentSignal,
+        actions:
+          status === "block"
+            ? [
+                safeAction(
+                  "Inspect Preview draft activity for the discard metadata.",
+                  "existing_preview_surface",
+                ),
+                safeAction(
+                  "Create a new runtime preview draft from revised source material if the material is still needed.",
+                  "new_preview_draft",
+                ),
+                safeAction(
+                  "Do not undiscard or promote this draft in this lane.",
+                  "separate_future_lane",
+                ),
+              ]
+            : [
+                safeAction(
+                  "Keep using the active stored preview draft for read-only inspection.",
+                  "existing_preview_surface",
+                ),
+              ],
+        surfaces: [
+          "Recent runtime preview drafts",
+          "Open preview draft",
+          "Preview draft activity",
+        ],
+        evidenceFields,
+        canResolveInLane: status !== "block",
+      });
+    case "storage_boundary_gate":
+      return explanation({
+        title: "Stored preview shape and raw-note boundary",
+        explanation:
+          "The preflight expects parsed preview JSON metadata only. Raw manual note text must remain unavailable and unpersisted.",
+        why:
+          "Promotion discussion readiness is only meaningful if it is based on a bounded preview record, not hidden raw-note storage or malformed stored JSON.",
+        currentSignal,
+        actions:
+          status === "block"
+            ? [
+                safeAction(
+                  "Inspect stored preview draft metadata and runtime boundary fields.",
+                  "existing_preview_surface",
+                ),
+                safeAction(
+                  "Create a new runtime preview draft if the stored preview shape is malformed.",
+                  "new_preview_draft",
+                ),
+                safeAction(
+                  "Do not repair or mutate database rows in this lane.",
+                  "stop_and_inspect",
+                ),
+              ]
+            : [
+                safeAction(
+                  "Continue inspecting the stored preview JSON and boundary readout.",
+                  "existing_preview_surface",
+                ),
+              ],
+        surfaces: [
+          "Stored preview draft metadata",
+          "Runtime boundary",
+          "Create runtime preview draft",
+        ],
+        evidenceFields,
+        canResolveInLane: status !== "block",
+      });
+    case "authority_boundary_gate":
+      return explanation({
+        title: "Preview authority must remain non-canonical",
+        explanation:
+          "The preview draft must not indicate canonical Perspective, proof/evidence, workflow, provider, retrieval, or work item authority.",
+        why:
+          "If preview-only authority is contaminated, operators cannot trust this readout as a non-authoritative discussion aid.",
+        currentSignal,
+        actions:
+          status === "block"
+            ? [
+                safeAction(
+                  "Stop and inspect stored authority fields and runtime boundary fields.",
+                  "stop_and_inspect",
+                ),
+                safeAction(
+                  "Do not proceed with promotion discussion from this draft.",
+                  "separate_future_lane",
+                ),
+                safeAction(
+                  "Do not cleanup or mutate authority fields in this lane.",
+                  "stop_and_inspect",
+                ),
+              ]
+            : [
+                safeAction(
+                  "Keep the preflight as read-only guidance and continue reviewing candidate metadata.",
+                  "existing_preview_surface",
+                ),
+              ],
+        surfaces: ["Runtime boundary", "Stored preview draft metadata"],
+        evidenceFields,
+        canResolveInLane: false,
+      });
+    case "parser_warning_gate":
+      return explanation({
+        title: "Parser warnings need operator review",
+        explanation:
+          "Parser warnings mark missing or ambiguous manual note structure. Critical warnings block promotion discussion readiness.",
+        why:
+          "The deterministic parser is the only source for this preview. Missing research question, operator intent, or source title weakens the operator review frame.",
+        currentSignal,
+        actions: [
+          safeAction(
+            "Inspect the parser warning summary beside the preview result.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Create a new preview draft with clearer Research Question, Operator Intent, and Source Title lines.",
+            "new_preview_draft",
+          ),
+          safeAction(
+            "Do not use provider extraction or retrieval to fill missing fields.",
+            "separate_future_lane",
+          ),
+        ],
+        surfaces: [
+          "Warning summary",
+          "Manual note input",
+          "Create runtime preview draft",
+        ],
+        evidenceFields,
+        canResolveInLane: true,
+      });
+    case "source_reference_gate":
+      return explanation({
+        title: "Source reference metadata is required",
+        explanation:
+          "The preview needs source reference metadata so operators can understand what source material the candidates came from.",
+        why:
+          "Source references support human review context without fetching, validating, indexing, or treating URLs as truth.",
+        currentSignal,
+        actions: [
+          safeAction(
+            "Inspect the source reference preview list.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Paste a revised note with Source Title, Source Origin, and Source Identifier lines.",
+            "new_preview_draft",
+          ),
+          safeAction(
+            "Do not fetch or externally validate source URLs in this lane.",
+            "separate_future_lane",
+          ),
+        ],
+        surfaces: [
+          "Source references",
+          "Manual note input",
+          "Create runtime preview draft",
+        ],
+        evidenceFields,
+        canResolveInLane: true,
+      });
+    case "claim_candidate_gate":
+      return explanation({
+        title: "At least one claim candidate is needed",
+        explanation:
+          "The draft needs an explicit claim candidate before it can be discussed as candidate research material.",
+        why:
+          "Without a claim candidate, there is no concrete candidate assertion for the operator to review.",
+        currentSignal,
+        actions: [
+          safeAction("Inspect the claim candidate list.", "existing_preview_surface"),
+          safeAction(
+            "Paste a revised note with explicit Claim lines.",
+            "new_preview_draft",
+          ),
+          safeAction(
+            "Do not synthesize claims with a provider in this lane.",
+            "separate_future_lane",
+          ),
+        ],
+        surfaces: [
+          "Claim candidates",
+          "Manual note input",
+          "Create runtime preview draft",
+        ],
+        evidenceFields,
+        canResolveInLane: true,
+      });
+    case "evidence_candidate_gate":
+      return explanation({
+        title: "Evidence candidates remain preview-only",
+        explanation:
+          "Evidence candidate coverage helps operators review the source-bound support for claims. Missing evidence candidates need human review, not proof writes.",
+        why:
+          "Evidence candidates are not proof or evidence records, but their absence affects discussion readiness.",
+        currentSignal,
+        actions: [
+          safeAction(
+            "Inspect evidence candidates and source references.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Paste a revised note with explicit Evidence lines when source-bound support is available.",
+            "new_preview_draft",
+          ),
+          safeAction(
+            "Do not write proof or evidence records in this lane.",
+            "separate_future_lane",
+          ),
+        ],
+        surfaces: [
+          "Evidence candidates",
+          "Source references",
+          "Manual note input",
+        ],
+        evidenceFields,
+        canResolveInLane: true,
+      });
+    case "tension_gap_gate":
+      return explanation({
+        title: "Tensions and gaps require operator review",
+        explanation:
+          "Tensions and knowledge gaps are not errors. They indicate uncertainty that should be explicitly reviewed before any future authority-gated design.",
+        why:
+          "Carrying uncertainty forward intentionally is safer than allowing candidate material to appear settled.",
+        currentSignal,
+        actions: [
+          safeAction(
+            "Inspect tension and knowledge gap candidate lists.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Decide whether to carry the gap into a separate future design lane.",
+            "separate_future_lane",
+          ),
+          safeAction(
+            "Do not create work items from this preflight.",
+            "separate_future_lane",
+          ),
+        ],
+        surfaces: ["Tensions", "Knowledge gaps", "Candidate summary"],
+        evidenceFields,
+        canResolveInLane: true,
+      });
+    case "follow_up_work_gate":
+      return explanation({
+        title: "Follow-up work candidates are suggestions only",
+        explanation:
+          "Follow-up work candidates are parsed suggestions from the note. They are not work items and do not trigger any assignment or queue.",
+        why:
+          "Operators need to review suggested next work separately so preview material does not silently become durable work.",
+        currentSignal,
+        actions: [
+          safeAction(
+            "Inspect follow-up work candidates.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Decide separately whether a future work item lane is needed.",
+            "separate_future_lane",
+          ),
+          safeAction(
+            "Do not create work items in this lane.",
+            "separate_future_lane",
+          ),
+        ],
+        surfaces: ["Follow-up work", "Candidate summary"],
+        evidenceFields,
+        canResolveInLane: false,
+      });
+    case "label_metadata_gate":
+      return explanation({
+        title: "Operator labels improve scanability only",
+        explanation:
+          "The label is operator-facing preview metadata. It is not a canonical title and does not classify the draft.",
+        why:
+          "Readable labels help operators scan drafts without granting authority to the preview record.",
+        currentSignal,
+        actions: [
+          safeAction(
+            "Use the existing Edit label, Save label, Cancel, or Clear label controls.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Keep the label descriptive without treating it as a Perspective node title.",
+            "existing_preview_surface",
+          ),
+        ],
+        surfaces: ["Recent runtime preview drafts", "Edit label"],
+        evidenceFields,
+        canResolveInLane: true,
+      });
+    case "activity_metadata_gate":
+      return explanation({
+        title: "Activity metadata is lifecycle context",
+        explanation:
+          "Activity metadata shows create, label, clear-label, and discard lifecycle events for the preview draft.",
+        why:
+          "Lifecycle context helps reviewers understand the preview draft history without creating approval history.",
+        currentSignal,
+        actions: [
+          safeAction(
+            "Use Load activity or Refresh activity to inspect recorded lifecycle metadata.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Review created, label, clear-label, and discard history when present.",
+            "existing_preview_surface",
+          ),
+          safeAction(
+            "Do not treat activity as approval history.",
+            "separate_future_lane",
+          ),
+        ],
+        surfaces: ["Preview draft activity", "Load activity", "Refresh activity"],
+        evidenceFields,
+        canResolveInLane: true,
+      });
+    case "canonical_link_guard_gate":
+      return explanation({
+        title: "Canonical link fields must remain null",
+        explanation:
+          "Preview draft link fields for promotion, canonical Perspective, proof, evidence, and work items must remain null.",
+        why:
+          "Non-null authority links would mean the preview draft no longer looks like isolated preview metadata.",
+        currentSignal,
+        actions:
+          status === "block"
+            ? [
+                safeAction(
+                  "Stop and review data integrity if any authority link field is non-null.",
+                  "stop_and_inspect",
+                ),
+                safeAction(
+                  "Do not mutate, repair, or cleanup link fields in this lane.",
+                  "stop_and_inspect",
+                ),
+              ]
+            : [
+                safeAction(
+                  "Continue review with the canonical/proof/evidence/work link fields remaining null.",
+                  "existing_preview_surface",
+                ),
+              ],
+        surfaces: ["Stored preview draft metadata", "Runtime boundary"],
+        evidenceFields,
+        canResolveInLane: false,
+      });
+  }
+}
+
+function explanation({
+  title,
+  explanation,
+  why,
+  currentSignal,
+  actions,
+  surfaces,
+  evidenceFields,
+  canResolveInLane,
+}: {
+  title: string;
+  explanation: string;
+  why: string;
+  currentSignal: string;
+  actions: ManualNotePreviewDraftPromotionReadinessResolutionHint[];
+  surfaces: string[];
+  evidenceFields: string[];
+  canResolveInLane: boolean;
+}): ManualNotePreviewDraftPromotionReadinessGateExplanation {
+  return {
+    explanation_title: title,
+    operator_explanation: explanation,
+    why_it_matters: why,
+    current_signal: currentSignal,
+    suggested_safe_actions: actions,
+    related_ui_surfaces: surfaces,
+    related_evidence_fields: evidenceFields,
+    can_be_resolved_in_current_preview_lane: canResolveInLane,
+    resolution_boundary: PREVIEW_RESOLUTION_BOUNDARY,
+  };
+}
+
+function safeAction(
+  safeActionText: string,
+  actionScope: ManualNotePreviewDraftPromotionReadinessResolutionHint["action_scope"],
+): ManualNotePreviewDraftPromotionReadinessResolutionHint {
+  return {
+    safe_action: safeActionText,
+    action_scope: actionScope,
   };
 }
 

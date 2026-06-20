@@ -292,6 +292,34 @@ export type ManualNotePreviewDraftPromotionReadinessGateId =
   | "activity_metadata_gate"
   | "canonical_link_guard_gate";
 
+export type ManualNotePreviewDraftPromotionReadinessResolutionBoundary = {
+  preview_metadata_only: true;
+  does_not_promote: true;
+  does_not_write_proof_or_evidence: true;
+  does_not_create_work_item: true;
+  does_not_fetch_sources: true;
+  does_not_run_retrieval: true;
+  does_not_call_provider: true;
+  does_not_update_perspective: true;
+};
+
+export type ManualNotePreviewDraftPromotionReadinessResolutionHint = {
+  safe_action: string;
+  action_scope: "existing_preview_surface" | "new_preview_draft" | "separate_future_lane" | "stop_and_inspect";
+};
+
+export type ManualNotePreviewDraftPromotionReadinessGateExplanation = {
+  explanation_title: string;
+  operator_explanation: string;
+  why_it_matters: string;
+  current_signal: string;
+  suggested_safe_actions: ManualNotePreviewDraftPromotionReadinessResolutionHint[];
+  related_ui_surfaces: string[];
+  related_evidence_fields: string[];
+  can_be_resolved_in_current_preview_lane: boolean;
+  resolution_boundary: ManualNotePreviewDraftPromotionReadinessResolutionBoundary;
+};
+
 export type ManualNotePreviewDraftPromotionReadinessGateResult = {
   gate_id: ManualNotePreviewDraftPromotionReadinessGateId;
   label: string;
@@ -299,6 +327,7 @@ export type ManualNotePreviewDraftPromotionReadinessGateResult = {
   summary: string;
   detail: string;
   evidence_fields: string[];
+  gate_explanation: ManualNotePreviewDraftPromotionReadinessGateExplanation;
   no_side_effects: true;
 };
 

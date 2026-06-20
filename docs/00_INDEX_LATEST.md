@@ -894,6 +894,27 @@ repo-local 색인이다.
   and helper behavior, UI panel copy/actions, preserved startup/manual note
   flows, CSS, package/index pointers, no browser persistence, and forbidden
   provider/retrieval/proof/evidence/work/Codex/promotion action pattern absence.
+- Manual note preview draft gate explanations lane:
+  the promotion readiness preflight gate results now include structured
+  operator-facing explanation metadata for every lifecycle, storage, authority,
+  parser warning, source reference, claim/evidence, tension/gap, follow-up work,
+  label, activity, and canonical link guard gate. Gate explanations are operator guidance only.
+  They show why a block/warn/pass signal matters,
+  current signal text, suggested safe actions, related preview UI surfaces,
+  related evidence fields, whether the issue can be handled in the current
+  preview lane, and resolution boundary flags. No explanation here grants promotion authority.
+  Suggested actions use existing preview-only surfaces or
+  require a separate future lane, and they do not write proof/evidence, update
+  Perspective, create work items, fetch sources, run retrieval/RAG, call
+  providers/OpenAI, execute Codex, send handoffs, store raw note text, use
+  browser persistence, mutate schema, or repair DB rows.
+- `npm run smoke:research-candidate-preview-draft-gate-explanations-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-gate-explanations-v0-1.mjs`
+  checks the gate explanation type/shape, every gate explanation case, route
+  response wiring, helper purity, UI explanation panel/copy, forbidden action
+  button absence, CSS, docs/index pointers, package script, and no provider/
+  retrieval/proof/evidence/work/Codex/browser-persistence/schema mutation
+  patterns.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
