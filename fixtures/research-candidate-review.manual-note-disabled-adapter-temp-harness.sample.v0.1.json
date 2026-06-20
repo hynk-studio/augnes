@@ -1,0 +1,140 @@
+{
+  "harness_kind": "manual_note_disabled_adapter_temp_harness",
+  "harness_version": "manual_note_disabled_adapter_temp_harness.v0.1",
+  "harness_fingerprint": "fnv1a32:8e25f0ac",
+  "preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+  "source_contract_review_fingerprint": "fnv1a32:41c3a5d0",
+  "temp_harness_label": "Fixture temp harness review",
+  "harness_status": "temp_harness_ready",
+  "execution_mode": "temp_non_product_simulation",
+  "product_write_mode": "disabled",
+  "temp_execution_summary": "Sandbox simulation produced temp-only write intents and performed no product write.",
+  "simulated_write_intents": {
+    "claim_intents": [
+      {
+        "simulated_intent_id": "temp-intent:claim:001",
+        "source_candidate_id": "claim_candidate_fixture_001",
+        "target_kind": "future_canonical_claim",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "work_item_id": null,
+        "write_performed_now": false,
+        "product_write_allowed": false,
+        "temp_harness_only": true
+      }
+    ],
+    "evidence_intents": [
+      {
+        "simulated_intent_id": "temp-intent:evidence:001",
+        "source_candidate_id": "evidence_candidate_fixture_001",
+        "target_kind": "future_proof_evidence_record",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "work_item_id": null,
+        "write_performed_now": false,
+        "product_write_allowed": false,
+        "temp_harness_only": true
+      }
+    ],
+    "perspective_intents": [
+      {
+        "simulated_intent_id": "temp-intent:perspective:001",
+        "source_candidate_id": "perspective_delta_candidate_fixture_001",
+        "target_kind": "future_perspective_canonical_graph",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "work_item_id": null,
+        "write_performed_now": false,
+        "product_write_allowed": false,
+        "temp_harness_only": true
+      }
+    ],
+    "source_verification_intents": [
+      {
+        "simulated_intent_id": "temp-intent:source:001",
+        "source_ref_id": "source_ref_fixture_001",
+        "target_kind": "future_source_verification_record",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "work_item_id": null,
+        "write_performed_now": false,
+        "product_write_allowed": false,
+        "temp_harness_only": true
+      }
+    ],
+    "work_item_intents": [
+      {
+        "simulated_intent_id": "temp-intent:work:001",
+        "source_candidate_id": "follow_up_work_candidate_fixture_001",
+        "target_kind": "future_separate_work_item_lane",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "work_item_id": null,
+        "write_performed_now": false,
+        "product_write_allowed": false,
+        "temp_harness_only": true
+      }
+    ]
+  },
+  "idempotency_temp_harness": {
+    "idempotency_required": true,
+    "idempotency_key_generated_now": true,
+    "idempotency_key_kind": "temp_harness_only",
+    "idempotency_storage_added": false,
+    "product_idempotency_storage_added": false,
+    "future_contract_required": true
+  },
+  "rollback_temp_harness": {
+    "rollback_required": true,
+    "rollback_simulated": true,
+    "rollback_storage_added": false,
+    "product_rollback_performed": false,
+    "future_contract_required": true
+  },
+  "review_audit_temp_harness": {
+    "audit_required": true,
+    "audit_simulated": true,
+    "audit_record_created_now": false,
+    "approval_history_created_now": false,
+    "product_audit_storage_added": false,
+    "future_contract_required": true
+  },
+  "temp_harness_boundary": {
+    "temp_harness_only": true,
+    "normal_product_write_enabled": false,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_persistence": false,
+    "browser_persistence": false
+  },
+  "local_copy_packet": {
+    "markdown": "# Manual Note Disabled Adapter Temp Harness\n\nTemp harness only.\nproduct_write_mode: disabled",
+    "json": "{\n  \"harness_status\": \"temp_harness_ready\",\n  \"product_write_mode\": \"disabled\"\n}",
+    "fingerprint": "fnv1a32:8e25f0ac",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted": false,
+    "product_write_authority_granted": false,
+    "actual_promotion_allowed": false
+  },
+  "next_recommended_slice": "fixture_only_disabled_write_adapter_contract_tests"
+}

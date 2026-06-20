@@ -8,6 +8,8 @@ const routePath =
   "app/api/research-candidate-review/manual-note-preview-drafts/[preview_draft_id]/disabled-promotion-write-adapter-readiness/route.ts";
 const componentPath =
   "components/research-candidate-disabled-promotion-write-adapter-readout.tsx";
+const tempHarnessComponentPath =
+  "components/research-candidate-disabled-adapter-temp-harness-readout.tsx";
 const designPanelPath =
   "components/research-candidate-dry-run-candidate-review-design-panel.tsx";
 const fixturePath =
@@ -19,6 +21,7 @@ for (const filePath of [
   helperPath,
   routePath,
   componentPath,
+  tempHarnessComponentPath,
   designPanelPath,
   fixturePath,
   docsIndexPath,
@@ -30,6 +33,7 @@ for (const filePath of [
 const helper = readFileSync(helperPath, "utf8");
 const route = readFileSync(routePath, "utf8");
 const component = readFileSync(componentPath, "utf8");
+const tempHarnessComponent = readFileSync(tempHarnessComponentPath, "utf8");
 const designPanel = readFileSync(designPanelPath, "utf8");
 const fixtureText = readFileSync(fixturePath, "utf8");
 const fixture = JSON.parse(fixtureText);
@@ -160,6 +164,8 @@ function assertComponentContract() {
   );
 
   for (const requiredText of [
+    "DisabledAdapterTempHarnessReadout",
+    "<DisabledAdapterTempHarnessReadout readiness={currentReadiness} />",
     "Disabled adapter skeleton only.",
     "This does not perform actual promotion.",
     "Normal product writes are disabled.",
@@ -209,6 +215,20 @@ function assertComponentContract() {
     assert.ok(
       normalizedIncludes(component, requiredText),
       `component must key copy fallback by readiness fingerprint and preview draft with ${requiredText}`,
+    );
+  }
+
+  for (const requiredText of [
+    "Temp harness only.",
+    "Review disabled adapter contract",
+    "Build temp harness simulation",
+    "Copy contract review Markdown",
+    "Copy temp harness JSON",
+    "data-temp-harness-persisted=\"false\"",
+  ]) {
+    assert.ok(
+      normalizedIncludes(tempHarnessComponent, requiredText),
+      `temp harness component must include ${requiredText}`,
     );
   }
 }
@@ -413,6 +433,7 @@ function assertForbiddenPatternsAbsent() {
     [helperPath, helper],
     [routePath, route],
     [componentPath, component],
+    [tempHarnessComponentPath, tempHarnessComponent],
     [designPanelPath, designPanel],
   ];
 

@@ -126,6 +126,7 @@ function createInitialReport() {
     dry_run_plan_assertion_result: null,
     candidate_review_design_assertion_result: null,
     disabled_adapter_readiness_assertion_result: null,
+    disabled_adapter_temp_harness_assertion_result: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -601,6 +602,100 @@ async function validateOperatorFlow(page) {
     },
   );
 
+  await runPhase(
+    "disabled_adapter_temp_harness_a",
+    "Review disabled adapter contract and build temp harness A",
+    async () => {
+      const beforeApiRequestCount = countResearchCandidateApiRequests();
+      await panel
+        .getByRole("button", { name: "Review disabled adapter contract" })
+        .click();
+      await waitForText(panel, "Contract review");
+      await waitForText(panel, "contract_status");
+      await waitForText(panel, "ready_for_temp_harness");
+      await waitForText(panel, "Required contract checks");
+      await waitForText(panel, "Contract gaps");
+      await waitForText(panel, "Preserved boundaries");
+
+      await panel
+        .getByRole("button", { name: "Build temp harness simulation" })
+        .click();
+      await waitForText(panel, "Temp harness simulation");
+      await waitForText(panel, "harness_status");
+      await waitForText(panel, "temp_harness_ready");
+      await waitForText(panel, "execution_mode");
+      await waitForText(panel, "temp_non_product_simulation");
+      await waitForText(panel, "product_write_mode");
+      await waitForText(panel, "Simulated write intent counts");
+      await waitForText(panel, "Temp harness boundary");
+
+      await panel
+        .getByRole("button", { name: "Copy contract review Markdown" })
+        .click();
+      const contractMarkdownFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual temp harness copy fallback",
+        successText: "Contract review Markdown copied locally to clipboard.",
+      });
+      await panel
+        .getByRole("button", { name: "Copy contract review JSON" })
+        .click();
+      const contractJsonFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual temp harness copy fallback",
+        successText: "Contract review JSON copied locally to clipboard.",
+      });
+      await panel
+        .getByRole("button", { name: "Copy temp harness Markdown" })
+        .click();
+      const harnessMarkdownFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual temp harness copy fallback",
+        successText: "Temp harness Markdown copied locally to clipboard.",
+      });
+      await panel
+        .getByRole("button", { name: "Copy temp harness JSON" })
+        .click();
+      const harnessJsonFeedback = await waitForLocalCopyFeedback(panel, {
+        fallbackLabel: "Manual temp harness copy fallback",
+        successText: "Temp harness JSON copied locally to clipboard.",
+      });
+
+      const afterApiRequestCount = countResearchCandidateApiRequests();
+      const actualWriteRouteRequests = requestLog.filter((request) =>
+        isActualPromotionWriteRoutePath(request.path),
+      );
+      const tempHarnessRouteRequests = requestLog.filter((request) =>
+        request.path.startsWith("/api/") &&
+        /disabled-adapter-temp-harness|manual-note-disabled-adapter-temp-harness|contract-review|temp-harness/.test(
+          request.path,
+        ),
+      );
+
+      report.disabled_adapter_temp_harness_assertion_result = {
+        passed:
+          afterApiRequestCount === beforeApiRequestCount &&
+          tempHarnessRouteRequests.length === 0 &&
+          actualWriteRouteRequests.length === 0 &&
+          contractMarkdownFeedback.passed &&
+          contractJsonFeedback.passed &&
+          harnessMarkdownFeedback.passed &&
+          harnessJsonFeedback.passed,
+        no_new_research_candidate_api_requests:
+          afterApiRequestCount === beforeApiRequestCount,
+        temp_harness_route_request_count: tempHarnessRouteRequests.length,
+        actual_write_route_request_count: actualWriteRouteRequests.length,
+        contract_markdown_copy_feedback: contractMarkdownFeedback,
+        contract_json_copy_feedback: contractJsonFeedback,
+        harness_markdown_copy_feedback: harnessMarkdownFeedback,
+        harness_json_copy_feedback: harnessJsonFeedback,
+      };
+      recordAssertion(
+        "disabled_adapter_temp_harness_a",
+        report.disabled_adapter_temp_harness_assertion_result.passed,
+        "Draft A local-only contract review/temp harness simulation and copy/fallback worked without a new API route or product write route.",
+        report.disabled_adapter_temp_harness_assertion_result,
+      );
+    },
+  );
+
   await runPhase("copy_packet_a", "Generate/copy readiness packet A", async () => {
     await waitForText(panel, "Packet freshness status");
     await waitForText(panel, "No packet copied yet");
@@ -685,14 +780,22 @@ async function validateOperatorFlow(page) {
       .locator(".manual-note-disabled-promotion-write-adapter-readout")
       .isVisible()
       .catch(() => false);
+    const tempHarnessReadoutVisible = await panel
+      .locator(".manual-note-disabled-adapter-temp-harness-readout")
+      .isVisible()
+      .catch(() => false);
     recordAssertion(
       "dry_run_plan_cleared_after_label_change_a",
-      generateVisible && !statusVisible && !disabledReadoutVisible,
-      "Label save/clear on the current draft cleared the previously generated dry-run plan and dependent disabled adapter readout.",
+      generateVisible &&
+        !statusVisible &&
+        !disabledReadoutVisible &&
+        !tempHarnessReadoutVisible,
+      "Label save/clear on the current draft cleared the previously generated dry-run plan and dependent disabled adapter/temp harness readout.",
       {
         generate_visible: generateVisible,
         dry_run_status_visible: statusVisible,
         disabled_adapter_readout_visible: disabledReadoutVisible,
+        temp_harness_readout_visible: tempHarnessReadoutVisible,
       },
     );
   });
@@ -871,8 +974,22 @@ async function validateOperatorFlow(page) {
         })
         .isVisible()
         .catch(() => false);
+      const staleTempHarnessFallbackVisible = await panel
+        .getByLabel("Manual temp harness copy fallback")
+        .isVisible()
+        .catch(() => false);
+      const staleTempHarnessMessageVisible = await panel
+        .getByText("Temp harness JSON copied locally to clipboard.", {
+          exact: false,
+        })
+        .isVisible()
+        .catch(() => false);
       const disabledAdapterReadoutVisible = await panel
         .locator(".manual-note-disabled-promotion-write-adapter-readout")
+        .isVisible()
+        .catch(() => false);
+      const tempHarnessReadoutVisible = await panel
+        .locator(".manual-note-disabled-adapter-temp-harness-readout")
         .isVisible()
         .catch(() => false);
 
@@ -884,7 +1001,10 @@ async function validateOperatorFlow(page) {
         !authorityDesignPacketVisible &&
         !staleDisabledFallbackVisible &&
         !staleDisabledMessageVisible &&
-        !disabledAdapterReadoutVisible;
+        !disabledAdapterReadoutVisible &&
+        !staleTempHarnessFallbackVisible &&
+        !staleTempHarnessMessageVisible &&
+        !tempHarnessReadoutVisible;
       report.candidate_review_design_assertion_result = {
         ...(report.candidate_review_design_assertion_result ?? {}),
         stale_state_transition_passed: passed,
@@ -898,8 +1018,13 @@ async function validateOperatorFlow(page) {
           staleDisabledFallbackVisible,
         stale_disabled_message_visible_under_draft_b:
           staleDisabledMessageVisible,
+        stale_temp_harness_fallback_visible_under_draft_b:
+          staleTempHarnessFallbackVisible,
+        stale_temp_harness_message_visible_under_draft_b:
+          staleTempHarnessMessageVisible,
         disabled_adapter_readout_visible_under_draft_b:
           disabledAdapterReadoutVisible,
+        temp_harness_readout_visible_under_draft_b: tempHarnessReadoutVisible,
         passed:
           Boolean(report.candidate_review_design_assertion_result?.passed) &&
           passed,
@@ -911,10 +1036,27 @@ async function validateOperatorFlow(page) {
           staleDisabledFallbackVisible,
         stale_disabled_message_visible_under_draft_b:
           staleDisabledMessageVisible,
+        stale_temp_harness_fallback_visible_under_draft_b:
+          staleTempHarnessFallbackVisible,
+        stale_temp_harness_message_visible_under_draft_b:
+          staleTempHarnessMessageVisible,
         disabled_adapter_readout_visible_under_draft_b:
           disabledAdapterReadoutVisible,
+        temp_harness_readout_visible_under_draft_b: tempHarnessReadoutVisible,
         passed:
           Boolean(report.disabled_adapter_readiness_assertion_result?.passed) &&
+          passed,
+      };
+      report.disabled_adapter_temp_harness_assertion_result = {
+        ...(report.disabled_adapter_temp_harness_assertion_result ?? {}),
+        stale_state_transition_passed: passed,
+        stale_temp_harness_fallback_visible_under_draft_b:
+          staleTempHarnessFallbackVisible,
+        stale_temp_harness_message_visible_under_draft_b:
+          staleTempHarnessMessageVisible,
+        temp_harness_readout_visible_under_draft_b: tempHarnessReadoutVisible,
+        passed:
+          Boolean(report.disabled_adapter_temp_harness_assertion_result?.passed) &&
           passed,
       };
       recordAssertion(
@@ -939,6 +1081,7 @@ async function validateOperatorFlow(page) {
       ".manual-note-promotion-dry-run-plan",
       ".manual-note-dry-run-candidate-review-design",
       ".manual-note-disabled-promotion-write-adapter-readout",
+      ".manual-note-disabled-adapter-temp-harness-readout",
       ".manual-note-readiness-copy-packet",
       ".manual-note-preview-draft-label-edit",
     ]);
@@ -976,6 +1119,7 @@ async function validateOperatorFlow(page) {
       ".manual-note-promotion-dry-run-plan",
       ".manual-note-dry-run-candidate-review-design",
       ".manual-note-disabled-promotion-write-adapter-readout",
+      ".manual-note-disabled-adapter-temp-harness-readout",
       ".manual-note-readiness-copy-packet",
     ]);
     recordAssertion(
@@ -1630,6 +1774,7 @@ function assertRuntimeRouteUsage() {
     run_dry_run_plan_a: new Set(["dry_run_plan"]),
     candidate_review_design_a: new Set([]),
     disabled_adapter_readiness_a: new Set(["disabled_adapter_readiness"]),
+    disabled_adapter_temp_harness_a: new Set([]),
     packet_stale_after_label_change_a: new Set([
       "label",
       "list",
@@ -1684,6 +1829,8 @@ function inspectStorageBoundary(dbFilePath) {
     work_item_id_non_null_count: null,
     packet_history_tables: [],
     checklist_persistence_tables: [],
+    adapter_contract_review_persistence_tables: [],
+    temp_harness_persistence_tables: [],
     tables: [],
   };
 
@@ -1717,6 +1864,14 @@ function inspectStorageBoundary(dbFilePath) {
       /manual_note.*checklist|packet_review_checklist|local_packet_review/i.test(
         name,
       ),
+    );
+    base.adapter_contract_review_persistence_tables = tables.filter((name) =>
+      /adapter.*contract.*review|contract.*review.*adapter|disabled_adapter_contract/i.test(
+        name,
+      ),
+    );
+    base.temp_harness_persistence_tables = tables.filter((name) =>
+      /temp.*harness|harness.*execution|adapter.*harness/i.test(name),
     );
 
     if (tables.includes("research_candidate_manual_note_preview_drafts")) {
@@ -1794,7 +1949,9 @@ function inspectStorageBoundary(dbFilePath) {
       base.evidence_id_non_null_count === 0 &&
       base.work_item_id_non_null_count === 0 &&
       base.packet_history_tables.length === 0 &&
-      base.checklist_persistence_tables.length === 0;
+      base.checklist_persistence_tables.length === 0 &&
+      base.adapter_contract_review_persistence_tables.length === 0 &&
+      base.temp_harness_persistence_tables.length === 0;
     return base;
   } finally {
     db.close();
