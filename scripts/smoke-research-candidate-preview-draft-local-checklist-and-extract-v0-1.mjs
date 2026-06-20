@@ -30,6 +30,8 @@ const reviewWorkspacePath =
   "components/research-candidate-readiness-packet-review-workspace.tsx";
 const gateExplanationsPath =
   "components/research-candidate-promotion-readiness-gate-explanations.tsx";
+const preflightReadoutPath =
+  "components/research-candidate-promotion-readiness-preflight-readout.tsx";
 const localChecklistPath =
   "components/research-candidate-local-packet-review-checklist.tsx";
 const startupReadinessPath = "components/cockpit-startup-readiness-readout.tsx";
@@ -55,6 +57,7 @@ for (const filePath of [
   copyPacketPanelPath,
   reviewWorkspacePath,
   gateExplanationsPath,
+  preflightReadoutPath,
   localChecklistPath,
   startupReadinessPath,
   cssPath,
@@ -74,6 +77,7 @@ const metadataReadout = readFileSync(metadataReadoutPath, "utf8");
 const copyPacketPanel = readFileSync(copyPacketPanelPath, "utf8");
 const reviewWorkspace = readFileSync(reviewWorkspacePath, "utf8");
 const gateExplanations = readFileSync(gateExplanationsPath, "utf8");
+const preflightReadout = readFileSync(preflightReadoutPath, "utf8");
 const localChecklist = readFileSync(localChecklistPath, "utf8");
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const css = readFileSync(cssPath, "utf8");
@@ -89,6 +93,7 @@ const extractedUi = [
   copyPacketPanel,
   reviewWorkspace,
   gateExplanations,
+  preflightReadout,
   localChecklist,
   draftListPanel,
   draftCard,
@@ -124,8 +129,7 @@ console.log(
 
 function assertExtraction() {
   for (const requiredImport of [
-    "research-candidate-promotion-readiness-gate-explanations",
-    "research-candidate-readiness-copy-packet-panel",
+    "research-candidate-promotion-readiness-preflight-readout",
   ]) {
     assert.ok(
       manualPanel.includes(requiredImport),
@@ -134,12 +138,21 @@ function assertExtraction() {
   }
 
   for (const requiredRender of [
-    "<PromotionReadinessGateExplanations",
-    "<ReadinessCopyPacketPanel",
+    "<PromotionReadinessPreflightReadout",
   ]) {
     assert.ok(
       manualPanel.includes(requiredRender),
       `manual panel must render ${requiredRender}`,
+    );
+  }
+
+  for (const requiredRender of [
+    "<PromotionReadinessGateExplanations",
+    "<ReadinessCopyPacketPanel",
+  ]) {
+    assert.ok(
+      preflightReadout.includes(requiredRender),
+      `preflight readout must render ${requiredRender}`,
     );
   }
 

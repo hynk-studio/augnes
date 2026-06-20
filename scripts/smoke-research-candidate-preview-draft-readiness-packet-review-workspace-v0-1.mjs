@@ -25,6 +25,8 @@ const reviewWorkspacePath =
   "components/research-candidate-readiness-packet-review-workspace.tsx";
 const gateExplanationsPath =
   "components/research-candidate-promotion-readiness-gate-explanations.tsx";
+const preflightReadoutPath =
+  "components/research-candidate-promotion-readiness-preflight-readout.tsx";
 const startupReadinessPath = "components/cockpit-startup-readiness-readout.tsx";
 const cssPath = "app/globals.css";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -47,6 +49,7 @@ for (const filePath of [
   copyPacketPanelPath,
   reviewWorkspacePath,
   gateExplanationsPath,
+  preflightReadoutPath,
   startupReadinessPath,
   cssPath,
   indexPath,
@@ -63,6 +66,7 @@ const manualComponent = readFileSync(componentPath, "utf8");
 const copyPacketPanel = readFileSync(copyPacketPanelPath, "utf8");
 const reviewWorkspace = readFileSync(reviewWorkspacePath, "utf8");
 const gateExplanations = readFileSync(gateExplanationsPath, "utf8");
+const preflightReadout = readFileSync(preflightReadoutPath, "utf8");
 const component = [
   readFileSync(formatHintPath, "utf8"),
   readFileSync(resultSummaryPath, "utf8"),
@@ -74,6 +78,7 @@ const component = [
   copyPacketPanel,
   reviewWorkspace,
   gateExplanations,
+  preflightReadout,
 ].join("\n");
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const css = readFileSync(cssPath, "utf8");
