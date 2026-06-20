@@ -1050,6 +1050,20 @@ repo-local 색인이다.
   wiring, absence of inline preflight definitions, preserved candidate/list/
   readiness/copy/checklist UI, docs/package pointers, no browser persistence,
   no storage/schema/seed behavior, and forbidden action button absence.
+- Manual note runtime route orchestration hook extraction:
+  `components/use-research-candidate-manual-note-preview-runtime.ts` now owns
+  same-origin manual note preview draft create/list/open/label/activity/discard
+  and promotion-readiness preflight route state/actions while
+  `components/research-candidate-manual-note-preview-panel.tsx` keeps local
+  parser/input state, active preview display selection, and authority boundary
+  placement.
+- `npm run smoke:research-candidate-manual-note-runtime-hook-extract-v0-1`:
+  `scripts/smoke-research-candidate-manual-note-runtime-hook-extract-v0-1.mjs`
+  checks the parent-local runtime hook export, manual panel hook wiring, local
+  parser ownership, absence of inline bulk route handlers in the panel,
+  same-origin route constants/builders in the hook, preserved extracted UI
+  surfaces, docs/package pointers, no browser persistence, no DB/server/provider
+  imports, no schema/seed behavior, and no new reducer/state-machine lane.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

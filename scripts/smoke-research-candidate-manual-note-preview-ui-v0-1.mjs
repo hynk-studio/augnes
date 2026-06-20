@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const runtimeHookPath =
+  "components/use-research-candidate-manual-note-preview-runtime.ts";
 const draftListPanelPath =
   "components/research-candidate-preview-draft-list-panel.tsx";
 const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
@@ -35,6 +37,7 @@ const smokePath =
 
 for (const filePath of [
   componentPath,
+  runtimeHookPath,
   draftListPanelPath,
   draftCardPath,
   labelControlsPath,
@@ -57,6 +60,7 @@ for (const filePath of [
 }
 
 const manualPanelComponent = readFileSync(componentPath, "utf8");
+const runtimeHookComponent = readFileSync(runtimeHookPath, "utf8");
 const draftUiComponent = [
   readFileSync(formatHintPath, "utf8"),
   readFileSync(resultSummaryPath, "utf8"),
@@ -72,6 +76,7 @@ const draftUiComponent = [
   readFileSync(preflightReadoutPath, "utf8"),
 ].join("\n");
 const component = `${manualPanelComponent}\n${draftUiComponent}`;
+const runtimeComponent = `${component}\n${runtimeHookComponent}`;
 const cockpit = readFileSync(cockpitPath, "utf8");
 const parser = readFileSync(parserPath, "utf8");
 const index = readFileSync(indexPath, "utf8");
@@ -120,7 +125,7 @@ console.log(
 
 function assertDedicatedComponent() {
   assert.match(
-    component,
+    runtimeComponent,
     /export function ResearchCandidateManualNotePreviewPanel\(/,
     "dedicated manual note preview component must be exported",
   );
@@ -159,12 +164,12 @@ function assertParserReuse() {
     "existing parser must export parseManualResearchNoteToPreview",
   );
   assert.match(
-    component,
+    runtimeComponent,
     /parseManualResearchNoteToPreview/,
     "component must import/use parseManualResearchNoteToPreview",
   );
   assert.match(
-    component,
+    runtimeComponent,
     /from "@\/lib\/research-candidate-review\/manual-note-parser"/,
     "component must import from the existing manual-note-parser",
   );
@@ -195,22 +200,22 @@ function assertLocalOnlyParserExecution() {
 
 function assertRuntimePreviewDraftAction() {
   assert.match(
-    component,
+    runtimeComponent,
     /MANUAL_NOTE_PREVIEW_ROUTE/,
     "component must import/use the bounded manual note preview route constant",
   );
   assert.match(
-    component,
+    runtimeComponent,
     /fetch\(MANUAL_NOTE_PREVIEW_ROUTE,/,
     "component runtime action must call only the same-origin route constant",
   );
   assert.match(
-    component,
+    runtimeComponent,
     /method:\s*"POST"/,
     "component runtime action must POST to the bounded route",
   );
   assert.match(
-    component,
+    runtimeComponent,
     /persist_preview_draft:\s*true/,
     "component runtime action must request a preview draft explicitly",
   );
@@ -458,18 +463,13 @@ function assertClearBehavior() {
   );
   assert.match(
     component,
-    /setRuntimeResult\(null\)/,
-    "clear handler must reset runtime result",
+    /manualNoteRuntime\.actions\.resetRuntimeDraftState\(\)/,
+    "clear handler must reset runtime state through the runtime hook",
   );
   assert.match(
-    component,
-    /setRuntimeError\(null\)/,
-    "clear handler must reset runtime error",
-  );
-  assert.match(
-    component,
-    /setIsRuntimeLoading\(false\)/,
-    "clear handler must reset runtime loading state",
+    runtimeComponent,
+    /function clearRuntimeResult\(\)[\s\S]*setRuntimeResult\(null\)[\s\S]*setRuntimeError\(null\)[\s\S]*setIsRuntimeLoading\(false\)/,
+    "runtime hook clear action must reset runtime result/error/loading state",
   );
   assert.match(
     component,

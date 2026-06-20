@@ -140,7 +140,6 @@ function assertExtraction() {
     "research-candidate-preview-draft-list-panel",
     "research-candidate-preview-draft-activity-readout",
     "research-candidate-preview-draft-metadata-readout",
-    "research-candidate-preview-draft-label-controls",
   ]) {
     assert.ok(
       manualPanel.includes(requiredImport),
