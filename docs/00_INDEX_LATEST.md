@@ -829,6 +829,27 @@ repo-local 색인이다.
   route-compatible empty response fields, unexpected-error rethrow guard,
   package/index pointers, and forbidden write/provider/retrieval/proof/evidence/
   work/promotion/browser-persistence pattern absence.
+- Approval/publication empty-runtime startup fallback lane:
+  `GET /api/publications/summary` and
+  `GET /api/approval-gate-state/summary` return controlled empty envelopes
+  when a fresh local runtime DB is missing recognized optional publication or
+  approval gate tables: `publication_drafts`, `delivery_ledger`,
+  `publication_approval_requests`, `publication_approval_decisions`, and
+  `publication_readiness_checks`. The fallback preserves route-compatible empty
+  summary/count/limit shapes and adds `empty_runtime`, `fallback_reason:
+  "missing_optional_runtime_table"`, `missing_tables`, `runtime_boundary`, and
+  `no_side_effects` metadata. It does not approve, publish, retry, create
+  approval/publication workflows, seed rows, mutate schema from read routes,
+  write proof/evidence/Perspective/work/state rows, call providers, perform
+  retrieval/source fetching, execute Codex, use browser persistence, or hide
+  unexpected DB errors.
+- `npm run smoke:approval-publication-empty-runtime-startup-fallback-v0-1`:
+  `scripts/smoke-approval-publication-empty-runtime-startup-fallback-v0-1.mjs`
+  checks the approval/publication optional table allowlist, route fallback
+  wiring, route-compatible empty summary/count shapes, preserved invalid-query
+  behavior, unexpected-error rethrow guard, package/index pointers, and
+  forbidden write/provider/retrieval/proof/evidence/work/promotion/browser-
+  persistence pattern absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
