@@ -2,11 +2,14 @@
 
 import { CockpitStartupReadinessReadout } from "@/components/cockpit-startup-readiness-readout";
 import { parseManualResearchNoteToPreview } from "@/lib/research-candidate-review/manual-note-parser";
+import { buildManualNotePreviewDraftReadinessCopyPacket } from "@/lib/research-candidate-review/manual-note-preview-draft-readiness-copy-packet";
 import type {
   ManualResearchNoteParserResult,
   ManualResearchNoteParserWarning,
 } from "@/lib/research-candidate-review/manual-note-parser";
 import {
+  MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND,
+  MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION,
   MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE,
   MANUAL_NOTE_PREVIEW_ROUTE,
   MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH,
@@ -27,6 +30,7 @@ import {
   type ManualNotePreviewDraftListResponse,
   type ManualNotePreviewDraftListSummary,
   type ManualNotePreviewDraftListSort,
+  type ManualNotePreviewDraftPromotionReadinessOkResponse,
   type ManualNotePreviewDraftPromotionReadinessGateResult,
   type ManualNotePreviewDraftPromotionReadinessResponse,
   type ManualNotePreviewDraftWarningFilter,
@@ -46,6 +50,15 @@ import type {
 } from "@/types/research-candidate-review";
 import type { FormEvent } from "react";
 import { useState } from "react";
+
+type ReadinessCopyPacketState = {
+  status: "idle" | "success" | "error";
+  mode: "human" | "json" | null;
+  message: string | null;
+  generatedAt: string | null;
+  characterCount: number;
+  fallbackText: string | null;
+};
 
 const MANUAL_NOTE_PLACEHOLDER = [
   "Research Question: What should the operator review?",
@@ -1061,6 +1074,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
           <PromotionReadinessPreflightReadout
             storedDraftResult={displayResult.storedDraftResult}
             preflightResult={promotionReadinessPreflight}
+            activityResult={previewDraftActivity}
             isLoadingDraftId={loadingPromotionReadinessPreflightId}
             error={promotionReadinessPreflightError}
             onLoad={(previewDraftId) =>
@@ -1984,12 +1998,14 @@ function PreviewDraftActivityReadout({
 function PromotionReadinessPreflightReadout({
   storedDraftResult,
   preflightResult,
+  activityResult,
   isLoadingDraftId,
   error,
   onLoad,
 }: {
   storedDraftResult: ManualNotePreviewDraftDetailOkResponse | null;
   preflightResult: ManualNotePreviewDraftPromotionReadinessResponse | null;
+  activityResult: ManualNotePreviewDraftActivityResponse | null;
   isLoadingDraftId: string | null;
   error: string | null;
   onLoad: (previewDraftId: string) => void;
@@ -2187,6 +2203,13 @@ function PromotionReadinessPreflightReadout({
             passGates={gateGroups.pass}
           />
 
+          <ReadinessCopyPacketPanel
+            storedDraftResult={storedDraftResult}
+            preflightResult={preflightResult}
+            activityResult={activityResult}
+            isPreflightRefreshing={isLoading}
+          />
+
           <PromotionReadinessGateGroup
             title="Block gates"
             gates={gateGroups.block}
@@ -2224,6 +2247,190 @@ function PromotionReadinessPreflightReadout({
           item, retrieval, or Perspective update is created.
         </p>
       )}
+    </section>
+  );
+}
+
+function ReadinessCopyPacketPanel({
+  storedDraftResult,
+  preflightResult,
+  activityResult,
+  isPreflightRefreshing,
+}: {
+  storedDraftResult: ManualNotePreviewDraftDetailOkResponse;
+  preflightResult: ManualNotePreviewDraftPromotionReadinessOkResponse;
+  activityResult: ManualNotePreviewDraftActivityResponse | null;
+  isPreflightRefreshing: boolean;
+}) {
+  const [copyState, setCopyState] = useState<ReadinessCopyPacketState>({
+    status: "idle",
+    mode: null,
+    message: null,
+    generatedAt: null,
+    characterCount: 0,
+    fallbackText: null,
+  });
+  const currentActivity =
+    activityResult?.ok === true &&
+    activityResult.preview_draft_id === storedDraftResult.draft.preview_draft_id
+      ? activityResult
+      : null;
+  const isDisabled =
+    isPreflightRefreshing ||
+    preflightResult.preview_draft_id !== storedDraftResult.draft.preview_draft_id;
+
+  async function copyPacket(mode: "human" | "json") {
+    const generatedAt = new Date().toISOString();
+    const packetResult = buildManualNotePreviewDraftReadinessCopyPacket({
+      storedDraftResult,
+      preflightResult,
+      activityResult: currentActivity,
+      generatedAt,
+    });
+    const text = mode === "human" ? packetResult.markdown : packetResult.json;
+
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.clipboard ||
+      typeof navigator.clipboard.writeText !== "function"
+    ) {
+      setCopyState({
+        status: "error",
+        mode,
+        message:
+          "Clipboard API is unavailable. Select the fallback packet text manually.",
+        generatedAt,
+        characterCount: text.length,
+        fallbackText: text,
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState({
+        status: "success",
+        mode,
+        message:
+          mode === "human"
+            ? "Human review packet copied locally to clipboard."
+            : "JSON packet copied locally to clipboard.",
+        generatedAt,
+        characterCount: text.length,
+        fallbackText: null,
+      });
+    } catch {
+      setCopyState({
+        status: "error",
+        mode,
+        message:
+          "Clipboard write failed. Select the fallback packet text manually.",
+        generatedAt,
+        characterCount: text.length,
+        fallbackText: text,
+      });
+    }
+  }
+
+  return (
+    <section
+      className="manual-note-readiness-copy-packet"
+      aria-label="Readiness copy packet"
+    >
+      <div className="manual-note-readiness-copy-packet-header">
+        <div>
+          <h4>Readiness copy packet</h4>
+          <p>
+            Local clipboard copy only. The packet summarizes this opened preview
+            draft, loaded preflight, gate explanations, and boundary metadata
+            for human review.
+          </p>
+        </div>
+        <div className="manual-note-readiness-copy-packet-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isDisabled}
+            onClick={() => void copyPacket("human")}
+          >
+            Copy human review packet
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={isDisabled}
+            onClick={() => void copyPacket("json")}
+          >
+            Copy JSON packet
+          </button>
+        </div>
+      </div>
+      <ul className="manual-note-label-boundary-copy">
+        <li>Readiness copy packets are preview-only local clipboard material.</li>
+        <li>
+          Copying does not send, share, email, submit, create a handoff, execute
+          Codex, write proof/evidence, create work items, or promote Perspective
+          state.
+        </li>
+        <li>Raw manual note text is not included.</li>
+      </ul>
+      <div className="manual-note-readiness-copy-packet-grid">
+        <span>
+          packet_kind{" "}
+          <code>{MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND}</code>
+        </span>
+        <span>
+          packet_version{" "}
+          <code>{MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION}</code>
+        </span>
+        <span>
+          local_clipboard_only <code>true</code>
+        </span>
+        <span>
+          external_handoff_sent <code>false</code>
+        </span>
+        <span>
+          raw_manual_note_text_included <code>false</code>
+        </span>
+        <span>
+          generated_at{" "}
+          <code>{copyState.generatedAt ?? "not generated yet"}</code>
+        </span>
+        <span>
+          packet_character_count <code>{copyState.characterCount}</code>
+        </span>
+        <span>
+          copy_status <code>{copyState.status}</code>
+        </span>
+      </div>
+      {isDisabled ? (
+        <p className="manual-note-runtime-hint">
+          Run or refresh preflight for the opened stored preview draft before
+          copying a packet.
+        </p>
+      ) : null}
+      {copyState.message ? (
+        <p
+          className={
+            copyState.status === "error"
+              ? "manual-note-runtime-error"
+              : "manual-note-runtime-hint"
+          }
+          role={copyState.status === "error" ? "alert" : undefined}
+        >
+          {copyState.message}
+        </p>
+      ) : null}
+      {copyState.fallbackText ? (
+        <details className="manual-note-readiness-copy-packet-fallback" open>
+          <summary>Manual copy fallback</summary>
+          <textarea
+            readOnly
+            value={copyState.fallbackText}
+            aria-label="Manual readiness packet copy fallback"
+          />
+        </details>
+      ) : null}
     </section>
   );
 }
