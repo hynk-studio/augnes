@@ -21,47 +21,23 @@ import {
   ParserWarningsList,
 } from "@/components/research-candidate-manual-note-warning-display";
 import { PreviewDraftActivityReadout } from "@/components/research-candidate-preview-draft-activity-readout";
-import {
-  RecentPreviewDraftsPanel,
-  type DraftListControls,
-} from "@/components/research-candidate-preview-draft-list-panel";
+import { RecentPreviewDraftsPanel } from "@/components/research-candidate-preview-draft-list-panel";
 import {
   RuntimeBoundarySummary,
   RuntimeMetadataSummary,
 } from "@/components/research-candidate-preview-draft-metadata-readout";
-import type { DraftLabelEditState } from "@/components/research-candidate-preview-draft-label-controls";
 import { PromotionReadinessPreflightReadout } from "@/components/research-candidate-promotion-readiness-preflight-readout";
+import { useResearchCandidateManualNotePreviewRuntime } from "@/components/use-research-candidate-manual-note-preview-runtime";
 import { parseManualResearchNoteToPreview } from "@/lib/research-candidate-review/manual-note-parser";
 import type {
   ManualResearchNoteParserResult,
   ManualResearchNoteParserWarning,
 } from "@/lib/research-candidate-review/manual-note-parser";
 import {
-  MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE,
-  MANUAL_NOTE_PREVIEW_ROUTE,
   MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH,
-  buildManualNotePreviewDraftActivityRoute,
-  buildManualNotePreviewDraftDetailRoute,
-  buildManualNotePreviewDraftDiscardRoute,
-  buildManualNotePreviewDraftLabelRoute,
-  buildManualNotePreviewDraftPromotionReadinessRoute,
-  type ManualNotePreviewDraftActivityResponse,
-  type ManualNotePreviewDraftCandidateFilter,
   type ManualNotePreviewDraftDetailOkResponse,
-  type ManualNotePreviewDraftDetailResponse,
-  type ManualNotePreviewDraftDiscardResponse,
-  type ManualNotePreviewDraftLabelUpdateResponse,
-  type ManualNotePreviewDraftListLifecycleFilter,
-  type ManualNotePreviewDraftListItem,
-  type ManualNotePreviewDraftListResponse,
-  type ManualNotePreviewDraftListSummary,
-  type ManualNotePreviewDraftListSort,
-  type ManualNotePreviewDraftPromotionReadinessOkResponse,
-  type ManualNotePreviewDraftPromotionReadinessResponse,
-  type ManualNotePreviewDraftWarningFilter,
   type ManualNotePreviewRuntimeAuthority,
   type ManualNotePreviewRuntimeOkResponse,
-  type ManualNotePreviewRuntimeResponse,
 } from "@/lib/research-candidate-review/manual-note-runtime-preview";
 import type { FormEvent } from "react";
 import { useState } from "react";
@@ -147,62 +123,33 @@ export function ResearchCandidateManualNotePreviewPanel() {
   const [operatorPreviewLabel, setOperatorPreviewLabel] = useState("");
   const [parserResult, setParserResult] =
     useState<ManualResearchNoteParserResult | null>(null);
-  const [runtimeResult, setRuntimeResult] =
-    useState<ManualNotePreviewRuntimeOkResponse | null>(null);
-  const [runtimeError, setRuntimeError] = useState<string | null>(null);
-  const [isRuntimeLoading, setIsRuntimeLoading] = useState(false);
-  const [previewDraftItems, setPreviewDraftItems] = useState<
-    ManualNotePreviewDraftListItem[]
-  >([]);
-  const [previewDraftListSummary, setPreviewDraftListSummary] =
-    useState<ManualNotePreviewDraftListSummary | null>(null);
-  const [draftLifecycleFilter, setDraftLifecycleFilter] =
-    useState<ManualNotePreviewDraftListLifecycleFilter>("active");
-  const [draftSort, setDraftSort] =
-    useState<ManualNotePreviewDraftListSort>("created_desc");
-  const [draftWarningFilter, setDraftWarningFilter] =
-    useState<ManualNotePreviewDraftWarningFilter>("all");
-  const [draftCandidateFilter, setDraftCandidateFilter] =
-    useState<ManualNotePreviewDraftCandidateFilter>("all");
-  const [draftListLimit, setDraftListLimit] =
-    useState<DraftListControls["limit"]>(10);
-  const [previewDraftsError, setPreviewDraftsError] = useState<string | null>(
-    null,
-  );
-  const [isPreviewDraftsLoading, setIsPreviewDraftsLoading] = useState(false);
-  const [openedPreviewDraft, setOpenedPreviewDraft] =
-    useState<ManualNotePreviewDraftDetailOkResponse | null>(null);
-  const [previewDraftActivity, setPreviewDraftActivity] =
-    useState<ManualNotePreviewDraftActivityResponse | null>(null);
-  const [previewDraftActivityError, setPreviewDraftActivityError] = useState<
-    string | null
-  >(null);
-  const [loadingPreviewDraftActivityId, setLoadingPreviewDraftActivityId] =
-    useState<string | null>(null);
-  const [promotionReadinessPreflight, setPromotionReadinessPreflight] =
-    useState<ManualNotePreviewDraftPromotionReadinessResponse | null>(null);
-  const [
-    promotionReadinessPreflightError,
-    setPromotionReadinessPreflightError,
-  ] = useState<string | null>(null);
-  const [
-    loadingPromotionReadinessPreflightId,
-    setLoadingPromotionReadinessPreflightId,
-  ] = useState<string | null>(null);
-  const [openingPreviewDraftId, setOpeningPreviewDraftId] = useState<
-    string | null
-  >(null);
-  const [discardingPreviewDraftId, setDiscardingPreviewDraftId] = useState<
-    string | null
-  >(null);
-  const [confirmDiscardPreviewDraftId, setConfirmDiscardPreviewDraftId] =
-    useState<string | null>(null);
-  const [draftLabelEditState, setDraftLabelEditState] =
-    useState<DraftLabelEditState | null>(null);
-  const [savingDraftLabelId, setSavingDraftLabelId] = useState<string | null>(
-    null,
-  );
   const [parseCount, setParseCount] = useState(0);
+  const manualNoteRuntime = useResearchCandidateManualNotePreviewRuntime();
+  const { runtimeResult, runtimeError, isRuntimeLoading } =
+    manualNoteRuntime.runtimeState;
+  const {
+    previewDraftItems,
+    previewDraftListSummary,
+    controls: draftListControls,
+    previewDraftsError,
+    isPreviewDraftsLoading,
+  } = manualNoteRuntime.draftListState;
+  const { openedPreviewDraft, openingPreviewDraftId } =
+    manualNoteRuntime.openedDraftState;
+  const { discardingPreviewDraftId, confirmDiscardPreviewDraftId } =
+    manualNoteRuntime.discardState;
+  const { draftLabelEditState, savingDraftLabelId } =
+    manualNoteRuntime.labelState;
+  const {
+    previewDraftActivity,
+    previewDraftActivityError,
+    loadingPreviewDraftActivityId,
+  } = manualNoteRuntime.activityState;
+  const {
+    promotionReadinessPreflight,
+    promotionReadinessPreflightError,
+    loadingPromotionReadinessPreflightId,
+  } = manualNoteRuntime.preflightState;
 
   const inputHasText = manualNoteText.trim().length > 0;
   const operatorPreviewLabelLength = operatorPreviewLabel.trim().length;
@@ -250,82 +197,25 @@ export function ResearchCandidateManualNotePreviewPanel() {
     if (!inputHasText) return;
 
     setParserResult(parseManualResearchNoteToPreview(manualNoteText));
-    setRuntimeResult(null);
-    setOpenedPreviewDraft(null);
-    setPreviewDraftActivity(null);
-    setPreviewDraftActivityError(null);
-    setLoadingPreviewDraftActivityId(null);
-    setPromotionReadinessPreflight(null);
-    setPromotionReadinessPreflightError(null);
-    setLoadingPromotionReadinessPreflightId(null);
-    setRuntimeError(null);
-    setIsRuntimeLoading(false);
+    manualNoteRuntime.actions.clearRuntimeResult();
     setParseCount((currentCount) => currentCount + 1);
   }
 
-  async function createRuntimePreviewDraft() {
-    if (!inputHasText || operatorPreviewLabelTooLong || isRuntimeLoading) return;
-
-    setIsRuntimeLoading(true);
-    setRuntimeError(null);
-    const cleanOperatorPreviewLabel = operatorPreviewLabel.trim();
-
-    try {
-      const response = await fetch(MANUAL_NOTE_PREVIEW_ROUTE, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          manual_note_text: manualNoteText,
-          scope: "project:augnes",
-          persist_preview_draft: true,
-          ...(cleanOperatorPreviewLabel
-            ? { operator_note_label: cleanOperatorPreviewLabel }
-            : {}),
-        }),
+  async function handleCreateRuntimePreviewDraft() {
+    const created =
+      await manualNoteRuntime.actions.createRuntimePreviewDraft({
+        manualNoteText,
+        operatorPreviewLabel,
       });
-      const result = (await response.json()) as ManualNotePreviewRuntimeResponse;
-
-      if (!response.ok || !result.ok) {
-        setRuntimeError(
-          result.ok
-            ? "Manual note preview route returned an unavailable response."
-            : result.message,
-        );
-        return;
-      }
-
-      setRuntimeResult(result);
+    if (created) {
       setParserResult(null);
-      setOpenedPreviewDraft(null);
-      setPreviewDraftActivity(null);
-      setPreviewDraftActivityError(null);
-      setLoadingPreviewDraftActivityId(null);
-      setPromotionReadinessPreflight(null);
-      setPromotionReadinessPreflightError(null);
-      setLoadingPromotionReadinessPreflightId(null);
-      void refreshPreviewDrafts();
-    } catch {
-      setRuntimeError("Manual note preview route is unavailable.");
-    } finally {
-      setIsRuntimeLoading(false);
     }
   }
 
   function useSampleNote() {
     setManualNoteText(MANUAL_NOTE_SAMPLE);
     setParserResult(null);
-    setRuntimeResult(null);
-    setOpenedPreviewDraft(null);
-    setPreviewDraftActivity(null);
-    setPreviewDraftActivityError(null);
-    setLoadingPreviewDraftActivityId(null);
-    setPromotionReadinessPreflight(null);
-    setPromotionReadinessPreflightError(null);
-    setLoadingPromotionReadinessPreflightId(null);
-    setRuntimeError(null);
-    setIsRuntimeLoading(false);
+    manualNoteRuntime.actions.resetRuntimeDraftState();
     setParseCount(0);
   }
 
@@ -333,459 +223,16 @@ export function ResearchCandidateManualNotePreviewPanel() {
     setManualNoteText("");
     setOperatorPreviewLabel("");
     setParserResult(null);
-    setRuntimeResult(null);
-    setOpenedPreviewDraft(null);
-    setPreviewDraftActivity(null);
-    setPreviewDraftActivityError(null);
-    setLoadingPreviewDraftActivityId(null);
-    setPromotionReadinessPreflight(null);
-    setPromotionReadinessPreflightError(null);
-    setLoadingPromotionReadinessPreflightId(null);
-    setRuntimeError(null);
-    setIsRuntimeLoading(false);
+    manualNoteRuntime.actions.resetRuntimeDraftState();
     setParseCount(0);
   }
 
-  function clearRuntimeResult() {
-    setRuntimeResult(null);
-    setOpenedPreviewDraft(null);
-    setPreviewDraftActivity(null);
-    setPreviewDraftActivityError(null);
-    setLoadingPreviewDraftActivityId(null);
-    setPromotionReadinessPreflight(null);
-    setPromotionReadinessPreflightError(null);
-    setLoadingPromotionReadinessPreflightId(null);
-    setRuntimeError(null);
-    setIsRuntimeLoading(false);
-  }
-
-  async function refreshPreviewDrafts(
-    overrides: Partial<DraftListControls> = {},
-  ) {
-    const controls = {
-      lifecycle: overrides.lifecycle ?? draftLifecycleFilter,
-      sort: overrides.sort ?? draftSort,
-      warnings: overrides.warnings ?? draftWarningFilter,
-      candidates: overrides.candidates ?? draftCandidateFilter,
-      limit: overrides.limit ?? draftListLimit,
-    } satisfies DraftListControls;
-
-    setIsPreviewDraftsLoading(true);
-    setPreviewDraftsError(null);
-    setConfirmDiscardPreviewDraftId(null);
-
-    try {
-      const params = new URLSearchParams({
-        limit: String(controls.limit),
-        lifecycle: controls.lifecycle,
-        sort: controls.sort,
-        warnings: controls.warnings,
-        candidates: controls.candidates,
-        include_discarded: String(controls.lifecycle !== "active"),
-      });
-      const response = await fetch(
-        `${MANUAL_NOTE_PREVIEW_DRAFTS_ROUTE}?${params.toString()}`,
-      );
-      const result = (await response.json()) as ManualNotePreviewDraftListResponse;
-
-      if (!response.ok || !result.ok) {
-        setPreviewDraftsError(
-          result.ok
-            ? "Preview draft list route returned an unavailable response."
-            : result.message,
-        );
-        return;
-      }
-
-      setPreviewDraftItems(result.items);
-      setPreviewDraftListSummary(result.summary);
-    } catch {
-      setPreviewDraftsError("Preview draft list route is unavailable.");
-    } finally {
-      setIsPreviewDraftsLoading(false);
-    }
-  }
-
-  async function openPreviewDraft(previewDraftId: string) {
-    setOpeningPreviewDraftId(previewDraftId);
-    setPreviewDraftsError(null);
-
-    try {
-      const response = await fetch(
-        buildManualNotePreviewDraftDetailRoute(previewDraftId),
-      );
-      const result =
-        (await response.json()) as ManualNotePreviewDraftDetailResponse;
-
-      if (!response.ok || !result.ok) {
-        setPreviewDraftsError(
-          result.ok
-            ? "Preview draft detail route returned an unavailable response."
-            : result.message,
-        );
-        return;
-      }
-
-      setOpenedPreviewDraft(result);
+  async function handleOpenPreviewDraft(previewDraftId: string) {
+    const opened =
+      await manualNoteRuntime.actions.openPreviewDraft(previewDraftId);
+    if (opened) {
       setParserResult(null);
-      setRuntimeResult(null);
-      setPreviewDraftActivity(null);
-      setPreviewDraftActivityError(null);
-      setLoadingPreviewDraftActivityId(null);
-      setPromotionReadinessPreflight(null);
-      setPromotionReadinessPreflightError(null);
-      setLoadingPromotionReadinessPreflightId(null);
-      setRuntimeError(null);
-      setIsRuntimeLoading(false);
-    } catch {
-      setPreviewDraftsError("Preview draft detail route is unavailable.");
-    } finally {
-      setOpeningPreviewDraftId(null);
     }
-  }
-
-  async function loadPreviewDraftActivity(previewDraftId: string) {
-    setLoadingPreviewDraftActivityId(previewDraftId);
-    setPreviewDraftActivityError(null);
-
-    try {
-      const response = await fetch(
-        buildManualNotePreviewDraftActivityRoute(previewDraftId),
-      );
-      const result =
-        (await response.json()) as ManualNotePreviewDraftActivityResponse;
-
-      if (!response.ok || !result.ok) {
-        setPreviewDraftActivity(null);
-        setPreviewDraftActivityError(
-          result.ok
-            ? "Preview draft activity route returned an unavailable response."
-            : result.message,
-        );
-        return;
-      }
-
-      setPreviewDraftActivity(result);
-    } catch {
-      setPreviewDraftActivity(null);
-      setPreviewDraftActivityError("Preview draft activity route is unavailable.");
-    } finally {
-      setLoadingPreviewDraftActivityId(null);
-    }
-  }
-
-  async function loadPromotionReadinessPreflight(previewDraftId: string) {
-    setLoadingPromotionReadinessPreflightId(previewDraftId);
-    setPromotionReadinessPreflightError(null);
-
-    try {
-      const response = await fetch(
-        buildManualNotePreviewDraftPromotionReadinessRoute(previewDraftId),
-      );
-      const result =
-        (await response.json()) as ManualNotePreviewDraftPromotionReadinessResponse;
-
-      if (!response.ok || !result.ok) {
-        setPromotionReadinessPreflight(null);
-        setPromotionReadinessPreflightError(
-          result.ok
-            ? "Promotion readiness preflight route returned an unavailable response."
-            : result.message,
-        );
-        return;
-      }
-
-      setPromotionReadinessPreflight(result);
-    } catch {
-      setPromotionReadinessPreflight(null);
-      setPromotionReadinessPreflightError(
-        "Promotion readiness preflight route is unavailable.",
-      );
-    } finally {
-      setLoadingPromotionReadinessPreflightId(null);
-    }
-  }
-
-  async function discardPreviewDraft(previewDraftId: string) {
-    if (confirmDiscardPreviewDraftId !== previewDraftId) {
-      setConfirmDiscardPreviewDraftId(previewDraftId);
-      return;
-    }
-
-    setDiscardingPreviewDraftId(previewDraftId);
-    setPreviewDraftsError(null);
-
-    try {
-      const response = await fetch(
-        buildManualNotePreviewDraftDiscardRoute(previewDraftId),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            discard_reason:
-              "Discarded from Cockpit manual preview draft list.",
-          }),
-        },
-      );
-      const result =
-        (await response.json()) as ManualNotePreviewDraftDiscardResponse;
-
-      if (!response.ok || !result.ok) {
-        setPreviewDraftsError(
-          result.ok
-            ? "Preview draft discard route returned an unavailable response."
-            : result.message,
-        );
-        return;
-      }
-
-      setOpenedPreviewDraft((currentDraft) => {
-        if (!currentDraft || currentDraft.draft.preview_draft_id !== previewDraftId) {
-          return currentDraft;
-        }
-
-        return {
-          ...currentDraft,
-          lifecycle_status: "discarded_preview_draft",
-          discard_metadata: result.discard_metadata,
-          draft: {
-            ...currentDraft.draft,
-            lifecycle_status: "discarded_preview_draft",
-            lifecycle_summary: {
-              ...currentDraft.draft.lifecycle_summary,
-              discard_state: "discarded",
-              activity_count:
-                currentDraft.draft.lifecycle_summary.activity_count + 1,
-              last_activity_type: "preview_draft_discarded",
-              last_activity_at: result.discarded_at,
-            },
-            discard_metadata: result.discard_metadata,
-          },
-        };
-      });
-      setConfirmDiscardPreviewDraftId(null);
-      if (
-        previewDraftActivity?.ok &&
-        previewDraftActivity.preview_draft_id === previewDraftId
-      ) {
-        void loadPreviewDraftActivity(previewDraftId);
-      }
-      if (
-        promotionReadinessPreflight?.ok &&
-        promotionReadinessPreflight.preview_draft_id === previewDraftId
-      ) {
-        void loadPromotionReadinessPreflight(previewDraftId);
-      }
-      await refreshPreviewDrafts();
-    } catch {
-      setPreviewDraftsError("Preview draft discard route is unavailable.");
-    } finally {
-      setDiscardingPreviewDraftId(null);
-    }
-  }
-
-  function startDraftLabelEdit(item: ManualNotePreviewDraftListItem) {
-    setDraftLabelEditState({
-      previewDraftId: item.preview_draft_id,
-      value: item.operator_note_label ?? "",
-      error: null,
-    });
-    setConfirmDiscardPreviewDraftId(null);
-  }
-
-  function updateDraftLabelEditValue(value: string) {
-    setDraftLabelEditState((currentState) =>
-      currentState
-        ? {
-            ...currentState,
-            value,
-            error: null,
-          }
-        : currentState,
-    );
-  }
-
-  function clearDraftLabelEditValue() {
-    updateDraftLabelEditValue("");
-  }
-
-  function cancelDraftLabelEdit() {
-    setDraftLabelEditState(null);
-    setSavingDraftLabelId(null);
-  }
-
-  async function saveDraftLabel(previewDraftId: string) {
-    if (
-      !draftLabelEditState ||
-      draftLabelEditState.previewDraftId !== previewDraftId
-    ) {
-      return;
-    }
-
-    const nextLabel = draftLabelEditState.value.trim();
-    if (nextLabel.length > MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH) {
-      setDraftLabelEditState({
-        ...draftLabelEditState,
-        error: `Label must be ${MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH} characters or fewer.`,
-      });
-      return;
-    }
-
-    setSavingDraftLabelId(previewDraftId);
-    setDraftLabelEditState({
-      ...draftLabelEditState,
-      error: null,
-    });
-
-    try {
-      const response = await fetch(
-        buildManualNotePreviewDraftLabelRoute(previewDraftId),
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            operator_note_label: nextLabel.length > 0 ? nextLabel : null,
-          }),
-        },
-      );
-      const result =
-        (await response.json()) as ManualNotePreviewDraftLabelUpdateResponse;
-
-      if (!response.ok || !result.ok) {
-        setDraftLabelEditState((currentState) =>
-          currentState?.previewDraftId === previewDraftId
-            ? {
-                ...currentState,
-                error: result.ok
-                  ? "Preview draft label route returned an unavailable response."
-                  : result.message,
-              }
-            : currentState,
-        );
-        return;
-      }
-
-      setPreviewDraftItems((currentItems) =>
-        currentItems.map((item) =>
-          item.preview_draft_id === previewDraftId
-            ? {
-                ...item,
-                operator_note_label: result.operator_note_label,
-                updated_at: result.updated_at,
-                lifecycle_status: result.lifecycle_status,
-                lifecycle_summary: {
-                  ...item.lifecycle_summary,
-                  label_state: result.operator_note_label
-                    ? "labeled"
-                    : "untitled",
-                  discard_state:
-                    result.lifecycle_status === "discarded_preview_draft"
-                      ? "discarded"
-                      : "active",
-                  activity_count: item.lifecycle_summary.activity_count + 1,
-                  last_activity_type: result.operator_note_label
-                    ? "label_updated"
-                    : "label_cleared",
-                  last_activity_at: result.updated_at,
-                },
-              }
-            : item,
-        ),
-      );
-      setOpenedPreviewDraft((currentDraft) => {
-        if (
-          !currentDraft ||
-          currentDraft.draft.preview_draft_id !== previewDraftId
-        ) {
-          return currentDraft;
-        }
-
-        return {
-          ...currentDraft,
-          lifecycle_status: result.lifecycle_status,
-          draft: {
-            ...currentDraft.draft,
-            operator_note_label: result.operator_note_label,
-            updated_at: result.updated_at,
-            lifecycle_status: result.lifecycle_status,
-            lifecycle_summary: {
-              ...currentDraft.draft.lifecycle_summary,
-              label_state: result.operator_note_label ? "labeled" : "untitled",
-              discard_state:
-                result.lifecycle_status === "discarded_preview_draft"
-                  ? "discarded"
-                  : "active",
-              activity_count:
-                currentDraft.draft.lifecycle_summary.activity_count + 1,
-              last_activity_type: result.operator_note_label
-                ? "label_updated"
-                : "label_cleared",
-              last_activity_at: result.updated_at,
-            },
-          },
-        };
-      });
-      setDraftLabelEditState(null);
-      await refreshPreviewDrafts();
-      if (
-        previewDraftActivity?.ok &&
-        previewDraftActivity.preview_draft_id === previewDraftId
-      ) {
-        void loadPreviewDraftActivity(previewDraftId);
-      }
-      if (
-        promotionReadinessPreflight?.ok &&
-        promotionReadinessPreflight.preview_draft_id === previewDraftId
-      ) {
-        void loadPromotionReadinessPreflight(previewDraftId);
-      }
-    } catch {
-      setDraftLabelEditState((currentState) =>
-        currentState?.previewDraftId === previewDraftId
-          ? {
-              ...currentState,
-              error: "Preview draft label route is unavailable.",
-            }
-          : currentState,
-      );
-    } finally {
-      setSavingDraftLabelId(null);
-    }
-  }
-
-  function updateDraftLifecycleFilter(
-    lifecycle: ManualNotePreviewDraftListLifecycleFilter,
-  ) {
-    setDraftLifecycleFilter(lifecycle);
-    void refreshPreviewDrafts({ lifecycle });
-  }
-
-  function updateDraftSort(sort: ManualNotePreviewDraftListSort) {
-    setDraftSort(sort);
-    void refreshPreviewDrafts({ sort });
-  }
-
-  function updateDraftWarningFilter(
-    warnings: ManualNotePreviewDraftWarningFilter,
-  ) {
-    setDraftWarningFilter(warnings);
-    void refreshPreviewDrafts({ warnings });
-  }
-
-  function updateDraftCandidateFilter(
-    candidates: ManualNotePreviewDraftCandidateFilter,
-  ) {
-    setDraftCandidateFilter(candidates);
-    void refreshPreviewDrafts({ candidates });
-  }
-
-  function updateDraftListLimit(limit: DraftListControls["limit"]) {
-    setDraftListLimit(limit);
-    void refreshPreviewDrafts({ limit });
   }
 
   const preview = displayResult?.preview ?? null;
@@ -879,7 +326,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
             disabled={
               !inputHasText || operatorPreviewLabelTooLong || isRuntimeLoading
             }
-            onClick={createRuntimePreviewDraft}
+            onClick={() => void handleCreateRuntimePreviewDraft()}
           >
             {isRuntimeLoading
               ? "Creating runtime preview draft..."
@@ -908,7 +355,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
               !isRuntimeLoading &&
               !openedPreviewDraft
             }
-            onClick={clearRuntimeResult}
+            onClick={manualNoteRuntime.actions.clearRuntimeResult}
           >
             Clear runtime result
           </button>
@@ -942,13 +389,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
       <RecentPreviewDraftsPanel
         items={previewDraftItems}
         summary={previewDraftListSummary}
-        controls={{
-          lifecycle: draftLifecycleFilter,
-          sort: draftSort,
-          warnings: draftWarningFilter,
-          candidates: draftCandidateFilter,
-          limit: draftListLimit,
-        }}
+        controls={draftListControls}
         isLoading={isPreviewDraftsLoading}
         error={previewDraftsError}
         openedPreviewDraftId={openedPreviewDraft?.draft.preview_draft_id ?? null}
@@ -957,20 +398,30 @@ export function ResearchCandidateManualNotePreviewPanel() {
         confirmDiscardPreviewDraftId={confirmDiscardPreviewDraftId}
         labelEditState={draftLabelEditState}
         savingDraftLabelId={savingDraftLabelId}
-        onRefresh={() => void refreshPreviewDrafts()}
-        onChangeLifecycle={updateDraftLifecycleFilter}
-        onChangeSort={updateDraftSort}
-        onChangeWarnings={updateDraftWarningFilter}
-        onChangeCandidates={updateDraftCandidateFilter}
-        onChangeLimit={updateDraftListLimit}
-        onOpen={(previewDraftId) => void openPreviewDraft(previewDraftId)}
-        onDiscard={(previewDraftId) => void discardPreviewDraft(previewDraftId)}
-        onCancelDiscard={() => setConfirmDiscardPreviewDraftId(null)}
-        onStartLabelEdit={startDraftLabelEdit}
-        onChangeLabelEdit={updateDraftLabelEditValue}
-        onSaveLabelEdit={(previewDraftId) => void saveDraftLabel(previewDraftId)}
-        onCancelLabelEdit={cancelDraftLabelEdit}
-        onClearLabelEdit={clearDraftLabelEditValue}
+        onRefresh={() => void manualNoteRuntime.actions.refreshPreviewDrafts()}
+        onChangeLifecycle={
+          manualNoteRuntime.filterActions.updateDraftLifecycleFilter
+        }
+        onChangeSort={manualNoteRuntime.filterActions.updateDraftSort}
+        onChangeWarnings={
+          manualNoteRuntime.filterActions.updateDraftWarningFilter
+        }
+        onChangeCandidates={
+          manualNoteRuntime.filterActions.updateDraftCandidateFilter
+        }
+        onChangeLimit={manualNoteRuntime.filterActions.updateDraftListLimit}
+        onOpen={(previewDraftId) => void handleOpenPreviewDraft(previewDraftId)}
+        onDiscard={(previewDraftId) =>
+          void manualNoteRuntime.actions.discardPreviewDraft(previewDraftId)
+        }
+        onCancelDiscard={manualNoteRuntime.actions.cancelDiscardPreviewDraft}
+        onStartLabelEdit={manualNoteRuntime.actions.startDraftLabelEdit}
+        onChangeLabelEdit={manualNoteRuntime.actions.updateDraftLabelEditValue}
+        onSaveLabelEdit={(previewDraftId) =>
+          void manualNoteRuntime.actions.saveDraftLabel(previewDraftId)
+        }
+        onCancelLabelEdit={manualNoteRuntime.actions.cancelDraftLabelEdit}
+        onClearLabelEdit={manualNoteRuntime.actions.clearDraftLabelEditValue}
       />
 
       {displayResult && preview && session ? (
@@ -991,7 +442,11 @@ export function ResearchCandidateManualNotePreviewPanel() {
             activityResult={previewDraftActivity}
             isLoadingDraftId={loadingPreviewDraftActivityId}
             error={previewDraftActivityError}
-            onLoad={(previewDraftId) => void loadPreviewDraftActivity(previewDraftId)}
+            onLoad={(previewDraftId) =>
+              void manualNoteRuntime.actions.loadPreviewDraftActivity(
+                previewDraftId,
+              )
+            }
           />
           <PromotionReadinessPreflightReadout
             storedDraftResult={displayResult.storedDraftResult}
@@ -1000,7 +455,9 @@ export function ResearchCandidateManualNotePreviewPanel() {
             isLoadingDraftId={loadingPromotionReadinessPreflightId}
             error={promotionReadinessPreflightError}
             onLoad={(previewDraftId) =>
-              void loadPromotionReadinessPreflight(previewDraftId)
+              void manualNoteRuntime.actions.loadPromotionReadinessPreflight(
+                previewDraftId,
+              )
             }
           />
           <RuntimeBoundarySummary

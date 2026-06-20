@@ -11,6 +11,8 @@ const storePath =
   "lib/research-candidate-review/manual-note-preview-draft-store.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const runtimeHookPath =
+  "components/use-research-candidate-manual-note-preview-runtime.ts";
 const draftListPanelPath =
   "components/research-candidate-preview-draft-list-panel.tsx";
 const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
@@ -47,6 +49,7 @@ for (const filePath of [
   sharedRuntimePath,
   storePath,
   componentPath,
+  runtimeHookPath,
   draftListPanelPath,
   draftCardPath,
   labelControlsPath,
@@ -73,6 +76,7 @@ const helper = readFileSync(helperPath, "utf8");
 const sharedRuntime = readFileSync(sharedRuntimePath, "utf8");
 const store = readFileSync(storePath, "utf8");
 const manualPanelComponent = readFileSync(componentPath, "utf8");
+const runtimeHookComponent = readFileSync(runtimeHookPath, "utf8");
 const draftUiComponent = [
   readFileSync(formatHintPath, "utf8"),
   readFileSync(resultSummaryPath, "utf8"),
@@ -87,7 +91,7 @@ const draftUiComponent = [
   readFileSync(metadataReadoutPath, "utf8"),
   readFileSync(preflightReadoutPath, "utf8"),
 ].join("\n");
-const component = `${manualPanelComponent}\n${draftUiComponent}`;
+const component = `${manualPanelComponent}\n${draftUiComponent}\n${runtimeHookComponent}`;
 
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const css = readFileSync(cssPath, "utf8");
