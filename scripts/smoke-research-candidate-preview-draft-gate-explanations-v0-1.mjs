@@ -9,6 +9,8 @@ const sharedRuntimePath =
   "lib/research-candidate-review/manual-note-runtime-preview.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const gateExplanationsPath =
+  "components/research-candidate-promotion-readiness-gate-explanations.tsx";
 const startupReadinessPath = "components/cockpit-startup-readiness-readout.tsx";
 const cssPath = "app/globals.css";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -21,6 +23,7 @@ for (const filePath of [
   helperPath,
   sharedRuntimePath,
   componentPath,
+  gateExplanationsPath,
   startupReadinessPath,
   cssPath,
   indexPath,
@@ -33,7 +36,10 @@ for (const filePath of [
 const route = readFileSync(routePath, "utf8");
 const helper = readFileSync(helperPath, "utf8");
 const sharedRuntime = readFileSync(sharedRuntimePath, "utf8");
-const component = readFileSync(componentPath, "utf8");
+const component = [
+  readFileSync(componentPath, "utf8"),
+  readFileSync(gateExplanationsPath, "utf8"),
+].join("\n");
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const css = readFileSync(cssPath, "utf8");
 const index = readFileSync(indexPath, "utf8");

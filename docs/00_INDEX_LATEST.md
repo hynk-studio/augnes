@@ -980,6 +980,32 @@ repo-local 색인이다.
   count, read-only preview area, local-only boundary copy, preserved copy/
   freshness/preflight/gate/startup flows, docs/package pointers, no browser
   persistence, no download/file export, and no forbidden action buttons.
+- Manual note preview draft local packet review checklist and extraction lane:
+  `components/research-candidate-readiness-copy-packet-panel.tsx`,
+  `components/research-candidate-readiness-packet-review-workspace.tsx`,
+  `components/research-candidate-promotion-readiness-gate-explanations.tsx`,
+  and `components/research-candidate-local-packet-review-checklist.tsx`
+  now hold the readiness copy packet, packet review workspace, gate
+  explanations, and Local packet review checklist UI that previously bloated
+  `components/research-candidate-manual-note-preview-panel.tsx`. Checklist state is local to this screen only. Checklist completion is not approval or promotion authority. Checklist notes are not stored, sent, shared, or persisted. The checklist tracks source refs, parser warnings, block/warning
+  gates, gate explanations, packet freshness, full packet/manual fallback
+  review, raw note absence, boundary/no-side-effect metadata, and whether a
+  separate future lane may be needed. It exposes local-only `checklist_status`,
+  checked/total counts, packet fingerprint context, local notes character
+  count, stale-for-current-packet copy, and a Reset local checklist action. The
+  lane adds no schema change, DB write, browser persistence, packet/checklist
+  history, proof/evidence write, Perspective promotion, work item creation,
+  provider/retrieval/source fetching, Codex execution, external handoff,
+  download/file export, or raw manual note persistence.
+- `npm run smoke:research-candidate-preview-draft-local-checklist-and-extract-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-local-checklist-and-extract-v0-1.mjs`
+  checks the extracted readiness components, manual panel render/import wiring,
+  absence of inline readiness component definitions in the manual panel, Local
+  packet review checklist title/items/notes/status/counts/reset copy, local-only
+  boundary copy, preserved copy/freshness/review workspace/gate/preflight/
+  startup flows, CSS, docs/package pointers, no DB/store/server route imports in
+  extracted UI components, no browser persistence, no download/file export, and
+  forbidden action button absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

@@ -5897,6 +5897,7 @@ code {
 .manual-note-promotion-readiness-gate,
 .manual-note-promotion-readiness-gate-list,
 .manual-note-readiness-copy-packet,
+.manual-note-local-packet-review-checklist,
 .manual-note-gate-explanations,
 .manual-note-gate-explanation-list,
 .manual-note-gate-explanation,
@@ -5909,6 +5910,7 @@ code {
 .manual-note-promotion-readiness-list h4,
 .manual-note-promotion-readiness-gates h4,
 .manual-note-promotion-readiness-summary-grid h4,
+.manual-note-local-packet-review-checklist h4,
 .manual-note-gate-explanations h4,
 .manual-note-gate-explanation h5 {
   margin: 0;
@@ -6226,6 +6228,132 @@ code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow: auto;
+}
+
+.manual-note-local-packet-review-checklist {
+  padding: 12px;
+  border: 1px solid #d5e2ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.manual-note-local-packet-review-checklist-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.32fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.manual-note-local-packet-review-checklist-header h4,
+.manual-note-local-packet-review-checklist-header p {
+  margin: 0;
+}
+
+.manual-note-local-packet-review-checklist-header p {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.manual-note-local-packet-review-checklist-header button {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-local-packet-review-checklist-status {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-local-packet-review-checklist-status span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #43536a;
+  font-size: 0.8rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-local-packet-review-checklist-status code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-local-packet-review-checklist-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-local-packet-review-checklist-item {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.manual-note-local-packet-review-checklist-item label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: #162238;
+  font-size: 0.86rem;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-local-packet-review-checklist-item input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.manual-note-local-packet-review-checklist-item p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.8rem;
+  line-height: 1.42;
+}
+
+.manual-note-local-packet-review-checklist-item textarea,
+.manual-note-local-packet-review-checklist-notes textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid #cfd8e5;
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.manual-note-local-packet-review-checklist-notes {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #162238;
+  font-size: 0.86rem;
+  font-weight: 760;
+}
+
+.manual-note-local-packet-review-checklist-notes textarea {
+  min-height: 96px;
 }
 
 .manual-note-readiness-copy-packet-fallback {
@@ -6580,6 +6708,9 @@ code {
   .manual-note-readiness-packet-review-controls,
   .manual-note-readiness-packet-review-counts,
   .manual-note-readiness-packet-review-status-row,
+  .manual-note-local-packet-review-checklist-header,
+  .manual-note-local-packet-review-checklist-status,
+  .manual-note-local-packet-review-checklist-items,
   .manual-note-gate-resolution-summary,
   .manual-note-gate-explanation-grid,
   .manual-note-gate-explanation-columns {

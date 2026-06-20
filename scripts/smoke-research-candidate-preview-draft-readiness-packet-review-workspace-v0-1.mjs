@@ -7,6 +7,12 @@ const sharedRuntimePath =
   "lib/research-candidate-review/manual-note-runtime-preview.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const copyPacketPanelPath =
+  "components/research-candidate-readiness-copy-packet-panel.tsx";
+const reviewWorkspacePath =
+  "components/research-candidate-readiness-packet-review-workspace.tsx";
+const gateExplanationsPath =
+  "components/research-candidate-promotion-readiness-gate-explanations.tsx";
 const startupReadinessPath = "components/cockpit-startup-readiness-readout.tsx";
 const cssPath = "app/globals.css";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -20,6 +26,9 @@ for (const filePath of [
   builderPath,
   sharedRuntimePath,
   componentPath,
+  copyPacketPanelPath,
+  reviewWorkspacePath,
+  gateExplanationsPath,
   startupReadinessPath,
   cssPath,
   indexPath,
@@ -32,7 +41,16 @@ for (const filePath of [
 
 const builder = readFileSync(builderPath, "utf8");
 const sharedRuntime = readFileSync(sharedRuntimePath, "utf8");
-const component = readFileSync(componentPath, "utf8");
+const manualComponent = readFileSync(componentPath, "utf8");
+const copyPacketPanel = readFileSync(copyPacketPanelPath, "utf8");
+const reviewWorkspace = readFileSync(reviewWorkspacePath, "utf8");
+const gateExplanations = readFileSync(gateExplanationsPath, "utf8");
+const component = [
+  manualComponent,
+  copyPacketPanel,
+  reviewWorkspace,
+  gateExplanations,
+].join("\n");
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const css = readFileSync(cssPath, "utf8");
 const index = readFileSync(indexPath, "utf8");
@@ -168,7 +186,7 @@ function assertUi() {
 }
 
 function assertForbiddenPatternsAbsent() {
-  const helperAndComponent = `${builder}\n${component}`;
+  const helperAndComponent = `${builder}\n${copyPacketPanel}\n${reviewWorkspace}`;
 
   assert.doesNotMatch(
     helperAndComponent,
