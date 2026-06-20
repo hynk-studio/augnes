@@ -7,6 +7,18 @@ const sharedRuntimePath =
   "lib/research-candidate-review/manual-note-runtime-preview.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const formatHintPath =
+  "components/research-candidate-manual-note-format-hint.tsx";
+const resultSummaryPath =
+  "components/research-candidate-manual-note-result-summary.tsx";
+const warningDisplayPath =
+  "components/research-candidate-manual-note-warning-display.tsx";
+const sourceReferenceListPath =
+  "components/research-candidate-manual-note-source-reference-list.tsx";
+const candidateFamilyListsPath =
+  "components/research-candidate-manual-note-candidate-family-lists.tsx";
+const authorityFlagsPath =
+  "components/research-candidate-manual-note-authority-flags.tsx";
 const copyPacketPanelPath =
   "components/research-candidate-readiness-copy-packet-panel.tsx";
 const reviewWorkspacePath =
@@ -26,6 +38,12 @@ for (const filePath of [
   builderPath,
   sharedRuntimePath,
   componentPath,
+  formatHintPath,
+  resultSummaryPath,
+  warningDisplayPath,
+  sourceReferenceListPath,
+  candidateFamilyListsPath,
+  authorityFlagsPath,
   copyPacketPanelPath,
   reviewWorkspacePath,
   gateExplanationsPath,
@@ -46,6 +64,12 @@ const copyPacketPanel = readFileSync(copyPacketPanelPath, "utf8");
 const reviewWorkspace = readFileSync(reviewWorkspacePath, "utf8");
 const gateExplanations = readFileSync(gateExplanationsPath, "utf8");
 const component = [
+  readFileSync(formatHintPath, "utf8"),
+  readFileSync(resultSummaryPath, "utf8"),
+  readFileSync(warningDisplayPath, "utf8"),
+  readFileSync(sourceReferenceListPath, "utf8"),
+  readFileSync(candidateFamilyListsPath, "utf8"),
+  readFileSync(authorityFlagsPath, "utf8"),
   manualComponent,
   copyPacketPanel,
   reviewWorkspace,
