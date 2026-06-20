@@ -104,15 +104,38 @@ export function useResearchCandidateManualNotePreviewRuntime() {
     null,
   );
 
-  function clearRuntimeResult() {
-    setRuntimeResult(null);
-    setOpenedPreviewDraft(null);
+  function clearPreviewDraftActivityState() {
     setPreviewDraftActivity(null);
     setPreviewDraftActivityError(null);
     setLoadingPreviewDraftActivityId(null);
+  }
+
+  function clearPromotionReadinessPreflightState() {
     setPromotionReadinessPreflight(null);
     setPromotionReadinessPreflightError(null);
     setLoadingPromotionReadinessPreflightId(null);
+  }
+
+  function clearDraftLabelEditState() {
+    setDraftLabelEditState(null);
+    setSavingDraftLabelId(null);
+  }
+
+  function clearPreviewDraftTransitionUiState() {
+    setConfirmDiscardPreviewDraftId(null);
+    clearDraftLabelEditState();
+  }
+
+  function clearOpenedPreviewDraftDependentState() {
+    clearPreviewDraftActivityState();
+    clearPromotionReadinessPreflightState();
+    clearPreviewDraftTransitionUiState();
+  }
+
+  function clearRuntimeResult() {
+    setRuntimeResult(null);
+    setOpenedPreviewDraft(null);
+    clearOpenedPreviewDraftDependentState();
     setRuntimeError(null);
     setIsRuntimeLoading(false);
   }
@@ -211,12 +234,7 @@ export function useResearchCandidateManualNotePreviewRuntime() {
 
       setRuntimeResult(result);
       setOpenedPreviewDraft(null);
-      setPreviewDraftActivity(null);
-      setPreviewDraftActivityError(null);
-      setLoadingPreviewDraftActivityId(null);
-      setPromotionReadinessPreflight(null);
-      setPromotionReadinessPreflightError(null);
-      setLoadingPromotionReadinessPreflightId(null);
+      clearOpenedPreviewDraftDependentState();
       void refreshPreviewDrafts();
       return true;
     } catch {
@@ -249,12 +267,7 @@ export function useResearchCandidateManualNotePreviewRuntime() {
 
       setOpenedPreviewDraft(result);
       setRuntimeResult(null);
-      setPreviewDraftActivity(null);
-      setPreviewDraftActivityError(null);
-      setLoadingPreviewDraftActivityId(null);
-      setPromotionReadinessPreflight(null);
-      setPromotionReadinessPreflightError(null);
-      setLoadingPromotionReadinessPreflightId(null);
+      clearOpenedPreviewDraftDependentState();
       setRuntimeError(null);
       setIsRuntimeLoading(false);
       return true;
@@ -392,6 +405,7 @@ export function useResearchCandidateManualNotePreviewRuntime() {
         };
       });
       setConfirmDiscardPreviewDraftId(null);
+      clearDraftLabelEditState();
       if (
         previewDraftActivity?.ok &&
         previewDraftActivity.preview_draft_id === previewDraftId
@@ -444,8 +458,7 @@ export function useResearchCandidateManualNotePreviewRuntime() {
   }
 
   function cancelDraftLabelEdit() {
-    setDraftLabelEditState(null);
-    setSavingDraftLabelId(null);
+    clearDraftLabelEditState();
   }
 
   async function saveDraftLabel(previewDraftId: string) {
@@ -561,7 +574,7 @@ export function useResearchCandidateManualNotePreviewRuntime() {
           },
         };
       });
-      setDraftLabelEditState(null);
+      clearDraftLabelEditState();
       await refreshPreviewDrafts();
       if (
         previewDraftActivity?.ok &&
