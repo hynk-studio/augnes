@@ -1064,6 +1064,17 @@ repo-local 색인이다.
   same-origin route constants/builders in the hook, preserved extracted UI
   surfaces, docs/package pointers, no browser persistence, no DB/server/provider
   imports, no schema/seed behavior, and no new reducer/state-machine lane.
+- Manual note runtime hook stale-state transition smoke:
+  `scripts/smoke-research-candidate-manual-note-runtime-hook-transitions-v0-1.mjs`
+  checks the extracted runtime hook's stale-state clearing contracts around
+  local parse/reset, runtime create, stored draft open, label save/clear,
+  activity/preflight refresh, discard, draft list refresh, grouped hook return
+  state/actions, docs/package pointers, and no browser persistence,
+  DB/server/provider/retrieval/proof/evidence/work/Perspective imports,
+  schema/seed behavior, external URLs, or new reducer/state-machine lane.
+- `npm run smoke:research-candidate-manual-note-runtime-hook-transitions-v0-1`:
+  runs the focused stale-state transition guard for
+  `components/use-research-candidate-manual-note-preview-runtime.ts`.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
