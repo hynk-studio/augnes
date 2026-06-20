@@ -9,6 +9,15 @@ const storePath =
   "lib/research-candidate-review/manual-note-preview-draft-store.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const draftListPanelPath =
+  "components/research-candidate-preview-draft-list-panel.tsx";
+const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
+const labelControlsPath =
+  "components/research-candidate-preview-draft-label-controls.tsx";
+const activityReadoutPath =
+  "components/research-candidate-preview-draft-activity-readout.tsx";
+const metadataReadoutPath =
+  "components/research-candidate-preview-draft-metadata-readout.tsx";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const smokePath =
@@ -19,6 +28,11 @@ for (const filePath of [
   sharedRuntimePath,
   storePath,
   componentPath,
+  draftListPanelPath,
+  draftCardPath,
+  labelControlsPath,
+  activityReadoutPath,
+  metadataReadoutPath,
   indexPath,
   packagePath,
   smokePath,
@@ -34,7 +48,16 @@ const labelUpdateStoreFunction = sliceBetween(
   "export function updateResearchCandidateManualNotePreviewDraftLabel",
   "export function discardResearchCandidateManualNotePreviewDraft",
 );
-const component = readFileSync(componentPath, "utf8");
+const manualPanelComponent = readFileSync(componentPath, "utf8");
+const draftUiComponent = [
+  readFileSync(draftListPanelPath, "utf8"),
+  readFileSync(draftCardPath, "utf8"),
+  readFileSync(labelControlsPath, "utf8"),
+  readFileSync(activityReadoutPath, "utf8"),
+  readFileSync(metadataReadoutPath, "utf8"),
+].join("\n");
+const component = `${manualPanelComponent}\n${draftUiComponent}`;
+
 const index = readFileSync(indexPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 

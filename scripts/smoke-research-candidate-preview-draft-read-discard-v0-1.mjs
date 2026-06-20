@@ -13,6 +13,15 @@ const storePath =
   "lib/research-candidate-review/manual-note-preview-draft-store.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const draftListPanelPath =
+  "components/research-candidate-preview-draft-list-panel.tsx";
+const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
+const labelControlsPath =
+  "components/research-candidate-preview-draft-label-controls.tsx";
+const activityReadoutPath =
+  "components/research-candidate-preview-draft-activity-readout.tsx";
+const metadataReadoutPath =
+  "components/research-candidate-preview-draft-metadata-readout.tsx";
 const schemaPath = "lib/db/schema.sql";
 const dbPath = "lib/db.ts";
 const migrationsPath = "scripts/db-migrations.mjs";
@@ -29,6 +38,11 @@ for (const filePath of [
   sharedRuntimePath,
   storePath,
   componentPath,
+  draftListPanelPath,
+  draftCardPath,
+  labelControlsPath,
+  activityReadoutPath,
+  metadataReadoutPath,
   schemaPath,
   dbPath,
   migrationsPath,
@@ -46,7 +60,16 @@ const discardRoute = readFileSync(discardRoutePath, "utf8");
 const allRoutes = `${listRoute}\n${detailRoute}\n${discardRoute}`;
 const sharedRuntime = readFileSync(sharedRuntimePath, "utf8");
 const store = readFileSync(storePath, "utf8");
-const component = readFileSync(componentPath, "utf8");
+const manualPanelComponent = readFileSync(componentPath, "utf8");
+const draftUiComponent = [
+  readFileSync(draftListPanelPath, "utf8"),
+  readFileSync(draftCardPath, "utf8"),
+  readFileSync(labelControlsPath, "utf8"),
+  readFileSync(activityReadoutPath, "utf8"),
+  readFileSync(metadataReadoutPath, "utf8"),
+].join("\n");
+const component = `${manualPanelComponent}\n${draftUiComponent}`;
+
 const schema = readFileSync(schemaPath, "utf8");
 const db = readFileSync(dbPath, "utf8");
 const migrations = readFileSync(migrationsPath, "utf8");

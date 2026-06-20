@@ -3,6 +3,15 @@ import { existsSync, readFileSync } from "node:fs";
 
 const manualPanelPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const draftListPanelPath =
+  "components/research-candidate-preview-draft-list-panel.tsx";
+const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
+const labelControlsPath =
+  "components/research-candidate-preview-draft-label-controls.tsx";
+const activityReadoutPath =
+  "components/research-candidate-preview-draft-activity-readout.tsx";
+const metadataReadoutPath =
+  "components/research-candidate-preview-draft-metadata-readout.tsx";
 const copyPacketPanelPath =
   "components/research-candidate-readiness-copy-packet-panel.tsx";
 const reviewWorkspacePath =
@@ -20,6 +29,11 @@ const smokePath =
 
 for (const filePath of [
   manualPanelPath,
+  draftListPanelPath,
+  draftCardPath,
+  labelControlsPath,
+  activityReadoutPath,
+  metadataReadoutPath,
   copyPacketPanelPath,
   reviewWorkspacePath,
   gateExplanationsPath,
@@ -34,6 +48,11 @@ for (const filePath of [
 }
 
 const manualPanel = readFileSync(manualPanelPath, "utf8");
+const draftListPanel = readFileSync(draftListPanelPath, "utf8");
+const draftCard = readFileSync(draftCardPath, "utf8");
+const labelControls = readFileSync(labelControlsPath, "utf8");
+const activityReadout = readFileSync(activityReadoutPath, "utf8");
+const metadataReadout = readFileSync(metadataReadoutPath, "utf8");
 const copyPacketPanel = readFileSync(copyPacketPanelPath, "utf8");
 const reviewWorkspace = readFileSync(reviewWorkspacePath, "utf8");
 const gateExplanations = readFileSync(gateExplanationsPath, "utf8");
@@ -47,6 +66,11 @@ const extractedUi = [
   reviewWorkspace,
   gateExplanations,
   localChecklist,
+  draftListPanel,
+  draftCard,
+  labelControls,
+  activityReadout,
+  metadataReadout,
 ].join("\n");
 const fullUiSurface = `${manualPanel}\n${extractedUi}`;
 

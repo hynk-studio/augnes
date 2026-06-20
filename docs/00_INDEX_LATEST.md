@@ -1006,6 +1006,22 @@ repo-local 색인이다.
   startup flows, CSS, docs/package pointers, no DB/store/server route imports in
   extracted UI components, no browser persistence, no download/file export, and
   forbidden action button absence.
+- Manual note preview draft UI extraction:
+  `components/research-candidate-preview-draft-list-panel.tsx`,
+  `components/research-candidate-preview-draft-card.tsx`,
+  `components/research-candidate-preview-draft-label-controls.tsx`,
+  `components/research-candidate-preview-draft-activity-readout.tsx`, and
+  `components/research-candidate-preview-draft-metadata-readout.tsx` now hold
+  the Recent runtime preview drafts list, draft cards, label edit controls,
+  preview-draft activity readout, and runtime/stored metadata readouts while the
+  manual note panel keeps parser/runtime/list/open/label/activity orchestration.
+- `npm run smoke:research-candidate-manual-note-draft-ui-extract-v0-1`:
+  `scripts/smoke-research-candidate-manual-note-draft-ui-extract-v0-1.mjs`
+  checks extracted draft-list/card/label/activity/metadata components, manual
+  panel render/import wiring, absence of inline extracted definitions, preserved
+  startup/preflight/gate/copy/review/checklist UI, docs/package pointers, no
+  browser persistence, no storage/schema/seed behavior, and forbidden action
+  button absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

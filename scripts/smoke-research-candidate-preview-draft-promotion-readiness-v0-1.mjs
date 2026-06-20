@@ -11,6 +11,15 @@ const storePath =
   "lib/research-candidate-review/manual-note-preview-draft-store.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const draftListPanelPath =
+  "components/research-candidate-preview-draft-list-panel.tsx";
+const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
+const labelControlsPath =
+  "components/research-candidate-preview-draft-label-controls.tsx";
+const activityReadoutPath =
+  "components/research-candidate-preview-draft-activity-readout.tsx";
+const metadataReadoutPath =
+  "components/research-candidate-preview-draft-metadata-readout.tsx";
 const startupReadinessPath = "components/cockpit-startup-readiness-readout.tsx";
 const cssPath = "app/globals.css";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -24,6 +33,11 @@ for (const filePath of [
   sharedRuntimePath,
   storePath,
   componentPath,
+  draftListPanelPath,
+  draftCardPath,
+  labelControlsPath,
+  activityReadoutPath,
+  metadataReadoutPath,
   startupReadinessPath,
   cssPath,
   indexPath,
@@ -37,7 +51,16 @@ const route = readFileSync(routePath, "utf8");
 const helper = readFileSync(helperPath, "utf8");
 const sharedRuntime = readFileSync(sharedRuntimePath, "utf8");
 const store = readFileSync(storePath, "utf8");
-const component = readFileSync(componentPath, "utf8");
+const manualPanelComponent = readFileSync(componentPath, "utf8");
+const draftUiComponent = [
+  readFileSync(draftListPanelPath, "utf8"),
+  readFileSync(draftCardPath, "utf8"),
+  readFileSync(labelControlsPath, "utf8"),
+  readFileSync(activityReadoutPath, "utf8"),
+  readFileSync(metadataReadoutPath, "utf8"),
+].join("\n");
+const component = `${manualPanelComponent}\n${draftUiComponent}`;
+
 const startupReadiness = readFileSync(startupReadinessPath, "utf8");
 const css = readFileSync(cssPath, "utf8");
 const index = readFileSync(indexPath, "utf8");
