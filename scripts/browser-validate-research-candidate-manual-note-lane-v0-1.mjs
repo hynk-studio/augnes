@@ -15,6 +15,8 @@ const ARTIFACT_DIR = "/tmp/augnes-manual-note-lane-validation-v0-1";
 const REPORT_PATH = path.join(ARTIFACT_DIR, "report.json");
 const DESKTOP_SCREENSHOT_PATH = path.join(ARTIFACT_DIR, "desktop.png");
 const MOBILE_SCREENSHOT_PATH = path.join(ARTIFACT_DIR, "mobile-390.png");
+const CONTRACT_TEST_REPORT_PATH =
+  "/tmp/augnes-disabled-write-adapter-contract-tests-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -127,6 +129,7 @@ function createInitialReport() {
     candidate_review_design_assertion_result: null,
     disabled_adapter_readiness_assertion_result: null,
     disabled_adapter_temp_harness_assertion_result: null,
+    contract_tests_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -215,6 +218,19 @@ async function main() {
   attachPageObservers(page, selectedPort);
 
   await validateOperatorFlow(page);
+  report.contract_tests_artifact_note = buildContractTestsArtifactNote();
+  const contractTestRouteRequests = requestLog.filter((request) =>
+    /disabled-write-adapter-contract-tests|contract-test/i.test(request.path ?? ""),
+  );
+  recordAssertion(
+    "contract_tests_fixture_only_no_browser_route",
+    contractTestRouteRequests.length === 0,
+    "Fixture-only disabled write adapter contract tests added no browser-observed route behavior.",
+    {
+      contract_test_route_request_count: contractTestRouteRequests.length,
+      artifact_note: report.contract_tests_artifact_note,
+    },
+  );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
   recordAssertion(
     "storage_boundary_inspection",
@@ -1423,6 +1439,17 @@ async function waitForLocalCopyFeedback(root, {
     fallback_visible: fallbackVisible,
     success_text: successText,
     success_visible: successVisible,
+  };
+}
+
+function buildContractTestsArtifactNote() {
+  const reportExists = existsSync(CONTRACT_TEST_REPORT_PATH);
+  return {
+    report_path: CONTRACT_TEST_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Fixture-only disabled write adapter contract test report was present before or during browser validation; browser flow does not execute fixture tests."
+      : "Fixture-only disabled write adapter contract test report was not present; browser flow does not execute fixture tests.",
   };
 }
 
