@@ -6,6 +6,8 @@ const helperPath =
   "lib/research-candidate-review/manual-note-dry-run-candidate-review-and-authority-design.ts";
 const componentPath =
   "components/research-candidate-dry-run-candidate-review-design-panel.tsx";
+const disabledReadoutPath =
+  "components/research-candidate-disabled-promotion-write-adapter-readout.tsx";
 const dryRunReadoutPath =
   "components/research-candidate-promotion-dry-run-plan-readout.tsx";
 const candidateReviewFixturePath =
@@ -18,6 +20,7 @@ const packagePath = "package.json";
 for (const filePath of [
   helperPath,
   componentPath,
+  disabledReadoutPath,
   dryRunReadoutPath,
   candidateReviewFixturePath,
   authorityDesignFixturePath,
@@ -29,6 +32,7 @@ for (const filePath of [
 
 const helper = readFileSync(helperPath, "utf8");
 const component = readFileSync(componentPath, "utf8");
+const disabledReadout = readFileSync(disabledReadoutPath, "utf8");
 const dryRunReadout = readFileSync(dryRunReadoutPath, "utf8");
 const candidateReviewFixtureText = readFileSync(
   candidateReviewFixturePath,
@@ -131,6 +135,29 @@ function assertComponentContract() {
     dryRunReadout.includes("<DryRunCandidateReviewDesignPanel plan={currentPlan} />"),
     "dry-run readout must render review/design panel for current dry-run plan",
   );
+  assert.ok(
+    component.includes("DisabledPromotionWriteAdapterReadout"),
+    "review/design panel must import/render disabled adapter readout",
+  );
+  assert.ok(
+    normalizedIncludes(
+      component,
+      "<DisabledPromotionWriteAdapterReadout previewDraftId={packet.source_candidate_review_packet.preview_draft_id} authorityDesignPacket={packet} />",
+    ),
+    "disabled adapter readout must render only after the authority design packet exists",
+  );
+  for (const requiredText of [
+    "Disabled adapter skeleton only.",
+    "Check disabled adapter readiness",
+    "Copy disabled adapter Markdown",
+    "Copy disabled adapter JSON",
+    "data-adapter-readiness-persisted=\"false\"",
+  ]) {
+    assert.ok(
+      normalizedIncludes(disabledReadout, requiredText),
+      `disabled adapter readout must include ${requiredText}`,
+    );
+  }
 
   for (const requiredText of [
     "Dry-run candidate review and authority design",
