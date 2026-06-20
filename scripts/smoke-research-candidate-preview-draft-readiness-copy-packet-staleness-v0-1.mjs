@@ -7,6 +7,15 @@ const sharedRuntimePath =
   "lib/research-candidate-review/manual-note-runtime-preview.ts";
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const draftListPanelPath =
+  "components/research-candidate-preview-draft-list-panel.tsx";
+const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
+const labelControlsPath =
+  "components/research-candidate-preview-draft-label-controls.tsx";
+const activityReadoutPath =
+  "components/research-candidate-preview-draft-activity-readout.tsx";
+const metadataReadoutPath =
+  "components/research-candidate-preview-draft-metadata-readout.tsx";
 const copyPacketPanelPath =
   "components/research-candidate-readiness-copy-packet-panel.tsx";
 const gateExplanationsPath =
@@ -24,6 +33,11 @@ for (const filePath of [
   builderPath,
   sharedRuntimePath,
   componentPath,
+  draftListPanelPath,
+  draftCardPath,
+  labelControlsPath,
+  activityReadoutPath,
+  metadataReadoutPath,
   copyPacketPanelPath,
   gateExplanationsPath,
   startupReadinessPath,
@@ -40,6 +54,11 @@ const builder = readFileSync(builderPath, "utf8");
 const sharedRuntime = readFileSync(sharedRuntimePath, "utf8");
 const component = [
   readFileSync(componentPath, "utf8"),
+  readFileSync(draftListPanelPath, "utf8"),
+  readFileSync(draftCardPath, "utf8"),
+  readFileSync(labelControlsPath, "utf8"),
+  readFileSync(activityReadoutPath, "utf8"),
+  readFileSync(metadataReadoutPath, "utf8"),
   readFileSync(copyPacketPanelPath, "utf8"),
   readFileSync(gateExplanationsPath, "utf8"),
 ].join("\n");

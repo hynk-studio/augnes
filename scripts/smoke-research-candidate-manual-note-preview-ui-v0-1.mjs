@@ -3,6 +3,15 @@ import { existsSync, readFileSync } from "node:fs";
 
 const componentPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
+const draftListPanelPath =
+  "components/research-candidate-preview-draft-list-panel.tsx";
+const draftCardPath = "components/research-candidate-preview-draft-card.tsx";
+const labelControlsPath =
+  "components/research-candidate-preview-draft-label-controls.tsx";
+const activityReadoutPath =
+  "components/research-candidate-preview-draft-activity-readout.tsx";
+const metadataReadoutPath =
+  "components/research-candidate-preview-draft-metadata-readout.tsx";
 const cockpitPath = "components/augnes-cockpit.tsx";
 const parserPath = "lib/research-candidate-review/manual-note-parser.ts";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -12,6 +21,11 @@ const smokePath =
 
 for (const filePath of [
   componentPath,
+  draftListPanelPath,
+  draftCardPath,
+  labelControlsPath,
+  activityReadoutPath,
+  metadataReadoutPath,
   cockpitPath,
   parserPath,
   indexPath,
@@ -21,7 +35,15 @@ for (const filePath of [
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 
-const component = readFileSync(componentPath, "utf8");
+const manualPanelComponent = readFileSync(componentPath, "utf8");
+const draftUiComponent = [
+  readFileSync(draftListPanelPath, "utf8"),
+  readFileSync(draftCardPath, "utf8"),
+  readFileSync(labelControlsPath, "utf8"),
+  readFileSync(activityReadoutPath, "utf8"),
+  readFileSync(metadataReadoutPath, "utf8"),
+].join("\n");
+const component = `${manualPanelComponent}\n${draftUiComponent}`;
 const cockpit = readFileSync(cockpitPath, "utf8");
 const parser = readFileSync(parserPath, "utf8");
 const index = readFileSync(indexPath, "utf8");
