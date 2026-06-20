@@ -1,0 +1,139 @@
+{
+  "packet_kind": "manual_note_authority_gated_promotion_design_packet",
+  "packet_version": "manual_note_authority_gated_promotion_design_packet.v0.1",
+  "packet_fingerprint": "fnv1a32:6c2e4f3a",
+  "source_candidate_review_packet": {
+    "packet_version": "manual_note_dry_run_candidate_review_packet.v0.1",
+    "packet_fingerprint": "fnv1a32:1d7f90a1",
+    "preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+    "selected_counts": {
+      "source_reference_targets": 1,
+      "claim_targets": 1,
+      "evidence_targets": 1,
+      "tension_gap_targets": 1,
+      "perspective_delta_targets": 1,
+      "follow_up_work_targets": 1,
+      "total": 6
+    }
+  },
+  "design_status": "ready_for_human_authority_review",
+  "design_summary": "Selected dry-run candidates can be discussed as future write-design inputs, but no write route, adapter, authority, source verification, proof/evidence record, Perspective record, canonical graph record, or work item exists in this lane.",
+  "proposed_write_contract": {
+    "actual_write_route_added": false,
+    "write_adapter_implemented": false,
+    "write_execution_enabled": false,
+    "selected_preview_draft_required": true,
+    "selected_candidates_required": true,
+    "operator_promotion_decision_required": true,
+    "durable_write_contract_required": true,
+    "source_evidence_authority_required": true,
+    "proof_evidence_write_authority_required": true,
+    "canonical_perspective_write_authority_required": true,
+    "idempotency_and_rollback_required": true,
+    "review_audit_record_required": true
+  },
+  "canonical_target_mapping_design": {
+    "selected_claim_targets": [
+      {
+        "source_claim_candidate_id": "claim_candidate_fixture_001",
+        "proposed_record_kind": "canonical_claim_design_record",
+        "canonical_claim_id_created_now": null,
+        "write_performed_now": false
+      }
+    ],
+    "selected_evidence_targets": [
+      {
+        "source_evidence_candidate_id": "evidence_candidate_fixture_001",
+        "source_claim_candidate_id": "claim_candidate_fixture_001",
+        "proposed_record_kind": "proof_evidence_design_record",
+        "proof_id_created_now": null,
+        "evidence_id_created_now": null,
+        "write_performed_now": false
+      }
+    ],
+    "selected_perspective_delta_targets": [
+      {
+        "source_perspective_delta_candidate_id": "perspective_delta_candidate_fixture_001",
+        "proposed_record_kind": "perspective_canonical_graph_design_record",
+        "perspective_id_created_now": null,
+        "canonical_graph_edge_id_created_now": null,
+        "write_performed_now": false
+      }
+    ],
+    "selected_source_reference_targets": [
+      {
+        "source_ref_id": "source_ref_fixture_001",
+        "proposed_record_kind": "source_verification_design_record",
+        "fetched": false,
+        "verified": false,
+        "indexed": false
+      }
+    ],
+    "selected_follow_up_work_targets": [
+      {
+        "source_follow_up_work_candidate_id": "follow_up_work_candidate_fixture_001",
+        "proposed_record_kind": "separate_work_item_lane_design_record",
+        "work_item_id_created_now": null,
+        "work_item_creation_now": false
+      }
+    ]
+  },
+  "idempotency_design": {
+    "required": true,
+    "proposed_key_inputs": [
+      "preview_draft_id",
+      "candidate review packet fingerprint",
+      "selected target ids",
+      "operator decision id placeholder"
+    ],
+    "idempotency_key_generated_now": false
+  },
+  "rollback_design": {
+    "required": true,
+    "rollback_implemented_now": false,
+    "rollback_notes": [
+      "Future writes must define compensating behavior before the write adapter can be enabled.",
+      "This packet records design requirements only and cannot roll back records because it creates none."
+    ]
+  },
+  "review_audit_design": {
+    "required": true,
+    "audit_record_created_now": false,
+    "approval_history_created_now": false,
+    "preview_activity_is_not_approval_history": true
+  },
+  "source_evidence_authority_design": {
+    "source_fetching_performed_now": false,
+    "source_verification_performed_now": false,
+    "proof_evidence_records_created_now": false,
+    "required_future_lane": "source_evidence_authority_lane"
+  },
+  "execution_boundary": {
+    "design_only": true,
+    "actual_promotion_allowed": false,
+    "write_authority_granted": false,
+    "actual_write_route_added": false,
+    "write_adapter_implemented": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "design_packet_persisted": false,
+    "browser_persistence": false
+  },
+  "blocking_requirements_before_any_write": [
+    "explicit_operator_promotion_decision",
+    "source_verification_authority",
+    "proof_evidence_write_authority",
+    "canonical_perspective_write_authority",
+    "idempotency_contract",
+    "rollback_contract",
+    "audit_record_contract",
+    "disabled_by_default_write_adapter_review"
+  ],
+  "next_recommended_slice": "disabled_by_default_actual_promotion_write_adapter_skeleton"
+}

@@ -919,6 +919,18 @@ repo-local 색인이다.
   Perspective/canonical graph write, no work item, no provider/retrieval/source
   fetch, no external handoff, no dry-run plan persistence, no schema/migration
   code, and no dependency.
+- Manual note dry-run candidate review and authority design packets:
+  `lib/research-candidate-review/manual-note-dry-run-candidate-review-and-authority-design.ts`,
+  `components/research-candidate-dry-run-candidate-review-design-panel.tsx`,
+  `fixtures/research-candidate-review.manual-note-dry-run-candidate-review-packet.sample.v0.1.json`,
+  `fixtures/research-candidate-review.manual-note-authority-gated-promotion-design-packet.sample.v0.1.json`,
+  and `npm run smoke:research-candidate-dry-run-candidate-review-design-v0-1`
+  add local-only dry-run candidate review, operator-visible selections,
+  local clipboard only selected-review copy, and an authority-gated actual
+  promotion design packet. This adds no route, no write authority, no
+  persistence, no actual promotion, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, no schema/migration code, and no dependency.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

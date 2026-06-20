@@ -1,5 +1,6 @@
 "use client";
 
+import { DryRunCandidateReviewDesignPanel } from "@/components/research-candidate-dry-run-candidate-review-design-panel";
 import type {
   ManualNotePreviewDraftDetailOkResponse,
   ManualNotePreviewDraftPromotionDryRunPlanOkResponse,
@@ -384,6 +385,8 @@ export function PromotionDryRunPlanReadout({
               />
             </details>
           ) : null}
+
+          <DryRunCandidateReviewDesignPanel plan={currentPlan} />
         </>
       ) : (
         <p className="manual-note-runtime-hint">
