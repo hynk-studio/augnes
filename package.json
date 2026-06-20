@@ -207,6 +207,7 @@
     "smoke:research-candidate-preview-draft-local-checklist-and-extract-v0-1": "node scripts/smoke-research-candidate-preview-draft-local-checklist-and-extract-v0-1.mjs",
     "smoke:research-candidate-promotion-boundary-audit-v0-1": "node scripts/smoke-research-candidate-promotion-boundary-audit-v0-1.mjs",
     "smoke:research-candidate-promotion-dry-run-plan-v0-1": "node scripts/smoke-research-candidate-promotion-dry-run-plan-v0-1.mjs",
+    "smoke:research-candidate-dry-run-candidate-review-design-v0-1": "node scripts/smoke-research-candidate-dry-run-candidate-review-design-v0-1.mjs",
     "smoke:research-candidate-manual-note-draft-ui-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-draft-ui-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-candidate-display-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-candidate-display-extract-v0-1.mjs",
     "smoke:research-candidate-promotion-readiness-readout-extract-v0-1": "node scripts/smoke-research-candidate-promotion-readiness-readout-extract-v0-1.mjs",

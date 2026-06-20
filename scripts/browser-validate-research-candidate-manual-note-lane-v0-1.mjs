@@ -116,6 +116,7 @@ function createInitialReport() {
     request_classification_self_check_result: null,
     runtime_route_assertion_result: null,
     dry_run_plan_assertion_result: null,
+    candidate_review_design_assertion_result: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -437,6 +438,87 @@ async function validateOperatorFlow(page) {
     );
   });
 
+  await runPhase(
+    "candidate_review_design_a",
+    "Build/copy local candidate review and authority design packets A",
+    async () => {
+      const beforeApiRequestCount = countResearchCandidateApiRequests();
+      await waitForText(panel, "Dry-run candidate review and authority design");
+      await waitForText(panel, "Selections are not persisted.");
+      await waitForText(panel, "Selections do not grant write authority.");
+      await panel
+        .getByRole("button", { name: "Select all dry-run candidates" })
+        .click();
+      await panel
+        .getByRole("button", {
+          name: "Build selected candidate review packet",
+        })
+        .click();
+      await waitForText(panel, "Selected candidate review packet");
+      await waitForText(panel, "Unresolved authority requirements");
+      await panel
+        .getByRole("button", {
+          name: "Build authority-gated design packet",
+        })
+        .click();
+      await waitForText(panel, "Authority-gated actual promotion design packet");
+      await waitForText(panel, "Proposed write contract");
+      await waitForText(panel, "Idempotency design");
+      await waitForText(panel, "Rollback design");
+      await waitForText(panel, "Review audit design");
+      await waitForText(panel, "Source evidence authority design");
+      await waitForText(panel, "Execution boundary");
+
+      await panel
+        .getByRole("button", { name: "Copy selected review Markdown" })
+        .click();
+      const reviewFallbackVisible = await panel
+        .getByLabel("Manual review or design packet copy fallback")
+        .isVisible()
+        .catch(() => false);
+      const reviewSuccessVisible = await panel
+        .getByText("Selected review Markdown copied locally to clipboard.", {
+          exact: false,
+        })
+        .isVisible()
+        .catch(() => false);
+
+      await panel
+        .getByRole("button", { name: "Copy authority design JSON" })
+        .click();
+      const designFallbackVisible = await panel
+        .getByLabel("Manual review or design packet copy fallback")
+        .isVisible()
+        .catch(() => false);
+      const designSuccessVisible = await panel
+        .getByText("Authority design JSON copied locally to clipboard.", {
+          exact: false,
+        })
+        .isVisible()
+        .catch(() => false);
+      const afterApiRequestCount = countResearchCandidateApiRequests();
+
+      report.candidate_review_design_assertion_result = {
+        passed:
+          afterApiRequestCount === beforeApiRequestCount &&
+          (reviewFallbackVisible || reviewSuccessVisible) &&
+          (designFallbackVisible || designSuccessVisible),
+        no_new_research_candidate_api_requests:
+          afterApiRequestCount === beforeApiRequestCount,
+        review_copy_fallback_visible: reviewFallbackVisible,
+        review_copy_success_visible: reviewSuccessVisible,
+        design_copy_fallback_visible: designFallbackVisible,
+        design_copy_success_visible: designSuccessVisible,
+      };
+      recordAssertion(
+        "candidate_review_design_a",
+        report.candidate_review_design_assertion_result.passed,
+        "Draft A local-only candidate review/design packet selection, build, and copy/fallback worked without a new API route.",
+        report.candidate_review_design_assertion_result,
+      );
+    },
+  );
+
   await runPhase("copy_packet_a", "Generate/copy readiness packet A", async () => {
     await waitForText(panel, "Packet freshness status");
     await waitForText(panel, "No packet copied yet");
@@ -656,6 +738,66 @@ async function validateOperatorFlow(page) {
     );
   });
 
+  await runPhase(
+    "candidate_review_design_no_leak_b",
+    "Confirm draft A review/design copy state does not leak under draft B",
+    async () => {
+      await waitForText(panel, "Dry-run candidate review and authority design");
+      const staleFallbackVisible = await panel
+        .getByLabel("Manual review or design packet copy fallback")
+        .isVisible()
+        .catch(() => false);
+      const staleReviewMessageVisible = await panel
+        .getByText("Selected review Markdown copied locally to clipboard.", {
+          exact: false,
+        })
+        .isVisible()
+        .catch(() => false);
+      const staleDesignMessageVisible = await panel
+        .getByText("Authority design JSON copied locally to clipboard.", {
+          exact: false,
+        })
+        .isVisible()
+        .catch(() => false);
+      const selectedReviewPacketVisible = await panel
+        .getByText("Selected candidate review packet", { exact: false })
+        .isVisible()
+        .catch(() => false);
+      const authorityDesignPacketVisible = await panel
+        .getByText("Authority-gated actual promotion design packet", {
+          exact: false,
+        })
+        .isVisible()
+        .catch(() => false);
+
+      const passed =
+        !staleFallbackVisible &&
+        !staleReviewMessageVisible &&
+        !staleDesignMessageVisible &&
+        !selectedReviewPacketVisible &&
+        !authorityDesignPacketVisible;
+      report.candidate_review_design_assertion_result = {
+        ...(report.candidate_review_design_assertion_result ?? {}),
+        stale_state_transition_passed: passed,
+        stale_fallback_visible_under_draft_b: staleFallbackVisible,
+        stale_review_message_visible_under_draft_b: staleReviewMessageVisible,
+        stale_design_message_visible_under_draft_b: staleDesignMessageVisible,
+        selected_review_packet_visible_under_draft_b: selectedReviewPacketVisible,
+        authority_design_packet_visible_under_draft_b:
+          authorityDesignPacketVisible,
+        passed:
+          Boolean(report.candidate_review_design_assertion_result?.passed) &&
+          passed,
+      };
+      recordAssertion(
+        "candidate_review_design_no_leak_b",
+        passed,
+        "Draft B dry-run plan did not show draft A selected packet fallback/message/state.",
+        report.candidate_review_design_assertion_result,
+      );
+    },
+  );
+
   await runPhase("clear_runtime_result", "Clear runtime result state", async () => {
     const card = getDraftCard(panel, "Validation draft B");
     await card.getByRole("button", { name: "Discard preview draft" }).click();
@@ -667,6 +809,7 @@ async function validateOperatorFlow(page) {
       ".manual-note-preview-draft-activity",
       ".manual-note-promotion-readiness",
       ".manual-note-promotion-dry-run-plan",
+      ".manual-note-dry-run-candidate-review-design",
       ".manual-note-readiness-copy-packet",
       ".manual-note-preview-draft-label-edit",
     ]);
@@ -702,6 +845,7 @@ async function validateOperatorFlow(page) {
       ".manual-note-preview-draft-activity",
       ".manual-note-promotion-readiness",
       ".manual-note-promotion-dry-run-plan",
+      ".manual-note-dry-run-candidate-review-design",
       ".manual-note-readiness-copy-packet",
     ]);
     recordAssertion(
@@ -1297,6 +1441,7 @@ function assertRuntimeRouteUsage() {
     load_activity_a: new Set(["activity"]),
     run_preflight_a: new Set(["preflight"]),
     run_dry_run_plan_a: new Set(["dry_run_plan"]),
+    candidate_review_design_a: new Set([]),
     packet_stale_after_label_change_a: new Set([
       "label",
       "list",
@@ -1309,6 +1454,7 @@ function assertRuntimeRouteUsage() {
     load_activity_b: new Set(["activity"]),
     run_preflight_b: new Set(["preflight"]),
     run_dry_run_plan_b: new Set(["dry_run_plan"]),
+    candidate_review_design_no_leak_b: new Set([]),
     clear_local_note: new Set(["create", "list"]),
   };
   const manualRequests = requestLog.filter((request) => request.manual_note_route);

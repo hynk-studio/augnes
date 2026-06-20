@@ -12,6 +12,8 @@ const hookPath =
   "components/use-research-candidate-manual-note-preview-runtime.ts";
 const componentPath =
   "components/research-candidate-promotion-dry-run-plan-readout.tsx";
+const reviewDesignComponentPath =
+  "components/research-candidate-dry-run-candidate-review-design-panel.tsx";
 const manualPanelPath =
   "components/research-candidate-manual-note-preview-panel.tsx";
 const fixturePath =
@@ -25,6 +27,7 @@ for (const filePath of [
   runtimePreviewPath,
   hookPath,
   componentPath,
+  reviewDesignComponentPath,
   manualPanelPath,
   fixturePath,
   docsIndexPath,
@@ -38,6 +41,7 @@ const route = readFileSync(routePath, "utf8");
 const runtimePreview = readFileSync(runtimePreviewPath, "utf8");
 const hook = readFileSync(hookPath, "utf8");
 const component = readFileSync(componentPath, "utf8");
+const reviewDesignComponent = readFileSync(reviewDesignComponentPath, "utf8");
 const manualPanel = readFileSync(manualPanelPath, "utf8");
 const fixtureText = readFileSync(fixturePath, "utf8");
 const fixture = JSON.parse(fixtureText);
@@ -223,6 +227,30 @@ function assertComponentAndHookContract() {
     assert.ok(
       manualPanel.includes(requiredText),
       `manual panel must wire ${requiredText}`,
+    );
+  }
+
+  for (const requiredText of [
+    "DryRunCandidateReviewDesignPanel",
+    'from "@/components/research-candidate-dry-run-candidate-review-design-panel"',
+    "<DryRunCandidateReviewDesignPanel plan={currentPlan} />",
+  ]) {
+    assert.ok(
+      normalizedIncludes(component, requiredText),
+      `dry-run readout must render review/design panel with ${requiredText}`,
+    );
+  }
+
+  for (const requiredText of [
+    "Dry-run candidate review and authority design",
+    "Build selected candidate review packet",
+    "Build authority-gated design packet",
+    "Copy selected review Markdown",
+    "Copy authority design JSON",
+  ]) {
+    assert.ok(
+      normalizedIncludes(reviewDesignComponent, requiredText),
+      `review/design component must include ${requiredText}`,
     );
   }
 
