@@ -1,4 +1,5 @@
 import {
+  MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_FINGERPRINT_ALGORITHM,
   MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND,
   MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION,
   type ManualNotePreviewDraftActivityOkResponse,
@@ -7,6 +8,7 @@ import {
   type ManualNotePreviewDraftPromotionReadinessOkResponse,
   type ManualNotePreviewDraftReadinessCopyPacket,
   type ManualNotePreviewDraftReadinessCopyPacketBoundary,
+  type ManualNotePreviewDraftReadinessCopyPacketInputSummary,
 } from "@/lib/research-candidate-review/manual-note-runtime-preview";
 
 type BuildReadinessCopyPacketInput = {
@@ -20,7 +22,16 @@ type BuildReadinessCopyPacketResult = {
   packet: ManualNotePreviewDraftReadinessCopyPacket;
   markdown: string;
   json: string;
+  packet_fingerprint: string;
+  packet_fingerprint_algorithm: typeof MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_FINGERPRINT_ALGORITHM;
+  packet_character_count_human: number;
+  packet_character_count_json: number;
 };
+
+type ReadinessCopyPacketBeforeFingerprint = Omit<
+  ManualNotePreviewDraftReadinessCopyPacket,
+  "packet_fingerprint"
+>;
 
 const COPY_PACKET_BOUNDARY: ManualNotePreviewDraftReadinessCopyPacketBoundary = {
   preview_only: true,
@@ -37,6 +48,8 @@ const COPY_PACKET_BOUNDARY: ManualNotePreviewDraftReadinessCopyPacketBoundary = 
   browser_persistence: false,
   raw_manual_note_text_included: false,
   promotion_authority_granted: false,
+  packet_fingerprint_is_security_authority: false,
+  packet_fingerprint_persisted: false,
 };
 
 export function buildManualNotePreviewDraftReadinessCopyPacket({
@@ -49,10 +62,35 @@ export function buildManualNotePreviewDraftReadinessCopyPacket({
     storedDraftResult.draft.operator_note_label ?? "Untitled preview draft";
   const activityIsCurrent =
     activityResult?.preview_draft_id === storedDraftResult.draft.preview_draft_id;
-  const packet: ManualNotePreviewDraftReadinessCopyPacket = {
+  const copiedActivityIncluded = Boolean(activityResult && activityIsCurrent);
+  const copiedActivityCount =
+    activityResult && activityIsCurrent ? activityResult.count : 0;
+  const packetInputSummary: ManualNotePreviewDraftReadinessCopyPacketInputSummary =
+    {
+      preview_draft_id: storedDraftResult.draft.preview_draft_id,
+      preflight_readiness_status: preflightResult.readiness_status,
+      preflight_readiness_score: preflightResult.readiness_score,
+      lifecycle_status: preflightResult.lifecycle_status,
+      draft_updated_at: storedDraftResult.draft.updated_at,
+      label_state: preflightResult.lifecycle_summary.label_state,
+      discard_state: preflightResult.lifecycle_summary.discard_state,
+      activity_count: preflightResult.lifecycle_summary.activity_count,
+      last_activity_type: preflightResult.lifecycle_summary.last_activity_type,
+      last_activity_at: preflightResult.lifecycle_summary.last_activity_at,
+      gate_count: preflightResult.gate_results.length,
+      blocker_count: preflightResult.blockers.length,
+      warning_count: preflightResult.warnings.length,
+      copied_activity_included: copiedActivityIncluded,
+      copied_activity_count: copiedActivityCount,
+    };
+  const packetBeforeFingerprint: ReadinessCopyPacketBeforeFingerprint = {
     packet_version: MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION,
     packet_kind: MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND,
     generated_at: generatedAt,
+    packet_generated_at: generatedAt,
+    packet_fingerprint_algorithm:
+      MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_FINGERPRINT_ALGORITHM,
+    packet_input_summary: packetInputSummary,
     preview_draft_id: storedDraftResult.draft.preview_draft_id,
     operator_note_label: storedDraftResult.draft.operator_note_label,
     display_label: displayLabel,
@@ -76,8 +114,8 @@ export function buildManualNotePreviewDraftReadinessCopyPacket({
     lifecycle_summary: preflightResult.lifecycle_summary,
     gate_results: preflightResult.gate_results,
     activity_summary: {
-      included: Boolean(activityResult && activityIsCurrent),
-      count: activityResult && activityIsCurrent ? activityResult.count : 0,
+      included: copiedActivityIncluded,
+      count: copiedActivityCount,
       lifecycle_status:
         activityResult && activityIsCurrent ? activityResult.lifecycle_status : null,
       activity_types:
@@ -90,11 +128,21 @@ export function buildManualNotePreviewDraftReadinessCopyPacket({
     authority: preflightResult.authority,
     copy_packet_boundary: COPY_PACKET_BOUNDARY,
   };
+  const packet: ManualNotePreviewDraftReadinessCopyPacket = {
+    ...packetBeforeFingerprint,
+    packet_fingerprint: buildReadinessCopyPacketFingerprint(packetBeforeFingerprint),
+  };
+  const markdown = formatReadinessCopyPacketMarkdown(packet);
+  const json = JSON.stringify(packet, null, 2);
 
   return {
     packet,
-    markdown: formatReadinessCopyPacketMarkdown(packet),
-    json: JSON.stringify(packet, null, 2),
+    markdown,
+    json,
+    packet_fingerprint: packet.packet_fingerprint,
+    packet_fingerprint_algorithm: packet.packet_fingerprint_algorithm,
+    packet_character_count_human: markdown.length,
+    packet_character_count_json: json.length,
   };
 }
 
@@ -107,6 +155,11 @@ function formatReadinessCopyPacketMarkdown(
     `packet_kind: ${packet.packet_kind}`,
     `packet_version: ${packet.packet_version}`,
     `generated_at: ${packet.generated_at}`,
+    `packet_fingerprint_algorithm: ${packet.packet_fingerprint_algorithm}`,
+    `packet_fingerprint: ${packet.packet_fingerprint}`,
+    "",
+    "## Packet Input Summary",
+    formatMixedMap(packet.packet_input_summary),
     "",
     "## Packet Boundary",
     formatBooleanMap(packet.copy_packet_boundary),
@@ -164,7 +217,67 @@ function formatReadinessCopyPacketMarkdown(
     "",
     "Raw manual note text is not included in this packet.",
     "This packet is local clipboard material only and grants no promotion authority.",
+    "Fingerprint compares preview packet content only. It excludes generated_at and is not security authority.",
   ].join("\n");
+}
+
+function buildReadinessCopyPacketFingerprint(
+  packet: ReadinessCopyPacketBeforeFingerprint,
+) {
+  const fingerprintInput = omitGeneratedAtForFingerprint(packet);
+  return fnv1a32Hex(stableCanonicalJson(fingerprintInput));
+}
+
+function omitGeneratedAtForFingerprint(
+  packet: ReadinessCopyPacketBeforeFingerprint,
+) {
+  const {
+    generated_at: _generatedAt,
+    packet_generated_at: _packetGeneratedAt,
+    ...rest
+  } = packet;
+  return rest;
+}
+
+function stableCanonicalJson(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableCanonicalJson(item)).join(",")}]`;
+  }
+
+  const valueType = typeof value;
+  if (
+    valueType === "string" ||
+    valueType === "number" ||
+    valueType === "boolean"
+  ) {
+    return JSON.stringify(value);
+  }
+
+  if (valueType === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => typeof entryValue !== "undefined")
+      .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+    return `{${entries
+      .map(
+        ([key, entryValue]) =>
+          `${JSON.stringify(key)}:${stableCanonicalJson(entryValue)}`,
+      )
+      .join(",")}}`;
+  }
+
+  return "null";
+}
+
+function fnv1a32Hex(value: string) {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function formatGateGroup(

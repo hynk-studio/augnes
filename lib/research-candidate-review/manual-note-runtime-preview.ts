@@ -29,6 +29,8 @@ export const MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND =
   "research_candidate_preview_draft_readiness_copy_packet";
 export const MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION =
   "research_candidate_preview_draft_readiness_copy_packet.v0.1";
+export const MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_FINGERPRINT_ALGORITHM =
+  "fnv1a32_canonical_json_v0_1";
 
 export type ManualNotePreviewPersistenceMode =
   | "persisted_preview_draft"
@@ -394,6 +396,9 @@ export type ManualNotePreviewDraftReadinessCopyPacketKind =
 export type ManualNotePreviewDraftReadinessCopyPacketVersion =
   typeof MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION;
 
+export type ManualNotePreviewDraftReadinessCopyPacketFingerprintAlgorithm =
+  typeof MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_FINGERPRINT_ALGORITHM;
+
 export type ManualNotePreviewDraftReadinessCopyPacketBoundary = {
   preview_only: true;
   local_clipboard_only: true;
@@ -409,12 +414,36 @@ export type ManualNotePreviewDraftReadinessCopyPacketBoundary = {
   browser_persistence: false;
   raw_manual_note_text_included: false;
   promotion_authority_granted: false;
+  packet_fingerprint_is_security_authority: false;
+  packet_fingerprint_persisted: false;
+};
+
+export type ManualNotePreviewDraftReadinessCopyPacketInputSummary = {
+  preview_draft_id: string;
+  preflight_readiness_status: ManualNotePreviewDraftPromotionReadinessStatus;
+  preflight_readiness_score: number;
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  draft_updated_at: string;
+  label_state: ManualNotePreviewDraftLabelState;
+  discard_state: ManualNotePreviewDraftDiscardState;
+  activity_count: number;
+  last_activity_type: ManualNotePreviewDraftActivityType | null;
+  last_activity_at: string | null;
+  gate_count: number;
+  blocker_count: number;
+  warning_count: number;
+  copied_activity_included: boolean;
+  copied_activity_count: number;
 };
 
 export type ManualNotePreviewDraftReadinessCopyPacket = {
   packet_version: ManualNotePreviewDraftReadinessCopyPacketVersion;
   packet_kind: ManualNotePreviewDraftReadinessCopyPacketKind;
   generated_at: string;
+  packet_generated_at: string;
+  packet_fingerprint_algorithm: ManualNotePreviewDraftReadinessCopyPacketFingerprintAlgorithm;
+  packet_fingerprint: string;
+  packet_input_summary: ManualNotePreviewDraftReadinessCopyPacketInputSummary;
   preview_draft_id: string;
   operator_note_label: string | null;
   display_label: string;

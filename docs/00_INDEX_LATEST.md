@@ -937,6 +937,28 @@ repo-local 색인이다.
   fallback copy, preserved preflight/gate explanation/startup/manual note
   flows, no browser persistence, package/index pointers, and forbidden
   provider/retrieval/proof/evidence/work/Codex/share/schema mutation patterns.
+- Manual note preview draft readiness copy packet staleness lane:
+  `lib/research-candidate-review/manual-note-preview-draft-readiness-copy-packet.ts`
+  now adds a deterministic `packet_fingerprint` using
+  `fnv1a32_canonical_json_v0_1`, a `packet_input_summary`, and read-only
+  freshness metadata for the local readiness copy packet. The fingerprint
+  excludes `generated_at`/`packet_generated_at` so a copied packet does not
+  become stale solely because a timestamp changed. The Cockpit/Perspective
+  Readiness copy packet panel shows Current packet fingerprint, Last copied
+  packet fingerprint, Packet freshness status, and the four readout states:
+  No packet copied yet, Current, Stale, and Unavailable. The boundary remains
+  local and preview-only: `packet_fingerprint_is_security_authority false`,
+  `packet_fingerprint_persisted false`, no packet history persistence, no
+  browser persistence, no external handoff sending, no proof/evidence write,
+  no Perspective promotion, no work item creation, no provider/retrieval/source
+  fetching, no schema change, and no raw manual note text.
+- `npm run smoke:research-candidate-preview-draft-readiness-copy-packet-staleness-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-readiness-copy-packet-staleness-v0-1.mjs`
+  checks the packet fingerprint contract, deterministic local hash helper,
+  generated_at exclusion, packet_input_summary fields, boundary flags, builder
+  purity, UI freshness states, in-memory last-copied state, preserved copy
+  packet/preflight/gate/startup/manual flows, docs/package pointers, and no
+  browser persistence or forbidden action buttons.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
