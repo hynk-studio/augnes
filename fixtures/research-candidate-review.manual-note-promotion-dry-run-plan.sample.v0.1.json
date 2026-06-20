@@ -1,0 +1,307 @@
+{
+  "ok": true,
+  "runtime_version": "manual_research_candidate_runtime_preview.v0.1",
+  "preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+  "dry_run_plan_version": "manual_note_promotion_dry_run_plan.v0.1",
+  "dry_run_status": "needs_operator_review",
+  "dry_run_summary": "No-write dry-run plan is available for operator review with 1 warning; it grants no write authority.",
+  "selected_preview_draft": {
+    "preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+    "operator_note_label": "Fixture dry-run preview draft",
+    "lifecycle_status": "active_preview_draft",
+    "parser_version": "manual_research_note_parser.v0.1",
+    "preview_version": "research_candidate_review.v0.1",
+    "input_fingerprint": "fixture-input-fingerprint-v0-1",
+    "warning_count": 1,
+    "candidate_count_summary": {
+      "total": 6,
+      "claims": 1,
+      "evidence": 1,
+      "tensions": 1,
+      "knowledge_gaps": 1,
+      "perspective_deltas": 1,
+      "follow_up_work": 1
+    },
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  },
+  "readiness_snapshot": {
+    "readiness_status": "needs_operator_review",
+    "readiness_score": 72,
+    "blocker_count": 0,
+    "warning_count": 1,
+    "gate_count": 12,
+    "blocking_gate_ids": [],
+    "warning_gate_ids": [
+      "tension_gap_gate"
+    ],
+    "pass_gate_ids": [
+      "lifecycle_gate",
+      "storage_boundary_gate",
+      "authority_boundary_gate",
+      "parser_warning_gate",
+      "source_reference_gate",
+      "claim_candidate_gate",
+      "evidence_candidate_gate",
+      "follow_up_work_gate",
+      "label_metadata_gate",
+      "activity_metadata_gate",
+      "canonical_link_guard_gate"
+    ]
+  },
+  "boundary_audit_snapshot": {
+    "audit_kind": "manual_note_promotion_boundary_audit",
+    "audit_version": "v0.1",
+    "readiness_is_not_promotion_authority": true,
+    "ready_for_promotion_discussion_is_not_write_authority": true,
+    "actual_promotion_allowed": false,
+    "dry_run_promotion_allowed_by_this_audit": false,
+    "next_recommended_slice": "selected_preview_draft_dry_run_promotion_plan"
+  },
+  "hypothetical_targets": {
+    "source_reference_targets": [
+      {
+        "source_ref_id": "source_ref_fixture_001",
+        "title": "Fixture source metadata",
+        "identifier_or_url": "fixture-source-ref-001",
+        "source_status": "operator_supplied_reference",
+        "boundary_notes": "Fixture reference metadata only; no fetch, verification, indexing, or truth authority.",
+        "target_status": "unverified_source_metadata_only",
+        "source_fetched_or_verified": false
+      }
+    ],
+    "claim_targets": [
+      {
+        "claim_candidate_id": "claim_candidate_fixture_001",
+        "claim_text": "A preview draft can be mapped into a no-write plan before any future write design.",
+        "claim_type": "manual_note_claim",
+        "confidence_label": "manual_candidate",
+        "target_status": "candidate_claim_no_write",
+        "needs_operator_selection": true,
+        "canonical_claim_id": null
+      }
+    ],
+    "evidence_targets": [
+      {
+        "evidence_candidate_id": "evidence_candidate_fixture_001",
+        "claim_candidate_id": "claim_candidate_fixture_001",
+        "evidence_summary": "The dry-run helper keeps evidence candidate material separate from proof and evidence records.",
+        "evidence_role": "supports",
+        "target_status": "candidate_evidence_no_write",
+        "requires_proof_evidence_authority": true,
+        "proof_id": null,
+        "evidence_id": null
+      }
+    ],
+    "tension_gap_targets": [
+      {
+        "target_id": "tension_candidate_fixture_001",
+        "target_kind": "tension",
+        "summary": "A visible dry-run plan can be mistaken for write authority.",
+        "target_status": "unresolved_non_canonical",
+        "canonical_record_id": null
+      },
+      {
+        "target_id": "knowledge_gap_candidate_fixture_001",
+        "target_kind": "knowledge_gap",
+        "summary": "Future source authority and write authority are not designed in this lane.",
+        "target_status": "unresolved_non_canonical",
+        "canonical_record_id": null
+      }
+    ],
+    "perspective_delta_targets": [
+      {
+        "perspective_delta_candidate_id": "perspective_delta_candidate_fixture_001",
+        "target_perspective_key": "research.candidate_review",
+        "delta_type": "refine",
+        "proposed_update_summary": "Hypothetically refine the review frame after separate authority review.",
+        "target_status": "candidate_perspective_delta_no_write",
+        "perspective_id": null,
+        "canonical_graph_edge_id": null
+      }
+    ],
+    "follow_up_work_targets": [
+      {
+        "follow_up_work_candidate_id": "follow_up_work_candidate_fixture_001",
+        "candidate_title": "Design a separate authority-gated write lane",
+        "candidate_summary": "Keep future write design separate from this dry-run plan.",
+        "target_status": "not_work_item",
+        "requires_separate_work_item_lane": true,
+        "work_item_id": null
+      }
+    ]
+  },
+  "proposed_canonical_deltas": {
+    "hypothetical_only": true,
+    "no_canonical_ids": true,
+    "no_proof_ids": true,
+    "no_evidence_ids": true,
+    "no_work_item_ids": true,
+    "no_db_write_refs": true,
+    "source_reference_delta_count": 1,
+    "claim_delta_count": 1,
+    "evidence_delta_count": 1,
+    "perspective_delta_count": 1,
+    "follow_up_work_delta_count": 1,
+    "delta_summaries": [
+      "1 source reference target remains unverified metadata.",
+      "1 claim candidate target requires operator selection.",
+      "1 evidence candidate target requires proof/evidence authority before write.",
+      "1 Perspective delta target remains a no-write candidate delta.",
+      "1 follow-up work target remains a non-work-item suggestion."
+    ]
+  },
+  "required_authorities_before_write": [
+    {
+      "authority_id": "operator_promotion_decision",
+      "required": true,
+      "reason": "An operator must explicitly select the preview draft, candidate material, and write intent before any future promotion lane can write."
+    },
+    {
+      "authority_id": "durable_write_contract",
+      "required": true,
+      "reason": "A future write lane must define exact durable records, idempotency keys, and rollback behavior."
+    },
+    {
+      "authority_id": "source_evidence_authority_model",
+      "required": true,
+      "reason": "Source references and evidence candidates are unverified preview metadata in this lane."
+    },
+    {
+      "authority_id": "proof_evidence_write_authority",
+      "required": true,
+      "reason": "Evidence candidates are not proof or evidence records and cannot become records without separate authority."
+    },
+    {
+      "authority_id": "canonical_perspective_write_authority",
+      "required": true,
+      "reason": "Perspective/canonical graph writes require a separate authority contract and target selection."
+    },
+    {
+      "authority_id": "idempotency_and_rollback_contract",
+      "required": true,
+      "reason": "Actual writes must be repeat-safe and recoverable before a write path exists."
+    },
+    {
+      "authority_id": "review_audit_record_contract",
+      "required": true,
+      "reason": "Future write design needs explicit review/audit semantics; preview activity is not approval history."
+    }
+  ],
+  "blocked_side_effects": [
+    {
+      "side_effect_id": "proof_or_evidence_writes",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "perspective_or_canonical_writes",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "work_item_creation",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "provider_or_openai_calls",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "retrieval_or_rag",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "source_fetching",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "external_handoff_sending",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "browser_persistence",
+      "blocked": true,
+      "performed": false
+    },
+    {
+      "side_effect_id": "dry_run_plan_persistence",
+      "blocked": true,
+      "performed": false
+    }
+  ],
+  "operator_next_steps": [
+    "Review warning gates and unresolved candidate context before any future design lane.",
+    "Confirm source references remain unfetched and unverified.",
+    "Decide whether a separate authority-gated write design is warranted."
+  ],
+  "local_copy_packet": {
+    "markdown": "# Research Candidate Preview Draft No-Write Promotion Dry-Run Plan\n\nThis is not promotion.\nNo proof/evidence, Perspective, canonical graph, or work item writes are performed.\nSource references are not fetched or verified.\nProvider/retrieval is not used.",
+    "json": "{\"dry_run_plan_version\":\"manual_note_promotion_dry_run_plan.v0.1\",\"dry_run_status\":\"needs_operator_review\",\"actual_promotion_allowed\":false,\"promotion_authority_granted\":false}",
+    "boundary": {
+      "local_clipboard_only": true,
+      "external_handoff_sent": false,
+      "dry_run_plan_persisted": false,
+      "promotion_authority_granted": false,
+      "actual_promotion_allowed": false
+    }
+  },
+  "authority": {
+    "dry_run_only": true,
+    "no_write_plan_only": true,
+    "readiness_is_not_promotion_authority": true,
+    "ready_for_promotion_discussion_is_not_write_authority": true,
+    "actual_promotion_allowed": false,
+    "promotion_authority_granted": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_perspective_write": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "dry_run_plan_persisted": false,
+    "browser_persistence": false
+  },
+  "runtime_boundary": {
+    "route": "/api/research-candidate-review/manual-note-preview-drafts/research-candidate-preview-draft%3A00000000-0000-4000-8000-000000000001/promotion-dry-run-plan",
+    "runtime_version": "manual_research_candidate_runtime_preview.v0.1",
+    "source_kind": "stored_manual_paste_preview_draft",
+    "dry_run_actions": "build_no_write_promotion_plan_only",
+    "dry_run_only": true,
+    "dry_run_plan_persisted": false,
+    "readiness_is_not_promotion_authority": true,
+    "ready_for_promotion_discussion_is_not_write_authority": true,
+    "raw_manual_note_text_persisted": false,
+    "raw_manual_note_text_returned": false,
+    "proof_or_evidence_writes": false,
+    "canonical_perspective_write": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "approval_workflow_created": false,
+    "publication_workflow_created": false,
+    "promotion_workflow_created": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sending": false,
+    "browser_persistence": false
+  },
+  "no_side_effects": {
+    "provider_or_openai_calls_absent": true,
+    "retrieval_or_source_fetching_absent": true,
+    "proof_or_evidence_writes_absent": true,
+    "work_item_creation_absent": true,
+    "promotion_workflow_absent": true,
+    "codex_execution_absent": true,
+    "external_handoff_absent": true,
+    "canonical_perspective_write_absent": true
+  }
+}

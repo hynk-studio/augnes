@@ -390,6 +390,235 @@ export type ManualNotePreviewDraftPromotionReadinessRuntimeBoundary = {
   browser_persistence: false;
 };
 
+export type ManualNotePreviewDraftPromotionDryRunStatus =
+  | "blocked"
+  | "needs_operator_review"
+  | "plan_ready";
+
+export type ManualNotePreviewDraftPromotionDryRunSelectedDraft = {
+  preview_draft_id: string;
+  operator_note_label: string | null;
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  parser_version: string;
+  preview_version: string;
+  input_fingerprint: string;
+  warning_count: number;
+  candidate_count_summary: ManualNotePreviewDraftCandidateCountSummary;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunReadinessSnapshot = {
+  readiness_status: ManualNotePreviewDraftPromotionReadinessStatus;
+  readiness_score: number;
+  blocker_count: number;
+  warning_count: number;
+  gate_count: number;
+  blocking_gate_ids: ManualNotePreviewDraftPromotionReadinessGateId[];
+  warning_gate_ids: ManualNotePreviewDraftPromotionReadinessGateId[];
+  pass_gate_ids: ManualNotePreviewDraftPromotionReadinessGateId[];
+};
+
+export type ManualNotePreviewDraftPromotionDryRunBoundaryAuditSnapshot = {
+  audit_kind: string;
+  audit_version: string;
+  readiness_is_not_promotion_authority: true;
+  ready_for_promotion_discussion_is_not_write_authority: true;
+  actual_promotion_allowed: false;
+  dry_run_promotion_allowed_by_this_audit: false;
+  next_recommended_slice: string;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunSourceReferenceTarget = {
+  source_ref_id: string;
+  title: string;
+  identifier_or_url: string;
+  source_status: string;
+  boundary_notes: string;
+  target_status: "unverified_source_metadata_only";
+  source_fetched_or_verified: false;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunClaimTarget = {
+  claim_candidate_id: string;
+  claim_text: string;
+  claim_type: string;
+  confidence_label: string;
+  target_status: "candidate_claim_no_write";
+  needs_operator_selection: true;
+  canonical_claim_id: null;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunEvidenceTarget = {
+  evidence_candidate_id: string;
+  claim_candidate_id: string;
+  evidence_summary: string;
+  evidence_role: string;
+  target_status: "candidate_evidence_no_write";
+  requires_proof_evidence_authority: true;
+  proof_id: null;
+  evidence_id: null;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunTensionGapTarget = {
+  target_id: string;
+  target_kind: "tension" | "knowledge_gap";
+  summary: string;
+  target_status: "unresolved_non_canonical";
+  canonical_record_id: null;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunPerspectiveDeltaTarget = {
+  perspective_delta_candidate_id: string;
+  target_perspective_key: string;
+  delta_type: string;
+  proposed_update_summary: string;
+  target_status: "candidate_perspective_delta_no_write";
+  perspective_id: null;
+  canonical_graph_edge_id: null;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunFollowUpWorkTarget = {
+  follow_up_work_candidate_id: string;
+  candidate_title: string;
+  candidate_summary: string;
+  target_status: "not_work_item";
+  requires_separate_work_item_lane: true;
+  work_item_id: null;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunHypotheticalTargets = {
+  source_reference_targets: ManualNotePreviewDraftPromotionDryRunSourceReferenceTarget[];
+  claim_targets: ManualNotePreviewDraftPromotionDryRunClaimTarget[];
+  evidence_targets: ManualNotePreviewDraftPromotionDryRunEvidenceTarget[];
+  tension_gap_targets: ManualNotePreviewDraftPromotionDryRunTensionGapTarget[];
+  perspective_delta_targets: ManualNotePreviewDraftPromotionDryRunPerspectiveDeltaTarget[];
+  follow_up_work_targets: ManualNotePreviewDraftPromotionDryRunFollowUpWorkTarget[];
+};
+
+export type ManualNotePreviewDraftPromotionDryRunProposedCanonicalDeltas = {
+  hypothetical_only: true;
+  no_canonical_ids: true;
+  no_proof_ids: true;
+  no_evidence_ids: true;
+  no_work_item_ids: true;
+  no_db_write_refs: true;
+  source_reference_delta_count: number;
+  claim_delta_count: number;
+  evidence_delta_count: number;
+  perspective_delta_count: number;
+  follow_up_work_delta_count: number;
+  delta_summaries: string[];
+};
+
+export type ManualNotePreviewDraftPromotionDryRunRequiredAuthority = {
+  authority_id:
+    | "operator_promotion_decision"
+    | "durable_write_contract"
+    | "source_evidence_authority_model"
+    | "proof_evidence_write_authority"
+    | "canonical_perspective_write_authority"
+    | "idempotency_and_rollback_contract"
+    | "review_audit_record_contract";
+  required: true;
+  reason: string;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunBlockedSideEffect = {
+  side_effect_id:
+    | "proof_or_evidence_writes"
+    | "perspective_or_canonical_writes"
+    | "work_item_creation"
+    | "provider_or_openai_calls"
+    | "retrieval_or_rag"
+    | "source_fetching"
+    | "external_handoff_sending"
+    | "browser_persistence"
+    | "dry_run_plan_persistence";
+  blocked: true;
+  performed: false;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunAuthority = {
+  dry_run_only: true;
+  no_write_plan_only: true;
+  readiness_is_not_promotion_authority: true;
+  ready_for_promotion_discussion_is_not_write_authority: true;
+  actual_promotion_allowed: false;
+  promotion_authority_granted: false;
+  proof_or_evidence_writes: false;
+  perspective_or_canonical_writes: false;
+  canonical_perspective_write: false;
+  canonical_graph_write: false;
+  work_item_creation: false;
+  provider_or_openai_calls: false;
+  retrieval_or_rag: false;
+  source_fetching: false;
+  external_handoff_sent: false;
+  dry_run_plan_persisted: false;
+  browser_persistence: false;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunCopyBoundary = {
+  local_clipboard_only: true;
+  external_handoff_sent: false;
+  dry_run_plan_persisted: false;
+  promotion_authority_granted: false;
+  actual_promotion_allowed: false;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunLocalCopyPacket = {
+  markdown: string;
+  json: string;
+  boundary: ManualNotePreviewDraftPromotionDryRunCopyBoundary;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunRuntimeBoundary = {
+  route: string;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  source_kind: "stored_manual_paste_preview_draft";
+  dry_run_actions: "build_no_write_promotion_plan_only";
+  dry_run_only: true;
+  dry_run_plan_persisted: false;
+  readiness_is_not_promotion_authority: true;
+  ready_for_promotion_discussion_is_not_write_authority: true;
+  raw_manual_note_text_persisted: false;
+  raw_manual_note_text_returned: false;
+  proof_or_evidence_writes: false;
+  canonical_perspective_write: false;
+  canonical_graph_write: false;
+  work_item_creation: false;
+  approval_workflow_created: false;
+  publication_workflow_created: false;
+  promotion_workflow_created: false;
+  provider_or_openai_calls: false;
+  retrieval_or_rag: false;
+  source_fetching: false;
+  external_handoff_sending: false;
+  browser_persistence: false;
+};
+
+export type ManualNotePreviewDraftPromotionDryRunPlanOkResponse = {
+  ok: true;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  preview_draft_id: string;
+  dry_run_plan_version: "manual_note_promotion_dry_run_plan.v0.1";
+  dry_run_status: ManualNotePreviewDraftPromotionDryRunStatus;
+  dry_run_summary: string;
+  selected_preview_draft: ManualNotePreviewDraftPromotionDryRunSelectedDraft;
+  readiness_snapshot: ManualNotePreviewDraftPromotionDryRunReadinessSnapshot;
+  boundary_audit_snapshot: ManualNotePreviewDraftPromotionDryRunBoundaryAuditSnapshot;
+  hypothetical_targets: ManualNotePreviewDraftPromotionDryRunHypotheticalTargets;
+  proposed_canonical_deltas: ManualNotePreviewDraftPromotionDryRunProposedCanonicalDeltas;
+  required_authorities_before_write: ManualNotePreviewDraftPromotionDryRunRequiredAuthority[];
+  blocked_side_effects: ManualNotePreviewDraftPromotionDryRunBlockedSideEffect[];
+  operator_next_steps: string[];
+  local_copy_packet: ManualNotePreviewDraftPromotionDryRunLocalCopyPacket;
+  authority: ManualNotePreviewDraftPromotionDryRunAuthority;
+  runtime_boundary: ManualNotePreviewDraftPromotionDryRunRuntimeBoundary;
+  no_side_effects: ManualNotePreviewNoSideEffects;
+};
+
 export type ManualNotePreviewDraftReadinessCopyPacketKind =
   typeof MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND;
 
@@ -640,7 +869,8 @@ export type ManualNotePreviewDraftRuntimeErrorResponse = {
     | ManualNotePreviewDraftLifecycleRuntimeBoundary
     | ManualNotePreviewDraftLabelRuntimeBoundary
     | ManualNotePreviewDraftActivityRuntimeBoundary
-    | ManualNotePreviewDraftPromotionReadinessRuntimeBoundary;
+    | ManualNotePreviewDraftPromotionReadinessRuntimeBoundary
+    | ManualNotePreviewDraftPromotionDryRunRuntimeBoundary;
 };
 
 export type ManualNotePreviewDraftListResponse =
@@ -665,6 +895,10 @@ export type ManualNotePreviewDraftActivityResponse =
 
 export type ManualNotePreviewDraftPromotionReadinessResponse =
   | ManualNotePreviewDraftPromotionReadinessOkResponse
+  | ManualNotePreviewDraftRuntimeErrorResponse;
+
+export type ManualNotePreviewDraftPromotionDryRunPlanResponse =
+  | ManualNotePreviewDraftPromotionDryRunPlanOkResponse
   | ManualNotePreviewDraftRuntimeErrorResponse;
 
 export type ManualNotePreviewRuntimeRequest = {
@@ -749,6 +983,12 @@ export function buildManualNotePreviewDraftPromotionReadinessRoute(
   previewDraftId: string,
 ) {
   return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/promotion-readiness`;
+}
+
+export function buildManualNotePreviewDraftPromotionDryRunPlanRoute(
+  previewDraftId: string,
+) {
+  return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/promotion-dry-run-plan`;
 }
 
 export function buildManualNotePreviewRuntimeBoundary({
