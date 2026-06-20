@@ -20,6 +20,18 @@ const activityReadoutPath =
   "components/research-candidate-preview-draft-activity-readout.tsx";
 const metadataReadoutPath =
   "components/research-candidate-preview-draft-metadata-readout.tsx";
+const formatHintPath =
+  "components/research-candidate-manual-note-format-hint.tsx";
+const resultSummaryPath =
+  "components/research-candidate-manual-note-result-summary.tsx";
+const warningDisplayPath =
+  "components/research-candidate-manual-note-warning-display.tsx";
+const sourceReferenceListPath =
+  "components/research-candidate-manual-note-source-reference-list.tsx";
+const candidateFamilyListsPath =
+  "components/research-candidate-manual-note-candidate-family-lists.tsx";
+const authorityFlagsPath =
+  "components/research-candidate-manual-note-authority-flags.tsx";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const smokePath =
@@ -36,6 +48,12 @@ for (const filePath of [
   labelControlsPath,
   activityReadoutPath,
   metadataReadoutPath,
+  formatHintPath,
+  resultSummaryPath,
+  warningDisplayPath,
+  sourceReferenceListPath,
+  candidateFamilyListsPath,
+  authorityFlagsPath,
   indexPath,
   packagePath,
   smokePath,
@@ -54,6 +72,12 @@ const draftUiComponent = [
   readFileSync(labelControlsPath, "utf8"),
   readFileSync(activityReadoutPath, "utf8"),
   readFileSync(metadataReadoutPath, "utf8"),
+  readFileSync(formatHintPath, "utf8"),
+  readFileSync(resultSummaryPath, "utf8"),
+  readFileSync(warningDisplayPath, "utf8"),
+  readFileSync(sourceReferenceListPath, "utf8"),
+  readFileSync(candidateFamilyListsPath, "utf8"),
+  readFileSync(authorityFlagsPath, "utf8"),
 ].join("\n");
 const component = `${manualPanelComponent}\n${draftUiComponent}`;
 

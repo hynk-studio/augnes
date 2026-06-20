@@ -1022,6 +1022,22 @@ repo-local 색인이다.
   startup/preflight/gate/copy/review/checklist UI, docs/package pointers, no
   browser persistence, no storage/schema/seed behavior, and forbidden action
   button absence.
+- Manual note candidate-family display extraction:
+  `components/research-candidate-manual-note-format-hint.tsx`,
+  `components/research-candidate-manual-note-result-summary.tsx`,
+  `components/research-candidate-manual-note-warning-display.tsx`,
+  `components/research-candidate-manual-note-source-reference-list.tsx`,
+  `components/research-candidate-manual-note-candidate-family-lists.tsx`, and
+  `components/research-candidate-manual-note-authority-flags.tsx` now hold the
+  format hint, parse/session summaries, parser warning displays, source refs,
+  candidate-family lists, and authority flag grids while the manual note panel
+  keeps active-result selection and runtime orchestration.
+- `npm run smoke:research-candidate-manual-note-candidate-display-extract-v0-1`:
+  `scripts/smoke-research-candidate-manual-note-candidate-display-extract-v0-1.mjs`
+  checks extracted candidate display components, manual panel import/render
+  wiring, absence of inline candidate display definitions, preserved draft/
+  readiness/copy/checklist UI, docs/package pointers, no browser persistence,
+  no storage/schema/seed behavior, and forbidden action button absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

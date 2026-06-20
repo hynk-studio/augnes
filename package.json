@@ -206,6 +206,7 @@
     "smoke:research-candidate-preview-draft-readiness-packet-review-workspace-v0-1": "node scripts/smoke-research-candidate-preview-draft-readiness-packet-review-workspace-v0-1.mjs",
     "smoke:research-candidate-preview-draft-local-checklist-and-extract-v0-1": "node scripts/smoke-research-candidate-preview-draft-local-checklist-and-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-draft-ui-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-draft-ui-extract-v0-1.mjs",
+    "smoke:research-candidate-manual-note-candidate-display-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-candidate-display-extract-v0-1.mjs",
     "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-surface-v0-1": "node scripts/smoke-research-candidate-review-surface-v0-1.mjs",
     "smoke:research-candidate-review-types-v0-1": "node scripts/smoke-research-candidate-review-types-v0-1.mjs",
