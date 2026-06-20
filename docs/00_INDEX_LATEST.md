@@ -871,6 +871,29 @@ repo-local 색인이다.
   seed/fix/promote action buttons, render hook placement, responsive CSS,
   package/index pointers, and preservation of the prior startup fallback and
   manual note preview smoke scripts.
+- Manual note preview draft promotion readiness preflight lane:
+  `GET /api/research-candidate-review/manual-note-preview-drafts/[preview_draft_id]/promotion-readiness`
+  runs a read-only Promotion readiness preflight for an opened stored manual
+  note preview draft. It reads the existing preview draft, discard marker, and
+  activity metadata, then returns `readiness_status` (`blocked`,
+  `needs_operator_review`, or `ready_for_promotion_discussion`),
+  `readiness_score`, gate results, blockers, warnings, next review steps,
+  source summary, candidate summary, lifecycle summary, runtime boundary, and
+  no-side-effects metadata. Gates cover lifecycle, storage boundary, authority,
+  parser warnings, source refs, claim/evidence candidates, tensions/gaps,
+  follow-up work, labels, activity, and canonical link guards. Ready for promotion discussion is not promotion authority.
+  The preflight does not
+  promote, approve, reject, defer, write proof/evidence, create work items,
+  mutate Perspective/canonical state, fetch sources, run retrieval/RAG, call
+  providers/OpenAI, execute Codex, send handoffs, store raw note text, use
+  browser persistence, or change schema.
+- `npm run smoke:research-candidate-preview-draft-promotion-readiness-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-promotion-readiness-v0-1.mjs`
+  checks the promotion readiness route, pure helper, readiness status values,
+  gate coverage, response boundary/no-side-effects contract, read-only route
+  and helper behavior, UI panel copy/actions, preserved startup/manual note
+  flows, CSS, package/index pointers, no browser persistence, and forbidden
+  provider/retrieval/proof/evidence/work/Codex/promotion action pattern absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

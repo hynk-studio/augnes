@@ -268,6 +268,93 @@ export type ManualNotePreviewDraftActivityRuntimeBoundary = {
   external_handoff_sending: false;
 };
 
+export type ManualNotePreviewDraftPromotionReadinessStatus =
+  | "blocked"
+  | "needs_operator_review"
+  | "ready_for_promotion_discussion";
+
+export type ManualNotePreviewDraftPromotionReadinessGateStatus =
+  | "pass"
+  | "warn"
+  | "block";
+
+export type ManualNotePreviewDraftPromotionReadinessGateId =
+  | "lifecycle_gate"
+  | "storage_boundary_gate"
+  | "authority_boundary_gate"
+  | "parser_warning_gate"
+  | "source_reference_gate"
+  | "claim_candidate_gate"
+  | "evidence_candidate_gate"
+  | "tension_gap_gate"
+  | "follow_up_work_gate"
+  | "label_metadata_gate"
+  | "activity_metadata_gate"
+  | "canonical_link_guard_gate";
+
+export type ManualNotePreviewDraftPromotionReadinessGateResult = {
+  gate_id: ManualNotePreviewDraftPromotionReadinessGateId;
+  label: string;
+  status: ManualNotePreviewDraftPromotionReadinessGateStatus;
+  summary: string;
+  detail: string;
+  evidence_fields: string[];
+  no_side_effects: true;
+};
+
+export type ManualNotePreviewDraftPromotionSourceSummary = {
+  source_ref_count: number;
+  source_titles: string[];
+  source_identifiers: string[];
+  source_statuses: string[];
+  source_boundary_notes: string[];
+};
+
+export type ManualNotePreviewDraftPromotionCandidateSummary =
+  ManualNotePreviewDraftCandidateCountSummary;
+
+export type ManualNotePreviewDraftPromotionReadinessAuthority = {
+  preflight_only: true;
+  readiness_is_not_promotion_authority: true;
+  preview_draft_metadata_only: true;
+  canonical_perspective_created: false;
+  proof_created: false;
+  evidence_created: false;
+  work_item_created: false;
+  approval_workflow_created: false;
+  publication_workflow_created: false;
+  promotion_workflow_created: false;
+  provider_calls: false;
+  retrieval: false;
+  source_fetching: false;
+  codex_execution: false;
+  external_handoff_sending: false;
+};
+
+export type ManualNotePreviewDraftPromotionReadinessRuntimeBoundary = {
+  route: string;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  source_kind: "stored_manual_paste_preview_draft";
+  preflight_actions: "read_promotion_readiness_only";
+  preflight_only: true;
+  readiness_is_not_promotion_authority: true;
+  raw_manual_note_text_persisted: false;
+  raw_manual_note_text_returned: false;
+  preview_draft_records_are_non_canonical: true;
+  canonical_perspective_write: false;
+  proof_or_evidence_writes: false;
+  work_item_creation: false;
+  approval_workflow_created: false;
+  publication_workflow_created: false;
+  promotion_workflow_created: false;
+  provider_or_openai_calls: false;
+  retrieval_or_rag: false;
+  source_fetching: false;
+  codex_execution: false;
+  external_handoff_sending: false;
+  browser_persistence: false;
+};
+
 export type ManualNotePreviewDraftDiscardMetadata = {
   discard_id: string;
   preview_draft_id: string;
@@ -298,6 +385,11 @@ export type ManualNotePreviewDraftListItem = {
 
 export type ManualNotePreviewDraftDetailMetadata =
   ManualNotePreviewDraftListItem & {
+    promoted_at: string | null;
+    canonical_perspective_id: string | null;
+    proof_id: string | null;
+    evidence_id: string | null;
+    work_item_id: string | null;
     stored_authority: ManualNotePreviewRuntimeAuthority;
     stored_runtime_boundary: ManualNotePreviewRuntimeBoundary;
     stored_no_side_effects: ManualNotePreviewNoSideEffects;
@@ -383,6 +475,26 @@ export type ManualNotePreviewDraftActivityOkResponse = {
   no_side_effects: ManualNotePreviewNoSideEffects;
 };
 
+export type ManualNotePreviewDraftPromotionReadinessOkResponse = {
+  ok: true;
+  runtime_version: typeof MANUAL_NOTE_RUNTIME_VERSION;
+  preview_draft_id: string;
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  readiness_status: ManualNotePreviewDraftPromotionReadinessStatus;
+  readiness_score: number;
+  gate_results: ManualNotePreviewDraftPromotionReadinessGateResult[];
+  blockers: string[];
+  warnings: string[];
+  next_review_steps: string[];
+  source_summary: ManualNotePreviewDraftPromotionSourceSummary;
+  candidate_summary: ManualNotePreviewDraftPromotionCandidateSummary;
+  lifecycle_summary: ManualNotePreviewDraftLifecycleSummary;
+  authority: ManualNotePreviewDraftPromotionReadinessAuthority;
+  runtime_boundary: ManualNotePreviewDraftPromotionReadinessRuntimeBoundary;
+  no_side_effects: ManualNotePreviewNoSideEffects;
+  created_at: string;
+};
+
 export type ManualNotePreviewDraftRuntimeErrorResponse = {
   ok: false;
   error_code:
@@ -395,6 +507,7 @@ export type ManualNotePreviewDraftRuntimeErrorResponse = {
     | "invalid_warnings"
     | "invalid_candidates"
     | "invalid_preview_draft_id"
+    | "unsupported_scope"
     | "preview_draft_not_found"
     | "discard_reason_too_large"
     | "operator_note_label_too_large"
@@ -403,7 +516,8 @@ export type ManualNotePreviewDraftRuntimeErrorResponse = {
   runtime_boundary:
     | ManualNotePreviewDraftLifecycleRuntimeBoundary
     | ManualNotePreviewDraftLabelRuntimeBoundary
-    | ManualNotePreviewDraftActivityRuntimeBoundary;
+    | ManualNotePreviewDraftActivityRuntimeBoundary
+    | ManualNotePreviewDraftPromotionReadinessRuntimeBoundary;
 };
 
 export type ManualNotePreviewDraftListResponse =
@@ -424,6 +538,10 @@ export type ManualNotePreviewDraftLabelUpdateResponse =
 
 export type ManualNotePreviewDraftActivityResponse =
   | ManualNotePreviewDraftActivityOkResponse
+  | ManualNotePreviewDraftRuntimeErrorResponse;
+
+export type ManualNotePreviewDraftPromotionReadinessResponse =
+  | ManualNotePreviewDraftPromotionReadinessOkResponse
   | ManualNotePreviewDraftRuntimeErrorResponse;
 
 export type ManualNotePreviewRuntimeRequest = {
@@ -502,6 +620,12 @@ export function buildManualNotePreviewDraftLabelRoute(previewDraftId: string) {
 
 export function buildManualNotePreviewDraftActivityRoute(previewDraftId: string) {
   return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/activity`;
+}
+
+export function buildManualNotePreviewDraftPromotionReadinessRoute(
+  previewDraftId: string,
+) {
+  return `${buildManualNotePreviewDraftDetailRoute(previewDraftId)}/promotion-readiness`;
 }
 
 export function buildManualNotePreviewRuntimeBoundary({
@@ -677,6 +801,56 @@ export function buildManualNotePreviewDraftActivityBoundary({
     source_fetching: false,
     codex_execution: false,
     external_handoff_sending: false,
+  };
+}
+
+export function buildManualNotePreviewDraftPromotionReadinessAuthority(): ManualNotePreviewDraftPromotionReadinessAuthority {
+  return {
+    preflight_only: true,
+    readiness_is_not_promotion_authority: true,
+    preview_draft_metadata_only: true,
+    canonical_perspective_created: false,
+    proof_created: false,
+    evidence_created: false,
+    work_item_created: false,
+    approval_workflow_created: false,
+    publication_workflow_created: false,
+    promotion_workflow_created: false,
+    provider_calls: false,
+    retrieval: false,
+    source_fetching: false,
+    codex_execution: false,
+    external_handoff_sending: false,
+  };
+}
+
+export function buildManualNotePreviewDraftPromotionReadinessBoundary({
+  route,
+}: {
+  route: string;
+}): ManualNotePreviewDraftPromotionReadinessRuntimeBoundary {
+  return {
+    route,
+    runtime_version: MANUAL_NOTE_RUNTIME_VERSION,
+    source_kind: "stored_manual_paste_preview_draft",
+    preflight_actions: "read_promotion_readiness_only",
+    preflight_only: true,
+    readiness_is_not_promotion_authority: true,
+    raw_manual_note_text_persisted: false,
+    raw_manual_note_text_returned: false,
+    preview_draft_records_are_non_canonical: true,
+    canonical_perspective_write: false,
+    proof_or_evidence_writes: false,
+    work_item_creation: false,
+    approval_workflow_created: false,
+    publication_workflow_created: false,
+    promotion_workflow_created: false,
+    provider_or_openai_calls: false,
+    retrieval_or_rag: false,
+    source_fetching: false,
+    codex_execution: false,
+    external_handoff_sending: false,
+    browser_persistence: false,
   };
 }
 
