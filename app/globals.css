@@ -6107,6 +6107,127 @@ code {
   font-size: 0.82rem;
 }
 
+.manual-note-readiness-packet-review-workspace {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #d5e2ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.manual-note-readiness-packet-review-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.manual-note-readiness-packet-review-header h4,
+.manual-note-readiness-packet-review-header p {
+  margin: 0;
+}
+
+.manual-note-readiness-packet-review-header p {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.manual-note-readiness-packet-review-counts,
+.manual-note-readiness-packet-review-status-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.manual-note-readiness-packet-review-counts span,
+.manual-note-readiness-packet-review-status-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #43536a;
+  font-size: 0.78rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-packet-review-counts code,
+.manual-note-readiness-packet-review-status-row code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-packet-review-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-readiness-packet-review-controls fieldset,
+.manual-note-readiness-packet-review-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.manual-note-readiness-packet-review-controls legend,
+.manual-note-readiness-packet-review-sections legend {
+  padding: 0 4px;
+  color: #263142;
+  font-size: 0.82rem;
+  font-weight: 780;
+}
+
+.manual-note-readiness-packet-review-controls label,
+.manual-note-readiness-packet-review-sections label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  color: #263142;
+  font-size: 0.82rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-packet-review-controls input,
+.manual-note-readiness-packet-review-sections input {
+  flex: 0 0 auto;
+}
+
+.manual-note-readiness-packet-review-preview {
+  width: 100%;
+  min-height: 280px;
+  resize: vertical;
+  border: 1px solid #cfd8e5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfdff;
+  color: #1f2937;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.42;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+}
+
 .manual-note-readiness-copy-packet-fallback {
   min-width: 0;
 }
@@ -6455,6 +6576,10 @@ code {
   .manual-note-promotion-readiness-summary-grid,
   .manual-note-readiness-copy-packet-header,
   .manual-note-readiness-copy-packet-grid,
+  .manual-note-readiness-packet-review-header,
+  .manual-note-readiness-packet-review-controls,
+  .manual-note-readiness-packet-review-counts,
+  .manual-note-readiness-packet-review-status-row,
   .manual-note-gate-resolution-summary,
   .manual-note-gate-explanation-grid,
   .manual-note-gate-explanation-columns {

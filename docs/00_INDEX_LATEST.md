@@ -959,6 +959,27 @@ repo-local 색인이다.
   purity, UI freshness states, in-memory last-copied state, preserved copy
   packet/preflight/gate/startup/manual flows, docs/package pointers, and no
   browser persistence or forbidden action buttons.
+- Manual note preview draft readiness packet review workspace lane:
+  `lib/research-candidate-review/manual-note-preview-draft-readiness-copy-packet.ts`
+  now includes a pure readiness packet review workspace helper that derives
+  local read-only preview text from the current packet without fetching,
+  persisting, or changing the full copy packet. The Cockpit/Perspective
+  Readiness copy packet panel includes Packet review workspace controls for
+  Markdown / JSON format, Summary / Full detail, All / Block / Warning / Pass
+  gate filtering, section visibility, visible section/gate counts, and
+  preview character count. Review controls are local UI state only, and
+  filtering review preview does not change the full packet, and no packet is stored, sent, shared, or persisted. The lane adds no download/file export, browser
+  persistence, packet history persistence, proof/evidence write, Perspective
+  promotion, work item creation, provider/retrieval/source fetching, Codex
+  execution, external handoff, schema change, or raw manual note text storage.
+- `npm run smoke:research-candidate-preview-draft-readiness-packet-review-workspace-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-readiness-packet-review-workspace-v0-1.mjs`
+  checks the review preview helper, Packet review workspace UI, Markdown/JSON
+  controls, Summary/Full controls, All/Block/Warning/Pass filter controls,
+  section visibility controls, visible section/gate counts, preview character
+  count, read-only preview area, local-only boundary copy, preserved copy/
+  freshness/preflight/gate/startup flows, docs/package pointers, no browser
+  persistence, no download/file export, and no forbidden action buttons.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

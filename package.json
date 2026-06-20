@@ -203,6 +203,7 @@
     "smoke:research-candidate-preview-draft-gate-explanations-v0-1": "node scripts/smoke-research-candidate-preview-draft-gate-explanations-v0-1.mjs",
     "smoke:research-candidate-preview-draft-readiness-copy-packet-v0-1": "node scripts/smoke-research-candidate-preview-draft-readiness-copy-packet-v0-1.mjs",
     "smoke:research-candidate-preview-draft-readiness-copy-packet-staleness-v0-1": "node scripts/smoke-research-candidate-preview-draft-readiness-copy-packet-staleness-v0-1.mjs",
+    "smoke:research-candidate-preview-draft-readiness-packet-review-workspace-v0-1": "node scripts/smoke-research-candidate-preview-draft-readiness-packet-review-workspace-v0-1.mjs",
     "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-surface-v0-1": "node scripts/smoke-research-candidate-review-surface-v0-1.mjs",
     "smoke:research-candidate-review-types-v0-1": "node scripts/smoke-research-candidate-review-types-v0-1.mjs",
