@@ -1,5 +1,6 @@
 "use client";
 
+import { CockpitStartupReadinessReadout } from "@/components/cockpit-startup-readiness-readout";
 import { parseManualResearchNoteToPreview } from "@/lib/research-candidate-review/manual-note-parser";
 import type {
   ManualResearchNoteParserResult,
@@ -919,6 +920,8 @@ export function ResearchCandidateManualNotePreviewPanel() {
           ))}
         </ul>
       </section>
+
+      <CockpitStartupReadinessReadout />
 
       <RecentPreviewDraftsPanel
         items={previewDraftItems}

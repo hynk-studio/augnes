@@ -5855,6 +5855,108 @@ code {
   white-space: normal;
 }
 
+.cockpit-startup-readiness {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cockpit-startup-readiness-header,
+.cockpit-startup-readiness-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.cockpit-startup-readiness-header h3,
+.cockpit-startup-readiness-header p {
+  margin: 0;
+}
+
+.cockpit-startup-readiness-header button {
+  flex: 0 1 min(170px, 100%);
+  max-width: 100%;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.cockpit-startup-readiness-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.cockpit-startup-readiness-counts span {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(13, 79, 62, 0.16);
+  border-radius: 8px;
+  background: #f6fbf8;
+  color: #1f2937;
+  font-size: 0.84rem;
+  font-weight: 720;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.cockpit-startup-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.cockpit-startup-readiness-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cockpit-startup-readiness-card-header > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cockpit-startup-readiness-card-header strong {
+  color: #111827;
+  font-size: 0.96rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.cockpit-startup-readiness-card-header code {
+  color: #4b5563;
+  font-size: 0.78rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.startup-readiness-status {
+  border-color: rgba(13, 79, 62, 0.18);
+  background: #f6fbf8;
+}
+
+.startup-readiness-status-empty_runtime {
+  border-color: rgba(165, 102, 24, 0.24);
+  background: #fff7e8;
+}
+
+.startup-readiness-status-validation_bounded {
+  border-color: rgba(37, 99, 235, 0.2);
+  background: #eff6ff;
+}
+
+.startup-readiness-status-unavailable {
+  border-color: rgba(127, 29, 29, 0.2);
+  background: #fef2f2;
+}
+
 @media (max-width: 480px) {
   #research-candidate-manual-note-preview-panel .manual-note-input-header {
     display: grid;
@@ -5890,9 +5992,16 @@ code {
   .manual-note-preview-drafts-actions button,
   .manual-note-preview-draft-controls button,
   .manual-note-preview-draft-label-actions button,
-  .manual-note-preview-draft-activity-header button {
+  .manual-note-preview-draft-activity-header button,
+  .cockpit-startup-readiness-header button {
     width: 100%;
     min-width: 0;
+  }
+
+  .cockpit-startup-readiness-header,
+  .cockpit-startup-readiness-card-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

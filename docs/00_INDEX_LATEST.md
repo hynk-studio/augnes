@@ -850,6 +850,27 @@ repo-local 색인이다.
   behavior, unexpected-error rethrow guard, package/index pointers, and
   forbidden write/provider/retrieval/proof/evidence/work/promotion/browser-
   persistence pattern absence.
+- Cockpit startup readiness readout lane:
+  `components/cockpit-startup-readiness-readout.tsx` renders a read-only
+  Startup readiness panel in Cockpit/Perspective near the manual note preview
+  lane. It checks the state brief/snapshot/trajectory, work, proposal,
+  publication summary, approval gate summary, and manual note preview draft
+  list routes with same-origin `GET` requests only, then classifies each surface
+  as `initialized`, `empty_runtime`, `validation_bounded`, or `unavailable`.
+  The panel shows counts, `last_checked_at`, per-surface route/status/HTTP
+  status, `fallback_reason`, `missing_tables`, and concise notes. Readiness is informational only.
+  Controlled empty-runtime means the local DB may not be initialized for that surface.
+  The panel does not run setup, migration, seed,
+  proof/evidence, work item, promotion, provider/OpenAI, retrieval/source
+  fetching, Codex execution, external handoff, browser persistence, or
+  canonical Perspective actions.
+- `npm run smoke:cockpit-startup-readiness-readout-v0-1`:
+  `scripts/smoke-cockpit-startup-readiness-readout-v0-1.mjs` checks the
+  readiness component route list, classification logic, fallback metadata
+  display, counts/copy, same-origin GET-only boundary, absence of setup/migrate/
+  seed/fix/promote action buttons, render hook placement, responsive CSS,
+  package/index pointers, and preservation of the prior startup fallback and
+  manual note preview smoke scripts.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
