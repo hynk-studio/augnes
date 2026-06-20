@@ -209,6 +209,8 @@
     "smoke:research-candidate-promotion-dry-run-plan-v0-1": "node scripts/smoke-research-candidate-promotion-dry-run-plan-v0-1.mjs",
     "smoke:research-candidate-dry-run-candidate-review-design-v0-1": "node scripts/smoke-research-candidate-dry-run-candidate-review-design-v0-1.mjs",
     "smoke:research-candidate-disabled-promotion-write-adapter-v0-1": "node scripts/smoke-research-candidate-disabled-promotion-write-adapter-v0-1.mjs",
+    "smoke:research-candidate-disabled-adapter-temp-harness-v0-1": "node scripts/smoke-research-candidate-disabled-adapter-temp-harness-v0-1.mjs",
+    "harness:research-candidate-disabled-adapter-temp-harness-v0-1": "node scripts/run-research-candidate-disabled-adapter-temp-harness-v0-1.mjs",
     "smoke:research-candidate-manual-note-draft-ui-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-draft-ui-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-candidate-display-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-candidate-display-extract-v0-1.mjs",
     "smoke:research-candidate-promotion-readiness-readout-extract-v0-1": "node scripts/smoke-research-candidate-promotion-readiness-readout-extract-v0-1.mjs",

@@ -1,5 +1,6 @@
 "use client";
 
+import { DisabledAdapterTempHarnessReadout } from "@/components/research-candidate-disabled-adapter-temp-harness-readout";
 import type {
   ManualNoteAuthorityGatedPromotionDesignPacket,
 } from "@/lib/research-candidate-review/manual-note-dry-run-candidate-review-and-authority-design";
@@ -336,6 +337,8 @@ export function DisabledPromotionWriteAdapterReadout({
             title="Local copy boundary"
             values={currentReadiness.local_copy_packet}
           />
+
+          <DisabledAdapterTempHarnessReadout readiness={currentReadiness} />
         </>
       ) : (
         <p className="manual-note-runtime-hint">

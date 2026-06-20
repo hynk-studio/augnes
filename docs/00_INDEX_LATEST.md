@@ -945,6 +945,22 @@ repo-local 색인이다.
   handoff, no adapter readiness persistence, no schema/migration code, and no
   dependency. Browser-backed validation uses the best available method in the
   environment, not a Playwright-only assumption.
+- Manual note disabled adapter contract review and temp harness:
+  `lib/research-candidate-review/manual-note-disabled-adapter-contract-review-and-temp-harness.ts`,
+  `components/research-candidate-disabled-adapter-temp-harness-readout.tsx`,
+  `fixtures/research-candidate-review.manual-note-disabled-adapter-contract-review.sample.v0.1.json`,
+  `fixtures/research-candidate-review.manual-note-disabled-adapter-temp-harness.sample.v0.1.json`,
+  `npm run smoke:research-candidate-disabled-adapter-temp-harness-v0-1`,
+  and `npm run harness:research-candidate-disabled-adapter-temp-harness-v0-1`
+  add local-only disabled adapter contract review, a temp/non-product execution
+  harness, operator-visible temp harness readout, local clipboard only copy,
+  and optional `/tmp/augnes-disabled-adapter-temp-harness-v0-1` artifacts.
+  This adds no new route, no normal product write, no actual promotion, no
+  proof/evidence write, no Perspective/canonical graph write, no work item, no
+  provider/retrieval/source fetch, no external handoff, no durable persistence,
+  no schema/migration code, and no dependency. Browser-backed validation uses
+  the best available method in the environment, not a Playwright-only
+  assumption.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
