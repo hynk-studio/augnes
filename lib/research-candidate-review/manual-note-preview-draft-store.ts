@@ -48,11 +48,11 @@ export type ResearchCandidateManualNotePreviewDraftRecord = {
   authority_json: ManualNotePreviewRuntimeAuthority;
   runtime_boundary_json: ManualNotePreviewRuntimeBoundary;
   no_side_effects_json: ManualNotePreviewNoSideEffects;
-  promoted_at: null;
-  canonical_perspective_id: null;
-  proof_id: null;
-  evidence_id: null;
-  work_item_id: null;
+  promoted_at: string | null;
+  canonical_perspective_id: string | null;
+  proof_id: string | null;
+  evidence_id: string | null;
+  work_item_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -1049,6 +1049,11 @@ function parseResearchCandidateManualNotePreviewDraftDetail(
   return {
     draft: {
       ...parseResearchCandidateManualNotePreviewDraftListItem(row),
+      promoted_at: draft.promoted_at,
+      canonical_perspective_id: draft.canonical_perspective_id,
+      proof_id: draft.proof_id,
+      evidence_id: draft.evidence_id,
+      work_item_id: draft.work_item_id,
       stored_authority: draft.authority_json,
       stored_runtime_boundary: draft.runtime_boundary_json,
       stored_no_side_effects: draft.no_side_effects_json,
