@@ -903,6 +903,22 @@ repo-local 색인이다.
   authority, no route, no UI, no write authority, no proof/evidence, no
   Perspective/canonical graph write, no provider/retrieval/source fetch, no
   work item, no schema/migration code, and no dependency.
+- Manual note no-write promotion dry-run plan lane:
+  `lib/research-candidate-review/manual-note-preview-draft-promotion-dry-run-plan.ts`,
+  `GET /api/research-candidate-review/manual-note-preview-drafts/[preview_draft_id]/promotion-dry-run-plan`,
+  `components/research-candidate-promotion-dry-run-plan-readout.tsx`,
+  `fixtures/research-candidate-review.manual-note-promotion-dry-run-plan.sample.v0.1.json`,
+  and `npm run smoke:research-candidate-promotion-dry-run-plan-v0-1`
+  add selected preview draft -> no-write promotion plan coverage with an
+  operator-visible Cockpit readout and local clipboard only Markdown/JSON copy.
+  The route reads the selected stored preview draft, activity metadata,
+  promotion readiness preflight, and boundary audit to produce hypothetical
+  targets, proposed canonical deltas marked hypothetical only, required future
+  write authorities, blocked side effects, runtime boundary, and no-side-effect
+  metadata. It adds no actual promotion, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, no dry-run plan persistence, no schema/migration
+  code, and no dependency.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

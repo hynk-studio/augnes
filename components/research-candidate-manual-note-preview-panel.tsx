@@ -26,6 +26,7 @@ import {
   RuntimeBoundarySummary,
   RuntimeMetadataSummary,
 } from "@/components/research-candidate-preview-draft-metadata-readout";
+import { PromotionDryRunPlanReadout } from "@/components/research-candidate-promotion-dry-run-plan-readout";
 import { PromotionReadinessPreflightReadout } from "@/components/research-candidate-promotion-readiness-preflight-readout";
 import { useResearchCandidateManualNotePreviewRuntime } from "@/components/use-research-candidate-manual-note-preview-runtime";
 import { parseManualResearchNoteToPreview } from "@/lib/research-candidate-review/manual-note-parser";
@@ -150,6 +151,11 @@ export function ResearchCandidateManualNotePreviewPanel() {
     promotionReadinessPreflightError,
     loadingPromotionReadinessPreflightId,
   } = manualNoteRuntime.preflightState;
+  const {
+    promotionDryRunPlan,
+    promotionDryRunPlanError,
+    loadingPromotionDryRunPlanId,
+  } = manualNoteRuntime.dryRunPlanState;
 
   const inputHasText = manualNoteText.trim().length > 0;
   const operatorPreviewLabelLength = operatorPreviewLabel.trim().length;
@@ -456,6 +462,17 @@ export function ResearchCandidateManualNotePreviewPanel() {
             error={promotionReadinessPreflightError}
             onLoad={(previewDraftId) =>
               void manualNoteRuntime.actions.loadPromotionReadinessPreflight(
+                previewDraftId,
+              )
+            }
+          />
+          <PromotionDryRunPlanReadout
+            storedDraftResult={displayResult.storedDraftResult}
+            dryRunPlanResult={promotionDryRunPlan}
+            isLoadingDraftId={loadingPromotionDryRunPlanId}
+            error={promotionDryRunPlanError}
+            onLoad={(previewDraftId) =>
+              void manualNoteRuntime.actions.loadPromotionDryRunPlan(
                 previewDraftId,
               )
             }

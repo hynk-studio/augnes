@@ -115,6 +115,7 @@ function createInitialReport() {
     local_parse_api_request_assertion_result: null,
     request_classification_self_check_result: null,
     runtime_route_assertion_result: null,
+    dry_run_plan_assertion_result: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -383,6 +384,59 @@ async function validateOperatorFlow(page) {
     );
   });
 
+  await runPhase("run_dry_run_plan_a", "Generate no-write dry-run plan A", async () => {
+    const response = await clickAndWaitForManualNoteResponse({
+      method: "GET",
+      routeKind: "dry_run_plan",
+      action: () =>
+        panel
+          .getByRole("button", { name: "Generate no-write dry-run plan" })
+          .click(),
+    });
+    const body = await safeResponseJson(response);
+    await waitForText(panel, "dry_run_status");
+    await waitForText(panel, "This is not promotion.");
+    await waitForText(panel, "Blocked side effects");
+    await panel.getByRole("button", { name: "Copy Markdown dry-run plan" }).click();
+    const fallbackVisible = await panel
+      .locator(".manual-note-readiness-copy-packet-fallback")
+      .isVisible()
+      .catch(() => false);
+    const successTextVisible = await panel
+      .getByText("Markdown dry-run plan copied locally to clipboard.", {
+        exact: false,
+      })
+      .isVisible()
+      .catch(() => false);
+    report.dry_run_plan_assertion_result = {
+      passed:
+        response.status() === 200 &&
+        body?.ok === true &&
+        ["blocked", "needs_operator_review", "plan_ready"].includes(
+          body?.dry_run_status,
+        ) &&
+        body?.runtime_boundary?.dry_run_plan_persisted === false &&
+        body?.runtime_boundary?.proof_or_evidence_writes === false &&
+        body?.runtime_boundary?.canonical_graph_write === false &&
+        body?.runtime_boundary?.work_item_creation === false &&
+        body?.runtime_boundary?.provider_or_openai_calls === false &&
+        body?.runtime_boundary?.retrieval_or_rag === false &&
+        body?.runtime_boundary?.source_fetching === false &&
+        (fallbackVisible || successTextVisible),
+      status: response.status(),
+      dry_run_status: body?.dry_run_status ?? null,
+      copy_fallback_visible: fallbackVisible,
+      copy_success_visible: successTextVisible,
+      runtime_boundary: body?.runtime_boundary ?? null,
+    };
+    recordAssertion(
+      "promotion_dry_run_plan_a",
+      report.dry_run_plan_assertion_result.passed,
+      "Draft A no-write promotion dry-run plan loaded via same-origin route and local Markdown copy/fallback worked.",
+      report.dry_run_plan_assertion_result,
+    );
+  });
+
   await runPhase("copy_packet_a", "Generate/copy readiness packet A", async () => {
     await waitForText(panel, "Packet freshness status");
     await waitForText(panel, "No packet copied yet");
@@ -451,6 +505,25 @@ async function validateOperatorFlow(page) {
     expectedVisibleText: "Stale",
   });
   await waitForText(panel, "Copy a fresh packet before using it for review.");
+
+  await runPhase("dry_run_plan_cleared_after_label_change_a", "Confirm label change clears dry-run plan A", async () => {
+    const dryRunSection = panel.locator(".manual-note-promotion-dry-run-plan");
+    await assertVisible(dryRunSection, "dry_run_plan_section_still_visible_after_label_change", "Dry-run readout shell remains visible after label change.");
+    const generateVisible = await dryRunSection
+      .getByRole("button", { name: "Generate no-write dry-run plan" })
+      .isVisible()
+      .catch(() => false);
+    const statusVisible = await dryRunSection
+      .getByText("dry_run_status", { exact: false })
+      .isVisible()
+      .catch(() => false);
+    recordAssertion(
+      "dry_run_plan_cleared_after_label_change_a",
+      generateVisible && !statusVisible,
+      "Label save/clear on the current draft cleared the previously generated dry-run plan.",
+      { generate_visible: generateVisible, dry_run_status_visible: statusVisible },
+    );
+  });
 
   let discardedPreflight = null;
   await runPhase("discard_draft_a", "Discard draft A and confirm preflight blocks", async () => {
@@ -558,6 +631,31 @@ async function validateOperatorFlow(page) {
     );
   });
 
+  await runPhase("run_dry_run_plan_b", "Generate no-write dry-run plan B", async () => {
+    const response = await clickAndWaitForManualNoteResponse({
+      method: "GET",
+      routeKind: "dry_run_plan",
+      action: () =>
+        panel
+          .getByRole("button", { name: "Generate no-write dry-run plan" })
+          .click(),
+    });
+    const body = await safeResponseJson(response);
+    await waitForText(panel, "dry_run_status");
+    recordAssertion(
+      "promotion_dry_run_plan_b",
+      response.status() === 200 &&
+        body?.ok === true &&
+        body.preview_draft_id === createB.preview_draft_id,
+      "Draft B dry-run plan loaded independently after draft switch.",
+      {
+        status: response.status(),
+        preview_draft_id: body?.preview_draft_id ?? null,
+        draft_b_id: createB.preview_draft_id,
+      },
+    );
+  });
+
   await runPhase("clear_runtime_result", "Clear runtime result state", async () => {
     const card = getDraftCard(panel, "Validation draft B");
     await card.getByRole("button", { name: "Discard preview draft" }).click();
@@ -568,6 +666,7 @@ async function validateOperatorFlow(page) {
     const stillVisible = await anyVisible(panel, [
       ".manual-note-preview-draft-activity",
       ".manual-note-promotion-readiness",
+      ".manual-note-promotion-dry-run-plan",
       ".manual-note-readiness-copy-packet",
       ".manual-note-preview-draft-label-edit",
     ]);
@@ -602,6 +701,7 @@ async function validateOperatorFlow(page) {
     const runtimeSurfaceVisible = await anyVisible(panel, [
       ".manual-note-preview-draft-activity",
       ".manual-note-promotion-readiness",
+      ".manual-note-promotion-dry-run-plan",
       ".manual-note-readiness-copy-packet",
     ]);
     recordAssertion(
@@ -793,6 +893,15 @@ async function assertTwoDraftStateDidNotLeak(panel, { draftAId, draftBId }) {
     .locator(".manual-note-readiness-copy-packet")
     .isVisible()
     .catch(() => false);
+  const generateDryRunVisible = await panel
+    .getByRole("button", { name: "Generate no-write dry-run plan" })
+    .isVisible()
+    .catch(() => false);
+  const dryRunStatusVisible = await panel
+    .locator(".manual-note-promotion-dry-run-plan")
+    .getByText("dry_run_status", { exact: false })
+    .isVisible()
+    .catch(() => false);
   const result = {
     passed:
       Boolean(draftAId) &&
@@ -802,7 +911,9 @@ async function assertTwoDraftStateDidNotLeak(panel, { draftAId, draftBId }) {
       !refreshActivityVisible &&
       runPreflightVisible &&
       !refreshPreflightVisible &&
-      !copyPacketVisible,
+      !copyPacketVisible &&
+      generateDryRunVisible &&
+      !dryRunStatusVisible,
     draft_a_id: draftAId,
     draft_b_id: draftBId,
     activity_load_visible: activityLoadVisible,
@@ -810,6 +921,8 @@ async function assertTwoDraftStateDidNotLeak(panel, { draftAId, draftBId }) {
     run_preflight_visible: runPreflightVisible,
     refresh_preflight_visible: refreshPreflightVisible,
     copy_packet_visible_before_b_preflight: copyPacketVisible,
+    generate_dry_run_visible: generateDryRunVisible,
+    dry_run_status_visible_before_b_generation: dryRunStatusVisible,
   };
   return result;
 }
@@ -1140,6 +1253,13 @@ function classifyManualNoteRoute(value) {
       return { kind: "preflight", path: pathName };
     }
     if (
+      /\/api\/research-candidate-review\/manual-note-preview-drafts\/[^/]+\/promotion-dry-run-plan$/.test(
+        pathName,
+      )
+    ) {
+      return { kind: "dry_run_plan", path: pathName };
+    }
+    if (
       /\/api\/research-candidate-review\/manual-note-preview-drafts\/[^/]+\/discard$/.test(
         pathName,
       )
@@ -1176,6 +1296,7 @@ function assertRuntimeRouteUsage() {
     label_clear_a: new Set(["label", "list"]),
     load_activity_a: new Set(["activity"]),
     run_preflight_a: new Set(["preflight"]),
+    run_dry_run_plan_a: new Set(["dry_run_plan"]),
     packet_stale_after_label_change_a: new Set([
       "label",
       "list",
@@ -1187,6 +1308,7 @@ function assertRuntimeRouteUsage() {
     open_draft_b: new Set(["open"]),
     load_activity_b: new Set(["activity"]),
     run_preflight_b: new Set(["preflight"]),
+    run_dry_run_plan_b: new Set(["dry_run_plan"]),
     clear_local_note: new Set(["create", "list"]),
   };
   const manualRequests = requestLog.filter((request) => request.manual_note_route);

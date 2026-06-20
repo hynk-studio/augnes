@@ -11,6 +11,8 @@ const activityReadoutPath =
   "components/research-candidate-preview-draft-activity-readout.tsx";
 const preflightReadoutPath =
   "components/research-candidate-promotion-readiness-preflight-readout.tsx";
+const dryRunPlanReadoutPath =
+  "components/research-candidate-promotion-dry-run-plan-readout.tsx";
 const copyPacketPanelPath =
   "components/research-candidate-readiness-copy-packet-panel.tsx";
 const localChecklistPath =
@@ -27,6 +29,7 @@ for (const filePath of [
   draftListPanelPath,
   activityReadoutPath,
   preflightReadoutPath,
+  dryRunPlanReadoutPath,
   copyPacketPanelPath,
   localChecklistPath,
   candidateFamilyListsPath,
@@ -44,6 +47,7 @@ const uiSurface = [
   readFileSync(draftListPanelPath, "utf8"),
   readFileSync(activityReadoutPath, "utf8"),
   readFileSync(preflightReadoutPath, "utf8"),
+  readFileSync(dryRunPlanReadoutPath, "utf8"),
   readFileSync(copyPacketPanelPath, "utf8"),
   readFileSync(localChecklistPath, "utf8"),
   readFileSync(candidateFamilyListsPath, "utf8"),
@@ -129,6 +133,7 @@ function assertSameOriginRoutes() {
     "buildManualNotePreviewDraftActivityRoute",
     "buildManualNotePreviewDraftDiscardRoute",
     "buildManualNotePreviewDraftPromotionReadinessRoute",
+    "buildManualNotePreviewDraftPromotionDryRunPlanRoute",
   ]) {
     assert.ok(hook.includes(routeText), `hook must use ${routeText}`);
   }
@@ -157,6 +162,11 @@ function assertTransitionResetHelpers() {
   assertIncludes(preflightReset, "setPromotionReadinessPreflightError(null)");
   assertIncludes(preflightReset, "setLoadingPromotionReadinessPreflightId(null)");
 
+  const dryRunReset = functionBlock("clearPromotionDryRunPlanState");
+  assertIncludes(dryRunReset, "setPromotionDryRunPlan(null)");
+  assertIncludes(dryRunReset, "setPromotionDryRunPlanError(null)");
+  assertIncludes(dryRunReset, "setLoadingPromotionDryRunPlanId(null)");
+
   const labelReset = functionBlock("clearDraftLabelEditState");
   assertIncludes(labelReset, "setDraftLabelEditState(null)");
   assertIncludes(labelReset, "setSavingDraftLabelId(null)");
@@ -171,6 +181,7 @@ function assertTransitionResetHelpers() {
   assertOrdered(openedDependentReset, [
     "clearPreviewDraftActivityState()",
     "clearPromotionReadinessPreflightState()",
+    "clearPromotionDryRunPlanState()",
     "clearPreviewDraftTransitionUiState()",
   ]);
 }
@@ -213,6 +224,7 @@ function assertTransitionActions() {
   assertOrdered(discard, [
     "setConfirmDiscardPreviewDraftId(null)",
     "clearDraftLabelEditState()",
+    "clearPromotionDryRunPlanState()",
     "void loadPreviewDraftActivity(previewDraftId)",
     "void loadPromotionReadinessPreflight(previewDraftId)",
     "await refreshPreviewDrafts()",
@@ -235,6 +247,7 @@ function assertTransitionActions() {
   const saveLabel = functionBlock("saveDraftLabel");
   assertOrdered(saveLabel, [
     "clearDraftLabelEditState()",
+    "clearPromotionDryRunPlanState()",
     "await refreshPreviewDrafts()",
     "void loadPreviewDraftActivity(previewDraftId)",
     "void loadPromotionReadinessPreflight(previewDraftId)",
@@ -256,6 +269,7 @@ function assertReturnedStateShape() {
     "labelState",
     "activityState",
     "preflightState",
+    "dryRunPlanState",
     "actions",
     "filterActions",
   ]) {
@@ -275,6 +289,8 @@ function assertReturnedStateShape() {
     "clearDraftLabelEditValue",
     "loadPreviewDraftActivity",
     "loadPromotionReadinessPreflight",
+    "loadPromotionDryRunPlan",
+    "clearPromotionDryRunPlanState",
     "clearRuntimeResult",
     "resetRuntimeDraftState",
     "updateDraftLifecycleFilter",
@@ -292,7 +308,9 @@ function assertPreservedUiSurfaces() {
     "RecentPreviewDraftsPanel",
     "PreviewDraftActivityReadout",
     "PromotionReadinessPreflightReadout",
+    "PromotionDryRunPlanReadout",
     "Readiness copy packet",
+    "No-write promotion dry-run plan",
     "Local packet review checklist",
     "claim_candidates",
     "evidence_candidates",

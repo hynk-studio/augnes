@@ -269,10 +269,8 @@ function assertForbiddenPatternsAbsent() {
 
   for (const filePath of listFiles("app/api")) {
     assert.ok(
-      !/promotion-boundary-audit|promotion-dry-run|dry-run-promotion/i.test(
-        filePath,
-      ),
-      `no promotion boundary or dry-run route file expected: ${filePath}`,
+      !/promotion-boundary-audit/i.test(filePath),
+      `no promotion boundary audit route file expected: ${filePath}`,
     );
   }
 

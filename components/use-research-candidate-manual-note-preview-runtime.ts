@@ -10,6 +10,7 @@ import {
   buildManualNotePreviewDraftDetailRoute,
   buildManualNotePreviewDraftDiscardRoute,
   buildManualNotePreviewDraftLabelRoute,
+  buildManualNotePreviewDraftPromotionDryRunPlanRoute,
   buildManualNotePreviewDraftPromotionReadinessRoute,
   type ManualNotePreviewDraftActivityResponse,
   type ManualNotePreviewDraftCandidateFilter,
@@ -22,6 +23,7 @@ import {
   type ManualNotePreviewDraftListResponse,
   type ManualNotePreviewDraftListSummary,
   type ManualNotePreviewDraftListSort,
+  type ManualNotePreviewDraftPromotionDryRunPlanResponse,
   type ManualNotePreviewDraftPromotionReadinessResponse,
   type ManualNotePreviewDraftWarningFilter,
   type ManualNotePreviewRuntimeOkResponse,
@@ -90,6 +92,13 @@ export function useResearchCandidateManualNotePreviewRuntime() {
     loadingPromotionReadinessPreflightId,
     setLoadingPromotionReadinessPreflightId,
   ] = useState<string | null>(null);
+  const [promotionDryRunPlan, setPromotionDryRunPlan] =
+    useState<ManualNotePreviewDraftPromotionDryRunPlanResponse | null>(null);
+  const [promotionDryRunPlanError, setPromotionDryRunPlanError] = useState<
+    string | null
+  >(null);
+  const [loadingPromotionDryRunPlanId, setLoadingPromotionDryRunPlanId] =
+    useState<string | null>(null);
   const [openingPreviewDraftId, setOpeningPreviewDraftId] = useState<
     string | null
   >(null);
@@ -116,6 +125,12 @@ export function useResearchCandidateManualNotePreviewRuntime() {
     setLoadingPromotionReadinessPreflightId(null);
   }
 
+  function clearPromotionDryRunPlanState() {
+    setPromotionDryRunPlan(null);
+    setPromotionDryRunPlanError(null);
+    setLoadingPromotionDryRunPlanId(null);
+  }
+
   function clearDraftLabelEditState() {
     setDraftLabelEditState(null);
     setSavingDraftLabelId(null);
@@ -129,6 +144,7 @@ export function useResearchCandidateManualNotePreviewRuntime() {
   function clearOpenedPreviewDraftDependentState() {
     clearPreviewDraftActivityState();
     clearPromotionReadinessPreflightState();
+    clearPromotionDryRunPlanState();
     clearPreviewDraftTransitionUiState();
   }
 
@@ -333,6 +349,12 @@ export function useResearchCandidateManualNotePreviewRuntime() {
       }
 
       setPromotionReadinessPreflight(result);
+      if (
+        promotionDryRunPlan?.ok &&
+        promotionDryRunPlan.preview_draft_id === previewDraftId
+      ) {
+        clearPromotionDryRunPlanState();
+      }
       return true;
     } catch {
       setPromotionReadinessPreflight(null);
@@ -342,6 +364,48 @@ export function useResearchCandidateManualNotePreviewRuntime() {
       return false;
     } finally {
       setLoadingPromotionReadinessPreflightId(null);
+    }
+  }
+
+  async function loadPromotionDryRunPlan(previewDraftId: string) {
+    setLoadingPromotionDryRunPlanId(previewDraftId);
+    setPromotionDryRunPlanError(null);
+
+    try {
+      const response = await fetch(
+        buildManualNotePreviewDraftPromotionDryRunPlanRoute(previewDraftId),
+      );
+      const result =
+        (await response.json()) as ManualNotePreviewDraftPromotionDryRunPlanResponse;
+
+      if (!response.ok || !result.ok) {
+        setPromotionDryRunPlan(null);
+        setPromotionDryRunPlanError(
+          result.ok
+            ? "Promotion dry-run plan route returned an unavailable response."
+            : result.message,
+        );
+        return false;
+      }
+
+      if (result.preview_draft_id !== previewDraftId) {
+        setPromotionDryRunPlan(null);
+        setPromotionDryRunPlanError(
+          "Promotion dry-run plan route returned a mismatched preview draft.",
+        );
+        return false;
+      }
+
+      setPromotionDryRunPlan(result);
+      return true;
+    } catch {
+      setPromotionDryRunPlan(null);
+      setPromotionDryRunPlanError(
+        "Promotion dry-run plan route is unavailable.",
+      );
+      return false;
+    } finally {
+      setLoadingPromotionDryRunPlanId(null);
     }
   }
 
@@ -406,6 +470,12 @@ export function useResearchCandidateManualNotePreviewRuntime() {
       });
       setConfirmDiscardPreviewDraftId(null);
       clearDraftLabelEditState();
+      if (
+        promotionDryRunPlan?.ok &&
+        promotionDryRunPlan.preview_draft_id === previewDraftId
+      ) {
+        clearPromotionDryRunPlanState();
+      }
       if (
         previewDraftActivity?.ok &&
         previewDraftActivity.preview_draft_id === previewDraftId
@@ -575,6 +645,12 @@ export function useResearchCandidateManualNotePreviewRuntime() {
         };
       });
       clearDraftLabelEditState();
+      if (
+        promotionDryRunPlan?.ok &&
+        promotionDryRunPlan.preview_draft_id === previewDraftId
+      ) {
+        clearPromotionDryRunPlanState();
+      }
       await refreshPreviewDrafts();
       if (
         previewDraftActivity?.ok &&
@@ -676,6 +752,11 @@ export function useResearchCandidateManualNotePreviewRuntime() {
       promotionReadinessPreflightError,
       loadingPromotionReadinessPreflightId,
     },
+    dryRunPlanState: {
+      promotionDryRunPlan,
+      promotionDryRunPlanError,
+      loadingPromotionDryRunPlanId,
+    },
     actions: {
       createRuntimePreviewDraft,
       refreshPreviewDrafts,
@@ -689,6 +770,8 @@ export function useResearchCandidateManualNotePreviewRuntime() {
       clearDraftLabelEditValue,
       loadPreviewDraftActivity,
       loadPromotionReadinessPreflight,
+      loadPromotionDryRunPlan,
+      clearPromotionDryRunPlanState,
       clearRuntimeResult,
       resetRuntimeDraftState,
     },
