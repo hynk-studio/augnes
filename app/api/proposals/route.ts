@@ -1,3 +1,7 @@
+import {
+  buildEmptyRuntimeStartupFallbackMetadata,
+  getMissingEmptyRuntimeOptionalTables,
+} from "@/lib/empty-runtime-startup-fallback";
 import { listStateDeltaProposals, type StateDeltaProposal } from "@/lib/db";
 import type { ConsolidationStatus } from "@/lib/runtime/candidate-scoring";
 import { NextResponse } from "next/server";
@@ -43,15 +47,33 @@ export function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({
-    scope,
-    proposals: listStateDeltaProposals({
+  try {
+    return NextResponse.json({
       scope,
-      status: status as StateDeltaProposal["status"] | undefined,
-      consolidation_status: consolidationStatus as
-        | ConsolidationStatus
-        | undefined,
-      include_expired: includeExpired,
-    }),
-  });
+      proposals: listStateDeltaProposals({
+        scope,
+        status: status as StateDeltaProposal["status"] | undefined,
+        consolidation_status: consolidationStatus as
+          | ConsolidationStatus
+          | undefined,
+        include_expired: includeExpired,
+      }),
+    });
+  } catch (error) {
+    const missingTables = getMissingEmptyRuntimeOptionalTables(error);
+
+    if (missingTables.length === 0) {
+      throw error;
+    }
+
+    return NextResponse.json({
+      scope,
+      proposals: [],
+      ...buildEmptyRuntimeStartupFallbackMetadata({
+        route: "GET /api/proposals",
+        scope,
+        missingTables,
+      }),
+    });
+  }
 }
