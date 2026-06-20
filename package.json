@@ -210,6 +210,7 @@
     "smoke:research-candidate-promotion-readiness-readout-extract-v0-1": "node scripts/smoke-research-candidate-promotion-readiness-readout-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-runtime-hook-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-runtime-hook-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-runtime-hook-transitions-v0-1": "node scripts/smoke-research-candidate-manual-note-runtime-hook-transitions-v0-1.mjs",
+    "browser:research-candidate-manual-note-lane-v0-1": "node scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
     "smoke:research-candidate-review-parser-output-cockpit-preview-v0-1": "node scripts/smoke-research-candidate-review-parser-output-cockpit-preview-v0-1.mjs",
     "smoke:research-candidate-review-surface-v0-1": "node scripts/smoke-research-candidate-review-surface-v0-1.mjs",
     "smoke:research-candidate-review-types-v0-1": "node scripts/smoke-research-candidate-review-types-v0-1.mjs",

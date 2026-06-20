@@ -1075,6 +1075,20 @@ repo-local 색인이다.
 - `npm run smoke:research-candidate-manual-note-runtime-hook-transitions-v0-1`:
   runs the focused stale-state transition guard for
   `components/use-research-candidate-manual-note-preview-runtime.ts`.
+- `npm run browser:research-candidate-manual-note-lane-v0-1`:
+  `scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs`
+  starts a temp-DB local app with the provider API key env unset and writes
+  `/tmp/augnes-manual-note-lane-validation-v0-1/report.json`,
+  `desktop.png`, and `mobile-390.png`. It is a reusable validation/reporting
+  artifact for the manual-note preview lane only: browser-observed
+  network/console/pageerror observation, local-parse/runtime-route assertions,
+  two-draft transition checks, storage-boundary inspection, and 390px overflow
+  checks. The temp DB may be initialized only by existing app runtime schema
+  bootstrap. It adds no CI authority, product approval, promotion authority,
+  proof/evidence write, Perspective/canonical graph write,
+  provider/retrieval/source fetch, repo schema or migration code change,
+  migration script invocation, packet history persistence, checklist
+  persistence, browser persistence, or external handoff sending.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
