@@ -5895,7 +5895,11 @@ code {
 .manual-note-promotion-readiness-list,
 .manual-note-promotion-readiness-gates,
 .manual-note-promotion-readiness-gate,
-.manual-note-promotion-readiness-gate-list {
+.manual-note-promotion-readiness-gate-list,
+.manual-note-gate-explanations,
+.manual-note-gate-explanation-list,
+.manual-note-gate-explanation,
+.manual-note-gate-pass-explanations {
   display: grid;
   gap: 10px;
   min-width: 0;
@@ -5903,9 +5907,18 @@ code {
 
 .manual-note-promotion-readiness-list h4,
 .manual-note-promotion-readiness-gates h4,
-.manual-note-promotion-readiness-summary-grid h4 {
+.manual-note-promotion-readiness-summary-grid h4,
+.manual-note-gate-explanations h4,
+.manual-note-gate-explanation h5 {
   margin: 0;
   color: #162238;
+}
+
+.manual-note-gate-explanations > div > p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.42;
 }
 
 .manual-note-promotion-readiness-list ul {
@@ -5916,10 +5929,144 @@ code {
 }
 
 .manual-note-promotion-readiness-list p,
-.manual-note-promotion-readiness-gate p {
+.manual-note-promotion-readiness-gate p,
+.manual-note-gate-explanation p {
   margin: 0;
   color: #374151;
   line-height: 1.45;
+}
+
+.manual-note-gate-resolution-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-gate-resolution-summary span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-gate-resolution-summary strong {
+  color: #101827;
+  font-size: 1rem;
+}
+
+.manual-note-gate-pass-explanations {
+  padding: 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.manual-note-gate-pass-explanations summary {
+  cursor: pointer;
+  color: #263142;
+  font-size: 0.88rem;
+  font-weight: 790;
+}
+
+.manual-note-gate-pass-explanations[open] summary {
+  margin-bottom: 10px;
+}
+
+.manual-note-gate-explanation {
+  gap: 12px;
+}
+
+.manual-note-gate-explanation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 10px;
+  margin: 0;
+  min-width: 0;
+}
+
+.manual-note-gate-explanation-grid div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(100, 116, 139, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.manual-note-gate-explanation-grid dt {
+  margin: 0 0 4px;
+  color: #172033;
+  font-size: 0.78rem;
+  font-weight: 790;
+}
+
+.manual-note-gate-explanation-grid dd {
+  margin: 0;
+  color: #3f4d61;
+  font-size: 0.84rem;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-gate-explanation-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.manual-note-gate-explanation-columns div {
+  min-width: 0;
+}
+
+.manual-note-gate-explanation-columns ul {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #374151;
+  font-size: 0.84rem;
+  line-height: 1.38;
+}
+
+.manual-note-gate-explanation-columns li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-gate-explanation-columns li span {
+  display: block;
+}
+
+.manual-note-gate-explanation-columns code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-gate-resolution-boundary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manual-note-gate-resolution-boundary span {
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid #dce5ef;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #43536a;
+  font-size: 0.74rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
 }
 
 .manual-note-promotion-readiness-summary-grid {
@@ -5943,7 +6090,8 @@ code {
 }
 
 .manual-note-promotion-readiness-summary-grid code,
-.manual-note-promotion-readiness-gate code {
+.manual-note-promotion-readiness-gate code,
+.manual-note-gate-resolution-boundary code {
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -6092,7 +6240,10 @@ code {
   .manual-note-preview-draft-summary-badges,
   .manual-note-preview-draft-badges,
   .manual-note-promotion-readiness-status,
-  .manual-note-promotion-readiness-summary-grid {
+  .manual-note-promotion-readiness-summary-grid,
+  .manual-note-gate-resolution-summary,
+  .manual-note-gate-explanation-grid,
+  .manual-note-gate-explanation-columns {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     width: 100%;
