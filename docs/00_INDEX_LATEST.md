@@ -811,6 +811,24 @@ repo-local 색인이다.
   activity/discard behavior, package/index pointers, no browser persistence,
   and forbidden provider/retrieval/proof/evidence/work/state write-pattern
   absence.
+- Cockpit empty-runtime startup fallback lane:
+  `GET /api/state/brief`, `GET /api/state/snapshot`,
+  `GET /api/state/trajectory`, `GET /api/work`, and `GET /api/proposals`
+  return controlled empty envelopes when a fresh local runtime DB is missing
+  the optional startup tables `state_entries`, `work_items`,
+  `state_transitions`, or `state_delta_proposals`. The fallback uses
+  `fallback_reason: "missing_optional_runtime_table"`, keeps route-compatible
+  empty arrays/default objects, and adds `runtime_boundary` plus
+  `no_side_effects` metadata. It does not create fake seed data, mutate schema,
+  write state/work/proof/evidence/Perspective rows, call providers, perform
+  retrieval/source fetching, execute Codex, use browser persistence, or hide
+  unexpected DB errors.
+- `npm run smoke:cockpit-empty-runtime-startup-fallback-v0-1`:
+  `scripts/smoke-cockpit-empty-runtime-startup-fallback-v0-1.mjs` checks the
+  startup route fallback contract, recognized optional runtime table set,
+  route-compatible empty response fields, unexpected-error rethrow guard,
+  package/index pointers, and forbidden write/provider/retrieval/proof/evidence/
+  work/promotion/browser-persistence pattern absence.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,
