@@ -5896,6 +5896,7 @@ code {
 .manual-note-promotion-readiness-gates,
 .manual-note-promotion-readiness-gate,
 .manual-note-promotion-readiness-gate-list,
+.manual-note-readiness-copy-packet,
 .manual-note-gate-explanations,
 .manual-note-gate-explanation-list,
 .manual-note-gate-explanation,
@@ -5918,6 +5919,99 @@ code {
   margin: 4px 0 0;
   color: #475569;
   font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.manual-note-readiness-copy-packet {
+  padding: 12px;
+  border: 1px solid #dbe5ef;
+  border-left: 4px solid #285d9f;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.manual-note-readiness-copy-packet-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.manual-note-readiness-copy-packet-header h4,
+.manual-note-readiness-copy-packet-header p {
+  margin: 0;
+}
+
+.manual-note-readiness-copy-packet-header p {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.manual-note-readiness-copy-packet-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-readiness-copy-packet-actions button {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-copy-packet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.manual-note-readiness-copy-packet-grid span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #43536a;
+  font-size: 0.82rem;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-copy-packet-grid code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.manual-note-readiness-copy-packet-fallback {
+  min-width: 0;
+}
+
+.manual-note-readiness-copy-packet-fallback summary {
+  cursor: pointer;
+  color: #263142;
+  font-size: 0.86rem;
+  font-weight: 780;
+}
+
+.manual-note-readiness-copy-packet-fallback textarea {
+  width: 100%;
+  min-height: 220px;
+  margin-top: 8px;
+  resize: vertical;
+  border: 1px solid #cfd8e5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
   line-height: 1.42;
 }
 
@@ -6241,6 +6335,8 @@ code {
   .manual-note-preview-draft-badges,
   .manual-note-promotion-readiness-status,
   .manual-note-promotion-readiness-summary-grid,
+  .manual-note-readiness-copy-packet-header,
+  .manual-note-readiness-copy-packet-grid,
   .manual-note-gate-resolution-summary,
   .manual-note-gate-explanation-grid,
   .manual-note-gate-explanation-columns {

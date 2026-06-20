@@ -915,6 +915,28 @@ repo-local 색인이다.
   button absence, CSS, docs/index pointers, package script, and no provider/
   retrieval/proof/evidence/work/Codex/browser-persistence/schema mutation
   patterns.
+- Manual note preview draft readiness copy packet lane:
+  `lib/research-candidate-review/manual-note-preview-draft-readiness-copy-packet.ts`
+  builds a deterministic local clipboard packet for an opened stored manual
+  note preview draft with a loaded promotion readiness preflight. The
+  Readiness copy packet supports a human-readable Markdown packet and a stable
+  pretty JSON packet containing the draft metadata, readiness status/score,
+  blockers, warnings, next review steps, source/candidate/lifecycle summaries,
+  gate results, gate explanations, runtime boundary, no-side-effects metadata,
+  authority metadata, and copy packet boundary. It is local clipboard only:
+  `local_clipboard_only true`, `external_handoff_sent false`, and
+  `raw_manual_note_text_included false`. It does not send, share, email,
+  submit, create handoffs, execute Codex, write proof/evidence, create work
+  items, promote Perspective, mutate canonical graph state, call providers,
+  run retrieval/RAG, fetch sources, use browser persistence, store raw note
+  text, change schema, or grant promotion authority.
+- `npm run smoke:research-candidate-preview-draft-readiness-copy-packet-v0-1`:
+  `scripts/smoke-research-candidate-preview-draft-readiness-copy-packet-v0-1.mjs`
+  checks the copy packet builder, packet kind/version, packet content,
+  copy-packet boundary flags, builder purity, local clipboard UI, manual
+  fallback copy, preserved preflight/gate explanation/startup/manual note
+  flows, no browser persistence, package/index pointers, and forbidden
+  provider/retrieval/proof/evidence/work/Codex/share/schema mutation patterns.
 - Candidate Constellation Overlay preview:
   `types/research-candidate-constellation-overlay.ts`,
   `lib/research-candidate-review/constellation-overlay.ts`,

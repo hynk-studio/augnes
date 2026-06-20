@@ -25,6 +25,10 @@ export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_DISCARD_REASON_LENGTH = 500;
 export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_LABEL_LENGTH = 160;
 export const MAX_MANUAL_NOTE_PREVIEW_DRAFT_ACTIVITY_LIST_LIMIT = 50;
 export const DEFAULT_MANUAL_NOTE_PREVIEW_DRAFT_ACTIVITY_LIST_LIMIT = 20;
+export const MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND =
+  "research_candidate_preview_draft_readiness_copy_packet";
+export const MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION =
+  "research_candidate_preview_draft_readiness_copy_packet.v0.1";
 
 export type ManualNotePreviewPersistenceMode =
   | "persisted_preview_draft"
@@ -382,6 +386,67 @@ export type ManualNotePreviewDraftPromotionReadinessRuntimeBoundary = {
   codex_execution: false;
   external_handoff_sending: false;
   browser_persistence: false;
+};
+
+export type ManualNotePreviewDraftReadinessCopyPacketKind =
+  typeof MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_KIND;
+
+export type ManualNotePreviewDraftReadinessCopyPacketVersion =
+  typeof MANUAL_NOTE_PREVIEW_DRAFT_READINESS_COPY_PACKET_VERSION;
+
+export type ManualNotePreviewDraftReadinessCopyPacketBoundary = {
+  preview_only: true;
+  local_clipboard_only: true;
+  external_handoff_sent: false;
+  proof_or_evidence_writes: false;
+  perspective_promotion: false;
+  canonical_graph_write: false;
+  work_item_creation: false;
+  provider_or_openai_calls: false;
+  retrieval_or_rag: false;
+  source_fetching: false;
+  codex_execution: false;
+  browser_persistence: false;
+  raw_manual_note_text_included: false;
+  promotion_authority_granted: false;
+};
+
+export type ManualNotePreviewDraftReadinessCopyPacket = {
+  packet_version: ManualNotePreviewDraftReadinessCopyPacketVersion;
+  packet_kind: ManualNotePreviewDraftReadinessCopyPacketKind;
+  generated_at: string;
+  preview_draft_id: string;
+  operator_note_label: string | null;
+  display_label: string;
+  lifecycle_status: ManualNotePreviewDraftLifecycleStatus;
+  draft_metadata: {
+    parser_version: string;
+    preview_version: string;
+    input_fingerprint: string;
+    warning_count: number;
+    candidate_count_summary: ManualNotePreviewDraftCandidateCountSummary;
+    created_at: string;
+    updated_at: string;
+  };
+  readiness_status: ManualNotePreviewDraftPromotionReadinessStatus;
+  readiness_score: number;
+  blockers: string[];
+  warnings: string[];
+  next_review_steps: string[];
+  source_summary: ManualNotePreviewDraftPromotionSourceSummary;
+  candidate_summary: ManualNotePreviewDraftPromotionCandidateSummary;
+  lifecycle_summary: ManualNotePreviewDraftLifecycleSummary;
+  gate_results: ManualNotePreviewDraftPromotionReadinessGateResult[];
+  activity_summary: {
+    included: boolean;
+    count: number;
+    lifecycle_status: ManualNotePreviewDraftLifecycleStatus | null;
+    activity_types: ManualNotePreviewDraftActivityType[];
+  };
+  runtime_boundary: ManualNotePreviewDraftPromotionReadinessRuntimeBoundary;
+  no_side_effects: ManualNotePreviewNoSideEffects;
+  authority: ManualNotePreviewDraftPromotionReadinessAuthority;
+  copy_packet_boundary: ManualNotePreviewDraftReadinessCopyPacketBoundary;
 };
 
 export type ManualNotePreviewDraftDiscardMetadata = {
