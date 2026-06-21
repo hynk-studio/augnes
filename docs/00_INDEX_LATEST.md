@@ -1019,6 +1019,21 @@ repo-local 색인이다.
   schema/migration/dependency. Browser-backed validation uses the best
   available method and may record the local `/tmp` single-claim prototype
   design report if present.
+- Manual note temp DB single-claim write prototype harness:
+  `lib/research-candidate-review/manual-note-temp-db-single-claim-write-prototype-harness.ts`,
+  `fixtures/research-candidate-review.manual-note-temp-db-single-claim-write-prototype-harness.sample.v0.1.json`,
+  `npm run smoke:research-candidate-temp-db-single-claim-write-prototype-v0-1`,
+  and `npm run harness:research-candidate-temp-db-single-claim-write-prototype-v0-1`
+  add a fixture-backed temp DB harness that creates one `/tmp` DB file,
+  creates temp-only schema objects, inserts exactly one temp claim, exactly one
+  temp idempotency, exactly one temp rollback, and exactly one temp review audit
+  record, then verifies row counts and no product IDs. This uses temp-only SQL
+  under `/tmp/augnes-single-claim-write-prototype-v0-1` and still adds no
+  product DB write, no actual promotion, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, and no repo schema/migration/dependency.
+  Browser-backed validation uses the best available method and may record the
+  local `/tmp` harness report if present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

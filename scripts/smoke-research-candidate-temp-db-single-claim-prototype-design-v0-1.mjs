@@ -9,6 +9,14 @@ const fixturePath =
   "fixtures/research-candidate-review.manual-note-temp-db-single-claim-prototype-design.sample.v0.1.json";
 const runnerPath =
   "scripts/run-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs";
+const writePrototypeHelperPath =
+  "lib/research-candidate-review/manual-note-temp-db-single-claim-write-prototype-harness.ts";
+const writePrototypeFixturePath =
+  "fixtures/research-candidate-review.manual-note-temp-db-single-claim-write-prototype-harness.sample.v0.1.json";
+const writePrototypeRunnerPath =
+  "scripts/run-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs";
+const writePrototypeSmokePath =
+  "scripts/smoke-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const browserValidatorPath =
@@ -18,6 +26,10 @@ for (const filePath of [
   helperPath,
   fixturePath,
   runnerPath,
+  writePrototypeHelperPath,
+  writePrototypeFixturePath,
+  writePrototypeRunnerPath,
+  writePrototypeSmokePath,
   docsIndexPath,
   packagePath,
   browserValidatorPath,
@@ -358,13 +370,30 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-temp-db-single-claim-write-prototype-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-temp-db-single-claim-write-prototype-v0-1"
+    ],
+    "node scripts/run-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs",
+  );
 
   for (const requiredText of [
     "Manual note temp DB single-claim write prototype design",
+    "Manual note temp DB single-claim write prototype harness",
     "first claim operation",
     "structured temp schema design objects",
     "idempotency/rollback/audit/source-authority gates",
     "future temp DB execution harness spec",
+    "creates one `/tmp` DB file",
+    "temp-only schema objects",
+    "exactly one temp claim",
+    "row counts",
     "/tmp design report runner",
     "no temp DB execution yet",
     "no DB file creation",
@@ -400,6 +429,18 @@ function assertDocsPackageAndBrowserPointers() {
       "temp_db_single_claim_prototype_design_no_browser_route",
     ),
     "browser validator should assert no temp DB single-claim prototype design route is called",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "temp_db_single_claim_write_prototype_artifact_note",
+    ),
+    "browser validator should include temp DB single-claim write prototype artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "temp_db_single_claim_write_prototype_no_browser_route",
+    ),
+    "browser validator should assert no temp DB single-claim write prototype route is called",
   );
 }
 
@@ -439,8 +480,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"design:research-candidate-temp-db-single-claim-prototype-design-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-temp-db-single-claim-write-prototype-v0-1"',
+        ) ||
+        line.includes(
+          '"harness:research-candidate-temp-db-single-claim-write-prototype-v0-1"',
         ),
-      `package.json must only add temp DB single-claim design scripts, not dependencies: ${line}`,
+      `package.json must only add temp DB single-claim design or write prototype scripts, not dependencies: ${line}`,
     );
   }
 }
