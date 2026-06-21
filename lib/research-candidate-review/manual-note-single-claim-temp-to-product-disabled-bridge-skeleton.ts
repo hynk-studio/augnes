@@ -44,6 +44,21 @@ type DisabledBridgeSkeletonCopySource = Omit<
   "local_copy_packet"
 >;
 
+const PRODUCT_ID_KEYS = [
+  "product_record_id",
+  "product_claim_id",
+  "canonical_claim_id",
+  "canonical_id",
+  "proof_id",
+  "evidence_id",
+  "perspective_id",
+  "work_item_id",
+  "product_idempotency_record_id",
+  "product_rollback_record_id",
+  "product_audit_record_id",
+  "audit_record_product_id",
+];
+
 export type ManualNoteSingleClaimTempToProductDisabledBridgeSkeleton = {
   skeleton_kind: "manual_note_single_claim_temp_to_product_disabled_bridge_skeleton";
   skeleton_version: typeof MANUAL_NOTE_SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_SKELETON_VERSION;
@@ -166,8 +181,12 @@ export function buildManualNoteSingleClaimTempToProductDisabledBridgeSkeleton(
     bridgeDesign.future_product_rollback_design,
   );
   const futureProductAuditDesign = asRecord(bridgeDesign.future_product_audit_design);
+  const sourceBridgeEvidenceClean =
+    allFalseRecord(asRecord(bridgeDesign.explicit_forbidden_surfaces)) &&
+    !hasNonNullProductIds(bridgeDesign);
   const sourceBridgeReady =
-    bridgeDesign.recommendation_status === "ready_for_disabled_bridge_skeleton";
+    bridgeDesign.recommendation_status ===
+      "ready_for_disabled_bridge_skeleton" && sourceBridgeEvidenceClean;
   const disabledBridgeSkeletonStatus: DisabledBridgeSkeletonStatus = sourceBridgeReady
     ? "single_claim_disabled_bridge_skeleton_only"
     : "blocked_before_disabled_bridge_skeleton";
@@ -449,6 +468,23 @@ function readBooleanRecord(value: unknown): Record<string, boolean> {
       nestedValue === true,
     ]),
   );
+}
+
+function allFalseRecord(record: JsonRecord): boolean {
+  return Object.keys(record).length > 0
+    ? Object.values(record).every((value) => value === false)
+    : false;
+}
+
+function hasNonNullProductIds(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => hasNonNullProductIds(item));
+  }
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as JsonRecord).some(([key, nestedValue]) => {
+    if (PRODUCT_ID_KEYS.includes(key)) return nestedValue !== null;
+    return hasNonNullProductIds(nestedValue);
+  });
 }
 
 function stripGeneratedFields(value: unknown): unknown {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -30,6 +30,7 @@ const artifactDir =
 const artifactReportPath = path.join(artifactDir, "report.json");
 const optionalBridgeDesignReportPath =
   "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1/report.json";
+const tsxPath = "apps/augnes_apps/node_modules/.bin/tsx";
 const forbiddenSurfaceKeys = [
   "product_db_write",
   "product_id_allocation",
@@ -72,6 +73,7 @@ for (const filePath of [
   docsIndexPath,
   packagePath,
   browserValidatorPath,
+  tsxPath,
 ]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
@@ -89,6 +91,8 @@ const browserValidator = readFileSync(browserValidatorPath, "utf8");
 assertHelperContract();
 assertRunnerContract();
 assertFixtureContract();
+assertExportedHelperSourceForbiddenSurfaceMutation();
+assertExportedHelperSourceProductIdMutation();
 assertRunnerFixtureMode();
 assertBlockedBridgeDesignMutation();
 assertFailedBridgeDesignReportWithReadyNestedMutation();
@@ -108,6 +112,8 @@ console.log(
       helper_exists: true,
       fixture_exists_and_parses: true,
       runner_exists: true,
+      exported_helper_source_forbidden_surface_mutation_checked: true,
+      exported_helper_source_product_id_mutation_checked: true,
       runner_fixture_mode_checked: true,
       blocked_bridge_design_mutation_checked: true,
       failed_bridge_design_report_ready_nested_mutation_checked: true,
@@ -141,6 +147,9 @@ function assertHelperContract() {
     "buildManualNoteSingleClaimTempToProductDisabledBridgeSkeletonMarkdown",
     "buildManualNoteSingleClaimTempToProductDisabledBridgeSkeletonJson",
     "createManualNoteSingleClaimTempToProductDisabledBridgeSkeletonFingerprint",
+    "sourceBridgeEvidenceClean",
+    "allFalseRecord",
+    "hasNonNullProductIds",
     "source_evidence",
     "temp_to_product_bridge_design",
     "disabled_bridge_skeleton_status",
@@ -167,9 +176,8 @@ function assertHelperContract() {
     assert.ok(helper.includes(requiredText), `helper must include ${requiredText}`);
   }
   assert.ok(
-    helper.includes(
-      'bridgeDesign.recommendation_status === "ready_for_disabled_bridge_skeleton"',
-    ),
+    helper.includes('"ready_for_disabled_bridge_skeleton"') &&
+      helper.includes("sourceBridgeEvidenceClean"),
     "helper must derive readiness from source bridge design recommendation_status",
   );
 }
@@ -306,6 +314,60 @@ function assertRunnerFixtureMode() {
   assert.equal(report.disabled_bridge_skeleton_validation.passed, true);
   assert.deepEqual(report.disabled_bridge_skeleton_validation.failures, []);
   assert.deepEqual(report.disabled_bridge_skeleton, fixture);
+}
+
+function assertExportedHelperSourceForbiddenSurfaceMutation() {
+  const result = runExportedHelperMutation("source_forbidden_surface");
+  assert.equal(
+    result.disabled_bridge_skeleton_status,
+    "blocked_before_disabled_bridge_skeleton",
+  );
+  assert.equal(
+    result.recommendation_status,
+    "blocked_before_disabled_bridge_skeleton_contract_tests",
+  );
+  assert.notEqual(
+    result.recommendation_status,
+    "ready_for_disabled_bridge_skeleton_contract_tests",
+  );
+  assert.equal(
+    result.next_recommended_slice,
+    "single_claim_temp_to_product_bridge_design_recheck",
+  );
+  assert.equal(result.source_product_db_write, true);
+  assert.equal(result.bridge_adapter_enabled, false);
+  assert.equal(result.bridge_execution_allowed_now, false);
+  assert.equal(result.product_write_allowed_now, false);
+  assert.equal(result.product_db_write, false);
+  assert.equal(result.product_id_allocation, false);
+  assert.equal(result.future_product_claim_id, null);
+}
+
+function assertExportedHelperSourceProductIdMutation() {
+  const result = runExportedHelperMutation("source_product_id");
+  assert.equal(
+    result.disabled_bridge_skeleton_status,
+    "blocked_before_disabled_bridge_skeleton",
+  );
+  assert.equal(
+    result.recommendation_status,
+    "blocked_before_disabled_bridge_skeleton_contract_tests",
+  );
+  assert.notEqual(
+    result.recommendation_status,
+    "ready_for_disabled_bridge_skeleton_contract_tests",
+  );
+  assert.equal(
+    result.next_recommended_slice,
+    "single_claim_temp_to_product_bridge_design_recheck",
+  );
+  assert.equal(result.source_product_claim_id_summary, null);
+  assert.equal(result.bridge_adapter_enabled, false);
+  assert.equal(result.bridge_execution_allowed_now, false);
+  assert.equal(result.product_write_allowed_now, false);
+  assert.equal(result.product_db_write, false);
+  assert.equal(result.product_id_allocation, false);
+  assert.equal(result.future_product_claim_id, null);
 }
 
 function assertBlockedBridgeDesignMutation() {
@@ -883,6 +945,51 @@ function runSkeletonRunnerExpectingFailure() {
   } catch (error) {
     return { failedAsExpected: true, status: error.status };
   }
+}
+
+function runExportedHelperMutation(mutationKind) {
+  const script = `
+    import { readFileSync } from "node:fs";
+    import { buildManualNoteSingleClaimTempToProductDisabledBridgeSkeleton } from "./lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-skeleton.ts";
+
+    const mutationKind = ${JSON.stringify(mutationKind)};
+    const bridgeDesign = JSON.parse(readFileSync(${JSON.stringify(bridgeDesignFixturePath)}, "utf8"));
+    if (mutationKind === "source_forbidden_surface") {
+      bridgeDesign.explicit_forbidden_surfaces.product_db_write = true;
+    } else if (mutationKind === "source_product_id") {
+      bridgeDesign.future_product_claim_draft.product_claim_id =
+        "product-claim:bad-source-helper";
+    } else {
+      throw new Error(\`unknown mutation kind: \${mutationKind}\`);
+    }
+
+    const skeleton = buildManualNoteSingleClaimTempToProductDisabledBridgeSkeleton({
+      tempToProductBridgeDesign: bridgeDesign,
+    });
+    console.log(JSON.stringify({
+      disabled_bridge_skeleton_status: skeleton.disabled_bridge_skeleton_status,
+      recommendation_status: skeleton.recommendation_status,
+      next_recommended_slice: skeleton.next_recommended_slice,
+      bridge_adapter_enabled: skeleton.bridge_adapter_enabled,
+      bridge_execution_allowed_now: skeleton.bridge_execution_allowed_now,
+      product_write_allowed_now: skeleton.product_write_allowed_now,
+      product_db_write: skeleton.product_db_write,
+      product_id_allocation: skeleton.product_id_allocation,
+      future_product_claim_id: skeleton.future_product_write_intent.product_claim_id,
+      source_product_db_write:
+        skeleton.source_evidence.temp_to_product_bridge_design
+          .explicit_forbidden_surfaces.product_db_write ?? null,
+      source_product_claim_id_summary:
+        skeleton.source_evidence.temp_to_product_bridge_design
+          .future_product_claim_draft_summary.product_claim_id,
+    }));
+  `;
+  return JSON.parse(
+    execFileSync(tsxPath, ["-e", script], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }),
+  );
 }
 
 function listFiles(root) {
