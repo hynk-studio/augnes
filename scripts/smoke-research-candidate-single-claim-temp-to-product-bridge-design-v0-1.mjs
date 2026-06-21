@@ -383,6 +383,18 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "design:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product bridge design",
     "maps the existing temp DB single-claim evidence chain",
@@ -422,10 +434,28 @@ function assertDocsPackageAndBrowserPointers() {
     "browser validator should assert no temp-to-product bridge design browser route",
   );
   assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_skeleton_artifact_note",
+    ),
+    "browser validator should include disabled bridge skeleton artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_skeleton_no_browser_route",
+    ),
+    "browser validator should assert no disabled bridge skeleton browser route",
+  );
+  assert.ok(
     productWriteGateSmoke.includes(
       "smoke:research-candidate-single-claim-temp-to-product-bridge-design-v0-1",
     ),
     "product write gate smoke should allow the bridge design smoke script",
+  );
+  assert.ok(
+    productWriteGateSmoke.includes(
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1",
+    ),
+    "product write gate smoke should allow the disabled bridge skeleton smoke script",
   );
 }
 
@@ -467,8 +497,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"design:research-candidate-single-claim-temp-to-product-bridge-design-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"',
         ),
-      `package.json must only add temp-to-product bridge design scripts, not dependencies: ${line}`,
+      `package.json must only add temp-to-product bridge design or disabled bridge skeleton scripts, not dependencies: ${line}`,
     );
   }
 }
