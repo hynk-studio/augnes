@@ -395,6 +395,18 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product bridge design",
     "maps the existing temp DB single-claim evidence chain",
@@ -406,6 +418,7 @@ function assertDocsPackageAndBrowserPointers() {
     "design-only bridge artifact",
     "ready_for_disabled_bridge_skeleton",
     "single_claim_temp_to_product_disabled_bridge_skeleton",
+    "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan",
     "does not open DB",
     "does not execute SQL",
     "no product DB write",
@@ -457,6 +470,18 @@ function assertDocsPackageAndBrowserPointers() {
     ),
     "product write gate smoke should allow the disabled bridge skeleton smoke script",
   );
+  assert.ok(
+    productWriteGateSmoke.includes(
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+    ),
+    "product write gate smoke should allow the disabled bridge skeleton contract smoke script",
+  );
+  assert.ok(
+    productWriteGateSmoke.includes(
+      "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+    ),
+    "product write gate smoke should allow the disabled bridge skeleton contract runner script",
+  );
 }
 
 function assertNoRouteUiSchemaDependencyExpansion() {
@@ -472,6 +497,10 @@ function assertNoRouteUiSchemaDependencyExpansion() {
 
   const changedFiles = new Set(readGitChangedFiles());
   for (const filePath of changedFiles) {
+    const isDisabledBridgeSkeletonContractTestFile =
+      /single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests|disabled-bridge-skeleton-contract-test-cases/i.test(
+        filePath,
+      );
     assert.ok(
       !/(^|\/)(migrations?|schema|prisma|drizzle|supabase|db|sql)(\/|\.)/i.test(
         filePath,
@@ -479,9 +508,10 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       `schema or migration file must not be changed: ${filePath}`,
     );
     assert.ok(
-      !/(gate-review|gate-result-review|gate-contract-test|bridge-readiness-audit|closeout-only)/i.test(
+      isDisabledBridgeSkeletonContractTestFile ||
+        !/(gate-review|gate-result-review|gate-contract-test|bridge-readiness-audit|closeout-only)/i.test(
         filePath,
-      ),
+        ),
       `this slice must not add another gate-review/result/contract/closeout layer: ${filePath}`,
     );
   }
@@ -503,6 +533,12 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"design:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
+        ) ||
+        line.includes(
+          '"contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
         ),
       `package.json must only add temp-to-product bridge design or disabled bridge skeleton scripts, not dependencies: ${line}`,
     );

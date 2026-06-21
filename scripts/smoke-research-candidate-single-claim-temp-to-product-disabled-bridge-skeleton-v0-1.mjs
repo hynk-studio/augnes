@@ -643,12 +643,29 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product disabled bridge skeleton",
+    "Manual note single-claim temp-to-product disabled bridge skeleton contract tests",
     "disabled bridge skeleton only",
+    "contract-test suite for the disabled bridge skeleton",
     "does not implement product write",
     "does not enable an adapter",
     "ready_for_disabled_bridge_skeleton_contract_tests",
+    "disabled_bridge_skeleton_contract_tests_passed",
+    "ready_for_disabled_bridge_dry_run_transaction_plan",
+    "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan",
     "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests",
     "no product DB write",
     "no product ID allocation",
@@ -679,10 +696,34 @@ function assertDocsPackageAndBrowserPointers() {
     "browser validator should assert no disabled bridge skeleton browser route",
   );
   assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_artifact_note",
+    ),
+    "browser validator should include disabled bridge skeleton contract-test artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_no_browser_route",
+    ),
+    "browser validator should assert no disabled bridge skeleton contract-test browser route",
+  );
+  assert.ok(
     bridgeDesignSmoke.includes(
       "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1",
     ),
     "bridge design smoke should allow the disabled bridge skeleton smoke script",
+  );
+  assert.ok(
+    bridgeDesignSmoke.includes(
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+    ),
+    "bridge design smoke should allow the disabled bridge skeleton contract smoke script",
+  );
+  assert.ok(
+    bridgeDesignSmoke.includes(
+      "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+    ),
+    "bridge design smoke should allow the disabled bridge skeleton contract runner script",
   );
 }
 
@@ -703,6 +744,10 @@ function assertNoRouteUiSchemaDependencyExpansion() {
 
   const changedFiles = new Set(readGitChangedFiles());
   for (const filePath of changedFiles) {
+    const isDisabledBridgeSkeletonContractTestFile =
+      /single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests|disabled-bridge-skeleton-contract-test-cases/i.test(
+        filePath,
+      );
     assert.ok(
       !/(^|\/)(migrations?|schema|prisma|drizzle|supabase|db|sql)(\/|\.)/i.test(
         filePath,
@@ -710,9 +755,10 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       `schema or migration file must not be changed: ${filePath}`,
     );
     assert.ok(
-      !/(gate-review|gate-result-review|gate-contract-test|bridge-readiness-audit|closeout-only)/i.test(
+      isDisabledBridgeSkeletonContractTestFile ||
+        !/(gate-review|gate-result-review|gate-contract-test|bridge-readiness-audit|closeout-only)/i.test(
         filePath,
-      ),
+        ),
       `this slice must not add another gate-review/result/contract/closeout layer: ${filePath}`,
     );
   }
@@ -726,9 +772,15 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       line.includes(
         '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"',
       ) ||
+      line.includes(
+        '"design:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"',
+      ) ||
         line.includes(
-          '"design:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1"',
-        ),
+          '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
+        ) ||
+        line.includes(
+          '"contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
+      ),
       `package.json must only add disabled bridge skeleton scripts, not dependencies: ${line}`,
     );
   }

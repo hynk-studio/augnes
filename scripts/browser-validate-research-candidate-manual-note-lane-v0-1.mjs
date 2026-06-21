@@ -35,6 +35,8 @@ const SINGLE_CLAIM_TEMP_TO_PRODUCT_BRIDGE_DESIGN_REPORT_PATH =
   "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1/report.json";
 const SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_SKELETON_REPORT_PATH =
   "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1/report.json";
+const SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_SKELETON_CONTRACT_TESTS_REPORT_PATH =
+  "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -157,6 +159,8 @@ function createInitialReport() {
     single_claim_product_write_gate_design_artifact_note: null,
     single_claim_temp_to_product_bridge_design_artifact_note: null,
     single_claim_temp_to_product_disabled_bridge_skeleton_artifact_note: null,
+    single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_artifact_note:
+      null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -416,6 +420,27 @@ async function main() {
         singleClaimTempToProductDisabledBridgeSkeletonRouteRequests.length,
       artifact_note:
         report.single_claim_temp_to_product_disabled_bridge_skeleton_artifact_note,
+    },
+  );
+  report.single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_artifact_note =
+    buildSingleClaimTempToProductDisabledBridgeSkeletonContractTestsArtifactNote();
+  const singleClaimTempToProductDisabledBridgeSkeletonContractTestsRouteRequests =
+    requestLog.filter((request) =>
+      /single-claim-temp-to-product-disabled-bridge-skeleton-contract|disabled-bridge-skeleton-contract-tests/i.test(
+        request.path ?? "",
+      ),
+    );
+  recordAssertion(
+    "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_no_browser_route",
+    singleClaimTempToProductDisabledBridgeSkeletonContractTestsRouteRequests.length ===
+      0,
+    "Single-claim temp-to-product disabled bridge skeleton contract-test artifacts added no browser-observed route behavior.",
+    {
+      single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_route_request_count:
+        singleClaimTempToProductDisabledBridgeSkeletonContractTestsRouteRequests.length,
+      artifact_note:
+        report
+          .single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1743,6 +1768,20 @@ function buildSingleClaimTempToProductDisabledBridgeSkeletonArtifactNote() {
     note: reportExists
       ? "Single-claim temp-to-product disabled bridge skeleton report was present before or during browser validation; browser flow does not execute non-UI disabled bridge skeleton artifacts."
       : "Single-claim temp-to-product disabled bridge skeleton report was not present; browser flow does not execute non-UI disabled bridge skeleton artifacts.",
+  };
+}
+
+function buildSingleClaimTempToProductDisabledBridgeSkeletonContractTestsArtifactNote() {
+  const reportExists = existsSync(
+    SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_SKELETON_CONTRACT_TESTS_REPORT_PATH,
+  );
+  return {
+    report_path:
+      SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_SKELETON_CONTRACT_TESTS_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Single-claim temp-to-product disabled bridge skeleton contract-test report was present before or during browser validation; browser flow does not execute non-UI fixture contract-test artifacts."
+      : "Single-claim temp-to-product disabled bridge skeleton contract-test report was not present; browser flow does not execute non-UI fixture contract-test artifacts.",
   };
 }
 
