@@ -432,10 +432,25 @@ function assertDocsPackageBrowserAndUpstreamSmokePointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "plan:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product disabled bridge skeleton contract tests",
+    "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
     "contract-test suite for the disabled bridge skeleton",
+    "disabled dry-run transaction plan only",
     "does not implement product write",
+    "does not execute a transaction",
     "does not enable an adapter",
     "does not allocate product IDs",
     "does not open DB",
@@ -446,6 +461,8 @@ function assertDocsPackageBrowserAndUpstreamSmokePointers() {
     expectedSuiteStatus,
     expectedRecommendationStatus,
     expectedNextSlice,
+    "ready_for_disabled_dry_run_transaction_harness",
+    "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
   ]) {
     assert.ok(docsIndex.includes(requiredText), `docs must include ${requiredText}`);
   }
@@ -460,6 +477,18 @@ function assertDocsPackageBrowserAndUpstreamSmokePointers() {
       "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_no_browser_route",
     ),
     "browser validator should assert no contract test browser route",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan_artifact_note",
+    ),
+    "browser validator should include dry-run transaction-plan artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan_no_browser_route",
+    ),
+    "browser validator should assert no dry-run transaction-plan browser route",
   );
   for (const scriptText of [skeletonSmoke, bridgeDesignSmoke, productWriteGateSmoke]) {
     assert.ok(

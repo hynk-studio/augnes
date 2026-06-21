@@ -655,17 +655,34 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "plan:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product disabled bridge skeleton",
     "Manual note single-claim temp-to-product disabled bridge skeleton contract tests",
+    "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
     "disabled bridge skeleton only",
     "contract-test suite for the disabled bridge skeleton",
+    "disabled dry-run transaction plan only",
     "does not implement product write",
+    "does not execute a transaction",
     "does not enable an adapter",
     "ready_for_disabled_bridge_skeleton_contract_tests",
     "disabled_bridge_skeleton_contract_tests_passed",
     "ready_for_disabled_bridge_dry_run_transaction_plan",
     "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan",
+    "ready_for_disabled_dry_run_transaction_harness",
+    "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
     "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests",
     "no product DB write",
     "no product ID allocation",
@@ -706,6 +723,18 @@ function assertDocsPackageAndBrowserPointers() {
       "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_no_browser_route",
     ),
     "browser validator should assert no disabled bridge skeleton contract-test browser route",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan_artifact_note",
+    ),
+    "browser validator should include disabled bridge dry-run transaction-plan artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan_no_browser_route",
+    ),
+    "browser validator should assert no disabled bridge dry-run transaction-plan browser route",
   );
   assert.ok(
     bridgeDesignSmoke.includes(
@@ -780,6 +809,12 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
+      ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1"',
+        ) ||
+        line.includes(
+          '"plan:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1"',
       ),
       `package.json must only add disabled bridge skeleton scripts, not dependencies: ${line}`,
     );

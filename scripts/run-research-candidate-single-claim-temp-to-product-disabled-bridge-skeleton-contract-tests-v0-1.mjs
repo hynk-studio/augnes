@@ -1193,14 +1193,29 @@ function resolveStaticBoundaryDelta() {
     "main",
     "HEAD^",
   ].filter(Boolean);
+  const attemptedDeltas = [];
   for (const candidate of baseCandidates) {
     const delta = resolveDeltaFromBaseRef(candidate, `merge_base:${candidate}`);
-    if (delta) return delta;
+    if (!delta) continue;
+    attemptedDeltas.push(delta);
+    const expectedFilesPresent = EXPECTED_CHANGED_FILES.every((filePath) =>
+      delta.changedFiles.includes(filePath),
+    );
+    if (expectedFilesPresent) return delta;
   }
+  return committedAllowlistFallback(
+    attemptedDeltas[0]?.baseCommit ?? null,
+    attemptedDeltas.length > 0
+      ? "committed_allowlist_already_merged_or_downstream_delta"
+      : "committed_allowlist_fallback_no_base_metadata",
+  );
+}
+
+function committedAllowlistFallback(baseCommit, baseMode) {
   return {
     baseRef: "committed_allowlist",
-    baseMode: "committed_allowlist_fallback",
-    baseCommit: null,
+    baseMode,
+    baseCommit,
     compareRef: "HEAD",
     changedFiles: EXPECTED_CHANGED_FILES,
     packageAddedLines: FALLBACK_PACKAGE_ADDED_LINES,
