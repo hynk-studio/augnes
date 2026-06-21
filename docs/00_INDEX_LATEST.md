@@ -1161,6 +1161,29 @@ repo-local 색인이다.
   Perspective/canonical graph write, no work item, no provider/retrieval/source
   fetch, no external handoff, no browser persistence, and no local runtime
   requirement.
+- Manual note single-claim temp-to-product disabled bridge dry-run transaction harness:
+  `lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1`,
+  and `npm run harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1`
+  add a deterministic disabled dry-run transaction harness only. It consumes
+  the disabled dry-run transaction plan, disabled bridge skeleton contract-test
+  report, disabled bridge skeleton, temp-to-product bridge design, and product
+  write gate design fixtures or passing `/tmp` reports; failed optional
+  reports block and do not fall back to committed fixtures. This slice does
+  not implement product write, does not execute a DB transaction, does not
+  enable an adapter, does not allocate product IDs, does not open DB, and does
+  not execute SQL. It adds no route, no UI write action, and no
+  schema/migration/dependency. Product write remains blocked. The harness
+  status is `disabled_dry_run_transaction_harness_only`, the recommendation
+  status is `ready_for_product_write_authority_contract_bundle`, and the next
+  recommended slice is `single_claim_product_write_authority_contract_bundle`,
+  not product write implementation. The runner writes only `/tmp` report
+  artifacts and keeps no product DB write, no product ID allocation, no
+  proof/evidence write, no Perspective/canonical graph write, no work item, no
+  provider/OpenAI call, no retrieval/RAG/source fetch, no external handoff, no
+  browser persistence, no transaction execution, and no local runtime
+  requirement.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
