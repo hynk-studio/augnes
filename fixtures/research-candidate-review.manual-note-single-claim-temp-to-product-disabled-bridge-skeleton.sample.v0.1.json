@@ -1,0 +1,147 @@
+{
+  "skeleton_kind": "manual_note_single_claim_temp_to_product_disabled_bridge_skeleton",
+  "skeleton_version": "manual_note_single_claim_temp_to_product_disabled_bridge_skeleton.v0.1",
+  "skeleton_fingerprint": "fnv1a32:94b777bb",
+  "source_evidence": {
+    "temp_to_product_bridge_design": {
+      "design_fingerprint": "fnv1a32:464b6626",
+      "bridge_design_status": "single_claim_bridge_design_only",
+      "recommendation_status": "ready_for_disabled_bridge_skeleton",
+      "next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_skeleton",
+      "bridge_input_contract_summary": {
+        "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+        "source_operation_id": "disabled-plan-op:claim:001",
+        "source_temp_intent_id": "temp-intent:claim:001",
+        "temp_idempotency_key": "temp-idempotency:d2caa29d",
+        "gate_design_fingerprint": "fnv1a32:ff55b3ed",
+        "result_contract_evidence_fingerprint": "fnv1a32:a65bf1fe",
+        "operator_decision_status": "blocked_until_explicit_operator_decision_contract"
+      },
+      "future_product_claim_draft_summary": {
+        "candidate_kind": "manual_note_single_claim",
+        "source_temp_claim_record_id": "temp-claim:aa03dfea",
+        "source_operation_id": "disabled-plan-op:claim:001",
+        "source_temp_intent_id": "temp-intent:claim:001",
+        "product_claim_id": null,
+        "product_claim_id_allocation_status": "blocked_until_operator_and_schema_contract",
+        "raw_manual_note_text_included": false,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "work_item_id": null
+      },
+      "idempotency_design_summary": {
+        "key_inputs": {
+          "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+          "source_operation_id": "disabled-plan-op:claim:001",
+          "gate_design_fingerprint": "fnv1a32:ff55b3ed",
+          "result_contract_suite_fingerprint": "fnv1a32:a65bf1fe",
+          "operator_decision_fingerprint_placeholder": "operator-decision-fingerprint:blocked-until-explicit-contract"
+        },
+        "storage_status": "blocked_until_product_idempotency_storage_contract",
+        "product_idempotency_record_id": null,
+        "idempotency_write_executed_now": false
+      },
+      "rollback_design_summary": {
+        "strategy": "delete_or_mark_product_claim_by_idempotency_key",
+        "rollback_storage_status": "blocked_until_product_rollback_storage_contract",
+        "product_rollback_record_id": null,
+        "rollback_write_executed_now": false
+      },
+      "audit_design_summary": {
+        "records_operator_decision": "required_later",
+        "records_gate_evidence": true,
+        "records_bridge_design_inputs": true,
+        "product_audit_record_id": null,
+        "audit_write_executed_now": false
+      },
+      "explicit_forbidden_surfaces": {
+        "proof_evidence_write": false,
+        "perspective_or_canonical_graph_write": false,
+        "work_item_creation": false,
+        "source_fetch": false,
+        "provider_or_openai_call": false,
+        "retrieval_or_rag": false,
+        "external_handoff": false,
+        "product_db_write": false,
+        "product_id_allocation": false,
+        "sql_execution": false,
+        "db_open": false,
+        "schema_or_migration_change": false,
+        "route_added": false,
+        "ui_write_action_added": false,
+        "adapter_enabled": false
+      }
+    }
+  },
+  "disabled_bridge_skeleton_status": "single_claim_disabled_bridge_skeleton_only",
+  "bridge_adapter_enabled": false,
+  "bridge_execution_allowed_now": false,
+  "product_write_allowed_now": false,
+  "product_db_write": false,
+  "product_id_allocation": false,
+  "disabled_adapter_boundary": {
+    "adapter_kind": "manual_note_single_claim_temp_to_product_disabled_bridge",
+    "adapter_enabled": false,
+    "adapter_invocation_allowed_now": false,
+    "adapter_execution_mode": "disabled_dry_boundary_only",
+    "adapter_would_accept_candidate_kind": "manual_note_single_claim",
+    "adapter_would_accept_one_selected_claim_only": true,
+    "adapter_rejects_blocked_bridge_design": true,
+    "adapter_rejects_missing_operator_decision": true,
+    "adapter_rejects_missing_product_schema_contract": true,
+    "adapter_rejects_missing_idempotency_storage_contract": true,
+    "adapter_rejects_missing_rollback_storage_contract": true,
+    "adapter_rejects_missing_audit_storage_contract": true
+  },
+  "future_product_write_intent": {
+    "product_claim_id": null,
+    "product_write_statement_count": 0,
+    "sql_statement_count": 0,
+    "db_opened": false,
+    "route_added": false,
+    "ui_action_added": false,
+    "execution_status": "blocked_disabled_skeleton_only"
+  },
+  "placeholder_record_mapping": {
+    "product_idempotency_record_id": null,
+    "product_rollback_record_id": null,
+    "product_audit_record_id": null,
+    "idempotency_write_executed_now": false,
+    "rollback_write_executed_now": false,
+    "audit_write_executed_now": false
+  },
+  "explicit_forbidden_surfaces": {
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "product_route": false,
+    "product_write_adapter_enabled": false,
+    "sql_execution": false,
+    "db_open": false,
+    "schema_or_migration_change": false,
+    "proof_evidence_write": false,
+    "perspective_or_canonical_graph_write": false,
+    "work_item_creation": false,
+    "source_fetch": false,
+    "provider_or_openai_call": false,
+    "retrieval_or_rag": false,
+    "external_handoff": false,
+    "browser_persistence": false,
+    "ui_write_action": false
+  },
+  "recommendation_status": "ready_for_disabled_bridge_skeleton_contract_tests",
+  "next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests",
+  "local_copy_packet": {
+    "markdown": "# Manual Note Single-Claim Temp-to-Product Disabled Bridge Skeleton\n\nDisabled skeleton only. It does not implement product write, enable an adapter, open DB, execute SQL, allocate product IDs, add a route, or add a UI action.\ndisabled_bridge_skeleton_status: single_claim_disabled_bridge_skeleton_only\nrecommendation_status: ready_for_disabled_bridge_skeleton_contract_tests\nsource_bridge_recommendation_status: ready_for_disabled_bridge_skeleton\n\n## Adapter Boundary\nadapter_kind=manual_note_single_claim_temp_to_product_disabled_bridge\nadapter_enabled=false\nadapter_invocation_allowed_now=false\nadapter_execution_mode=disabled_dry_boundary_only\n\n## Future Product Write Intent\nproduct_claim_id=null\nproduct_write_statement_count=0\nsql_statement_count=0\ndb_opened=false\nroute_added=false\nui_action_added=false\nexecution_status=blocked_disabled_skeleton_only\n\n## Boundary\nbridge_execution_allowed_now=false\nproduct_write_allowed_now=false\nproduct_db_write=false\nproduct_id_allocation=false\nproduct_route=false\nproduct_write_adapter_enabled=false\nsql_execution=false\ndb_open=false\nschema_or_migration_change=false\nproof_evidence_write=false\nperspective_or_canonical_graph_write=false\nwork_item_creation=false\nsource_fetch=false\nprovider_or_openai_call=false\nretrieval_or_rag=false\nexternal_handoff=false\nbrowser_persistence=false\nui_write_action=false\n\n## Next\nsingle_claim_temp_to_product_disabled_bridge_skeleton_contract_tests",
+    "json": "{\n  \"skeleton_kind\": \"manual_note_single_claim_temp_to_product_disabled_bridge_skeleton\",\n  \"skeleton_version\": \"manual_note_single_claim_temp_to_product_disabled_bridge_skeleton.v0.1\",\n  \"skeleton_fingerprint\": \"fnv1a32:94b777bb\",\n  \"source_evidence\": {\n    \"temp_to_product_bridge_design\": {\n      \"design_fingerprint\": \"fnv1a32:464b6626\",\n      \"bridge_design_status\": \"single_claim_bridge_design_only\",\n      \"recommendation_status\": \"ready_for_disabled_bridge_skeleton\",\n      \"next_recommended_slice\": \"single_claim_temp_to_product_disabled_bridge_skeleton\",\n      \"bridge_input_contract_summary\": {\n        \"selected_temp_claim_record_id\": \"temp-claim:aa03dfea\",\n        \"source_operation_id\": \"disabled-plan-op:claim:001\",\n        \"source_temp_intent_id\": \"temp-intent:claim:001\",\n        \"temp_idempotency_key\": \"temp-idempotency:d2caa29d\",\n        \"gate_design_fingerprint\": \"fnv1a32:ff55b3ed\",\n        \"result_contract_evidence_fingerprint\": \"fnv1a32:a65bf1fe\",\n        \"operator_decision_status\": \"blocked_until_explicit_operator_decision_contract\"\n      },\n      \"future_product_claim_draft_summary\": {\n        \"candidate_kind\": \"manual_note_single_claim\",\n        \"source_temp_claim_record_id\": \"temp-claim:aa03dfea\",\n        \"source_operation_id\": \"disabled-plan-op:claim:001\",\n        \"source_temp_intent_id\": \"temp-intent:claim:001\",\n        \"product_claim_id\": null,\n        \"product_claim_id_allocation_status\": \"blocked_until_operator_and_schema_contract\",\n        \"raw_manual_note_text_included\": false,\n        \"proof_id\": null,\n        \"evidence_id\": null,\n        \"perspective_id\": null,\n        \"work_item_id\": null\n      },\n      \"idempotency_design_summary\": {\n        \"key_inputs\": {\n          \"selected_temp_claim_record_id\": \"temp-claim:aa03dfea\",\n          \"source_operation_id\": \"disabled-plan-op:claim:001\",\n          \"gate_design_fingerprint\": \"fnv1a32:ff55b3ed\",\n          \"result_contract_suite_fingerprint\": \"fnv1a32:a65bf1fe\",\n          \"operator_decision_fingerprint_placeholder\": \"operator-decision-fingerprint:blocked-until-explicit-contract\"\n        },\n        \"storage_status\": \"blocked_until_product_idempotency_storage_contract\",\n        \"product_idempotency_record_id\": null,\n        \"idempotency_write_executed_now\": false\n      },\n      \"rollback_design_summary\": {\n        \"strategy\": \"delete_or_mark_product_claim_by_idempotency_key\",\n        \"rollback_storage_status\": \"blocked_until_product_rollback_storage_contract\",\n        \"product_rollback_record_id\": null,\n        \"rollback_write_executed_now\": false\n      },\n      \"audit_design_summary\": {\n        \"records_operator_decision\": \"required_later\",\n        \"records_gate_evidence\": true,\n        \"records_bridge_design_inputs\": true,\n        \"product_audit_record_id\": null,\n        \"audit_write_executed_now\": false\n      },\n      \"explicit_forbidden_surfaces\": {\n        \"proof_evidence_write\": false,\n        \"perspective_or_canonical_graph_write\": false,\n        \"work_item_creation\": false,\n        \"source_fetch\": false,\n        \"provider_or_openai_call\": false,\n        \"retrieval_or_rag\": false,\n        \"external_handoff\": false,\n        \"product_db_write\": false,\n        \"product_id_allocation\": false,\n        \"sql_execution\": false,\n        \"db_open\": false,\n        \"schema_or_migration_change\": false,\n        \"route_added\": false,\n        \"ui_write_action_added\": false,\n        \"adapter_enabled\": false\n      }\n    }\n  },\n  \"disabled_bridge_skeleton_status\": \"single_claim_disabled_bridge_skeleton_only\",\n  \"bridge_adapter_enabled\": false,\n  \"bridge_execution_allowed_now\": false,\n  \"product_write_allowed_now\": false,\n  \"disabled_adapter_boundary\": {\n    \"adapter_kind\": \"manual_note_single_claim_temp_to_product_disabled_bridge\",\n    \"adapter_enabled\": false,\n    \"adapter_invocation_allowed_now\": false,\n    \"adapter_execution_mode\": \"disabled_dry_boundary_only\",\n    \"adapter_would_accept_candidate_kind\": \"manual_note_single_claim\",\n    \"adapter_would_accept_one_selected_claim_only\": true,\n    \"adapter_rejects_blocked_bridge_design\": true,\n    \"adapter_rejects_missing_operator_decision\": true,\n    \"adapter_rejects_missing_product_schema_contract\": true,\n    \"adapter_rejects_missing_idempotency_storage_contract\": true,\n    \"adapter_rejects_missing_rollback_storage_contract\": true,\n    \"adapter_rejects_missing_audit_storage_contract\": true\n  },\n  \"future_product_write_intent\": {\n    \"product_claim_id\": null,\n    \"product_write_statement_count\": 0,\n    \"sql_statement_count\": 0,\n    \"db_opened\": false,\n    \"route_added\": false,\n    \"ui_action_added\": false,\n    \"execution_status\": \"blocked_disabled_skeleton_only\"\n  },\n  \"placeholder_record_mapping\": {\n    \"product_idempotency_record_id\": null,\n    \"product_rollback_record_id\": null,\n    \"product_audit_record_id\": null,\n    \"idempotency_write_executed_now\": false,\n    \"rollback_write_executed_now\": false,\n    \"audit_write_executed_now\": false\n  },\n  \"explicit_forbidden_surfaces\": {\n    \"product_db_write\": false,\n    \"product_id_allocation\": false,\n    \"product_route\": false,\n    \"product_write_adapter_enabled\": false,\n    \"sql_execution\": false,\n    \"db_open\": false,\n    \"schema_or_migration_change\": false,\n    \"proof_evidence_write\": false,\n    \"perspective_or_canonical_graph_write\": false,\n    \"work_item_creation\": false,\n    \"source_fetch\": false,\n    \"provider_or_openai_call\": false,\n    \"retrieval_or_rag\": false,\n    \"external_handoff\": false,\n    \"browser_persistence\": false,\n    \"ui_write_action\": false\n  },\n  \"recommendation_status\": \"ready_for_disabled_bridge_skeleton_contract_tests\",\n  \"next_recommended_slice\": \"single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests\"\n}",
+    "fingerprint": "fnv1a32:94b777bb",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "adapter_enabled": false,
+    "bridge_execution_allowed_now": false,
+    "product_write_allowed_now": false,
+    "product_write_authority_granted": false
+  }
+}
