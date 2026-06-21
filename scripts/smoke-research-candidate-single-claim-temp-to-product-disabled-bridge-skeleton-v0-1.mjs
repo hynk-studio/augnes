@@ -91,6 +91,9 @@ assertRunnerContract();
 assertFixtureContract();
 assertRunnerFixtureMode();
 assertBlockedBridgeDesignMutation();
+assertFailedBridgeDesignReportWithReadyNestedMutation();
+assertSourceForbiddenSurfaceMutation();
+assertSourceProductIdMutation();
 assertAdapterEnabledMutation();
 assertProductIdMutation();
 assertDocsPackageAndBrowserPointers();
@@ -107,6 +110,9 @@ console.log(
       runner_exists: true,
       runner_fixture_mode_checked: true,
       blocked_bridge_design_mutation_checked: true,
+      failed_bridge_design_report_ready_nested_mutation_checked: true,
+      source_forbidden_surface_mutation_checked: true,
+      source_product_id_mutation_checked: true,
       adapter_enabled_mutation_checked: true,
       product_id_mutation_checked: true,
       package_scripts_checked: true,
@@ -176,8 +182,13 @@ function assertRunnerContract() {
     "AUGNES_SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_SKELETON_FIXTURE_MODE",
     "disabled-bridge-skeleton.json",
     "report.json",
+    "sourceBridgeDesignReportPassed",
     "validateSkeleton",
     "source_bridge_design_not_ready",
+    "source_bridge_design_report_not_passed",
+    "source_bridge_forbidden_surface_enabled",
+    "source_bridge_design_forbidden_surface_enabled",
+    "source_bridge_design_product_id_present",
     "disabled_bridge_skeleton_recommendation_status_not_ready",
     "future_product_write_intent_non_executable_violation",
     "non_null_product_id_present",
@@ -384,6 +395,157 @@ function assertBlockedBridgeDesignMutation() {
   }
 }
 
+function assertFailedBridgeDesignReportWithReadyNestedMutation() {
+  const readyBridgeDesign = JSON.parse(JSON.stringify(bridgeDesignFixture));
+  readyBridgeDesign.recommendation_status = "ready_for_disabled_bridge_skeleton";
+  withOptionalBridgeDesignReport(
+    {
+      report_kind:
+        "manual_note_single_claim_temp_to_product_bridge_design_report_failed_ready_nested_negative_smoke_fixture",
+      final_status: "fail",
+      temp_to_product_bridge_design: readyBridgeDesign,
+    },
+    () => {
+      const { failedAsExpected, status } = runSkeletonRunnerExpectingFailure();
+      assert.equal(failedAsExpected, true);
+      assert.equal(status, 1);
+      const failedReport = JSON.parse(readFileSync(artifactReportPath, "utf8"));
+      const failedSkeleton = failedReport.disabled_bridge_skeleton;
+      assert.equal(failedReport.final_status, "fail");
+      assert.equal(
+        failedReport.optional_inputs.bridge_design_report_present,
+        true,
+      );
+      assert.equal(
+        failedReport.optional_inputs.bridge_design_report_final_status,
+        "fail",
+      );
+      assert.equal(
+        failedSkeleton.source_evidence.temp_to_product_bridge_design
+          .recommendation_status,
+        "ready_for_disabled_bridge_skeleton",
+      );
+      assert.ok(
+        failedReport.disabled_bridge_skeleton_validation.failures.includes(
+          "source_bridge_design_report_not_passed",
+        ),
+        "failed optional report must include source report not-passed failure",
+      );
+      assert.equal(
+        failedSkeleton.disabled_bridge_skeleton_status,
+        "blocked_before_disabled_bridge_skeleton",
+      );
+      assert.equal(
+        failedSkeleton.recommendation_status,
+        "blocked_before_disabled_bridge_skeleton_contract_tests",
+      );
+      assert.notEqual(
+        failedSkeleton.recommendation_status,
+        "ready_for_disabled_bridge_skeleton_contract_tests",
+      );
+      assertDisabledBoundary(failedSkeleton);
+      assertForbiddenSurfaces(failedSkeleton.explicit_forbidden_surfaces);
+      assertNoNonNullProductIds(failedSkeleton, "failedSkeleton");
+    },
+  );
+}
+
+function assertSourceForbiddenSurfaceMutation() {
+  const contaminatedBridgeDesign = JSON.parse(JSON.stringify(bridgeDesignFixture));
+  contaminatedBridgeDesign.recommendation_status =
+    "ready_for_disabled_bridge_skeleton";
+  contaminatedBridgeDesign.explicit_forbidden_surfaces.product_db_write = true;
+  withOptionalBridgeDesignReport(
+    {
+      report_kind:
+        "manual_note_single_claim_temp_to_product_bridge_design_report_source_forbidden_surface_negative_smoke_fixture",
+      final_status: "pass",
+      temp_to_product_bridge_design: contaminatedBridgeDesign,
+    },
+    () => {
+      const { failedAsExpected, status } = runSkeletonRunnerExpectingFailure();
+      assert.equal(failedAsExpected, true);
+      assert.equal(status, 1);
+      const contaminatedReport = JSON.parse(
+        readFileSync(artifactReportPath, "utf8"),
+      );
+      const contaminatedSkeleton = contaminatedReport.disabled_bridge_skeleton;
+      assert.equal(contaminatedReport.final_status, "fail");
+      assert.ok(
+        contaminatedReport.disabled_bridge_skeleton_validation.failures.includes(
+          "source_bridge_forbidden_surface_enabled",
+        ),
+        "source summary forbidden-surface failure must be reported",
+      );
+      assert.ok(
+        contaminatedReport.disabled_bridge_skeleton_validation.failures.includes(
+          "source_bridge_design_forbidden_surface_enabled",
+        ),
+        "original source forbidden-surface failure must be reported",
+      );
+      assert.equal(
+        contaminatedSkeleton.source_evidence.temp_to_product_bridge_design
+          .explicit_forbidden_surfaces.product_db_write,
+        true,
+      );
+      assert.equal(
+        contaminatedSkeleton.disabled_bridge_skeleton_status,
+        "blocked_before_disabled_bridge_skeleton",
+      );
+      assert.equal(
+        contaminatedSkeleton.recommendation_status,
+        "blocked_before_disabled_bridge_skeleton_contract_tests",
+      );
+      assertDisabledBoundary(contaminatedSkeleton);
+      assertForbiddenSurfaces(contaminatedSkeleton.explicit_forbidden_surfaces);
+      assertNoNonNullProductIds(contaminatedSkeleton, "contaminatedSkeleton");
+    },
+  );
+}
+
+function assertSourceProductIdMutation() {
+  const contaminatedBridgeDesign = JSON.parse(JSON.stringify(bridgeDesignFixture));
+  contaminatedBridgeDesign.recommendation_status =
+    "ready_for_disabled_bridge_skeleton";
+  contaminatedBridgeDesign.future_product_claim_draft.product_claim_id =
+    "product-claim:bad-source";
+  withOptionalBridgeDesignReport(
+    {
+      report_kind:
+        "manual_note_single_claim_temp_to_product_bridge_design_report_source_product_id_negative_smoke_fixture",
+      final_status: "pass",
+      temp_to_product_bridge_design: contaminatedBridgeDesign,
+    },
+    () => {
+      const { failedAsExpected, status } = runSkeletonRunnerExpectingFailure();
+      assert.equal(failedAsExpected, true);
+      assert.equal(status, 1);
+      const contaminatedReport = JSON.parse(
+        readFileSync(artifactReportPath, "utf8"),
+      );
+      const contaminatedSkeleton = contaminatedReport.disabled_bridge_skeleton;
+      assert.equal(contaminatedReport.final_status, "fail");
+      assert.ok(
+        contaminatedReport.disabled_bridge_skeleton_validation.failures.includes(
+          "source_bridge_design_product_id_present",
+        ),
+        "source product ID contamination must be reported",
+      );
+      assert.equal(
+        contaminatedSkeleton.disabled_bridge_skeleton_status,
+        "blocked_before_disabled_bridge_skeleton",
+      );
+      assert.equal(
+        contaminatedSkeleton.recommendation_status,
+        "blocked_before_disabled_bridge_skeleton_contract_tests",
+      );
+      assertDisabledBoundary(contaminatedSkeleton);
+      assertForbiddenSurfaces(contaminatedSkeleton.explicit_forbidden_surfaces);
+      assertNoNonNullProductIds(contaminatedSkeleton, "contaminatedSkeleton");
+    },
+  );
+}
+
 function assertAdapterEnabledMutation() {
   const mutated = JSON.parse(JSON.stringify(fixture));
   mutated.bridge_adapter_enabled = true;
@@ -579,6 +741,14 @@ function validateSkeletonArtifact(skeleton) {
     failures.push("forbidden_surface_enabled");
   }
   if (
+    !allFalse(
+      skeleton.source_evidence?.temp_to_product_bridge_design
+        ?.explicit_forbidden_surfaces,
+    )
+  ) {
+    failures.push("source_bridge_forbidden_surface_enabled");
+  }
+  if (
     skeleton.future_product_write_intent?.product_write_statement_count !== 0 ||
     skeleton.future_product_write_intent?.sql_statement_count !== 0 ||
     skeleton.future_product_write_intent?.db_opened !== false ||
@@ -679,6 +849,40 @@ function hasNonNullProductIds(value) {
     if (productIdKeys.includes(key)) return nestedValue !== null;
     return hasNonNullProductIds(nestedValue);
   });
+}
+
+function withOptionalBridgeDesignReport(report, fn) {
+  const originalReportExists = existsSync(optionalBridgeDesignReportPath);
+  const originalReportText = originalReportExists
+    ? readFileSync(optionalBridgeDesignReportPath, "utf8")
+    : null;
+  mkdirSync(path.dirname(optionalBridgeDesignReportPath), { recursive: true });
+  writeFileSync(
+    optionalBridgeDesignReportPath,
+    `${JSON.stringify(report, null, 2)}\n`,
+  );
+
+  try {
+    fn();
+  } finally {
+    if (originalReportExists && originalReportText !== null) {
+      writeFileSync(optionalBridgeDesignReportPath, originalReportText);
+    } else {
+      rmSync(optionalBridgeDesignReportPath, { force: true });
+    }
+  }
+}
+
+function runSkeletonRunnerExpectingFailure() {
+  try {
+    execSync(
+      "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+      { encoding: "utf8", stdio: "pipe" },
+    );
+    return { failedAsExpected: false, status: 0 };
+  } catch (error) {
+    return { failedAsExpected: true, status: error.status };
+  }
 }
 
 function listFiles(root) {

@@ -57,11 +57,26 @@ async function main() {
   const optionalBridgeDesignReport = FIXTURE_MODE
     ? null
     : await readOptionalJson(OPTIONAL_BRIDGE_DESIGN_REPORT_PATH);
+  const optionalBridgeDesignReportRecord = asRecord(optionalBridgeDesignReport);
+  const optionalBridgeDesignReportPresent = Boolean(optionalBridgeDesignReport);
   const bridgeDesign =
-    asRecord(optionalBridgeDesignReport).temp_to_product_bridge_design ??
-    committedBridgeDesign;
-  const skeleton = buildSkeleton({ tempToProductBridgeDesign: bridgeDesign });
-  const validation = validateSkeleton(skeleton);
+    optionalBridgeDesignReportPresent
+      ? optionalBridgeDesignReportRecord.temp_to_product_bridge_design
+      : committedBridgeDesign;
+  const optionalBridgeDesignReportFinalStatus =
+    asString(optionalBridgeDesignReportRecord.final_status);
+  const optionalBridgeDesignReportPassed =
+    !optionalBridgeDesignReportPresent ||
+    optionalBridgeDesignReportFinalStatus === "pass";
+  const skeleton = buildSkeleton({
+    tempToProductBridgeDesign: bridgeDesign,
+    sourceBridgeDesignReportPassed: optionalBridgeDesignReportPassed,
+  });
+  const validation = validateSkeleton(skeleton, {
+    sourceBridgeDesign: bridgeDesign,
+    sourceBridgeDesignReportPresent: optionalBridgeDesignReportPresent,
+    sourceBridgeDesignReportFinalStatus: optionalBridgeDesignReportFinalStatus,
+  });
   const report = {
     report_kind:
       "manual_note_single_claim_temp_to_product_disabled_bridge_skeleton_report",
@@ -77,9 +92,9 @@ async function main() {
     },
     optional_inputs: {
       fixture_mode: FIXTURE_MODE,
-      bridge_design_report_present: Boolean(optionalBridgeDesignReport),
+      bridge_design_report_present: optionalBridgeDesignReportPresent,
       bridge_design_report_final_status:
-        optionalBridgeDesignReport?.final_status ?? null,
+        optionalBridgeDesignReportFinalStatus,
     },
     disabled_bridge_skeleton: skeleton,
     disabled_bridge_skeleton_validation: validation,
@@ -115,7 +130,10 @@ async function main() {
   }
 }
 
-function buildSkeleton({ tempToProductBridgeDesign }) {
+function buildSkeleton({
+  tempToProductBridgeDesign,
+  sourceBridgeDesignReportPassed = true,
+}) {
   const bridgeDesign = asRecord(tempToProductBridgeDesign);
   const bridgeInputContract = asRecord(bridgeDesign.bridge_input_contract);
   const futureProductClaimDraft = asRecord(bridgeDesign.future_product_claim_draft);
@@ -126,8 +144,14 @@ function buildSkeleton({ tempToProductBridgeDesign }) {
     bridgeDesign.future_product_rollback_design,
   );
   const futureProductAuditDesign = asRecord(bridgeDesign.future_product_audit_design);
+  const sourceBridgeEvidenceClean =
+    allFalse(asRecord(bridgeDesign.explicit_forbidden_surfaces)) &&
+    !hasNonNullProductIds(bridgeDesign);
   const sourceBridgeReady =
-    bridgeDesign.recommendation_status === "ready_for_disabled_bridge_skeleton";
+    bridgeDesign.recommendation_status ===
+      "ready_for_disabled_bridge_skeleton" &&
+    sourceBridgeDesignReportPassed === true &&
+    sourceBridgeEvidenceClean;
   const disabledBridgeSkeletonStatus = sourceBridgeReady
     ? "single_claim_disabled_bridge_skeleton_only"
     : "blocked_before_disabled_bridge_skeleton";
@@ -270,8 +294,22 @@ function buildSkeleton({ tempToProductBridgeDesign }) {
   };
 }
 
-function validateSkeleton(skeleton) {
+function validateSkeleton(
+  skeleton,
+  {
+    sourceBridgeDesign = null,
+    sourceBridgeDesignReportPresent = false,
+    sourceBridgeDesignReportFinalStatus = null,
+  } = {},
+) {
   const failures = [];
+  const sourceBridgeDesignRecord = asRecord(sourceBridgeDesign);
+  if (
+    sourceBridgeDesignReportPresent &&
+    sourceBridgeDesignReportFinalStatus !== "pass"
+  ) {
+    failures.push("source_bridge_design_report_not_passed");
+  }
   if (
     skeleton.source_evidence?.temp_to_product_bridge_design
       ?.recommendation_status !== "ready_for_disabled_bridge_skeleton"
@@ -320,6 +358,21 @@ function validateSkeleton(skeleton) {
   if (!allFalse(asRecord(skeleton.explicit_forbidden_surfaces))) {
     failures.push("forbidden_surface_enabled");
   }
+  if (
+    !allFalse(
+      asRecord(
+        skeleton.source_evidence?.temp_to_product_bridge_design
+          ?.explicit_forbidden_surfaces,
+      ),
+    )
+  ) {
+    failures.push("source_bridge_forbidden_surface_enabled");
+  }
+  if (
+    !allFalse(asRecord(sourceBridgeDesignRecord.explicit_forbidden_surfaces))
+  ) {
+    failures.push("source_bridge_design_forbidden_surface_enabled");
+  }
   for (const key of FORBIDDEN_SURFACE_KEYS) {
     if (skeleton.explicit_forbidden_surfaces?.[key] !== false) {
       failures.push(`forbidden_surface_${key}_not_false`);
@@ -346,6 +399,9 @@ function validateSkeleton(skeleton) {
   }
   if (hasNonNullProductIds(skeleton)) {
     failures.push("non_null_product_id_present");
+  }
+  if (hasNonNullProductIds(sourceBridgeDesignRecord)) {
+    failures.push("source_bridge_design_product_id_present");
   }
   return {
     passed: failures.length === 0,
