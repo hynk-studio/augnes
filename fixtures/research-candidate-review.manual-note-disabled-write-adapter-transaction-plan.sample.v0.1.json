@@ -1,0 +1,191 @@
+{
+  "plan_kind": "manual_note_disabled_write_adapter_transaction_plan",
+  "plan_version": "manual_note_disabled_write_adapter_transaction_plan.v0.1",
+  "plan_fingerprint": "fnv1a32:5c19232d",
+  "preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+  "source_chain": {
+    "disabled_readiness_fingerprint": "fnv1a32:7dfb8a21",
+    "contract_review_fingerprint": "fnv1a32:41c3a5d0",
+    "temp_harness_fingerprint": "fnv1a32:8e25f0ac",
+    "contract_test_report_fingerprint": "fnv1a32:06d0b2f1",
+    "contract_test_final_status": "pass"
+  },
+  "plan_status": "ready_for_abort_only_harness",
+  "plan_summary": "Validated disabled adapter fixtures can be represented as an in-memory transaction plan, but every operation remains blocked from commit.",
+  "operation_groups": {
+    "claim_operations": [
+      {
+        "operation_id": "disabled-plan-op:claim:001",
+        "source_temp_intent_id": "temp-intent:claim:001",
+        "operation_kind": "claim_operation",
+        "target_kind": "future_canonical_claim",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "canonical_graph_edge_id": null,
+        "work_item_id": null,
+        "product_write_allowed": false,
+        "commit_allowed": false,
+        "rollback_required_if_future_commit": true,
+        "audit_required_if_future_commit": true,
+        "temp_harness_only": true
+      }
+    ],
+    "evidence_operations": [
+      {
+        "operation_id": "disabled-plan-op:evidence:001",
+        "source_temp_intent_id": "temp-intent:evidence:001",
+        "operation_kind": "evidence_operation",
+        "target_kind": "future_proof_evidence_record",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "canonical_graph_edge_id": null,
+        "work_item_id": null,
+        "product_write_allowed": false,
+        "commit_allowed": false,
+        "rollback_required_if_future_commit": true,
+        "audit_required_if_future_commit": true,
+        "temp_harness_only": true
+      }
+    ],
+    "perspective_operations": [
+      {
+        "operation_id": "disabled-plan-op:perspective:001",
+        "source_temp_intent_id": "temp-intent:perspective:001",
+        "operation_kind": "perspective_operation",
+        "target_kind": "future_perspective_canonical_graph",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "canonical_graph_edge_id": null,
+        "work_item_id": null,
+        "product_write_allowed": false,
+        "commit_allowed": false,
+        "rollback_required_if_future_commit": true,
+        "audit_required_if_future_commit": true,
+        "temp_harness_only": true
+      }
+    ],
+    "source_verification_operations": [
+      {
+        "operation_id": "disabled-plan-op:source:001",
+        "source_temp_intent_id": "temp-intent:source:001",
+        "operation_kind": "source_verification_operation",
+        "target_kind": "future_source_verification_record",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "canonical_graph_edge_id": null,
+        "work_item_id": null,
+        "product_write_allowed": false,
+        "commit_allowed": false,
+        "rollback_required_if_future_commit": true,
+        "audit_required_if_future_commit": true,
+        "temp_harness_only": true
+      }
+    ],
+    "work_item_operations": [
+      {
+        "operation_id": "disabled-plan-op:work:001",
+        "source_temp_intent_id": "temp-intent:work:001",
+        "operation_kind": "work_item_operation",
+        "target_kind": "future_separate_work_item_lane",
+        "product_record_id": null,
+        "canonical_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "canonical_graph_edge_id": null,
+        "work_item_id": null,
+        "product_write_allowed": false,
+        "commit_allowed": false,
+        "rollback_required_if_future_commit": true,
+        "audit_required_if_future_commit": true,
+        "temp_harness_only": true
+      }
+    ]
+  },
+  "idempotency_plan": {
+    "idempotency_required": true,
+    "idempotency_key_kind": "disabled_plan_only",
+    "idempotency_key_generated_now": true,
+    "product_idempotency_storage_added": false,
+    "durable_idempotency_storage_added": false,
+    "proposed_future_key_inputs": [
+      "preview_draft_id",
+      "transaction_plan_fingerprint",
+      "contract_test_report_fingerprint",
+      "future_operator_decision_id"
+    ]
+  },
+  "rollback_plan": {
+    "rollback_required": true,
+    "rollback_plan_generated_now": true,
+    "rollback_executed_now": false,
+    "product_rollback_performed": false,
+    "durable_rollback_storage_added": false
+  },
+  "review_audit_plan": {
+    "audit_required": true,
+    "audit_plan_generated_now": true,
+    "audit_record_created_now": false,
+    "approval_history_created_now": false,
+    "durable_audit_storage_added": false
+  },
+  "source_evidence_authority_plan": {
+    "source_fetching_performed_now": false,
+    "source_verification_performed_now": false,
+    "evidence_records_created_now": false,
+    "proof_records_created_now": false,
+    "required_before_future_commit": true
+  },
+  "commit_blockers": [
+    "explicit_operator_decision_missing",
+    "source_verification_authority_missing",
+    "proof_evidence_write_authority_missing",
+    "canonical_perspective_write_authority_missing",
+    "durable_idempotency_storage_missing",
+    "rollback_contract_missing",
+    "audit_record_contract_missing",
+    "enabled_adapter_review_missing",
+    "product_write_route_missing"
+  ],
+  "execution_boundary": {
+    "disabled_transaction_plan_only": true,
+    "abort_only_harness": true,
+    "normal_product_write_enabled": false,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_persistence": false,
+    "browser_persistence": false
+  },
+  "next_recommended_slice": "disabled_transaction_plan_fixture_execution_tests",
+  "local_copy_packet": {
+    "markdown": "# Manual Note Disabled Write Adapter Transaction Plan\n\nIn-memory transaction plan only.\nThis does not perform normal product writes.\nplan_status: ready_for_abort_only_harness\nplan_fingerprint: fnv1a32:5c19232d",
+    "json": "{\n  \"plan_status\": \"ready_for_abort_only_harness\",\n  \"product_db_write\": false,\n  \"commit_allowed\": false\n}",
+    "fingerprint": "fnv1a32:5c19232d",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted": false,
+    "product_write_authority_granted": false,
+    "actual_promotion_allowed": false
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "result_kind": "manual_note_disabled_write_adapter_abort_result",
+  "result_version": "manual_note_disabled_write_adapter_abort_result.v0.1",
+  "result_fingerprint": "fnv1a32:ee383d51",
+  "preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+  "source_transaction_plan_fingerprint": "fnv1a32:5c19232d",
+  "execution_mode": "abort_only_non_product_harness",
+  "result_status": "aborted_before_product_write",
+  "abort_reason": "Disabled adapter transaction plans cannot commit product writes.",
+  "operation_results": [
+    {
+      "operation_id": "disabled-plan-op:claim:001",
+      "status": "aborted_before_product_write",
+      "product_write_attempted": false,
+      "product_write_performed": false,
+      "product_record_id": null,
+      "canonical_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "canonical_graph_edge_id": null,
+      "work_item_id": null
+    },
+    {
+      "operation_id": "disabled-plan-op:evidence:001",
+      "status": "aborted_before_product_write",
+      "product_write_attempted": false,
+      "product_write_performed": false,
+      "product_record_id": null,
+      "canonical_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "canonical_graph_edge_id": null,
+      "work_item_id": null
+    },
+    {
+      "operation_id": "disabled-plan-op:perspective:001",
+      "status": "aborted_before_product_write",
+      "product_write_attempted": false,
+      "product_write_performed": false,
+      "product_record_id": null,
+      "canonical_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "canonical_graph_edge_id": null,
+      "work_item_id": null
+    },
+    {
+      "operation_id": "disabled-plan-op:source:001",
+      "status": "aborted_before_product_write",
+      "product_write_attempted": false,
+      "product_write_performed": false,
+      "product_record_id": null,
+      "canonical_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "canonical_graph_edge_id": null,
+      "work_item_id": null
+    },
+    {
+      "operation_id": "disabled-plan-op:work:001",
+      "status": "aborted_before_product_write",
+      "product_write_attempted": false,
+      "product_write_performed": false,
+      "product_record_id": null,
+      "canonical_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "canonical_graph_edge_id": null,
+      "work_item_id": null
+    }
+  ],
+  "idempotency_result": {
+    "idempotency_key_generated_now": true,
+    "idempotency_storage_added": false,
+    "product_idempotency_storage_added": false
+  },
+  "rollback_result": {
+    "rollback_needed_for_current_run": false,
+    "rollback_executed_now": false,
+    "product_rollback_performed": false,
+    "rollback_storage_added": false
+  },
+  "review_audit_result": {
+    "audit_record_created_now": false,
+    "approval_history_created_now": false,
+    "durable_audit_storage_added": false
+  },
+  "abort_boundary": {
+    "abort_only": true,
+    "normal_product_write_enabled": false,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_persistence": false,
+    "browser_persistence": false
+  },
+  "next_recommended_slice": "disabled_transaction_plan_fixture_execution_tests",
+  "local_copy_packet": {
+    "markdown": "# Manual Note Disabled Write Adapter Abort Result\n\nAbort-only non-product harness.\nNo product write was attempted or performed.\nresult_status: aborted_before_product_write\nresult_fingerprint: fnv1a32:ee383d51",
+    "json": "{\n  \"result_status\": \"aborted_before_product_write\",\n  \"product_db_write\": false,\n  \"actual_promotion_performed\": false\n}",
+    "fingerprint": "fnv1a32:ee383d51",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted": false,
+    "product_write_authority_granted": false,
+    "actual_promotion_allowed": false
+  }
+}

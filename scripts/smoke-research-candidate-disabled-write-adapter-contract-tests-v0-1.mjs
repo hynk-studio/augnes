@@ -9,6 +9,12 @@ const testCasesFixturePath =
   "fixtures/research-candidate-review.manual-note-disabled-write-adapter-contract-test-cases.v0.1.json";
 const runnerPath =
   "scripts/run-research-candidate-disabled-write-adapter-contract-tests-v0-1.mjs";
+const transactionPlanHelperPath =
+  "lib/research-candidate-review/manual-note-disabled-write-adapter-transaction-plan.ts";
+const transactionPlanSmokePath =
+  "scripts/smoke-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs";
+const transactionPlanRunnerPath =
+  "scripts/run-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs";
 const tempHarnessSmokePath =
   "scripts/smoke-research-candidate-disabled-adapter-temp-harness-v0-1.mjs";
 const browserValidatorPath =
@@ -20,6 +26,9 @@ for (const filePath of [
   helperPath,
   testCasesFixturePath,
   runnerPath,
+  transactionPlanHelperPath,
+  transactionPlanSmokePath,
+  transactionPlanRunnerPath,
   tempHarnessSmokePath,
   browserValidatorPath,
   docsIndexPath,
@@ -237,12 +246,29 @@ function assertDocsPackageAndExistingSmokePointers() {
     ],
     "node scripts/run-research-candidate-disabled-write-adapter-contract-tests-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-disabled-write-adapter-transaction-plan-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1"
+    ],
+    "node scripts/run-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs",
+  );
 
   for (const requiredText of [
     "Manual note fixture-only disabled write adapter contract tests",
+    "Manual note disabled write adapter in-memory transaction plan",
     "positive fixture chain",
     "negative mutation matrix",
     "/tmp contract-test report runner",
+    "/tmp transaction-plan report runner",
+    transactionPlanHelperPath,
+    "npm run smoke:research-candidate-disabled-write-adapter-transaction-plan-v0-1",
+    "npm run plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1",
     "no new route",
     "no UI behavior change",
     "no normal product write",
@@ -307,8 +333,14 @@ function assertNoRouteSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"contracts:research-candidate-disabled-write-adapter-contract-tests-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-disabled-write-adapter-transaction-plan-v0-1"',
+        ) ||
+        line.includes(
+          '"plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1"',
         ),
-      `package.json must only add the contract-test scripts, not dependencies: ${line}`,
+      `package.json must only add the contract-test or transaction-plan scripts, not dependencies: ${line}`,
     );
   }
 }
