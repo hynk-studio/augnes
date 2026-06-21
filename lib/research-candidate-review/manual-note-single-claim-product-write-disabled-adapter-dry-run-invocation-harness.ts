@@ -152,7 +152,9 @@ export function invokeManualNoteSingleClaimProductWriteDisabledAdapterDryRun(
     ...sourceValidationFailureCodes,
     ...validateContractTestsReport(contractTests),
     ...validateSkeleton(skeleton),
+    ...validateHarnessSourceEvidence(sourceEvidence),
     ...validateInvocationInput(dryRunInvocationInput),
+    ...validateInvocationInputReferences(dryRunInvocationInput, sourceEvidence),
     ...validateStaticBoundaryEvidence(staticBoundaryEvidence),
   ]);
   const ready = validationFailureCodes.length === 0;
@@ -272,8 +274,15 @@ export function validateManualNoteSingleClaimProductWriteDisabledAdapterDryRunIn
   }
   failures.push(...validateInvocationInput(harness.dry_run_invocation_input));
   failures.push(
+    ...validateInvocationInputReferences(
+      harness.dry_run_invocation_input,
+      harness.source_evidence,
+    ),
+  );
+  failures.push(
     ...validateNormalizedInvocationInput(harness.normalized_invocation_input),
   );
+  failures.push(...validateHarnessSourceEvidence(asRecord(harness.source_evidence)));
   failures.push(...validateInvocationTrace(harness.invocation_trace));
   failures.push(
     ...validateDisabledInvocationResult(harness.disabled_invocation_result),
@@ -587,6 +596,35 @@ function validateInvocationInput(value: unknown): string[] {
   return failures;
 }
 
+function validateInvocationInputReferences(
+  value: unknown,
+  sourceEvidenceValue: unknown,
+): string[] {
+  const input = asRecord(value);
+  const sourceEvidence = asRecord(sourceEvidenceValue);
+  const contractTests = asRecord(sourceEvidence.disabled_adapter_contract_tests);
+  const skeleton = asRecord(sourceEvidence.disabled_adapter_skeleton);
+  const authority = asRecord(sourceEvidence.authority_contract_bundle);
+  const expectedReferences = [
+    [
+      "authority_contract_bundle_fingerprint",
+      asString(authority.authority_contract_bundle_fingerprint),
+    ],
+    [
+      "disabled_adapter_skeleton_fingerprint",
+      asString(skeleton.disabled_adapter_skeleton_fingerprint),
+    ],
+    ["contract_suite_fingerprint", asString(contractTests.suite_fingerprint)],
+  ] as const;
+  const failures: string[] = [];
+  for (const [field, expected] of expectedReferences) {
+    if (asString(input[field]) !== expected) {
+      failures.push(`invocation_input_${field}_mismatch`);
+    }
+  }
+  return failures;
+}
+
 function validateNormalizedInvocationInput(value: unknown): string[] {
   const input = asRecord(value);
   const failures: string[] = [];
@@ -777,6 +815,7 @@ function buildInvocationProbeResults(harness: JsonRecord): JsonRecord[] {
     ["source_contract_tests_failed_blocks", "source_preflight", "contract tests failed blocks", (d) => setPath(d, ["source_evidence", "disabled_adapter_contract_tests", "final_status"], "fail"), ["source_contract_tests_not_passed"]],
     ["skeleton_blocked_blocks", "source_preflight", "skeleton blocked blocks", (d) => setPath(d, ["source_evidence", "disabled_adapter_skeleton", "disabled_adapter_skeleton_status"], "blocked"), ["source_skeleton_not_ready"]],
     ["authority_bundle_blocked_blocks", "source_preflight", "authority bundle blocked blocks", (d) => setPath(d, ["source_evidence", "authority_contract_bundle", "authority_contract_bundle_status"], "blocked"), ["source_authority_bundle_not_ready"]],
+    ["dry_run_transaction_plan_blocked_blocks", "source_preflight", "dry-run transaction plan blocked blocks", (d) => setPath(d, ["source_evidence", "dry_run_transaction_plan", "dry_run_transaction_plan_status"], "blocked"), ["source_dry_run_transaction_plan_not_ready"]],
     ["adapter_enabled_true_blocks", "adapter_boundary", "adapter enabled true blocks", (d) => { d.adapter_enabled = true; }, ["adapter_enabled_invalid"]],
     ["adapter_invocation_allowed_true_blocks", "adapter_boundary", "adapter invocation allowed true blocks", (d) => { d.adapter_invocation_allowed_now = true; }, ["adapter_invocation_allowed_now_invalid"]],
     ["product_write_allowed_true_blocks", "no_write_boundary", "product write allowed true blocks", (d) => { d.product_write_allowed_now = true; }, ["product_write_allowed_now_invalid"]],
@@ -796,6 +835,9 @@ function buildInvocationProbeResults(harness: JsonRecord): JsonRecord[] {
       (d: JsonRecord) => setPath(d, ["dry_run_invocation_input", field], ""),
       [`invocation_input_${field}_missing`],
     ] as [string, string, string, (draft: JsonRecord) => void, string[]]),
+    ["authority_contract_bundle_fingerprint_mismatch_blocks", "invocation_input", "authority contract bundle fingerprint mismatch blocks", (d) => setPath(d, ["dry_run_invocation_input", "authority_contract_bundle_fingerprint"], "fnv1a32:00000000"), ["invocation_input_authority_contract_bundle_fingerprint_mismatch"]],
+    ["disabled_adapter_skeleton_fingerprint_mismatch_blocks", "invocation_input", "disabled adapter skeleton fingerprint mismatch blocks", (d) => setPath(d, ["dry_run_invocation_input", "disabled_adapter_skeleton_fingerprint"], "fnv1a32:00000000"), ["invocation_input_disabled_adapter_skeleton_fingerprint_mismatch"]],
+    ["contract_suite_fingerprint_mismatch_blocks", "invocation_input", "contract suite fingerprint mismatch blocks", (d) => setPath(d, ["dry_run_invocation_input", "contract_suite_fingerprint"], "fnv1a32:00000000"), ["invocation_input_contract_suite_fingerprint_mismatch"]],
     ["candidate_kind_mismatch_blocks", "invocation_input", "candidate kind mismatch blocks", (d) => setPath(d, ["dry_run_invocation_input", "candidate_kind"], "manual_note_multi_claim"), ["invocation_input_candidate_kind_invalid"]],
     ...FORBIDDEN_INPUT_FIELDS.map((field) => [
       `${field}_provided_blocks`,

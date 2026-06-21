@@ -1,7 +1,7 @@
 {
   "dry_run_invocation_harness_kind": "manual_note_single_claim_product_write_disabled_adapter_dry_run_invocation_harness",
   "dry_run_invocation_harness_version": "manual_note_single_claim_product_write_disabled_adapter_dry_run_invocation_harness.v0.1",
-  "dry_run_invocation_harness_fingerprint": "fnv1a32:8cef3e9c",
+  "dry_run_invocation_harness_fingerprint": "fnv1a32:f2a0f394",
   "source_evidence": {
     "disabled_adapter_contract_tests": {
       "suite_fingerprint": "fnv1a32:ca070e41",
@@ -541,6 +541,20 @@
       "probe_status": "pass"
     },
     {
+      "probe_id": "dry_run_transaction_plan_blocked_blocks",
+      "probe_group": "source_preflight",
+      "mutation_summary": "dry-run transaction plan blocked blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_dry_run_transaction_plan_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_dry_run_transaction_plan_not_ready"
+      ],
+      "probe_status": "pass"
+    },
+    {
       "probe_id": "adapter_enabled_true_blocks",
       "probe_group": "adapter_boundary",
       "mutation_summary": "adapter enabled true blocks",
@@ -718,7 +732,8 @@
       ],
       "actual_status": "fail",
       "actual_failure_codes": [
-        "invocation_input_authority_contract_bundle_fingerprint_missing"
+        "invocation_input_authority_contract_bundle_fingerprint_missing",
+        "invocation_input_authority_contract_bundle_fingerprint_mismatch"
       ],
       "probe_status": "pass"
     },
@@ -732,7 +747,8 @@
       ],
       "actual_status": "fail",
       "actual_failure_codes": [
-        "invocation_input_disabled_adapter_skeleton_fingerprint_missing"
+        "invocation_input_disabled_adapter_skeleton_fingerprint_missing",
+        "invocation_input_disabled_adapter_skeleton_fingerprint_mismatch"
       ],
       "probe_status": "pass"
     },
@@ -746,7 +762,50 @@
       ],
       "actual_status": "fail",
       "actual_failure_codes": [
-        "invocation_input_contract_suite_fingerprint_missing"
+        "invocation_input_contract_suite_fingerprint_missing",
+        "invocation_input_contract_suite_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "authority_contract_bundle_fingerprint_mismatch_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "authority contract bundle fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_authority_contract_bundle_fingerprint_mismatch"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_authority_contract_bundle_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "disabled_adapter_skeleton_fingerprint_mismatch_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "disabled adapter skeleton fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_disabled_adapter_skeleton_fingerprint_mismatch"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_disabled_adapter_skeleton_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "contract_suite_fingerprint_mismatch_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "contract suite fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_contract_suite_fingerprint_mismatch"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_contract_suite_fingerprint_mismatch"
       ],
       "probe_status": "pass"
     },
@@ -1156,9 +1215,9 @@
     }
   ],
   "local_copy_packet": {
-    "markdown": "# Manual Note Single-Claim Product Write Disabled Adapter Dry-Run Invocation Harness\n\nPure in-memory disabled dry-run invocation only.\nNo runtime adapter invocation, DB access, SQL, product IDs, or product write is performed.\ndry_run_invocation_harness_status: product_write_disabled_adapter_dry_run_invocation_harness_only\ndry_run_invocation_harness_fingerprint: fnv1a32:8cef3e9c",
+    "markdown": "# Manual Note Single-Claim Product Write Disabled Adapter Dry-Run Invocation Harness\n\nPure in-memory disabled dry-run invocation only.\nNo runtime adapter invocation, DB access, SQL, product IDs, or product write is performed.\ndry_run_invocation_harness_status: product_write_disabled_adapter_dry_run_invocation_harness_only\ndry_run_invocation_harness_fingerprint: fnv1a32:f2a0f394",
     "json": "{\n  \"dry_run_invocation_harness_status\": \"product_write_disabled_adapter_dry_run_invocation_harness_only\",\n  \"adapter_invocation_attempted_now\": true,\n  \"adapter_invocation_executed_against_runtime\": false,\n  \"product_write_attempted_now\": false,\n  \"product_db_write\": false,\n  \"product_id_allocation\": false,\n  \"db_open\": false,\n  \"sql_execution\": false\n}",
-    "fingerprint": "fnv1a32:8cef3e9c",
+    "fingerprint": "fnv1a32:f2a0f394",
     "fingerprint_algorithm": "fnv1a32_canonical_json",
     "local_clipboard_only": true,
     "external_handoff_sent": false,

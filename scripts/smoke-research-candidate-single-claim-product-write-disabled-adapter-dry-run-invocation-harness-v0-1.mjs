@@ -283,6 +283,8 @@ console.log(
       static_boundary_base_mode: runtimeReport.static_boundary_base_mode,
       checked_fixture_mode_determinism: true,
       checked_failed_optional_reports: true,
+      checked_generated_source_evidence_readiness: true,
+      checked_source_derived_invocation_reference_mismatches: true,
       checked_no_product_write_boundary: true,
     },
     null,
@@ -424,6 +426,10 @@ function assertTraceAndProbes(harness) {
     "source_contract_tests_failed_blocks",
     "skeleton_blocked_blocks",
     "authority_bundle_blocked_blocks",
+    "dry_run_transaction_plan_blocked_blocks",
+    "authority_contract_bundle_fingerprint_mismatch_blocks",
+    "disabled_adapter_skeleton_fingerprint_mismatch_blocks",
+    "contract_suite_fingerprint_mismatch_blocks",
     "adapter_enabled_true_blocks",
     "product_db_write_true_blocks",
     "product_claim_id_provided_blocks",
@@ -596,24 +602,106 @@ function assertExportedHelperMutation() {
     const skeleton = JSON.parse(readFileSync("${skeletonFixturePath}", "utf8"));
     const contractTests = JSON.parse(readFileSync("${contractTestsFixturePath}", "utf8"));
     const staticBoundaryEvidence = ${JSON.stringify(committedSample.static_boundary_evidence)};
-    const result = invokeManualNoteSingleClaimProductWriteDisabledAdapterDryRun({
-      disabledAdapterSkeleton: { ...skeleton, adapter_enabled: true },
-      disabledAdapterContractTestsReport: contractTests,
-      staticBoundaryEvidence
-    });
-    console.log(JSON.stringify({
-      status: result.dry_run_invocation_harness_status,
-      recommendation: result.recommendation_status,
-      next: result.next_recommended_slice,
-      failures: result.validation.failure_codes
-    }));
+    const clone = (value) => JSON.parse(JSON.stringify(value));
+    const runCase = (label, { mutateSkeleton, adapterInvocationInput }) => {
+      const mutatedSkeleton = clone(skeleton);
+      if (mutateSkeleton) mutateSkeleton(mutatedSkeleton);
+      const result = invokeManualNoteSingleClaimProductWriteDisabledAdapterDryRun({
+        disabledAdapterSkeleton: mutatedSkeleton,
+        disabledAdapterContractTestsReport: contractTests,
+        adapterInvocationInput,
+        staticBoundaryEvidence
+      });
+      return {
+        label,
+        status: result.dry_run_invocation_harness_status,
+        recommendation: result.recommendation_status,
+        next: result.next_recommended_slice,
+        failures: result.validation.failure_codes
+      };
+    };
+    const cases = [
+      runCase("adapter_enabled", {
+        mutateSkeleton: (draft) => {
+          draft.adapter_enabled = true;
+        }
+      }),
+      runCase("nested_authority_bundle_blocked", {
+        mutateSkeleton: (draft) => {
+          draft.source_evidence.authority_contract_bundle.authority_contract_bundle_status = "blocked";
+        }
+      }),
+      runCase("nested_dry_run_transaction_plan_blocked", {
+        mutateSkeleton: (draft) => {
+          draft.source_evidence.dry_run_transaction_plan.dry_run_transaction_plan_status = "blocked";
+        }
+      }),
+      runCase("authority_fingerprint_mismatch", {
+        adapterInvocationInput: {
+          authority_contract_bundle_fingerprint: "fnv1a32:00000000"
+        }
+      }),
+      runCase("disabled_adapter_skeleton_fingerprint_mismatch", {
+        adapterInvocationInput: {
+          disabled_adapter_skeleton_fingerprint: "fnv1a32:00000000"
+        }
+      }),
+      runCase("contract_suite_fingerprint_mismatch", {
+        adapterInvocationInput: {
+          contract_suite_fingerprint: "fnv1a32:00000000"
+        }
+      })
+    ];
+    console.log(JSON.stringify(cases));
   `;
   const output = execFileSync(tsxPath, ["--eval", script], { encoding: "utf8" });
-  const result = JSON.parse(output);
-  assert.equal(result.status, blockedHarnessStatus);
-  assert.equal(result.recommendation, blockedRecommendation);
-  assert.equal(result.next, recheckSlice);
-  assert.ok(result.failures.includes("skeleton_adapter_enabled_not_false"));
+  const results = JSON.parse(output);
+  assertDirectHelperBlocked(
+    results,
+    "adapter_enabled",
+    "skeleton_adapter_enabled_not_false",
+  );
+  assertDirectHelperBlocked(
+    results,
+    "nested_authority_bundle_blocked",
+    "source_authority_bundle_not_ready",
+  );
+  assertDirectHelperBlocked(
+    results,
+    "nested_dry_run_transaction_plan_blocked",
+    "source_dry_run_transaction_plan_not_ready",
+  );
+  assertDirectHelperBlocked(
+    results,
+    "authority_fingerprint_mismatch",
+    "invocation_input_authority_contract_bundle_fingerprint_mismatch",
+  );
+  assertDirectHelperBlocked(
+    results,
+    "disabled_adapter_skeleton_fingerprint_mismatch",
+    "invocation_input_disabled_adapter_skeleton_fingerprint_mismatch",
+  );
+  assertDirectHelperBlocked(
+    results,
+    "contract_suite_fingerprint_mismatch",
+    "invocation_input_contract_suite_fingerprint_mismatch",
+  );
+}
+
+function assertDirectHelperBlocked(results, label, expectedFailureCode) {
+  const result = results.find((entry) => entry.label === label);
+  assert.ok(result, `${label} direct helper mutation result missing`);
+  assert.equal(result.status, blockedHarnessStatus, `${label} blocked status`);
+  assert.equal(
+    result.recommendation,
+    blockedRecommendation,
+    `${label} blocked recommendation`,
+  );
+  assert.equal(result.next, recheckSlice, `${label} recheck next slice`);
+  assert.ok(
+    result.failures.includes(expectedFailureCode),
+    `${label} must include ${expectedFailureCode}`,
+  );
 }
 
 function runFixtureMode(label) {
