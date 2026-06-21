@@ -1,7 +1,7 @@
 {
   "noop_invocation_report_kind": "manual_note_single_claim_product_write_disabled_adapter_noop_invocation_report",
   "noop_invocation_report_version": "manual_note_single_claim_product_write_disabled_adapter_noop_invocation_report.v0.1",
-  "noop_invocation_report_fingerprint": "fnv1a32:1501b758",
+  "noop_invocation_report_fingerprint": "fnv1a32:960d82fa",
   "source_validation_failure_codes": [],
   "source_evidence": {
     "disabled_adapter_dry_run_invocation_harness": {
@@ -1879,6 +1879,20 @@
       "check_status": "pass"
     },
     {
+      "check_id": "normalized_product_claim_id_blocks",
+      "check_group": "product_id_contamination",
+      "mutation_summary": "normalized product claim ID blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
       "check_id": "failed_optional_harness_report_blocks",
       "check_group": "optional_report_handling",
       "mutation_summary": "failed optional harness report blocks",
@@ -1999,9 +2013,9 @@
     }
   ],
   "local_copy_packet": {
-    "markdown": "# Manual Note Single-Claim Product Write Disabled Adapter No-Op Invocation Report\n\nDisabled product write adapter no-op invocation report only.\nProduct write remains blocked; next slice is the preflight command envelope.\nnoop_invocation_report_status: product_write_disabled_adapter_noop_invocation_report_only\nnoop_invocation_report_fingerprint: fnv1a32:1501b758",
+    "markdown": "# Manual Note Single-Claim Product Write Disabled Adapter No-Op Invocation Report\n\nDisabled product write adapter no-op invocation report only.\nProduct write remains blocked; next slice is the preflight command envelope.\nnoop_invocation_report_status: product_write_disabled_adapter_noop_invocation_report_only\nnoop_invocation_report_fingerprint: fnv1a32:960d82fa",
     "json": "{\n  \"noop_invocation_report_status\": \"product_write_disabled_adapter_noop_invocation_report_only\",\n  \"adapter_invocation_attempted_now\": true,\n  \"adapter_invocation_executed_against_runtime\": false,\n  \"product_write_attempted_now\": false,\n  \"product_db_write\": false,\n  \"product_id_allocation\": false,\n  \"db_open\": false,\n  \"sql_execution\": false,\n  \"next_recommended_slice\": \"single_claim_product_write_preflight_command_envelope\"\n}",
-    "fingerprint": "fnv1a32:1501b758",
+    "fingerprint": "fnv1a32:960d82fa",
     "fingerprint_algorithm": "fnv1a32_canonical_json",
     "local_clipboard_only": true,
     "external_handoff_sent": false,

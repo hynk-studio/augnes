@@ -126,6 +126,11 @@ const PRODUCT_ID_KEYS = [
   "output_evidence_id",
   "output_perspective_id",
   "output_work_item_id",
+  "normalized_product_claim_id",
+  "normalized_proof_id",
+  "normalized_evidence_id",
+  "normalized_perspective_id",
+  "normalized_work_item_id",
   "command_envelope_id",
 ] as const;
 
@@ -1150,6 +1155,7 @@ function buildReportValidationMatrix(report: JsonRecord): JsonRecord[] {
     ["command_shape_db_write_count_positive_blocks", "preflight_preview", "command shape DB write count positive blocks", (d) => setPath(d, ["product_write_preflight_command_envelope_preview", "command_shape_preview", "db_write_count_now"], 1), ["preflight_command_shape_db_write_count_now_not_zero"]],
     ["explicit_forbidden_surface_true_blocks", "forbidden_surface", "explicit forbidden surface true blocks", (d) => setPath(d, ["explicit_forbidden_surfaces", "product_db_write"], true), ["explicit_forbidden_surface_product_db_write_not_false"]],
     ["non_null_product_id_anywhere_blocks", "product_id_contamination", "non-null product ID anywhere blocks", (d) => setPath(d, ["source_evidence", "disabled_adapter_dry_run_invocation_harness", "product_claim_id"], "product:blocked"), ["non_null_product_or_related_id_present"]],
+    ["normalized_product_claim_id_blocks", "product_id_contamination", "normalized product claim ID blocks", (d) => setPath(d, ["normalized_invocation_input_summary", "normalized_product_claim_id"], "product:blocked"), ["non_null_product_or_related_id_present"]],
     ["failed_optional_harness_report_blocks", "optional_report_handling", "failed optional harness report blocks", (d) => { d.source_validation_failure_codes = ["optional_dry_run_invocation_harness_report_not_passed"]; }, ["optional_dry_run_invocation_harness_report_not_passed"]],
     ["optional_harness_report_missing_payload_blocks", "optional_report_handling", "optional harness report pass missing payload blocks", (d) => { d.source_validation_failure_codes = ["optional_dry_run_invocation_harness_report_missing_payload"]; }, ["optional_dry_run_invocation_harness_report_missing_payload"]],
     ["static_empty_delta_blocks", "static_boundary", "empty changed-file delta blocks", (d) => setPath(d, ["static_boundary_evidence", "static_boundary_changed_files_inspected"], []), ["static_boundary_changed_file_delta_empty"]],

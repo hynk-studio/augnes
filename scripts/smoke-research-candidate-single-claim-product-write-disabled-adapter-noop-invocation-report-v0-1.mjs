@@ -110,6 +110,7 @@ const requiredMatrixCases = [
   "dry_noop_preview_persisted_true_blocks",
   "preflight_executable_true_blocks",
   "preflight_product_claim_id_non_null_blocks",
+  "normalized_product_claim_id_blocks",
   "failed_optional_harness_report_blocks",
   "optional_harness_report_missing_payload_blocks",
   "static_empty_delta_blocks",
@@ -137,6 +138,11 @@ const productIdKeys = new Set([
   "output_evidence_id",
   "output_perspective_id",
   "output_work_item_id",
+  "normalized_product_claim_id",
+  "normalized_proof_id",
+  "normalized_evidence_id",
+  "normalized_perspective_id",
+  "normalized_work_item_id",
   "command_envelope_id",
 ]);
 
@@ -600,7 +606,10 @@ function assertExportedHelperMutations() {
       runCase("runtime invocation", (draft) => { draft.adapter_invocation_executed_against_runtime = true; }),
       runCase("product db write", (draft) => { draft.product_db_write = true; }),
       runCase("product id", (draft) => { draft.disabled_invocation_result.product_claim_id = "product:blocked"; }),
-      runCase("command envelope persisted", (draft) => { draft.dry_noop_preview.preview_persisted_now = true; })
+      runCase("command envelope persisted", (draft) => { draft.dry_noop_preview.preview_persisted_now = true; }),
+      runCase("normalized product claim id", (draft) => { draft.normalized_invocation_input.normalized_product_claim_id = "product:blocked"; }),
+      runCase("normalized proof id", (draft) => { draft.normalized_invocation_input.normalized_proof_id = "proof:blocked"; }),
+      runCase("normalized evidence id", (draft) => { draft.normalized_invocation_input.normalized_evidence_id = "evidence:blocked"; })
     ];
     console.log(JSON.stringify(cases));
   `;
@@ -610,6 +619,13 @@ function assertExportedHelperMutations() {
     assert.equal(result.recommendation, blockedRecommendation, `${result.label} recommendation`);
     assert.equal(result.next, recheckSlice, `${result.label} next`);
     assert.ok(result.failures.length > 0, `${result.label} failures`);
+    if (result.label.startsWith("normalized ")) {
+      assert.ok(
+        result.failures.includes("non_null_product_or_related_id_present") ||
+          result.failures.includes("source_harness_non_null_product_or_related_id_present"),
+        `${result.label} must be blocked by recursive no-ID validation`,
+      );
+    }
   }
 }
 
