@@ -9,6 +9,14 @@ const fixturePath =
   "fixtures/research-candidate-review.manual-note-product-write-design-review.sample.v0.1.json";
 const runnerPath =
   "scripts/run-research-candidate-product-write-design-review-v0-1.mjs";
+const tempDbSingleClaimDesignHelperPath =
+  "lib/research-candidate-review/manual-note-temp-db-single-claim-prototype-design.ts";
+const tempDbSingleClaimDesignFixturePath =
+  "fixtures/research-candidate-review.manual-note-temp-db-single-claim-prototype-design.sample.v0.1.json";
+const tempDbSingleClaimDesignSmokePath =
+  "scripts/smoke-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs";
+const tempDbSingleClaimDesignRunnerPath =
+  "scripts/run-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const browserValidatorPath =
@@ -29,6 +37,10 @@ for (const filePath of [
   helperPath,
   fixturePath,
   runnerPath,
+  tempDbSingleClaimDesignHelperPath,
+  tempDbSingleClaimDesignFixturePath,
+  tempDbSingleClaimDesignSmokePath,
+  tempDbSingleClaimDesignRunnerPath,
   docsIndexPath,
   packagePath,
   browserValidatorPath,
@@ -279,12 +291,35 @@ function assertDocsPackageAndBrowserPointers() {
     packageJson.scripts["design:research-candidate-product-write-design-review-v0-1"],
     "node scripts/run-research-candidate-product-write-design-review-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-temp-db-single-claim-prototype-design-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "design:research-candidate-temp-db-single-claim-prototype-design-v0-1"
+    ],
+    "node scripts/run-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs",
+  );
 
   for (const requiredText of [
     "Manual note first product-write design review",
+    "Manual note temp DB single-claim write prototype design",
     "static repo inventory",
     "candidate product write target groups",
     "smallest safe future write prototype",
+    "structured temp schema design objects",
+    "idempotency/rollback/audit/source-authority gates",
+    "future temp DB execution harness spec",
+    "no temp DB execution yet",
+    "no DB file creation",
+    "no SQL execution",
+    "no executable SQL strings",
+    tempDbSingleClaimDesignHelperPath,
+    "npm run smoke:research-candidate-temp-db-single-claim-prototype-design-v0-1",
+    "npm run design:research-candidate-temp-db-single-claim-prototype-design-v0-1",
     "/tmp design review report runner",
     "no new route",
     "no UI behavior change",
@@ -312,6 +347,18 @@ function assertDocsPackageAndBrowserPointers() {
   assert.ok(
     browserValidator.includes("product_write_design_review_no_browser_route"),
     "browser validator should assert no product-write design review route is called",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "temp_db_single_claim_prototype_design_artifact_note",
+    ),
+    "browser validator should include temp DB single-claim prototype design artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "temp_db_single_claim_prototype_design_no_browser_route",
+    ),
+    "browser validator should assert no temp DB single-claim prototype design route is called",
   );
 }
 
@@ -349,10 +396,16 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       line.includes(
         '"smoke:research-candidate-product-write-design-review-v0-1"',
       ) ||
+      line.includes(
+        '"design:research-candidate-product-write-design-review-v0-1"',
+      ) ||
         line.includes(
-          '"design:research-candidate-product-write-design-review-v0-1"',
+          '"smoke:research-candidate-temp-db-single-claim-prototype-design-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-temp-db-single-claim-prototype-design-v0-1"',
         ),
-      `package.json must only add product-write design-review scripts, not dependencies: ${line}`,
+      `package.json must only add product-write design-review or temp DB single-claim design scripts, not dependencies: ${line}`,
     );
   }
 }

@@ -1002,6 +1002,23 @@ repo-local 색인이다.
   and no schema/migration/dependency. Browser-backed validation uses the best
   available method and may record the local `/tmp` design-review report if
   present.
+- Manual note temp DB single-claim write prototype design:
+  `lib/research-candidate-review/manual-note-temp-db-single-claim-prototype-design.ts`,
+  `fixtures/research-candidate-review.manual-note-temp-db-single-claim-prototype-design.sample.v0.1.json`,
+  `npm run smoke:research-candidate-temp-db-single-claim-prototype-design-v0-1`,
+  and `npm run design:research-candidate-temp-db-single-claim-prototype-design-v0-1`
+  add a temp DB single-claim prototype design artifact that selects the first
+  claim operation from the disabled transaction plan, defines structured temp
+  schema design objects, idempotency/rollback/audit/source-authority gates, a
+  future temp DB execution harness spec, and a `/tmp design report runner`.
+  This adds no temp DB execution yet, no DB file creation, no SQL execution, no
+  executable SQL strings, no new route, no UI behavior change, no normal
+  product write, no actual promotion, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, no durable persistence, and no
+  schema/migration/dependency. Browser-backed validation uses the best
+  available method and may record the local `/tmp` single-claim prototype
+  design report if present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
