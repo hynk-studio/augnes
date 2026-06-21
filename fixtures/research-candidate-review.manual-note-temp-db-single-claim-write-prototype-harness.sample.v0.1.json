@@ -1,0 +1,258 @@
+{
+  "report_kind": "manual_note_temp_db_single_claim_write_prototype_report",
+  "report_version": "manual_note_temp_db_single_claim_write_prototype_harness.v0.1",
+  "artifact_dir": "/tmp/augnes-single-claim-write-prototype-v0-1",
+  "artifact_paths": {
+    "report": "/tmp/augnes-single-claim-write-prototype-v0-1/report.json",
+    "harness_plan": "/tmp/augnes-single-claim-write-prototype-v0-1/harness-plan.json",
+    "harness_result": "/tmp/augnes-single-claim-write-prototype-v0-1/harness-result.json",
+    "temp_db": "/tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite"
+  },
+  "sqlite_tooling": {
+    "preferred": "better-sqlite3",
+    "fallback": "system sqlite3 CLI",
+    "selected": "better-sqlite3"
+  },
+  "optional_inputs": {
+    "temp_db_single_claim_prototype_design_report_present": true,
+    "temp_db_single_claim_prototype_design_report_final_status": "pass"
+  },
+  "harness_plan": {
+    "harness_kind": "manual_note_temp_db_single_claim_write_prototype_harness",
+    "harness_version": "manual_note_temp_db_single_claim_write_prototype_harness.v0.1",
+    "harness_fingerprint": "fnv1a32:831f6e39",
+    "source_design": {
+      "design_version": "manual_note_temp_db_single_claim_prototype_design.v0.1",
+      "design_fingerprint": "fnv1a32:4670ce1d",
+      "prototype_status": "design_only_ready_for_temp_execution_spec",
+      "selected_claim_operation_id": "disabled-plan-op:claim:001",
+      "next_recommended_slice": "temp_db_single_claim_write_prototype_harness"
+    },
+    "harness_status": "ready_for_temp_db_execution",
+    "execution_mode": "temp_db_single_claim_only",
+    "temp_db_boundary": {
+      "temp_db_only": true,
+      "temp_db_path_required_under_tmp": true,
+      "product_db_path_allowed": false,
+      "product_db_write_allowed": false,
+      "repo_schema_change_allowed": false,
+      "migration_allowed": false
+    },
+    "temp_schema_plan": {
+      "executable_sql_included": true,
+      "sql_scope": "temp_db_only",
+      "temp_tables": [
+        "temp_claim_records",
+        "temp_idempotency_records",
+        "temp_rollback_records",
+        "temp_review_audit_records"
+      ],
+      "product_table_names_forbidden": true,
+      "schema_sql_statements": [
+        "CREATE TABLE IF NOT EXISTS temp_claim_records ( temp_claim_record_id TEXT PRIMARY KEY, preview_draft_id TEXT NOT NULL, source_operation_id TEXT NOT NULL, source_temp_intent_id TEXT NOT NULL, temp_idempotency_key TEXT NOT NULL, claim_candidate_text_source TEXT NOT NULL, raw_manual_note_text_included INTEGER NOT NULL, created_in_temp_db_now INTEGER NOT NULL )",
+        "CREATE TABLE IF NOT EXISTS temp_idempotency_records ( temp_idempotency_key TEXT PRIMARY KEY, preview_draft_id TEXT NOT NULL, selected_claim_operation_id TEXT NOT NULL, transaction_plan_fingerprint TEXT NOT NULL, design_fingerprint TEXT NOT NULL, storage_scope TEXT NOT NULL )",
+        "CREATE TABLE IF NOT EXISTS temp_rollback_records ( temp_rollback_record_id TEXT PRIMARY KEY, temp_idempotency_key TEXT NOT NULL, target_temp_claim_record_id TEXT NOT NULL, rollback_strategy TEXT NOT NULL, rollback_executed_now INTEGER NOT NULL )",
+        "CREATE TABLE IF NOT EXISTS temp_review_audit_records ( temp_review_audit_record_id TEXT PRIMARY KEY, preview_draft_id TEXT NOT NULL, selected_claim_operation_id TEXT NOT NULL, design_fingerprint TEXT NOT NULL, records_operator_decision INTEGER NOT NULL, records_prototype_design_inputs INTEGER NOT NULL )"
+      ]
+    },
+    "temp_insert_plan": {
+      "exactly_one_claim_record": true,
+      "exactly_one_idempotency_record": true,
+      "exactly_one_rollback_record": true,
+      "exactly_one_review_audit_record": true,
+      "insert_sql_scope": "temp_db_only",
+      "selected_claim_operation_id": "disabled-plan-op:claim:001",
+      "source_temp_intent_id": "temp-intent:claim:001",
+      "raw_manual_note_text_included": false,
+      "product_ids_created": false
+    },
+    "expected_row_counts": {
+      "temp_claim_records": 1,
+      "temp_idempotency_records": 1,
+      "temp_rollback_records": 1,
+      "temp_review_audit_records": 1
+    },
+    "execution_gates": [
+      "design_status_ready",
+      "temp_db_path_under_tmp",
+      "product_db_path_absent",
+      "exactly_one_claim_selected",
+      "sql_limited_to_temp_tables",
+      "no_raw_manual_note_text",
+      "no_product_ids",
+      "no_provider_retrieval_source_fetch",
+      "no_external_handoff"
+    ],
+    "gate_results": [
+      {
+        "gate_id": "design_status_ready",
+        "status": "pass",
+        "message": "Source prototype design is ready and all design gates pass."
+      },
+      {
+        "gate_id": "temp_db_path_under_tmp",
+        "status": "pass",
+        "message": "Temp DB path is constrained to /tmp/augnes-single-claim-write-prototype-v0-1."
+      },
+      {
+        "gate_id": "product_db_path_absent",
+        "status": "pass",
+        "message": "No product DB path or product DB write authority is present."
+      },
+      {
+        "gate_id": "exactly_one_claim_selected",
+        "status": "pass",
+        "message": "Exactly one disabled transaction-plan claim operation is selected."
+      },
+      {
+        "gate_id": "sql_limited_to_temp_tables",
+        "status": "pass",
+        "message": "Executable SQL is limited to temp harness tables."
+      },
+      {
+        "gate_id": "no_raw_manual_note_text",
+        "status": "pass",
+        "message": "The temp record shape excludes raw manual note text."
+      },
+      {
+        "gate_id": "no_product_ids",
+        "status": "pass",
+        "message": "No product or canonical identifiers are created."
+      },
+      {
+        "gate_id": "no_provider_retrieval_source_fetch",
+        "status": "pass",
+        "message": "The harness does not call providers, retrieval, RAG, or source fetch."
+      },
+      {
+        "gate_id": "no_external_handoff",
+        "status": "pass",
+        "message": "The harness sends no external handoff."
+      }
+    ],
+    "blocked_reasons": [],
+    "preserve_temp_db_for_inspection": true,
+    "requested_temp_db_path": "/tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite",
+    "next_recommended_slice": "temp_db_single_claim_write_prototype_result_review"
+  },
+  "harness_result": {
+    "result_kind": "manual_note_temp_db_single_claim_write_prototype_result",
+    "result_version": "manual_note_temp_db_single_claim_write_prototype_harness.v0.1",
+    "result_fingerprint": "fnv1a32:72ddbd17",
+    "source_harness_fingerprint": "fnv1a32:831f6e39",
+    "source_design_fingerprint": "fnv1a32:4670ce1d",
+    "execution_mode": "temp_db_single_claim_only",
+    "sqlite_method": "better-sqlite3",
+    "result_status": "temp_db_write_passed",
+    "failure_message": null,
+    "temp_db_artifact": {
+      "temp_db_path": "/tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite",
+      "temp_db_created": true,
+      "temp_db_preserved_for_inspection": true,
+      "temp_db_under_tmp": true,
+      "product_db_path_used": false
+    },
+    "executed_sql_summary": {
+      "create_table_statement_count": 4,
+      "insert_statement_count": 4,
+      "select_statement_count": 4,
+      "product_table_statement_count": 0,
+      "sql_scope": "temp_db_only"
+    },
+    "inserted_records": {
+      "temp_claim_record": {
+        "inserted": true,
+        "temp_claim_record_id": "temp-claim:aa03dfea",
+        "source_operation_id": "disabled-plan-op:claim:001",
+        "source_temp_intent_id": "temp-intent:claim:001",
+        "product_claim_id": null,
+        "canonical_claim_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "work_item_id": null,
+        "raw_manual_note_text_included": false
+      },
+      "temp_idempotency_record": {
+        "inserted": true,
+        "temp_idempotency_key": "temp-idempotency:d2caa29d",
+        "product_idempotency_record_id": null
+      },
+      "temp_rollback_record": {
+        "inserted": true,
+        "rollback_strategy": "delete_temp_claim_record_by_temp_idempotency_key",
+        "rollback_executed_now": false,
+        "product_rollback_performed_now": false
+      },
+      "temp_review_audit_record": {
+        "inserted": true,
+        "records_operator_decision": false,
+        "audit_record_product_id": null
+      }
+    },
+    "verification": {
+      "row_counts": {
+        "temp_claim_records": 1,
+        "temp_idempotency_records": 1,
+        "temp_rollback_records": 1,
+        "temp_review_audit_records": 1
+      },
+      "expected_row_counts_match": true,
+      "temp_tables_only": true,
+      "product_ids_absent": true,
+      "raw_manual_note_absent": true,
+      "product_db_untouched": true
+    },
+    "product_write_boundary": {
+      "temp_db_execution_only": true,
+      "normal_product_write_enabled": false,
+      "product_db_write": false,
+      "actual_promotion_performed": false,
+      "proof_or_evidence_writes": false,
+      "perspective_or_canonical_writes": false,
+      "canonical_graph_write": false,
+      "work_item_creation": false,
+      "product_ids_created": false,
+      "repo_schema_changed": false,
+      "migration_added": false,
+      "provider_or_openai_calls": false,
+      "retrieval_or_rag": false,
+      "source_fetching": false,
+      "external_handoff_sent": false,
+      "durable_product_persistence": false,
+      "browser_persistence": false
+    },
+    "next_recommended_slice": "temp_db_single_claim_write_prototype_result_review",
+    "local_copy_packet": {
+      "markdown": "# Manual Note Temp DB Single-Claim Write Prototype Harness\n\nTemp DB execution only. No product DB write is allowed.\nresult_status: temp_db_write_passed\ntemp_db_path: /tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite\nsource_design_fingerprint: fnv1a32:4670ce1d\n\n## Inserted Temp Records\n- temp_claim_records: 1\n- temp_idempotency_records: 1\n- temp_rollback_records: 1\n- temp_review_audit_records: 1\n\n## Boundary\nproduct_db_write=false\nactual_promotion_performed=false\nproof_or_evidence_writes=false\nperspective_or_canonical_writes=false\nexternal_handoff_sent=false",
+      "json": "{\n  \"result_kind\": \"manual_note_temp_db_single_claim_write_prototype_result\",\n  \"result_version\": \"manual_note_temp_db_single_claim_write_prototype_harness.v0.1\",\n  \"result_fingerprint\": \"fnv1a32:72ddbd17\",\n  \"result_status\": \"temp_db_write_passed\",\n  \"temp_db_artifact\": {\n    \"temp_db_path\": \"/tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite\",\n    \"temp_db_created\": true,\n    \"temp_db_preserved_for_inspection\": true,\n    \"temp_db_under_tmp\": true,\n    \"product_db_path_used\": false\n  },\n  \"executed_sql_summary\": {\n    \"create_table_statement_count\": 4,\n    \"insert_statement_count\": 4,\n    \"select_statement_count\": 4,\n    \"product_table_statement_count\": 0,\n    \"sql_scope\": \"temp_db_only\"\n  },\n  \"verification\": {\n    \"row_counts\": {\n      \"temp_claim_records\": 1,\n      \"temp_idempotency_records\": 1,\n      \"temp_rollback_records\": 1,\n      \"temp_review_audit_records\": 1\n    },\n    \"expected_row_counts_match\": true,\n    \"temp_tables_only\": true,\n    \"product_ids_absent\": true,\n    \"raw_manual_note_absent\": true,\n    \"product_db_untouched\": true\n  },\n  \"product_write_boundary\": {\n    \"temp_db_execution_only\": true,\n    \"normal_product_write_enabled\": false,\n    \"product_db_write\": false,\n    \"actual_promotion_performed\": false,\n    \"proof_or_evidence_writes\": false,\n    \"perspective_or_canonical_writes\": false,\n    \"canonical_graph_write\": false,\n    \"work_item_creation\": false,\n    \"product_ids_created\": false,\n    \"repo_schema_changed\": false,\n    \"migration_added\": false,\n    \"provider_or_openai_calls\": false,\n    \"retrieval_or_rag\": false,\n    \"source_fetching\": false,\n    \"external_handoff_sent\": false,\n    \"durable_product_persistence\": false,\n    \"browser_persistence\": false\n  },\n  \"next_recommended_slice\": \"temp_db_single_claim_write_prototype_result_review\"\n}",
+      "fingerprint": "fnv1a32:72ddbd17",
+      "fingerprint_algorithm": "fnv1a32_canonical_json",
+      "local_clipboard_only": true,
+      "external_handoff_sent": false,
+      "packet_persisted_to_product_db": false,
+      "product_write_authority_granted": false,
+      "actual_promotion_allowed": false
+    }
+  },
+  "preserved_boundaries": {
+    "temp_db_execution_only": true,
+    "normal_product_write_enabled": false,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "product_ids_created": false,
+    "repo_schema_changed": false,
+    "migration_added": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_product_persistence": false,
+    "browser_persistence": false
+  },
+  "final_status": "pass"
+}

@@ -23,6 +23,8 @@ const PRODUCT_WRITE_DESIGN_REVIEW_REPORT_PATH =
   "/tmp/augnes-product-write-design-review-v0-1/report.json";
 const TEMP_DB_SINGLE_CLAIM_PROTOTYPE_DESIGN_REPORT_PATH =
   "/tmp/augnes-temp-db-single-claim-prototype-design-v0-1/report.json";
+const TEMP_DB_SINGLE_CLAIM_WRITE_PROTOTYPE_REPORT_PATH =
+  "/tmp/augnes-single-claim-write-prototype-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -139,6 +141,7 @@ function createInitialReport() {
     transaction_plan_artifact_note: null,
     product_write_design_review_artifact_note: null,
     temp_db_single_claim_prototype_design_artifact_note: null,
+    temp_db_single_claim_write_prototype_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -288,6 +291,24 @@ async function main() {
         tempDbSingleClaimPrototypeDesignRouteRequests.length,
       artifact_note:
         report.temp_db_single_claim_prototype_design_artifact_note,
+    },
+  );
+  report.temp_db_single_claim_write_prototype_artifact_note =
+    buildTempDbSingleClaimWritePrototypeArtifactNote();
+  const tempDbSingleClaimWritePrototypeRouteRequests = requestLog.filter(
+    (request) =>
+      /temp-db-single-claim-write|single-claim-write-prototype|write-prototype-harness/i.test(
+        request.path ?? "",
+      ),
+  );
+  recordAssertion(
+    "temp_db_single_claim_write_prototype_no_browser_route",
+    tempDbSingleClaimWritePrototypeRouteRequests.length === 0,
+    "Temp DB single-claim write prototype harness added no browser-observed route behavior.",
+    {
+      temp_db_single_claim_write_prototype_route_request_count:
+        tempDbSingleClaimWritePrototypeRouteRequests.length,
+      artifact_note: report.temp_db_single_claim_write_prototype_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1542,6 +1563,17 @@ function buildTempDbSingleClaimPrototypeDesignArtifactNote() {
     note: reportExists
       ? "Temp DB single-claim prototype design report was present before or during browser validation; browser flow does not execute prototype design artifacts."
       : "Temp DB single-claim prototype design report was not present; browser flow does not execute prototype design artifacts.",
+  };
+}
+
+function buildTempDbSingleClaimWritePrototypeArtifactNote() {
+  const reportExists = existsSync(TEMP_DB_SINGLE_CLAIM_WRITE_PROTOTYPE_REPORT_PATH);
+  return {
+    report_path: TEMP_DB_SINGLE_CLAIM_WRITE_PROTOTYPE_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Temp DB single-claim write prototype harness report was present before or during browser validation; browser flow does not execute non-UI harness artifacts."
+      : "Temp DB single-claim write prototype harness report was not present; browser flow does not execute non-UI harness artifacts.",
   };
 }
 
