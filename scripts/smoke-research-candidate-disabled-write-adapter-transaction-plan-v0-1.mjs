@@ -349,8 +349,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"design:research-candidate-product-write-design-review-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-temp-db-single-claim-prototype-design-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-temp-db-single-claim-prototype-design-v0-1"',
         ),
-      `package.json must only add the transaction-plan or product-write design-review scripts, not dependencies: ${line}`,
+      `package.json must only add the transaction-plan, product-write design-review, or temp DB single-claim prototype design scripts, not dependencies: ${line}`,
     );
   }
 }

@@ -1,0 +1,304 @@
+{
+  "design_kind": "manual_note_temp_db_single_claim_prototype_design",
+  "design_version": "manual_note_temp_db_single_claim_prototype_design.v0.1",
+  "design_fingerprint": "fnv1a32:4670ce1d",
+  "source_product_write_design_review": {
+    "review_version": "manual_note_product_write_design_review.v0.1",
+    "review_fingerprint": "fnv1a32:50220e59",
+    "design_status": "write_design_review_only",
+    "next_recommended_slice": "temp_db_single_claim_write_prototype_design"
+  },
+  "source_transaction_plan": {
+    "plan_version": "manual_note_disabled_write_adapter_transaction_plan.v0.1",
+    "plan_fingerprint": "fnv1a32:5c19232d",
+    "plan_status": "ready_for_abort_only_harness",
+    "operation_count": 5,
+    "claim_operation_count": 1,
+    "commit_allowed": false
+  },
+  "source_abort_result": {
+    "result_version": "manual_note_disabled_write_adapter_abort_result.v0.1",
+    "result_fingerprint": "fnv1a32:ee383d51",
+    "result_status": "aborted_before_product_write",
+    "product_write_attempted": false,
+    "product_write_performed": false
+  },
+  "prototype_status": "design_only_ready_for_temp_execution_spec",
+  "prototype_name": "single_claim_candidate_fixture_write_dry_run",
+  "selected_claim_operation": {
+    "operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "operation_kind": "claim_operation",
+    "target_kind": "future_canonical_claim",
+    "selection_rule": "first_claim_operation_from_disabled_transaction_plan_fixture",
+    "product_record_id": null,
+    "future_temp_record_id_placeholder": "temp-claim:pending",
+    "product_write_allowed_now": false,
+    "temp_write_executed_now": false
+  },
+  "temp_db_design": {
+    "temp_db_only": true,
+    "temp_db_file_created_now": false,
+    "future_temp_db_path_pattern": "/tmp/augnes-single-claim-write-prototype-v0-1/*.sqlite",
+    "product_db_allowed": false,
+    "schema_objects": [
+      "temp_claim_records",
+      "temp_idempotency_records",
+      "temp_rollback_records",
+      "temp_review_audit_records"
+    ],
+    "schema_object_definitions": [
+      {
+        "name": "temp_claim_records",
+        "purpose": "Hold one future temp-only claim record derived from the selected disabled transaction-plan claim operation.",
+        "required_fields": [
+          "temp_claim_record_id",
+          "preview_draft_id",
+          "source_operation_id",
+          "source_temp_intent_id",
+          "temp_idempotency_key",
+          "created_at"
+        ],
+        "forbidden_fields": [
+          "raw_manual_note_text",
+          "product_claim_id",
+          "canonical_claim_id",
+          "proof_id",
+          "evidence_id",
+          "perspective_id",
+          "work_item_id"
+        ],
+        "product_table_mirror": false,
+        "migration_required_now": false,
+        "repo_schema_changed_now": false
+      },
+      {
+        "name": "temp_idempotency_records",
+        "purpose": "Bind the selected claim operation to a temp-only idempotency key before any future temp record write.",
+        "required_fields": [
+          "temp_idempotency_key",
+          "preview_draft_id",
+          "selected_claim_operation_id",
+          "transaction_plan_fingerprint",
+          "product_write_design_review_fingerprint"
+        ],
+        "forbidden_fields": [
+          "product_idempotency_key",
+          "product_record_id"
+        ],
+        "product_table_mirror": false,
+        "migration_required_now": false,
+        "repo_schema_changed_now": false
+      },
+      {
+        "name": "temp_rollback_records",
+        "purpose": "Describe how a future temp-only claim record would be removed by temp idempotency key.",
+        "required_fields": [
+          "temp_rollback_record_id",
+          "temp_idempotency_key",
+          "target_temp_claim_record_id",
+          "rollback_strategy"
+        ],
+        "forbidden_fields": [
+          "product_rollback_id",
+          "product_record_id"
+        ],
+        "product_table_mirror": false,
+        "migration_required_now": false,
+        "repo_schema_changed_now": false
+      },
+      {
+        "name": "temp_review_audit_records",
+        "purpose": "Record prototype design inputs for future temp harness inspection without recording operator promotion approval.",
+        "required_fields": [
+          "temp_review_audit_record_id",
+          "preview_draft_id",
+          "selected_claim_operation_id",
+          "design_fingerprint",
+          "records_operator_decision"
+        ],
+        "forbidden_fields": [
+          "operator_promotion_decision_id",
+          "approval_history_id",
+          "product_audit_record_id"
+        ],
+        "product_table_mirror": false,
+        "migration_required_now": false,
+        "repo_schema_changed_now": false
+      }
+    ],
+    "executable_sql_included": false,
+    "sql_executed_now": false
+  },
+  "temp_claim_write_shape": {
+    "temp_claim_record_kind": "manual_note_single_claim_temp_record",
+    "source_preview_draft_id": "research-candidate-preview-draft:00000000-0000-4000-8000-000000000001",
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "claim_candidate_text_source": "fixture_operation_metadata_only",
+    "raw_manual_note_text_included": false,
+    "product_claim_id": null,
+    "canonical_claim_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null,
+    "created_in_product_db": false,
+    "created_in_temp_db_now": false
+  },
+  "temp_idempotency_design": {
+    "required": true,
+    "idempotency_key_kind": "temp_db_single_claim_only",
+    "key_inputs": [
+      "preview_draft_id",
+      "selected_claim_operation_id",
+      "transaction_plan_fingerprint",
+      "product_write_design_review_fingerprint"
+    ],
+    "storage_object": "temp_idempotency_records",
+    "storage_created_now": false,
+    "product_idempotency_storage_created_now": false
+  },
+  "temp_rollback_design": {
+    "required": true,
+    "rollback_object": "temp_rollback_records",
+    "rollback_strategy": "delete_temp_claim_record_by_temp_idempotency_key",
+    "rollback_executed_now": false,
+    "product_rollback_performed_now": false,
+    "storage_created_now": false
+  },
+  "temp_review_audit_design": {
+    "required": true,
+    "audit_object": "temp_review_audit_records",
+    "records_operator_decision": false,
+    "records_prototype_design_inputs": true,
+    "audit_record_created_now": false,
+    "product_audit_record_created_now": false
+  },
+  "source_evidence_authority_gap": {
+    "source_fetching_performed_now": false,
+    "source_verification_performed_now": false,
+    "proof_evidence_write_authority_present": false,
+    "required_before_any_proof_evidence_write": true
+  },
+  "required_gates_before_temp_execution": [
+    "contract_test_report_passed",
+    "transaction_plan_ready_for_abort_only_harness",
+    "abort_result_aborted_before_product_write",
+    "product_write_design_review_present",
+    "exactly_one_claim_operation_selected",
+    "temp_db_path_is_under_tmp",
+    "product_db_path_absent",
+    "raw_manual_note_text_absent",
+    "no_provider_retrieval_source_fetch",
+    "no_external_handoff"
+  ],
+  "gates_status": [
+    {
+      "gate_id": "contract_test_report_passed",
+      "status": "pass",
+      "message": "Contract-test report or source transaction-plan chain reports pass."
+    },
+    {
+      "gate_id": "transaction_plan_ready_for_abort_only_harness",
+      "status": "pass",
+      "message": "Disabled transaction plan is ready only for abort-only harness modeling."
+    },
+    {
+      "gate_id": "abort_result_aborted_before_product_write",
+      "status": "pass",
+      "message": "Abort result confirms no product write was attempted or performed."
+    },
+    {
+      "gate_id": "product_write_design_review_present",
+      "status": "pass",
+      "message": "Product-write design review exists and remains design-only."
+    },
+    {
+      "gate_id": "exactly_one_claim_operation_selected",
+      "status": "pass",
+      "message": "The prototype selects the first and only claim operation from the fixture transaction plan."
+    },
+    {
+      "gate_id": "temp_db_path_is_under_tmp",
+      "status": "pass",
+      "message": "Future temp DB path pattern is constrained under /tmp."
+    },
+    {
+      "gate_id": "product_db_path_absent",
+      "status": "pass",
+      "message": "No product DB path is accepted or emitted by this design."
+    },
+    {
+      "gate_id": "raw_manual_note_text_absent",
+      "status": "pass",
+      "message": "The temp claim shape references fixture operation metadata only."
+    },
+    {
+      "gate_id": "no_provider_retrieval_source_fetch",
+      "status": "pass",
+      "message": "The design performs no provider, retrieval, RAG, or source fetching."
+    },
+    {
+      "gate_id": "no_external_handoff",
+      "status": "pass",
+      "message": "The design sends no external handoff."
+    }
+  ],
+  "future_temp_execution_harness_spec": {
+    "runner_name": "run-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs",
+    "allowed_future_behavior": [
+      "create one temp DB file under /tmp",
+      "create temp-only schema objects",
+      "insert one temp claim record",
+      "insert one temp idempotency record",
+      "insert one temp rollback record",
+      "insert one temp review audit record",
+      "write report JSON under /tmp"
+    ],
+    "forbidden_future_behavior": [
+      "product DB writes",
+      "repo schema/migration changes",
+      "proof/evidence writes",
+      "Perspective/canonical graph writes",
+      "work item creation",
+      "provider/retrieval/source fetch",
+      "external handoff",
+      "normal product write"
+    ]
+  },
+  "product_write_boundary": {
+    "design_only": true,
+    "temp_db_execution_now": false,
+    "normal_product_write_enabled": false,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "product_ids_created": false,
+    "schema_changed": false,
+    "migration_added": false,
+    "executable_sql_included": false,
+    "sql_executed_now": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_persistence": false,
+    "browser_persistence": false
+  },
+  "next_recommended_slice": "temp_db_single_claim_write_prototype_harness",
+  "local_copy_packet": {
+    "markdown": "# Manual Note Temp DB Single-Claim Prototype Design\n\nDesign only. No temp DB file is created now.\nNo normal product write is enabled.\nprototype_status: design_only_ready_for_temp_execution_spec\ndesign_fingerprint: fnv1a32:4670ce1d\nselected_claim_operation: disabled-plan-op:claim:001\n\n## Temp Schema Objects\n- temp_claim_records: Hold one future temp-only claim record derived from the selected disabled transaction-plan claim operation.\n- temp_idempotency_records: Bind the selected claim operation to a temp-only idempotency key before any future temp record write.\n- temp_rollback_records: Describe how a future temp-only claim record would be removed by temp idempotency key.\n- temp_review_audit_records: Record prototype design inputs for future temp harness inspection without recording operator promotion approval.\n\n## Boundary\ntemp_db_execution_now=false\nproduct_db_write=false\nexecutable_sql_included=false\nsql_executed_now=false",
+    "json": "{\n  \"design_kind\": \"manual_note_temp_db_single_claim_prototype_design\",\n  \"design_version\": \"manual_note_temp_db_single_claim_prototype_design.v0.1\",\n  \"design_fingerprint\": \"fnv1a32:4670ce1d\",\n  \"prototype_status\": \"design_only_ready_for_temp_execution_spec\",\n  \"selected_claim_operation\": {\n    \"operation_id\": \"disabled-plan-op:claim:001\",\n    \"source_temp_intent_id\": \"temp-intent:claim:001\",\n    \"operation_kind\": \"claim_operation\",\n    \"target_kind\": \"future_canonical_claim\",\n    \"selection_rule\": \"first_claim_operation_from_disabled_transaction_plan_fixture\",\n    \"product_record_id\": null,\n    \"future_temp_record_id_placeholder\": \"temp-claim:pending\",\n    \"product_write_allowed_now\": false,\n    \"temp_write_executed_now\": false\n  },\n  \"temp_db_design\": {\n    \"temp_db_only\": true,\n    \"temp_db_file_created_now\": false,\n    \"schema_objects\": [\n      \"temp_claim_records\",\n      \"temp_idempotency_records\",\n      \"temp_rollback_records\",\n      \"temp_review_audit_records\"\n    ],\n    \"executable_sql_included\": false,\n    \"sql_executed_now\": false\n  },\n  \"product_write_boundary\": {\n    \"design_only\": true,\n    \"temp_db_execution_now\": false,\n    \"normal_product_write_enabled\": false,\n    \"product_db_write\": false,\n    \"actual_promotion_performed\": false,\n    \"proof_or_evidence_writes\": false,\n    \"perspective_or_canonical_writes\": false,\n    \"canonical_graph_write\": false,\n    \"work_item_creation\": false,\n    \"product_ids_created\": false,\n    \"schema_changed\": false,\n    \"migration_added\": false,\n    \"executable_sql_included\": false,\n    \"sql_executed_now\": false,\n    \"provider_or_openai_calls\": false,\n    \"retrieval_or_rag\": false,\n    \"source_fetching\": false,\n    \"external_handoff_sent\": false,\n    \"durable_persistence\": false,\n    \"browser_persistence\": false\n  },\n  \"next_recommended_slice\": \"temp_db_single_claim_write_prototype_harness\"\n}",
+    "fingerprint": "fnv1a32:4670ce1d",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted": false,
+    "product_write_authority_granted": false,
+    "actual_promotion_allowed": false
+  }
+}
