@@ -518,6 +518,18 @@ function assertDocsPackageBrowserAndUpstreamSmokePointers() {
     ),
     "browser validator should assert no dry-run transaction-harness browser route",
   );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_artifact_note",
+    ),
+    "browser validator should include disabled adapter dry-run invocation harness artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_no_browser_route",
+    ),
+    "browser validator should assert no disabled adapter dry-run invocation harness browser route",
+  );
   assert.equal(
     packageJson.scripts[
       "smoke:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"
@@ -553,6 +565,18 @@ function assertDocsPackageBrowserAndUpstreamSmokePointers() {
       "contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"
     ],
     "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
   );
   for (const scriptText of [skeletonSmoke, bridgeDesignSmoke, productWriteGateSmoke]) {
     assert.ok(

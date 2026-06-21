@@ -703,11 +703,24 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product disabled bridge skeleton",
     "Manual note single-claim temp-to-product disabled bridge skeleton contract tests",
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction harness",
+    "Manual note single-claim product write disabled adapter dry-run invocation harness",
     "disabled bridge skeleton only",
     "contract-test suite for the disabled bridge skeleton",
     "disabled dry-run transaction plan only",
@@ -890,8 +903,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"',
+      ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"',
+      ) ||
+        line.includes(
+          '"harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"',
       ),
-      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, disabled adapter skeleton, or disabled adapter contract-test scripts, not dependencies: ${line}`,
+      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, disabled adapter skeleton, disabled adapter contract-test, or disabled adapter dry-run invocation harness scripts, not dependencies: ${line}`,
     );
   }
 }

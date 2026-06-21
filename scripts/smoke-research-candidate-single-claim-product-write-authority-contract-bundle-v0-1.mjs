@@ -1049,9 +1049,22 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim product write authority contract bundle",
     "Manual note single-claim product write disabled adapter contract tests",
+    "Manual note single-claim product write disabled adapter dry-run invocation harness",
     "product-write authority contract bundle only",
     "defines required authority contracts but does not satisfy or grant them",
     "does not implement product write",
@@ -1078,6 +1091,16 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
   assert.ok(
     browserValidator.includes(
       "single_claim_product_write_authority_contract_bundle_no_browser_route",
+    ),
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_artifact_note",
+    ),
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_no_browser_route",
     ),
   );
   for (const smokeText of [

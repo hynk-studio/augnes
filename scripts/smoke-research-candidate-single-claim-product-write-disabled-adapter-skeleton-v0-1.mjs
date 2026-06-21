@@ -1095,9 +1095,22 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim product write disabled adapter skeleton",
     "Manual note single-claim product write disabled adapter contract tests",
+    "Manual note single-claim product write disabled adapter dry-run invocation harness",
     "disabled product-write adapter skeleton only",
     "does not implement product write",
     "does not enable an adapter",
@@ -1133,6 +1146,16 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
   assert.ok(
     browserValidator.includes(
       "single_claim_product_write_disabled_adapter_contract_tests_no_browser_route",
+    ),
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_artifact_note",
+    ),
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_no_browser_route",
     ),
   );
   for (const smokeText of adjacentSmokeTexts) {
