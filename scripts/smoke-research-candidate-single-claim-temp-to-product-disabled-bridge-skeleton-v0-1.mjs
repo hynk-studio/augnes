@@ -884,8 +884,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"',
+      ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"',
+      ) ||
+        line.includes(
+          '"contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"',
       ),
-      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, or disabled adapter skeleton scripts, not dependencies: ${line}`,
+      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, disabled adapter skeleton, or disabled adapter contract-test scripts, not dependencies: ${line}`,
     );
   }
 }

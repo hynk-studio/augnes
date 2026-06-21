@@ -1235,6 +1235,28 @@ repo-local 색인이다.
   retrieval/RAG/source fetch, no external handoff, no browser persistence, no
   transaction execution, no adapter invocation, no enabled adapter transition,
   and no local runtime requirement.
+- Manual note single-claim product write disabled adapter contract tests:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-contract-tests.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-contract-test-cases.v0.1.json`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-contract-tests.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1`,
+  and
+  `npm run contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1`
+  add a deterministic fixture-only contract-test suite for the disabled
+  product-write adapter skeleton. The suite verifies the helper, runner,
+  committed fixture, optional upstream report handling, source evidence
+  contamination handling, disabled adapter boundary, no-product-write boundary,
+  and static repo boundary. It does not implement product write, does not enable
+  or invoke an adapter, does not execute a DB transaction, does not allocate
+  product IDs, does not open DB, and does not execute SQL. It adds no route, no
+  UI write action, and no schema/migration/dependency. Product write remains
+  blocked. The contract suite status is
+  `product_write_disabled_adapter_contract_tests_passed`, the recommendation
+  status is
+  `ready_for_single_claim_product_write_disabled_adapter_dry_run_invocation_harness`,
+  and the next recommended slice is
+  `single_claim_product_write_disabled_adapter_dry_run_invocation_harness`, not
+  product write implementation.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

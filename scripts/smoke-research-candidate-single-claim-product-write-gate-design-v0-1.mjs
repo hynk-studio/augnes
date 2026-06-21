@@ -289,8 +289,21 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim product write gate design",
+    "Manual note single-claim product write disabled adapter contract tests",
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction harness",
     "consumes temp DB result contract evidence",
@@ -429,8 +442,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"',
+        ) ||
+        line.includes(
+          '"contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"',
         ),
-      `package.json must only add product write gate-design, temp-to-product bridge design, disabled bridge skeleton, dry-run harness, authority bundle, or disabled adapter skeleton scripts, not dependencies: ${line}`,
+      `package.json must only add product write gate-design, temp-to-product bridge design, disabled bridge skeleton, dry-run harness, authority bundle, disabled adapter skeleton, or disabled adapter contract-test scripts, not dependencies: ${line}`,
     );
   }
 }

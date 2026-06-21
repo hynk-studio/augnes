@@ -1037,8 +1037,21 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim product write authority contract bundle",
+    "Manual note single-claim product write disabled adapter contract tests",
     "product-write authority contract bundle only",
     "defines required authority contracts but does not satisfy or grant them",
     "does not implement product write",

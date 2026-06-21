@@ -1,0 +1,1639 @@
+{
+  "fixture_kind": "manual_note_single_claim_product_write_disabled_adapter_contract_test_cases",
+  "fixture_version": "manual_note_single_claim_product_write_disabled_adapter_contract_tests.v0.1",
+  "generated_from": "/tmp/augnes-single-claim-product-write-disabled-adapter-contract-tests-v0-1/contract-tests.json",
+  "test_case_count": 119,
+  "test_cases": [
+    {
+      "case_id": "positive_committed_fixture_passes",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "committed disabled adapter skeleton fixture passes",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_runner_fixture_mode_report_passes",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "runner fixture-mode report passes",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_helper_built_skeleton_contract_passes",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "exported helper-ready skeleton contract passes",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_optional_pass_nested_skeleton_passes",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "optional upstream report with pass nested skeleton passes",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_local_artifact_boundary_flags_false",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "local artifact boundary flags remain false",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_source_evidence_clean",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "source evidence summary is clean and stable",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_next_slice_is_dry_run_invocation_harness",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "next recommended slice is dry-run invocation harness",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_delta_allowlist_nonempty",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "static committed allowlist delta is non-empty",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "top_level_adapter_enabled_true_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter_enabled true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_enabled_not_false"
+      ],
+      "mutation_path": [
+        "adapter_enabled"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "top_level_adapter_invocation_allowed_now_true_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter_invocation_allowed_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_invocation_allowed_now_not_false"
+      ],
+      "mutation_path": [
+        "adapter_invocation_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "top_level_product_write_allowed_now_true_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_write_allowed_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_allowed_now_not_false"
+      ],
+      "mutation_path": [
+        "product_write_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "top_level_product_write_authority_granted_now_true_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_write_authority_granted_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_authority_granted_now_not_false"
+      ],
+      "mutation_path": [
+        "product_write_authority_granted_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "top_level_product_write_implementation_allowed_now_true_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_write_implementation_allowed_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_implementation_allowed_now_not_false"
+      ],
+      "mutation_path": [
+        "product_write_implementation_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "top_level_transaction_execution_allowed_now_true_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "transaction_execution_allowed_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "transaction_execution_allowed_now_not_false"
+      ],
+      "mutation_path": [
+        "transaction_execution_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "top_level_status_missing_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "delete_path",
+      "mutation_summary": "disabled adapter skeleton status missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_adapter_skeleton_status_not_ready"
+      ],
+      "mutation_path": [
+        "disabled_adapter_skeleton_status"
+      ]
+    },
+    {
+      "case_id": "top_level_recommendation_wrong_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "recommendation must point to contract tests",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_adapter_skeleton_recommendation_not_ready"
+      ],
+      "mutation_path": [
+        "recommendation_status"
+      ],
+      "mutation_value": "ready_for_product_write_implementation"
+    },
+    {
+      "case_id": "top_level_next_slice_wrong_fails",
+      "case_group": "skeleton_top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "skeleton next slice cannot skip to product write",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_adapter_skeleton_next_slice_invalid"
+      ],
+      "mutation_path": [
+        "next_recommended_slice"
+      ],
+      "mutation_value": "single_claim_product_write_implementation"
+    },
+    {
+      "case_id": "adapter_input_missing_required_authority_contract_bundle_fingerprint_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "required adapter input authority_contract_bundle_fingerprint missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_required_authority_contract_bundle_fingerprint"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "required_inputs"
+      ],
+      "mutation_value": "authority_contract_bundle_fingerprint"
+    },
+    {
+      "case_id": "adapter_input_missing_required_selected_temp_claim_record_id_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "required adapter input selected_temp_claim_record_id missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_required_selected_temp_claim_record_id"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "required_inputs"
+      ],
+      "mutation_value": "selected_temp_claim_record_id"
+    },
+    {
+      "case_id": "adapter_input_missing_required_source_operation_id_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "required adapter input source_operation_id missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_required_source_operation_id"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "required_inputs"
+      ],
+      "mutation_value": "source_operation_id"
+    },
+    {
+      "case_id": "adapter_input_missing_required_source_temp_intent_id_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "required adapter input source_temp_intent_id missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_required_source_temp_intent_id"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "required_inputs"
+      ],
+      "mutation_value": "source_temp_intent_id"
+    },
+    {
+      "case_id": "adapter_input_missing_required_temp_idempotency_key_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "required adapter input temp_idempotency_key missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_required_temp_idempotency_key"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "required_inputs"
+      ],
+      "mutation_value": "temp_idempotency_key"
+    },
+    {
+      "case_id": "adapter_input_missing_required_operator_decision_contract_reference_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "required adapter input operator_decision_contract_reference missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_required_operator_decision_contract_reference"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "required_inputs"
+      ],
+      "mutation_value": "operator_decision_contract_reference"
+    },
+    {
+      "case_id": "adapter_input_missing_required_product_claim_schema_contract_reference_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "required adapter input product_claim_schema_contract_reference missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_required_product_claim_schema_contract_reference"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "required_inputs"
+      ],
+      "mutation_value": "product_claim_schema_contract_reference"
+    },
+    {
+      "case_id": "adapter_input_missing_forbidden_product_claim_id_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "forbidden adapter input product_claim_id missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_forbidden_product_claim_id"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "forbidden_inputs"
+      ],
+      "mutation_value": "product_claim_id"
+    },
+    {
+      "case_id": "adapter_input_missing_forbidden_proof_id_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "forbidden adapter input proof_id missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_forbidden_proof_id"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "forbidden_inputs"
+      ],
+      "mutation_value": "proof_id"
+    },
+    {
+      "case_id": "adapter_input_missing_forbidden_evidence_id_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "forbidden adapter input evidence_id missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_forbidden_evidence_id"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "forbidden_inputs"
+      ],
+      "mutation_value": "evidence_id"
+    },
+    {
+      "case_id": "adapter_input_missing_forbidden_perspective_id_fails",
+      "case_group": "adapter_input_contract",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "forbidden adapter input perspective_id missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_input_contract_missing_forbidden_perspective_id"
+      ],
+      "mutation_path": [
+        "adapter_input_contract",
+        "forbidden_inputs"
+      ],
+      "mutation_value": "perspective_id"
+    },
+    {
+      "case_id": "normalized_candidate_kind_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized input candidate_kind invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_candidate_kind_invalid"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "candidate_kind"
+      ],
+      "mutation_value": "manual_note_multi_claim"
+    },
+    {
+      "case_id": "normalized_selected_temp_claim_record_id_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized input selected_temp_claim_record_id invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_selected_temp_claim_record_id_missing"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "selected_temp_claim_record_id"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "normalized_source_operation_id_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized input source_operation_id invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_source_operation_id_missing"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "source_operation_id"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "normalized_source_temp_intent_id_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized input source_temp_intent_id invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_source_temp_intent_id_missing"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "source_temp_intent_id"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "normalized_temp_idempotency_key_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized input temp_idempotency_key invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_temp_idempotency_key_missing"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "temp_idempotency_key"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "normalized_authority_bundle_fingerprint_mismatch_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "authority bundle fingerprint mismatch fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_authority_bundle_fingerprint_mismatch"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "authority_contract_bundle_fingerprint"
+      ],
+      "mutation_value": "fnv1a32:00000000"
+    },
+    {
+      "case_id": "normalized_product_claim_id_nonnull_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_claim_id in normalized input fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_product_claim_id_not_null"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "product_claim_id"
+      ],
+      "mutation_value": "product_claim_id:leak"
+    },
+    {
+      "case_id": "normalized_proof_id_nonnull_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "proof_id in normalized input fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_proof_id_not_null"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "proof_id"
+      ],
+      "mutation_value": "proof_id:leak"
+    },
+    {
+      "case_id": "normalized_evidence_id_nonnull_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "evidence_id in normalized input fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_evidence_id_not_null"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "evidence_id"
+      ],
+      "mutation_value": "evidence_id:leak"
+    },
+    {
+      "case_id": "normalized_perspective_id_nonnull_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "perspective_id in normalized input fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_perspective_id_not_null"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "perspective_id"
+      ],
+      "mutation_value": "perspective_id:leak"
+    },
+    {
+      "case_id": "normalized_work_item_id_nonnull_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "work_item_id in normalized input fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_work_item_id_not_null"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "work_item_id"
+      ],
+      "mutation_value": "work_item_id:leak"
+    },
+    {
+      "case_id": "normalized_raw_manual_note_text_included_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized raw_manual_note_text_included boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_raw_manual_note_text_included_not_false"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "raw_manual_note_text_included"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "normalized_normalization_executed_now_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized normalization_executed_now boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalization_executed_now_not_true"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "normalization_executed_now"
+      ],
+      "mutation_value": false
+    },
+    {
+      "case_id": "normalized_normalization_persisted_now_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized normalization_persisted_now boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalization_persisted_now_not_false"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "normalization_persisted_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "normalized_normalization_storage_target_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized normalization_storage_target boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalization_storage_target_invalid"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "normalization_storage_target"
+      ],
+      "mutation_value": "product_db"
+    },
+    {
+      "case_id": "normalized_multiple_selected_temp_claims_invalid_fails",
+      "case_group": "normalized_adapter_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "normalized multiple_selected_temp_claims boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "normalized_multiple_selected_temp_claims_present"
+      ],
+      "mutation_path": [
+        "normalized_adapter_input_preview",
+        "multiple_selected_temp_claims"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "adapter_output_default_result_status_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output default_result_status boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_default_status_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "default_result_status"
+      ],
+      "mutation_value": "write_executed"
+    },
+    {
+      "case_id": "adapter_output_product_write_result_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output product_write_result boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_product_write_result_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "product_write_result"
+      ],
+      "mutation_value": {
+        "status": "written"
+      }
+    },
+    {
+      "case_id": "adapter_output_product_claim_id_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output product_claim_id boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_product_claim_id_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "product_claim_id"
+      ],
+      "mutation_value": "product-claim:leak"
+    },
+    {
+      "case_id": "adapter_output_durable_records_created_now_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output durable_records_created_now boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_durable_records_created_now_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "durable_records_created_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "adapter_output_product_db_write_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output product_db_write boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_product_db_write_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "product_db_write"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "adapter_output_product_id_allocation_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output product_id_allocation boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_product_id_allocation_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "product_id_allocation"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "adapter_output_db_open_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output db_open boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_db_open_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "db_open"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "adapter_output_sql_execution_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output sql_execution boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_sql_execution_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "sql_execution"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "adapter_output_transaction_execution_invalid_fails",
+      "case_group": "adapter_output_contract",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter output transaction_execution boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_output_transaction_execution_invalid"
+      ],
+      "mutation_path": [
+        "adapter_output_contract",
+        "transaction_execution"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_invocation_attempted_now_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation invocation_attempted_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_invocation_attempted_now_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "invocation_attempted_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_adapter_invocation_allowed_now_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation adapter_invocation_allowed_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_adapter_invocation_allowed_now_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "adapter_invocation_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_adapter_enabled_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation adapter_enabled true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_adapter_enabled_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "adapter_enabled"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_product_write_executed_now_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation product_write_executed_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_product_write_executed_now_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "product_write_executed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_transaction_executed_now_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation transaction_executed_now true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_transaction_executed_now_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "transaction_executed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_product_db_write_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation product_db_write true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_product_db_write_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "product_db_write"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_product_id_allocation_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation product_id_allocation true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_product_id_allocation_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "product_id_allocation"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_db_open_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation db_open true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_db_open_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "db_open"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_sql_execution_true_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation sql_execution true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_sql_execution_not_false"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "sql_execution"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "disabled_invocation_result_status_wrong_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "set_path",
+      "mutation_summary": "disabled invocation status cannot become dry success",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_result_status_invalid"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "result_status"
+      ],
+      "mutation_value": "dry_noop_preview"
+    },
+    {
+      "case_id": "disabled_invocation_missing_adapter_disabled_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "disabled invocation refusal reason adapter_disabled missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_missing_refusal_adapter_disabled"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "refusal_reasons"
+      ],
+      "mutation_value": "adapter_disabled"
+    },
+    {
+      "case_id": "disabled_invocation_missing_product_write_authority_not_granted_fails",
+      "case_group": "disabled_invocation_result",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "disabled invocation refusal reason product_write_authority_not_granted missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_missing_refusal_product_write_authority_not_granted"
+      ],
+      "mutation_path": [
+        "disabled_invocation_result",
+        "refusal_reasons"
+      ],
+      "mutation_value": "product_write_authority_not_granted"
+    },
+    {
+      "case_id": "future_command_executable_now_invalid_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "future product write command executable_now boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_executable_now_not_false"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "executable_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "future_command_product_claim_id_invalid_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "future product write command product_claim_id boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_product_claim_id_not_null"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "product_claim_id"
+      ],
+      "mutation_value": "product-claim:leak"
+    },
+    {
+      "case_id": "future_command_target_table_or_interface_invalid_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "future product write command target_table_or_interface boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_target_missing"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "target_table_or_interface"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "future_command_write_operation_count_invalid_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "future product write command write_operation_count boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_write_operation_count_not_zero"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "write_operation_count"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "future_command_sql_statement_count_invalid_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "future product write command sql_statement_count boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_sql_statement_count_not_zero"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "sql_statement_count"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "future_command_command_rejected_now_invalid_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "future product write command command_rejected_now boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_rejected_now_not_true"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "command_rejected_now"
+      ],
+      "mutation_value": false
+    },
+    {
+      "case_id": "future_command_rejection_reason_invalid_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "future product write command rejection_reason boundary fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_rejection_reason_invalid"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "rejection_reason"
+      ],
+      "mutation_value": "ready_for_product_write"
+    },
+    {
+      "case_id": "future_command_missing_explicit_operator_decision_contract_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "future command missing explicit_operator_decision_contract fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_missing_required_contract_explicit_operator_decision_contract"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "would_require_contracts"
+      ],
+      "mutation_value": "explicit_operator_decision_contract"
+    },
+    {
+      "case_id": "future_command_missing_product_claim_id_allocation_contract_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "future command missing product_claim_id_allocation_contract fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_missing_required_contract_product_claim_id_allocation_contract"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "would_require_contracts"
+      ],
+      "mutation_value": "product_claim_id_allocation_contract"
+    },
+    {
+      "case_id": "future_command_missing_product_write_transaction_boundary_contract_fails",
+      "case_group": "future_product_write_command_preview",
+      "mutation_kind": "remove_array_value",
+      "mutation_summary": "future command missing product_write_transaction_boundary_contract fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_command_missing_required_contract_product_write_transaction_boundary_contract"
+      ],
+      "mutation_path": [
+        "future_product_write_command_preview",
+        "would_require_contracts"
+      ],
+      "mutation_value": "product_write_transaction_boundary_contract"
+    },
+    {
+      "case_id": "refusal_matrix_missing_adapter_disabled_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "remove_refusal_reason",
+      "mutation_summary": "refusal matrix missing adapter_disabled fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_missing_adapter_disabled"
+      ],
+      "mutation_value": "adapter_disabled"
+    },
+    {
+      "case_id": "refusal_matrix_missing_adapter_invocation_requested_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "remove_refusal_reason",
+      "mutation_summary": "refusal matrix missing adapter_invocation_requested fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_missing_adapter_invocation_requested"
+      ],
+      "mutation_value": "adapter_invocation_requested"
+    },
+    {
+      "case_id": "refusal_matrix_missing_product_write_requested_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "remove_refusal_reason",
+      "mutation_summary": "refusal matrix missing product_write_requested fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_missing_product_write_requested"
+      ],
+      "mutation_value": "product_write_requested"
+    },
+    {
+      "case_id": "refusal_matrix_missing_product_write_authority_not_granted_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "remove_refusal_reason",
+      "mutation_summary": "refusal matrix missing product_write_authority_not_granted fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_missing_product_write_authority_not_granted"
+      ],
+      "mutation_value": "product_write_authority_not_granted"
+    },
+    {
+      "case_id": "refusal_matrix_missing_authority_contracts_not_satisfied_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "remove_refusal_reason",
+      "mutation_summary": "refusal matrix missing authority_contracts_not_satisfied fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_missing_authority_contracts_not_satisfied"
+      ],
+      "mutation_value": "authority_contracts_not_satisfied"
+    },
+    {
+      "case_id": "refusal_matrix_missing_missing_or_malformed_authority_bundle_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "remove_refusal_reason",
+      "mutation_summary": "refusal matrix missing missing_or_malformed_authority_bundle fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_missing_missing_or_malformed_authority_bundle"
+      ],
+      "mutation_value": "missing_or_malformed_authority_bundle"
+    },
+    {
+      "case_id": "refusal_matrix_missing_missing_selected_temp_claim_identity_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "remove_refusal_reason",
+      "mutation_summary": "refusal matrix missing missing_selected_temp_claim_identity fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_missing_missing_selected_temp_claim_identity"
+      ],
+      "mutation_value": "missing_selected_temp_claim_identity"
+    },
+    {
+      "case_id": "refusal_matrix_adapter_disabled_requested_now_invalid_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "set_refusal_reason_field",
+      "mutation_summary": "refusal matrix adapter_disabled requested_now invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_adapter_disabled_requested_now_not_false"
+      ],
+      "mutation_value": "adapter_disabled",
+      "mutation_field": "requested_now",
+      "mutation_field_value": true
+    },
+    {
+      "case_id": "refusal_matrix_adapter_disabled_refusal_required_now_invalid_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "set_refusal_reason_field",
+      "mutation_summary": "refusal matrix adapter_disabled refusal_required_now invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_adapter_disabled_refusal_required_now_not_true"
+      ],
+      "mutation_value": "adapter_disabled",
+      "mutation_field": "refusal_required_now",
+      "mutation_field_value": false
+    },
+    {
+      "case_id": "refusal_matrix_adapter_disabled_blocks_adapter_invocation_now_invalid_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "set_refusal_reason_field",
+      "mutation_summary": "refusal matrix adapter_disabled blocks_adapter_invocation_now invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_adapter_disabled_blocks_adapter_invocation_now_not_true"
+      ],
+      "mutation_value": "adapter_disabled",
+      "mutation_field": "blocks_adapter_invocation_now",
+      "mutation_field_value": false
+    },
+    {
+      "case_id": "refusal_matrix_adapter_disabled_blocks_product_write_now_invalid_fails",
+      "case_group": "refusal_matrix",
+      "mutation_kind": "set_refusal_reason_field",
+      "mutation_summary": "refusal matrix adapter_disabled blocks_product_write_now invalid fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "refusal_matrix_adapter_disabled_blocks_product_write_now_not_true"
+      ],
+      "mutation_value": "adapter_disabled",
+      "mutation_field": "blocks_product_write_now",
+      "mutation_field_value": false
+    },
+    {
+      "case_id": "source_authority_bundle_status_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source authority bundle status wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_authority_bundle_status_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "authority_contract_bundle",
+        "authority_contract_bundle_status"
+      ],
+      "mutation_value": "blocked"
+    },
+    {
+      "case_id": "source_authority_bundle_recommendation_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source authority bundle recommendation wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_authority_bundle_recommendation_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "authority_contract_bundle",
+        "recommendation_status"
+      ],
+      "mutation_value": "ready_for_product_write"
+    },
+    {
+      "case_id": "source_authority_bundle_validation_false_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source authority bundle validation false fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_authority_bundle_validation_not_passed"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "authority_contract_bundle",
+        "validation_passed"
+      ],
+      "mutation_value": false
+    },
+    {
+      "case_id": "source_authority_gap_summary_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source authority gap summary wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_authority_gap_summary_invalid"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "authority_contract_bundle",
+        "authority_gap_summary",
+        "satisfied_now_count"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "source_harness_status_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source harness status wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_harness_status_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "dry_run_transaction_harness",
+        "dry_run_transaction_harness_status"
+      ],
+      "mutation_value": "executed"
+    },
+    {
+      "case_id": "source_plan_status_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source plan status wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_plan_status_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "dry_run_transaction_plan",
+        "dry_run_transaction_plan_status"
+      ],
+      "mutation_value": "executed"
+    },
+    {
+      "case_id": "source_contract_tests_failed_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source contract tests failed fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_disabled_bridge_skeleton_contract_tests_not_passed"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "disabled_bridge_skeleton_contract_tests",
+        "final_status"
+      ],
+      "mutation_value": "fail"
+    },
+    {
+      "case_id": "source_bridge_skeleton_status_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source bridge skeleton status wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_disabled_bridge_skeleton_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "disabled_bridge_skeleton",
+        "disabled_bridge_skeleton_status"
+      ],
+      "mutation_value": "enabled"
+    },
+    {
+      "case_id": "source_bridge_skeleton_adapter_enabled_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source bridge skeleton adapter enabled fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_disabled_bridge_skeleton_bridge_adapter_enabled_not_false"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "disabled_bridge_skeleton",
+        "bridge_adapter_enabled"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_bridge_design_status_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source bridge design status wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_design_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "temp_to_product_bridge_design",
+        "bridge_design_status"
+      ],
+      "mutation_value": "blocked"
+    },
+    {
+      "case_id": "source_gate_design_status_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source gate design status wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_gate_design_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "product_write_gate_design",
+        "gate_design_status"
+      ],
+      "mutation_value": "blocked"
+    },
+    {
+      "case_id": "source_gate_design_recommendation_wrong_fails",
+      "case_group": "upstream_readiness",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source gate design recommendation wrong fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_gate_design_recommendation_not_ready"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "product_write_gate_design",
+        "recommendation_status"
+      ],
+      "mutation_value": "blocked_before_bridge_design"
+    },
+    {
+      "case_id": "source_nested_product_claim_id_fails",
+      "case_group": "source_product_id_contamination",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source nested product claim id fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "mutation_path": [
+        "source_evidence",
+        "authority_contract_bundle",
+        "product_claim_id"
+      ],
+      "mutation_value": "product-claim:source-leak"
+    },
+    {
+      "case_id": "explicit_forbidden_surface_product_db_write_true_fails",
+      "case_group": "source_contamination",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit product DB write surface true fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_product_db_write_not_false"
+      ],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "product_db_write"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surfaces_missing_fails",
+      "case_group": "source_contamination",
+      "mutation_kind": "delete_path",
+      "mutation_summary": "explicit forbidden surfaces missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_record_missing"
+      ],
+      "mutation_path": [
+        "explicit_forbidden_surfaces"
+      ]
+    },
+    {
+      "case_id": "optional_disabled_adapter_skeleton_report_fail_blocks",
+      "case_group": "optional_report_handling",
+      "mutation_kind": "forced_failure",
+      "mutation_summary": "optional_disabled_adapter_skeleton_report_fail_blocks must not fall back silently",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_disabled_adapter_skeleton_report_not_passed"
+      ],
+      "forced_failure_codes": [
+        "optional_disabled_adapter_skeleton_report_not_passed"
+      ]
+    },
+    {
+      "case_id": "optional_disabled_adapter_skeleton_report_malformed_blocks",
+      "case_group": "optional_report_handling",
+      "mutation_kind": "forced_failure",
+      "mutation_summary": "optional_disabled_adapter_skeleton_report_malformed_blocks must not fall back silently",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_disabled_adapter_skeleton_report_malformed"
+      ],
+      "forced_failure_codes": [
+        "optional_disabled_adapter_skeleton_report_malformed"
+      ]
+    },
+    {
+      "case_id": "optional_upstream_authority_report_fail_blocks",
+      "case_group": "optional_report_handling",
+      "mutation_kind": "forced_failure",
+      "mutation_summary": "optional_upstream_authority_report_fail_blocks must not fall back silently",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_upstream_authority_contract_bundle_report_not_passed"
+      ],
+      "forced_failure_codes": [
+        "optional_upstream_authority_contract_bundle_report_not_passed"
+      ]
+    },
+    {
+      "case_id": "optional_upstream_report_missing_nested_payload_blocks",
+      "case_group": "optional_report_handling",
+      "mutation_kind": "forced_failure",
+      "mutation_summary": "optional_upstream_report_missing_nested_payload_blocks must not fall back silently",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_upstream_authority_contract_bundle_report_missing_payload"
+      ],
+      "forced_failure_codes": [
+        "optional_upstream_authority_contract_bundle_report_missing_payload"
+      ]
+    },
+    {
+      "case_id": "static_changed_file_delta_empty_fails",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_empty_changed_files",
+      "mutation_summary": "static changed file delta empty fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_changed_file_delta_empty"
+      ]
+    },
+    {
+      "case_id": "static_expected_contract_file_missing_fails",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_remove_expected_file",
+      "mutation_summary": "static expected contract file missing fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_expected_files_missing"
+      ],
+      "mutation_value": "lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-contract-tests.ts"
+    },
+    {
+      "case_id": "static_schema_db_sql_file_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_add_changed_file",
+      "mutation_summary": "static schema db sql file rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_schema_db_sql_changed"
+      ],
+      "mutation_value": "db/schema.sql"
+    },
+    {
+      "case_id": "static_app_api_route_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_add_changed_file",
+      "mutation_summary": "static app api route rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_app_api_route_changed"
+      ],
+      "mutation_value": "app/api/product-write/route.ts"
+    },
+    {
+      "case_id": "static_app_page_ui_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_add_changed_file",
+      "mutation_summary": "static app page ui rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed"
+      ],
+      "mutation_value": "app/foo/page.tsx"
+    },
+    {
+      "case_id": "static_app_layout_ui_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_add_changed_file",
+      "mutation_summary": "static app layout ui rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed"
+      ],
+      "mutation_value": "app/layout.jsx"
+    },
+    {
+      "case_id": "static_component_ui_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_add_changed_file",
+      "mutation_summary": "static component ui rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed"
+      ],
+      "mutation_value": "components/Foo.tsx"
+    },
+    {
+      "case_id": "static_package_added_lines_empty_fails",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_empty_package_lines",
+      "mutation_summary": "static package added lines empty fails",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_package_added_lines_empty"
+      ]
+    },
+    {
+      "case_id": "static_package_dependency_addition_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_add_package_line",
+      "mutation_summary": "static package dependency addition rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist"
+      ],
+      "mutation_value": "+    \"openai\": \"^9.9.9\","
+    },
+    {
+      "case_id": "static_executable_sql_string_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_set_probe_text",
+      "mutation_summary": "static executable sql string rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_executable_sql_string_present"
+      ],
+      "mutation_value": "CREATE TABLE product_claims (id text)"
+    },
+    {
+      "case_id": "static_forbidden_db_import_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_set_probe_text",
+      "mutation_summary": "static forbidden db import rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_forbidden_import_present"
+      ],
+      "mutation_value": "import x from \"lib/db/client\""
+    },
+    {
+      "case_id": "static_network_call_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_set_probe_text",
+      "mutation_summary": "static network call rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "mutation_value": "fetch('https://example.invalid')"
+    },
+    {
+      "case_id": "static_browser_persistence_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_set_probe_text",
+      "mutation_summary": "static browser persistence rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_browser_persistence_present"
+      ],
+      "mutation_value": "localStorage.setItem('x','y')"
+    },
+    {
+      "case_id": "static_app_server_startup_rejected",
+      "case_group": "static_repo_boundary",
+      "mutation_kind": "static_set_probe_text",
+      "mutation_summary": "static app server startup rejected",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_app_server_startup_present"
+      ],
+      "mutation_value": "createServer(handler).listen(3000)"
+    }
+  ]
+}
