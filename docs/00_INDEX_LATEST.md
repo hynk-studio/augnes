@@ -1257,6 +1257,28 @@ repo-local 색인이다.
   and the next recommended slice is
   `single_claim_product_write_disabled_adapter_dry_run_invocation_harness`, not
   product write implementation.
+- Manual note single-claim product write disabled adapter dry-run invocation
+  harness:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-dry-run-invocation-harness.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-dry-run-invocation-harness.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1`,
+  and
+  `npm run harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1`
+  add a deterministic, fixture-only, pure in-memory disabled-adapter dry-run
+  invocation harness. The helper normalizes an invocation-shaped input, applies
+  disabled adapter refusal rules, returns a rejected/no-op result, records trace
+  rows and mutation probes, and proves no product write occurred. It does not
+  implement product write, does not enable an adapter, does not invoke a runtime
+  adapter, does not execute a DB transaction, does not allocate product IDs,
+  does not open DB, and does not execute SQL. It adds no route, no UI action,
+  and no schema/migration/dependency. Product write remains blocked. The harness
+  status is
+  `product_write_disabled_adapter_dry_run_invocation_harness_only`, the
+  recommendation status is
+  `ready_for_single_claim_product_write_disabled_adapter_noop_invocation_report`,
+  and the next recommended slice is
+  `single_claim_product_write_disabled_adapter_noop_invocation_report`, not
+  product write implementation.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

@@ -468,6 +468,18 @@ function assertPackageScripts() {
     packageJson.scripts[allowedPackageScriptNames[1]],
     `node ${runnerPath}`,
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+  );
 }
 
 function assertDocsAndBrowserValidator() {
@@ -490,6 +502,18 @@ function assertDocsAndBrowserValidator() {
   assert.ok(
     browserValidator.includes("product-write-disabled-adapter-contract-tests"),
     "browser validator must assert no browser route for this artifact",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_artifact_note",
+    ),
+    "browser validator must include dry-run invocation harness report-only artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_product_write_disabled_adapter_dry_run_invocation_harness_no_browser_route",
+    ),
+    "browser validator must assert no browser route for dry-run invocation harness artifact",
   );
 }
 
