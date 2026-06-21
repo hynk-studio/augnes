@@ -1,0 +1,446 @@
+{
+  "design_kind": "manual_note_single_claim_product_write_gate_design",
+  "design_version": "manual_note_single_claim_product_write_gate_design.v0.1",
+  "design_fingerprint": "fnv1a32:ff55b3ed",
+  "source_evidence": {
+    "product_write_design_review": {
+      "review_fingerprint": "fnv1a32:50220e59",
+      "design_status": "write_design_review_only",
+      "next_recommended_slice": "temp_db_single_claim_write_prototype_design"
+    },
+    "temp_db_write_harness": {
+      "result_fingerprint": "fnv1a32:72ddbd17",
+      "result_status": "temp_db_write_passed",
+      "temp_record_counts": {
+        "temp_claim_records": 1,
+        "temp_idempotency_records": 1,
+        "temp_rollback_records": 1,
+        "temp_review_audit_records": 1
+      },
+      "product_db_write": false,
+      "product_ids_created": false
+    },
+    "temp_result_review": {
+      "review_fingerprint": "fnv1a32:8a8ed8f6",
+      "review_status": "temp_result_review_needs_attention",
+      "next_recommended_slice": "temp_db_single_claim_result_contract_tests"
+    },
+    "temp_result_contract_tests": {
+      "suite_fingerprint": "fnv1a32:a65bf1fe",
+      "final_status": null,
+      "total_cases": 34,
+      "expected_failures": 30,
+      "unexpected_passes": null,
+      "unexpected_failures": null
+    },
+    "browser_validation": {
+      "report_present": false,
+      "final_status": null,
+      "external_request_count": null,
+      "forbidden_request_count": null
+    }
+  },
+  "gate_design_status": "product_write_gate_design_only",
+  "gate_summary": {
+    "pass_count": 3,
+    "warn_count": 3,
+    "block_count": 12,
+    "pass_gate_ids": [
+      "temp_db_write_harness_passed",
+      "selected_claim_identity_contract_present",
+      "product_boundary_preserved"
+    ],
+    "warn_gate_ids": [
+      "temp_result_review_non_blocking",
+      "temp_result_contract_tests_passed",
+      "browser_observed_no_external_or_forbidden_requests"
+    ],
+    "block_gate_ids": [
+      "explicit_operator_decision_contract_present",
+      "product_claim_schema_contract_present",
+      "product_claim_id_allocation_contract_present",
+      "product_idempotency_storage_contract_present",
+      "product_rollback_storage_contract_present",
+      "product_review_audit_record_contract_present",
+      "source_verification_authority_present",
+      "proof_evidence_authority_present",
+      "canonical_perspective_authority_present",
+      "enabled_adapter_transition_contract_present",
+      "product_write_route_contract_present",
+      "product_write_observability_contract_present"
+    ]
+  },
+  "product_write_gate_results": [
+    {
+      "gate_id": "temp_db_write_harness_passed",
+      "gate_group": "temp_evidence_gates",
+      "gate_label": "Temp DB write harness passed",
+      "status": "pass",
+      "currently_supported_by": [
+        "temp DB harness result",
+        "exactly one temp claim/idempotency/rollback/audit row"
+      ],
+      "missing_authority": [],
+      "why_required_before_product_write": "The bridge design cannot proceed unless the temp-only write experiment produced the expected isolated record set.",
+      "required_future_artifact_or_contract": "temp_db_single_claim_write_prototype_harness_report",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "temp_result_review_non_blocking",
+      "gate_group": "temp_evidence_gates",
+      "gate_label": "Temp result review is non-blocking",
+      "status": "warn",
+      "currently_supported_by": [
+        "temp DB result review artifact"
+      ],
+      "missing_authority": [
+        "optional browser or traversal-backed evidence may be incomplete"
+      ],
+      "why_required_before_product_write": "Result review must not block before product-write gate design can proceed.",
+      "required_future_artifact_or_contract": "temp_db_single_claim_result_review",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "temp_result_contract_tests_passed",
+      "gate_group": "temp_evidence_gates",
+      "gate_label": "Temp result contract tests passed",
+      "status": "warn",
+      "currently_supported_by": [
+        "committed result contract-test matrix fixture"
+      ],
+      "missing_authority": [
+        "optional live /tmp contract-test report"
+      ],
+      "why_required_before_product_write": "Contract tests must prove malformed result evidence is rejected before bridge design hardens into implementation.",
+      "required_future_artifact_or_contract": "temp_db_single_claim_result_contract_tests_report",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "browser_observed_no_external_or_forbidden_requests",
+      "gate_group": "temp_evidence_gates",
+      "gate_label": "Browser observed no external or forbidden requests",
+      "status": "warn",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "optional browser-backed validation report"
+      ],
+      "why_required_before_product_write": "The lane must stay free of provider, retrieval, source-fetch, and external request behavior before product-write design continues.",
+      "required_future_artifact_or_contract": "browser_backed_manual_note_lane_validation_report",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "explicit_operator_decision_contract_present",
+      "gate_group": "operator_authority_gates",
+      "gate_label": "Explicit operator single-claim decision contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "operator promotion decision authority"
+      ],
+      "why_required_before_product_write": "No product write may be designed as executable until a human operator decision contract exists.",
+      "required_future_artifact_or_contract": "explicit_operator_single_claim_promotion_decision_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "selected_claim_identity_contract_present",
+      "gate_group": "operator_authority_gates",
+      "gate_label": "Selected claim identity contract present",
+      "status": "pass",
+      "currently_supported_by": [
+        "temp claim record id",
+        "source operation id",
+        "source temp intent id"
+      ],
+      "missing_authority": [],
+      "why_required_before_product_write": "The future bridge must bind exactly one selected claim candidate before any product ID allocation can be designed.",
+      "required_future_artifact_or_contract": "selected_claim_candidate_identity_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_claim_schema_contract_present",
+      "gate_group": "product_schema_gates",
+      "gate_label": "Product claim schema contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "product schema review"
+      ],
+      "why_required_before_product_write": "A product claim table or product record contract must be reviewed before any product DB write design.",
+      "required_future_artifact_or_contract": "product_claim_schema_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_claim_id_allocation_contract_present",
+      "gate_group": "product_id_allocation_gates",
+      "gate_label": "Product claim ID allocation contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "product claim ID allocation authority"
+      ],
+      "why_required_before_product_write": "Future product claim IDs may only be allocated after the ID allocation gate controls the selected claim candidate and operator decision.",
+      "required_future_artifact_or_contract": "product_claim_id_allocation_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_idempotency_storage_contract_present",
+      "gate_group": "idempotency_gates",
+      "gate_label": "Product idempotency storage contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "durable product idempotency storage"
+      ],
+      "why_required_before_product_write": "Durable idempotency storage is required before a bridge can prevent duplicate product writes.",
+      "required_future_artifact_or_contract": "product_idempotency_storage_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_rollback_storage_contract_present",
+      "gate_group": "rollback_gates",
+      "gate_label": "Product rollback storage contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "durable product rollback storage"
+      ],
+      "why_required_before_product_write": "A rollback contract is required before a future product write can be safely reversed or inspected.",
+      "required_future_artifact_or_contract": "product_rollback_storage_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_review_audit_record_contract_present",
+      "gate_group": "review_audit_gates",
+      "gate_label": "Product review audit record contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "durable product review audit storage"
+      ],
+      "why_required_before_product_write": "Product write attempts need durable review audit records distinct from preview activity.",
+      "required_future_artifact_or_contract": "product_review_audit_record_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "source_verification_authority_present",
+      "gate_group": "source_evidence_authority_gates",
+      "gate_label": "Source verification authority present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "source verification authority"
+      ],
+      "why_required_before_product_write": "The bridge cannot treat preview source references as verified sources without a separate authority lane.",
+      "required_future_artifact_or_contract": "source_verification_authority_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "proof_evidence_authority_present",
+      "gate_group": "source_evidence_authority_gates",
+      "gate_label": "Proof/evidence write authority present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "proof/evidence write authority"
+      ],
+      "why_required_before_product_write": "Claim promotion cannot create proof or evidence records without explicit proof/evidence authority.",
+      "required_future_artifact_or_contract": "proof_evidence_authority_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "canonical_perspective_authority_present",
+      "gate_group": "source_evidence_authority_gates",
+      "gate_label": "Canonical Perspective authority present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "canonical Perspective authority"
+      ],
+      "why_required_before_product_write": "Claim-only bridge design must keep Perspective and canonical graph writes forbidden without separate authority.",
+      "required_future_artifact_or_contract": "canonical_perspective_authority_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "enabled_adapter_transition_contract_present",
+      "gate_group": "adapter_enablement_gates",
+      "gate_label": "Enabled adapter transition contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "enabled adapter transition review"
+      ],
+      "why_required_before_product_write": "A disabled adapter cannot become executable without an explicit transition review.",
+      "required_future_artifact_or_contract": "disabled_to_enabled_adapter_transition_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_write_route_contract_present",
+      "gate_group": "route_and_execution_gates",
+      "gate_label": "Product write route contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "product write route authority"
+      ],
+      "why_required_before_product_write": "No production route exists or is allowed in this PR; future bridge design must define one before implementation.",
+      "required_future_artifact_or_contract": "product_write_route_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_boundary_preserved",
+      "gate_group": "product_boundary_gates",
+      "gate_label": "Product write boundary preserved",
+      "status": "pass",
+      "currently_supported_by": [
+        "source fixture boundary flags",
+        "absence of product IDs"
+      ],
+      "missing_authority": [],
+      "why_required_before_product_write": "Bridge design can only proceed while all current artifacts preserve no product write, no product IDs, no provider/retrieval/source fetch, and no external handoff.",
+      "required_future_artifact_or_contract": "product_boundary_invariant",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    },
+    {
+      "gate_id": "product_write_observability_contract_present",
+      "gate_group": "route_and_execution_gates",
+      "gate_label": "Product write observability contract present",
+      "status": "block",
+      "currently_supported_by": [],
+      "missing_authority": [
+        "product write observability contract"
+      ],
+      "why_required_before_product_write": "A future product-write bridge needs bounded observability before any implementation work.",
+      "required_future_artifact_or_contract": "product_write_observability_contract",
+      "product_write_allowed_now": false,
+      "can_be_satisfied_in_future_slice": true
+    }
+  ],
+  "required_gate_groups": [
+    "temp_evidence_gates",
+    "operator_authority_gates",
+    "source_evidence_authority_gates",
+    "product_schema_gates",
+    "product_id_allocation_gates",
+    "idempotency_gates",
+    "rollback_gates",
+    "review_audit_gates",
+    "adapter_enablement_gates",
+    "route_and_execution_gates",
+    "product_boundary_gates"
+  ],
+  "required_future_contracts": [
+    "explicit_operator_single_claim_promotion_decision_contract",
+    "selected_claim_candidate_identity_contract",
+    "product_claim_schema_contract",
+    "product_claim_id_allocation_contract",
+    "product_idempotency_storage_contract",
+    "product_rollback_storage_contract",
+    "product_review_audit_record_contract",
+    "source_verification_authority_contract",
+    "proof_evidence_authority_contract",
+    "canonical_perspective_authority_contract",
+    "disabled_to_enabled_adapter_transition_contract",
+    "product_write_route_contract",
+    "product_write_observability_contract"
+  ],
+  "smallest_future_bridge_design_scope": {
+    "bridge_name": "single_claim_temp_to_product_bridge_design",
+    "claim_only": true,
+    "one_selected_claim_candidate_only": true,
+    "temp_db_result_required": true,
+    "result_contract_tests_required": true,
+    "operator_decision_required": true,
+    "product_schema_review_required": true,
+    "product_idempotency_required": true,
+    "rollback_required": true,
+    "audit_required": true,
+    "source_verification_required_before_normal_product_write": true,
+    "proof_evidence_write_still_forbidden_in_bridge": true,
+    "Perspective_or_canonical_graph_write_still_forbidden_in_bridge": true,
+    "work_item_creation_still_forbidden_in_bridge": true,
+    "provider_retrieval_source_fetch_still_forbidden_in_bridge": true,
+    "external_handoff_still_forbidden_in_bridge": true
+  },
+  "blocked_product_write_reasons": [
+    "source_verification_authority_missing",
+    "proof_evidence_write_authority_missing",
+    "canonical_perspective_write_authority_missing",
+    "product_schema_review_missing",
+    "product_claim_id_allocation_contract_missing",
+    "product_idempotency_storage_missing",
+    "product_rollback_contract_missing",
+    "product_audit_record_contract_missing",
+    "explicit_operator_promotion_decision_missing",
+    "enabled_adapter_review_missing",
+    "product_write_route_missing"
+  ],
+  "product_write_boundary": {
+    "gate_design_only": true,
+    "normal_product_write_enabled": false,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "product_ids_created": false,
+    "repo_schema_changed": false,
+    "migration_added": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_product_persistence": false,
+    "browser_persistence": false
+  },
+  "next_stage_recommendation": {
+    "recommendation_status": "ready_for_single_claim_bridge_design",
+    "recommended_next_slice": "single_claim_temp_to_product_bridge_design",
+    "why_product_write_is_still_forbidden": [
+      "This artifact designs gates only and grants no product write authority.",
+      "Operator decision, source verification, proof/evidence, canonical Perspective, product schema, idempotency, rollback, audit, enabled adapter, and product route contracts are still missing."
+    ],
+    "minimum_artifacts_before_any_product_write_implementation": [
+      "explicit_operator_single_claim_promotion_decision_contract",
+      "product_claim_schema_and_migration_review",
+      "product_claim_id_allocation_contract",
+      "durable_idempotency_storage_contract",
+      "durable_rollback_contract",
+      "product_review_audit_record_contract",
+      "source_verification_authority_contract",
+      "proof_evidence_authority_contract",
+      "canonical_perspective_authority_contract",
+      "disabled_to_enabled_adapter_transition_review",
+      "product_write_route_contract"
+    ]
+  },
+  "next_recommended_slice": "single_claim_temp_to_product_bridge_design",
+  "local_copy_packet": {
+    "markdown": "# Manual Note Single-Claim Product Write Gate Design\n\nDesign/gate only. No DB is opened and no SQL is executed.\ngate_design_status: product_write_gate_design_only\nrecommendation_status: ready_for_single_claim_bridge_design\n\n## Gate Summary\n- pass: 3\n- warn: 3\n- block: 12\n\n## Boundary\nnormal_product_write_enabled=false\nproduct_db_write=false\nactual_promotion_performed=false\nproof_or_evidence_writes=false\nperspective_or_canonical_writes=false\ncanonical_graph_write=false\nwork_item_creation=false\nprovider_or_openai_calls=false\nretrieval_or_rag=false\nsource_fetching=false\nexternal_handoff_sent=false\n\n## Next\nsingle_claim_temp_to_product_bridge_design",
+    "json": "{\n  \"design_kind\": \"manual_note_single_claim_product_write_gate_design\",\n  \"design_version\": \"manual_note_single_claim_product_write_gate_design.v0.1\",\n  \"design_fingerprint\": \"fnv1a32:ff55b3ed\",\n  \"gate_summary\": {\n    \"pass_count\": 3,\n    \"warn_count\": 3,\n    \"block_count\": 12,\n    \"pass_gate_ids\": [\n      \"temp_db_write_harness_passed\",\n      \"selected_claim_identity_contract_present\",\n      \"product_boundary_preserved\"\n    ],\n    \"warn_gate_ids\": [\n      \"temp_result_review_non_blocking\",\n      \"temp_result_contract_tests_passed\",\n      \"browser_observed_no_external_or_forbidden_requests\"\n    ],\n    \"block_gate_ids\": [\n      \"explicit_operator_decision_contract_present\",\n      \"product_claim_schema_contract_present\",\n      \"product_claim_id_allocation_contract_present\",\n      \"product_idempotency_storage_contract_present\",\n      \"product_rollback_storage_contract_present\",\n      \"product_review_audit_record_contract_present\",\n      \"source_verification_authority_present\",\n      \"proof_evidence_authority_present\",\n      \"canonical_perspective_authority_present\",\n      \"enabled_adapter_transition_contract_present\",\n      \"product_write_route_contract_present\",\n      \"product_write_observability_contract_present\"\n    ]\n  },\n  \"required_future_contracts\": [\n    \"explicit_operator_single_claim_promotion_decision_contract\",\n    \"selected_claim_candidate_identity_contract\",\n    \"product_claim_schema_contract\",\n    \"product_claim_id_allocation_contract\",\n    \"product_idempotency_storage_contract\",\n    \"product_rollback_storage_contract\",\n    \"product_review_audit_record_contract\",\n    \"source_verification_authority_contract\",\n    \"proof_evidence_authority_contract\",\n    \"canonical_perspective_authority_contract\",\n    \"disabled_to_enabled_adapter_transition_contract\",\n    \"product_write_route_contract\",\n    \"product_write_observability_contract\"\n  ],\n  \"blocked_product_write_reasons\": [\n    \"source_verification_authority_missing\",\n    \"proof_evidence_write_authority_missing\",\n    \"canonical_perspective_write_authority_missing\",\n    \"product_schema_review_missing\",\n    \"product_claim_id_allocation_contract_missing\",\n    \"product_idempotency_storage_missing\",\n    \"product_rollback_contract_missing\",\n    \"product_audit_record_contract_missing\",\n    \"explicit_operator_promotion_decision_missing\",\n    \"enabled_adapter_review_missing\",\n    \"product_write_route_missing\"\n  ],\n  \"product_write_boundary\": {\n    \"gate_design_only\": true,\n    \"normal_product_write_enabled\": false,\n    \"product_db_write\": false,\n    \"actual_promotion_performed\": false,\n    \"proof_or_evidence_writes\": false,\n    \"perspective_or_canonical_writes\": false,\n    \"canonical_graph_write\": false,\n    \"work_item_creation\": false,\n    \"product_ids_created\": false,\n    \"repo_schema_changed\": false,\n    \"migration_added\": false,\n    \"provider_or_openai_calls\": false,\n    \"retrieval_or_rag\": false,\n    \"source_fetching\": false,\n    \"external_handoff_sent\": false,\n    \"durable_product_persistence\": false,\n    \"browser_persistence\": false\n  },\n  \"next_stage_recommendation\": {\n    \"recommendation_status\": \"ready_for_single_claim_bridge_design\",\n    \"recommended_next_slice\": \"single_claim_temp_to_product_bridge_design\",\n    \"why_product_write_is_still_forbidden\": [\n      \"This artifact designs gates only and grants no product write authority.\",\n      \"Operator decision, source verification, proof/evidence, canonical Perspective, product schema, idempotency, rollback, audit, enabled adapter, and product route contracts are still missing.\"\n    ],\n    \"minimum_artifacts_before_any_product_write_implementation\": [\n      \"explicit_operator_single_claim_promotion_decision_contract\",\n      \"product_claim_schema_and_migration_review\",\n      \"product_claim_id_allocation_contract\",\n      \"durable_idempotency_storage_contract\",\n      \"durable_rollback_contract\",\n      \"product_review_audit_record_contract\",\n      \"source_verification_authority_contract\",\n      \"proof_evidence_authority_contract\",\n      \"canonical_perspective_authority_contract\",\n      \"disabled_to_enabled_adapter_transition_review\",\n      \"product_write_route_contract\"\n    ]\n  },\n  \"next_recommended_slice\": \"single_claim_temp_to_product_bridge_design\"\n}",
+    "fingerprint": "fnv1a32:ff55b3ed",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "product_write_authority_granted": false,
+    "actual_promotion_allowed": false
+  }
+}

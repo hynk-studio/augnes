@@ -11,6 +11,14 @@ const runnerPath =
   "scripts/run-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs";
 const resultReviewSmokePath =
   "scripts/smoke-research-candidate-temp-db-single-claim-result-review-v0-1.mjs";
+const productWriteGateDesignHelperPath =
+  "lib/research-candidate-review/manual-note-single-claim-product-write-gate-design.ts";
+const productWriteGateDesignFixturePath =
+  "fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json";
+const productWriteGateDesignRunnerPath =
+  "scripts/run-research-candidate-single-claim-product-write-gate-design-v0-1.mjs";
+const productWriteGateDesignSmokePath =
+  "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const browserValidatorPath =
@@ -84,6 +92,10 @@ for (const filePath of [
   testCasesFixturePath,
   runnerPath,
   resultReviewSmokePath,
+  productWriteGateDesignHelperPath,
+  productWriteGateDesignFixturePath,
+  productWriteGateDesignRunnerPath,
+  productWriteGateDesignSmokePath,
   docsIndexPath,
   packagePath,
   browserValidatorPath,
@@ -123,6 +135,7 @@ console.log(
       no_db_open_or_sql_execution_checked: true,
       required_cases_checked: requiredCaseIds.length,
       required_failure_codes_checked: requiredFailureCodes.length,
+      product_write_gate_design_next_step_pointer_checked: true,
       temp_db_single_claim_result_contract_boundaries_checked: true,
     },
     null,
@@ -265,6 +278,18 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-gate-design-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "design:research-candidate-single-claim-product-write-gate-design-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note temp DB single-claim result contract tests",
     "positive needs_attention baseline",
@@ -289,6 +314,11 @@ function assertDocsPackageAndBrowserPointers() {
     "no external handoff",
     "no repo schema/migration/dependency",
     "best available method",
+    "Manual note single-claim product write gate design",
+    "consumes temp DB result contract evidence",
+    "defines product-write authority gates",
+    "intentionally block product write",
+    "single-claim temp-to-product bridge design",
   ]) {
     assert.ok(docsIndex.includes(requiredText), `docs must include ${requiredText}`);
   }
@@ -303,6 +333,14 @@ function assertDocsPackageAndBrowserPointers() {
       "temp_db_single_claim_result_contract_tests_no_browser_route",
     ),
     "browser validator should assert no temp DB result contract-tests browser route",
+  );
+  assert.ok(
+    browserValidator.includes("single_claim_product_write_gate_design_artifact_note"),
+    "browser validator should include single-claim product write gate design artifact note",
+  );
+  assert.ok(
+    browserValidator.includes("single_claim_product_write_gate_design_no_browser_route"),
+    "browser validator should assert no single-claim product write gate design browser route",
   );
   assert.ok(
     resultReviewSmoke.includes(
@@ -346,9 +384,15 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       line.includes(
         '"smoke:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
       ) ||
+      line.includes(
+        '"contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
+      ) ||
         line.includes(
-          '"contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
-        ),
+          '"smoke:research-candidate-single-claim-product-write-gate-design-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-single-claim-product-write-gate-design-v0-1"',
+      ),
       `package.json must only add result contract-test scripts, not dependencies: ${line}`,
     );
   }
