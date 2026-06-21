@@ -848,6 +848,18 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     ),
     "browser validator should assert no dry-run transaction harness browser route",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "authority:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+  );
   for (const smokeText of [
     contractTestsSmoke,
     skeletonSmoke,

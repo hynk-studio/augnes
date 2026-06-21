@@ -265,6 +265,18 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "authority:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim product write gate design",
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
@@ -393,8 +405,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"',
+        ) ||
+        line.includes(
+          '"authority:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"',
         ),
-      `package.json must only add product write gate-design, temp-to-product bridge design, or disabled bridge skeleton scripts, not dependencies: ${line}`,
+      `package.json must only add product write gate-design, temp-to-product bridge design, disabled bridge skeleton, dry-run harness, or authority bundle scripts, not dependencies: ${line}`,
     );
   }
 }

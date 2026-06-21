@@ -1,0 +1,1509 @@
+{
+  "authority_contract_bundle_kind": "manual_note_single_claim_product_write_authority_contract_bundle",
+  "authority_contract_bundle_version": "manual_note_single_claim_product_write_authority_contract_bundle.v0.1",
+  "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+  "source_evidence": {
+    "dry_run_transaction_harness": {
+      "source_selection": {
+        "source_label": "dry_run_transaction_harness",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "harness_fingerprint": "fnv1a32:fecce8f4",
+      "dry_run_transaction_harness_status": "disabled_dry_run_transaction_harness_only",
+      "recommendation_status": "ready_for_product_write_authority_contract_bundle",
+      "next_recommended_slice": "single_claim_product_write_authority_contract_bundle",
+      "trace_row_count": 19,
+      "refusal_probe_count": 36,
+      "authority_preview_contract_count": 12,
+      "static_boundary_base_mode": "merge_base:origin/main",
+      "static_boundary_changed_files_count": 12,
+      "static_boundary_fallback_flag": false
+    },
+    "dry_run_transaction_plan": {
+      "source_selection": {
+        "source_label": "dry_run_transaction_plan",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "plan_fingerprint": "fnv1a32:c9bac5ae",
+      "dry_run_transaction_plan_status": "disabled_dry_run_transaction_plan_only",
+      "recommendation_status": "ready_for_disabled_dry_run_transaction_harness",
+      "next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
+      "transaction_step_count": 19,
+      "refusal_reason_count": 27
+    },
+    "disabled_bridge_skeleton_contract_tests": {
+      "source_selection": {
+        "source_label": "contract_tests",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "suite_fingerprint": "fnv1a32:ee6b6b3d",
+      "total_cases": 70,
+      "positive_cases": 15,
+      "expected_negative_cases": 55,
+      "unexpected_passes": 0,
+      "unexpected_failures": 0,
+      "final_status": "pass",
+      "recommendation_status": "ready_for_disabled_bridge_dry_run_transaction_plan"
+    },
+    "disabled_bridge_skeleton": {
+      "source_selection": {
+        "source_label": "disabled_bridge_skeleton",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "skeleton_fingerprint": "fnv1a32:94b777bb",
+      "disabled_bridge_skeleton_status": "single_claim_disabled_bridge_skeleton_only",
+      "bridge_adapter_enabled": false,
+      "bridge_execution_allowed_now": false,
+      "product_write_allowed_now": false
+    },
+    "temp_to_product_bridge_design": {
+      "source_selection": {
+        "source_label": "temp_to_product_bridge_design",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-bridge-design.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "design_fingerprint": "fnv1a32:464b6626",
+      "bridge_design_status": "single_claim_bridge_design_only",
+      "recommendation_status": "ready_for_disabled_bridge_skeleton",
+      "selected_temp_claim_identity_summary": {
+        "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+        "source_operation_id": "disabled-plan-op:claim:001",
+        "source_temp_intent_id": "temp-intent:claim:001",
+        "temp_idempotency_key": "temp-idempotency:d2caa29d",
+        "result_contract_evidence_fingerprint": "fnv1a32:a65bf1fe",
+        "gate_design_fingerprint": "fnv1a32:ff55b3ed",
+        "operator_decision_fingerprint_placeholder": "operator-decision-fingerprint:blocked-until-explicit-contract",
+        "operator_decision_status": "blocked_until_explicit_operator_decision_contract"
+      }
+    },
+    "product_write_gate_design": {
+      "source_selection": {
+        "source_label": "product_write_gate_design",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-product-write-gate-design-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "design_fingerprint": "fnv1a32:ff55b3ed",
+      "gate_design_status": "product_write_gate_design_only",
+      "recommendation_status": "ready_for_single_claim_bridge_design",
+      "pass_count": 3,
+      "warn_count": 3,
+      "block_count": 12
+    },
+    "authority_bundle_static_boundary": {
+      "static_boundary_base_ref": "origin/main",
+      "static_boundary_base_mode": "merge_base:origin/main",
+      "static_boundary_changed_file_count": 13,
+      "static_boundary_package_added_line_count": 2,
+      "static_boundary_used_fallback_allowlist": false
+    }
+  },
+  "authority_contract_bundle_status": "product_write_authority_contracts_defined_only",
+  "recommendation_status": "ready_for_single_claim_product_write_disabled_adapter_skeleton",
+  "next_recommended_slice": "single_claim_product_write_disabled_adapter_skeleton",
+  "product_write_authority_granted_now": false,
+  "product_write_allowed_now": false,
+  "adapter_enabled": false,
+  "transaction_execution_allowed_now": false,
+  "product_db_write": false,
+  "product_id_allocation": false,
+  "db_open": false,
+  "sql_execution": false,
+  "route_added": false,
+  "ui_write_action_added": false,
+  "authority_contracts": [
+    {
+      "contract_id": "explicit_operator_decision_contract",
+      "contract_label": "explicit operator decision contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "operator_decision_record",
+        "selected_temp_claim_identity"
+      ],
+      "required_future_evidence": [
+        "explicit_operator_single_claim_promotion_decision"
+      ],
+      "forbidden_until_satisfied": [
+        "product_write",
+        "product_id_allocation",
+        "adapter_invocation"
+      ],
+      "acceptance_criteria": [
+        "future operator decision confirms the selected temp claim identity before any product write",
+        "future decision records an operator decision fingerprint tied to approve, reject, or defer choices",
+        "future decision includes a raw text redaction policy and does not persist raw manual note text"
+      ],
+      "rejection_criteria": [
+        "selected temp claim is missing or changed after decision",
+        "operator decision fingerprint is missing",
+        "decision omits approve, reject, or defer semantics",
+        "raw manual note text would be copied into product storage"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 1
+    },
+    {
+      "contract_id": "selected_temp_claim_identity_contract",
+      "contract_label": "selected temp claim identity contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "selected_temp_claim_record_id",
+        "source_operation_id",
+        "source_temp_intent_id",
+        "temp_idempotency_key"
+      ],
+      "required_future_evidence": [
+        "single_selected_temp_claim_identity_evidence"
+      ],
+      "forbidden_until_satisfied": [
+        "product_write",
+        "adapter_enablement"
+      ],
+      "acceptance_criteria": [
+        "future reviewer records explicit approval for this contract",
+        "future artifact preserves no-write boundary until every authority contract is satisfied"
+      ],
+      "rejection_criteria": [
+        "contract is missing or malformed",
+        "contract attempts product write before authority is granted"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 2
+    },
+    {
+      "contract_id": "product_claim_schema_contract",
+      "contract_label": "product claim schema contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "future_product_claim_shape",
+        "schema_review_packet"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_claim_schema_contract"
+      ],
+      "forbidden_until_satisfied": [
+        "product_write",
+        "product_id_allocation",
+        "db_transaction"
+      ],
+      "acceptance_criteria": [
+        "future schema review lists allowed product claim fields and nullability",
+        "future schema review states raw manual note text inclusion policy",
+        "future schema review records schema version and product DB target as placeholder only"
+      ],
+      "rejection_criteria": [
+        "allowed fields or nullability are unspecified",
+        "schema version is missing",
+        "raw text inclusion policy permits unreviewed raw note persistence",
+        "product DB target is treated as executable in this bundle"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 3
+    },
+    {
+      "contract_id": "product_claim_id_allocation_contract",
+      "contract_label": "product claim id allocation contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "product_claim_schema_contract",
+        "id_allocation_policy"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_id_allocation_policy"
+      ],
+      "forbidden_until_satisfied": [
+        "product_id_allocation",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future allocation policy defines when product claim IDs are created",
+        "future allocation policy proves IDs are not allocated before operator and schema authority",
+        "future allocation policy records collision and retry behavior"
+      ],
+      "rejection_criteria": [
+        "allocation can occur during disabled adapter planning",
+        "allocation is not tied to selected temp claim and source fingerprints",
+        "collision or retry behavior is undefined"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "allocation must be idempotent before any future write"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 4
+    },
+    {
+      "contract_id": "product_idempotency_storage_contract",
+      "contract_label": "product idempotency storage contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "temp_idempotency_key",
+        "future_product_idempotency_storage_shape"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_idempotency_storage_contract"
+      ],
+      "forbidden_until_satisfied": [
+        "durable_idempotency_write",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future idempotency contract requires lookup-before-write",
+        "future idempotency contract defines replay behavior and duplicate suppression",
+        "future idempotency contract lists source fingerprint inputs used for durable keys"
+      ],
+      "rejection_criteria": [
+        "write can occur before idempotency lookup",
+        "replay behavior is unspecified",
+        "duplicate suppression does not use selected temp claim and source fingerprints"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "durable idempotency lookup and write rules must be reviewed later"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 5
+    },
+    {
+      "contract_id": "product_rollback_storage_contract",
+      "contract_label": "product rollback storage contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "rollback_strategy_preview",
+        "future_product_rollback_storage_shape"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_rollback_storage_contract"
+      ],
+      "forbidden_until_satisfied": [
+        "durable_rollback_write",
+        "transaction_commit"
+      ],
+      "acceptance_criteria": [
+        "future rollback contract defines rollback record fields and triggering failure cases",
+        "future rollback contract links rollback records to idempotency and product claim identifiers",
+        "future rollback contract defines negative cases for partial product write recovery"
+      ],
+      "rejection_criteria": [
+        "rollback storage cannot identify the affected future product claim",
+        "rollback behavior after partial failure is unspecified",
+        "rollback record would be written during this authority bundle"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "future rollback storage must identify how to undo partial product writes"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 6
+    },
+    {
+      "contract_id": "product_review_audit_storage_contract",
+      "contract_label": "product review audit storage contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "operator_decision_record",
+        "future_review_audit_storage_shape"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_review_audit_contract"
+      ],
+      "forbidden_until_satisfied": [
+        "durable_audit_write",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future audit contract records operator identity boundary, decision fingerprint, and selected temp claim",
+        "future audit contract records source evidence fingerprints without raw note persistence",
+        "future audit contract defines negative cases for missing or contradictory decision evidence"
+      ],
+      "rejection_criteria": [
+        "audit record omits operator decision fingerprint",
+        "audit record would persist raw manual note text",
+        "audit write occurs before all authority contracts are satisfied"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "future audit storage must record operator decision and source evidence"
+      ],
+      "contract_order": 7
+    },
+    {
+      "contract_id": "product_write_observability_contract",
+      "contract_label": "product write observability contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "metric_names",
+        "failure_event_names",
+        "trace_correlation_plan"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_write_observability_contract"
+      ],
+      "forbidden_until_satisfied": [
+        "durable_observability_write",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future observability contract defines success, refusal, rollback, duplicate, and failure event names",
+        "future observability contract includes trace correlation between temp evidence and future product writes",
+        "future observability contract defines negative cases for missing metrics or uncorrelated events"
+      ],
+      "rejection_criteria": [
+        "observability omits refusal or rollback events",
+        "trace correlation cannot connect source fingerprints to future product write attempts",
+        "observability write occurs during this bundle"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 8
+    },
+    {
+      "contract_id": "source_verification_authority_contract",
+      "contract_label": "source verification authority contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "source_evidence_review_packet"
+      ],
+      "required_future_evidence": [
+        "reviewed_source_verification_authority"
+      ],
+      "forbidden_until_satisfied": [
+        "source_fetch",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future source authority names which source evidence is accepted without fetching new sources",
+        "future source authority defines stale, missing, or contradictory source negative cases",
+        "future source authority states whether any later source fetch requires separate approval"
+      ],
+      "rejection_criteria": [
+        "source evidence is missing or stale without review",
+        "future implementation fetches sources without separate source authority",
+        "contradictory source evidence is ignored"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 9
+    },
+    {
+      "contract_id": "proof_evidence_authority_contract",
+      "contract_label": "proof evidence authority contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "proof_evidence_write_policy"
+      ],
+      "required_future_evidence": [
+        "reviewed_proof_evidence_authority"
+      ],
+      "forbidden_until_satisfied": [
+        "proof_evidence_write",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future proof/evidence authority defines whether product write may reference existing proof or evidence",
+        "future proof/evidence authority requires separate review before any proof/evidence write",
+        "future proof/evidence authority defines negative cases for missing proof or evidence pointers"
+      ],
+      "rejection_criteria": [
+        "proof or evidence write is bundled with product claim write without authority",
+        "proof/evidence references are missing or ambiguous",
+        "future implementation treats this bundle as proof/evidence authority"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 10
+    },
+    {
+      "contract_id": "canonical_perspective_authority_contract",
+      "contract_label": "canonical perspective authority contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "canonical_perspective_write_policy"
+      ],
+      "required_future_evidence": [
+        "reviewed_canonical_perspective_authority"
+      ],
+      "forbidden_until_satisfied": [
+        "perspective_or_canonical_graph_write",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future canonical authority defines whether Perspective or canonical graph writes are allowed later",
+        "future canonical authority requires separate review for promotion into canonical graph state",
+        "future canonical authority defines negative cases for conflicting canonical identities"
+      ],
+      "rejection_criteria": [
+        "Perspective or canonical graph write occurs with product write by default",
+        "canonical identity conflict handling is missing",
+        "future implementation treats product write as canonical promotion authority"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 11
+    },
+    {
+      "contract_id": "enabled_adapter_transition_contract",
+      "contract_label": "enabled adapter transition contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "disabled_adapter_skeleton",
+        "enablement_review_record"
+      ],
+      "required_future_evidence": [
+        "reviewed_disabled_to_enabled_adapter_transition"
+      ],
+      "forbidden_until_satisfied": [
+        "adapter_enablement",
+        "adapter_invocation",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future transition review names the disabled adapter skeleton and exact enablement switch",
+        "future transition review requires explicit human approval before adapter invocation",
+        "future transition review defines negative cases for accidental default enablement"
+      ],
+      "rejection_criteria": [
+        "adapter can be enabled by default",
+        "adapter invocation is possible before human transition review",
+        "enablement is bundled with this authority contract bundle"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 12
+    },
+    {
+      "contract_id": "product_write_route_contract",
+      "contract_label": "product write route contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "route_review_packet",
+        "operator_access_policy"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_write_route_contract"
+      ],
+      "forbidden_until_satisfied": [
+        "product_write_route",
+        "ui_write_action",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future route contract names any product write route and operator access policy",
+        "future route contract defines UI action requirements if a UI action is ever added",
+        "future route contract defines negative cases for accidental App Router or component additions"
+      ],
+      "rejection_criteria": [
+        "route or UI action is added before route contract review",
+        "operator access policy is missing",
+        "future implementation exposes product write through an unreviewed route"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 13
+    },
+    {
+      "contract_id": "product_write_transaction_boundary_contract",
+      "contract_label": "product write transaction boundary contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "transaction_plan",
+        "idempotency_contract",
+        "rollback_contract"
+      ],
+      "required_future_evidence": [
+        "reviewed_product_write_transaction_boundary"
+      ],
+      "forbidden_until_satisfied": [
+        "db_open",
+        "sql_execution",
+        "transaction_execution",
+        "product_write"
+      ],
+      "acceptance_criteria": [
+        "future reviewer records explicit approval for this contract",
+        "future artifact preserves no-write boundary until every authority contract is satisfied"
+      ],
+      "rejection_criteria": [
+        "contract is missing or malformed",
+        "contract attempts product write before authority is granted"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "future transaction contract must define rollback behavior before execution"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 14
+    },
+    {
+      "contract_id": "product_write_static_boundary_contract",
+      "contract_label": "product write static boundary contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "committed_delta_report",
+        "static_scan_report"
+      ],
+      "required_future_evidence": [
+        "reviewed_static_boundary_for_product_write"
+      ],
+      "forbidden_until_satisfied": [
+        "schema_or_migration_change",
+        "route_added",
+        "ui_write_action_added"
+      ],
+      "acceptance_criteria": [
+        "future reviewer records explicit approval for this contract",
+        "future artifact preserves no-write boundary until every authority contract is satisfied"
+      ],
+      "rejection_criteria": [
+        "contract is missing or malformed",
+        "contract attempts product write before authority is granted"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 15
+    },
+    {
+      "contract_id": "product_write_runtime_boundary_contract",
+      "contract_label": "product write runtime boundary contract",
+      "contract_kind": "product_write_authority_contract",
+      "required_for_product_write": true,
+      "satisfied_now": false,
+      "authority_granted_now": false,
+      "implementation_allowed_now": false,
+      "blocks_product_write_now": true,
+      "required_before_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "allowed_next_action": "define_disabled_product_write_adapter_skeleton_without_execution",
+      "forbidden_now": [
+        "product_write",
+        "product_write_implementation",
+        "adapter_enablement",
+        "db_open",
+        "sql_execution",
+        "transaction_execution"
+      ],
+      "required_inputs": [
+        "runtime_no_write_probe_plan",
+        "operator_confirmation_policy"
+      ],
+      "required_future_evidence": [
+        "reviewed_runtime_boundary_for_product_write"
+      ],
+      "forbidden_until_satisfied": [
+        "browser_persistence",
+        "external_handoff",
+        "provider_or_openai_call"
+      ],
+      "acceptance_criteria": [
+        "future reviewer records explicit approval for this contract",
+        "future artifact preserves no-write boundary until every authority contract is satisfied"
+      ],
+      "rejection_criteria": [
+        "contract is missing or malformed",
+        "contract attempts product write before authority is granted"
+      ],
+      "observability_requirements": [
+        "future implementation records reviewed contract status without product writes"
+      ],
+      "rollback_requirements": [
+        "no rollback write is allowed in this bundle"
+      ],
+      "idempotency_requirements": [
+        "no durable idempotency write is allowed in this bundle"
+      ],
+      "audit_requirements": [
+        "no durable audit write is allowed in this bundle"
+      ],
+      "contract_order": 16
+    }
+  ],
+  "authority_gap_summary": {
+    "total_required_contracts": 16,
+    "satisfied_now_count": 0,
+    "authority_granted_now_count": 0,
+    "implementation_allowed_now_count": 0,
+    "blocked_contract_count": 16,
+    "next_bundle_goal": "single_claim_product_write_disabled_adapter_plan",
+    "product_write_allowed_after_this_bundle": false
+  },
+  "authority_dependency_graph": {
+    "ordered_contract_ids": [
+      "explicit_operator_decision_contract",
+      "selected_temp_claim_identity_contract",
+      "product_claim_schema_contract",
+      "product_claim_id_allocation_contract",
+      "product_idempotency_storage_contract",
+      "product_rollback_storage_contract",
+      "product_review_audit_storage_contract",
+      "product_write_observability_contract",
+      "source_verification_authority_contract",
+      "proof_evidence_authority_contract",
+      "canonical_perspective_authority_contract",
+      "enabled_adapter_transition_contract",
+      "product_write_route_contract",
+      "product_write_transaction_boundary_contract",
+      "product_write_static_boundary_contract",
+      "product_write_runtime_boundary_contract"
+    ],
+    "dependency_edges": [
+      {
+        "from_contract_id": "explicit_operator_decision_contract",
+        "to_contract_id": "selected_temp_claim_identity_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "selected_temp_claim_identity_contract",
+        "to_contract_id": "product_claim_schema_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_claim_schema_contract",
+        "to_contract_id": "product_claim_id_allocation_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_claim_id_allocation_contract",
+        "to_contract_id": "product_idempotency_storage_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_idempotency_storage_contract",
+        "to_contract_id": "product_rollback_storage_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_rollback_storage_contract",
+        "to_contract_id": "product_review_audit_storage_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_review_audit_storage_contract",
+        "to_contract_id": "product_write_observability_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "source_verification_authority_contract",
+        "to_contract_id": "proof_evidence_authority_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "proof_evidence_authority_contract",
+        "to_contract_id": "canonical_perspective_authority_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "canonical_perspective_authority_contract",
+        "to_contract_id": "enabled_adapter_transition_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "enabled_adapter_transition_contract",
+        "to_contract_id": "product_write_route_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_write_route_contract",
+        "to_contract_id": "product_write_transaction_boundary_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_write_transaction_boundary_contract",
+        "to_contract_id": "product_write_static_boundary_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      },
+      {
+        "from_contract_id": "product_write_static_boundary_contract",
+        "to_contract_id": "product_write_runtime_boundary_contract",
+        "dependency_kind": "must_be_reviewed_before"
+      }
+    ],
+    "blocking_contract_ids": [
+      "explicit_operator_decision_contract",
+      "selected_temp_claim_identity_contract",
+      "product_claim_schema_contract",
+      "product_claim_id_allocation_contract",
+      "product_idempotency_storage_contract",
+      "product_rollback_storage_contract",
+      "product_review_audit_storage_contract",
+      "product_write_observability_contract",
+      "source_verification_authority_contract",
+      "proof_evidence_authority_contract",
+      "canonical_perspective_authority_contract",
+      "enabled_adapter_transition_contract",
+      "product_write_route_contract",
+      "product_write_transaction_boundary_contract",
+      "product_write_static_boundary_contract",
+      "product_write_runtime_boundary_contract"
+    ],
+    "product_write_unlock_sequence": [
+      "operator decision exists",
+      "product claim schema exists",
+      "product ID allocation exists",
+      "idempotency storage exists",
+      "rollback storage exists",
+      "audit storage exists",
+      "observability exists",
+      "source verification authority exists",
+      "proof/evidence authority exists",
+      "Perspective/canonical authority exists",
+      "enabled adapter transition is explicitly reviewed",
+      "route/UI contract is explicitly reviewed if ever added",
+      "runtime DB transaction contract is reviewed"
+    ]
+  },
+  "disabled_product_write_adapter_skeleton_preparation": {
+    "adapter_kind": "manual_note_single_claim_product_write_disabled_adapter",
+    "adapter_enabled_now": false,
+    "adapter_invocation_allowed_now": false,
+    "product_write_allowed_now": false,
+    "would_accept_candidate_kind": "manual_note_single_claim",
+    "would_accept_single_selected_temp_claim_only": true,
+    "would_require_authority_contract_bundle": true,
+    "would_require_all_contracts_satisfied_later": true,
+    "next_disabled_adapter_slice_inputs": [
+      "authority_contract_bundle_fingerprint",
+      "dry_run_transaction_harness_fingerprint",
+      "selected_temp_claim_identity",
+      "product_schema_contract_placeholder",
+      "idempotency_contract_placeholder",
+      "rollback_contract_placeholder",
+      "audit_contract_placeholder",
+      "observability_contract_placeholder"
+    ]
+  },
+  "authority_refusal_matrix": [
+    {
+      "reason_id": "missing_authority_contract_bundle",
+      "reason_label": "missing authority contract bundle",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "authority_bundle_malformed",
+      "reason_label": "authority bundle malformed",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "upstream_harness_failed",
+      "reason_label": "upstream harness failed",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "operator_decision_missing",
+      "reason_label": "operator decision missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "product_schema_missing",
+      "reason_label": "product schema missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "product_id_allocation_missing",
+      "reason_label": "product id allocation missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "idempotency_storage_missing",
+      "reason_label": "idempotency storage missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "rollback_storage_missing",
+      "reason_label": "rollback storage missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "audit_storage_missing",
+      "reason_label": "audit storage missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "observability_missing",
+      "reason_label": "observability missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "source_verification_authority_missing",
+      "reason_label": "source verification authority missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "proof_evidence_authority_missing",
+      "reason_label": "proof evidence authority missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "perspective_canonical_authority_missing",
+      "reason_label": "perspective canonical authority missing",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "enabled_adapter_transition_requested",
+      "reason_label": "enabled adapter transition requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "product_write_route_requested",
+      "reason_label": "product write route requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "ui_write_action_requested",
+      "reason_label": "ui write action requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "db_path_provided",
+      "reason_label": "db path provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "sql_text_provided",
+      "reason_label": "sql text provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "transaction_execution_requested",
+      "reason_label": "transaction execution requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "product_write_requested",
+      "reason_label": "product write requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "product_id_allocation_requested",
+      "reason_label": "product id allocation requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "proof_evidence_write_requested",
+      "reason_label": "proof evidence write requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "perspective_canonical_write_requested",
+      "reason_label": "perspective canonical write requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "source_fetch_requested",
+      "reason_label": "source fetch requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "provider_openai_call_requested",
+      "reason_label": "provider openai call requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "retrieval_rag_requested",
+      "reason_label": "retrieval rag requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "external_handoff_requested",
+      "reason_label": "external handoff requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "browser_persistence_requested",
+      "reason_label": "browser persistence requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "non_null_product_id_present",
+      "reason_label": "non null product id present",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "upstream_forbidden_surface_true",
+      "reason_label": "upstream forbidden surface true",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "static_schema_db_sql_change",
+      "reason_label": "static schema db sql change",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    },
+    {
+      "reason_id": "static_app_router_ui_change",
+      "reason_label": "static app router ui change",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_authority_contract_bundle"
+    }
+  ],
+  "explicit_forbidden_surfaces": {
+    "product_write_authority_granted": false,
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "product_route": false,
+    "product_write_adapter_enabled": false,
+    "sql_execution": false,
+    "db_open": false,
+    "schema_or_migration_change": false,
+    "proof_evidence_write": false,
+    "perspective_or_canonical_graph_write": false,
+    "work_item_creation": false,
+    "source_fetch": false,
+    "provider_or_openai_call": false,
+    "retrieval_or_rag": false,
+    "external_handoff": false,
+    "browser_persistence": false,
+    "ui_write_action": false,
+    "transaction_execution": false,
+    "transaction_commit": false,
+    "transaction_rollback_execution": false,
+    "durable_idempotency_write": false,
+    "durable_rollback_write": false,
+    "durable_audit_write": false,
+    "durable_observability_write": false
+  },
+  "static_boundary_evidence": {
+    "static_boundary_base_ref": "origin/main",
+    "static_boundary_base_mode": "merge_base:origin/main",
+    "static_boundary_base_commit": "a8f35599b8efbf84b6bb5878a10d444a003e1544",
+    "static_boundary_compare_ref": "HEAD",
+    "static_boundary_changed_files_inspected": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-authority-contract-bundle.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-authority-contract-bundle.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "static_boundary_package_added_lines_inspected": [
+      "+    \"smoke:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1\": \"node scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs\",",
+      "+    \"authority:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1\": \"node scripts/run-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs\","
+    ],
+    "static_boundary_used_fallback_allowlist": false,
+    "expected_changed_files": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-authority-contract-bundle.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-authority-contract-bundle.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "allowed_package_script_names": [
+      "smoke:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1",
+      "authority:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"
+    ]
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "local_copy_packet": {
+    "markdown": "# Manual Note Single-Claim Product Write Authority Contract Bundle\n\nProduct-write authority contract bundle only.\nAuthority contracts are defined but not satisfied, and product write remains blocked.\nauthority_contract_bundle_status: product_write_authority_contracts_defined_only\nauthority_contract_bundle_fingerprint: fnv1a32:08f7514f",
+    "json": "{\n  \"authority_contract_bundle_status\": \"product_write_authority_contracts_defined_only\",\n  \"product_write_authority_granted_now\": false,\n  \"product_write_allowed_now\": false,\n  \"adapter_enabled\": false,\n  \"product_db_write\": false,\n  \"product_id_allocation\": false\n}",
+    "fingerprint": "fnv1a32:08f7514f",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "adapter_enabled": false,
+    "product_write_allowed_now": false,
+    "product_write_authority_granted_now": false
+  }
+}
