@@ -1,0 +1,2026 @@
+{
+  "noop_invocation_report_kind": "manual_note_single_claim_product_write_disabled_adapter_noop_invocation_report",
+  "noop_invocation_report_version": "manual_note_single_claim_product_write_disabled_adapter_noop_invocation_report.v0.1",
+  "noop_invocation_report_fingerprint": "fnv1a32:960d82fa",
+  "source_validation_failure_codes": [],
+  "source_evidence": {
+    "disabled_adapter_dry_run_invocation_harness": {
+      "dry_run_invocation_harness_fingerprint": "fnv1a32:f2a0f394",
+      "final_status": "pass",
+      "dry_run_invocation_harness_status": "product_write_disabled_adapter_dry_run_invocation_harness_only",
+      "recommendation_status": "ready_for_single_claim_product_write_disabled_adapter_noop_invocation_report",
+      "next_recommended_slice": "single_claim_product_write_disabled_adapter_noop_invocation_report",
+      "adapter_invocation_attempted_now": true,
+      "adapter_invocation_executed_against_runtime": false,
+      "product_write_attempted_now": false,
+      "disabled_invocation_result_status": "rejected_disabled_adapter",
+      "dry_noop_preview_status": "created_local_artifact_only",
+      "trace_row_count": 11,
+      "probe_count": 51,
+      "static_boundary_base_mode": "fixture_mode_committed_static_boundary_allowlist",
+      "static_boundary_changed_file_count": 16,
+      "static_boundary_fallback_flag": true
+    },
+    "disabled_adapter_contract_tests": {
+      "suite_fingerprint": "fnv1a32:ca070e41",
+      "contract_suite_status": "product_write_disabled_adapter_contract_tests_passed",
+      "final_status": "pass",
+      "total_cases": 119,
+      "unexpected_passes_count": 0,
+      "unexpected_failures_count": 0
+    },
+    "disabled_adapter_skeleton": {
+      "disabled_adapter_skeleton_fingerprint": "fnv1a32:ff316153",
+      "disabled_adapter_skeleton_status": "product_write_disabled_adapter_skeleton_only",
+      "adapter_kind": "manual_note_single_claim_product_write_disabled_adapter",
+      "adapter_enabled": false,
+      "adapter_invocation_allowed_now": false,
+      "product_write_allowed_now": false
+    },
+    "authority_contract_bundle": {
+      "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+      "authority_contract_bundle_status": "product_write_authority_contracts_defined_only",
+      "authority_contract_count": 16,
+      "authority_gap_summary": {
+        "total_required_contracts": 16,
+        "satisfied_now_count": 0,
+        "authority_granted_now_count": 0,
+        "implementation_allowed_now_count": 0,
+        "blocked_contract_count": 16,
+        "next_bundle_goal": "single_claim_product_write_disabled_adapter_plan",
+        "product_write_allowed_after_this_bundle": false
+      }
+    },
+    "product_write_gate_design": {
+      "design_fingerprint": "fnv1a32:ff55b3ed",
+      "gate_design_status": "product_write_gate_design_only",
+      "recommendation_status": "ready_for_single_claim_bridge_design",
+      "pass_count": 3,
+      "warn_count": 3,
+      "block_count": 12
+    }
+  },
+  "noop_invocation_report_status": "product_write_disabled_adapter_noop_invocation_report_only",
+  "report_created_from_harness": true,
+  "report_reviewed_product_write_attempt": false,
+  "adapter_kind": "manual_note_single_claim_product_write_disabled_adapter",
+  "adapter_enabled": false,
+  "adapter_invocation_attempted_now": true,
+  "adapter_invocation_executed_against_runtime": false,
+  "adapter_invocation_allowed_now": false,
+  "product_write_attempted_now": false,
+  "product_write_executed_now": false,
+  "product_write_allowed_now": false,
+  "product_write_authority_granted_now": false,
+  "product_write_implementation_allowed_now": false,
+  "transaction_execution_allowed_now": false,
+  "product_db_write": false,
+  "product_id_allocation": false,
+  "db_open": false,
+  "sql_execution": false,
+  "route_added": false,
+  "ui_write_action_added": false,
+  "dry_run_invocation_input_summary": {
+    "input_kind": "manual_note_single_claim_product_write_disabled_adapter_dry_run_input",
+    "candidate_kind": "manual_note_single_claim",
+    "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+    "disabled_adapter_skeleton_fingerprint": "fnv1a32:ff316153",
+    "contract_suite_fingerprint": "fnv1a32:ca070e41",
+    "raw_manual_note_text_included": false,
+    "product_claim_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null
+  },
+  "normalized_invocation_input_summary": {
+    "normalized_by": "manual_note_single_claim_product_write_disabled_adapter_dry_run_harness",
+    "normalization_executed_now": true,
+    "normalization_persisted_now": false,
+    "normalization_storage_target": "local_artifact_only",
+    "normalized_raw_manual_note_text_included": false,
+    "normalized_product_claim_id": null,
+    "normalized_proof_id": null,
+    "normalized_evidence_id": null,
+    "normalized_perspective_id": null,
+    "normalized_work_item_id": null
+  },
+  "invocation_trace": [
+    {
+      "trace_id": "dry-run-invocation-trace:01",
+      "trace_group": "source_evidence_preflight",
+      "trace_label": "source evidence preflight",
+      "input_checked": "source_evidence_preflight",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:02",
+      "trace_group": "contract_suite_preflight",
+      "trace_label": "contract suite preflight",
+      "input_checked": "contract_suite_preflight",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:03",
+      "trace_group": "disabled_adapter_preflight",
+      "trace_label": "disabled adapter preflight",
+      "input_checked": "disabled_adapter_preflight",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:04",
+      "trace_group": "invocation_input_normalization",
+      "trace_label": "invocation input normalization",
+      "input_checked": "invocation_input_normalization",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:05",
+      "trace_group": "forbidden_input_scan",
+      "trace_label": "forbidden input scan",
+      "input_checked": "forbidden_input_scan",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:06",
+      "trace_group": "authority_denial_check",
+      "trace_label": "authority denial check",
+      "input_checked": "authority_denial_check",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:07",
+      "trace_group": "adapter_disabled_check",
+      "trace_label": "adapter disabled check",
+      "input_checked": "adapter_disabled_check",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:08",
+      "trace_group": "future_command_preview_check",
+      "trace_label": "future command preview check",
+      "input_checked": "future_command_preview_check",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:09",
+      "trace_group": "refusal_resolution",
+      "trace_label": "refusal resolution",
+      "input_checked": "refusal_resolution",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:10",
+      "trace_group": "no_write_postconditions",
+      "trace_label": "no write postconditions",
+      "input_checked": "no_write_postconditions",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    },
+    {
+      "trace_id": "dry-run-invocation-trace:11",
+      "trace_group": "static_boundary_preflight",
+      "trace_label": "static boundary preflight",
+      "input_checked": "static_boundary_preflight",
+      "observed_value_summary": "disabled no-op boundary observed",
+      "expected_boundary": "no product write and no runtime adapter invocation",
+      "actual_boundary": "no product write and no runtime adapter invocation",
+      "trace_status": "pass",
+      "product_write_attempted_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "adapter_runtime_invocation_now": false,
+      "durable_write_now": false
+    }
+  ],
+  "invocation_probes": [
+    {
+      "probe_id": "positive_disabled_invocation_rejected",
+      "probe_group": "positive",
+      "mutation_summary": "disabled invocation returns rejected result",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "actual_status": "pass",
+      "actual_failure_codes": [],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "source_contract_tests_failed_blocks",
+      "probe_group": "source_preflight",
+      "mutation_summary": "contract tests failed blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_contract_tests_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_contract_tests_not_passed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "skeleton_blocked_blocks",
+      "probe_group": "source_preflight",
+      "mutation_summary": "skeleton blocked blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_skeleton_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_skeleton_not_ready"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "authority_bundle_blocked_blocks",
+      "probe_group": "source_preflight",
+      "mutation_summary": "authority bundle blocked blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_authority_bundle_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_authority_bundle_not_ready"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "dry_run_transaction_plan_blocked_blocks",
+      "probe_group": "source_preflight",
+      "mutation_summary": "dry-run transaction plan blocked blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_dry_run_transaction_plan_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_dry_run_transaction_plan_not_ready"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "adapter_enabled_true_blocks",
+      "probe_group": "adapter_boundary",
+      "mutation_summary": "adapter enabled true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_enabled_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "adapter_enabled_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "adapter_invocation_allowed_true_blocks",
+      "probe_group": "adapter_boundary",
+      "mutation_summary": "adapter invocation allowed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_invocation_allowed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "adapter_invocation_allowed_now_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "product_write_allowed_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "product write allowed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_allowed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_allowed_now_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "product_write_authority_granted_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "authority granted true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_authority_granted_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_authority_granted_now_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "product_write_implementation_allowed_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "implementation allowed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_implementation_allowed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_implementation_allowed_now_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "transaction_execution_allowed_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "transaction execution allowed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "transaction_execution_allowed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "transaction_execution_allowed_now_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "product_db_write_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "product db write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_db_write_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_db_write_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "product_id_allocation_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "product ID allocation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_id_allocation_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_id_allocation_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "db_open_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "DB open true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "db_open_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "db_open_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "sql_execution_true_blocks",
+      "probe_group": "no_write_boundary",
+      "mutation_summary": "SQL execution true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "sql_execution_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "sql_execution_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "route_added_true_blocks",
+      "probe_group": "route_ui_boundary",
+      "mutation_summary": "route added true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "route_added_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "route_added_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "ui_write_action_added_true_blocks",
+      "probe_group": "route_ui_boundary",
+      "mutation_summary": "UI write action true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "ui_write_action_added_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "ui_write_action_added_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "missing_authority_contract_bundle_fingerprint_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "authority_contract_bundle_fingerprint missing blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_authority_contract_bundle_fingerprint_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_authority_contract_bundle_fingerprint_missing",
+        "invocation_input_authority_contract_bundle_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "missing_disabled_adapter_skeleton_fingerprint_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "disabled_adapter_skeleton_fingerprint missing blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_disabled_adapter_skeleton_fingerprint_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_disabled_adapter_skeleton_fingerprint_missing",
+        "invocation_input_disabled_adapter_skeleton_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "missing_contract_suite_fingerprint_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "contract_suite_fingerprint missing blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_contract_suite_fingerprint_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_contract_suite_fingerprint_missing",
+        "invocation_input_contract_suite_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "authority_contract_bundle_fingerprint_mismatch_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "authority contract bundle fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_authority_contract_bundle_fingerprint_mismatch"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_authority_contract_bundle_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "disabled_adapter_skeleton_fingerprint_mismatch_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "disabled adapter skeleton fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_disabled_adapter_skeleton_fingerprint_mismatch"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_disabled_adapter_skeleton_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "contract_suite_fingerprint_mismatch_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "contract suite fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_contract_suite_fingerprint_mismatch"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_contract_suite_fingerprint_mismatch"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "candidate_kind_mismatch_blocks",
+      "probe_group": "invocation_input",
+      "mutation_summary": "candidate kind mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_candidate_kind_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_candidate_kind_invalid"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "product_claim_id_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "product_claim_id provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_product_claim_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_product_claim_id_present",
+        "non_null_product_or_related_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "proof_id_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "proof_id provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_proof_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_proof_id_present",
+        "non_null_product_or_related_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "evidence_id_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "evidence_id provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_evidence_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_evidence_id_present",
+        "non_null_product_or_related_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "perspective_id_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "perspective_id provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_perspective_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_perspective_id_present",
+        "non_null_product_or_related_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "work_item_id_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "work_item_id provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_work_item_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_work_item_id_present",
+        "non_null_product_or_related_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "db_path_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "db_path provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_db_path_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_db_path_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "sql_text_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "sql_text provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_sql_text_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_sql_text_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "route_request_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "route_request provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_route_request_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_route_request_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "ui_action_request_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "ui_action_request provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_ui_action_request_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_ui_action_request_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "provider_request_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "provider_request provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_provider_request_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_provider_request_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "source_fetch_request_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "source_fetch_request provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_source_fetch_request_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_source_fetch_request_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "external_handoff_request_provided_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "external_handoff_request provided blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_external_handoff_request_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_external_handoff_request_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "raw_manual_note_text_included_true_blocks",
+      "probe_group": "forbidden_input",
+      "mutation_summary": "raw manual note text true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_input_raw_manual_note_text_included_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_input_raw_manual_note_text_included_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "dry_noop_write_count_positive_blocks",
+      "probe_group": "dry_noop_preview",
+      "mutation_summary": "dry noop write count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "dry_noop_preview_write_operation_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "dry_noop_preview_write_operation_count_now_not_zero"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "dry_noop_sql_count_positive_blocks",
+      "probe_group": "dry_noop_preview",
+      "mutation_summary": "dry noop SQL count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "dry_noop_preview_sql_statement_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "dry_noop_preview_sql_statement_count_now_not_zero"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "disabled_result_product_write_attempted_true_blocks",
+      "probe_group": "disabled_result",
+      "mutation_summary": "result product write attempted true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_result_product_write_attempted_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "disabled_invocation_result_product_write_attempted_now_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "disabled_result_adapter_runtime_invocation_true_blocks",
+      "probe_group": "disabled_result",
+      "mutation_summary": "runtime invocation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_result_adapter_runtime_invocation_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "disabled_invocation_result_adapter_runtime_invocation_now_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "trace_product_db_write_true_blocks",
+      "probe_group": "trace_boundary",
+      "mutation_summary": "trace DB write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "trace_dry-run-invocation-trace:01_product_db_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "trace_dry-run-invocation-trace:01_product_db_write_now_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "trace_sql_execution_true_blocks",
+      "probe_group": "trace_boundary",
+      "mutation_summary": "trace SQL true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "trace_dry-run-invocation-trace:01_sql_execution_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "trace_dry-run-invocation-trace:01_sql_execution_now_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "trace_transaction_execution_true_blocks",
+      "probe_group": "trace_boundary",
+      "mutation_summary": "trace transaction true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "trace_dry-run-invocation-trace:01_transaction_execution_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "trace_dry-run-invocation-trace:01_transaction_execution_now_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "explicit_forbidden_surface_true_blocks",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_product_db_write_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "explicit_forbidden_surface_product_db_write_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "non_null_product_id_anywhere_blocks",
+      "probe_group": "product_id_contamination",
+      "mutation_summary": "non-null product ID anywhere blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_empty_delta_blocks",
+      "probe_group": "static_boundary",
+      "mutation_summary": "empty changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_changed_file_delta_empty"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_changed_file_delta_empty",
+        "static_boundary_expected_files_missing"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_package_addition_outside_allowlist_blocks",
+      "probe_group": "static_boundary",
+      "mutation_summary": "package addition outside allowlist blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist",
+        "static_boundary_expected_package_script_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist",
+        "static_boundary_expected_package_script_missing"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_schema_db_sql_changed_file_blocks",
+      "probe_group": "static_boundary",
+      "mutation_summary": "schema/db/sql changed file blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_schema_db_sql_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_files_missing",
+        "static_boundary_schema_db_sql_changed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_app_router_ui_file_blocks",
+      "probe_group": "static_boundary",
+      "mutation_summary": "App Router UI file blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_files_missing",
+        "static_boundary_ui_changed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_external_call_pattern_blocks",
+      "probe_group": "static_boundary",
+      "mutation_summary": "external call probe blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "probe_status": "pass"
+    }
+  ],
+  "disabled_invocation_result": {
+    "result_kind": "manual_note_single_claim_product_write_disabled_adapter_dry_run_invocation_result",
+    "result_status": "rejected_disabled_adapter",
+    "dry_noop_preview_produced": true,
+    "adapter_disabled": true,
+    "adapter_runtime_invocation_now": false,
+    "adapter_invocation_allowed_now": false,
+    "product_write_attempted_now": false,
+    "product_write_executed_now": false,
+    "product_db_write_now": false,
+    "product_id_allocation_now": false,
+    "db_open_now": false,
+    "sql_execution_now": false,
+    "transaction_execution_now": false,
+    "durable_records_created_now": false,
+    "refusal_reasons": [
+      "adapter_disabled",
+      "product_write_authority_not_granted",
+      "authority_contracts_defined_but_not_satisfied",
+      "product_write_implementation_not_allowed",
+      "runtime_invocation_not_allowed"
+    ],
+    "output_product_claim_id": null,
+    "output_proof_id": null,
+    "output_evidence_id": null,
+    "output_perspective_id": null,
+    "output_work_item_id": null
+  },
+  "dry_noop_preview": {
+    "preview_kind": "manual_note_single_claim_product_write_disabled_adapter_dry_noop_preview",
+    "preview_created_now": true,
+    "preview_persisted_now": false,
+    "preview_storage_target": "local_artifact_only",
+    "future_product_write_command_preview_fingerprint": "fnv1a32:7d16e6a9",
+    "would_have_required_contracts_count": 16,
+    "would_have_rejected_for_authority": true,
+    "would_have_rejected_for_disabled_adapter": true,
+    "write_operation_count_now": 0,
+    "sql_statement_count_now": 0,
+    "durable_record_count_now": 0,
+    "product_claim_id": null
+  },
+  "operator_review_packet": {
+    "review_packet_kind": "manual_note_single_claim_product_write_disabled_adapter_noop_invocation_operator_review_packet",
+    "review_packet_status": "reviewable_noop_invocation_only",
+    "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "raw_manual_note_text_included": false,
+    "operator_decision_required_before_product_write": true,
+    "operator_decision_satisfied_now": false,
+    "operator_may_approve_product_write_now": false,
+    "operator_may_only_review_noop_report_now": true,
+    "reviewed_sections": [
+      "source evidence",
+      "normalized invocation input",
+      "refusal reasons",
+      "no-write closeout",
+      "preflight command envelope preview"
+    ],
+    "reviewer_label": "operator_review_pending",
+    "redaction_policy": {
+      "raw_manual_note_text_redacted": true,
+      "product_ids_redacted_or_absent": true,
+      "proof_evidence_ids_redacted_or_absent": true,
+      "perspective_work_ids_redacted_or_absent": true
+    }
+  },
+  "no_write_closeout": {
+    "closeout_kind": "manual_note_single_claim_product_write_disabled_adapter_noop_invocation_no_write_closeout",
+    "closeout_status": "no_write_observed",
+    "checked_runtime_adapter_invocation": true,
+    "checked_product_write_attempt": true,
+    "checked_product_db_write": true,
+    "checked_product_id_allocation": true,
+    "checked_db_open": true,
+    "checked_sql_execution": true,
+    "checked_transaction_execution": true,
+    "checked_durable_record_creation": true,
+    "checked_route_ui_absence": true,
+    "checked_external_behavior_absence": true,
+    "runtime_adapter_invocation_now": false,
+    "product_write_attempted_now": false,
+    "product_write_executed_now": false,
+    "product_db_write_now": false,
+    "product_id_allocation_now": false,
+    "db_open_now": false,
+    "sql_execution_now": false,
+    "transaction_execution_now": false,
+    "durable_records_created_now": false,
+    "route_added_now": false,
+    "ui_write_action_added_now": false,
+    "external_handoff_now": false
+  },
+  "invocation_closeout_summary": {
+    "dry_run_invocation_result_status": "rejected_disabled_adapter",
+    "refusal_reasons": [
+      "adapter_disabled",
+      "product_write_authority_not_granted",
+      "authority_contracts_defined_but_not_satisfied",
+      "product_write_implementation_not_allowed",
+      "runtime_invocation_not_allowed"
+    ],
+    "trace_group_count": 11,
+    "trace_groups": [
+      "source_evidence_preflight",
+      "contract_suite_preflight",
+      "disabled_adapter_preflight",
+      "invocation_input_normalization",
+      "forbidden_input_scan",
+      "authority_denial_check",
+      "adapter_disabled_check",
+      "future_command_preview_check",
+      "refusal_resolution",
+      "no_write_postconditions",
+      "static_boundary_preflight"
+    ],
+    "probe_count": 51,
+    "failed_probe_count": 0,
+    "dry_noop_preview_created": true,
+    "dry_noop_preview_persisted": false,
+    "dry_noop_preview_storage_target": "local_artifact_only",
+    "product_write_result": null,
+    "product_claim_id": null
+  },
+  "product_write_preflight_command_envelope_preview": {
+    "preview_kind": "manual_note_single_claim_product_write_preflight_command_envelope_preview",
+    "preview_status": "defined_for_next_slice_only",
+    "executable_now": false,
+    "product_write_allowed_now": false,
+    "product_claim_id": null,
+    "command_envelope_id": null,
+    "command_envelope_persisted_now": false,
+    "command_envelope_requires_next_slice": "single_claim_product_write_preflight_command_envelope",
+    "would_require": [
+      "explicit_operator_decision",
+      "product_claim_schema_contract_satisfied",
+      "product_claim_id_allocation_contract_satisfied",
+      "idempotency_storage_contract_satisfied",
+      "rollback_storage_contract_satisfied",
+      "audit_storage_contract_satisfied",
+      "observability_contract_satisfied",
+      "source_verification_authority_satisfied",
+      "proof_evidence_authority_decision",
+      "canonical_perspective_authority_decision",
+      "enabled_adapter_transition_decision",
+      "static_boundary_clean",
+      "no_runtime_write_before_authority"
+    ],
+    "command_shape_preview": {
+      "command_kind": "manual_note_single_claim_product_write_command",
+      "candidate_kind": "manual_note_single_claim",
+      "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+      "source_operation_id": "disabled-plan-op:claim:001",
+      "source_temp_intent_id": "temp-intent:claim:001",
+      "temp_idempotency_key": "temp-idempotency:d2caa29d",
+      "product_claim_id": null,
+      "idempotency_key_preview": "product-write-preflight:temp-idempotency:d2caa29d",
+      "rollback_plan_preview": {
+        "preview_status": "defined_for_next_slice_only",
+        "durable_rollback_write_now": false
+      },
+      "audit_event_preview": {
+        "preview_status": "defined_for_next_slice_only",
+        "durable_audit_write_now": false
+      },
+      "observability_event_preview": {
+        "preview_status": "defined_for_next_slice_only",
+        "durable_observability_write_now": false
+      },
+      "sql_statement_count_now": 0,
+      "db_write_count_now": 0,
+      "transaction_execution_now": false
+    }
+  },
+  "explicit_forbidden_surfaces": {
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "product_route": false,
+    "product_write_adapter_enabled": false,
+    "product_write_authority_granted": false,
+    "product_write_implementation": false,
+    "sql_execution": false,
+    "db_open": false,
+    "schema_or_migration_change": false,
+    "proof_evidence_write": false,
+    "perspective_or_canonical_graph_write": false,
+    "work_item_creation": false,
+    "source_fetch": false,
+    "provider_or_openai_call": false,
+    "retrieval_or_rag": false,
+    "external_handoff": false,
+    "browser_persistence": false,
+    "ui_write_action": false,
+    "transaction_execution": false,
+    "transaction_commit": false,
+    "transaction_rollback_execution": false,
+    "durable_idempotency_write": false,
+    "durable_rollback_write": false,
+    "durable_audit_write": false,
+    "durable_observability_write": false,
+    "adapter_runtime_invocation": false,
+    "enabled_adapter_transition": false,
+    "command_envelope_persistence": false
+  },
+  "static_boundary_evidence": {
+    "static_boundary_base_ref": "committed_allowlist",
+    "static_boundary_base_mode": "fixture_mode_committed_static_boundary_allowlist",
+    "static_boundary_base_commit": null,
+    "static_boundary_compare_ref": "HEAD",
+    "static_boundary_changed_files_inspected": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-noop-invocation-report.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-noop-invocation-report.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs"
+    ],
+    "static_boundary_package_added_lines_inspected": [
+      "    \"smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1\": \"node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs\",",
+      "    \"report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1\": \"node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs\","
+    ],
+    "static_boundary_used_fallback_allowlist": true,
+    "expected_changed_files": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-noop-invocation-report.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-noop-invocation-report.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs"
+    ],
+    "allowed_package_script_names": [
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1",
+      "report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1"
+    ],
+    "static_boundary_probe_text": ""
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_single_claim_product_write_preflight_command_envelope",
+  "next_recommended_slice": "single_claim_product_write_preflight_command_envelope",
+  "report_validation_matrix": [
+    {
+      "check_id": "positive_noop_report_passes",
+      "check_group": "positive",
+      "mutation_summary": "positive no-op report from committed harness passes",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "actual_status": "pass",
+      "actual_failure_codes": [],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "report_status_wrong_blocks",
+      "check_group": "report_status",
+      "mutation_summary": "report status wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "noop_invocation_report_status_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "noop_invocation_report_status_not_ready"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "harness_final_status_fail_blocks",
+      "check_group": "source_harness",
+      "mutation_summary": "harness final_status fail blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_harness_final_status_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_harness_final_status_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "harness_status_blocked_blocks",
+      "check_group": "source_harness",
+      "mutation_summary": "harness status blocked blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_harness_status_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_harness_status_not_ready"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "harness_recommendation_wrong_blocks",
+      "check_group": "source_harness",
+      "mutation_summary": "harness recommendation wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_harness_recommendation_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_harness_recommendation_not_ready"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "harness_next_slice_wrong_blocks",
+      "check_group": "source_harness",
+      "mutation_summary": "harness next slice wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_harness_next_slice_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_harness_next_slice_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "adapter_invocation_attempted_false_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "adapter invocation attempted false blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_invocation_attempted_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "adapter_invocation_attempted_now_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "adapter_runtime_invocation_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "runtime adapter invocation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "adapter_invocation_executed_against_runtime_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "adapter_invocation_executed_against_runtime_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_attempted_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "product write attempted true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_attempted_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_attempted_now_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_executed_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "product write executed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_executed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_executed_now_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_allowed_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "product write allowed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_allowed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_allowed_now_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_authority_granted_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "authority granted true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_authority_granted_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_authority_granted_now_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_implementation_allowed_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "implementation allowed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_write_implementation_allowed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_write_implementation_allowed_now_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_db_write_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "product DB write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_db_write_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_db_write_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_id_allocation_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "product ID allocation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_id_allocation_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_id_allocation_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "db_open_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "DB open true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "db_open_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "db_open_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "sql_execution_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "SQL execution true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "sql_execution_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "sql_execution_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "transaction_execution_allowed_true_blocks",
+      "check_group": "harness_boundary",
+      "mutation_summary": "transaction execution allowed true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "transaction_execution_allowed_now_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "transaction_execution_allowed_now_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "route_added_true_blocks",
+      "check_group": "route_ui_boundary",
+      "mutation_summary": "route added true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "route_added_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "route_added_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "ui_write_action_added_true_blocks",
+      "check_group": "route_ui_boundary",
+      "mutation_summary": "UI action added true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "ui_write_action_added_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "ui_write_action_added_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "disabled_result_status_wrong_blocks",
+      "check_group": "disabled_result",
+      "mutation_summary": "disabled result status wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_result_status_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "disabled_invocation_result_status_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "disabled_result_product_write_attempted_true_blocks",
+      "check_group": "disabled_result",
+      "mutation_summary": "disabled result product write attempted true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_result_product_write_attempted_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "disabled_invocation_result_product_write_attempted_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "disabled_result_runtime_invocation_true_blocks",
+      "check_group": "disabled_result",
+      "mutation_summary": "disabled result runtime invocation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_invocation_result_adapter_runtime_invocation_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "disabled_invocation_result_adapter_runtime_invocation_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "dry_noop_preview_missing_blocks",
+      "check_group": "dry_noop_preview",
+      "mutation_summary": "dry noop preview missing blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "dry_noop_preview_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "dry_noop_preview_missing",
+        "dry_noop_preview_persisted",
+        "dry_noop_preview_storage_target_invalid",
+        "dry_noop_preview_product_claim_id_not_null"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "dry_noop_preview_persisted_true_blocks",
+      "check_group": "dry_noop_preview",
+      "mutation_summary": "dry noop preview persisted true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "dry_noop_preview_persisted"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "dry_noop_preview_persisted"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "dry_noop_preview_write_count_positive_blocks",
+      "check_group": "dry_noop_preview",
+      "mutation_summary": "dry noop preview write count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "dry_noop_preview_write_operation_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "dry_noop_preview_write_operation_count_now_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "dry_noop_preview_sql_count_positive_blocks",
+      "check_group": "dry_noop_preview",
+      "mutation_summary": "dry noop preview SQL count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "dry_noop_preview_sql_statement_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "dry_noop_preview_sql_statement_count_now_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "trace_group_missing_blocks",
+      "check_group": "trace",
+      "mutation_summary": "trace group missing blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "trace_group_source_evidence_preflight_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "trace_group_source_evidence_preflight_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "trace_row_product_db_write_true_blocks",
+      "check_group": "trace",
+      "mutation_summary": "trace row product DB write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "trace_dry-run-invocation-trace:01_product_db_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "trace_dry-run-invocation-trace:01_product_db_write_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "trace_row_sql_execution_true_blocks",
+      "check_group": "trace",
+      "mutation_summary": "trace row SQL true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "trace_dry-run-invocation-trace:01_sql_execution_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "trace_dry-run-invocation-trace:01_sql_execution_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "probe_failure_blocks",
+      "check_group": "probes",
+      "mutation_summary": "probe failure blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "invocation_probe_positive_disabled_invocation_rejected_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "invocation_probe_positive_disabled_invocation_rejected_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "operator_raw_text_true_blocks",
+      "check_group": "operator_review_packet",
+      "mutation_summary": "operator raw manual note true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "operator_review_packet_raw_manual_note_text_included"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "operator_review_packet_raw_manual_note_text_included"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "operator_may_approve_true_blocks",
+      "check_group": "operator_review_packet",
+      "mutation_summary": "operator may approve product write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "operator_may_approve_product_write_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "operator_may_approve_product_write_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "no_write_closeout_product_db_write_true_blocks",
+      "check_group": "no_write_closeout",
+      "mutation_summary": "no-write closeout product DB write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "no_write_closeout_product_db_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "no_write_closeout_product_db_write_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "preflight_executable_true_blocks",
+      "check_group": "preflight_preview",
+      "mutation_summary": "preflight command envelope executable true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_executable_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_command_envelope_executable_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "preflight_product_claim_id_non_null_blocks",
+      "check_group": "preflight_preview",
+      "mutation_summary": "preflight product claim ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_command_envelope_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "preflight_persisted_true_blocks",
+      "check_group": "preflight_preview",
+      "mutation_summary": "preflight command envelope persisted true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_persisted_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_command_envelope_persisted_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_shape_sql_count_positive_blocks",
+      "check_group": "preflight_preview",
+      "mutation_summary": "command shape SQL count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_shape_sql_statement_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_command_shape_sql_statement_count_now_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_shape_db_write_count_positive_blocks",
+      "check_group": "preflight_preview",
+      "mutation_summary": "command shape DB write count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_shape_db_write_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_command_shape_db_write_count_now_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "explicit_forbidden_surface_true_blocks",
+      "check_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_product_db_write_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "explicit_forbidden_surface_product_db_write_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "non_null_product_id_anywhere_blocks",
+      "check_group": "product_id_contamination",
+      "mutation_summary": "non-null product ID anywhere blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "normalized_product_claim_id_blocks",
+      "check_group": "product_id_contamination",
+      "mutation_summary": "normalized product claim ID blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "failed_optional_harness_report_blocks",
+      "check_group": "optional_report_handling",
+      "mutation_summary": "failed optional harness report blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_dry_run_invocation_harness_report_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "optional_dry_run_invocation_harness_report_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "optional_harness_report_missing_payload_blocks",
+      "check_group": "optional_report_handling",
+      "mutation_summary": "optional harness report pass missing payload blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_dry_run_invocation_harness_report_missing_payload"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "optional_dry_run_invocation_harness_report_missing_payload"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_empty_delta_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "empty changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_changed_file_delta_empty"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_changed_file_delta_empty",
+        "static_boundary_expected_files_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_package_addition_outside_allowlist_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "package addition outside allowlist blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist",
+        "static_boundary_expected_package_script_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist",
+        "static_boundary_expected_package_script_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_missing_expected_package_script_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "missing expected package script blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_expected_package_script_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_package_script_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_schema_db_sql_changed_file_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "schema/db/sql changed file blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_schema_db_sql_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_files_missing",
+        "static_boundary_schema_db_sql_changed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_app_router_ui_path_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "App Router UI path blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_files_missing",
+        "static_boundary_ui_changed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_external_call_pattern_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "external call pattern blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "check_status": "pass"
+    }
+  ],
+  "local_copy_packet": {
+    "markdown": "# Manual Note Single-Claim Product Write Disabled Adapter No-Op Invocation Report\n\nDisabled product write adapter no-op invocation report only.\nProduct write remains blocked; next slice is the preflight command envelope.\nnoop_invocation_report_status: product_write_disabled_adapter_noop_invocation_report_only\nnoop_invocation_report_fingerprint: fnv1a32:960d82fa",
+    "json": "{\n  \"noop_invocation_report_status\": \"product_write_disabled_adapter_noop_invocation_report_only\",\n  \"adapter_invocation_attempted_now\": true,\n  \"adapter_invocation_executed_against_runtime\": false,\n  \"product_write_attempted_now\": false,\n  \"product_db_write\": false,\n  \"product_id_allocation\": false,\n  \"db_open\": false,\n  \"sql_execution\": false,\n  \"next_recommended_slice\": \"single_claim_product_write_preflight_command_envelope\"\n}",
+    "fingerprint": "fnv1a32:960d82fa",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "command_envelope_persisted_now": false,
+    "product_write_allowed_now": false
+  }
+}
