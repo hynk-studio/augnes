@@ -17,7 +17,7 @@
     "live_optional_upstream_report_present": true,
     "live_optional_upstream_report_ignored_for_fixture_only_suite": true
   },
-  "suite_fingerprint": "fnv1a32:42a4362b",
+  "suite_fingerprint": "fnv1a32:ee6b6b3d",
   "source_skeleton_fingerprint": "fnv1a32:94b777bb",
   "source_skeleton_fingerprint_validation": true,
   "source_bridge_design_fingerprint": "fnv1a32:464b6626",
@@ -1403,8 +1403,68 @@
   ],
   "static_boundary_result": {
     "failureCodes": [],
-    "messages": []
+    "messages": [],
+    "static_boundary_base_ref": "origin/main",
+    "static_boundary_base_mode": "merge_base:origin/main",
+    "static_boundary_base_commit": "dbf18d7c4c05e3f9010c2246dd7dbd5839c94546",
+    "static_boundary_compare_ref": "HEAD",
+    "changed_files_inspected": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-test-cases.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "package_added_lines_inspected": [
+      "+    \"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1\": \"node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs\",",
+      "+    \"contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1\": \"node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs\","
+    ],
+    "used_fallback_allowlist": false,
+    "expected_changed_files": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-test-cases.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "allowed_package_script_names": [
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+      "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"
+    ]
   },
+  "static_boundary_base_ref": "origin/main",
+  "static_boundary_base_mode": "merge_base:origin/main",
+  "static_boundary_base_commit": "dbf18d7c4c05e3f9010c2246dd7dbd5839c94546",
+  "static_boundary_changed_files_inspected": [
+    "docs/00_INDEX_LATEST.md",
+    "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-test-cases.v0.1.json",
+    "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+    "lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.ts",
+    "package.json",
+    "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+    "scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+    "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+    "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+    "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+    "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+  ],
+  "static_boundary_package_added_lines_inspected": [
+    "+    \"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1\": \"node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs\",",
+    "+    \"contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1\": \"node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs\","
+  ],
+  "static_boundary_used_fallback_allowlist": false,
   "tested_boundaries": {
     "minimum_case_count_met": true,
     "upstream_bridge_design_readiness": true,

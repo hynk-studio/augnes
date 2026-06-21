@@ -38,6 +38,23 @@ const expectedRecommendationStatus =
 const expectedNextSlice =
   "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan";
 const minimumCaseCount = 45;
+const expectedChangedFiles = [
+  "docs/00_INDEX_LATEST.md",
+  "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-test-cases.v0.1.json",
+  "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+  "lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.ts",
+  "package.json",
+  "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+  "scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+];
+const allowedPackageScriptNames = [
+  "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+  "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+];
 const requiredCaseIds = [
   "positive_committed_disabled_skeleton_fixture_passes",
   "positive_runner_fixture_mode_report_passes",
@@ -191,7 +208,7 @@ assertSampleReportContract(runtimeReport, "runtime report");
 assertContractTestsArtifact(contractTestsArtifact, runtimeReport);
 assertRunnerOutput(runnerOutput);
 assertDocsPackageBrowserAndUpstreamSmokePointers();
-assertNoRouteUiSchemaDependencyExpansion();
+assertNoRouteUiSchemaDependencyExpansion(runtimeReport);
 assertForbiddenPatternsAbsent();
 
 console.log(
@@ -211,6 +228,12 @@ console.log(
       source_product_id_contamination_covered: true,
       skeleton_output_boundary_mutations_covered: true,
       static_repo_boundary_checks_covered: true,
+      static_boundary_base_mode_checked:
+        runtimeReport.static_boundary_base_mode,
+      static_boundary_changed_files_checked:
+        runtimeReport.static_boundary_changed_files_inspected.length,
+      static_boundary_package_added_lines_checked:
+        runtimeReport.static_boundary_package_added_lines_inspected.length,
       no_unexpected_passes_or_failures_checked: true,
       next_slice_checked: expectedNextSlice,
       product_write_not_recommended_checked: true,
@@ -358,6 +381,7 @@ function assertSampleReportContract(report, label) {
     report.tested_boundaries.next_slice_is_disabled_dry_run_transaction_plan,
     true,
   );
+  assertStaticBoundaryDeltaMetadata(report, label);
 }
 
 function assertContractTestsArtifact(artifact, report) {
@@ -453,7 +477,7 @@ function assertDocsPackageBrowserAndUpstreamSmokePointers() {
   }
 }
 
-function assertNoRouteUiSchemaDependencyExpansion() {
+function assertNoRouteUiSchemaDependencyExpansion(report) {
   const routeFiles = listFiles("app/api").filter((filePath) =>
     /single-claim-temp-to-product-disabled-bridge-skeleton-contract|disabled-bridge-skeleton-contract-tests/i.test(
       filePath,
@@ -468,7 +492,7 @@ function assertNoRouteUiSchemaDependencyExpansion() {
   );
   assert.deepEqual(uiFiles, [], "no UI component may be added for contract tests");
 
-  for (const filePath of readGitChangedFiles()) {
+  for (const filePath of report.static_boundary_changed_files_inspected) {
     assert.ok(
       !/(^|\/)(migrations?|schema|prisma|drizzle|supabase|db|sql)(\/|\.)/i.test(
         filePath,
@@ -477,15 +501,107 @@ function assertNoRouteUiSchemaDependencyExpansion() {
     );
   }
 
-  for (const line of readAddedPackageLines()) {
+  for (const line of report.static_boundary_package_added_lines_inspected) {
     assert.ok(
-      line.includes(
-        '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
-      ) ||
-        line.includes(
-          '"contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
-        ),
+      allowedPackageScriptNames.some((scriptName) =>
+        line.includes(`"${scriptName}"`),
+      ),
       `package.json must only add contract-test scripts, not dependencies: ${line}`,
+    );
+  }
+}
+
+function assertStaticBoundaryDeltaMetadata(report, label) {
+  const boundary = report.static_boundary_result;
+  assert.ok(boundary, `${label} must include static boundary result`);
+  assert.equal(
+    report.static_boundary_base_ref,
+    boundary.static_boundary_base_ref,
+    `${label} top-level base ref must mirror static result`,
+  );
+  assert.equal(
+    report.static_boundary_base_mode,
+    boundary.static_boundary_base_mode,
+    `${label} top-level base mode must mirror static result`,
+  );
+  assert.deepEqual(
+    report.static_boundary_changed_files_inspected,
+    boundary.changed_files_inspected,
+    `${label} top-level changed files must mirror static result`,
+  );
+  assert.deepEqual(
+    report.static_boundary_package_added_lines_inspected,
+    boundary.package_added_lines_inspected,
+    `${label} top-level package additions must mirror static result`,
+  );
+  assert.equal(
+    report.static_boundary_used_fallback_allowlist,
+    boundary.used_fallback_allowlist,
+    `${label} top-level fallback flag must mirror static result`,
+  );
+  assert.notEqual(
+    report.static_boundary_base_mode,
+    "worktree_diff",
+    `${label} must not use clean-worktree-only static boundary mode`,
+  );
+  assert.ok(
+    typeof report.static_boundary_base_ref === "string" &&
+      report.static_boundary_base_ref.length > 0,
+    `${label} must record static boundary base ref`,
+  );
+  assert.equal(
+    typeof report.static_boundary_used_fallback_allowlist,
+    "boolean",
+    `${label} must record fallback allowlist mode`,
+  );
+  if (!report.static_boundary_used_fallback_allowlist) {
+    assert.ok(
+      typeof report.static_boundary_base_commit === "string" &&
+        report.static_boundary_base_commit.length >= 7,
+      `${label} must record base commit when using git delta mode`,
+    );
+  }
+  assert.ok(
+    report.static_boundary_changed_files_inspected.length > 0,
+    `${label} inspected changed-file set must be non-empty`,
+  );
+  for (const filePath of expectedChangedFiles) {
+    assert.ok(
+      report.static_boundary_changed_files_inspected.includes(filePath),
+      `${label} inspected delta must include ${filePath}`,
+    );
+  }
+  for (const filePath of report.static_boundary_changed_files_inspected) {
+    assert.ok(
+      !/(^|\/)(migrations?|schema|prisma|drizzle|supabase|db|sql)(\/|\.)/i.test(
+        filePath,
+      ) && !/^lib\/db(\.ts|\/)/.test(filePath),
+      `${label} inspected delta must not include schema/migration/db/sql path: ${filePath}`,
+    );
+  }
+  assert.ok(
+    report.static_boundary_package_added_lines_inspected.length > 0,
+    `${label} must record inspected package additions`,
+  );
+  assert.equal(
+    report.static_boundary_package_added_lines_inspected.length,
+    allowedPackageScriptNames.length,
+    `${label} must inspect only the two allowed package additions`,
+  );
+  for (const scriptName of allowedPackageScriptNames) {
+    assert.ok(
+      report.static_boundary_package_added_lines_inspected.some((line) =>
+        line.includes(`"${scriptName}"`),
+      ),
+      `${label} package additions must include ${scriptName}`,
+    );
+  }
+  for (const line of report.static_boundary_package_added_lines_inspected) {
+    assert.ok(
+      allowedPackageScriptNames.some((scriptName) =>
+        line.includes(`"${scriptName}"`),
+      ),
+      `${label} package addition is outside allowlist: ${line}`,
     );
   }
 }
@@ -557,19 +673,6 @@ function listFiles(root) {
     output.push(current);
   }
   return output;
-}
-
-function readGitChangedFiles() {
-  return readCommand("git diff --name-only")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-function readAddedPackageLines() {
-  return readCommand("git diff -- package.json")
-    .split("\n")
-    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
 }
 
 function readCommand(command) {

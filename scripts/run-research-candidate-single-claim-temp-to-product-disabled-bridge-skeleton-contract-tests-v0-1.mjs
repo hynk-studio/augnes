@@ -100,6 +100,27 @@ const PRODUCT_ID_KEYS = [
   "audit_record_product_id",
 ];
 const STATIC_SCAN_PATHS = [HELPER_PATH, RUNNER_PATH, SMOKE_PATH];
+const EXPECTED_CHANGED_FILES = [
+  "docs/00_INDEX_LATEST.md",
+  "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-test-cases.v0.1.json",
+  "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+  "lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.ts",
+  "package.json",
+  "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+  "scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+];
+const ALLOWED_PACKAGE_SCRIPT_NAMES = [
+  "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+  "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1",
+];
+const FALLBACK_PACKAGE_ADDED_LINES = [
+  '    "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1": "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",',
+  '    "contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1": "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",',
+];
 
 async function main() {
   await rm(ARTIFACT_DIR, { recursive: true, force: true });
@@ -183,6 +204,15 @@ async function main() {
     unexpected_failures: unexpectedFailures,
     case_results: caseResults,
     static_boundary_result: staticBoundaryResult,
+    static_boundary_base_ref: staticBoundaryResult.static_boundary_base_ref,
+    static_boundary_base_mode: staticBoundaryResult.static_boundary_base_mode,
+    static_boundary_base_commit: staticBoundaryResult.static_boundary_base_commit,
+    static_boundary_changed_files_inspected:
+      staticBoundaryResult.changed_files_inspected,
+    static_boundary_package_added_lines_inspected:
+      staticBoundaryResult.package_added_lines_inspected,
+    static_boundary_used_fallback_allowlist:
+      staticBoundaryResult.used_fallback_allowlist,
     tested_boundaries: summarizeTestedBoundaries(testCasesFixture, caseResults),
     contract_suite_status:
       finalStatus === "pass" ? CONTRACT_SUITE_STATUS : "contract_tests_failed",
@@ -653,6 +683,7 @@ function validateRunnerFixtureModeReport(report) {
 function validateStaticRepoBoundary() {
   const failures = [];
   const messages = [];
+  const delta = resolveStaticBoundaryDelta();
   const routeFiles = listFiles("app/api").filter((filePath) =>
     /single-claim-temp-to-product-disabled-bridge-skeleton-contract|disabled-bridge-skeleton-contract-tests/i.test(
       filePath,
@@ -671,7 +702,20 @@ function validateStaticRepoBoundary() {
     failures.push("static_ui_file_added");
     messages.push(`unexpected UI files: ${uiFiles.join(", ")}`);
   }
-  for (const filePath of readGitChangedFiles()) {
+  if (delta.changedFiles.length === 0) {
+    failures.push("static_changed_file_delta_empty");
+    messages.push("static boundary changed-file delta was empty");
+  }
+  const missingExpectedFiles = EXPECTED_CHANGED_FILES.filter(
+    (filePath) => !delta.changedFiles.includes(filePath),
+  );
+  if (missingExpectedFiles.length > 0) {
+    failures.push("static_expected_contract_test_files_missing");
+    messages.push(
+      `expected contract-test files missing from inspected delta: ${missingExpectedFiles.join(", ")}`,
+    );
+  }
+  for (const filePath of delta.changedFiles) {
     if (
       /(^|\/)(migrations?|schema|prisma|drizzle|supabase|db|sql)(\/|\.)/i.test(
         filePath,
@@ -682,13 +726,24 @@ function validateStaticRepoBoundary() {
       messages.push(`schema/migration/db/sql path changed: ${filePath}`);
     }
   }
-  for (const line of readAddedPackageLines()) {
+  if (delta.packageAddedLines.length === 0) {
+    failures.push("static_package_added_lines_empty");
+    messages.push("package.json added lines were empty for this contract-test slice");
+  }
+  const missingPackageScripts = ALLOWED_PACKAGE_SCRIPT_NAMES.filter(
+    (scriptName) =>
+      !delta.packageAddedLines.some((line) => line.includes(`"${scriptName}"`)),
+  );
+  if (missingPackageScripts.length > 0) {
+    failures.push("static_expected_package_script_missing");
+    messages.push(
+      `expected package scripts missing from inspected additions: ${missingPackageScripts.join(", ")}`,
+    );
+  }
+  for (const line of delta.packageAddedLines) {
     if (
-      !line.includes(
-        '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
-      ) &&
-      !line.includes(
-        '"contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1"',
+      !ALLOWED_PACKAGE_SCRIPT_NAMES.some((scriptName) =>
+        line.includes(`"${scriptName}"`),
       )
     ) {
       failures.push("static_dependency_added");
@@ -721,7 +776,19 @@ function validateStaticRepoBoundary() {
       messages.push(`app server startup found in ${filePath}`);
     }
   }
-  return { failureCodes: unique(failures), messages };
+  return {
+    failureCodes: unique(failures),
+    messages,
+    static_boundary_base_ref: delta.baseRef,
+    static_boundary_base_mode: delta.baseMode,
+    static_boundary_base_commit: delta.baseCommit,
+    static_boundary_compare_ref: delta.compareRef,
+    changed_files_inspected: delta.changedFiles,
+    package_added_lines_inspected: delta.packageAddedLines,
+    used_fallback_allowlist: delta.usedFallbackAllowlist,
+    expected_changed_files: EXPECTED_CHANGED_FILES,
+    allowed_package_script_names: ALLOWED_PACKAGE_SCRIPT_NAMES,
+  };
 }
 
 function buildSkeleton({
@@ -1101,25 +1168,103 @@ function listFiles(root) {
   return output;
 }
 
-function readGitChangedFiles() {
-  return readGitOutput(["diff", "--name-only"])
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-function readAddedPackageLines() {
-  return readGitOutput(["diff", "--", "package.json"])
-    .split("\n")
-    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-}
-
 function readGitOutput(args) {
   try {
     return execFileSync("git", args, { encoding: "utf8" });
   } catch {
     return "";
   }
+}
+
+function resolveStaticBoundaryDelta() {
+  const envBaseRef = process.env.AUGNES_CONTRACT_TEST_BASE_REF?.trim();
+  if (envBaseRef) {
+    const envDelta = resolveDeltaFromBaseRef(
+      envBaseRef,
+      "env:AUGNES_CONTRACT_TEST_BASE_REF",
+    );
+    if (envDelta) return envDelta;
+    return emptyDelta(envBaseRef, "env:AUGNES_CONTRACT_TEST_BASE_REF");
+  }
+
+  const baseCandidates = [
+    process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : null,
+    "origin/main",
+    "main",
+    "HEAD^",
+  ].filter(Boolean);
+  for (const candidate of baseCandidates) {
+    const delta = resolveDeltaFromBaseRef(candidate, `merge_base:${candidate}`);
+    if (delta) return delta;
+  }
+  return {
+    baseRef: "committed_allowlist",
+    baseMode: "committed_allowlist_fallback",
+    baseCommit: null,
+    compareRef: "HEAD",
+    changedFiles: EXPECTED_CHANGED_FILES,
+    packageAddedLines: FALLBACK_PACKAGE_ADDED_LINES,
+    usedFallbackAllowlist: true,
+  };
+}
+
+function resolveDeltaFromBaseRef(baseRef, baseMode) {
+  const baseCommit = resolveBaseCommit(baseRef);
+  if (!baseCommit) return null;
+  const changedFiles = readGitLines([
+    "diff",
+    "--name-only",
+    `${baseCommit}..HEAD`,
+  ]);
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    `${baseCommit}..HEAD`,
+    "--",
+    "package.json",
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  return {
+    baseRef,
+    baseMode,
+    baseCommit,
+    compareRef: "HEAD",
+    changedFiles,
+    packageAddedLines,
+    usedFallbackAllowlist: false,
+  };
+}
+
+function resolveBaseCommit(baseRef) {
+  const verifiedBase = readGitOutput([
+    "rev-parse",
+    "--verify",
+    `${baseRef}^{commit}`,
+  ]).trim();
+  if (!verifiedBase) return null;
+  if (baseRef === "HEAD^") return verifiedBase;
+  const mergeBase = readGitOutput(["merge-base", verifiedBase, "HEAD"]).trim();
+  return mergeBase || verifiedBase;
+}
+
+function readGitLines(args) {
+  return readGitOutput(args)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function emptyDelta(baseRef, baseMode) {
+  return {
+    baseRef,
+    baseMode,
+    baseCommit: null,
+    compareRef: "HEAD",
+    changedFiles: [],
+    packageAddedLines: [],
+    usedFallbackAllowlist: false,
+  };
 }
 
 function executableSqlPattern() {
