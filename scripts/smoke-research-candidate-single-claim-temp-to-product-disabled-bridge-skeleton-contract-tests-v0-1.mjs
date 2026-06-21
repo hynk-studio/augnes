@@ -530,6 +530,18 @@ function assertDocsPackageBrowserAndUpstreamSmokePointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+  );
   for (const scriptText of [skeletonSmoke, bridgeDesignSmoke, productWriteGateSmoke]) {
     assert.ok(
       scriptText.includes(

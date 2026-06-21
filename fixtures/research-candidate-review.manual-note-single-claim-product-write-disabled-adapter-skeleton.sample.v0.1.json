@@ -1,0 +1,1577 @@
+{
+  "disabled_adapter_skeleton_kind": "manual_note_single_claim_product_write_disabled_adapter_skeleton",
+  "disabled_adapter_skeleton_version": "manual_note_single_claim_product_write_disabled_adapter_skeleton.v0.1",
+  "disabled_adapter_skeleton_fingerprint": "fnv1a32:ff316153",
+  "source_evidence": {
+    "authority_contract_bundle": {
+      "source_selection": {
+        "source_label": "authority_contract_bundle",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-product-write-authority-contract-bundle.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-product-write-authority-contract-bundle-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+      "authority_contract_bundle_status": "product_write_authority_contracts_defined_only",
+      "recommendation_status": "ready_for_single_claim_product_write_disabled_adapter_skeleton",
+      "next_recommended_slice": "single_claim_product_write_disabled_adapter_skeleton",
+      "authority_contract_count": 16,
+      "authority_gap_summary": {
+        "total_required_contracts": 16,
+        "satisfied_now_count": 0,
+        "authority_granted_now_count": 0,
+        "implementation_allowed_now_count": 0,
+        "blocked_contract_count": 16,
+        "next_bundle_goal": "single_claim_product_write_disabled_adapter_plan",
+        "product_write_allowed_after_this_bundle": false
+      },
+      "validation_passed": true,
+      "static_boundary_base_mode": "merge_base:origin/main",
+      "static_boundary_changed_files_count": 13,
+      "static_boundary_fallback_flag": false
+    },
+    "dry_run_transaction_harness": {
+      "source_selection": {
+        "source_label": "dry_run_transaction_harness",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "harness_fingerprint": "fnv1a32:fecce8f4",
+      "dry_run_transaction_harness_status": "disabled_dry_run_transaction_harness_only",
+      "recommendation_status": "ready_for_product_write_authority_contract_bundle",
+      "next_recommended_slice": "single_claim_product_write_authority_contract_bundle",
+      "trace_row_count": 19,
+      "refusal_probe_count": 36,
+      "authority_preview_contract_count": 12,
+      "static_boundary_base_mode": "merge_base:origin/main",
+      "static_boundary_changed_files_count": 12,
+      "static_boundary_fallback_flag": false
+    },
+    "dry_run_transaction_plan": {
+      "source_selection": {
+        "source_label": "dry_run_transaction_plan",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "plan_fingerprint": "fnv1a32:c9bac5ae",
+      "dry_run_transaction_plan_status": "disabled_dry_run_transaction_plan_only",
+      "recommendation_status": "ready_for_disabled_dry_run_transaction_harness",
+      "next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
+      "transaction_step_count": 19,
+      "refusal_reason_count": 27
+    },
+    "disabled_bridge_skeleton_contract_tests": {
+      "source_selection": {
+        "source_label": "contract_tests",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "suite_fingerprint": "fnv1a32:ee6b6b3d",
+      "total_cases": 70,
+      "positive_cases": 15,
+      "expected_negative_cases": 55,
+      "unexpected_passes": 0,
+      "unexpected_failures": 0,
+      "final_status": "pass",
+      "recommendation_status": "ready_for_disabled_bridge_dry_run_transaction_plan"
+    },
+    "disabled_bridge_skeleton": {
+      "source_selection": {
+        "source_label": "disabled_bridge_skeleton",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "skeleton_fingerprint": "fnv1a32:94b777bb",
+      "disabled_bridge_skeleton_status": "single_claim_disabled_bridge_skeleton_only",
+      "bridge_adapter_enabled": false,
+      "bridge_execution_allowed_now": false,
+      "product_write_allowed_now": false
+    },
+    "temp_to_product_bridge_design": {
+      "source_selection": {
+        "source_label": "temp_to_product_bridge_design",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-bridge-design.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "design_fingerprint": "fnv1a32:464b6626",
+      "bridge_design_status": "single_claim_bridge_design_only",
+      "recommendation_status": "ready_for_disabled_bridge_skeleton",
+      "selected_temp_claim_identity_summary": {
+        "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+        "source_operation_id": "disabled-plan-op:claim:001",
+        "source_temp_intent_id": "temp-intent:claim:001",
+        "temp_idempotency_key": "temp-idempotency:d2caa29d",
+        "result_contract_evidence_fingerprint": "fnv1a32:a65bf1fe",
+        "gate_design_fingerprint": "fnv1a32:ff55b3ed",
+        "operator_decision_fingerprint_placeholder": "operator-decision-fingerprint:blocked-until-explicit-contract",
+        "operator_decision_status": "blocked_until_explicit_operator_decision_contract"
+      }
+    },
+    "product_write_gate_design": {
+      "source_selection": {
+        "source_label": "product_write_gate_design",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-product-write-gate-design-v0-1/report.json",
+        "optional_report_present": false,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "design_fingerprint": "fnv1a32:ff55b3ed",
+      "gate_design_status": "product_write_gate_design_only",
+      "recommendation_status": "ready_for_single_claim_bridge_design",
+      "pass_count": 3,
+      "warn_count": 3,
+      "block_count": 12
+    },
+    "disabled_adapter_skeleton_static_boundary": {
+      "static_boundary_base_ref": "committed_allowlist",
+      "static_boundary_base_mode": "fixture_mode_committed_static_boundary_allowlist",
+      "static_boundary_changed_file_count": 14,
+      "static_boundary_package_added_line_count": 2,
+      "static_boundary_used_fallback_allowlist": true
+    }
+  },
+  "disabled_adapter_skeleton_status": "product_write_disabled_adapter_skeleton_only",
+  "recommendation_status": "ready_for_single_claim_product_write_disabled_adapter_contract_tests",
+  "next_recommended_slice": "single_claim_product_write_disabled_adapter_contract_tests",
+  "adapter_kind": "manual_note_single_claim_product_write_disabled_adapter",
+  "adapter_enabled": false,
+  "adapter_invocation_allowed_now": false,
+  "product_write_allowed_now": false,
+  "product_write_authority_granted_now": false,
+  "product_write_implementation_allowed_now": false,
+  "transaction_execution_allowed_now": false,
+  "product_db_write": false,
+  "product_id_allocation": false,
+  "db_open": false,
+  "sql_execution": false,
+  "route_added": false,
+  "ui_write_action_added": false,
+  "adapter_input_contract": {
+    "contract_kind": "manual_note_single_claim_product_write_disabled_adapter_input_contract",
+    "accepted_candidate_kind": "manual_note_single_claim",
+    "single_selected_temp_claim_only": true,
+    "required_inputs": [
+      "authority_contract_bundle_fingerprint",
+      "selected_temp_claim_record_id",
+      "source_operation_id",
+      "source_temp_intent_id",
+      "temp_idempotency_key",
+      "operator_decision_contract_reference",
+      "product_claim_schema_contract_reference",
+      "idempotency_contract_reference",
+      "rollback_contract_reference",
+      "audit_contract_reference",
+      "observability_contract_reference"
+    ],
+    "forbidden_inputs": [
+      "product_claim_id",
+      "proof_id",
+      "evidence_id",
+      "perspective_id",
+      "work_item_id",
+      "db_path",
+      "sql_text",
+      "route_request",
+      "ui_action_request",
+      "provider_request",
+      "source_fetch_request",
+      "external_handoff_request"
+    ],
+    "requires_authority_contract_bundle": true,
+    "requires_authority_contract_bundle_passed": true,
+    "raw_manual_note_text_allowed_now": false,
+    "product_ids_allowed_now": false,
+    "db_runtime_inputs_allowed_now": false,
+    "provider_or_source_inputs_allowed_now": false
+  },
+  "normalized_adapter_input_preview": {
+    "normalization_kind": "manual_note_single_claim_product_write_disabled_adapter_input_preview",
+    "candidate_kind": "manual_note_single_claim",
+    "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+    "product_claim_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null,
+    "raw_manual_note_text_included": false,
+    "normalization_executed_now": true,
+    "normalization_persisted_now": false,
+    "normalization_storage_target": "local_artifact_only"
+  },
+  "adapter_output_contract": {
+    "contract_kind": "manual_note_single_claim_product_write_disabled_adapter_output_contract",
+    "possible_result_statuses": [
+      "rejected_disabled_adapter",
+      "blocked_missing_authority_contract",
+      "blocked_forbidden_input",
+      "blocked_product_write_not_allowed",
+      "dry_noop_preview"
+    ],
+    "default_result_status": "rejected_disabled_adapter",
+    "product_write_result": null,
+    "product_claim_id": null,
+    "durable_records_created_now": false,
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "db_open": false,
+    "sql_execution": false,
+    "transaction_execution": false
+  },
+  "disabled_invocation_result": {
+    "invocation_attempted_now": false,
+    "adapter_invocation_allowed_now": false,
+    "adapter_enabled": false,
+    "result_status": "rejected_disabled_adapter",
+    "refusal_reasons": [
+      "adapter_disabled",
+      "product_write_authority_not_granted",
+      "authority_contracts_defined_but_not_satisfied",
+      "product_write_implementation_not_allowed"
+    ],
+    "product_write_executed_now": false,
+    "transaction_executed_now": false,
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "db_open": false,
+    "sql_execution": false,
+    "route_added": false,
+    "ui_write_action_added": false,
+    "durable_records_created_now": false
+  },
+  "future_product_write_command_preview": {
+    "command_kind": "manual_note_single_claim_product_write_command_preview",
+    "executable_now": false,
+    "product_claim_id": null,
+    "target_table_or_interface": "product_claim_future_contract_placeholder",
+    "write_operation_count": 0,
+    "sql_statement_count": 0,
+    "would_require_contracts": [
+      "explicit_operator_decision_contract",
+      "selected_temp_claim_identity_contract",
+      "product_claim_schema_contract",
+      "product_claim_id_allocation_contract",
+      "product_idempotency_storage_contract",
+      "product_rollback_storage_contract",
+      "product_review_audit_storage_contract",
+      "product_write_observability_contract",
+      "source_verification_authority_contract",
+      "proof_evidence_authority_contract",
+      "canonical_perspective_authority_contract",
+      "enabled_adapter_transition_contract",
+      "product_write_route_contract",
+      "product_write_transaction_boundary_contract",
+      "product_write_static_boundary_contract",
+      "product_write_runtime_boundary_contract"
+    ],
+    "command_rejected_now": true,
+    "rejection_reason": "disabled_adapter_skeleton_only"
+  },
+  "adapter_refusal_matrix": [
+    {
+      "reason_id": "adapter_disabled",
+      "reason_label": "adapter disabled",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "adapter_invocation_requested",
+      "reason_label": "adapter invocation requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "product_write_requested",
+      "reason_label": "product write requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "product_write_authority_not_granted",
+      "reason_label": "product write authority not granted",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "authority_contracts_not_satisfied",
+      "reason_label": "authority contracts not satisfied",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "missing_or_malformed_authority_bundle",
+      "reason_label": "missing or malformed authority bundle",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "missing_selected_temp_claim_identity",
+      "reason_label": "missing selected temp claim identity",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "candidate_kind_mismatch",
+      "reason_label": "candidate kind mismatch",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "multiple_selected_temp_claims",
+      "reason_label": "multiple selected temp claims",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "product_claim_id_provided",
+      "reason_label": "product claim id provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "proof_or_evidence_id_provided",
+      "reason_label": "proof or evidence id provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "perspective_or_canonical_id_provided",
+      "reason_label": "perspective or canonical id provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "work_item_id_provided",
+      "reason_label": "work item id provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "raw_manual_note_text_included",
+      "reason_label": "raw manual note text included",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "db_path_provided",
+      "reason_label": "db path provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "sql_text_provided",
+      "reason_label": "sql text provided",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "transaction_execution_requested",
+      "reason_label": "transaction execution requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "route_requested",
+      "reason_label": "route requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "ui_action_requested",
+      "reason_label": "ui action requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "provider_or_openai_requested",
+      "reason_label": "provider or openai requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "source_fetch_requested",
+      "reason_label": "source fetch requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "retrieval_or_rag_requested",
+      "reason_label": "retrieval or rag requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "external_handoff_requested",
+      "reason_label": "external handoff requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "browser_persistence_requested",
+      "reason_label": "browser persistence requested",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "upstream_forbidden_surface_true",
+      "reason_label": "upstream forbidden surface true",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "static_schema_db_sql_change",
+      "reason_label": "static schema db sql change",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "static_app_router_ui_change",
+      "reason_label": "static app router ui change",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    },
+    {
+      "reason_id": "dependency_addition_outside_allowlist",
+      "reason_label": "dependency addition outside allowlist",
+      "requested_now": false,
+      "refusal_required_now": true,
+      "blocks_adapter_invocation_now": true,
+      "blocks_product_write_now": true,
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton"
+    }
+  ],
+  "adapter_skeleton_validation_matrix": [
+    {
+      "check_id": "01_authority_contract_bundle_ready",
+      "check_group": "authority_ready_positive",
+      "expected_status": "product_write_disabled_adapter_skeleton_only",
+      "expected_failure_codes": [],
+      "actual_status": "product_write_disabled_adapter_skeleton_only",
+      "actual_failure_codes": [],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "02_explicit_operator_decision_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "explicit_operator_decision_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "explicit_operator_decision_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "03_selected_temp_claim_identity_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "selected_temp_claim_identity_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "selected_temp_claim_identity_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "04_product_claim_schema_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_claim_schema_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_claim_schema_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "05_product_claim_id_allocation_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_claim_id_allocation_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_claim_id_allocation_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "06_product_idempotency_storage_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_idempotency_storage_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_idempotency_storage_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "07_product_rollback_storage_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_rollback_storage_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_rollback_storage_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "08_product_review_audit_storage_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_review_audit_storage_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_review_audit_storage_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "09_product_write_observability_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_write_observability_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_write_observability_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "10_source_verification_authority_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "source_verification_authority_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "source_verification_authority_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "11_proof_evidence_authority_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "proof_evidence_authority_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "proof_evidence_authority_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "12_canonical_perspective_authority_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "canonical_perspective_authority_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "canonical_perspective_authority_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "13_enabled_adapter_transition_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "enabled_adapter_transition_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "enabled_adapter_transition_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "14_product_write_route_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_write_route_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_write_route_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "15_product_write_transaction_boundary_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_write_transaction_boundary_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_write_transaction_boundary_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "16_product_write_static_boundary_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_write_static_boundary_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_write_static_boundary_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "17_product_write_runtime_boundary_contract_present",
+      "check_group": "authority_contracts",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_write_runtime_boundary_contract_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_write_runtime_boundary_contract_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "18_missing_contract",
+      "check_group": "authority_mutations",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "missing_contract"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "missing_contract"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "19_contract_satisfied_now_true",
+      "check_group": "authority_mutations",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "contract_satisfied_now_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "contract_satisfied_now_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "20_contract_authority_granted_true",
+      "check_group": "authority_mutations",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "contract_authority_granted_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "contract_authority_granted_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "21_contract_implementation_allowed_true",
+      "check_group": "authority_mutations",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "contract_implementation_allowed_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "contract_implementation_allowed_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "22_authority_gap_mismatch",
+      "check_group": "authority_mutations",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "authority_gap_mismatch"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "authority_gap_mismatch"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "23_adapter_enabled_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "adapter_enabled_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "adapter_enabled_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "24_adapter_invocation_allowed_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "adapter_invocation_allowed_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "adapter_invocation_allowed_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "25_product_write_allowed_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_write_allowed_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_write_allowed_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "26_product_write_authority_granted_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_write_authority_granted_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_write_authority_granted_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "27_transaction_execution_allowed_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "transaction_execution_allowed_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "transaction_execution_allowed_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "28_product_db_write_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_db_write_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_db_write_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "29_product_id_allocation_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_id_allocation_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_id_allocation_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "30_db_open_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "db_open_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "db_open_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "31_sql_execution_true",
+      "check_group": "adapter_flags",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "sql_execution_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "sql_execution_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "32_missing_selected_temp_claim_record_id",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "missing_selected_temp_claim_record_id"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "missing_selected_temp_claim_record_id"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "33_missing_source_operation_id",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "missing_source_operation_id"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "missing_source_operation_id"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "34_missing_source_temp_intent_id",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "missing_source_temp_intent_id"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "missing_source_temp_intent_id"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "35_missing_temp_idempotency_key",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "missing_temp_idempotency_key"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "missing_temp_idempotency_key"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "36_candidate_kind_mismatch",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "candidate_kind_mismatch"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "candidate_kind_mismatch"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "37_product_claim_id_present",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "product_claim_id_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "product_claim_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "38_proof_id_present",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "proof_id_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "proof_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "39_evidence_id_present",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "evidence_id_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "evidence_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "40_perspective_id_present",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "perspective_id_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "perspective_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "41_work_item_id_present",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "work_item_id_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "work_item_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "42_raw_manual_note_text_included",
+      "check_group": "normalized_input",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "raw_manual_note_text_included"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "raw_manual_note_text_included"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "43_invocation_attempted_now_true",
+      "check_group": "invocation_and_command",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "invocation_attempted_now_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "invocation_attempted_now_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "44_future_command_executable_true",
+      "check_group": "invocation_and_command",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "future_command_executable_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "future_command_executable_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "45_future_command_product_claim_id_present",
+      "check_group": "invocation_and_command",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "future_command_product_claim_id_present"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "future_command_product_claim_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "46_future_command_write_count_nonzero",
+      "check_group": "invocation_and_command",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "future_command_write_count_nonzero"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "future_command_write_count_nonzero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "47_future_command_sql_count_nonzero",
+      "check_group": "invocation_and_command",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "future_command_sql_count_nonzero"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "future_command_sql_count_nonzero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "48_disabled_invocation_missing_refusal_reason",
+      "check_group": "invocation_and_command",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "disabled_invocation_missing_refusal_reason"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "disabled_invocation_missing_refusal_reason"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "49_failed_optional_authority_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "failed_optional_authority_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "failed_optional_authority_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "50_malformed_optional_authority_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "malformed_optional_authority_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "malformed_optional_authority_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "51_failed_optional_harness_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "failed_optional_harness_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "failed_optional_harness_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "52_failed_optional_plan_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "failed_optional_plan_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "failed_optional_plan_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "53_failed_optional_contract_tests_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "failed_optional_contract_tests_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "failed_optional_contract_tests_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "54_failed_optional_skeleton_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "failed_optional_skeleton_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "failed_optional_skeleton_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "55_failed_optional_bridge_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "failed_optional_bridge_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "failed_optional_bridge_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "56_failed_optional_gate_report",
+      "check_group": "optional_reports",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "failed_optional_gate_report"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "failed_optional_gate_report"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "57_source_forbidden_surface_true",
+      "check_group": "source_contamination",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "source_forbidden_surface_true"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "source_forbidden_surface_true"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "58_source_product_id_contamination",
+      "check_group": "source_contamination",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "source_product_id_contamination"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "source_product_id_contamination"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "59_nested_product_id_contamination",
+      "check_group": "source_contamination",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "nested_product_id_contamination"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "nested_product_id_contamination"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "60_static_empty_delta",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_empty_delta"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_empty_delta"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "61_static_package_added_lines_empty",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_package_added_lines_empty"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_package_added_lines_empty"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "62_static_package_dependency_addition",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_package_dependency_addition"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_package_dependency_addition"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "63_static_schema_db_sql_change",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_schema_db_sql_change"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_schema_db_sql_change"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "64_static_app_api_route_change",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_app_api_route_change"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_app_api_route_change"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "65_static_app_router_ui_change",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_app_router_ui_change"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_app_router_ui_change"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "66_static_component_ui_change",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_component_ui_change"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_component_ui_change"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "67_static_executable_sql_string",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_executable_sql_string"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_executable_sql_string"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "68_static_network_or_external_call",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_network_or_external_call"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_network_or_external_call"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "69_static_browser_persistence",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_browser_persistence"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_browser_persistence"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "70_static_server_startup",
+      "check_group": "static_boundary",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "static_server_startup"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "static_server_startup"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "71_fixture_mode_stale_optional_reports_ignored",
+      "check_group": "determinism",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "fixture_mode_stale_optional_reports_ignored"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "fixture_mode_stale_optional_reports_ignored"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "72_fixture_mode_fingerprint_stable",
+      "check_group": "determinism",
+      "expected_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "expected_failure_codes": [
+        "fixture_mode_fingerprint_stable"
+      ],
+      "actual_status": "blocked_before_product_write_disabled_adapter_skeleton",
+      "actual_failure_codes": [
+        "fixture_mode_fingerprint_stable"
+      ],
+      "check_status": "pass"
+    }
+  ],
+  "explicit_forbidden_surfaces": {
+    "product_write_authority_granted": false,
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "product_route": false,
+    "product_write_adapter_enabled": false,
+    "adapter_invocation": false,
+    "sql_execution": false,
+    "db_open": false,
+    "schema_or_migration_change": false,
+    "proof_evidence_write": false,
+    "perspective_or_canonical_graph_write": false,
+    "work_item_creation": false,
+    "source_fetch": false,
+    "provider_or_openai_call": false,
+    "retrieval_or_rag": false,
+    "external_handoff": false,
+    "browser_persistence": false,
+    "ui_write_action": false,
+    "transaction_execution": false,
+    "transaction_commit": false,
+    "transaction_rollback_execution": false,
+    "durable_idempotency_write": false,
+    "durable_rollback_write": false,
+    "durable_audit_write": false,
+    "durable_observability_write": false,
+    "enabled_adapter_transition": false
+  },
+  "static_boundary_evidence": {
+    "static_boundary_base_ref": "committed_allowlist",
+    "static_boundary_base_mode": "fixture_mode_committed_static_boundary_allowlist",
+    "static_boundary_base_commit": null,
+    "static_boundary_compare_ref": "HEAD",
+    "static_boundary_changed_files_inspected": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-skeleton.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-skeleton.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "static_boundary_package_added_lines_inspected": [
+      "    \"smoke:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1\": \"node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs\",",
+      "    \"adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1\": \"node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs\","
+    ],
+    "static_boundary_used_fallback_allowlist": true,
+    "expected_changed_files": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-skeleton.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-skeleton.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "allowed_package_script_names": [
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1",
+      "adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"
+    ]
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "local_copy_packet": {
+    "markdown": "# Manual Note Single-Claim Product Write Disabled Adapter Skeleton\n\nDisabled product-write adapter skeleton only.\nThe adapter is not enabled, cannot be invoked, and product write remains blocked.\ndisabled_adapter_skeleton_status: product_write_disabled_adapter_skeleton_only\ndisabled_adapter_skeleton_fingerprint: fnv1a32:ff316153",
+    "json": "{\n  \"disabled_adapter_skeleton_status\": \"product_write_disabled_adapter_skeleton_only\",\n  \"adapter_enabled\": false,\n  \"adapter_invocation_allowed_now\": false,\n  \"product_write_authority_granted_now\": false,\n  \"product_write_allowed_now\": false,\n  \"product_db_write\": false,\n  \"product_id_allocation\": false,\n  \"db_open\": false,\n  \"sql_execution\": false\n}",
+    "fingerprint": "fnv1a32:ff316153",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "adapter_enabled": false,
+    "adapter_invocation_allowed_now": false,
+    "product_write_allowed_now": false,
+    "product_write_authority_granted_now": false
+  }
+}
