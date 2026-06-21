@@ -208,6 +208,28 @@ const sampleFixture = JSON.parse(readFileSync(sampleFixturePath, "utf8"));
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 const docsIndex = readFileSync(docsIndexPath, "utf8").replace(/\s+/g, " ");
 const browserValidator = readFileSync(browserValidatorPath, "utf8");
+assert.equal(
+  packageJson.scripts[
+    "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1"
+  ],
+  "node scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+);
+assert.equal(
+  packageJson.scripts[
+    "envelope:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1"
+  ],
+  "node scripts/run-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_preflight_command_envelope_artifact_note",
+  ),
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_preflight_command_envelope_no_browser_route",
+  ),
+);
 const dryRunPlanSmoke = readFileSync(dryRunPlanSmokePath, "utf8");
 const contractTestsSmoke = readFileSync(contractTestsSmokePath, "utf8");
 const skeletonSmoke = readFileSync(skeletonSmokePath, "utf8");

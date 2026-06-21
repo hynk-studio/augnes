@@ -168,6 +168,28 @@ const committedSample = readJson(sampleFixturePath);
 const packageJson = readJson(packagePath);
 const docsIndex = readFileSync(docsIndexPath, "utf8").replace(/\s+/g, " ");
 const browserValidator = readFileSync(browserValidatorPath, "utf8");
+assert.equal(
+  packageJson.scripts[
+    "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1"
+  ],
+  "node scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+);
+assert.equal(
+  packageJson.scripts[
+    "envelope:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1"
+  ],
+  "node scripts/run-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_preflight_command_envelope_artifact_note",
+  ),
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_preflight_command_envelope_no_browser_route",
+  ),
+);
 const noopReportSmokeScript =
   "smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1";
 const noopReportRunnerScript =

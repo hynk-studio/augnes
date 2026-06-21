@@ -1,0 +1,1637 @@
+{
+  "preflight_command_envelope_kind": "manual_note_single_claim_product_write_preflight_command_envelope",
+  "preflight_command_envelope_version": "manual_note_single_claim_product_write_preflight_command_envelope.v0.1",
+  "preflight_command_envelope_fingerprint": "fnv1a32:96bec421",
+  "source_validation_failure_codes": [],
+  "source_evidence": {
+    "noop_invocation_report": {
+      "noop_invocation_report_fingerprint": "fnv1a32:960d82fa",
+      "final_status": "pass",
+      "noop_invocation_report_status": "product_write_disabled_adapter_noop_invocation_report_only",
+      "recommendation_status": "ready_for_single_claim_product_write_preflight_command_envelope",
+      "next_recommended_slice": "single_claim_product_write_preflight_command_envelope",
+      "validation_passed": true
+    },
+    "operator_review_packet": {
+      "review_packet_status": "reviewable_noop_invocation_only",
+      "operator_decision_required_before_product_write": true,
+      "operator_decision_satisfied_now": false,
+      "operator_may_approve_product_write_now": false,
+      "raw_manual_note_text_included": false
+    },
+    "no_write_closeout": {
+      "closeout_status": "no_write_observed",
+      "runtime_adapter_invocation_now": false,
+      "product_write_attempted_now": false,
+      "product_write_executed_now": false,
+      "product_db_write_now": false,
+      "product_id_allocation_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "durable_records_created_now": false,
+      "route_added_now": false,
+      "ui_write_action_added_now": false,
+      "external_handoff_now": false
+    },
+    "invocation_closeout_summary": {
+      "dry_run_invocation_result_status": "rejected_disabled_adapter",
+      "failed_probe_count": 0,
+      "probe_count": 51,
+      "product_write_result": null,
+      "product_claim_id": null
+    },
+    "noop_preflight_command_envelope_preview": {
+      "preview_status": "defined_for_next_slice_only",
+      "executable_now": false,
+      "persisted_now": false,
+      "product_write_allowed_now": false,
+      "product_claim_id": null,
+      "command_envelope_id": null
+    },
+    "disabled_adapter_dry_run_invocation_harness": {
+      "dry_run_invocation_harness_fingerprint": "fnv1a32:f2a0f394",
+      "final_status": "pass",
+      "dry_run_invocation_harness_status": "product_write_disabled_adapter_dry_run_invocation_harness_only"
+    },
+    "disabled_adapter_contract_tests": {
+      "suite_fingerprint": "fnv1a32:ca070e41",
+      "final_status": "pass",
+      "contract_suite_status": "product_write_disabled_adapter_contract_tests_passed",
+      "total_cases": 119
+    },
+    "disabled_adapter_skeleton": {
+      "disabled_adapter_skeleton_fingerprint": "fnv1a32:ff316153",
+      "disabled_adapter_skeleton_status": "product_write_disabled_adapter_skeleton_only",
+      "adapter_enabled": false
+    },
+    "authority_contract_bundle": {
+      "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+      "authority_contract_bundle_status": "product_write_authority_contracts_defined_only",
+      "authority_gap_summary": {
+        "total_required_contracts": 16,
+        "satisfied_now_count": 0,
+        "authority_granted_now_count": 0,
+        "implementation_allowed_now_count": 0,
+        "blocked_contract_count": 16,
+        "next_bundle_goal": "single_claim_product_write_disabled_adapter_plan",
+        "product_write_allowed_after_this_bundle": false
+      }
+    },
+    "product_write_gate_design": {
+      "design_fingerprint": "fnv1a32:ff55b3ed",
+      "gate_design_status": "product_write_gate_design_only",
+      "recommendation_status": "ready_for_single_claim_bridge_design"
+    }
+  },
+  "preflight_command_envelope_status": "product_write_preflight_command_envelope_only",
+  "command_envelope_created_now": true,
+  "command_envelope_persisted_now": false,
+  "command_envelope_executable_now": false,
+  "product_write_allowed_now": false,
+  "product_write_authority_granted_now": false,
+  "product_write_implementation_allowed_now": false,
+  "product_claim_id": null,
+  "product_id_allocation": false,
+  "product_db_write": false,
+  "db_open": false,
+  "sql_execution": false,
+  "transaction_execution_now": false,
+  "adapter_runtime_invocation_now": false,
+  "route_added": false,
+  "ui_write_action_added": false,
+  "preflight_command_envelope": {
+    "command_kind": "manual_note_single_claim_product_write_command",
+    "command_status": "preflight_shape_only",
+    "command_envelope_created_now": true,
+    "command_envelope_persisted_now": false,
+    "command_envelope_executable_now": false,
+    "product_write_allowed_now": false,
+    "product_claim_id": null,
+    "command_envelope_id": null,
+    "input": {
+      "input_kind": "manual_note_single_claim_product_write_preflight_command_envelope_input",
+      "candidate_kind": "manual_note_single_claim",
+      "noop_invocation_report_fingerprint": "fnv1a32:960d82fa",
+      "dry_run_invocation_harness_fingerprint": "fnv1a32:f2a0f394",
+      "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+      "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+      "source_operation_id": "disabled-plan-op:claim:001",
+      "source_temp_intent_id": "temp-intent:claim:001",
+      "temp_idempotency_key": "temp-idempotency:d2caa29d",
+      "operator_decision_reference": null,
+      "operator_decision_required": true,
+      "operator_decision_satisfied_now": false,
+      "raw_manual_note_text_included": false,
+      "product_claim_id": null,
+      "db_path": null,
+      "sql_text": null,
+      "route_request": null,
+      "ui_action_request": null
+    },
+    "product_claim_draft_preview": {
+      "draft_kind": "manual_note_single_claim_product_claim_draft_preview",
+      "draft_status": "preflight_shape_only",
+      "product_claim_id": null,
+      "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+      "source_operation_id": "disabled-plan-op:claim:001",
+      "source_temp_intent_id": "temp-intent:claim:001",
+      "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+      "product_claim_schema_contract_required": true,
+      "schema_satisfied_now": false,
+      "raw_manual_note_text_included": false,
+      "allowed_fields_preview": [
+        "claim_text_normalized_placeholder",
+        "source_temp_intent_reference",
+        "source_operation_reference",
+        "operator_decision_reference",
+        "idempotency_key_reference"
+      ],
+      "nullability_preview": {
+        "product_claim_id": null,
+        "proof_id": null,
+        "evidence_id": null,
+        "perspective_id": null,
+        "work_item_id": null,
+        "raw_manual_note_text": null,
+        "db_path": null,
+        "sql_text": null
+      },
+      "write_operation_count_now": 0,
+      "db_write_count_now": 0,
+      "sql_statement_count_now": 0
+    },
+    "idempotency_preview": {
+      "preview_kind": "manual_note_single_claim_product_write_idempotency_preview",
+      "preview_status": "preflight_shape_only",
+      "preview_persisted_now": false,
+      "preview_executed_now": false,
+      "durable_write_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "product_id_allocation_now": false,
+      "product_db_write_now": false,
+      "proof_evidence_write_now": false,
+      "perspective_or_canonical_graph_write_now": false,
+      "work_item_creation_now": false,
+      "product_claim_id": null,
+      "product_idempotency_record_id": null,
+      "product_rollback_record_id": null,
+      "product_audit_record_id": null,
+      "product_observability_record_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "work_item_id": null,
+      "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+      "storage_contract_required": true,
+      "storage_contract_satisfied_now": false
+    },
+    "rollback_preview": {
+      "preview_kind": "manual_note_single_claim_product_write_rollback_preview",
+      "preview_status": "preflight_shape_only",
+      "preview_persisted_now": false,
+      "preview_executed_now": false,
+      "durable_write_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "product_id_allocation_now": false,
+      "product_db_write_now": false,
+      "proof_evidence_write_now": false,
+      "perspective_or_canonical_graph_write_now": false,
+      "work_item_creation_now": false,
+      "product_claim_id": null,
+      "product_idempotency_record_id": null,
+      "product_rollback_record_id": null,
+      "product_audit_record_id": null,
+      "product_observability_record_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "work_item_id": null,
+      "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+      "storage_contract_required": true,
+      "storage_contract_satisfied_now": false
+    },
+    "audit_preview": {
+      "preview_kind": "manual_note_single_claim_product_write_audit_preview",
+      "preview_status": "preflight_shape_only",
+      "preview_persisted_now": false,
+      "preview_executed_now": false,
+      "durable_write_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "product_id_allocation_now": false,
+      "product_db_write_now": false,
+      "proof_evidence_write_now": false,
+      "perspective_or_canonical_graph_write_now": false,
+      "work_item_creation_now": false,
+      "product_claim_id": null,
+      "product_idempotency_record_id": null,
+      "product_rollback_record_id": null,
+      "product_audit_record_id": null,
+      "product_observability_record_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "work_item_id": null,
+      "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+      "storage_contract_required": true,
+      "storage_contract_satisfied_now": false
+    },
+    "observability_preview": {
+      "preview_kind": "manual_note_single_claim_product_write_observability_preview",
+      "preview_status": "preflight_shape_only",
+      "preview_persisted_now": false,
+      "preview_executed_now": false,
+      "durable_write_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false,
+      "transaction_execution_now": false,
+      "product_id_allocation_now": false,
+      "product_db_write_now": false,
+      "proof_evidence_write_now": false,
+      "perspective_or_canonical_graph_write_now": false,
+      "work_item_creation_now": false,
+      "product_claim_id": null,
+      "product_idempotency_record_id": null,
+      "product_rollback_record_id": null,
+      "product_audit_record_id": null,
+      "product_observability_record_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "work_item_id": null,
+      "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+      "storage_contract_required": true,
+      "storage_contract_satisfied_now": false
+    },
+    "write_operation_count_now": 0,
+    "db_write_count_now": 0,
+    "sql_statement_count_now": 0,
+    "transaction_execution_now": false
+  },
+  "command_envelope_input": {
+    "input_kind": "manual_note_single_claim_product_write_preflight_command_envelope_input",
+    "candidate_kind": "manual_note_single_claim",
+    "noop_invocation_report_fingerprint": "fnv1a32:960d82fa",
+    "dry_run_invocation_harness_fingerprint": "fnv1a32:f2a0f394",
+    "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+    "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "operator_decision_reference": null,
+    "operator_decision_required": true,
+    "operator_decision_satisfied_now": false,
+    "raw_manual_note_text_included": false,
+    "product_claim_id": null,
+    "db_path": null,
+    "sql_text": null,
+    "route_request": null,
+    "ui_action_request": null
+  },
+  "command_envelope_input_summary": {
+    "input_kind": "manual_note_single_claim_product_write_preflight_command_envelope_input",
+    "candidate_kind": "manual_note_single_claim",
+    "noop_invocation_report_fingerprint": "fnv1a32:960d82fa",
+    "dry_run_invocation_harness_fingerprint": "fnv1a32:f2a0f394",
+    "authority_contract_bundle_fingerprint": "fnv1a32:08f7514f",
+    "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "operator_decision_required": true,
+    "operator_decision_satisfied_now": false,
+    "raw_manual_note_text_included": false,
+    "product_claim_id": null,
+    "db_path": null,
+    "sql_text": null,
+    "route_request": null,
+    "ui_action_request": null
+  },
+  "product_claim_draft_preview": {
+    "draft_kind": "manual_note_single_claim_product_claim_draft_preview",
+    "draft_status": "preflight_shape_only",
+    "product_claim_id": null,
+    "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "product_claim_schema_contract_required": true,
+    "schema_satisfied_now": false,
+    "raw_manual_note_text_included": false,
+    "allowed_fields_preview": [
+      "claim_text_normalized_placeholder",
+      "source_temp_intent_reference",
+      "source_operation_reference",
+      "operator_decision_reference",
+      "idempotency_key_reference"
+    ],
+    "nullability_preview": {
+      "product_claim_id": null,
+      "proof_id": null,
+      "evidence_id": null,
+      "perspective_id": null,
+      "work_item_id": null,
+      "raw_manual_note_text": null,
+      "db_path": null,
+      "sql_text": null
+    },
+    "write_operation_count_now": 0,
+    "db_write_count_now": 0,
+    "sql_statement_count_now": 0
+  },
+  "idempotency_preview": {
+    "preview_kind": "manual_note_single_claim_product_write_idempotency_preview",
+    "preview_status": "preflight_shape_only",
+    "preview_persisted_now": false,
+    "preview_executed_now": false,
+    "durable_write_now": false,
+    "db_open_now": false,
+    "sql_execution_now": false,
+    "transaction_execution_now": false,
+    "product_id_allocation_now": false,
+    "product_db_write_now": false,
+    "proof_evidence_write_now": false,
+    "perspective_or_canonical_graph_write_now": false,
+    "work_item_creation_now": false,
+    "product_claim_id": null,
+    "product_idempotency_record_id": null,
+    "product_rollback_record_id": null,
+    "product_audit_record_id": null,
+    "product_observability_record_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null,
+    "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "storage_contract_required": true,
+    "storage_contract_satisfied_now": false
+  },
+  "rollback_preview": {
+    "preview_kind": "manual_note_single_claim_product_write_rollback_preview",
+    "preview_status": "preflight_shape_only",
+    "preview_persisted_now": false,
+    "preview_executed_now": false,
+    "durable_write_now": false,
+    "db_open_now": false,
+    "sql_execution_now": false,
+    "transaction_execution_now": false,
+    "product_id_allocation_now": false,
+    "product_db_write_now": false,
+    "proof_evidence_write_now": false,
+    "perspective_or_canonical_graph_write_now": false,
+    "work_item_creation_now": false,
+    "product_claim_id": null,
+    "product_idempotency_record_id": null,
+    "product_rollback_record_id": null,
+    "product_audit_record_id": null,
+    "product_observability_record_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null,
+    "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "storage_contract_required": true,
+    "storage_contract_satisfied_now": false
+  },
+  "audit_preview": {
+    "preview_kind": "manual_note_single_claim_product_write_audit_preview",
+    "preview_status": "preflight_shape_only",
+    "preview_persisted_now": false,
+    "preview_executed_now": false,
+    "durable_write_now": false,
+    "db_open_now": false,
+    "sql_execution_now": false,
+    "transaction_execution_now": false,
+    "product_id_allocation_now": false,
+    "product_db_write_now": false,
+    "proof_evidence_write_now": false,
+    "perspective_or_canonical_graph_write_now": false,
+    "work_item_creation_now": false,
+    "product_claim_id": null,
+    "product_idempotency_record_id": null,
+    "product_rollback_record_id": null,
+    "product_audit_record_id": null,
+    "product_observability_record_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null,
+    "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "storage_contract_required": true,
+    "storage_contract_satisfied_now": false
+  },
+  "observability_preview": {
+    "preview_kind": "manual_note_single_claim_product_write_observability_preview",
+    "preview_status": "preflight_shape_only",
+    "preview_persisted_now": false,
+    "preview_executed_now": false,
+    "durable_write_now": false,
+    "db_open_now": false,
+    "sql_execution_now": false,
+    "transaction_execution_now": false,
+    "product_id_allocation_now": false,
+    "product_db_write_now": false,
+    "proof_evidence_write_now": false,
+    "perspective_or_canonical_graph_write_now": false,
+    "work_item_creation_now": false,
+    "product_claim_id": null,
+    "product_idempotency_record_id": null,
+    "product_rollback_record_id": null,
+    "product_audit_record_id": null,
+    "product_observability_record_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null,
+    "source_temp_idempotency_key": "temp-idempotency:d2caa29d",
+    "storage_contract_required": true,
+    "storage_contract_satisfied_now": false
+  },
+  "preflight_rejection_reasons": [
+    "operator_decision_missing",
+    "product_claim_schema_not_satisfied",
+    "product_claim_id_allocation_not_authorized",
+    "idempotency_storage_not_satisfied",
+    "rollback_storage_not_satisfied",
+    "audit_storage_not_satisfied",
+    "observability_storage_not_satisfied",
+    "adapter_not_enabled",
+    "product_write_authority_not_granted",
+    "product_write_implementation_not_allowed",
+    "command_envelope_not_persisted",
+    "db_write_not_allowed",
+    "sql_execution_not_allowed",
+    "transaction_execution_not_allowed"
+  ],
+  "explicit_forbidden_surfaces": {
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "product_route": false,
+    "product_write_adapter_enabled": false,
+    "product_write_authority_granted": false,
+    "product_write_implementation": false,
+    "command_envelope_persistence": false,
+    "sql_execution": false,
+    "db_open": false,
+    "schema_or_migration_change": false,
+    "proof_evidence_write": false,
+    "perspective_or_canonical_graph_write": false,
+    "work_item_creation": false,
+    "source_fetch": false,
+    "provider_or_openai_call": false,
+    "retrieval_or_rag": false,
+    "external_handoff": false,
+    "browser_persistence": false,
+    "ui_write_action": false,
+    "transaction_execution": false,
+    "transaction_commit": false,
+    "transaction_rollback_execution": false,
+    "durable_idempotency_write": false,
+    "durable_rollback_write": false,
+    "durable_audit_write": false,
+    "durable_observability_write": false,
+    "adapter_runtime_invocation": false,
+    "enabled_adapter_transition": false
+  },
+  "static_boundary_evidence": {
+    "static_boundary_base_ref": "committed_allowlist",
+    "static_boundary_base_mode": "fixture_mode_committed_static_boundary_allowlist",
+    "static_boundary_base_commit": null,
+    "static_boundary_compare_ref": "HEAD",
+    "static_boundary_changed_files_inspected": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-preflight-command-envelope.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-preflight-command-envelope.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs"
+    ],
+    "static_boundary_package_added_lines_inspected": [
+      "+    \"smoke:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1\": \"node scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs\",",
+      "+    \"envelope:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1\": \"node scripts/run-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs\","
+    ],
+    "static_boundary_used_fallback_allowlist": true,
+    "expected_changed_files": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-product-write-preflight-command-envelope.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-product-write-preflight-command-envelope.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs"
+    ],
+    "allowed_package_script_names": [
+      "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1",
+      "envelope:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1"
+    ],
+    "static_boundary_probe_text": ""
+  },
+  "no_write_preflight_closeout": {
+    "closeout_kind": "manual_note_single_claim_product_write_preflight_command_envelope_no_write_closeout",
+    "closeout_status": "no_write_preflight_command_envelope_only",
+    "command_envelope_created_now": true,
+    "command_envelope_persisted_now": false,
+    "command_envelope_executable_now": false,
+    "product_write_allowed_now": false,
+    "product_write_executed_now": false,
+    "product_db_write_now": false,
+    "product_id_allocation_now": false,
+    "db_open_now": false,
+    "sql_execution_now": false,
+    "transaction_execution_now": false,
+    "transaction_commit_now": false,
+    "transaction_rollback_execution_now": false,
+    "adapter_runtime_invocation_now": false,
+    "route_added_now": false,
+    "ui_write_action_added_now": false,
+    "proof_evidence_write_now": false,
+    "perspective_or_canonical_graph_write_now": false,
+    "work_item_creation_now": false,
+    "source_fetch_now": false,
+    "provider_or_openai_call_now": false,
+    "retrieval_or_rag_now": false,
+    "external_handoff_now": false,
+    "browser_persistence_now": false,
+    "durable_idempotency_write_now": false,
+    "durable_rollback_write_now": false,
+    "durable_audit_write_now": false,
+    "durable_observability_write_now": false
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_single_claim_product_write_preflight_command_envelope_contract_tests",
+  "next_recommended_slice": "single_claim_product_write_preflight_command_envelope_contract_tests",
+  "preflight_validation_matrix": [
+    {
+      "check_id": "positive_envelope_from_committed_noop_report_passes",
+      "check_group": "positive",
+      "mutation_summary": "positive envelope from committed no-op report passes",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "actual_status": "pass",
+      "actual_failure_codes": [],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_report_failed_blocks",
+      "check_group": "source_noop",
+      "mutation_summary": "no-op report failed blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_final_status_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_final_status_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_report_status_blocked_blocks",
+      "check_group": "source_noop",
+      "mutation_summary": "no-op report status blocked blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_status_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_status_not_ready"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_report_recommendation_wrong_blocks",
+      "check_group": "source_noop",
+      "mutation_summary": "no-op report recommendation wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_recommendation_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_recommendation_not_ready"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_report_next_slice_wrong_blocks",
+      "check_group": "source_noop",
+      "mutation_summary": "no-op report next slice wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_next_slice_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_next_slice_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_report_validation_false_blocks",
+      "check_group": "source_noop",
+      "mutation_summary": "no-op report validation false blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_validation_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_validation_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "operator_decision_required_false_blocks",
+      "check_group": "operator",
+      "mutation_summary": "operator decision requirement missing blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_operator_decision_requirement_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_operator_decision_requirement_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "operator_decision_satisfied_now_true_blocks",
+      "check_group": "operator",
+      "mutation_summary": "operator decision satisfied now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_operator_decision_satisfied_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_operator_decision_satisfied_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "operator_may_approve_product_write_now_true_blocks",
+      "check_group": "operator",
+      "mutation_summary": "operator may approve product write now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_operator_may_approve_product_write_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_operator_may_approve_product_write_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "source_operator_raw_manual_note_text_true_blocks",
+      "check_group": "operator",
+      "mutation_summary": "operator raw manual note text true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_operator_raw_manual_note_text_included"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_operator_raw_manual_note_text_included"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "no_write_closeout_status_wrong_blocks",
+      "check_group": "no_write",
+      "mutation_summary": "no-write closeout status wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_status_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_no_write_closeout_status_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "no_write_closeout_product_db_write_true_blocks",
+      "check_group": "no_write",
+      "mutation_summary": "no-write closeout product DB write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_product_db_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_no_write_closeout_product_db_write_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "no_write_closeout_db_open_true_blocks",
+      "check_group": "no_write",
+      "mutation_summary": "no-write closeout DB open true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_db_open_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_no_write_closeout_db_open_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "no_write_closeout_sql_execution_true_blocks",
+      "check_group": "no_write",
+      "mutation_summary": "no-write closeout SQL execution true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_sql_execution_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_no_write_closeout_sql_execution_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "no_write_closeout_transaction_execution_true_blocks",
+      "check_group": "no_write",
+      "mutation_summary": "no-write closeout transaction execution true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_transaction_execution_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_no_write_closeout_transaction_execution_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "invocation_closeout_status_wrong_blocks",
+      "check_group": "invocation",
+      "mutation_summary": "invocation closeout status wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_invocation_result_status_invalid"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_invocation_result_status_invalid"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "invocation_closeout_failed_probe_count_positive_blocks",
+      "check_group": "invocation",
+      "mutation_summary": "invocation closeout failed probe count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_invocation_failed_probe_count_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_invocation_failed_probe_count_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_preview_executable_now_true_blocks",
+      "check_group": "noop_preview",
+      "mutation_summary": "no-op preview executable now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_preview_executable_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_preview_executable_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_preview_persisted_now_true_blocks",
+      "check_group": "noop_preview",
+      "mutation_summary": "no-op preview persisted now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_preview_persisted_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_preview_persisted_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_preview_product_write_allowed_now_true_blocks",
+      "check_group": "noop_preview",
+      "mutation_summary": "no-op preview product write allowed now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_preview_product_write_allowed_now"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_preview_product_write_allowed_now"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "noop_preview_product_claim_id_non_null_blocks",
+      "check_group": "noop_preview",
+      "mutation_summary": "no-op preview product claim ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_preview_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_noop_preview_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_envelope_persisted_now_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "command envelope persisted now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_persisted_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_command_envelope_persisted_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_envelope_executable_now_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "command envelope executable now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_executable_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_command_envelope_executable_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_allowed_now_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "product write allowed now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_write_allowed_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_product_write_allowed_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_authority_granted_now_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "product write authority granted now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_write_authority_granted_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_product_write_authority_granted_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_write_implementation_allowed_now_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "product write implementation allowed now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_write_implementation_allowed_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_product_write_implementation_allowed_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_claim_id_non_null_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "product claim ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_id_allocation_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "product ID allocation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_id_allocation_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_product_id_allocation_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_db_write_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "product DB write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_db_write_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_product_db_write_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "db_open_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "DB open true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_db_open_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_db_open_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "sql_execution_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "SQL execution true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_sql_execution_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_sql_execution_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "transaction_execution_now_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "transaction execution now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_transaction_execution_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_transaction_execution_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "adapter_runtime_invocation_now_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "adapter runtime invocation now true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_adapter_runtime_invocation_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_adapter_runtime_invocation_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "route_added_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "route added true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_route_added_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_route_added_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "ui_write_action_added_true_blocks",
+      "check_group": "top_level",
+      "mutation_summary": "UI write action added true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_ui_write_action_added_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_ui_write_action_added_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_input_raw_manual_note_text_true_blocks",
+      "check_group": "command_input",
+      "mutation_summary": "command input raw manual note text true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_raw_manual_note_text_included_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "command_envelope_input_raw_manual_note_text_included_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_input_product_claim_id_non_null_blocks",
+      "check_group": "command_input",
+      "mutation_summary": "command input product claim ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "command_envelope_input_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_input_db_path_non_null_blocks",
+      "check_group": "command_input",
+      "mutation_summary": "command input DB path non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_db_path_not_null"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "command_envelope_input_db_path_not_null"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "command_input_sql_text_non_null_blocks",
+      "check_group": "command_input",
+      "mutation_summary": "command input SQL text non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_sql_text_not_null"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "command_envelope_input_sql_text_not_null"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_claim_draft_product_claim_id_non_null_blocks",
+      "check_group": "draft",
+      "mutation_summary": "product claim draft product claim ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_claim_draft_preview_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_claim_draft_write_count_positive_blocks",
+      "check_group": "draft",
+      "mutation_summary": "product claim draft write count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_write_operation_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_claim_draft_preview_write_operation_count_now_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_claim_draft_db_write_count_positive_blocks",
+      "check_group": "draft",
+      "mutation_summary": "product claim draft DB write count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_db_write_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_claim_draft_preview_db_write_count_now_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "product_claim_draft_sql_statement_count_positive_blocks",
+      "check_group": "draft",
+      "mutation_summary": "product claim draft SQL statement count positive blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_sql_statement_count_now_not_zero"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "product_claim_draft_preview_sql_statement_count_now_not_zero"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "idempotency_durable_write_true_blocks",
+      "check_group": "preview",
+      "mutation_summary": "idempotency durable write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "idempotency_preview_durable_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "idempotency_preview_durable_write_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "rollback_durable_write_true_blocks",
+      "check_group": "preview",
+      "mutation_summary": "rollback durable write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "rollback_preview_durable_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "rollback_preview_durable_write_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "audit_durable_write_true_blocks",
+      "check_group": "preview",
+      "mutation_summary": "audit durable write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "audit_preview_durable_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "audit_preview_durable_write_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "observability_durable_write_true_blocks",
+      "check_group": "preview",
+      "mutation_summary": "observability durable write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "observability_preview_durable_write_now_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "observability_preview_durable_write_now_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "missing_rejection_reason_blocks",
+      "check_group": "rejection",
+      "mutation_summary": "missing rejection reason blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_rejection_reason_db_write_not_allowed_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "preflight_rejection_reason_db_write_not_allowed_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "normalized_product_claim_id_non_null_blocks",
+      "check_group": "id_scan",
+      "mutation_summary": "normalized product claim ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "proof_id_non_null_blocks",
+      "check_group": "id_scan",
+      "mutation_summary": "proof ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "idempotency_preview_proof_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "idempotency_preview_proof_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "evidence_id_non_null_blocks",
+      "check_group": "id_scan",
+      "mutation_summary": "evidence ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "rollback_preview_evidence_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "rollback_preview_evidence_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "perspective_id_non_null_blocks",
+      "check_group": "id_scan",
+      "mutation_summary": "Perspective ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "audit_preview_perspective_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "audit_preview_perspective_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "work_item_id_non_null_blocks",
+      "check_group": "id_scan",
+      "mutation_summary": "work item ID non-null blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "observability_preview_work_item_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "observability_preview_work_item_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "failed_optional_noop_report_blocks",
+      "check_group": "optional_report",
+      "mutation_summary": "failed optional no-op report blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_noop_invocation_report_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "optional_noop_invocation_report_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "optional_pass_missing_nested_payload_blocks",
+      "check_group": "optional_report",
+      "mutation_summary": "optional pass missing nested payload blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_noop_invocation_report_missing_payload"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "optional_noop_invocation_report_missing_payload"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_empty_delta_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "empty changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_changed_file_delta_empty"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_changed_file_delta_empty",
+        "static_boundary_expected_files_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_package_addition_outside_allowlist_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "package addition outside allowlist blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist",
+        "static_boundary_expected_package_script_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist",
+        "static_boundary_expected_package_script_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_missing_expected_package_script_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "missing expected package script blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_expected_package_script_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_package_script_missing"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_schema_db_sql_file_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "schema/db/sql file blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_schema_db_sql_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_files_missing",
+        "static_boundary_schema_db_sql_changed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_app_api_route_file_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "App API route file blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_app_api_route_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_files_missing",
+        "static_boundary_app_api_route_changed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_app_router_ui_path_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "App Router UI path blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_expected_files_missing",
+        "static_boundary_ui_changed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_external_call_pattern_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "external call pattern blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_browser_persistence_pattern_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "browser persistence pattern blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_browser_persistence_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_browser_persistence_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_app_server_startup_pattern_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "app server startup pattern blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_app_server_startup_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_app_server_startup_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "static_boundary_executable_sql_string_blocks",
+      "check_group": "static_boundary",
+      "mutation_summary": "executable SQL string blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_executable_sql_string_present"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "static_boundary_executable_sql_string_present"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "explicit_forbidden_surface_command_persistence_blocks",
+      "check_group": "forbidden_surface",
+      "mutation_summary": "command envelope persistence forbidden surface true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_command_envelope_persistence_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "explicit_forbidden_surface_command_envelope_persistence_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "explicit_forbidden_surface_provider_call_blocks",
+      "check_group": "forbidden_surface",
+      "mutation_summary": "provider call forbidden surface true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_provider_or_openai_call_not_false"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "explicit_forbidden_surface_provider_or_openai_call_not_false"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "source_dry_run_harness_final_status_fail_blocks",
+      "check_group": "source_chain",
+      "mutation_summary": "source dry-run harness final status fail blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_dry_run_harness_final_status_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_dry_run_harness_final_status_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "source_contract_suite_final_status_fail_blocks",
+      "check_group": "source_chain",
+      "mutation_summary": "source contract suite final status fail blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_contract_tests_final_status_not_passed"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_contract_tests_final_status_not_passed"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "source_disabled_adapter_skeleton_enabled_blocks",
+      "check_group": "source_chain",
+      "mutation_summary": "source disabled adapter skeleton enabled blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_disabled_adapter_skeleton_enabled"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_disabled_adapter_skeleton_enabled"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "source_authority_contract_bundle_status_wrong_blocks",
+      "check_group": "source_chain",
+      "mutation_summary": "source authority contract bundle status wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_authority_contract_bundle_status_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_authority_contract_bundle_status_not_ready"
+      ],
+      "check_status": "pass"
+    },
+    {
+      "check_id": "source_product_write_gate_design_status_wrong_blocks",
+      "check_group": "source_chain",
+      "mutation_summary": "source product write gate design status wrong blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_product_write_gate_design_status_not_ready"
+      ],
+      "actual_status": "fail",
+      "actual_failure_codes": [
+        "source_evidence_product_write_gate_design_status_not_ready"
+      ],
+      "check_status": "pass"
+    }
+  ],
+  "local_copy_packet": {
+    "markdown": "# Manual Note Single-Claim Product Write Preflight Command Envelope\n\nProduct write preflight command envelope only.\nThe command envelope is non-persisted, non-executing, and product write remains blocked.\npreflight_command_envelope_status: product_write_preflight_command_envelope_only\npreflight_command_envelope_fingerprint: fnv1a32:96bec421\nnext_recommended_slice: single_claim_product_write_preflight_command_envelope_contract_tests",
+    "json": "{\n  \"preflight_command_envelope_status\": \"product_write_preflight_command_envelope_only\",\n  \"command_envelope_created_now\": true,\n  \"command_envelope_persisted_now\": false,\n  \"command_envelope_executable_now\": false,\n  \"product_write_allowed_now\": false,\n  \"product_claim_id\": null,\n  \"db_open\": false,\n  \"sql_execution\": false,\n  \"transaction_execution_now\": false,\n  \"next_recommended_slice\": \"single_claim_product_write_preflight_command_envelope_contract_tests\"\n}",
+    "fingerprint": "fnv1a32:96bec421",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "command_envelope_persisted_now": false,
+    "product_write_allowed_now": false
+  }
+}
