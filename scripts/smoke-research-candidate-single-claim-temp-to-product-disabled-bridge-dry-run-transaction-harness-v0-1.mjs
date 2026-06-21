@@ -936,8 +936,21 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction harness",
+    "Manual note single-claim product write disabled adapter contract tests",
     "disabled dry-run transaction harness only",
     "does not implement product write",
     "does not execute a DB transaction",
