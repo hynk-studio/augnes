@@ -788,11 +788,26 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
+    "Manual note single-claim temp-to-product disabled bridge dry-run transaction harness",
     "disabled dry-run transaction plan only",
+    "disabled dry-run transaction harness only",
     "does not implement product write",
     "does not execute a transaction",
+    "does not execute a DB transaction",
     "does not enable an adapter",
     "does not allocate product IDs",
     "does not open DB",
@@ -803,6 +818,8 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     "Product write remains blocked",
     "ready_for_disabled_dry_run_transaction_harness",
     "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
+    "ready_for_product_write_authority_contract_bundle",
+    "single_claim_product_write_authority_contract_bundle",
     "not product write",
   ]) {
     assert.ok(docsIndex.includes(requiredText), `docs must include ${requiredText}`);
@@ -819,6 +836,18 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     ),
     "browser validator should assert no dry-run transaction plan browser route",
   );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_artifact_note",
+    ),
+    "browser validator should include dry-run transaction harness artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_no_browser_route",
+    ),
+    "browser validator should assert no dry-run transaction harness browser route",
+  );
   for (const smokeText of [
     contractTestsSmoke,
     skeletonSmoke,
@@ -826,6 +855,15 @@ function assertDocsPackageBrowserAndAdjacentSmokePointers() {
     productWriteGateSmoke,
   ]) {
     for (const scriptName of allowedPackageScriptNames) {
+      assert.ok(
+        smokeText.includes(scriptName),
+        `adjacent smoke should allow ${scriptName}`,
+      );
+    }
+    for (const scriptName of [
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1",
+      "harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1",
+    ]) {
       assert.ok(
         smokeText.includes(scriptName),
         `adjacent smoke should allow ${scriptName}`,

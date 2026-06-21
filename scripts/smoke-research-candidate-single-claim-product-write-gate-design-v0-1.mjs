@@ -253,9 +253,22 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim product write gate design",
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
+    "Manual note single-claim temp-to-product disabled bridge dry-run transaction harness",
     "consumes temp DB result contract evidence",
     "defines product-write authority gates",
     "intentionally block product write",
@@ -263,6 +276,7 @@ function assertDocsPackageAndBrowserPointers() {
     "Manual note single-claim temp-to-product disabled bridge skeleton contract tests",
     "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan",
     "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
+    "single_claim_product_write_authority_contract_bundle",
     "does not open DB",
     "does not execute SQL",
     "no product DB write",
@@ -296,6 +310,18 @@ function assertDocsPackageAndBrowserPointers() {
       "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan_no_browser_route",
     ),
     "browser validator should assert no dry-run transaction-plan browser route",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_artifact_note",
+    ),
+    "browser validator should include dry-run transaction-harness artifact note",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_no_browser_route",
+    ),
+    "browser validator should assert no dry-run transaction-harness browser route",
   );
   assert.ok(
     resultContractSmoke.includes(
@@ -361,6 +387,12 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"plan:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"',
+        ) ||
+        line.includes(
+          '"harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"',
         ),
       `package.json must only add product write gate-design, temp-to-product bridge design, or disabled bridge skeleton scripts, not dependencies: ${line}`,
     );

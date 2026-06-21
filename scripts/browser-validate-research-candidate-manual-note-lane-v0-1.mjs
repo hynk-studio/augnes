@@ -39,6 +39,8 @@ const SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_SKELETON_CONTRACT_TESTS_REPOR
   "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1/report.json";
 const SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_DRY_RUN_TRANSACTION_PLAN_REPORT_PATH =
   "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1/report.json";
+const SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_DRY_RUN_TRANSACTION_HARNESS_REPORT_PATH =
+  "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -164,6 +166,8 @@ function createInitialReport() {
     single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests_artifact_note:
       null,
     single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan_artifact_note:
+      null,
+    single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_artifact_note:
       null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
@@ -466,6 +470,27 @@ async function main() {
       artifact_note:
         report
           .single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan_artifact_note,
+    },
+  );
+  report.single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_artifact_note =
+    buildSingleClaimTempToProductDisabledBridgeDryRunTransactionHarnessArtifactNote();
+  const singleClaimTempToProductDisabledBridgeDryRunTransactionHarnessRouteRequests =
+    requestLog.filter((request) =>
+      /single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness|dry-run-transaction-harness/i.test(
+        request.path ?? "",
+      ),
+    );
+  recordAssertion(
+    "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_no_browser_route",
+    singleClaimTempToProductDisabledBridgeDryRunTransactionHarnessRouteRequests.length ===
+      0,
+    "Single-claim temp-to-product disabled bridge dry-run transaction-harness artifacts added no browser-observed route behavior.",
+    {
+      single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_route_request_count:
+        singleClaimTempToProductDisabledBridgeDryRunTransactionHarnessRouteRequests.length,
+      artifact_note:
+        report
+          .single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1821,6 +1846,20 @@ function buildSingleClaimTempToProductDisabledBridgeDryRunTransactionPlanArtifac
     note: reportExists
       ? "Single-claim temp-to-product disabled bridge dry-run transaction-plan report was present before or during browser validation; browser flow does not execute non-UI dry-run transaction-plan artifacts."
       : "Single-claim temp-to-product disabled bridge dry-run transaction-plan report was not present; browser flow does not execute non-UI dry-run transaction-plan artifacts.",
+  };
+}
+
+function buildSingleClaimTempToProductDisabledBridgeDryRunTransactionHarnessArtifactNote() {
+  const reportExists = existsSync(
+    SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_DRY_RUN_TRANSACTION_HARNESS_REPORT_PATH,
+  );
+  return {
+    report_path:
+      SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_DRY_RUN_TRANSACTION_HARNESS_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Single-claim temp-to-product disabled bridge dry-run transaction-harness report was present before or during browser validation; browser flow does not execute non-UI dry-run transaction-harness artifacts."
+      : "Single-claim temp-to-product disabled bridge dry-run transaction-harness report was not present; browser flow does not execute non-UI dry-run transaction-harness artifacts.",
   };
 }
 

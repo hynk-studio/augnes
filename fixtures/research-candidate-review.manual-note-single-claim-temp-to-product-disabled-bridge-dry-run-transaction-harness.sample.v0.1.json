@@ -1,0 +1,1578 @@
+{
+  "dry_run_transaction_harness_kind": "manual_note_single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
+  "dry_run_transaction_harness_version": "manual_note_single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness.v0.1",
+  "dry_run_transaction_harness_fingerprint": "fnv1a32:7b7aeb29",
+  "source_evidence": {
+    "dry_run_transaction_plan": {
+      "source_selection": {
+        "source_label": "dry_run_transaction_plan",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1/report.json",
+        "optional_report_present": true,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "plan_fingerprint": "fnv1a32:c9bac5ae",
+      "dry_run_transaction_plan_status": "disabled_dry_run_transaction_plan_only",
+      "recommendation_status": "ready_for_disabled_dry_run_transaction_harness",
+      "next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
+      "transaction_step_count": 19,
+      "refusal_reason_count": 27,
+      "static_boundary_base_mode": "committed_allowlist_fallback_after_empty_or_downstream_delta",
+      "static_boundary_changed_file_count": 11,
+      "static_boundary_used_fallback_allowlist": true
+    },
+    "contract_tests": {
+      "source_selection": {
+        "source_label": "contract_tests",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1/report.json",
+        "optional_report_present": true,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "suite_fingerprint": "fnv1a32:ee6b6b3d",
+      "total_cases": 70,
+      "positive_cases": 15,
+      "expected_negative_cases": 55,
+      "unexpected_passes": 0,
+      "unexpected_failures": 0,
+      "final_status": "pass",
+      "contract_suite_status": "disabled_bridge_skeleton_contract_tests_passed",
+      "recommendation_status": "ready_for_disabled_bridge_dry_run_transaction_plan",
+      "next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan",
+      "static_boundary_base_mode": "merge_base:origin/main",
+      "static_boundary_changed_file_count": 11,
+      "static_boundary_used_fallback_allowlist": false
+    },
+    "disabled_bridge_skeleton": {
+      "source_selection": {
+        "source_label": "disabled_bridge_skeleton",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1/report.json",
+        "optional_report_present": true,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "skeleton_fingerprint": "fnv1a32:94b777bb",
+      "disabled_bridge_skeleton_status": "single_claim_disabled_bridge_skeleton_only",
+      "bridge_adapter_enabled": false,
+      "bridge_execution_allowed_now": false,
+      "product_write_allowed_now": false,
+      "disabled_adapter_boundary_summary": {
+        "adapter_enabled": false,
+        "adapter_invocation_allowed_now": false
+      },
+      "future_product_write_intent_summary": {
+        "product_claim_id": null,
+        "product_write_statement_count": 0,
+        "sql_statement_count": 0,
+        "db_opened": false,
+        "route_added": false,
+        "ui_action_added": false,
+        "execution_status": "blocked_disabled_skeleton_only"
+      },
+      "placeholder_record_mapping_summary": {
+        "product_idempotency_record_id": null,
+        "product_rollback_record_id": null,
+        "product_audit_record_id": null,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false
+      },
+      "explicit_forbidden_surfaces": {
+        "product_db_write": false,
+        "product_id_allocation": false,
+        "product_route": false,
+        "product_write_adapter_enabled": false,
+        "sql_execution": false,
+        "db_open": false,
+        "schema_or_migration_change": false,
+        "proof_evidence_write": false,
+        "perspective_or_canonical_graph_write": false,
+        "work_item_creation": false,
+        "source_fetch": false,
+        "provider_or_openai_call": false,
+        "retrieval_or_rag": false,
+        "external_handoff": false,
+        "browser_persistence": false,
+        "ui_write_action": false
+      }
+    },
+    "temp_to_product_bridge_design": {
+      "source_selection": {
+        "source_label": "temp_to_product_bridge_design",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-bridge-design.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1/report.json",
+        "optional_report_present": true,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "design_fingerprint": "fnv1a32:464b6626",
+      "bridge_design_status": "single_claim_bridge_design_only",
+      "recommendation_status": "ready_for_disabled_bridge_skeleton",
+      "next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_skeleton",
+      "selected_temp_claim_identity_summary": {
+        "selected_temp_claim_record_id": "temp-claim:aa03dfea",
+        "source_operation_id": "disabled-plan-op:claim:001",
+        "source_temp_intent_id": "temp-intent:claim:001",
+        "temp_idempotency_key": "temp-idempotency:d2caa29d",
+        "result_contract_evidence_fingerprint": "fnv1a32:a65bf1fe",
+        "gate_design_fingerprint": "fnv1a32:ff55b3ed",
+        "operator_decision_fingerprint_placeholder": "operator-decision-fingerprint:blocked-until-explicit-contract",
+        "operator_decision_status": "blocked_until_explicit_operator_decision_contract"
+      },
+      "explicit_forbidden_surfaces": {
+        "proof_evidence_write": false,
+        "perspective_or_canonical_graph_write": false,
+        "work_item_creation": false,
+        "source_fetch": false,
+        "provider_or_openai_call": false,
+        "retrieval_or_rag": false,
+        "external_handoff": false,
+        "product_db_write": false,
+        "product_id_allocation": false,
+        "sql_execution": false,
+        "db_open": false,
+        "schema_or_migration_change": false,
+        "route_added": false,
+        "ui_write_action_added": false,
+        "adapter_enabled": false
+      }
+    },
+    "product_write_gate_design": {
+      "source_selection": {
+        "source_label": "product_write_gate_design",
+        "source_used": "committed_fixture",
+        "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json",
+        "optional_report_path": "/tmp/augnes-single-claim-product-write-gate-design-v0-1/report.json",
+        "optional_report_present": true,
+        "optional_report_ignored_for_fixture_mode": true,
+        "fallback_to_committed_fixture": true
+      },
+      "design_fingerprint": "fnv1a32:ff55b3ed",
+      "gate_design_status": "product_write_gate_design_only",
+      "recommendation_status": "ready_for_single_claim_bridge_design",
+      "pass_count": 3,
+      "warn_count": 3,
+      "block_count": 12
+    },
+    "dry_run_static_boundary": {
+      "static_boundary_base_ref": "committed_allowlist",
+      "static_boundary_base_mode": "committed_allowlist_fallback_after_empty_or_downstream_delta",
+      "static_boundary_changed_file_count": 12,
+      "static_boundary_package_added_line_count": 2,
+      "static_boundary_used_fallback_allowlist": true
+    }
+  },
+  "dry_run_transaction_harness_status": "disabled_dry_run_transaction_harness_only",
+  "recommendation_status": "ready_for_product_write_authority_contract_bundle",
+  "next_recommended_slice": "single_claim_product_write_authority_contract_bundle",
+  "dry_run_execution_allowed_now": false,
+  "transaction_execution_allowed_now": false,
+  "bridge_execution_allowed_now": false,
+  "product_write_allowed_now": false,
+  "product_db_write": false,
+  "product_id_allocation": false,
+  "adapter_enabled": false,
+  "sql_execution": false,
+  "db_open": false,
+  "source_transaction_step_graph": {
+    "ordered_step_count": 19,
+    "ordered_steps": [
+      {
+        "step_id": "dry_run_step_01",
+        "step_group": "preflight_source_evidence",
+        "step_label": "preflight source evidence",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "upstream_contract_suite_pass",
+        "blocked_until": "upstream_contract_suite_pass",
+        "depends_on_step_ids": [],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_02",
+        "step_group": "operator_decision",
+        "step_label": "operator decision",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "explicit_operator_decision_contract",
+        "blocked_until": "explicit_operator_decision_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_01"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_03",
+        "step_group": "selected_claim_identity",
+        "step_label": "selected claim identity",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "selected_temp_claim_identity_contract",
+        "blocked_until": "selected_temp_claim_identity_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_02"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_04",
+        "step_group": "product_schema_review",
+        "step_label": "product schema review",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "product_claim_schema_contract",
+        "blocked_until": "product_claim_schema_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_03"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_05",
+        "step_group": "product_claim_id_allocation",
+        "step_label": "product claim id allocation",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "product_claim_id_allocation_contract",
+        "blocked_until": "product_claim_id_allocation_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_04"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_06",
+        "step_group": "idempotency_lookup",
+        "step_label": "idempotency lookup",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "durable_idempotency_storage_contract",
+        "blocked_until": "durable_idempotency_storage_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_05"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "future_contract_only",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_07",
+        "step_group": "transaction_begin_boundary",
+        "step_label": "transaction begin boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "disabled_dry_run_transaction_harness_contract",
+        "blocked_until": "disabled_dry_run_transaction_harness_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_06"
+        ],
+        "rollback_scope": "future_contract_only",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_08",
+        "step_group": "product_claim_insert_boundary",
+        "step_label": "product claim insert boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "product_write_contract_not_present",
+        "blocked_until": "product_write_contract_not_present",
+        "depends_on_step_ids": [
+          "dry_run_step_07"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_09",
+        "step_group": "product_idempotency_record_boundary",
+        "step_label": "product idempotency record boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "durable_idempotency_storage_contract",
+        "blocked_until": "durable_idempotency_storage_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_08"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "future_contract_only",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_10",
+        "step_group": "product_rollback_record_boundary",
+        "step_label": "product rollback record boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "durable_rollback_storage_contract",
+        "blocked_until": "durable_rollback_storage_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_09"
+        ],
+        "rollback_scope": "future_contract_only",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_11",
+        "step_group": "product_review_audit_record_boundary",
+        "step_label": "product review audit record boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "durable_audit_storage_contract",
+        "blocked_until": "durable_audit_storage_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_10"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "future_contract_only"
+      },
+      {
+        "step_id": "dry_run_step_12",
+        "step_group": "observability_record_boundary",
+        "step_label": "observability record boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "durable_observability_contract",
+        "blocked_until": "durable_observability_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_11"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "future_contract_only"
+      },
+      {
+        "step_id": "dry_run_step_13",
+        "step_group": "transaction_commit_boundary",
+        "step_label": "transaction commit boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "product_write_commit_contract_not_present",
+        "blocked_until": "product_write_commit_contract_not_present",
+        "depends_on_step_ids": [
+          "dry_run_step_12"
+        ],
+        "rollback_scope": "future_contract_only",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_14",
+        "step_group": "transaction_rollback_boundary",
+        "step_label": "transaction rollback boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "durable_rollback_storage_contract",
+        "blocked_until": "durable_rollback_storage_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_13"
+        ],
+        "rollback_scope": "future_contract_only",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_15",
+        "step_group": "proof_evidence_refusal_boundary",
+        "step_label": "proof evidence refusal boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "proof_evidence_authority_contract",
+        "blocked_until": "proof_evidence_authority_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_14"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_16",
+        "step_group": "perspective_canonical_refusal_boundary",
+        "step_label": "perspective canonical refusal boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "canonical_perspective_authority_contract",
+        "blocked_until": "canonical_perspective_authority_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_15"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_17",
+        "step_group": "work_item_refusal_boundary",
+        "step_label": "work item refusal boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "work_item_creation_contract",
+        "blocked_until": "work_item_creation_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_16"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_18",
+        "step_group": "provider_retrieval_source_fetch_refusal_boundary",
+        "step_label": "provider retrieval source fetch refusal boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "source_provider_retrieval_authority_contract",
+        "blocked_until": "source_provider_retrieval_authority_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_17"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      },
+      {
+        "step_id": "dry_run_step_19",
+        "step_group": "external_handoff_refusal_boundary",
+        "step_label": "external handoff refusal boundary",
+        "would_run_in_future": true,
+        "execution_allowed_now": false,
+        "writes_product_db_now": false,
+        "sql_statement_count_now": 0,
+        "required_future_contract": "external_handoff_contract",
+        "blocked_until": "external_handoff_contract",
+        "depends_on_step_ids": [
+          "dry_run_step_18"
+        ],
+        "rollback_scope": "none_now",
+        "idempotency_scope": "none_now",
+        "audit_scope": "none_now"
+      }
+    ]
+  },
+  "dry_run_transaction_trace": {
+    "trace_row_count": 19,
+    "trace_rows": [
+      {
+        "trace_id": "disabled_harness_trace_01",
+        "source_step_id": "dry_run_step_01",
+        "step_group": "preflight_source_evidence",
+        "planned_step_label": "preflight source evidence",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_operator_decision",
+        "next_required_contract": "upstream_contract_suite_pass"
+      },
+      {
+        "trace_id": "disabled_harness_trace_02",
+        "source_step_id": "dry_run_step_02",
+        "step_group": "operator_decision",
+        "planned_step_label": "operator decision",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_operator_decision",
+        "next_required_contract": "explicit_operator_decision_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_03",
+        "source_step_id": "dry_run_step_03",
+        "step_group": "selected_claim_identity",
+        "planned_step_label": "selected claim identity",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_operator_decision",
+        "next_required_contract": "selected_temp_claim_identity_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_04",
+        "source_step_id": "dry_run_step_04",
+        "step_group": "product_schema_review",
+        "planned_step_label": "product schema review",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_product_schema_contract",
+        "next_required_contract": "product_claim_schema_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_05",
+        "source_step_id": "dry_run_step_05",
+        "step_group": "product_claim_id_allocation",
+        "planned_step_label": "product claim id allocation",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_product_id_allocation_contract",
+        "next_required_contract": "product_claim_id_allocation_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_06",
+        "source_step_id": "dry_run_step_06",
+        "step_group": "idempotency_lookup",
+        "planned_step_label": "idempotency lookup",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_idempotency_storage_contract",
+        "next_required_contract": "durable_idempotency_storage_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_07",
+        "source_step_id": "dry_run_step_07",
+        "step_group": "transaction_begin_boundary",
+        "planned_step_label": "transaction begin boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "db_path_provided",
+        "next_required_contract": "disabled_dry_run_transaction_harness_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_08",
+        "source_step_id": "dry_run_step_08",
+        "step_group": "product_claim_insert_boundary",
+        "planned_step_label": "product claim insert boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "product_write_requested",
+        "next_required_contract": "product_write_contract_not_present"
+      },
+      {
+        "trace_id": "disabled_harness_trace_09",
+        "source_step_id": "dry_run_step_09",
+        "step_group": "product_idempotency_record_boundary",
+        "planned_step_label": "product idempotency record boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_idempotency_storage_contract",
+        "next_required_contract": "durable_idempotency_storage_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_10",
+        "source_step_id": "dry_run_step_10",
+        "step_group": "product_rollback_record_boundary",
+        "planned_step_label": "product rollback record boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_rollback_storage_contract",
+        "next_required_contract": "durable_rollback_storage_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_11",
+        "source_step_id": "dry_run_step_11",
+        "step_group": "product_review_audit_record_boundary",
+        "planned_step_label": "product review audit record boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_audit_storage_contract",
+        "next_required_contract": "durable_audit_storage_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_12",
+        "source_step_id": "dry_run_step_12",
+        "step_group": "observability_record_boundary",
+        "planned_step_label": "observability record boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_operator_decision",
+        "next_required_contract": "durable_observability_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_13",
+        "source_step_id": "dry_run_step_13",
+        "step_group": "transaction_commit_boundary",
+        "planned_step_label": "transaction commit boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "product_write_requested",
+        "next_required_contract": "product_write_commit_contract_not_present"
+      },
+      {
+        "trace_id": "disabled_harness_trace_14",
+        "source_step_id": "dry_run_step_14",
+        "step_group": "transaction_rollback_boundary",
+        "planned_step_label": "transaction rollback boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "missing_rollback_storage_contract",
+        "next_required_contract": "durable_rollback_storage_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_15",
+        "source_step_id": "dry_run_step_15",
+        "step_group": "proof_evidence_refusal_boundary",
+        "planned_step_label": "proof evidence refusal boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "proof_evidence_write_requested",
+        "next_required_contract": "proof_evidence_authority_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_16",
+        "source_step_id": "dry_run_step_16",
+        "step_group": "perspective_canonical_refusal_boundary",
+        "planned_step_label": "perspective canonical refusal boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "perspective_canonical_graph_write_requested",
+        "next_required_contract": "canonical_perspective_authority_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_17",
+        "source_step_id": "dry_run_step_17",
+        "step_group": "work_item_refusal_boundary",
+        "planned_step_label": "work item refusal boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "work_item_creation_requested",
+        "next_required_contract": "work_item_creation_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_18",
+        "source_step_id": "dry_run_step_18",
+        "step_group": "provider_retrieval_source_fetch_refusal_boundary",
+        "planned_step_label": "provider retrieval source fetch refusal boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "provider_openai_call_requested",
+        "next_required_contract": "source_provider_retrieval_authority_contract"
+      },
+      {
+        "trace_id": "disabled_harness_trace_19",
+        "source_step_id": "dry_run_step_19",
+        "step_group": "external_handoff_refusal_boundary",
+        "planned_step_label": "external handoff refusal boundary",
+        "observed_action": "not_executed_disabled_harness_only",
+        "simulated_result": "blocked_until_future_authority_contract",
+        "execution_allowed_now": false,
+        "transaction_executed_now": false,
+        "product_db_write_now": false,
+        "sql_statement_count_now": 0,
+        "product_ids_created_now": false,
+        "idempotency_write_executed_now": false,
+        "rollback_write_executed_now": false,
+        "audit_write_executed_now": false,
+        "observability_write_executed_now": false,
+        "refusal_reason_if_blocked": "external_handoff_requested",
+        "next_required_contract": "external_handoff_contract"
+      }
+    ]
+  },
+  "refusal_probe_matrix": [
+    {
+      "probe_id": "upstream_plan_final_status_failed",
+      "probe_group": "upstream_report",
+      "mutation_summary": "optional upstream dry-run plan final_status fail",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "optional_dry_run_transaction_plan_report_not_passed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "optional_dry_run_transaction_plan_report_not_passed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "dry_run_plan_recommendation_blocked",
+      "probe_group": "upstream_plan",
+      "mutation_summary": "dry-run plan recommendation blocked",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_recommendation_not_ready"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_recommendation_not_ready"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "dry_run_plan_missing_transaction_step_graph",
+      "probe_group": "upstream_plan",
+      "mutation_summary": "dry-run plan missing transaction step graph",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_step_graph_missing"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_step_graph_missing"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "transaction_step_execution_allowed_now_true",
+      "probe_group": "transaction_step_graph",
+      "mutation_summary": "transaction step execution_allowed_now true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_step_execution_allowed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_step_execution_allowed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "transaction_step_writes_product_db_now_true",
+      "probe_group": "transaction_step_graph",
+      "mutation_summary": "transaction step writes_product_db_now true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_step_writes_product_db"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_step_writes_product_db"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "transaction_step_sql_statement_count_positive",
+      "probe_group": "transaction_step_graph",
+      "mutation_summary": "transaction step sql_statement_count_now above zero",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_step_sql_statement_count"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_step_sql_statement_count"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "refusal_matrix_missing_product_write_refusal",
+      "probe_group": "refusal_matrix",
+      "mutation_summary": "refusal matrix missing product write refusal",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_product_write_requested"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_product_write_requested"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "refusal_matrix_missing_db_path_refusal",
+      "probe_group": "refusal_matrix",
+      "mutation_summary": "refusal matrix missing DB path refusal",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_db_path_provided"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_db_path_provided"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "refusal_matrix_missing_sql_text_refusal",
+      "probe_group": "refusal_matrix",
+      "mutation_summary": "refusal matrix missing SQL text refusal",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_sql_text_provided"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_sql_text_provided"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "refusal_matrix_missing_route_ui_refusal",
+      "probe_group": "refusal_matrix",
+      "mutation_summary": "refusal matrix missing route/UI refusal",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_product_route_requested",
+        "dry_run_transaction_plan_refusal_missing_ui_write_action_requested"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_refusal_missing_product_route_requested",
+        "dry_run_transaction_plan_refusal_missing_ui_write_action_requested"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "idempotency_envelope_write_flag_true",
+      "probe_group": "envelope",
+      "mutation_summary": "idempotency envelope write flag true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_idempotency_write_executed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_idempotency_write_executed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "rollback_envelope_write_flag_true",
+      "probe_group": "envelope",
+      "mutation_summary": "rollback envelope write flag true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_rollback_write_executed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_rollback_write_executed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "audit_envelope_write_flag_true",
+      "probe_group": "envelope",
+      "mutation_summary": "audit envelope write flag true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_audit_write_executed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_audit_write_executed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "observability_envelope_write_flag_true",
+      "probe_group": "envelope",
+      "mutation_summary": "observability envelope write flag true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_observability_write_executed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_observability_write_executed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_product_db_write_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface product_db_write true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_db_write_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_db_write_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_product_id_allocation_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface product_id_allocation true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_id_allocation_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_id_allocation_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_sql_execution_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface sql_execution true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_sql_execution_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_sql_execution_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_db_open_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface db_open true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_db_open_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_db_open_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_product_route_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface product_route true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_route_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_route_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_ui_write_action_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface ui_write_action true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_ui_write_action_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_ui_write_action_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_adapter_enabled_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface product_write_adapter_enabled true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_write_adapter_enabled_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_product_write_adapter_enabled_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_proof_evidence_write_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface proof_evidence_write true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_proof_evidence_write_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_proof_evidence_write_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_perspective_graph_write_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface perspective_or_canonical_graph_write true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_perspective_or_canonical_graph_write_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_perspective_or_canonical_graph_write_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_source_fetch_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface source_fetch true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_source_fetch_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_source_fetch_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_provider_call_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface provider_or_openai_call true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_provider_or_openai_call_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_provider_or_openai_call_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_retrieval_rag_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface retrieval_or_rag true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_retrieval_or_rag_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_retrieval_or_rag_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_external_handoff_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface external_handoff true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_external_handoff_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_external_handoff_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "forbidden_surface_browser_persistence_true",
+      "probe_group": "forbidden_surface",
+      "mutation_summary": "explicit forbidden surface browser_persistence true",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_browser_persistence_not_false"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_forbidden_surface_browser_persistence_not_false"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "product_claim_id_non_null_anywhere",
+      "probe_group": "product_id",
+      "mutation_summary": "non-null product_claim_id anywhere",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_product_id_present"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_product_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "proof_evidence_perspective_work_id_non_null_anywhere",
+      "probe_group": "product_id",
+      "mutation_summary": "non-null proof/evidence/Perspective/work item IDs anywhere",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "dry_run_transaction_plan_product_id_present"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "dry_run_transaction_plan_product_id_present"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "failed_optional_live_plan_report_nested_ready",
+      "probe_group": "optional_report",
+      "mutation_summary": "failed optional live report with nested ready plan",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "optional_dry_run_transaction_plan_report_not_passed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "optional_dry_run_transaction_plan_report_not_passed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "malformed_optional_live_plan_report",
+      "probe_group": "optional_report",
+      "mutation_summary": "malformed optional live report",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "optional_dry_run_transaction_plan_report_malformed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "optional_dry_run_transaction_plan_report_malformed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_boundary_empty_delta",
+      "probe_group": "static_boundary",
+      "mutation_summary": "static boundary empty delta",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "static_changed_file_delta_empty"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "static_changed_file_delta_empty"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_boundary_package_addition_outside_allowlist",
+      "probe_group": "static_boundary",
+      "mutation_summary": "static boundary package addition outside allowlist",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "static_dependency_added"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "static_dependency_added"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_boundary_schema_db_sql_changed_file",
+      "probe_group": "static_boundary",
+      "mutation_summary": "static boundary schema/db/sql changed file",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "static_schema_or_migration_changed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "static_schema_or_migration_changed"
+      ],
+      "probe_status": "pass"
+    },
+    {
+      "probe_id": "static_boundary_app_router_ui_file",
+      "probe_group": "static_boundary",
+      "mutation_summary": "static boundary App Router UI file such as app/foo/page.tsx",
+      "expected_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "expected_failure_codes": [
+        "static_ui_changed"
+      ],
+      "actual_status": "blocked_before_disabled_dry_run_transaction_harness",
+      "actual_failure_codes": [
+        "static_ui_changed"
+      ],
+      "probe_status": "pass"
+    }
+  ],
+  "envelope_results": {
+    "idempotency": {
+      "lookup_executed_now": false,
+      "write_executed_now": false,
+      "durable_storage_added_now": false,
+      "product_idempotency_record_id": null,
+      "source_lookup_executed_now": false,
+      "source_write_executed_now": false
+    },
+    "rollback": {
+      "rollback_write_executed_now": false,
+      "rollback_execution_allowed_now": false,
+      "product_claim_id": null,
+      "product_rollback_record_id": null,
+      "source_rollback_write_executed_now": false
+    },
+    "audit": {
+      "audit_write_executed_now": false,
+      "product_claim_id": null,
+      "product_audit_record_id": null,
+      "source_audit_write_executed_now": false
+    },
+    "observability": {
+      "observability_write_executed_now": false,
+      "product_claim_id": null,
+      "product_observability_record_id": null,
+      "source_observability_write_executed_now": false
+    }
+  },
+  "product_write_authority_contract_bundle_preview": {
+    "required_contract_count": 12,
+    "satisfied_contract_count": 0,
+    "product_write_implementation_allowed_now": false,
+    "enabled_adapter_transition_allowed_now": false,
+    "contracts": [
+      {
+        "contract_id": "explicit_operator_decision_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "product_claim_schema_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "product_claim_id_allocation_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "product_idempotency_storage_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "product_rollback_storage_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "product_review_audit_storage_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "source_verification_authority_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "proof_evidence_authority_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "canonical_perspective_authority_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "enabled_adapter_transition_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "product_write_route_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      },
+      {
+        "contract_id": "product_write_observability_contract",
+        "required": true,
+        "satisfied": false,
+        "next_required_slice": "single_claim_product_write_authority_contract_bundle"
+      }
+    ]
+  },
+  "explicit_forbidden_surfaces": {
+    "product_db_write": false,
+    "product_id_allocation": false,
+    "product_route": false,
+    "product_write_adapter_enabled": false,
+    "sql_execution": false,
+    "db_open": false,
+    "schema_or_migration_change": false,
+    "proof_evidence_write": false,
+    "perspective_or_canonical_graph_write": false,
+    "work_item_creation": false,
+    "source_fetch": false,
+    "provider_or_openai_call": false,
+    "retrieval_or_rag": false,
+    "external_handoff": false,
+    "browser_persistence": false,
+    "ui_write_action": false,
+    "transaction_execution": false,
+    "transaction_commit": false,
+    "transaction_rollback_execution": false,
+    "durable_idempotency_write": false,
+    "durable_rollback_write": false,
+    "durable_audit_write": false,
+    "durable_observability_write": false
+  },
+  "static_boundary_evidence": {
+    "static_boundary_base_ref": "committed_allowlist",
+    "static_boundary_base_mode": "committed_allowlist_fallback_after_empty_or_downstream_delta",
+    "static_boundary_base_commit": "b91ec3bb0d026e6ad4066073e096b61995bd1131",
+    "static_boundary_compare_ref": "HEAD",
+    "static_boundary_changed_files_inspected": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "static_boundary_package_added_lines_inspected": [
+      "    \"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1\": \"node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs\",",
+      "    \"harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1\": \"node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs\","
+    ],
+    "static_boundary_used_fallback_allowlist": true,
+    "expected_changed_files": [
+      "docs/00_INDEX_LATEST.md",
+      "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.sample.v0.1.json",
+      "lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.ts",
+      "package.json",
+      "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+      "scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1.mjs",
+      "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
+    ],
+    "allowed_package_script_names": [
+      "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1",
+      "harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1"
+    ]
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "local_copy_packet": {
+    "markdown": "# Manual Note Single-Claim Disabled Bridge Dry-Run Transaction Harness\n\nDisabled dry-run transaction harness only.\nNo product write, adapter enablement, product ID allocation, DB open, or SQL execution is allowed.\ndry_run_transaction_harness_status: disabled_dry_run_transaction_harness_only\ndry_run_transaction_harness_fingerprint: fnv1a32:7b7aeb29",
+    "json": "{\n  \"dry_run_transaction_harness_status\": \"disabled_dry_run_transaction_harness_only\",\n  \"product_write_allowed_now\": false,\n  \"adapter_enabled\": false,\n  \"product_db_write\": false,\n  \"product_id_allocation\": false\n}",
+    "fingerprint": "fnv1a32:7b7aeb29",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "adapter_enabled": false,
+    "bridge_execution_allowed_now": false,
+    "product_write_allowed_now": false,
+    "product_write_authority_granted": false
+  }
+}
