@@ -71,6 +71,10 @@ const allowedPackageScriptNames = [
   "smoke:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1",
   "contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1",
 ];
+const downstreamAllowedPackageScriptNames = [
+  "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+  "contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+];
 const expectedChangedFiles = [
   "docs/00_INDEX_LATEST.md",
   "fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-contract-test-cases.v0.1.json",
@@ -398,10 +402,9 @@ function assertStaticMetadata(report, label) {
     !report.static_boundary_changed_files_inspected.some(isSchemaDbSqlPath),
     `${label} must not include schema/migration/db/sql files`,
   );
-  assert.deepEqual(
-    report.static_boundary_package_added_lines_inspected.map(extractScriptName),
-    allowedPackageScriptNames,
-    `${label} package additions must be limited to the two contract-test scripts`,
+  assertAllowedPackageAdditions(
+    report.static_boundary_package_added_lines_inspected,
+    `${label} package additions must be limited to disabled-adapter or downstream preflight contract-test scripts`,
   );
   assert.equal(
     report.static_boundary_used_fallback_allowlist,
@@ -782,6 +785,16 @@ function readJson(filePath) {
 function extractScriptName(line) {
   const match = line.match(/"([^"]+)":/);
   return match ? match[1] : "";
+}
+
+function assertAllowedPackageAdditions(lines, message) {
+  const scriptNames = lines.map(extractScriptName);
+  assert.ok(
+    [allowedPackageScriptNames, downstreamAllowedPackageScriptNames].some(
+      (allowed) => JSON.stringify(scriptNames) === JSON.stringify(allowed),
+    ),
+    `${message}: ${JSON.stringify(scriptNames)}`,
+  );
 }
 
 function isSchemaDbSqlPath(filePath) {

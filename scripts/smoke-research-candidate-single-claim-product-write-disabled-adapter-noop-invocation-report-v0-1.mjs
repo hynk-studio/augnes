@@ -79,6 +79,10 @@ const allowedPackageScriptNames = [
   "smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1",
   "report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1",
 ];
+const downstreamAllowedPackageScriptNames = [
+  "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+  "contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+];
 const expectedChangedFiles = [
   docsIndexPath,
   sampleFixturePath,
@@ -525,10 +529,9 @@ function assertStaticEvidence(evidence, label) {
     !evidence.static_boundary_changed_files_inspected.some(isUiFilePath),
     `${label} must not include UI files`,
   );
-  assert.deepEqual(
-    evidence.static_boundary_package_added_lines_inspected.map(extractScriptName),
-    allowedPackageScriptNames,
-    `${label} package additions must stay limited to the two no-op report scripts`,
+  assertAllowedPackageAdditions(
+    evidence.static_boundary_package_added_lines_inspected,
+    `${label} package additions must stay limited to no-op report or downstream contract-test scripts`,
   );
 }
 
@@ -807,6 +810,16 @@ function assertNoForbiddenStaticSource(text, label) {
 
 function extractScriptName(line) {
   return line.replace(/^\+\s*/, "").trim().match(/^"([^"]+)"/)?.[1] ?? null;
+}
+
+function assertAllowedPackageAdditions(lines, message) {
+  const scriptNames = lines.map(extractScriptName);
+  assert.ok(
+    [allowedPackageScriptNames, downstreamAllowedPackageScriptNames].some(
+      (allowed) => JSON.stringify(scriptNames) === JSON.stringify(allowed),
+    ),
+    `${message}: ${JSON.stringify(scriptNames)}`,
+  );
 }
 
 function executableSqlPattern() {

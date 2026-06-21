@@ -78,6 +78,10 @@ const allowedPackageScriptNames = [
   "smoke:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1",
   "authority:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1",
 ];
+const downstreamAllowedPackageScriptNames = [
+  "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+  "contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+];
 const expectedChangedFiles = [
   "docs/00_INDEX_LATEST.md",
   "fixtures/research-candidate-review.manual-note-single-claim-product-write-authority-contract-bundle.sample.v0.1.json",
@@ -509,26 +513,10 @@ function assertReportContract(report) {
     report.static_boundary_changed_files_inspected.filter(isSchemaDbSqlPath),
     [],
   );
-  assert.equal(
-    report.static_boundary_package_added_lines_inspected.length,
-    allowedPackageScriptNames.length,
+  assertAllowedPackageAdditions(
+    report.static_boundary_package_added_lines_inspected,
+    "package additions must only contain authority or downstream preflight contract-test scripts",
   );
-  for (const scriptName of allowedPackageScriptNames) {
-    assert.ok(
-      report.static_boundary_package_added_lines_inspected.some((line) =>
-        line.includes(`"${scriptName}"`),
-      ),
-      `package additions must include ${scriptName}`,
-    );
-  }
-  for (const line of report.static_boundary_package_added_lines_inspected) {
-    assert.ok(
-      allowedPackageScriptNames.some((scriptName) =>
-        line.includes(`"${scriptName}"`),
-      ),
-      `package additions must only contain allowed scripts: ${line}`,
-    );
-  }
   assert.deepEqual(report.static_boundary_result.failureCodes, []);
 }
 
@@ -1276,6 +1264,16 @@ function assertForbiddenPatternsAbsent() {
 
 function isUiFilePath(filePath) {
   return /^components\//.test(filePath) || /^app\/.*\.(tsx|jsx)$/.test(filePath);
+}
+
+function assertAllowedPackageAdditions(lines, message) {
+  const scriptNames = lines.map((line) => line.match(/"([^"]+)":/)?.[1] ?? "");
+  assert.ok(
+    [allowedPackageScriptNames, downstreamAllowedPackageScriptNames].some(
+      (allowed) => JSON.stringify(scriptNames) === JSON.stringify(allowed),
+    ),
+    `${message}: ${JSON.stringify(scriptNames)}`,
+  );
 }
 
 function isSchemaDbSqlPath(filePath) {

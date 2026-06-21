@@ -53,6 +53,8 @@ const SINGLE_CLAIM_PRODUCT_WRITE_DISABLED_ADAPTER_NOOP_INVOCATION_REPORT_PATH =
   "/tmp/augnes-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1/report.json";
 const SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_REPORT_PATH =
   "/tmp/augnes-single-claim-product-write-preflight-command-envelope-v0-1/report.json";
+const SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_CONTRACT_TESTS_REPORT_PATH =
+  "/tmp/augnes-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -190,6 +192,8 @@ function createInitialReport() {
     single_claim_product_write_disabled_adapter_noop_invocation_report_artifact_note:
       null,
     single_claim_product_write_preflight_command_envelope_artifact_note: null,
+    single_claim_product_write_preflight_command_envelope_contract_tests_artifact_note:
+      null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -631,6 +635,27 @@ async function main() {
         singleClaimProductWritePreflightCommandEnvelopeRouteRequests.length,
       artifact_note:
         report.single_claim_product_write_preflight_command_envelope_artifact_note,
+    },
+  );
+  report.single_claim_product_write_preflight_command_envelope_contract_tests_artifact_note =
+    buildSingleClaimProductWritePreflightCommandEnvelopeContractTestsArtifactNote();
+  const singleClaimProductWritePreflightCommandEnvelopeContractTestsRouteRequests =
+    requestLog.filter((request) =>
+      /single-claim-product-write-preflight-command-envelope-contract-tests|product-write-preflight-command-envelope-contract-tests/i.test(
+        request.path ?? "",
+      ),
+    );
+  recordAssertion(
+    "single_claim_product_write_preflight_command_envelope_contract_tests_no_browser_route",
+    singleClaimProductWritePreflightCommandEnvelopeContractTestsRouteRequests.length ===
+      0,
+    "Single-claim product write preflight command envelope contract-test artifacts added no browser-observed route behavior.",
+    {
+      single_claim_product_write_preflight_command_envelope_contract_tests_route_request_count:
+        singleClaimProductWritePreflightCommandEnvelopeContractTestsRouteRequests.length,
+      artifact_note:
+        report
+          .single_claim_product_write_preflight_command_envelope_contract_tests_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -2081,6 +2106,20 @@ function buildSingleClaimProductWritePreflightCommandEnvelopeArtifactNote() {
     note: reportExists
       ? "Single-claim product write preflight command envelope report was present before or during browser validation; browser flow does not execute non-UI preflight command envelope artifacts."
       : "Single-claim product write preflight command envelope report was not present; browser flow does not execute non-UI preflight command envelope artifacts.",
+  };
+}
+
+function buildSingleClaimProductWritePreflightCommandEnvelopeContractTestsArtifactNote() {
+  const reportExists = existsSync(
+    SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_CONTRACT_TESTS_REPORT_PATH,
+  );
+  return {
+    report_path:
+      SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_CONTRACT_TESTS_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Single-claim product write preflight command envelope contract-test report was present before or during browser validation; browser flow does not execute non-UI contract-test artifacts."
+      : "Single-claim product write preflight command envelope contract-test report was not present; browser flow does not execute non-UI contract-test artifacts.",
   };
 }
 
