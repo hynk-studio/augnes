@@ -41,6 +41,8 @@ const SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_DRY_RUN_TRANSACTION_PLAN_REPO
   "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1/report.json";
 const SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_DRY_RUN_TRANSACTION_HARNESS_REPORT_PATH =
   "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1/report.json";
+const SINGLE_CLAIM_PRODUCT_WRITE_AUTHORITY_CONTRACT_BUNDLE_REPORT_PATH =
+  "/tmp/augnes-single-claim-product-write-authority-contract-bundle-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -169,6 +171,7 @@ function createInitialReport() {
       null,
     single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_artifact_note:
       null,
+    single_claim_product_write_authority_contract_bundle_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -491,6 +494,25 @@ async function main() {
       artifact_note:
         report
           .single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness_artifact_note,
+    },
+  );
+  report.single_claim_product_write_authority_contract_bundle_artifact_note =
+    buildSingleClaimProductWriteAuthorityContractBundleArtifactNote();
+  const singleClaimProductWriteAuthorityContractBundleRouteRequests =
+    requestLog.filter((request) =>
+      /single-claim-product-write-authority-contract|product-write-authority-contract-bundle/i.test(
+        request.path ?? "",
+      ),
+    );
+  recordAssertion(
+    "single_claim_product_write_authority_contract_bundle_no_browser_route",
+    singleClaimProductWriteAuthorityContractBundleRouteRequests.length === 0,
+    "Single-claim product write authority contract bundle artifacts added no browser-observed route behavior.",
+    {
+      single_claim_product_write_authority_contract_bundle_route_request_count:
+        singleClaimProductWriteAuthorityContractBundleRouteRequests.length,
+      artifact_note:
+        report.single_claim_product_write_authority_contract_bundle_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1860,6 +1882,19 @@ function buildSingleClaimTempToProductDisabledBridgeDryRunTransactionHarnessArti
     note: reportExists
       ? "Single-claim temp-to-product disabled bridge dry-run transaction-harness report was present before or during browser validation; browser flow does not execute non-UI dry-run transaction-harness artifacts."
       : "Single-claim temp-to-product disabled bridge dry-run transaction-harness report was not present; browser flow does not execute non-UI dry-run transaction-harness artifacts.",
+  };
+}
+
+function buildSingleClaimProductWriteAuthorityContractBundleArtifactNote() {
+  const reportExists = existsSync(
+    SINGLE_CLAIM_PRODUCT_WRITE_AUTHORITY_CONTRACT_BUNDLE_REPORT_PATH,
+  );
+  return {
+    report_path: SINGLE_CLAIM_PRODUCT_WRITE_AUTHORITY_CONTRACT_BUNDLE_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Single-claim product write authority contract bundle report was present before or during browser validation; browser flow does not execute non-UI authority contract bundle artifacts."
+      : "Single-claim product write authority contract bundle report was not present; browser flow does not execute non-UI authority contract bundle artifacts.",
   };
 }
 
