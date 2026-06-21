@@ -101,20 +101,14 @@
     "fixture_mode": true,
     "fixture_mode_live_static_boundary_result": {
       "note": "Live static boundary metadata observed during fixture mode is not included in the product write disabled adapter contract-tests artifact or fingerprint.",
-      "static_boundary_base_ref": "committed_allowlist",
-      "static_boundary_base_mode": "committed_allowlist_fallback_after_empty_or_downstream_delta",
+      "static_boundary_base_ref": "origin/main",
+      "static_boundary_base_mode": "merge_base:origin/main",
       "static_boundary_base_commit": "2f6e1c024fc1298d548b0f3460bca6684bdb6dfd",
       "static_boundary_compare_ref": "HEAD",
       "changed_files_inspected_count": 16,
       "package_added_lines_inspected_count": 2,
-      "used_fallback_allowlist": true,
-      "failureCodes": [
-        "static_executable_sql_string_present",
-        "static_forbidden_import_present",
-        "static_network_or_external_call_present",
-        "static_browser_persistence_present",
-        "static_app_server_startup_present"
-      ]
+      "used_fallback_allowlist": false,
+      "failureCodes": []
     },
     "optional_disabled_adapter_skeleton_report_present_on_disk": true,
     "optional_upstream_reports_present_on_disk": {
@@ -160,7 +154,9 @@
         },
         "summary": {
           "optional_report_present": false,
-          "final_status": null
+          "final_status": null,
+          "expected_payload_key": "authority_contract_bundle",
+          "nested_payload_present": false
         },
         "failure_codes": []
       },
@@ -177,7 +173,9 @@
         },
         "summary": {
           "optional_report_present": false,
-          "final_status": null
+          "final_status": null,
+          "expected_payload_key": "dry_run_transaction_harness",
+          "nested_payload_present": false
         },
         "failure_codes": []
       },
@@ -194,7 +192,9 @@
         },
         "summary": {
           "optional_report_present": false,
-          "final_status": null
+          "final_status": null,
+          "expected_payload_key": "dry_run_transaction_plan",
+          "nested_payload_present": false
         },
         "failure_codes": []
       },
@@ -211,7 +211,9 @@
         },
         "summary": {
           "optional_report_present": false,
-          "final_status": null
+          "final_status": null,
+          "expected_payload_key": "case_results",
+          "nested_payload_present": false
         },
         "failure_codes": []
       },
@@ -228,7 +230,9 @@
         },
         "summary": {
           "optional_report_present": false,
-          "final_status": null
+          "final_status": null,
+          "expected_payload_key": "disabled_bridge_skeleton",
+          "nested_payload_present": false
         },
         "failure_codes": []
       },
@@ -245,7 +249,9 @@
         },
         "summary": {
           "optional_report_present": false,
-          "final_status": null
+          "final_status": null,
+          "expected_payload_key": "temp_to_product_bridge_design",
+          "nested_payload_present": false
         },
         "failure_codes": []
       },
@@ -262,7 +268,9 @@
         },
         "summary": {
           "optional_report_present": false,
-          "final_status": null
+          "final_status": null,
+          "expected_payload_key": "product_write_gate_design",
+          "nested_payload_present": false
         },
         "failure_codes": []
       }
@@ -426,7 +434,7 @@
   "unexpected_passes": [],
   "unexpected_failures": [],
   "source_disabled_adapter_skeleton_fingerprint": "fnv1a32:ff316153",
-  "suite_fingerprint": "fnv1a32:aa6059b5",
+  "suite_fingerprint": "fnv1a32:ca070e41",
   "tested_boundaries": {
     "disabled_adapter_contract_tests_only": true,
     "fixture_only": true,

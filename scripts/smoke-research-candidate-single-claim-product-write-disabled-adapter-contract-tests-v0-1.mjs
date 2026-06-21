@@ -210,6 +210,30 @@ try {
     ),
     "failed optional upstream report must block",
   );
+
+  const missingAuthorityPayload = runMissingPayloadOptionalUpstreamReport(
+    optionalUpstreamReportPaths.authority_contract_bundle,
+    "optional_upstream_authority_contract_bundle_report_missing_payload",
+  );
+  assert.equal(missingAuthorityPayload.final_status, "fail");
+  assert.ok(
+    missingAuthorityPayload.validation.failure_codes.includes(
+      "optional_upstream_authority_contract_bundle_report_missing_payload",
+    ),
+    "passed optional authority report without nested payload must block",
+  );
+
+  const missingHarnessPayload = runMissingPayloadOptionalUpstreamReport(
+    optionalUpstreamReportPaths.dry_run_transaction_harness,
+    "optional_upstream_dry_run_transaction_harness_report_missing_payload",
+  );
+  assert.equal(missingHarnessPayload.final_status, "fail");
+  assert.ok(
+    missingHarnessPayload.validation.failure_codes.includes(
+      "optional_upstream_dry_run_transaction_harness_report_missing_payload",
+    ),
+    "passed optional harness report without nested payload must block",
+  );
 } finally {
   restoreOptionalReports(backups);
   runFixtureModeAndReadReport("final passing fixture reset");
@@ -513,6 +537,21 @@ function assertExportedHelper() {
         });
         if (report.final_status !== "pass") throw new Error(JSON.stringify(report.validation));
         if (report.next_recommended_slice !== "${expectedNextSlice}") throw new Error("wrong next slice");
+        const missingPackageScriptEvidence = {
+          ...staticBoundaryEvidence,
+          static_boundary_package_added_lines_inspected: [
+            staticBoundaryEvidence.static_boundary_package_added_lines_inspected[0]
+          ]
+        };
+        const blockedReport = buildManualNoteSingleClaimProductWriteDisabledAdapterContractTestsReport({
+          disabledAdapterSkeleton: skeleton,
+          contractTestCases: cases,
+          staticBoundaryEvidence: missingPackageScriptEvidence
+        });
+        if (blockedReport.final_status !== "fail") throw new Error("missing package script did not fail");
+        if (!blockedReport.validation.failure_codes.includes("static_boundary_expected_package_script_missing")) {
+          throw new Error(JSON.stringify(blockedReport.validation));
+        }
       `,
     ],
     { encoding: "utf8" },
@@ -572,6 +611,29 @@ function runFailedOptionalUpstreamReport() {
   });
   assert.notEqual(result.status, 0, "failed optional upstream report must fail");
   return readJson(reportPath);
+}
+
+function runMissingPayloadOptionalUpstreamReport(filePath, expectedFailureCode) {
+  removeOptionalReports([
+    optionalSkeletonReportPath,
+    ...Object.values(optionalUpstreamReportPaths),
+  ]);
+  writeJson(filePath, { final_status: "pass" });
+  const result = spawnSync(process.execPath, [runnerPath], {
+    encoding: "utf8",
+    env: { ...process.env },
+  });
+  assert.notEqual(
+    result.status,
+    0,
+    `${expectedFailureCode} must fail\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`,
+  );
+  const report = readJson(reportPath);
+  assert.ok(
+    report.validation.failure_codes.includes(expectedFailureCode),
+    `${expectedFailureCode} must be reported`,
+  );
+  return report;
 }
 
 function assertFixtureModeIgnoredOptionalReports(report) {

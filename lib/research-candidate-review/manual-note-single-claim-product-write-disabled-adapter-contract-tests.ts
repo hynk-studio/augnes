@@ -595,6 +595,12 @@ function validateStaticBoundaryEvidence(value: unknown): string[] {
       failures.push("static_boundary_package_addition_outside_allowlist");
     }
   }
+  const missingPackageScripts = allowedScripts.filter(
+    (scriptName) => !packageLines.some((line) => line.includes(`"${scriptName}"`)),
+  );
+  if (missingPackageScripts.length > 0) {
+    failures.push("static_boundary_expected_package_script_missing");
+  }
   const probeText = asString(evidence.static_boundary_probe_text);
   if (probeText) {
     if (executableSqlPattern().test(probeText)) failures.push("static_boundary_executable_sql_string_present");

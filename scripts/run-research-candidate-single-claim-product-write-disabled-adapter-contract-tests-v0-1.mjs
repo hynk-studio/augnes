@@ -21,30 +21,37 @@ const OPTIONAL_UPSTREAM_REPORTS = [
   [
     "authority_contract_bundle",
     "/tmp/augnes-single-claim-product-write-authority-contract-bundle-v0-1/report.json",
+    "authority_contract_bundle",
   ],
   [
     "dry_run_transaction_harness",
     "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1/report.json",
+    "dry_run_transaction_harness",
   ],
   [
     "dry_run_transaction_plan",
     "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1/report.json",
+    "dry_run_transaction_plan",
   ],
   [
     "disabled_bridge_skeleton_contract_tests",
     "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1/report.json",
+    "case_results",
   ],
   [
     "disabled_bridge_skeleton",
     "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1/report.json",
+    "disabled_bridge_skeleton",
   ],
   [
     "temp_to_product_bridge_design",
     "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1/report.json",
+    "temp_to_product_bridge_design",
   ],
   [
     "product_write_gate_design",
     "/tmp/augnes-single-claim-product-write-gate-design-v0-1/report.json",
+    "product_write_gate_design",
   ],
 ];
 
@@ -1205,13 +1212,13 @@ async function selectDisabledAdapterSkeletonSource(fixture) {
 
 async function inspectOptionalUpstreamReports() {
   const entries = [];
-  for (const [label, filePath] of OPTIONAL_UPSTREAM_REPORTS) {
-    entries.push(await inspectOptionalUpstreamReport(label, filePath));
+  for (const [label, filePath, payloadKey] of OPTIONAL_UPSTREAM_REPORTS) {
+    entries.push(await inspectOptionalUpstreamReport(label, filePath, payloadKey));
   }
   return entries;
 }
 
-async function inspectOptionalUpstreamReport(label, filePath) {
+async function inspectOptionalUpstreamReport(label, filePath, payloadKey) {
   const selection = buildSourceSelection({
     sourceLabel: label,
     sourceUsed: "committed_fixture",
@@ -1225,7 +1232,12 @@ async function inspectOptionalUpstreamReport(label, filePath) {
     return {
       label,
       selection,
-      summary: { optional_report_present: false, final_status: null },
+      summary: {
+        optional_report_present: false,
+        final_status: null,
+        expected_payload_key: payloadKey,
+        nested_payload_present: false,
+      },
       failureCodes: [],
     };
   }
@@ -1242,7 +1254,12 @@ async function inspectOptionalUpstreamReport(label, filePath) {
         optional_report_ignored_for_fixture_mode: false,
         fallback_to_committed_fixture: false,
       },
-      summary: { optional_report_present: true, final_status: "malformed" },
+      summary: {
+        optional_report_present: true,
+        final_status: "malformed",
+        expected_payload_key: payloadKey,
+        nested_payload_present: false,
+      },
       failureCodes: [`optional_upstream_${label}_report_malformed`],
     };
   }
@@ -1256,8 +1273,33 @@ async function inspectOptionalUpstreamReport(label, filePath) {
         optional_report_ignored_for_fixture_mode: false,
         fallback_to_committed_fixture: false,
       },
-      summary: { optional_report_present: true, final_status: report.final_status ?? null },
+      summary: {
+        optional_report_present: true,
+        final_status: report.final_status ?? null,
+        expected_payload_key: payloadKey,
+        nested_payload_present: hasNonEmptyPayload(report[payloadKey]),
+      },
       failureCodes: [`optional_upstream_${label}_report_not_passed`],
+    };
+  }
+  const nestedPayloadPresent = hasNonEmptyPayload(report[payloadKey]);
+  if (!nestedPayloadPresent) {
+    return {
+      label,
+      selection: {
+        ...selection,
+        source_used: "optional_report_missing_payload",
+        optional_report_present: true,
+        optional_report_ignored_for_fixture_mode: false,
+        fallback_to_committed_fixture: false,
+      },
+      summary: {
+        optional_report_present: true,
+        final_status: "pass",
+        expected_payload_key: payloadKey,
+        nested_payload_present: false,
+      },
+      failureCodes: [`optional_upstream_${label}_report_missing_payload`],
     };
   }
   return {
@@ -1269,7 +1311,12 @@ async function inspectOptionalUpstreamReport(label, filePath) {
       optional_report_ignored_for_fixture_mode: false,
       fallback_to_committed_fixture: false,
     },
-    summary: { optional_report_present: true, final_status: "pass" },
+    summary: {
+      optional_report_present: true,
+      final_status: "pass",
+      expected_payload_key: payloadKey,
+      nested_payload_present: true,
+    },
     failureCodes: [],
   };
 }
@@ -2272,6 +2319,14 @@ function sortJson(value) {
 
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function hasNonEmptyPayload(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  if (value && typeof value === "object") {
+    return Object.keys(value).length > 0;
+  }
+  return value !== null && value !== undefined && value !== "";
 }
 
 function asRecord(value) {
