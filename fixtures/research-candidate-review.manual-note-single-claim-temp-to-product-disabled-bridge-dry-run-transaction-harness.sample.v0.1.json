@@ -1,7 +1,7 @@
 {
   "dry_run_transaction_harness_kind": "manual_note_single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness",
   "dry_run_transaction_harness_version": "manual_note_single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness.v0.1",
-  "dry_run_transaction_harness_fingerprint": "fnv1a32:7b7aeb29",
+  "dry_run_transaction_harness_fingerprint": "fnv1a32:fecce8f4",
   "source_evidence": {
     "dry_run_transaction_plan": {
       "source_selection": {
@@ -9,7 +9,7 @@
         "source_used": "committed_fixture",
         "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan.sample.v0.1.json",
         "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1/report.json",
-        "optional_report_present": true,
+        "optional_report_present": false,
         "optional_report_ignored_for_fixture_mode": true,
         "fallback_to_committed_fixture": true
       },
@@ -29,7 +29,7 @@
         "source_used": "committed_fixture",
         "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json",
         "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1/report.json",
-        "optional_report_present": true,
+        "optional_report_present": false,
         "optional_report_ignored_for_fixture_mode": true,
         "fallback_to_committed_fixture": true
       },
@@ -53,7 +53,7 @@
         "source_used": "committed_fixture",
         "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton.sample.v0.1.json",
         "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1/report.json",
-        "optional_report_present": true,
+        "optional_report_present": false,
         "optional_report_ignored_for_fixture_mode": true,
         "fallback_to_committed_fixture": true
       },
@@ -108,7 +108,7 @@
         "source_used": "committed_fixture",
         "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-bridge-design.sample.v0.1.json",
         "optional_report_path": "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1/report.json",
-        "optional_report_present": true,
+        "optional_report_present": false,
         "optional_report_ignored_for_fixture_mode": true,
         "fallback_to_committed_fixture": true
       },
@@ -150,7 +150,7 @@
         "source_used": "committed_fixture",
         "fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json",
         "optional_report_path": "/tmp/augnes-single-claim-product-write-gate-design-v0-1/report.json",
-        "optional_report_present": true,
+        "optional_report_present": false,
         "optional_report_ignored_for_fixture_mode": true,
         "fallback_to_committed_fixture": true
       },
@@ -162,11 +162,11 @@
       "block_count": 12
     },
     "dry_run_static_boundary": {
-      "static_boundary_base_ref": "committed_allowlist",
-      "static_boundary_base_mode": "committed_allowlist_fallback_after_empty_or_downstream_delta",
+      "static_boundary_base_ref": "origin/main",
+      "static_boundary_base_mode": "merge_base:origin/main",
       "static_boundary_changed_file_count": 12,
       "static_boundary_package_added_line_count": 2,
-      "static_boundary_used_fallback_allowlist": true
+      "static_boundary_used_fallback_allowlist": false
     }
   },
   "dry_run_transaction_harness_status": "disabled_dry_run_transaction_harness_only",
@@ -1516,8 +1516,8 @@
     "durable_observability_write": false
   },
   "static_boundary_evidence": {
-    "static_boundary_base_ref": "committed_allowlist",
-    "static_boundary_base_mode": "committed_allowlist_fallback_after_empty_or_downstream_delta",
+    "static_boundary_base_ref": "origin/main",
+    "static_boundary_base_mode": "merge_base:origin/main",
     "static_boundary_base_commit": "b91ec3bb0d026e6ad4066073e096b61995bd1131",
     "static_boundary_compare_ref": "HEAD",
     "static_boundary_changed_files_inspected": [
@@ -1535,10 +1535,10 @@
       "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs"
     ],
     "static_boundary_package_added_lines_inspected": [
-      "    \"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1\": \"node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs\",",
-      "    \"harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1\": \"node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs\","
+      "+    \"smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1\": \"node scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs\",",
+      "+    \"harness:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1\": \"node scripts/run-research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness-v0-1.mjs\","
     ],
-    "static_boundary_used_fallback_allowlist": true,
+    "static_boundary_used_fallback_allowlist": false,
     "expected_changed_files": [
       "docs/00_INDEX_LATEST.md",
       "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-harness.sample.v0.1.json",
@@ -1563,9 +1563,9 @@
     "failure_codes": []
   },
   "local_copy_packet": {
-    "markdown": "# Manual Note Single-Claim Disabled Bridge Dry-Run Transaction Harness\n\nDisabled dry-run transaction harness only.\nNo product write, adapter enablement, product ID allocation, DB open, or SQL execution is allowed.\ndry_run_transaction_harness_status: disabled_dry_run_transaction_harness_only\ndry_run_transaction_harness_fingerprint: fnv1a32:7b7aeb29",
+    "markdown": "# Manual Note Single-Claim Disabled Bridge Dry-Run Transaction Harness\n\nDisabled dry-run transaction harness only.\nNo product write, adapter enablement, product ID allocation, DB open, or SQL execution is allowed.\ndry_run_transaction_harness_status: disabled_dry_run_transaction_harness_only\ndry_run_transaction_harness_fingerprint: fnv1a32:fecce8f4",
     "json": "{\n  \"dry_run_transaction_harness_status\": \"disabled_dry_run_transaction_harness_only\",\n  \"product_write_allowed_now\": false,\n  \"adapter_enabled\": false,\n  \"product_db_write\": false,\n  \"product_id_allocation\": false\n}",
-    "fingerprint": "fnv1a32:7b7aeb29",
+    "fingerprint": "fnv1a32:fecce8f4",
     "fingerprint_algorithm": "fnv1a32_canonical_json",
     "local_clipboard_only": true,
     "external_handoff_sent": false,

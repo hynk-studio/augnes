@@ -231,6 +231,7 @@ const runtimeHarness = JSON.parse(readFileSync(harnessPath, "utf8"));
 assertRunnerOutput(runnerOutput);
 assertReportContract(runtimeReport);
 assertHarnessContract(runtimeHarness, "runtime harness");
+const fixtureModeDeterminism = assertFixtureModeStableAcrossOptionalReportPresence();
 assertOptionalFailedPlanReportBlocks();
 assertOptionalMalformedPlanReportBlocks();
 assertOptionalFailedContractSuiteBlocks();
@@ -249,6 +250,11 @@ console.log(
       helper_exists: true,
       committed_fixture_checked: true,
       runner_fixture_mode_checked: true,
+      fixture_mode_optional_report_presence_deterministic_checked: true,
+      fixture_mode_absent_fingerprint_checked:
+        fixtureModeDeterminism.absentFingerprint,
+      fixture_mode_present_fingerprint_checked:
+        fixtureModeDeterminism.presentFingerprint,
       direct_helper_missing_plan_blocks_checked: true,
       direct_helper_blocked_plan_recommendation_blocks_checked: true,
       failed_optional_plan_report_blocks_checked: true,
@@ -632,6 +638,79 @@ function assertAuthorityPreview(preview) {
   }
 }
 
+function assertFixtureModeStableAcrossOptionalReportPresence() {
+  const absent = runHarnessRunnerFixtureModeWithOptionalReports({});
+  const staleMarker = "stale_optional_should_be_ignored";
+  const stalePlan = cloneJson(dryRunPlanFixture);
+  stalePlan.recommendation_status = staleMarker;
+  const staleContractReport = cloneJson(contractTestsFixture);
+  staleContractReport.recommendation_status = staleMarker;
+  const staleSkeleton = cloneJson(skeletonFixture);
+  staleSkeleton.disabled_bridge_skeleton_status = staleMarker;
+  const staleBridgeDesign = cloneJson(bridgeDesignFixture);
+  staleBridgeDesign.bridge_design_status = staleMarker;
+  const staleGateDesign = cloneJson(productWriteGateDesignFixture);
+  staleGateDesign.gate_design_status = staleMarker;
+  const present = runHarnessRunnerFixtureModeWithOptionalReports({
+    [optionalDryRunPlanReportPath]: {
+      final_status: "fail",
+      dry_run_transaction_plan: stalePlan,
+    },
+    [optionalContractTestsReportPath]: {
+      ...staleContractReport,
+      final_status: "fail",
+    },
+    [optionalSkeletonReportPath]: {
+      final_status: "fail",
+      disabled_bridge_skeleton: staleSkeleton,
+    },
+    [optionalBridgeDesignReportPath]: {
+      final_status: "fail",
+      temp_to_product_bridge_design: staleBridgeDesign,
+    },
+    [optionalProductWriteGateDesignReportPath]: {
+      final_status: "fail",
+      product_write_gate_design: staleGateDesign,
+    },
+  });
+  assert.equal(absent.report.final_status, "pass");
+  assert.equal(present.report.final_status, "pass");
+  assert.equal(
+    absent.harness.dry_run_transaction_harness_fingerprint,
+    present.harness.dry_run_transaction_harness_fingerprint,
+    "fixture-mode fingerprint must not depend on stale optional report presence",
+  );
+  assert.deepEqual(
+    sourceSelectionsFromHarness(absent.harness),
+    sourceSelectionsFromHarness(present.harness),
+    "fixture-mode source selections must be stable with or without stale optional reports",
+  );
+  for (const selection of Object.values(sourceSelectionsFromHarness(present.harness))) {
+    assert.equal(selection.source_used, "committed_fixture");
+    assert.equal(selection.optional_report_present, false);
+    assert.equal(selection.optional_report_ignored_for_fixture_mode, true);
+    assert.equal(selection.fallback_to_committed_fixture, true);
+  }
+  assert.doesNotMatch(
+    JSON.stringify(present.harness),
+    new RegExp(staleMarker),
+    "fixture mode must not consume optional report data into the harness artifact",
+  );
+  assert.equal(present.report.optional_inputs.fixture_mode, true);
+  return {
+    absentFingerprint: absent.harness.dry_run_transaction_harness_fingerprint,
+    presentFingerprint: present.harness.dry_run_transaction_harness_fingerprint,
+  };
+}
+
+function sourceSelectionsFromHarness(harness) {
+  return Object.fromEntries(
+    Object.entries(harness.source_evidence)
+      .filter(([, value]) => value && typeof value === "object" && "source_selection" in value)
+      .map(([key, value]) => [key, value.source_selection]),
+  );
+}
+
 function assertOptionalFailedPlanReportBlocks() {
   const mutatedPlan = cloneJson(dryRunPlanFixture);
   const result = runHarnessRunnerWithOptionalReports({
@@ -755,6 +834,56 @@ function runHarnessRunnerWithOptionalReports(overrides) {
     }
     return {
       exitCode,
+      report: JSON.parse(readFileSync(reportPath, "utf8")),
+      harness: JSON.parse(readFileSync(harnessPath, "utf8")),
+    };
+  } finally {
+    for (const [filePath, originalText] of originals) {
+      if (originalText === null) {
+        rmSync(filePath, { force: true });
+      } else {
+        mkdirSync(path.dirname(filePath), { recursive: true });
+        writeFileSync(filePath, originalText);
+      }
+    }
+  }
+}
+
+function runHarnessRunnerFixtureModeWithOptionalReports(overrides) {
+  const optionalPaths = [
+    optionalDryRunPlanReportPath,
+    optionalContractTestsReportPath,
+    optionalSkeletonReportPath,
+    optionalBridgeDesignReportPath,
+    optionalProductWriteGateDesignReportPath,
+  ];
+  const originals = new Map(
+    optionalPaths.map((filePath) => [
+      filePath,
+      existsSync(filePath) ? readFileSync(filePath, "utf8") : null,
+    ]),
+  );
+  try {
+    rmSync(artifactDir, { recursive: true, force: true });
+    for (const filePath of optionalPaths) {
+      rmSync(filePath, { force: true });
+    }
+    for (const [filePath, value] of Object.entries(overrides)) {
+      mkdirSync(path.dirname(filePath), { recursive: true });
+      writeFileSync(
+        filePath,
+        typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}\n`,
+      );
+    }
+    execFileSync("node", [runnerPath], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        AUGNES_SINGLE_CLAIM_TEMP_TO_PRODUCT_DISABLED_BRIDGE_DRY_RUN_TRANSACTION_HARNESS_FIXTURE_MODE:
+          "1",
+      },
+    });
+    return {
       report: JSON.parse(readFileSync(reportPath, "utf8")),
       harness: JSON.parse(readFileSync(harnessPath, "utf8")),
     };

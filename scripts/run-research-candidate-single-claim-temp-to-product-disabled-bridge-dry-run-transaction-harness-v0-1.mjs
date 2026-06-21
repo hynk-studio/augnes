@@ -1112,7 +1112,7 @@ async function selectSource({ label, fixturePath, fixture, optionalReportPath, n
         source_used: "committed_fixture",
         fixture_path: fixturePath,
         optional_report_path: optionalReportPath,
-        optional_report_present: existsSync(optionalReportPath),
+        optional_report_present: false,
         optional_report_ignored_for_fixture_mode: true,
         fallback_to_committed_fixture: true,
       },
