@@ -1302,6 +1302,30 @@ repo-local 색인이다.
   next recommended slice is
   `single_claim_product_write_preflight_command_envelope`, not product write
   implementation.
+- Manual note single-claim product write preflight command envelope:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-preflight-command-envelope.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-preflight-command-envelope.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1`,
+  and
+  `npm run envelope:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1`
+  add a deterministic product write preflight command envelope only. The
+  envelope consumes the disabled adapter no-op invocation report and builds a
+  non-persisted, non-executing command shape with product claim draft,
+  idempotency, rollback, audit, and observability previews. It does not
+  implement product write, does not persist a command envelope, does not enable
+  an adapter, does not allocate product IDs, does not open DB, does not execute
+  SQL, and does not execute a DB transaction. It adds no route, no UI action,
+  and no schema/migration/dependency. Product write remains blocked. The
+  preflight command envelope status is
+  `product_write_preflight_command_envelope_only`, the recommendation status
+  is
+  `ready_for_single_claim_product_write_preflight_command_envelope_contract_tests`,
+  and the next recommended slice is
+  `single_claim_product_write_preflight_command_envelope_contract_tests`, not
+  product write implementation. After this envelope and its contract tests, the
+  broader roadmap should return to PerspectiveGeometryDigest and Agent
+  Perspective Substrate work before any durable Perspective promotion or
+  product write implementation.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

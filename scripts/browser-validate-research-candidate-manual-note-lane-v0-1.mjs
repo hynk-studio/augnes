@@ -51,6 +51,8 @@ const SINGLE_CLAIM_PRODUCT_WRITE_DISABLED_ADAPTER_DRY_RUN_INVOCATION_HARNESS_REP
   "/tmp/augnes-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1/report.json";
 const SINGLE_CLAIM_PRODUCT_WRITE_DISABLED_ADAPTER_NOOP_INVOCATION_REPORT_PATH =
   "/tmp/augnes-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1/report.json";
+const SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_REPORT_PATH =
+  "/tmp/augnes-single-claim-product-write-preflight-command-envelope-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -185,6 +187,9 @@ function createInitialReport() {
       null,
     single_claim_product_write_disabled_adapter_dry_run_invocation_harness_artifact_note:
       null,
+    single_claim_product_write_disabled_adapter_noop_invocation_report_artifact_note:
+      null,
+    single_claim_product_write_preflight_command_envelope_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -607,6 +612,25 @@ async function main() {
       artifact_note:
         report
           .single_claim_product_write_disabled_adapter_noop_invocation_report_artifact_note,
+    },
+  );
+  report.single_claim_product_write_preflight_command_envelope_artifact_note =
+    buildSingleClaimProductWritePreflightCommandEnvelopeArtifactNote();
+  const singleClaimProductWritePreflightCommandEnvelopeRouteRequests =
+    requestLog.filter((request) =>
+      /single-claim-product-write-preflight-command-envelope|product-write-preflight-command-envelope/i.test(
+        request.path ?? "",
+      ),
+    );
+  recordAssertion(
+    "single_claim_product_write_preflight_command_envelope_no_browser_route",
+    singleClaimProductWritePreflightCommandEnvelopeRouteRequests.length === 0,
+    "Single-claim product write preflight command envelope artifacts added no browser-observed route behavior.",
+    {
+      single_claim_product_write_preflight_command_envelope_route_request_count:
+        singleClaimProductWritePreflightCommandEnvelopeRouteRequests.length,
+      artifact_note:
+        report.single_claim_product_write_preflight_command_envelope_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -2044,6 +2068,19 @@ function buildSingleClaimProductWriteDisabledAdapterNoopInvocationReportArtifact
     note: reportExists
       ? "Single-claim product write disabled adapter no-op invocation report was present before or during browser validation; browser flow does not execute non-UI disabled adapter no-op report artifacts."
       : "Single-claim product write disabled adapter no-op invocation report was not present; browser flow does not execute non-UI disabled adapter no-op report artifacts.",
+  };
+}
+
+function buildSingleClaimProductWritePreflightCommandEnvelopeArtifactNote() {
+  const reportExists = existsSync(
+    SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_REPORT_PATH,
+  );
+  return {
+    report_path: SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Single-claim product write preflight command envelope report was present before or during browser validation; browser flow does not execute non-UI preflight command envelope artifacts."
+      : "Single-claim product write preflight command envelope report was not present; browser flow does not execute non-UI preflight command envelope artifacts.",
   };
 }
 

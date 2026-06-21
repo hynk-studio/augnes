@@ -247,6 +247,8 @@
     "harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1": "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1.mjs",
     "smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1": "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
     "report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1": "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+    "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1": "node scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+    "envelope:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1": "node scripts/run-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
     "smoke:research-candidate-manual-note-draft-ui-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-draft-ui-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-candidate-display-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-candidate-display-extract-v0-1.mjs",
     "smoke:research-candidate-promotion-readiness-readout-extract-v0-1": "node scripts/smoke-research-candidate-promotion-readiness-readout-extract-v0-1.mjs",
