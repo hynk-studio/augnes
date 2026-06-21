@@ -9,6 +9,12 @@ const fixturePath =
   "fixtures/research-candidate-review.manual-note-temp-db-single-claim-result-review.sample.v0.1.json";
 const runnerPath =
   "scripts/run-research-candidate-temp-db-single-claim-result-review-v0-1.mjs";
+const resultContractTestsFixturePath =
+  "fixtures/research-candidate-review.manual-note-temp-db-single-claim-result-contract-test-cases.v0.1.json";
+const resultContractTestsSmokePath =
+  "scripts/smoke-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs";
+const resultContractTestsRunnerPath =
+  "scripts/run-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs";
 const writePrototypeSmokePath =
   "scripts/smoke-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
@@ -39,6 +45,9 @@ for (const filePath of [
   helperPath,
   fixturePath,
   runnerPath,
+  resultContractTestsFixturePath,
+  resultContractTestsSmokePath,
+  resultContractTestsRunnerPath,
   writePrototypeSmokePath,
   docsIndexPath,
   packagePath,
@@ -238,6 +247,18 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-temp-db-single-claim-result-review-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"
+    ],
+    "node scripts/run-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note temp DB single-claim write prototype result review",
     "reviews the committed harness fixture",
@@ -259,6 +280,7 @@ function assertDocsPackageAndBrowserPointers() {
     "no external handoff",
     "no repo schema/migration/dependency",
     "best available method",
+    "Manual note temp DB single-claim result contract tests",
   ]) {
     assert.ok(docsIndex.includes(requiredText), `docs must include ${requiredText}`);
   }
@@ -277,6 +299,12 @@ function assertDocsPackageAndBrowserPointers() {
       "smoke:research-candidate-temp-db-single-claim-result-review-v0-1",
     ),
     "write prototype smoke should point to temp DB result review smoke",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "temp_db_single_claim_result_contract_tests_artifact_note",
+    ),
+    "browser validator should include temp DB result contract-tests artifact note",
   );
 }
 
@@ -312,6 +340,12 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"review:research-candidate-temp-db-single-claim-result-review-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
+        ) ||
+        line.includes(
+          '"contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
         ),
       `package.json must only add result review scripts, not dependencies: ${line}`,
     );

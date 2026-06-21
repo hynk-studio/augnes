@@ -394,6 +394,12 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"review:research-candidate-temp-db-single-claim-result-review-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
+        ) ||
+        line.includes(
+          '"contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
         ),
       `package.json must only add temp DB write prototype scripts, not dependencies: ${line}`,
     );

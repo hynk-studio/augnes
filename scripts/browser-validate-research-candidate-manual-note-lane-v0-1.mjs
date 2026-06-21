@@ -27,6 +27,8 @@ const TEMP_DB_SINGLE_CLAIM_WRITE_PROTOTYPE_REPORT_PATH =
   "/tmp/augnes-single-claim-write-prototype-v0-1/report.json";
 const TEMP_DB_SINGLE_CLAIM_RESULT_REVIEW_REPORT_PATH =
   "/tmp/augnes-temp-db-single-claim-result-review-v0-1/report.json";
+const TEMP_DB_SINGLE_CLAIM_RESULT_CONTRACT_TESTS_REPORT_PATH =
+  "/tmp/augnes-temp-db-single-claim-result-contract-tests-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -145,6 +147,7 @@ function createInitialReport() {
     temp_db_single_claim_prototype_design_artifact_note: null,
     temp_db_single_claim_write_prototype_artifact_note: null,
     temp_db_single_claim_result_review_artifact_note: null,
+    temp_db_single_claim_result_contract_tests_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -329,6 +332,25 @@ async function main() {
       temp_db_single_claim_result_review_route_request_count:
         tempDbSingleClaimResultReviewRouteRequests.length,
       artifact_note: report.temp_db_single_claim_result_review_artifact_note,
+    },
+  );
+  report.temp_db_single_claim_result_contract_tests_artifact_note =
+    buildTempDbSingleClaimResultContractTestsArtifactNote();
+  const tempDbSingleClaimResultContractTestsRouteRequests = requestLog.filter(
+    (request) =>
+      /temp-db-single-claim-result-contract|single-claim-result-contract|result-contract-tests/i.test(
+        request.path ?? "",
+      ),
+  );
+  recordAssertion(
+    "temp_db_single_claim_result_contract_tests_no_browser_route",
+    tempDbSingleClaimResultContractTestsRouteRequests.length === 0,
+    "Temp DB single-claim result contract tests added no browser-observed route behavior.",
+    {
+      temp_db_single_claim_result_contract_tests_route_request_count:
+        tempDbSingleClaimResultContractTestsRouteRequests.length,
+      artifact_note:
+        report.temp_db_single_claim_result_contract_tests_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1605,6 +1627,19 @@ function buildTempDbSingleClaimResultReviewArtifactNote() {
     note: reportExists
       ? "Temp DB single-claim result review report was present before or during browser validation; browser flow does not execute non-UI result-review artifacts."
       : "Temp DB single-claim result review report was not present; browser flow does not execute non-UI result-review artifacts.",
+  };
+}
+
+function buildTempDbSingleClaimResultContractTestsArtifactNote() {
+  const reportExists = existsSync(
+    TEMP_DB_SINGLE_CLAIM_RESULT_CONTRACT_TESTS_REPORT_PATH,
+  );
+  return {
+    report_path: TEMP_DB_SINGLE_CLAIM_RESULT_CONTRACT_TESTS_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Temp DB single-claim result contract-test report was present before or during browser validation; browser flow does not execute non-UI fixture contract-test artifacts."
+      : "Temp DB single-claim result contract-test report was not present; browser flow does not execute non-UI fixture contract-test artifacts.",
   };
 }
 
