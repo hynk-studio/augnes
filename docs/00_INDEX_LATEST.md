@@ -1209,6 +1209,32 @@ repo-local 색인이다.
   Perspective/canonical graph write, no work item, no provider/OpenAI call, no
   retrieval/RAG/source fetch, no external handoff, no browser persistence, no
   transaction execution, and no local runtime requirement.
+- Manual note single-claim product write disabled adapter skeleton:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-skeleton.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-skeleton.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1`,
+  and `npm run adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1`
+  add a deterministic disabled product-write adapter skeleton only. It consumes
+  the product-write authority contract bundle and upstream lane summaries from
+  fixtures or passing `/tmp` reports; failed optional reports block and do not
+  fall back to committed fixtures. This disabled product-write adapter skeleton
+  only normalizes a local input preview, defines a disabled output contract,
+  returns a rejected disabled invocation result, and previews a future command
+  that is not executable. It does not implement product write, does not enable
+  an adapter, does not invoke an adapter, does not execute a DB transaction,
+  does not allocate product IDs, does not open DB, and does not execute SQL. It
+  adds no route, no UI write action, and no schema/migration/dependency. Product
+  write remains blocked. The disabled adapter skeleton status is
+  `product_write_disabled_adapter_skeleton_only`, the recommendation status is
+  `ready_for_single_claim_product_write_disabled_adapter_contract_tests`, and
+  the next recommended slice is
+  `single_claim_product_write_disabled_adapter_contract_tests`, not product
+  write implementation. The runner writes only `/tmp` report artifacts and keeps
+  no product DB write, no product ID allocation, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/OpenAI call, no
+  retrieval/RAG/source fetch, no external handoff, no browser persistence, no
+  transaction execution, no adapter invocation, no enabled adapter transition,
+  and no local runtime requirement.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

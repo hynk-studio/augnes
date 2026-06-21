@@ -443,6 +443,18 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-single-claim-product-write-authority-contract-bundle-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"
+    ],
+    "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1.mjs",
+  );
   for (const requiredText of [
     "Manual note single-claim temp-to-product bridge design",
     "Manual note single-claim temp-to-product disabled bridge dry-run transaction plan",
@@ -623,8 +635,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"authority:research-candidate-single-claim-product-write-authority-contract-bundle-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"',
+        ) ||
+        line.includes(
+          '"adapter:research-candidate-single-claim-product-write-disabled-adapter-skeleton-v0-1"',
         ),
-      `package.json must only add temp-to-product bridge design, disabled bridge skeleton, dry-run harness, or authority bundle scripts, not dependencies: ${line}`,
+      `package.json must only add temp-to-product bridge design, disabled bridge skeleton, dry-run harness, authority bundle, or disabled adapter skeleton scripts, not dependencies: ${line}`,
     );
   }
 }
