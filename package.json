@@ -221,6 +221,8 @@
     "design:research-candidate-temp-db-single-claim-prototype-design-v0-1": "node scripts/run-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs",
     "smoke:research-candidate-temp-db-single-claim-write-prototype-v0-1": "node scripts/smoke-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs",
     "harness:research-candidate-temp-db-single-claim-write-prototype-v0-1": "node scripts/run-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs",
+    "smoke:research-candidate-temp-db-single-claim-result-review-v0-1": "node scripts/smoke-research-candidate-temp-db-single-claim-result-review-v0-1.mjs",
+    "review:research-candidate-temp-db-single-claim-result-review-v0-1": "node scripts/run-research-candidate-temp-db-single-claim-result-review-v0-1.mjs",
     "smoke:research-candidate-manual-note-draft-ui-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-draft-ui-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-candidate-display-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-candidate-display-extract-v0-1.mjs",
     "smoke:research-candidate-promotion-readiness-readout-extract-v0-1": "node scripts/smoke-research-candidate-promotion-readiness-readout-extract-v0-1.mjs",

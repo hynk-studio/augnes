@@ -11,6 +11,12 @@ const runnerPath =
   "scripts/run-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs";
 const designSmokePath =
   "scripts/smoke-research-candidate-temp-db-single-claim-prototype-design-v0-1.mjs";
+const resultReviewFixturePath =
+  "fixtures/research-candidate-review.manual-note-temp-db-single-claim-result-review.sample.v0.1.json";
+const resultReviewSmokePath =
+  "scripts/smoke-research-candidate-temp-db-single-claim-result-review-v0-1.mjs";
+const resultReviewRunnerPath =
+  "scripts/run-research-candidate-temp-db-single-claim-result-review-v0-1.mjs";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const browserValidatorPath =
@@ -28,6 +34,9 @@ for (const filePath of [
   fixturePath,
   runnerPath,
   designSmokePath,
+  resultReviewFixturePath,
+  resultReviewSmokePath,
+  resultReviewRunnerPath,
   docsIndexPath,
   packagePath,
   browserValidatorPath,
@@ -314,6 +323,33 @@ function assertDocsPackageAndBrowserPointers() {
     ),
     "design smoke should point to temp DB write prototype smoke",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-temp-db-single-claim-result-review-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-temp-db-single-claim-result-review-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "review:research-candidate-temp-db-single-claim-result-review-v0-1"
+    ],
+    "node scripts/run-research-candidate-temp-db-single-claim-result-review-v0-1.mjs",
+  );
+  assert.ok(
+    docsIndex.includes("Manual note temp DB single-claim write prototype result review"),
+    "docs should point to temp DB result review follow-up",
+  );
+  assert.ok(
+    docsIndex.includes("does not open DB") &&
+      docsIndex.includes("does not execute SQL"),
+    "docs should preserve result review no-DB-open/no-SQL boundary",
+  );
+  assert.ok(
+    browserValidator.includes(
+      "temp_db_single_claim_result_review_artifact_note",
+    ),
+    "browser validator should include temp DB result review artifact note",
+  );
 }
 
 function assertNoRouteUiSchemaDependencyExpansion() {
@@ -350,8 +386,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       line.includes(
         '"smoke:research-candidate-temp-db-single-claim-write-prototype-v0-1"',
       ) ||
+      line.includes(
+        '"harness:research-candidate-temp-db-single-claim-write-prototype-v0-1"',
+      ) ||
         line.includes(
-          '"harness:research-candidate-temp-db-single-claim-write-prototype-v0-1"',
+          '"smoke:research-candidate-temp-db-single-claim-result-review-v0-1"',
+        ) ||
+        line.includes(
+          '"review:research-candidate-temp-db-single-claim-result-review-v0-1"',
         ),
       `package.json must only add temp DB write prototype scripts, not dependencies: ${line}`,
     );

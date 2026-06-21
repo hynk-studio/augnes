@@ -1,0 +1,168 @@
+{
+  "review_kind": "manual_note_temp_db_single_claim_result_review",
+  "review_version": "manual_note_temp_db_single_claim_result_review.v0.1",
+  "review_fingerprint": "fnv1a32:8a8ed8f6",
+  "source_harness": {
+    "report_version": "manual_note_temp_db_single_claim_write_prototype_harness.v0.1",
+    "result_fingerprint": "fnv1a32:72ddbd17",
+    "result_status": "temp_db_write_passed",
+    "sqlite_method": "better-sqlite3",
+    "temp_db_path": "/tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite",
+    "temp_db_under_tmp": true,
+    "temp_db_created": true,
+    "temp_db_preserved_for_inspection": true
+  },
+  "temp_record_summary": {
+    "temp_claim_records": 1,
+    "temp_idempotency_records": 1,
+    "temp_rollback_records": 1,
+    "temp_review_audit_records": 1,
+    "exactly_one_each": true
+  },
+  "inserted_claim_summary": {
+    "source_operation_id": "disabled-plan-op:claim:001",
+    "source_temp_intent_id": "temp-intent:claim:001",
+    "temp_claim_record_id": "temp-claim:aa03dfea",
+    "product_claim_id": null,
+    "canonical_claim_id": null,
+    "proof_id": null,
+    "evidence_id": null,
+    "perspective_id": null,
+    "work_item_id": null,
+    "raw_manual_note_text_included": false
+  },
+  "evidence_checks": {
+    "row_counts_match_expected": true,
+    "temp_tables_only": true,
+    "product_table_statement_count_zero": true,
+    "product_db_path_used_false": true,
+    "product_db_untouched_true": true,
+    "product_ids_absent": true,
+    "raw_manual_note_absent": true,
+    "browser_external_requests_zero_when_report_available": true,
+    "browser_forbidden_requests_zero_when_report_available": true,
+    "temp_db_path_containment_checked": true,
+    "traversal_blocked_when_report_available": true
+  },
+  "evidence_check_results": [
+    {
+      "check_id": "harness_result_passed",
+      "status": "pass",
+      "message": "Harness result status is temp_db_write_passed."
+    },
+    {
+      "check_id": "row_counts_match_expected",
+      "status": "pass",
+      "message": "Temp row counts match exactly one row in each required temp table."
+    },
+    {
+      "check_id": "temp_tables_only",
+      "status": "pass",
+      "message": "Harness evidence is scoped to temp tables only."
+    },
+    {
+      "check_id": "product_table_statement_count_zero",
+      "status": "pass",
+      "message": "Harness reported zero product-table statements."
+    },
+    {
+      "check_id": "product_db_path_used_false",
+      "status": "pass",
+      "message": "Harness did not use a product DB path."
+    },
+    {
+      "check_id": "product_db_untouched_true",
+      "status": "pass",
+      "message": "Harness verification states the product DB was untouched."
+    },
+    {
+      "check_id": "product_ids_absent",
+      "status": "pass",
+      "message": "Harness evidence contains no product, canonical, proof, evidence, Perspective, or work item IDs."
+    },
+    {
+      "check_id": "raw_manual_note_absent",
+      "status": "pass",
+      "message": "Harness evidence excludes raw manual note text."
+    },
+    {
+      "check_id": "browser_external_requests_zero",
+      "status": "warn",
+      "message": "Browser report was not supplied; browser external request evidence is optional for this result review."
+    },
+    {
+      "check_id": "browser_forbidden_requests_zero",
+      "status": "warn",
+      "message": "Browser report was not supplied; browser forbidden request evidence is optional for this result review."
+    },
+    {
+      "check_id": "temp_db_path_containment_checked",
+      "status": "pass",
+      "message": "Temp DB path is contained under the single-claim harness artifact directory."
+    },
+    {
+      "check_id": "traversal_blocked_when_report_available",
+      "status": "warn",
+      "message": "No separate failure-path harness report was supplied; committed fixture path containment is reviewed, but traversal-block evidence remains validation-command evidence."
+    }
+  ],
+  "review_status": "temp_result_review_needs_attention",
+  "remaining_product_write_blockers": [
+    "source_verification_authority_missing",
+    "proof_evidence_write_authority_missing",
+    "canonical_perspective_write_authority_missing",
+    "product_schema_review_missing",
+    "product_idempotency_storage_missing",
+    "product_rollback_contract_missing",
+    "product_audit_record_contract_missing",
+    "explicit_operator_promotion_decision_missing",
+    "enabled_adapter_review_missing",
+    "product_write_route_missing"
+  ],
+  "product_write_boundary": {
+    "result_review_only": true,
+    "normal_product_write_enabled": false,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "product_ids_created": false,
+    "repo_schema_changed": false,
+    "migration_added": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_product_persistence": false,
+    "browser_persistence": false
+  },
+  "next_stage_recommendation": {
+    "recommendation_status": "ready_for_temp_result_contract_tests",
+    "recommended_next_slice": "temp_db_single_claim_result_contract_tests",
+    "why_not_product_write_yet": [
+      "Temp DB evidence proves only an isolated fixture-backed temp write path.",
+      "No source verification, proof/evidence, canonical Perspective, product schema, product idempotency, rollback, audit, operator decision, enabled adapter, or product route authority exists."
+    ],
+    "minimum_new_tests_before_product_write_design": [
+      "temp_result_review_fixture_drift_tests",
+      "path_containment_negative_result_review_tests",
+      "product_id_absence_negative_result_review_tests",
+      "raw_note_absence_negative_result_review_tests",
+      "row_count_negative_result_review_tests"
+    ]
+  },
+  "next_recommended_slice": "temp_db_single_claim_result_contract_tests",
+  "local_copy_packet": {
+    "markdown": "# Manual Note Temp DB Single-Claim Result Review\n\nResult review only. No DB is opened and no SQL is executed.\nreview_status: temp_result_review_needs_attention\nattention_note: Ready to proceed to result contract tests, but optional report-backed evidence is incomplete.\nresult_status: temp_db_write_passed\ntemp_db_path: /tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite\n\n## Temp Record Summary\n- temp_claim_records: 1\n- temp_idempotency_records: 1\n- temp_rollback_records: 1\n- temp_review_audit_records: 1\n\n## Product Write Boundary\nnormal_product_write_enabled=false\nproduct_db_write=false\nactual_promotion_performed=false\nproof_or_evidence_writes=false\nperspective_or_canonical_writes=false\ncanonical_graph_write=false\nwork_item_creation=false\n\n## Next\ntemp_db_single_claim_result_contract_tests",
+    "json": "{\n  \"review_kind\": \"manual_note_temp_db_single_claim_result_review\",\n  \"review_version\": \"manual_note_temp_db_single_claim_result_review.v0.1\",\n  \"review_fingerprint\": \"fnv1a32:8a8ed8f6\",\n  \"source_harness\": {\n    \"report_version\": \"manual_note_temp_db_single_claim_write_prototype_harness.v0.1\",\n    \"result_fingerprint\": \"fnv1a32:72ddbd17\",\n    \"result_status\": \"temp_db_write_passed\",\n    \"sqlite_method\": \"better-sqlite3\",\n    \"temp_db_path\": \"/tmp/augnes-single-claim-write-prototype-v0-1/single-claim-prototype.sqlite\",\n    \"temp_db_under_tmp\": true,\n    \"temp_db_created\": true,\n    \"temp_db_preserved_for_inspection\": true\n  },\n  \"temp_record_summary\": {\n    \"temp_claim_records\": 1,\n    \"temp_idempotency_records\": 1,\n    \"temp_rollback_records\": 1,\n    \"temp_review_audit_records\": 1,\n    \"exactly_one_each\": true\n  },\n  \"evidence_checks\": {\n    \"row_counts_match_expected\": true,\n    \"temp_tables_only\": true,\n    \"product_table_statement_count_zero\": true,\n    \"product_db_path_used_false\": true,\n    \"product_db_untouched_true\": true,\n    \"product_ids_absent\": true,\n    \"raw_manual_note_absent\": true,\n    \"browser_external_requests_zero_when_report_available\": true,\n    \"browser_forbidden_requests_zero_when_report_available\": true,\n    \"temp_db_path_containment_checked\": true,\n    \"traversal_blocked_when_report_available\": true\n  },\n  \"review_status\": \"temp_result_review_needs_attention\",\n  \"remaining_product_write_blockers\": [\n    \"source_verification_authority_missing\",\n    \"proof_evidence_write_authority_missing\",\n    \"canonical_perspective_write_authority_missing\",\n    \"product_schema_review_missing\",\n    \"product_idempotency_storage_missing\",\n    \"product_rollback_contract_missing\",\n    \"product_audit_record_contract_missing\",\n    \"explicit_operator_promotion_decision_missing\",\n    \"enabled_adapter_review_missing\",\n    \"product_write_route_missing\"\n  ],\n  \"product_write_boundary\": {\n    \"result_review_only\": true,\n    \"normal_product_write_enabled\": false,\n    \"product_db_write\": false,\n    \"actual_promotion_performed\": false,\n    \"proof_or_evidence_writes\": false,\n    \"perspective_or_canonical_writes\": false,\n    \"canonical_graph_write\": false,\n    \"work_item_creation\": false,\n    \"product_ids_created\": false,\n    \"repo_schema_changed\": false,\n    \"migration_added\": false,\n    \"provider_or_openai_calls\": false,\n    \"retrieval_or_rag\": false,\n    \"source_fetching\": false,\n    \"external_handoff_sent\": false,\n    \"durable_product_persistence\": false,\n    \"browser_persistence\": false\n  },\n  \"next_stage_recommendation\": {\n    \"recommendation_status\": \"ready_for_temp_result_contract_tests\",\n    \"recommended_next_slice\": \"temp_db_single_claim_result_contract_tests\",\n    \"why_not_product_write_yet\": [\n      \"Temp DB evidence proves only an isolated fixture-backed temp write path.\",\n      \"No source verification, proof/evidence, canonical Perspective, product schema, product idempotency, rollback, audit, operator decision, enabled adapter, or product route authority exists.\"\n    ],\n    \"minimum_new_tests_before_product_write_design\": [\n      \"temp_result_review_fixture_drift_tests\",\n      \"path_containment_negative_result_review_tests\",\n      \"product_id_absence_negative_result_review_tests\",\n      \"raw_note_absence_negative_result_review_tests\",\n      \"row_count_negative_result_review_tests\"\n    ]\n  },\n  \"next_recommended_slice\": \"temp_db_single_claim_result_contract_tests\"\n}",
+    "fingerprint": "fnv1a32:8a8ed8f6",
+    "fingerprint_algorithm": "fnv1a32_canonical_json",
+    "local_clipboard_only": true,
+    "external_handoff_sent": false,
+    "packet_persisted_to_product_db": false,
+    "product_write_authority_granted": false,
+    "actual_promotion_allowed": false
+  }
+}
