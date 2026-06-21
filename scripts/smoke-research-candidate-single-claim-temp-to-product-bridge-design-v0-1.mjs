@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 const helperPath =
@@ -11,12 +19,17 @@ const runnerPath =
   "scripts/run-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs";
 const productWriteGateSmokePath =
   "scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs";
+const productWriteGateDesignFixturePath =
+  "fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const browserValidatorPath =
   "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs";
 const artifactDir =
   "/tmp/augnes-single-claim-temp-to-product-bridge-design-v0-1";
+const artifactReportPath = path.join(artifactDir, "report.json");
+const optionalProductWriteGateDesignReportPath =
+  "/tmp/augnes-single-claim-product-write-gate-design-v0-1/report.json";
 const forbiddenSurfaceKeys = [
   "proof_evidence_write",
   "perspective_or_canonical_graph_write",
@@ -39,6 +52,7 @@ for (const filePath of [
   helperPath,
   fixturePath,
   runnerPath,
+  productWriteGateDesignFixturePath,
   productWriteGateSmokePath,
   docsIndexPath,
   packagePath,
@@ -51,6 +65,9 @@ const helper = readFileSync(helperPath, "utf8");
 const runner = readFileSync(runnerPath, "utf8");
 const fixtureText = readFileSync(fixturePath, "utf8");
 const fixture = JSON.parse(fixtureText);
+const productWriteGateDesignFixture = JSON.parse(
+  readFileSync(productWriteGateDesignFixturePath, "utf8"),
+);
 const productWriteGateSmoke = readFileSync(productWriteGateSmokePath, "utf8");
 const docsIndex = readFileSync(docsIndexPath, "utf8").replace(/\s+/g, " ");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
@@ -59,6 +76,7 @@ const browserValidator = readFileSync(browserValidatorPath, "utf8");
 assertHelperContract();
 assertRunnerContract();
 assertFixtureContract();
+assertBlockedUpstreamGateDesignMutation();
 assertDocsPackageAndBrowserPointers();
 assertNoRouteUiSchemaDependencyExpansion();
 assertForbiddenPatternsAbsent();
@@ -79,6 +97,7 @@ console.log(
       no_schema_migration_changes_checked: true,
       no_dependency_addition_checked: true,
       no_db_open_or_sql_execution_checked: true,
+      blocked_upstream_gate_mutation_checked: true,
       forbidden_surfaces_checked: forbiddenSurfaceKeys.length,
       product_ids_null_checked: true,
       next_slice_checked:
@@ -105,6 +124,8 @@ function assertHelperContract() {
     "explicit_forbidden_surfaces",
     "single_claim_bridge_design_only",
     "ready_for_disabled_bridge_skeleton",
+    "blocked_before_disabled_bridge_skeleton",
+    "deriveBridgeRecommendationStatus",
     "single_claim_temp_to_product_disabled_bridge_skeleton",
     "blocked_until_explicit_operator_decision_contract",
     "blocked_until_operator_and_schema_contract",
@@ -132,6 +153,8 @@ function assertRunnerContract() {
     "temp-to-product-bridge-design.json",
     "report.json",
     "validateDesign",
+    "upstream_product_write_gate_design_not_ready",
+    "bridge_recommendation_status_not_ready",
     "process.exitCode = 1",
   ]) {
     assert.ok(runner.includes(requiredText), `runner must include ${requiredText}`);
@@ -261,6 +284,90 @@ function assertFixtureContract() {
     fixtureText,
     /manual note raw text|verbatim manual note|raw note body/i,
   );
+}
+
+function assertBlockedUpstreamGateDesignMutation() {
+  const originalReportExists = existsSync(optionalProductWriteGateDesignReportPath);
+  const originalReportText = originalReportExists
+    ? readFileSync(optionalProductWriteGateDesignReportPath, "utf8")
+    : null;
+  const blockedGateDesign = JSON.parse(
+    JSON.stringify(productWriteGateDesignFixture),
+  );
+  blockedGateDesign.next_stage_recommendation.recommendation_status =
+    "blocked_before_bridge_design";
+  mkdirSync(path.dirname(optionalProductWriteGateDesignReportPath), {
+    recursive: true,
+  });
+  writeFileSync(
+    optionalProductWriteGateDesignReportPath,
+    `${JSON.stringify(
+      {
+        report_kind:
+          "manual_note_single_claim_product_write_gate_design_report_negative_smoke_fixture",
+        final_status: "fail",
+        product_write_gate_design: blockedGateDesign,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  try {
+    let failedAsExpected = false;
+    try {
+      execSync(
+        "node scripts/run-research-candidate-single-claim-temp-to-product-bridge-design-v0-1.mjs",
+        { encoding: "utf8", stdio: "pipe" },
+      );
+    } catch (error) {
+      failedAsExpected = true;
+      assert.equal(error.status, 1, "blocked upstream runner exit status must be 1");
+    }
+    assert.equal(
+      failedAsExpected,
+      true,
+      "runner must fail when upstream product-write gate design is blocked",
+    );
+    const blockedReport = JSON.parse(readFileSync(artifactReportPath, "utf8"));
+    const blockedDesign = blockedReport.temp_to_product_bridge_design;
+    assert.equal(blockedReport.final_status, "fail");
+    assert.equal(blockedReport.bridge_validation.passed, false);
+    assert.ok(
+      blockedReport.bridge_validation.failures.includes(
+        "upstream_product_write_gate_design_not_ready",
+      ),
+      "blocked validation must include upstream not-ready failure",
+    );
+    assert.ok(
+      blockedReport.bridge_validation.failures.includes(
+        "bridge_recommendation_status_not_ready",
+      ),
+      "blocked validation must include bridge recommendation failure",
+    );
+    assert.equal(
+      blockedDesign.source_evidence.product_write_gate_design.recommendation_status,
+      "blocked_before_bridge_design",
+    );
+    assert.equal(
+      blockedDesign.recommendation_status,
+      "blocked_before_disabled_bridge_skeleton",
+    );
+    assert.notEqual(
+      blockedDesign.recommendation_status,
+      "ready_for_disabled_bridge_skeleton",
+    );
+    assert.equal(blockedDesign.bridge_execution_allowed_now, false);
+    assert.equal(blockedDesign.product_write_allowed_now, false);
+    assertForbiddenSurfaces(blockedDesign.explicit_forbidden_surfaces);
+    assertNoNonNullProductIds(blockedDesign, "blockedDesign");
+  } finally {
+    if (originalReportExists && originalReportText !== null) {
+      writeFileSync(optionalProductWriteGateDesignReportPath, originalReportText);
+    } else {
+      rmSync(optionalProductWriteGateDesignReportPath, { force: true });
+    }
+  }
 }
 
 function assertDocsPackageAndBrowserPointers() {

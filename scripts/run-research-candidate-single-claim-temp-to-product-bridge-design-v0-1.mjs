@@ -181,6 +181,12 @@ function buildDesign({
   const browserReport = asRecord(browserValidationReport);
   const contractReportPresent = Object.keys(contractReport).length > 0;
   const browserReportPresent = Object.keys(browserReport).length > 0;
+  const upstreamGateRecommendationStatus = asString(
+    gateRecommendation.recommendation_status,
+  );
+  const bridgeRecommendationStatus = deriveBridgeRecommendationStatus(
+    upstreamGateRecommendationStatus,
+  );
   const resultContractSuiteFingerprint =
     asString(contractReport.suite_fingerprint) ??
     asString(gateContractEvidence.suite_fingerprint) ??
@@ -214,7 +220,7 @@ function buildDesign({
       product_write_gate_design: {
         design_fingerprint: asString(gateDesign.design_fingerprint),
         gate_design_status: asString(gateDesign.gate_design_status),
-        recommendation_status: asString(gateRecommendation.recommendation_status),
+        recommendation_status: upstreamGateRecommendationStatus,
         next_recommended_slice: asString(gateDesign.next_recommended_slice),
       },
       temp_db_write_harness: {
@@ -311,7 +317,7 @@ function buildDesign({
     bridge_design_status: "single_claim_bridge_design_only",
     bridge_execution_allowed_now: false,
     product_write_allowed_now: false,
-    recommendation_status: "ready_for_disabled_bridge_skeleton",
+    recommendation_status: bridgeRecommendationStatus,
     next_recommended_slice: "single_claim_temp_to_product_disabled_bridge_skeleton",
   };
   const fingerprint = createFingerprint(designCore);
@@ -347,8 +353,14 @@ function validateDesign(design) {
   if (design.product_write_allowed_now !== false) {
     failures.push("product_write_allowed_now");
   }
+  if (
+    design.source_evidence?.product_write_gate_design?.recommendation_status !==
+    "ready_for_single_claim_bridge_design"
+  ) {
+    failures.push("upstream_product_write_gate_design_not_ready");
+  }
   if (design.recommendation_status !== "ready_for_disabled_bridge_skeleton") {
-    failures.push("recommendation_status_invalid");
+    failures.push("bridge_recommendation_status_not_ready");
   }
   if (
     design.next_recommended_slice !==
@@ -467,6 +479,12 @@ function explicitForbiddenSurfaces() {
     ui_write_action_added: false,
     adapter_enabled: false,
   };
+}
+
+function deriveBridgeRecommendationStatus(upstreamGateRecommendationStatus) {
+  return upstreamGateRecommendationStatus === "ready_for_single_claim_bridge_design"
+    ? "ready_for_disabled_bridge_skeleton"
+    : "blocked_before_disabled_bridge_skeleton";
 }
 
 async function readJson(filePath) {

@@ -36,6 +36,10 @@ type BridgeDesignCopySource = Omit<
   "local_copy_packet"
 >;
 
+type BridgeRecommendationStatus =
+  | "ready_for_disabled_bridge_skeleton"
+  | "blocked_before_disabled_bridge_skeleton";
+
 export type ManualNoteSingleClaimTempToProductBridgeDesign = {
   design_kind: "manual_note_single_claim_temp_to_product_bridge_design";
   design_version: typeof MANUAL_NOTE_SINGLE_CLAIM_TEMP_TO_PRODUCT_BRIDGE_DESIGN_VERSION;
@@ -131,7 +135,7 @@ export type ManualNoteSingleClaimTempToProductBridgeDesign = {
   bridge_design_status: "single_claim_bridge_design_only";
   bridge_execution_allowed_now: false;
   product_write_allowed_now: false;
-  recommendation_status: "ready_for_disabled_bridge_skeleton";
+  recommendation_status: BridgeRecommendationStatus;
   next_recommended_slice: "single_claim_temp_to_product_disabled_bridge_skeleton";
   local_copy_packet: {
     markdown: string;
@@ -190,6 +194,12 @@ export function buildManualNoteSingleClaimTempToProductBridgeDesign(
   const browserReport = asRecord(input.browserValidationReport);
   const contractReportPresent = Object.keys(contractReport).length > 0;
   const browserReportPresent = Object.keys(browserReport).length > 0;
+  const upstreamGateRecommendationStatus = asString(
+    gateRecommendation.recommendation_status,
+  );
+  const bridgeRecommendationStatus = deriveBridgeRecommendationStatus(
+    upstreamGateRecommendationStatus,
+  );
   const resultContractSuiteFingerprint =
     asString(contractReport.suite_fingerprint) ??
     asString(gateContractEvidence.suite_fingerprint) ??
@@ -224,7 +234,7 @@ export function buildManualNoteSingleClaimTempToProductBridgeDesign(
       product_write_gate_design: {
         design_fingerprint: asString(productWriteGateDesign.design_fingerprint),
         gate_design_status: asString(productWriteGateDesign.gate_design_status),
-        recommendation_status: asString(gateRecommendation.recommendation_status),
+        recommendation_status: upstreamGateRecommendationStatus,
         next_recommended_slice: asString(productWriteGateDesign.next_recommended_slice),
       },
       temp_db_write_harness: {
@@ -321,7 +331,7 @@ export function buildManualNoteSingleClaimTempToProductBridgeDesign(
     bridge_design_status: "single_claim_bridge_design_only",
     bridge_execution_allowed_now: false,
     product_write_allowed_now: false,
-    recommendation_status: "ready_for_disabled_bridge_skeleton",
+    recommendation_status: bridgeRecommendationStatus,
     next_recommended_slice: "single_claim_temp_to_product_disabled_bridge_skeleton",
   };
   const fingerprint =
@@ -438,6 +448,14 @@ function explicitForbiddenSurfaces(): ExplicitForbiddenSurfaces {
     ui_write_action_added: false,
     adapter_enabled: false,
   };
+}
+
+function deriveBridgeRecommendationStatus(
+  upstreamGateRecommendationStatus: string | null,
+): BridgeRecommendationStatus {
+  return upstreamGateRecommendationStatus === "ready_for_single_claim_bridge_design"
+    ? "ready_for_disabled_bridge_skeleton"
+    : "blocked_before_disabled_bridge_skeleton";
 }
 
 function readResultReview(value: unknown): JsonRecord {
