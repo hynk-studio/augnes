@@ -297,8 +297,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"design:research-candidate-single-claim-product-write-gate-design-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-temp-to-product-bridge-design-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-single-claim-temp-to-product-bridge-design-v0-1"',
         ),
-      `package.json must only add product write gate-design scripts, not dependencies: ${line}`,
+      `package.json must only add product write gate-design or temp-to-product bridge design scripts, not dependencies: ${line}`,
     );
   }
 }
