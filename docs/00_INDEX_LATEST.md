@@ -988,6 +988,20 @@ repo-local 색인이다.
   durable persistence, and no schema/migration/dependency. Browser-backed
   validation uses the best available method and may record the local `/tmp`
   transaction-plan report if present.
+- Manual note first product-write design review:
+  `lib/research-candidate-review/manual-note-product-write-design-review.ts`,
+  `fixtures/research-candidate-review.manual-note-product-write-design-review.sample.v0.1.json`,
+  `npm run smoke:research-candidate-product-write-design-review-v0-1`,
+  and `npm run design:research-candidate-product-write-design-review-v0-1`
+  add a product-write design review artifact, static repo inventory, candidate
+  product write target groups, smallest safe future write prototype proposal,
+  and `/tmp design review report runner`. This adds no new route, no UI
+  behavior change, no normal product write, no actual promotion, no
+  proof/evidence write, no Perspective/canonical graph write, no work item, no
+  provider/retrieval/source fetch, no external handoff, no durable persistence,
+  and no schema/migration/dependency. Browser-backed validation uses the best
+  available method and may record the local `/tmp` design-review report if
+  present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

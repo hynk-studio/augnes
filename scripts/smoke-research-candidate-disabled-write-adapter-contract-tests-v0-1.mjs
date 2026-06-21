@@ -15,6 +15,12 @@ const transactionPlanSmokePath =
   "scripts/smoke-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs";
 const transactionPlanRunnerPath =
   "scripts/run-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs";
+const productWriteDesignReviewHelperPath =
+  "lib/research-candidate-review/manual-note-product-write-design-review.ts";
+const productWriteDesignReviewSmokePath =
+  "scripts/smoke-research-candidate-product-write-design-review-v0-1.mjs";
+const productWriteDesignReviewRunnerPath =
+  "scripts/run-research-candidate-product-write-design-review-v0-1.mjs";
 const tempHarnessSmokePath =
   "scripts/smoke-research-candidate-disabled-adapter-temp-harness-v0-1.mjs";
 const browserValidatorPath =
@@ -29,6 +35,9 @@ for (const filePath of [
   transactionPlanHelperPath,
   transactionPlanSmokePath,
   transactionPlanRunnerPath,
+  productWriteDesignReviewHelperPath,
+  productWriteDesignReviewSmokePath,
+  productWriteDesignReviewRunnerPath,
   tempHarnessSmokePath,
   browserValidatorPath,
   docsIndexPath,
@@ -258,17 +267,34 @@ function assertDocsPackageAndExistingSmokePointers() {
     ],
     "node scripts/run-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-product-write-design-review-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-product-write-design-review-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "design:research-candidate-product-write-design-review-v0-1"
+    ],
+    "node scripts/run-research-candidate-product-write-design-review-v0-1.mjs",
+  );
 
   for (const requiredText of [
     "Manual note fixture-only disabled write adapter contract tests",
     "Manual note disabled write adapter in-memory transaction plan",
+    "Manual note first product-write design review",
     "positive fixture chain",
     "negative mutation matrix",
     "/tmp contract-test report runner",
     "/tmp transaction-plan report runner",
+    "/tmp design review report runner",
     transactionPlanHelperPath,
+    productWriteDesignReviewHelperPath,
     "npm run smoke:research-candidate-disabled-write-adapter-transaction-plan-v0-1",
     "npm run plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1",
+    "npm run smoke:research-candidate-product-write-design-review-v0-1",
+    "npm run design:research-candidate-product-write-design-review-v0-1",
     "no new route",
     "no UI behavior change",
     "no normal product write",
@@ -339,8 +365,14 @@ function assertNoRouteSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-product-write-design-review-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-product-write-design-review-v0-1"',
         ),
-      `package.json must only add the contract-test or transaction-plan scripts, not dependencies: ${line}`,
+      `package.json must only add the contract-test, transaction-plan, or product-write design-review scripts, not dependencies: ${line}`,
     );
   }
 }
