@@ -17,6 +17,8 @@ const DESKTOP_SCREENSHOT_PATH = path.join(ARTIFACT_DIR, "desktop.png");
 const MOBILE_SCREENSHOT_PATH = path.join(ARTIFACT_DIR, "mobile-390.png");
 const CONTRACT_TEST_REPORT_PATH =
   "/tmp/augnes-disabled-write-adapter-contract-tests-v0-1/report.json";
+const TRANSACTION_PLAN_REPORT_PATH =
+  "/tmp/augnes-disabled-write-adapter-transaction-plan-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -130,6 +132,7 @@ function createInitialReport() {
     disabled_adapter_readiness_assertion_result: null,
     disabled_adapter_temp_harness_assertion_result: null,
     contract_tests_artifact_note: null,
+    transaction_plan_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -229,6 +232,21 @@ async function main() {
     {
       contract_test_route_request_count: contractTestRouteRequests.length,
       artifact_note: report.contract_tests_artifact_note,
+    },
+  );
+  report.transaction_plan_artifact_note = buildTransactionPlanArtifactNote();
+  const transactionPlanRouteRequests = requestLog.filter((request) =>
+    /disabled-write-adapter-transaction|transaction-plan|abort-result/i.test(
+      request.path ?? "",
+    ),
+  );
+  recordAssertion(
+    "transaction_plan_fixture_only_no_browser_route",
+    transactionPlanRouteRequests.length === 0,
+    "Disabled write adapter transaction-plan artifacts added no browser-observed route behavior.",
+    {
+      transaction_plan_route_request_count: transactionPlanRouteRequests.length,
+      artifact_note: report.transaction_plan_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1450,6 +1468,17 @@ function buildContractTestsArtifactNote() {
     note: reportExists
       ? "Fixture-only disabled write adapter contract test report was present before or during browser validation; browser flow does not execute fixture tests."
       : "Fixture-only disabled write adapter contract test report was not present; browser flow does not execute fixture tests.",
+  };
+}
+
+function buildTransactionPlanArtifactNote() {
+  const reportExists = existsSync(TRANSACTION_PLAN_REPORT_PATH);
+  return {
+    report_path: TRANSACTION_PLAN_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Disabled write adapter transaction-plan report was present before or during browser validation; browser flow does not execute transaction-plan artifacts."
+      : "Disabled write adapter transaction-plan report was not present; browser flow does not execute transaction-plan artifacts.",
   };
 }
 

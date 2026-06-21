@@ -974,6 +974,20 @@ repo-local 색인이다.
   fetch, no external handoff, no durable persistence, no schema/migration/dependency.
   Browser-backed validation uses the best available method and may record the
   local `/tmp` contract-test report if present.
+- Manual note disabled write adapter in-memory transaction plan:
+  `lib/research-candidate-review/manual-note-disabled-write-adapter-transaction-plan.ts`,
+  `fixtures/research-candidate-review.manual-note-disabled-write-adapter-transaction-plan.sample.v0.1.json`,
+  `fixtures/research-candidate-review.manual-note-disabled-write-adapter-abort-result.sample.v0.1.json`,
+  `npm run smoke:research-candidate-disabled-write-adapter-transaction-plan-v0-1`,
+  and `npm run plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1`
+  add a disabled write adapter in-memory transaction plan, abort-only non-product
+  execution harness, and `/tmp transaction-plan report runner`. This adds no
+  new route, no UI behavior change, no normal product write, no actual
+  promotion, no proof/evidence write, no Perspective/canonical graph write, no
+  work item, no provider/retrieval/source fetch, no external handoff, no
+  durable persistence, and no schema/migration/dependency. Browser-backed
+  validation uses the best available method and may record the local `/tmp`
+  transaction-plan report if present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
