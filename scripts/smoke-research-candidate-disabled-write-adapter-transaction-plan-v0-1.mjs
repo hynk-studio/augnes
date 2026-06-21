@@ -11,6 +11,14 @@ const abortFixturePath =
   "fixtures/research-candidate-review.manual-note-disabled-write-adapter-abort-result.sample.v0.1.json";
 const runnerPath =
   "scripts/run-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs";
+const productWriteDesignReviewHelperPath =
+  "lib/research-candidate-review/manual-note-product-write-design-review.ts";
+const productWriteDesignReviewFixturePath =
+  "fixtures/research-candidate-review.manual-note-product-write-design-review.sample.v0.1.json";
+const productWriteDesignReviewSmokePath =
+  "scripts/smoke-research-candidate-product-write-design-review-v0-1.mjs";
+const productWriteDesignReviewRunnerPath =
+  "scripts/run-research-candidate-product-write-design-review-v0-1.mjs";
 const docsIndexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const browserValidatorPath =
@@ -21,6 +29,10 @@ for (const filePath of [
   planFixturePath,
   abortFixturePath,
   runnerPath,
+  productWriteDesignReviewHelperPath,
+  productWriteDesignReviewFixturePath,
+  productWriteDesignReviewSmokePath,
+  productWriteDesignReviewRunnerPath,
   docsIndexPath,
   packagePath,
   browserValidatorPath,
@@ -233,11 +245,31 @@ function assertDocsPackageAndBrowserPointers() {
     ],
     "node scripts/run-research-candidate-disabled-write-adapter-transaction-plan-v0-1.mjs",
   );
+  assert.equal(
+    packageJson.scripts[
+      "smoke:research-candidate-product-write-design-review-v0-1"
+    ],
+    "node scripts/smoke-research-candidate-product-write-design-review-v0-1.mjs",
+  );
+  assert.equal(
+    packageJson.scripts[
+      "design:research-candidate-product-write-design-review-v0-1"
+    ],
+    "node scripts/run-research-candidate-product-write-design-review-v0-1.mjs",
+  );
 
   for (const requiredText of [
     "Manual note disabled write adapter in-memory transaction plan",
+    "Manual note first product-write design review",
     "abort-only non-product execution harness",
     "/tmp transaction-plan report runner",
+    "static repo inventory",
+    "candidate product write target groups",
+    "smallest safe future write prototype",
+    "/tmp design review report runner",
+    productWriteDesignReviewHelperPath,
+    "npm run smoke:research-candidate-product-write-design-review-v0-1",
+    "npm run design:research-candidate-product-write-design-review-v0-1",
     "no new route",
     "no UI behavior change",
     "no normal product write",
@@ -264,6 +296,14 @@ function assertDocsPackageAndBrowserPointers() {
   assert.ok(
     browserValidator.includes("transaction_plan_fixture_only_no_browser_route"),
     "browser validator should assert no transaction plan route is called",
+  );
+  assert.ok(
+    browserValidator.includes("product_write_design_review_artifact_note"),
+    "browser validator should include product-write design review artifact note",
+  );
+  assert.ok(
+    browserValidator.includes("product_write_design_review_no_browser_route"),
+    "browser validator should assert no product-write design review route is called",
   );
 }
 
@@ -301,10 +341,16 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       line.includes(
         '"smoke:research-candidate-disabled-write-adapter-transaction-plan-v0-1"',
       ) ||
+      line.includes(
+        '"plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1"',
+      ) ||
         line.includes(
-          '"plan:research-candidate-disabled-write-adapter-transaction-plan-v0-1"',
+          '"smoke:research-candidate-product-write-design-review-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-product-write-design-review-v0-1"',
         ),
-      `package.json must only add the transaction-plan scripts, not dependencies: ${line}`,
+      `package.json must only add the transaction-plan or product-write design-review scripts, not dependencies: ${line}`,
     );
   }
 }

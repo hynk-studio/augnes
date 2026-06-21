@@ -19,6 +19,8 @@ const CONTRACT_TEST_REPORT_PATH =
   "/tmp/augnes-disabled-write-adapter-contract-tests-v0-1/report.json";
 const TRANSACTION_PLAN_REPORT_PATH =
   "/tmp/augnes-disabled-write-adapter-transaction-plan-v0-1/report.json";
+const PRODUCT_WRITE_DESIGN_REVIEW_REPORT_PATH =
+  "/tmp/augnes-product-write-design-review-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -133,6 +135,7 @@ function createInitialReport() {
     disabled_adapter_temp_harness_assertion_result: null,
     contract_tests_artifact_note: null,
     transaction_plan_artifact_note: null,
+    product_write_design_review_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -247,6 +250,23 @@ async function main() {
     {
       transaction_plan_route_request_count: transactionPlanRouteRequests.length,
       artifact_note: report.transaction_plan_artifact_note,
+    },
+  );
+  report.product_write_design_review_artifact_note =
+    buildProductWriteDesignReviewArtifactNote();
+  const productWriteDesignReviewRouteRequests = requestLog.filter((request) =>
+    /product-write-design-review|product-write-design|write-design-review/i.test(
+      request.path ?? "",
+    ),
+  );
+  recordAssertion(
+    "product_write_design_review_no_browser_route",
+    productWriteDesignReviewRouteRequests.length === 0,
+    "Product-write design review artifacts added no browser-observed route behavior.",
+    {
+      product_write_design_review_route_request_count:
+        productWriteDesignReviewRouteRequests.length,
+      artifact_note: report.product_write_design_review_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1479,6 +1499,17 @@ function buildTransactionPlanArtifactNote() {
     note: reportExists
       ? "Disabled write adapter transaction-plan report was present before or during browser validation; browser flow does not execute transaction-plan artifacts."
       : "Disabled write adapter transaction-plan report was not present; browser flow does not execute transaction-plan artifacts.",
+  };
+}
+
+function buildProductWriteDesignReviewArtifactNote() {
+  const reportExists = existsSync(PRODUCT_WRITE_DESIGN_REVIEW_REPORT_PATH);
+  return {
+    report_path: PRODUCT_WRITE_DESIGN_REVIEW_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Product-write design review report was present before or during browser validation; browser flow does not execute design-review artifacts."
+      : "Product-write design review report was not present; browser flow does not execute design-review artifacts.",
   };
 }
 
