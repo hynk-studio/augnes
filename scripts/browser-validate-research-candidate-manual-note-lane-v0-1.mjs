@@ -29,6 +29,8 @@ const TEMP_DB_SINGLE_CLAIM_RESULT_REVIEW_REPORT_PATH =
   "/tmp/augnes-temp-db-single-claim-result-review-v0-1/report.json";
 const TEMP_DB_SINGLE_CLAIM_RESULT_CONTRACT_TESTS_REPORT_PATH =
   "/tmp/augnes-temp-db-single-claim-result-contract-tests-v0-1/report.json";
+const SINGLE_CLAIM_PRODUCT_WRITE_GATE_DESIGN_REPORT_PATH =
+  "/tmp/augnes-single-claim-product-write-gate-design-v0-1/report.json";
 const DEFAULT_PORT = 3000;
 const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
@@ -148,6 +150,7 @@ function createInitialReport() {
     temp_db_single_claim_write_prototype_artifact_note: null,
     temp_db_single_claim_result_review_artifact_note: null,
     temp_db_single_claim_result_contract_tests_artifact_note: null,
+    single_claim_product_write_gate_design_artifact_note: null,
     two_draft_transition_assertion_result: null,
     storage_boundary_inspection_result: null,
     mobile_layout_assertion_result: null,
@@ -351,6 +354,24 @@ async function main() {
         tempDbSingleClaimResultContractTestsRouteRequests.length,
       artifact_note:
         report.temp_db_single_claim_result_contract_tests_artifact_note,
+    },
+  );
+  report.single_claim_product_write_gate_design_artifact_note =
+    buildSingleClaimProductWriteGateDesignArtifactNote();
+  const singleClaimProductWriteGateDesignRouteRequests = requestLog.filter(
+    (request) =>
+      /single-claim-product-write-gate|product-write-gate-design|single-claim-temp-to-product-bridge/i.test(
+        request.path ?? "",
+      ),
+  );
+  recordAssertion(
+    "single_claim_product_write_gate_design_no_browser_route",
+    singleClaimProductWriteGateDesignRouteRequests.length === 0,
+    "Single-claim product write gate design artifacts added no browser-observed route behavior.",
+    {
+      single_claim_product_write_gate_design_route_request_count:
+        singleClaimProductWriteGateDesignRouteRequests.length,
+      artifact_note: report.single_claim_product_write_gate_design_artifact_note,
     },
   );
   report.storage_boundary_inspection_result = inspectStorageBoundary(dbPath);
@@ -1640,6 +1661,17 @@ function buildTempDbSingleClaimResultContractTestsArtifactNote() {
     note: reportExists
       ? "Temp DB single-claim result contract-test report was present before or during browser validation; browser flow does not execute non-UI fixture contract-test artifacts."
       : "Temp DB single-claim result contract-test report was not present; browser flow does not execute non-UI fixture contract-test artifacts.",
+  };
+}
+
+function buildSingleClaimProductWriteGateDesignArtifactNote() {
+  const reportExists = existsSync(SINGLE_CLAIM_PRODUCT_WRITE_GATE_DESIGN_REPORT_PATH);
+  return {
+    report_path: SINGLE_CLAIM_PRODUCT_WRITE_GATE_DESIGN_REPORT_PATH,
+    report_exists: reportExists,
+    note: reportExists
+      ? "Single-claim product write gate design report was present before or during browser validation; browser flow does not execute non-UI gate-design artifacts."
+      : "Single-claim product write gate design report was not present; browser flow does not execute non-UI gate-design artifacts.",
   };
 }
 

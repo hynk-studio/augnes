@@ -1065,6 +1065,22 @@ repo-local 색인이다.
   fetch, no external handoff, and no repo schema/migration/dependency.
   Browser-backed validation uses the best available method and may record the
   local `/tmp` result contract-test report if present.
+- Manual note single-claim product write gate design:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-gate-design.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-gate-design-v0-1`,
+  and `npm run design:research-candidate-single-claim-product-write-gate-design-v0-1`
+  add a design-only gate artifact that consumes temp DB result contract
+  evidence, defines product-write authority gates, and keeps product authority
+  gates intentionally block product write. It recommends the next
+  single-claim temp-to-product bridge design only when temp evidence gates
+  pass or warn and the product boundary is preserved. The runner does not open
+  DB, does not execute SQL, and adds no product DB write, no actual promotion,
+  no proof/evidence write, no Perspective/canonical graph write, no work item,
+  no provider/retrieval/source fetch, no external handoff, and no repo
+  schema/migration/dependency. Browser-backed validation uses the best
+  available method and may record the local `/tmp` gate-design report if
+  present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

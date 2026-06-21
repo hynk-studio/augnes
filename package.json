@@ -225,6 +225,8 @@
     "review:research-candidate-temp-db-single-claim-result-review-v0-1": "node scripts/run-research-candidate-temp-db-single-claim-result-review-v0-1.mjs",
     "smoke:research-candidate-temp-db-single-claim-result-contract-tests-v0-1": "node scripts/smoke-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs",
     "contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1": "node scripts/run-research-candidate-temp-db-single-claim-result-contract-tests-v0-1.mjs",
+    "smoke:research-candidate-single-claim-product-write-gate-design-v0-1": "node scripts/smoke-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
+    "design:research-candidate-single-claim-product-write-gate-design-v0-1": "node scripts/run-research-candidate-single-claim-product-write-gate-design-v0-1.mjs",
     "smoke:research-candidate-manual-note-draft-ui-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-draft-ui-extract-v0-1.mjs",
     "smoke:research-candidate-manual-note-candidate-display-extract-v0-1": "node scripts/smoke-research-candidate-manual-note-candidate-display-extract-v0-1.mjs",
     "smoke:research-candidate-promotion-readiness-readout-extract-v0-1": "node scripts/smoke-research-candidate-promotion-readiness-readout-extract-v0-1.mjs",

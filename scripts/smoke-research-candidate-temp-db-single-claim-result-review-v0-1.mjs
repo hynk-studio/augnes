@@ -346,6 +346,12 @@ function assertNoRouteUiSchemaDependencyExpansion() {
         ) ||
         line.includes(
           '"contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1"',
+        ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-gate-design-v0-1"',
+        ) ||
+        line.includes(
+          '"design:research-candidate-single-claim-product-write-gate-design-v0-1"',
         ),
       `package.json must only add result review scripts, not dependencies: ${line}`,
     );
