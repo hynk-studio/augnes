@@ -1081,6 +1081,23 @@ repo-local 색인이다.
   schema/migration/dependency. Browser-backed validation uses the best
   available method and may record the local `/tmp` gate-design report if
   present.
+- Manual note single-claim temp-to-product bridge design:
+  `lib/research-candidate-review/manual-note-single-claim-temp-to-product-bridge-design.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-bridge-design.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-temp-to-product-bridge-design-v0-1`,
+  and `npm run design:research-candidate-single-claim-temp-to-product-bridge-design-v0-1`
+  add a design-only bridge artifact that maps the existing temp DB
+  single-claim evidence chain into a future product claim draft, idempotency
+  mapping, rollback mapping, audit mapping, and operator decision placeholder.
+  It remains blocked at `ready_for_disabled_bridge_skeleton` and recommends
+  `single_claim_temp_to_product_disabled_bridge_skeleton` as the next slice,
+  not product write. The runner does not open DB, does not execute SQL, and
+  adds no product DB write, no product ID allocation, no proof/evidence write,
+  no Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, no route, no UI write action, no enabled adapter,
+  and no repo schema/migration/dependency. Browser-backed validation uses the
+  best available method and may record the local `/tmp` bridge-design report
+  if present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
