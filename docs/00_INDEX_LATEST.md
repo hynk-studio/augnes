@@ -1139,6 +1139,28 @@ repo-local 색인이다.
   Perspective/canonical graph write, no work item, no provider/retrieval/source
   fetch, no external handoff, no browser persistence, and no local runtime
   requirement.
+- Manual note single-claim temp-to-product disabled bridge dry-run transaction plan:
+  `lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1`,
+  and `npm run plan:research-candidate-single-claim-temp-to-product-disabled-bridge-dry-run-transaction-plan-v0-1`
+  add a deterministic disabled dry-run transaction plan only. It consumes the
+  disabled bridge skeleton contract-test report, disabled bridge skeleton,
+  temp-to-product bridge design, and product write gate design fixtures or
+  passing `/tmp` reports; failed optional reports block and do not fall back to
+  committed fixtures. This slice does not implement product write, does not
+  execute a transaction, does not enable an adapter, does not allocate product
+  IDs, does not open DB, and does not execute SQL. It adds no route, no UI
+  write action, and no schema/migration/dependency. Product write remains
+  blocked. The plan status is `disabled_dry_run_transaction_plan_only`, the
+  recommendation status is `ready_for_disabled_dry_run_transaction_harness`,
+  and the next recommended slice is
+  `single_claim_temp_to_product_disabled_bridge_dry_run_transaction_harness`,
+  not product write. The runner writes only `/tmp` report artifacts and keeps
+  no product DB write, no product ID allocation, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, no browser persistence, and no local runtime
+  requirement.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
