@@ -87,6 +87,28 @@ const bridgeDesignSmoke = readFileSync(bridgeDesignSmokePath, "utf8");
 const docsIndex = readFileSync(docsIndexPath, "utf8").replace(/\s+/g, " ");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 const browserValidator = readFileSync(browserValidatorPath, "utf8");
+const noopReportSmokeScript =
+  "smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1";
+const noopReportRunnerScript =
+  "report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1";
+assert.equal(
+  packageJson.scripts[noopReportSmokeScript],
+  "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+);
+assert.equal(
+  packageJson.scripts[noopReportRunnerScript],
+  "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_disabled_adapter_noop_invocation_report_artifact_note",
+  ),
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_disabled_adapter_noop_invocation_report_no_browser_route",
+  ),
+);
 
 assertHelperContract();
 assertRunnerContract();
@@ -909,8 +931,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"harness:research-candidate-single-claim-product-write-disabled-adapter-dry-run-invocation-harness-v0-1"',
+      ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1"',
+      ) ||
+        line.includes(
+          '"report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1"',
       ),
-      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, disabled adapter skeleton, disabled adapter contract-test, or disabled adapter dry-run invocation harness scripts, not dependencies: ${line}`,
+      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, disabled adapter skeleton, disabled adapter contract-test, disabled adapter dry-run invocation harness, or no-op report scripts, not dependencies: ${line}`,
     );
   }
 }

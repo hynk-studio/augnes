@@ -1279,6 +1279,29 @@ repo-local 색인이다.
   and the next recommended slice is
   `single_claim_product_write_disabled_adapter_noop_invocation_report`, not
   product write implementation.
+- Manual note single-claim product write disabled adapter no-op invocation
+  report:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-disabled-adapter-noop-invocation-report.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-noop-invocation-report.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1`,
+  and
+  `npm run report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1`
+  add a deterministic report-only artifact over the disabled adapter dry-run
+  invocation harness. It reports the pure in-memory rejected/no-op invocation
+  from the disabled harness, captures operator review and no-write closeout
+  evidence, and previews the next preflight command envelope without making it
+  executable or durable. It does not implement product write, does not enable
+  an adapter, does not invoke a runtime adapter, does not execute a DB
+  transaction, does not allocate product IDs, does not open DB, and does not
+  execute SQL. It adds no route, no UI action, and no
+  schema/migration/dependency. Product write remains blocked. The no-op report
+  status is
+  `product_write_disabled_adapter_noop_invocation_report_only`, the
+  recommendation status is
+  `ready_for_single_claim_product_write_preflight_command_envelope`, and the
+  next recommended slice is
+  `single_claim_product_write_preflight_command_envelope`, not product write
+  implementation.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

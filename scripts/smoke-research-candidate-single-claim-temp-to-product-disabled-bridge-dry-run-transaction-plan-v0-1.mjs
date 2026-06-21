@@ -211,6 +211,28 @@ const bridgeDesignFixture = JSON.parse(readFileSync(bridgeDesignFixturePath, "ut
 const productWriteGateDesignFixture = JSON.parse(
   readFileSync(productWriteGateDesignFixturePath, "utf8"),
 );
+const noopReportSmokeScript =
+  "smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1";
+const noopReportRunnerScript =
+  "report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1";
+assert.equal(
+  packageJson.scripts[noopReportSmokeScript],
+  "node scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+);
+assert.equal(
+  packageJson.scripts[noopReportRunnerScript],
+  "node scripts/run-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_disabled_adapter_noop_invocation_report_artifact_note",
+  ),
+);
+assert.ok(
+  browserValidator.includes(
+    "single_claim_product_write_disabled_adapter_noop_invocation_report_no_browser_route",
+  ),
+);
 
 assertHelperContract();
 assertPlanContract(sampleFixture, "committed sample fixture");
